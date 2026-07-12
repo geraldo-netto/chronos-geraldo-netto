@@ -41,7 +41,7 @@ with the applet:
 | --- | --- | --- | --- |
 | Node.js | **≥ 20** | the JS suite and its coverage gate | `sudo apt install nodejs npm` |
 | Python 3 | ≥ 3.8 | the settings-widget suite | already present |
-| eslint | ^9 (pinned in `package.json`) | `npm run lint:js` | `npm install` |
+| eslint | `^9` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` (skipped when absent) | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
 | gettext | any | compiling `po/*.po` to `.mo` at install time (`msgfmt`) | `sudo apt install gettext` |
