@@ -96,7 +96,7 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Mark as weekend days | two days | How many days a week are styled as non-working; which days come from your locale. |
 | Use a custom date format | off | Replaces the panel label and its tooltip with your own `strftime` formats (**Date format**, **Date format for tooltip**); the **Show information on date format syntax** button opens the reference. |
 | Country / Region | None | Marks that country's public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; only a country you actually pick is saved. |
-| Keyboard shortcut | `<Super>c` | Opens the calendar menu. |
+| Show calendar (under **Keyboard shortcuts**) | `<Super>c` | Opens the calendar menu. |
 
 On a horizontal panel the label stays compact: day, short month and the local
 time (`11 Jul 22:52`), plus the weather readout if it is on. The weekday, the
