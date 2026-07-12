@@ -635,6 +635,15 @@ def load_module(path, name, missing_pytz=False):
         # ran: on a machine in Rome, "Europe/Rome" is correctly reserved.
         # local_timezone_name has its own tests; here it is a fixed answer.
         module.local_timezone_name = lambda: FIXED_LOCAL_TIMEZONE
+        # the function lives in the gi-free timezone_data sibling that the widget
+        # module re-exports, and TimezoneResolver/local_city_name call the
+        # sibling's copy — patch it there too, or they read the real zone
+        for cached_name in set(sys.modules) - preloaded:
+            cached = sys.modules.get(cached_name)
+            cached_file = getattr(cached, "__file__", None)
+            if (cached_file and str(APPLET_DIR) in str(cached_file)
+                    and hasattr(cached, "local_timezone_name")):
+                cached.local_timezone_name = lambda: FIXED_LOCAL_TIMEZONE
         return module
     finally:
         builtins.__import__ = original_import
@@ -910,9 +919,11 @@ class SettingsWidgetsTest(unittest.TestCase):
         module = load_module(COMMON_PATH, "settings_widgets_common_localtime")
         real = module.__dict__["local_timezone_name"]
         # (load_module replaced the module attribute, so reach for the original
-        # through a fresh import of the source)
+        # through a fresh import of the source — it lives in the gi-free
+        # timezone_data sibling now, which execs with no stubs or sys.path)
         import importlib.util
-        spec = importlib.util.spec_from_file_location("swc_localtime_real", COMMON_PATH)
+        spec = importlib.util.spec_from_file_location(
+            "tzdata_localtime_real", APPLET_DIR / "timezone_data.py")
         fresh = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fresh)
         del real
@@ -2408,7 +2419,13 @@ class WeatherLocationPrefillTest(unittest.TestCase):
         cls.module = load_module(COMMON_PATH, "settings_widgets_common_prefill")
 
     def entry(self, saved="", local_zone="Europe/Rome"):
-        self.module.local_timezone_name = lambda: local_zone
+        def fixed_zone():
+            return local_zone
+        self.module.local_timezone_name = fixed_zone
+        # local_city_name and TimezoneResolver live in the gi-free sibling and
+        # read its copy of local_timezone_name; reach it through the re-export's
+        # globals so the prefill sees this zone, not the machine's own
+        self.module.local_city_name.__globals__["local_timezone_name"] = fixed_zone
         settings = FakeSettings({"weather-location": saved})
         widget = self.module.WeatherLocationEntry(
             {"description": "Weather location"}, "weather-location", settings)

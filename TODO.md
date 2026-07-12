@@ -82,7 +82,6 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. Each is unpacked below into ordered sub-steps that each land on their own with the suite green — do them in order, one commit per step.
 
 ### T444 — split `settings_widgets_common.py` into a gi-free `timezone_data.py`
-- **T444b** — Create `timezone_data.py` (no `gi` imports) holding `TimezoneResolver`, `local_timezone_name`, `local_city_name`, `looks_like_iana`, `completion_key`, `RESERVED_TIMEZONES`. Have `settings_widgets_common.py` `from timezone_data import …` and re-export them so `self.module.X` still resolves. Keep `MAX_CLOCKS` in `settings_widgets_common.py` (where `schema_static` reads it) unless you also update that regex.
 - **T444c** — Confirm `coverage.py` measures `timezone_data.py` (it globs `*.py`) and add any missing coverage; optionally point the pure timezone tests at `timezone_data` directly. The `5.4/settings_widgets.py` shim is unchanged — it re-exports only the widget names.
 
 ### T445 — split `weather.js` into `weatherScheduler.js` + `weatherProviders.js`
