@@ -350,11 +350,19 @@ test("getFormattedToday caches by day and invalidates at rollover", () => {
 });
 
 // T27d: suffix building and ellipsizing
+// a reading record {condition, temperatureC} from a display string like "☀ 20°C"
+function readingFrom(text) {
+    const chars = Array.from(text);
+    return { condition: chars[0], temperatureC: parseFloat(chars.slice(1).join("")) };
+}
+
 function suffixStub(overrides = {}) {
     return Object.assign({
         orientation: St.Side.TOP,
         show_weather: true,
+        weather_units: "si",
         _weather_text: "",
+        _weather_reading: null,
         _weather_error: "",
         worldclocks: []
     }, overrides);
@@ -365,17 +373,17 @@ test("buildLabelSuffix is the weather and nothing else; vertical panels get none
 
     // the panel shows the temperature; the sky glyph is in the tooltip and in
     // the accessible name, both of which say it in words anyway
-    assert.equal(panelStatus(suffixStub({ _weather_text: "☀ 20°C" })).buildLabelSuffix(), "20°C");
+    assert.equal(panelStatus(suffixStub({ _weather_reading: readingFrom("☀ 20°C") })).buildLabelSuffix(), "20°C");
 
     // world clocks never reach the panel, however many are configured: they are
     // a table, and the panel is one line the date and the weather already share
     const withClocks = suffixStub({
-        _weather_text: "☀ 20°C",
+        _weather_reading: readingFrom("☀ 20°C"),
         worldclocks: [{ label: "NY" }, { label: "Tokyo" }]
     });
     assert.equal(panelStatus(withClocks).buildLabelSuffix(), "20°C");
 
-    const stale = suffixStub({ _weather_text: "☀ 20°C", _weather_error: "boom" });
+    const stale = suffixStub({ _weather_reading: readingFrom("☀ 20°C"), _weather_error: "boom" });
     assert.equal(panelStatus(stale).buildLabelSuffix(), "⚠ 20°C");
     // an error with no reading yet is the marker alone
     assert.equal(panelStatus(suffixStub({ _weather_error: "boom" })).buildLabelSuffix(), "⚠");
@@ -421,7 +429,9 @@ function updateStub({ menuOpen = false } = {}) {
         custom_tooltip_format: "",
         _todayFormatCache: null,
         show_weather: false,
+        weather_units: "si",
         _weather_text: "",
+        _weather_reading: null,
         _weather_error: "",
         _weather_provider: "",
         worldclocks: [{ label: "NY", timezone: "America/New_York" }],
@@ -460,7 +470,7 @@ test("the panel readout is announced with its condition", () => {
     stub.actor = { names: [], set_accessible_name(name) { this.names.push(name); } };
     stub.show_weather = true;
     stub._weather_error = "";
-    stub._weather_text = "🌧 8°C";
+    stub._weather_reading = { condition: "🌧", temperatureC: 8 };
 
     Proto._updateClockAndDate.call(stub);
 
@@ -582,17 +592,17 @@ test("_updateClockAndDate covers custom tooltip fallback and non-today state", (
     assert.ok(errors.length > 0);
 });
 
-test("_updateClockAndDate appends and truncates label suffixes", () => {
+test("_updateClockAndDate appends the weather reading to the clock", () => {
     const { stub, calls } = updateStub({ menuOpen: false });
     Object.assign(stub, {
         show_weather: true,
-        _weather_text: "warm ".repeat(30)
+        _weather_reading: { condition: "☀", temperatureC: 20 }
     });
     Proto._updateClockAndDate.call(stub);
-    // the clock and the reading run together; only the world clocks after them
-    // are bulleted off
-    assert.ok(calls.label[0].startsWith("10:00 warm"));
-    assert.ok(calls.label[0].endsWith(ELLIPSIS));
+    // the clock and the reading run together; the panel suffix is the
+    // temperature and nothing else — the sky glyph and the world clocks are not
+    // on the panel. (ellipsizeLabelSuffix is exercised directly elsewhere.)
+    assert.equal(calls.label[0], "10:00 20°C");
 });
 
 test("_updateClockAndDate forces the full view when asked", () => {
@@ -701,7 +711,8 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         use_custom_format: false,
-        _weather_text: "☀ 20°C",
+        weather_units: "si",
+        _weather_reading: { condition: "☀", temperatureC: 20 },
         _weather_error: "",
         _weather_provider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
@@ -2076,16 +2087,16 @@ test("the provider lifecycle releases the city weather provider too", () => {
 
 test("describeWeather puts the sky glyph into words for a screen reader", () => {
     // the emoji reads as a codepoint name or as nothing at all
-    assert.equal(PanelStatusModule.describeWeather("🌧 8°C"), "🌧 8°C — Rain");
-    assert.equal(PanelStatusModule.describeWeather("⛈ 8°C"), "⛈ 8°C — Thunderstorm");
-    // no glyph, nothing to say: the reading speaks for itself
+    // the condition glyph is said in words; the label already carries the number
+    assert.equal(PanelStatusModule.describeWeather("12 Jul 14:03 8°C", "🌧"), "12 Jul 14:03 8°C — Rain");
+    assert.equal(PanelStatusModule.describeWeather("8°C", "⛈"), "8°C — Thunderstorm");
+    // no condition, nothing to say: the reading speaks for itself
     assert.equal(PanelStatusModule.describeWeather("8°C"), "8°C");
     assert.equal(PanelStatusModule.describeWeather(""), "");
 
-    // the panel label is the date followed by the reading, so it asks about
-    // only its weather half
-    assert.equal(PanelStatusModule.describeWeather("12 Jul 14:03 🌧 8°C", "🌧 8°C"),
-        "12 Jul 14:03 🌧 8°C — Rain");
+    // the first refresh has not landed: read aloud, the placeholder is nothing
+    assert.equal(PanelStatusModule.describeWeather("12 Jul 14:03 …", "", true),
+        "12 Jul 14:03 … — Weather: loading…");
 });
 
 // the helper above was written, exported and tested, and then nothing called
@@ -2095,28 +2106,28 @@ test("the panel's spoken name is the one describeWeather builds", () => {
     const names = [];
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        _weather_text: "🌧 8°C",
+        _weather_reading: { condition: "🌧", temperatureC: 8 },
         _weather_error: "",
         actor: { set_accessible_name: (name) => names.push(name) }
     });
 
-    panelStatus(stub)._announce("12 Jul 14:03 🌧 8°C");
+    panelStatus(stub)._announce("12 Jul 14:03 8°C");
 
-    assert.deepEqual(names, [PanelStatusModule.describeWeather("12 Jul 14:03 🌧 8°C", "🌧 8°C")]);
-    assert.equal(names[0], "12 Jul 14:03 🌧 8°C — Rain");
+    assert.deepEqual(names, [PanelStatusModule.describeWeather("12 Jul 14:03 8°C", "🌧")]);
+    assert.equal(names[0], "12 Jul 14:03 8°C — Rain");
 });
 
 test("a condition with no translation of its own is still spoken", () => {
-    const original = Weather.weatherCondition;
+    const original = Weather.WEATHER_CONDITIONS;
     // a glyph added to weather.js without a word here must not silence the
     // readout: the raw condition is better than nothing
-    Weather.weatherCondition = () => "Hail";
+    Weather.WEATHER_CONDITIONS = Object.assign({}, original, { "🧊": "Hail" });
     try {
-        assert.equal(PanelStatusModule.describeWeather("🧊 0°C"), "🧊 0°C — Hail");
+        assert.equal(PanelStatusModule.describeWeather("0°C", "🧊"), "0°C — Hail");
 
         const stub = Object.assign(Object.create(Proto), {
             show_weather: true,
-            _weather_text: "🧊 0°C",
+            _weather_reading: { condition: "🧊", temperatureC: 0 },
             _weather_error: "",
             actor: { names: [], set_accessible_name(name) { this.names.push(name); } }
         });
@@ -2132,7 +2143,7 @@ test("a condition with no translation of its own is still spoken", () => {
         delete stub.actor.set_accessible_name;
         assert.doesNotThrow(() => presenter._announce("11:00 0°C"));
     } finally {
-        Weather.weatherCondition = original;
+        Weather.WEATHER_CONDITIONS = original;
     }
 });
 
@@ -2268,25 +2279,27 @@ test("a horizontal panel label is applet-formatted, never the desktop clock form
 // the one glyph that stays - it is the only sign on the panel that the reading
 // may be stale.
 test("the panel suffix carries the temperature alone, and the failure marker when stale", () => {
-    const withReading = suffixStub({ _weather_text: "⛅ 20°C" });
+    const withReading = suffixStub({ _weather_reading: readingFrom("⛅ 20°C") });
     const suffix = panelStatus(withReading).buildLabelSuffix();
 
     assert.equal(suffix, "20°C");
     assert.ok(!suffix.includes("•"), "no bullet divides the clock from its temperature");
     assert.equal(Weather.weatherCondition(suffix), "", "no leading condition glyph");
 
-    // every glyph the providers can emit is stripped the same way
+    // every glyph the providers can emit leaves the panel showing the number alone
     for (const glyph of Object.keys(Weather.WEATHER_CONDITIONS)) {
-        assert.equal(panelStatus(suffixStub({ _weather_text: `${glyph} -3°C` })).buildLabelSuffix(), "-3°C");
+        assert.equal(panelStatus(suffixStub({
+            _weather_reading: { condition: glyph, temperatureC: -3 }
+        })).buildLabelSuffix(), "-3°C");
     }
 
     // a failed lookup keeps the last good reading behind the warning marker
-    const stale = suffixStub({ _weather_text: "⛅ 20°C", _weather_error: "Weather service unavailable" });
+    const stale = suffixStub({ _weather_reading: readingFrom("⛅ 20°C"), _weather_error: "Weather service unavailable" });
     assert.equal(panelStatus(stale).buildLabelSuffix(), `${Weather.WEATHER_ERROR_MARKER} 20°C`);
     assert.equal(Weather.WEATHER_ERROR_MARKER, "⚠");
 
     // and the reading is alone up there: a configured clock adds nothing
-    const withClocks = suffixStub({ _weather_text: "⛅ 20°C", worldclocks: [{ label: "NY" }] });
+    const withClocks = suffixStub({ _weather_reading: readingFrom("⛅ 20°C"), worldclocks: [{ label: "NY" }] });
     assert.equal(panelStatus(withClocks).buildLabelSuffix(), "20°C");
 });
 
@@ -2298,7 +2311,8 @@ test("the tooltip is a UTC/local/city table and nothing else", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         use_custom_format: false,
-        _weather_text: "☀ 20°C",
+        weather_units: "si",
+        _weather_reading: { condition: "☀", temperatureC: 20 },
         _weather_error: "",
         _weather_provider: "Open-Meteo",
         worldclocks: [{ label: "New York" }, { label: "Tokyo" }],
@@ -2585,7 +2599,7 @@ test("no clock list, however shaped, puts a clock on the panel", () => {
     for (const worldclocks of [undefined, null, [], [{ label: "NY" }]]) {
         assert.equal(panelStatus(suffixStub({ worldclocks })).buildLabelSuffix(), "");
         assert.equal(
-            panelStatus(suffixStub({ worldclocks, _weather_text: "☀ 20°C" })).buildLabelSuffix(),
+            panelStatus(suffixStub({ worldclocks, _weather_reading: readingFrom("☀ 20°C") })).buildLabelSuffix(),
             "20°C");
     }
 });
@@ -2632,7 +2646,8 @@ test("the accessible name speaks the error, or the condition, or neither", () =>
         const stub = Object.assign({
             actor: { set_accessible_name: (name) => spoken.push(name) },
             show_weather: true,
-            _weather_text: "🌧 8°C",
+            _weather_text: "",
+            _weather_reading: { condition: "🌧", temperatureC: 8 },
             _weather_error: ""
         }, overrides);
         panelStatus(stub)._announce("10:00");
@@ -2646,7 +2661,7 @@ test("the accessible name speaks the error, or the condition, or neither", () =>
     // weather off: neither the error nor the condition is anyone's business
     assert.equal(announce({ show_weather: false, _weather_error: "boom" }), "10:00");
     assert.equal(announce({ show_weather: false }), "10:00");
-    assert.equal(announce({ _weather_text: "" }), "10:00");
+    assert.equal(announce({ _weather_reading: null }), "10:00");
 });
 
 test("getClockEntries includes the built-in rows unless told otherwise", () => {
@@ -2750,6 +2765,8 @@ test("a panel view can be substituted whole", () => {
         menuOpen: false,
         desktopSettings: { use24h: true },
         get weatherText() { reads.push("weatherText"); return "☀ 20°C"; },
+        get weatherReading() { reads.push("weatherReading"); return { condition: "☀", temperatureC: 20 }; },
+        weatherUnits: "si",
         get weatherError() { reads.push("weatherError"); return ""; },
         weatherProvider: "Open-Meteo",
         cityWeatherText: () => "",

@@ -379,7 +379,8 @@ test("weather failures keep showing the stale reading with the marker", () => {
     assert.match(code, /parts\.push\(reading \?\n\s+Weather\.WEATHER_ERROR_MARKER \+ " " \+ reading :\n\s+Weather\.WEATHER_ERROR_MARKER\);/);
     // the tooltip row keeps the reading in its own column and puts the marker
     // in the condition column, so a failed refresh loses neither
-    assert.match(code, /return \[this\.stripWeatherIcon\(reading\), error \|\| words\];/);
+    assert.match(code, /return \[temperature, error \|\| words\];/);
+    assert.match(code, /return record \? this\._readingCells\(record, error\) : \["", error\];/);
 });
 
 test("bad custom formats fall back to a translated, actionable message", () => {

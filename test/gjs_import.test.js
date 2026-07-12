@@ -173,6 +173,7 @@ function gjsImportsMock() {
                             weatherReading() {},
                             weatherText() {},
                             formatReading() {},
+                            formatTemperature() {},
                             metNoIcon() {},
                             metNoSummary() {},
                             metNoWeatherReading() {},

@@ -32,6 +32,7 @@ var WEATHER_PROVIDER_NAMES = WeatherFormat.WEATHER_PROVIDER_NAMES;
 var WEATHER_CONDITIONS = WeatherFormat.WEATHER_CONDITIONS;
 var weatherCondition = WeatherFormat.weatherCondition;
 var normalizeUnits = WeatherFormat.normalizeUnits;
+var formatTemperature = WeatherFormat.formatTemperature;
 var weatherIcon = WeatherFormat.weatherIcon;
 var geocodeUrl = WeatherFormat.geocodeUrl;
 var nominatimGeocodeUrl = WeatherFormat.nominatimGeocodeUrl;
@@ -616,5 +617,5 @@ var WeatherProvider = class WeatherProvider {
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { WeatherProvider, FORECAST_PROVIDERS, GEOCODE_PROVIDERS, WeatherDisplayState, WeatherRefreshScheduler, WeatherLocationResolver, WeatherForecastResolver, STALE_PERIODS, staleAfterSeconds, readingIsStale, HTTP_TIMEOUT_SECONDS, MAX_GEOCODE_CACHE_ENTRIES, MAX_RETRY_ATTEMPTS, WEATHER_DEBOUNCE_MS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, WEATHER_CONDITIONS, REFRESH_SECONDS, RETRY_SECONDS, weatherCondition, geocodeUrl, nominatimGeocodeUrl, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, aviationWeatherStation, aviationWeatherReading, aviationWeatherText, metarNumber, locationCacheKey, normalizeUnits, weatherIcon, weatherReading, weatherText, metNoIcon, metNoWeatherReading, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
+    module.exports = { WeatherProvider, FORECAST_PROVIDERS, GEOCODE_PROVIDERS, WeatherDisplayState, WeatherRefreshScheduler, WeatherLocationResolver, WeatherForecastResolver, STALE_PERIODS, staleAfterSeconds, readingIsStale, HTTP_TIMEOUT_SECONDS, MAX_GEOCODE_CACHE_ENTRIES, MAX_RETRY_ATTEMPTS, WEATHER_DEBOUNCE_MS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, WEATHER_CONDITIONS, REFRESH_SECONDS, RETRY_SECONDS, weatherCondition, geocodeUrl, nominatimGeocodeUrl, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, aviationWeatherStation, aviationWeatherReading, aviationWeatherText, metarNumber, locationCacheKey, normalizeUnits, formatTemperature, weatherIcon, weatherReading, weatherText, metNoIcon, metNoWeatherReading, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
 }

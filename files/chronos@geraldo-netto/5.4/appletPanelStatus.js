@@ -68,22 +68,20 @@ const WEATHER_CONDITION_TEXT = {
 
 // The panel has room for a glyph and a temperature, and no more. A screen
 // reader gets the emoji's codepoint name or nothing at all, so the spoken name
-// spells the condition out. `reading` is the weather text to read the condition
-// from; by default that is the whole string, which is how the panel label - the
-// date followed by the reading - asks about only its weather half.
-function describeWeather(text, reading = text) {
-    // the first refresh has not landed yet, and the placeholder for it is an
-    // ellipsis: read aloud, that is nothing at all
-    if (reading === Weather.WEATHER_PENDING_TEXT) {
+// spells the condition out. `condition` is the reading's condition glyph
+// (record.condition); `pending` is the first-refresh placeholder state, whose
+// ellipsis reads aloud as nothing at all.
+function describeWeather(text, condition = "", pending = false) {
+    if (pending) {
         return joinPhrases(text, _("Weather: loading…"));
     }
 
-    const condition = Weather.weatherCondition(reading);
-    if (!condition) {
+    const word = condition ? (Weather.WEATHER_CONDITIONS[condition] || "") : "";
+    if (!word) {
         return text;
     }
 
-    return joinPhrases(text, WEATHER_CONDITION_TEXT[condition] || condition);
+    return joinPhrases(text, WEATHER_CONDITION_TEXT[word] || word);
 }
 
 // The result is handed to strftime, so every % in it is a directive. A
@@ -163,9 +161,15 @@ class PanelView {
     }
 
     // the unit-free reading record the panel renders from; the panel and tooltip
-    // read its fields (T442d), leaving weatherText for the pending/empty states
+    // read its fields, leaving weatherText for the pending/empty states
     get weatherReading() {
         return this.applet._weather_reading;
+    }
+
+    // the record is Celsius; the panel and tooltip render its temperature in the
+    // unit the user asked for, so the render needs to know which
+    get weatherUnits() {
+        return Weather.normalizeUnits(this.applet.weather_units);
     }
 
     get weatherError() {
@@ -337,15 +341,26 @@ class AppletPanelStatusPresenter {
         view.setWorldclocksVisible(this.worldclocksEnabled());
     }
 
+    // the condition glyph in words, translated where a word exists — the tooltip
+    // cell and the accessible name both say the sky this way
+    _conditionWords(condition) {
+        const word = condition ? (Weather.WEATHER_CONDITIONS[condition] || "") : "";
+        return word ? (WEATHER_CONDITION_TEXT[word] || word) : "";
+    }
+
     // the panel carries the temperature, not the sky: the glyph is a picture of
-    // what the tooltip and the accessible name already say in words
-    stripWeatherIcon(text) {
-        if (!Weather.weatherCondition(text)) {
-            return text;
+    // what the tooltip and the accessible name already say in words. The record
+    // is Celsius; the panel renders it in the user's unit.
+    panelReadingText() {
+        const view = this.view;
+        // the first refresh has not landed: the placeholder is the panel's, and
+        // it is the one weather state the record cannot carry
+        if (view.weatherText === Weather.WEATHER_PENDING_TEXT) {
+            return Weather.WEATHER_PENDING_TEXT;
         }
 
-        // the glyph is the first code point, and a space follows it
-        return Array.from(text).slice(1).join("").trim();
+        const record = view.weatherReading;
+        return record ? Weather.formatTemperature(record.temperatureC, view.weatherUnits) : "";
     }
 
     // The one thing show_worldclocks used to do was hide the popup grid. The
@@ -372,7 +387,7 @@ class AppletPanelStatusPresenter {
         let parts = [];
 
         if (view.showWeather) {
-            const reading = this.stripWeatherIcon(view.weatherText);
+            const reading = this.panelReadingText();
             if (view.weatherError) {
                 // the failure marker stays: it is the only sign on the panel
                 // that the reading may be stale
@@ -431,28 +446,43 @@ class AppletPanelStatusPresenter {
         return cells.concat(this.tooltipWeatherCells(entry));
     }
 
-    // the weather glyphs are colour emoji: they come from a different font,
-    // taller than the text one, so a row carrying a glyph is taller than a row
-    // without and the table combs. The tooltip has room for words, so it takes
-    // the reading in text and leaves the glyphs to the panel.
+    // a temperature cell and a condition cell, rendered from the reading record.
+    // The tooltip has room for words, so it takes the temperature and the sky in
+    // text and leaves the glyph to the panel. The error, if any, replaces the
+    // condition words: the marker says the reading may be old, not gone.
+    _readingCells(record, error) {
+        return [
+            Weather.formatTemperature(record.temperatureC, this.view.weatherUnits),
+            error || this._conditionWords(record.condition)
+        ];
+    }
+
     // the local row takes the panel reading; UTC is a scale, not a place, and
-    // answers null so it shows no weather. A failed refresh keeps the last good
-    // reading, as the panel does — the marker says it may be old, not gone.
-    _builtinWeatherReading(entry) {
+    // shows no weather. A failed refresh keeps the last good reading, as the
+    // panel does — the marker says it may be old, not gone.
+    _builtinWeatherCells(entry) {
         const view = this.view;
         if (entry.timezone === WorldclockData.UTC_TIMEZONE) {
-            return null;
+            return ["", ""];
         }
 
         const error = view.weatherError ?
             Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError) : "";
-        return { reading: view.weatherText || "", error };
+        // the first refresh has not landed: an ellipsis in the temperature
+        // column, with nothing beside it, says less than nothing
+        if (view.weatherText === Weather.WEATHER_PENDING_TEXT) {
+            return ["", error || _("Weather: loading…")];
+        }
+
+        const record = view.weatherReading;
+        return record ? this._readingCells(record, error) : ["", error];
     }
 
     // every non-built-in row takes its own city's reading, which it keeps when a
     // refresh fails — without the marker a temperature from this morning would
-    // read as the weather now
-    _cityWeatherReading(entry) {
+    // read as the weather now. The city reading is still a string here; T442e
+    // moves it to a record and drops the last string-parsing in the tree.
+    _cityWeatherCells(entry) {
         const view = this.view;
         const reading = view.cityWeatherText(entry.label) || "";
         let error = "";
@@ -462,16 +492,6 @@ class AppletPanelStatusPresenter {
             error = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
         }
 
-        return { reading, error };
-    }
-
-    tooltipWeatherCells(entry) {
-        const source = entry.builtin ? this._builtinWeatherReading(entry) : this._cityWeatherReading(entry);
-        if (!source) {
-            return ["", ""];
-        }
-        const { reading, error } = source;
-
         // the first refresh has not landed: an ellipsis in the temperature
         // column, with nothing beside it, says less than nothing
         if (reading === Weather.WEATHER_PENDING_TEXT) {
@@ -480,7 +500,13 @@ class AppletPanelStatusPresenter {
 
         const condition = Weather.weatherCondition(reading);
         const words = condition ? (WEATHER_CONDITION_TEXT[condition] || condition) : "";
-        return [this.stripWeatherIcon(reading), error || words];
+        // the glyph is the first code point, and a space follows it
+        const temperature = condition ? Array.from(reading).slice(1).join("").trim() : reading;
+        return [temperature, error || words];
+    }
+
+    tooltipWeatherCells(entry) {
+        return entry.builtin ? this._builtinWeatherCells(entry) : this._cityWeatherCells(entry);
     }
 
     // The tooltip is rebuilt on every tick while the panel is hovered — once a
@@ -644,9 +670,11 @@ class AppletPanelStatusPresenter {
         const view = this.view;
         const error = view.showWeather && view.weatherError ?
             translateWeatherError(view.weatherError) : "";
-        const reading = !error && view.showWeather ? (view.weatherText || "") : "";
+        const showing = !error && view.showWeather;
+        const pending = showing && view.weatherText === Weather.WEATHER_PENDING_TEXT;
+        const condition = showing && view.weatherReading ? view.weatherReading.condition : "";
         const name = error ? joinPhrases(labelString, error) :
-            describeWeather(labelString, reading);
+            describeWeather(labelString, condition, pending);
 
         if (this._rendered_accessible_name === name) {
             return;
