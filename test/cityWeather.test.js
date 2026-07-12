@@ -319,6 +319,12 @@ test("destroy aborts the session and turns schedule and refresh into no-ops", ()
     const settings = { showWeather: true, units: "si", cities: ["Rome"] };
     let updates = 0;
 
+    // the resolvers are stubbed, so nothing asks for the session on its own;
+    // build it so there is a live one for destroy to abort (the session is lazy
+    // now — a provider whose feature is never used never allocates one)
+    assert.equal(provider._httpSession, null, "the session is not built at construction");
+    provider._getHttpSession();
+
     provider.refresh(settings, () => updates++);
     assert.equal(provider.readingFor("Rome"), "☀ 20°C");
 

@@ -67,12 +67,13 @@ var CityWeatherProvider = class CityWeatherProvider {
                     Boolean(this._active(settings) && this._cities(settings).length)
             }, params));
 
-        this._httpSession = params.httpSession || Utils.createHttpSession({
-            timeout: Weather.HTTP_TIMEOUT_SECONDS,
-            idleTimeout: Weather.HTTP_TIMEOUT_SECONDS
-        });
+        // Built on first use, not at construction: initProviders() makes one of
+        // these for every applet whether or not weather or world clocks are on,
+        // and an idle Soup.Session is a cost paid for a feature nobody enabled.
+        // WeatherProvider defers the same way for the same reason.
+        this._httpSession = params.httpSession || null;
         this._httpGetJson = params.httpGetJson || ((url, callback, options = {}) => {
-            Utils.httpGetJson(this._httpSession, url, (data) => callback(data), options);
+            Utils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
         });
 
         this._location_resolver = params.locationResolver || new Weather.WeatherLocationResolver({
@@ -81,6 +82,17 @@ var CityWeatherProvider = class CityWeatherProvider {
         this._forecast_resolver = params.forecastResolver || new Weather.WeatherForecastResolver({
             httpGetJson: this._httpGetJson
         });
+    }
+
+    _getHttpSession() {
+        if (!this._httpSession) {
+            this._httpSession = Utils.createHttpSession({
+                timeout: Weather.HTTP_TIMEOUT_SECONDS,
+                idleTimeout: Weather.HTTP_TIMEOUT_SECONDS
+            });
+        }
+
+        return this._httpSession;
     }
 
     get lastProvider() {
