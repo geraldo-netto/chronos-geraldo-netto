@@ -3,6 +3,7 @@
 
 const CinnamonDesktop = imports.gi.CinnamonDesktop;
 const UPowerGlib = imports.gi.UPowerGlib;
+const Gio = imports.gi.Gio;
 const Settings = imports.ui.settings;
 const EventsManagerModule = require("./eventsManager");
 const Weather = require("./weather");
@@ -87,6 +88,7 @@ class AppletProviderLifecycle {
         this._events_manager_signal_ids = [];
         this._up_client = null;
         this._up_resume_signal_id = 0;
+        this._logind_sleep_signal_id = 0;
         this._destroyed = false;
     }
 
@@ -199,6 +201,27 @@ class AppletProviderLifecycle {
             void unsupportedSignal;
             this._up_resume_signal_id = this._up_client.connect("notify::resume", context.onResume);
         }
+
+        // The UPower path above is dead on a current stack: notify-resume is gone
+        // and notify::resume names a property that no longer exists, so onResume
+        // never fires after wake and the weather is not refetched. logind's
+        // PrepareForSleep on the system bus is what every modern system emits —
+        // true on the way into sleep, false on resume — so refresh on the false.
+        if (Gio && Gio.DBus && Gio.DBus.system) {
+            this._logind_sleep_signal_id = Gio.DBus.system.signal_subscribe(
+                "org.freedesktop.login1",
+                "org.freedesktop.login1.Manager",
+                "PrepareForSleep",
+                "/org/freedesktop/login1",
+                null,
+                Gio.DBusSignalFlags ? Gio.DBusSignalFlags.NONE : 0,
+                (connection, sender, path, iface, signal, params) => {
+                    const [sleeping] = params.deep_unpack();
+                    if (!sleeping) {
+                        context.onResume();
+                    }
+                });
+        }
     }
 
     // Every step runs even if an earlier one throws. This was one unguarded
@@ -249,6 +272,12 @@ class AppletProviderLifecycle {
                 if (this._up_resume_signal_id > 0) {
                     this._up_client.disconnect(this._up_resume_signal_id);
                     this._up_resume_signal_id = 0;
+                }
+            },
+            () => {
+                if (this._logind_sleep_signal_id > 0 && Gio && Gio.DBus && Gio.DBus.system) {
+                    Gio.DBus.system.signal_unsubscribe(this._logind_sleep_signal_id);
+                    this._logind_sleep_signal_id = 0;
                 }
             }
         ];

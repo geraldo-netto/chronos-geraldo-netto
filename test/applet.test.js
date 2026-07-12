@@ -1107,6 +1107,51 @@ test("provider lifecycle tears down provider and system resources", () => {
     assert.equal(lifecycle._up_resume_signal_id, 0);
 });
 
+test("bindSystemSignals refetches on logind resume and unsubscribes on destroy", () => {
+    const resumed = [];
+    let captured = null;
+    let unsubscribed = null;
+    const context = {
+        onResume: () => resumed.push(true),
+        desktopSettings: { connectClockFormatChanged: () => [1, 2] }
+    };
+    global.imports.gi.Gio.DBus = {
+        system: {
+            signal_subscribe: (sender, iface, member, path, arg0, flags, cb) => {
+                captured = { member, path, cb };
+                return 55;
+            },
+            signal_unsubscribe: (id) => {
+                unsubscribed = id;
+            }
+        }
+    };
+    global.imports.gi.Gio.DBusSignalFlags = { NONE: 0 };
+
+    try {
+        const lifecycle = new AppletModule.AppletProviderLifecycle(context);
+        lifecycle.bindSystemSignals();
+
+        assert.equal(captured.member, "PrepareForSleep");
+        assert.equal(lifecycle._logind_sleep_signal_id, 55);
+
+        // true = going into sleep -> no refetch; false = resumed -> refetch
+        const emit = (sleeping) => captured.cb(null, null, captured.path,
+            "org.freedesktop.login1.Manager", "PrepareForSleep", { deep_unpack: () => [sleeping] });
+        emit(true);
+        assert.deepEqual(resumed, [], "nothing is refetched on the way into sleep");
+        emit(false);
+        assert.deepEqual(resumed, [true], "the weather is refetched on wake");
+
+        lifecycle.destroy();
+        assert.equal(unsubscribed, 55, "the system-bus subscription is released");
+        assert.equal(lifecycle._logind_sleep_signal_id, 0);
+    } finally {
+        delete global.imports.gi.Gio.DBus;
+        delete global.imports.gi.Gio.DBusSignalFlags;
+    }
+});
+
 test("settings binding wires schema keys and creates settings facades", () => {
     const binds = [];
     const original = global.imports.ui.settings.AppletSettings;
