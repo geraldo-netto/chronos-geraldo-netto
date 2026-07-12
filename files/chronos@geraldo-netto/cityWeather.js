@@ -24,6 +24,12 @@ const CITY_REFRESH_SECONDS = Weather.REFRESH_SECONDS;
 // suite certifying it. A resolve plus a forecast per city is already sixteen
 // requests, so nothing here fans out further.
 const MAX_CITIES = WorldclockData.MAX_CLOCKS;
+// The cities are geocoded through a small pool, not all at once. On an
+// Open-Meteo outage every one falls through to Nominatim, whose usage policy
+// caps a client at one request a second, so a cold-cache round of eight
+// simultaneous fallbacks could get the user throttled. Two in flight keeps the
+// round quick without bursting.
+const GEOCODE_CONCURRENCY = 2;
 // a failed round is retried sooner than the next period, backing off toward
 // it — the panel reading has worked this way all along
 const CITY_RETRY_SECONDS = Weather.RETRY_SECONDS;
@@ -230,8 +236,21 @@ var CityWeatherProvider = class CityWeatherProvider {
         const units = Weather.normalizeUnits(settings.units);
         // the round is done when every city has answered one way or the other;
         // if any of them failed, the round failed and is worth retrying
-        const round = { outstanding: cities.length, failed: 0, changed: false, settings };
-        cities.forEach((city) => this._refreshCity(city, units, generation, callback, round));
+        const round = { outstanding: cities.length, failed: 0, changed: false, completed: false, settings, queue: cities.slice() };
+        // start the next queued city; _cityDone calls this again as each frees a
+        // slot, so at most GEOCODE_CONCURRENCY chains run at once
+        round.pump = () => {
+            if (!this._isCurrent(generation)) {
+                return;
+            }
+            const city = round.queue.shift();
+            if (city) {
+                this._refreshCity(city, units, generation, callback, round);
+            }
+        };
+        for (let started = 0; started < GEOCODE_CONCURRENCY; started++) {
+            round.pump();
+        }
     }
 
     _cityDone(generation, round, settings, callback, ok) {
@@ -244,9 +263,15 @@ var CityWeatherProvider = class CityWeatherProvider {
         }
 
         round.outstanding--;
-        if (round.outstanding > 0) {
+        // this city freed a slot; start the next queued one
+        round.pump();
+        // a synchronous resolver (a test double, a cache hit) drains the queue
+        // inside one _cityDone call, so several stack frames can see outstanding
+        // reach zero — finish the round exactly once
+        if (round.outstanding > 0 || round.completed) {
             return;
         }
+        round.completed = true;
 
         // The round is what produces a new set of readings, and the callback
         // rebuilds the whole panel label and tooltip (padding every tooltip
