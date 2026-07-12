@@ -19,6 +19,10 @@ var MAX_CLOCKS = 8;
 var MAX_CLOCK_LABEL_LENGTH = 24;
 var LOCAL_TIMEZONE = "local";
 var UTC_TIMEZONE = "UTC";
+// the IANA "no region" area: Etc/UTC, Etc/GMT+3 and the like are offsets, not
+// places. Named to match settings_widgets_common.py's TZ_NO_REGION so the two
+// timezone-to-city implementations filter the same set.
+var TZ_NO_REGION = "Etc";
 var INVALID_TIMEZONE_TEXT = _("Invalid timezone");
 var LOCAL_TIME_TEXT = _("Local time");
 
@@ -62,19 +66,17 @@ function timezoneCityName(timezone) {
     }
 
     const identifier = timezone.trim();
-    // the built-in rows are not places: UTC is a scale, and the local row is
-    // the panel location's job
-    if (identifier === LOCAL_TIMEZONE || identifier === UTC_TIMEZONE) {
+    // Must be an IANA Area/City path, and not the Etc/ block. UTC and "local"
+    // have no "/" and are rejected by that; Etc/UTC and Etc/GMT+3 do have one,
+    // but they are offsets, not places — and the Python local_city_name filters
+    // the identical set. Without the Etc/ guard the last path segment gave the
+    // bare "UTC"/"GMT+3", which JS then geocoded while Python wrote "", so the
+    // two sides disagreed on the same weather-location key.
+    if (identifier.indexOf("/") === -1 || identifier.indexOf(TZ_NO_REGION + "/") === 0) {
         return "";
     }
 
-    const city = identifier.split("/").pop();
-    if (!city || city === identifier) {
-        // a bare word that is not an IANA path is not something to geocode
-        return "";
-    }
-
-    return city.replace(/_/g, " ").trim();
+    return identifier.split("/").pop().replace(/_/g, " ").trim();
 }
 
 // The city the machine's own timezone names, for a weather location nobody has

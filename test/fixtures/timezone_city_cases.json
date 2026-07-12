@@ -1,0 +1,13 @@
+{
+  "_comment": "Shared parity fixture for T425: the JS timezoneCityName (worldclockData.js) and the Python local_city_name (settings_widgets_common.py) must agree on every case here, because both write the same weather-location settings key. worldclocks.test.js and test_settings_widgets.py each assert against it, so a divergence fails one suite.",
+  "cases": [
+    { "timezone": "Europe/Rome", "city": "Rome" },
+    { "timezone": "America/New_York", "city": "New York" },
+    { "timezone": "America/Argentina/Buenos_Aires", "city": "Buenos Aires" },
+    { "timezone": "Etc/UTC", "city": "" },
+    { "timezone": "Etc/GMT+3", "city": "" },
+    { "timezone": "UTC", "city": "" },
+    { "timezone": "local", "city": "" },
+    { "timezone": "", "city": "" }
+  ]
+}

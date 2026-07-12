@@ -345,6 +345,22 @@ test("the popup and the weather side select the same clocks", () => {
     assert.deepEqual(selected, ["Rome", "Tokyo"], "the built-in collision is nobody's clock");
 });
 
+// worldclockData.timezoneCityName and settings_widgets_common.local_city_name
+// both derive the weather-location city from a timezone id and both write the
+// same settings key, so they must agree. The cases live in a fixture that the
+// Python suite asserts against too; a divergence fails one side.
+test("timezoneCityName matches the Python local_city_name on the shared cases", () => {
+    loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const fixture = require("./fixtures/timezone_city_cases.json");
+
+    for (const { timezone, city } of fixture.cases) {
+        assert.equal(WorldclockData.timezoneCityName(timezone), city,
+            `timezoneCityName(${JSON.stringify(timezone)}) must be ${JSON.stringify(city)}`);
+    }
+});
+
 // the label is the user's own name for the clock and the dialog puts no limit on
 // it; it is rendered in the popup grid and padded to the widest cell in the
 // monospace tooltip, so one 60-character name stretches both
