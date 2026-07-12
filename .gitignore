@@ -141,3 +141,37 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- Chronos applet ---
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Python coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Python virtualenvs
+.venv/
+venv/
+
+# Coverage reports emitted by the test helpers
+coverage.json
+
+# Compiled gettext catalogs (generated at install time from po/*.po)
+*.mo
+
+# Editor / OS junk
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
