@@ -78,9 +78,9 @@
             ]
         }
     },
-    "show-events" : {
-        "type" : "switch",
-        "default" : true,
+    "show-events": {
+        "type": "switch",
+        "default": true,
         "description": "Show calendar events",
         "tooltip": "Check this to display events in the calendar."
     },
@@ -114,13 +114,13 @@
         "dependency": "use-custom-format",
         "tooltip": "Set your custom format here."
     },
-    "custom-tooltip-format" : {
-        "type" : "entry",
-        "default" : "%A, %B %e, %H:%M",
-        "description" : "Date format for tooltip",
-        "indent" : true,
-        "dependency" : "use-custom-format",
-        "tooltip" : "Set your custom tooltip format here."
+    "custom-tooltip-format": {
+        "type": "entry",
+        "default": "%A, %B %e, %H:%M",
+        "description": "Date format for tooltip",
+        "indent": true,
+        "dependency": "use-custom-format",
+        "tooltip": "Set your custom tooltip format here."
     },
     "format-button": {
         "type": "button",
@@ -137,7 +137,9 @@
         "tooltip": "Enable a small weather readout in the applet label. The reading is fetched from a third-party weather service, and the location below is sent to it. A vertical panel has no room for the readout, so it shows only in the tooltip and the popup."
     },
     "weather-location": {
-        "type": "entry",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "WeatherLocationEntry",
         "default": "",
         "description": "Weather location",
         "dependency": "show-weather",
@@ -155,7 +157,9 @@
         }
     },
     "country": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "CountryComboBox",
         "default": "none",
         "description": "Country",
         "tooltip": "Country whose public holidays are marked in the calendar. Holidays are off until you pick a country: the lookup sends your country to a third-party holiday service.",
@@ -240,7 +244,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Australian Capital Territory": "act",
@@ -258,7 +262,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Brussels": "bru",
@@ -271,7 +275,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Alberta": "ab",
@@ -294,7 +298,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Baden-Württemberg": "bw",
@@ -320,7 +324,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Andalucía": "an",
@@ -349,7 +353,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Auckland": "auk",
@@ -376,7 +380,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Banskobystrický kraj": "bc",
@@ -394,7 +398,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Aargau": "ag",
@@ -430,7 +434,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "England": "eng",
@@ -444,7 +448,7 @@
         "type": "combobox",
         "default": "global",
         "description": "Region",
-            "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
+        "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
             "Alabama": "al",
@@ -517,11 +521,12 @@
         "type": "custom",
         "description": "World Clocks",
         "dependency": "show-worldclocks",
-        "tooltip": "UTC and your local time are always shown in the calendar menu; add up to 8 timezones on top of them. Type a city name and pick it from the suggestions. With weather on, each clock\u2019s timezone names a city, and that city is sent to the same third-party services as the location above.",
+        "tooltip": "UTC and your local time are always shown in the calendar menu; add up to 8 timezones on top of them. Type a city name and pick it from the suggestions. With weather on, each clock’s timezone names a city, and that city is sent to the same third-party services as the location above.",
         "file": "settings_widgets.py",
         "widget": "ClocksList",
         "height": 288,
-        "columns": [{
+        "columns": [
+            {
                 "id": "label",
                 "title": "Display name",
                 "type": "string"

@@ -12,9 +12,9 @@ if _APPLET_DIR not in sys.path:
     sys.path.append(_APPLET_DIR)
 
 # Cinnamon's create_custom_widget instantiates only the name the schema's
-# "widget" field gives it, which is ClocksList. list_edit_factory was re-exported
-# here too and nothing outside settings_widgets_common has ever called it: the
-# tests import that module directly.
-from settings_widgets_common import ClocksList
+# "widget" field gives it. list_edit_factory was re-exported here too and nothing
+# outside settings_widgets_common has ever called it: the tests import that
+# module directly.
+from settings_widgets_common import ClocksList, CountryComboBox, WeatherLocationEntry
 
-__all__ = ["ClocksList"]
+__all__ = ["ClocksList", "CountryComboBox", "WeatherLocationEntry"]

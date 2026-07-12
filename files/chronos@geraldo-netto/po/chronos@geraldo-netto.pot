@@ -1,5 +1,5 @@
 # Translation template for the Chronos Calendar Cinnamon applet.
-# Copyright (C) 2026 the chronos@geraldo-netto contributors
+# Copyright (C) the chronos@geraldo-netto contributors
 # Derived from calendar@ccprog (Claus Colloseus) and calendar@simonwiles.net (Simon Wiles).
 # This file is distributed under the same license as the applet.
 #
@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/issues\n"
-"POT-Creation-Date: 2026-07-12 17:47+0200\n"
+"POT-Creation-Date: 2026-07-12 19:10+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -266,11 +266,19 @@ msgid ""
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
 msgstr ""
 
-#: settings_widgets_common.py:321
+#: settings_widgets_common.py:73
+msgid "City or town (e.g. Lisbon)"
+msgstr ""
+
+#: settings_widgets_common.py:74
+msgid "Type a country name"
+msgstr ""
+
+#: settings_widgets_common.py:529
 msgid "Add new entry"
 msgstr ""
 
-#: settings_widgets_common.py:323
+#: settings_widgets_common.py:531
 msgid "Edit entry"
 msgstr ""
 

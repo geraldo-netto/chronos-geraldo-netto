@@ -114,6 +114,9 @@ class GtkListStore:
 
     def append(self, row):
         self.rows.append(row)
+        # the real Gtk.ListStore hands back the row's iter, which the country
+        # widget keeps so it can set that row active later
+        return len(self.rows) - 1
 
     def __getitem__(self, index):
         return self.rows[index]
@@ -378,6 +381,152 @@ class JSONSettingsList:
         return None
 
 
+class FakeSettings:
+    """The settings handler a JSON-backed widget reads and writes through."""
+
+    def __init__(self, values=None):
+        self.values = dict(values or {})
+        self.listeners = []
+        self.writes = []
+
+    def get_value(self, key):
+        return self.values.get(key)
+
+    def set_value(self, key, value):
+        self.values[key] = value
+        self.writes.append((key, value))
+        for listened_key, callback in self.listeners:
+            if listened_key == key:
+                callback()
+
+    def listen(self, key, callback):
+        self.listeners.append((key, callback))
+
+    def bind(self, key, bind_object, bind_prop, bind_dir, map_get, map_set):
+        self.bound = (key, bind_object, bind_prop)
+        bind_object.set_property(bind_prop, self.get_value(key))
+
+    def has_property(self, key, prop):
+        return False
+
+
+class JSONSettingsBackend:
+    """The half of a Cinnamon settings widget that talks to the settings file.
+
+    Same contract as the real one: a widget with bind_dir binds its content
+    widget to the key, and one without listens and drives itself.
+    """
+
+    def attach(self):
+        self._saving = False
+        bind_object = getattr(self, "bind_object", self.content_widget)
+        if self.bind_dir is not None:
+            self.settings.bind(self.key, bind_object, self.bind_prop,
+                               self.bind_dir, None, None)
+        else:
+            self.settings.listen(self.key, self._settings_changed_callback)
+            self.on_setting_changed()
+            self.connect_widget_handlers()
+
+    def set_value(self, value):
+        self._saving = True
+        self.settings.set_value(self.key, value)
+        self._saving = False
+
+    def get_value(self):
+        return self.settings.get_value(self.key)
+
+    def _settings_changed_callback(self, *args):
+        if not self._saving:
+            self.on_setting_changed(*args)
+
+
+class JSONSettingsEntry(Entry):
+    """What json_settings_factory builds out of xapp's Entry."""
+
+    bind_prop = "text"
+    bind_dir = 1
+
+    def __init__(self, key, settings, properties):
+        super().__init__(label=properties.get("description", ""),
+                         tooltip=properties.get("tooltip", ""))
+        self.key = key
+        self.settings = settings
+        self.settings.bind(key, self.content_widget, self.bind_prop,
+                           self.bind_dir, None, None)
+
+
+class SettingsLabel:
+    def __init__(self, text=""):
+        self.text = text
+
+
+class SettingsWidget:
+    """xapp's base: a Gtk.Box the widget packs its label and content into."""
+
+    def __init__(self, dep_key=None):
+        self.dep_key = dep_key
+        self.children = []
+        self.tooltip = None
+
+    def pack_start(self, child, *args):
+        self.children.append(child)
+
+    def pack_end(self, child, *args):
+        self.children.append(child)
+
+    def set_tooltip_text(self, text):
+        self.tooltip = text
+
+
+class GtkComboBoxWithEntry:
+    """Gtk.ComboBox.new_with_model_and_entry: a combo whose child is an entry."""
+
+    def __init__(self, model):
+        self.model = model
+        self.entry = BindObject()
+        self.active_iter = None
+        self.entry_text_column = None
+        self.id_column = None
+        self.handlers = []
+
+    @classmethod
+    def new_with_model_and_entry(cls, model):
+        return cls(model)
+
+    def get_child(self):
+        return self.entry
+
+    def set_entry_text_column(self, column):
+        self.entry_text_column = column
+
+    def set_id_column(self, column):
+        self.id_column = column
+
+    def set_active_iter(self, tree_iter):
+        self.active_iter = tree_iter
+        # the real combo fills its entry from the model when a row goes active
+        if tree_iter is not None:
+            self.entry.set_text(self.model[tree_iter][self.entry_text_column])
+        for signal, callback in self.handlers:
+            if signal == "changed":
+                callback(self)
+
+    def get_active_iter(self):
+        return self.active_iter
+
+    def connect(self, signal, callback):
+        self.handlers.append((signal, callback))
+
+    def type_text(self, text):
+        """The user typing: text changes, nothing is chosen."""
+        self.entry.set_text(text)
+        self.active_iter = None
+        for signal, callback in self.handlers:
+            if signal == "changed":
+                callback(self)
+
+
 STUBBED_MODULES = ("JsonSettingsWidgets", "xapp", "xapp.SettingsWidgets", "gi", "gi.repository")
 _original_modules = {}
 
@@ -391,12 +540,16 @@ def install_stubs():
 
     json_settings = types.ModuleType("JsonSettingsWidgets")
     json_settings.JSONSettingsList = JSONSettingsList
+    json_settings.JSONSettingsBackend = JSONSettingsBackend
+    json_settings.JSONSettingsEntry = JSONSettingsEntry
     sys.modules["JsonSettingsWidgets"] = json_settings
 
     xapp = types.ModuleType("xapp")
     settings_widgets = types.ModuleType("xapp.SettingsWidgets")
     settings_widgets.ComboBox = ComboBox
     settings_widgets.Entry = Entry
+    settings_widgets.SettingsLabel = SettingsLabel
+    settings_widgets.SettingsWidget = SettingsWidget
     sys.modules["xapp"] = xapp
     sys.modules["xapp.SettingsWidgets"] = settings_widgets
 
@@ -421,6 +574,7 @@ def install_stubs():
         Label=GtkLabel,
         ListStore=GtkListStore,
         EntryCompletion=GtkEntryCompletion,
+        ComboBox=GtkComboBoxWithEntry,
     )
     repository.Gtk = gtk
     # the accessibility layer every GTK widget answers through; the dialog uses it
@@ -1198,12 +1352,22 @@ class SettingsWidgetsTest(unittest.TestCase):
     def test_version_wrappers_export_common_symbols(self):
         wrapper_52 = load_module(APPLET_DIR / "5.4" / "settings_widgets.py", "settings_widgets_52_test")
 
-        # Cinnamon instantiates only the name in the schema's "widget" field;
+        # The shim exports the names the schema asks Cinnamon to instantiate —
+        # exactly those. create_custom_widget does getattr(module, widget) and
+        # dies on the whole settings window if the name is not there, so the
+        # schema is what this has to be checked against, not a list written here.
+        schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
+        named = sorted({entry["widget"] for entry in schema.values()
+                        if isinstance(entry, dict) and entry.get("type") == "custom"})
+        self.assertEqual(sorted(wrapper_52.__all__), named)
+
+        for widget in named:
+            self.assertEqual(getattr(wrapper_52, widget).__module__,
+                             "settings_widgets_common")
+
         # list_edit_factory was re-exported here and never imported from here
-        self.assertEqual(wrapper_52.__all__, ["ClocksList"])
-        self.assertEqual(wrapper_52.ClocksList.__module__, "settings_widgets_common")
         self.assertFalse(hasattr(wrapper_52, "list_edit_factory"),
-                         "the shim is the widget Cinnamon names, and nothing else")
+                         "the shim is the widgets Cinnamon names, and nothing else")
 
 
 class BuildDialogContentTest(unittest.TestCase):
@@ -1945,3 +2109,202 @@ class DialogValidationFeedbackTest(unittest.TestCase):
         for field in ("label", "timezone"):
             self.assertNotIn(
                 "error", widgets[field].bind_object.get_style_context().classes)
+
+
+class WeatherLocationCompletionTest(unittest.TestCase):
+    """The weather location suggests cities, and suggests them from disk.
+
+    The field used to be a bare entry: the user typed a name, saved, and learned
+    from a warning marker on the panel — after a network round trip — that the
+    geocoder had matched nothing. The suggestions come from the timezone database
+    the world clocks already load, so no keystroke reaches the geocoder.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(COMMON_PATH, "settings_widgets_common_weather")
+
+    def entry(self, values=None):
+        settings = FakeSettings(values or {"weather-location": ""})
+        widget = self.module.WeatherLocationEntry(
+            {"description": "Weather location", "tooltip": "a city"},
+            "weather-location", settings)
+        return widget, settings
+
+    def test_city_names_are_cities_and_not_zones(self):
+        resolver = self.module.TimezoneResolver(None, lambda: {
+            "Europe/Lisbon", "America/Argentina/Buenos_Aires", "Etc/UTC", "UTC",
+        })
+
+        names = resolver.city_names()
+
+        self.assertIn("Lisbon", names)
+        # the region half of the world-clock label is noise on a geocoder field
+        self.assertIn("Buenos Aires", names)
+        for junk in ("UTC", "Etc/UTC", "Lisbon (Europe)"):
+            self.assertNotIn(junk, names, "%s names no city" % junk)
+
+    def test_city_names_are_sorted_case_insensitively(self):
+        resolver = self.module.TimezoneResolver(None, lambda: {
+            "Europe/Rome", "America/Anchorage", "Asia/Tokyo",
+        })
+
+        self.assertEqual(resolver.city_names(), ["Anchorage", "Rome", "Tokyo"])
+
+    def test_the_entry_completes_on_a_typed_city(self):
+        widget, _settings = self.entry()
+        completion = widget.completion
+
+        self.assertEqual(completion.text_column, 0)
+        # two characters: one would pop the whole list on the first keystroke
+        self.assertEqual(completion.minimum_key_length, 2)
+        # the suggestion is the value, so completing it inline saves a keystroke
+        self.assertTrue(completion.inline_completion)
+        self.assertIs(widget.content_widget.completion, completion)
+        self.assertEqual(widget.content_widget.placeholder,
+                         self.module.WEATHER_LOCATION_HINT)
+
+    def test_a_typed_fragment_matches_a_city_anywhere_in_the_name(self):
+        model = self.module.city_completion_model(["Buenos Aires", "Rome"])
+        match = self.module.plain_completion_match
+
+        # substring, not prefix: people type the distinctive half of a name
+        self.assertTrue(match(None, "aires", 0, model))
+        self.assertTrue(match(None, "BUENOS", 0, model))
+        self.assertFalse(match(None, "aires", 1, model))
+        # an empty needle matches nothing rather than everything
+        self.assertFalse(match(None, "", 0, model))
+
+    def test_the_city_store_is_built_once_per_process(self):
+        first = self.module.city_completion_model(["Rome"])
+        again = self.module.city_completion_model(["Rome"])
+
+        self.assertIs(again, first, "the store is built once for the whole process")
+
+        other = self.module.city_completion_model(["Tokyo"])
+        self.assertIsNot(other, first)
+
+    def test_no_timezone_database_means_no_completion_and_a_usable_field(self):
+        # the entry still takes any name the user types; the suggestions are a
+        # shortcut, not a whitelist, so losing them must not lose the field
+        self.assertIsNone(self.module.attach_city_completion(BindObject(), []))
+
+    def test_the_cities_are_built_once_and_reused(self):
+        self.module._WEATHER_CITIES = None
+
+        cities = self.module.weather_cities()
+        self.assertIs(self.module.weather_cities(), cities,
+                      "the timezone database is read on the first field, not on every page")
+
+    def test_the_field_saves_what_the_user_typed(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+
+        # the entry is bound to the key, so what it holds is what the applet reads
+        self.assertEqual(settings.bound[0], "weather-location")
+        self.assertIs(settings.bound[1], widget.content_widget)
+        self.assertEqual(widget.content_widget.get_property("text"), "Lisbon")
+
+
+class CountryComboBoxTest(unittest.TestCase):
+    """The holiday country can be typed into, and only a real country saves.
+
+    ~100 countries in a dropdown with no type-ahead meant scrolling to Zimbabwe.
+    """
+
+    OPTIONS = {
+        "None (disable holidays)": "none",
+        "Brazil": "bra",
+        "Portugal": "prt",
+        "United Kingdom": "gbr",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(COMMON_PATH, "settings_widgets_common_country")
+
+    def combo(self, value="none"):
+        settings = FakeSettings({"country": value})
+        widget = self.module.CountryComboBox(
+            {"description": "Country", "tooltip": "holidays", "options": self.OPTIONS},
+            "country", settings)
+        return widget, settings
+
+    def row_of(self, widget, value):
+        return widget.option_map[value]
+
+    def test_the_off_switch_stays_at_the_top(self):
+        # schema order, not alphabetical: sorting buries "None" among the C's
+        self.assertEqual(
+            self.module.country_options(self.OPTIONS)[0], ("none", "None (disable holidays)"))
+
+    def test_the_current_country_is_the_row_that_opens_selected(self):
+        widget, _settings = self.combo("bra")
+
+        self.assertEqual(widget.value, "bra")
+        self.assertEqual(widget.content_widget.get_active_iter(), self.row_of(widget, "bra"))
+        self.assertEqual(widget.entry.get_property("text"), "Brazil")
+
+    def test_picking_a_suggestion_saves_that_country(self):
+        widget, settings = self.combo("none")
+
+        widget.completion.select(self.row_of(widget, "prt"))
+
+        self.assertEqual(settings.values["country"], "prt")
+        self.assertEqual(widget.entry.get_property("text"), "Portugal")
+
+    def test_typing_half_a_country_name_saves_nothing(self):
+        widget, settings = self.combo("bra")
+
+        # a holiday lookup fires on every write of this key: half a name is not
+        # a choice, and must not reach the settings file
+        widget.content_widget.type_text("Portu")
+
+        self.assertEqual(settings.writes, [])
+        self.assertEqual(widget.value, "bra")
+
+    def test_text_that_names_no_country_is_put_back_when_focus_leaves(self):
+        widget, settings = self.combo("bra")
+        widget.content_widget.type_text("Atlantis")
+
+        kept_open = widget.on_entry_focus_out()
+
+        # the field cannot sit there showing a country the applet is not using
+        self.assertEqual(widget.entry.get_property("text"), "Brazil")
+        self.assertFalse(kept_open, "the focus change carries on")
+        self.assertEqual(settings.writes, [])
+
+    def test_a_country_the_schema_does_not_list_selects_nothing(self):
+        # a settings file written by an older version, or by hand
+        widget, _settings = self.combo("atlantis")
+
+        self.assertIsNone(widget.content_widget.get_active_iter())
+        widget.restore_entry_text()
+        self.assertEqual(widget.entry.get_property("text"), "",
+                         "an unknown country names no row, so the field is empty")
+
+    def test_choosing_the_country_that_is_already_set_writes_nothing(self):
+        widget, settings = self.combo("bra")
+
+        widget.completion.select(self.row_of(widget, "bra"))
+
+        self.assertEqual(settings.writes, [],
+                         "re-picking the same country must not fire a holiday lookup")
+
+    def test_a_country_changed_elsewhere_moves_the_widget(self):
+        widget, settings = self.combo("none")
+
+        # another page, or the applet itself, writes the key
+        settings.values["country"] = "gbr"
+        widget.on_setting_changed()
+
+        self.assertEqual(widget.entry.get_property("text"), "United Kingdom")
+
+    def test_the_completion_matches_any_part_of_a_country_name(self):
+        widget, _settings = self.combo()
+        match, model = widget.completion.match_func
+
+        self.assertTrue(match(widget.completion, "kingdom", self.row_of(widget, "gbr"), model))
+        self.assertTrue(match(widget.completion, "BRA", self.row_of(widget, "bra"), model))
+        self.assertFalse(match(widget.completion, "kingdom", self.row_of(widget, "bra"), model))
+        # one character is enough here: the list is short and the names are long
+        self.assertEqual(widget.completion.minimum_key_length, 1)

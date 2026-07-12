@@ -2,10 +2,23 @@
 
 cd ..
 uuid="chronos@geraldo-netto"
+version=$(python3 -c "import json;print(json.load(open('metadata.json'))['version'])")
 
 cinnamon-xlet-makepot --potfile po/$uuid.pot .
 
 # We need to set UTF-8 charset in the .pot file,
 # since there are unicode characters in the settings schema file,
-# e.g. German umlauts, which else are shown wrong in .po files. 
+# e.g. German umlauts, which else are shown wrong in .po files.
 sed -i 's/charset=CHARSET/charset=UTF-8/g' po/$uuid.pot
+
+# cinnamon-xlet-makepot writes gettext's placeholder header, which names no
+# package, no authors and nowhere to report a bad string. Stamp the real ones
+# back in: without this every regeneration silently drops the credits.
+sed -i \
+    -e "1s|.*|# Translation template for the Chronos Calendar Cinnamon applet.|" \
+    -e "2s|.*|# Copyright (C) the chronos@geraldo-netto contributors|" \
+    -e "3s|.*|# Derived from calendar@ccprog (Claus Colloseus) and calendar@simonwiles.net (Simon Wiles).|" \
+    -e "4s|.*|# This file is distributed under the same license as the applet.|" \
+    -e "s|^\"Project-Id-Version: PACKAGE VERSION\\\\n\"|\"Project-Id-Version: $uuid $version\\\\n\"|" \
+    -e "s|^\"Report-Msgid-Bugs-To: \\\\n\"|\"Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/issues\\\\n\"|" \
+    po/$uuid.pot

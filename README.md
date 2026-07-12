@@ -91,7 +91,7 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Show week numbers in calendar | off | Adds the week-number gutter. |
 | Mark as weekend days | two days | How many days a week are styled as non-working; which days come from your locale. |
 | Use a custom date format | off | Replaces the panel label and its tooltip with your own `strftime` formats (**Date format**, **Date format for tooltip**); the **Show information on date format syntax** button opens the reference. |
-| Country / Region | None | Marks that country's public holidays in the grid (see below). |
+| Country / Region | None | Marks that country's public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; only a country you actually pick is saved. |
 | Keyboard shortcut | `<Super>c` | Opens the calendar menu. |
 
 On a horizontal panel the label stays compact: day, short month and the local
@@ -112,7 +112,7 @@ both.
 | Setting | Default | What it does |
 |---|---|---|
 | Show weather on the panel | off | A small weather readout in the applet label (see below). A vertical panel has no room for it, so there it shows only in the tooltip and the popup. |
-| Weather location / units | empty / SI | The place to forecast and the temperature scale. |
+| Weather location / units | empty / SI | The place to forecast and the temperature scale. The location field suggests city names as you type. The suggestions come from the timezone database already on the machine (about 440 cities, the same list the world clocks complete against), so nothing is sent anywhere while you type — and because that is not a full gazetteer, a smaller town will not be suggested. The field stays free text: any name you type is still saved and sent to the geocoder when the applet next refreshes. |
 | World clocks shown next to the date in the panel | 0 | How many configured clocks to append to the panel label; horizontal panels only. Configured clocks always show in the popup, so the panel stays minimal unless you raise this. |
 
 Both world-clock settings depend on **Show world clocks in the calendar menu**:
