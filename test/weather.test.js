@@ -297,6 +297,33 @@ test("supports selectable SI and imperial weather units", () => {
     assert.deepEqual(Object.values(schema["weather-units"].options).sort(), ["imperial", "si"]);
 });
 
+test("the forecast normalizers return a unit-free reading record", () => {
+    const Weather = loadWeather();
+
+    // the record is Celsius and glyph, with no unit decision made yet — one
+    // record renders to either unit
+    assert.deepEqual(Weather.weatherReading({ weathercode: 0, temperature: 21.4 }),
+        { condition: "☀", temperatureC: 21.4 });
+    assert.equal(Weather.weatherReading({ weathercode: 0, temperature: NaN }), null);
+    assert.equal(Weather.weatherReading(null), null);
+
+    const stations = [{ lat: 41.8, lon: 12.25, temp: 18, cover: "SCT" }];
+    assert.deepEqual(Weather.aviationWeatherReading(stations, { latitude: 41.9, longitude: 12.5 }),
+        { condition: "⛅", temperatureC: 18 });
+    assert.equal(Weather.aviationWeatherReading([], { latitude: 0, longitude: 0 }), null);
+
+    const forecast = { properties: { timeseries: [{ data: {
+        instant: { details: { air_temperature: 7.4 } },
+        next_1_hours: { summary: { symbol_code: "snow" } }
+    } }] } };
+    assert.deepEqual(Weather.metNoWeatherReading(forecast), { condition: "🌨", temperatureC: 7.4 });
+    assert.equal(Weather.metNoWeatherReading({}), null);
+
+    // and the string form is that record rendered at the caller's unit
+    assert.equal(Weather.weatherText({ weathercode: 0, temperature: 21.4 }, "si"), "☀ 21°C");
+    assert.equal(Weather.weatherText({ weathercode: 0, temperature: 21.4 }, "imperial"), "☀ 71°F");
+});
+
 test("formats weather text and maps every fuzzed weather code to an icon", () => {
     const Weather = loadWeather();
 
@@ -1416,12 +1443,13 @@ test("a forecast backend can be added without editing the resolver", () => {
             {
                 name: "Broken",
                 url: () => "https://broken.example/now",
-                normalize: () => ""
+                normalize: () => null
             },
             {
                 name: "Local station",
                 url: (place) => `https://local.example/now?lat=${place.latitude}`.split("?")[0],
-                normalize: (data, _place, units) => (data ? `☀ ${data.degrees}°${units === "si" ? "C" : "F"}` : ""),
+                // a provider returns a unit-free record; the resolver renders it
+                normalize: (data) => (data ? { condition: "☀", temperatureC: data.degrees } : null),
                 options: { headers: { "User-Agent": "test" } }
             }
         ]

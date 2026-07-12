@@ -42,9 +42,12 @@ var aviationWeatherUrl = WeatherFormat.aviationWeatherUrl;
 var aviationWeatherIcon = WeatherFormat.aviationWeatherIcon;
 var metarNumber = WeatherFormat.metarNumber;
 var aviationWeatherStation = WeatherFormat.aviationWeatherStation;
+var aviationWeatherReading = WeatherFormat.aviationWeatherReading;
 var aviationWeatherText = WeatherFormat.aviationWeatherText;
+var weatherReading = WeatherFormat.weatherReading;
 var weatherText = WeatherFormat.weatherText;
 var metNoIcon = WeatherFormat.metNoIcon;
+var metNoWeatherReading = WeatherFormat.metNoWeatherReading;
 var metNoWeatherText = WeatherFormat.metNoWeatherText;
 var openMeteoGeocodePlace = WeatherFormat.openMeteoGeocodePlace;
 var nominatimGeocodePlace = WeatherFormat.nominatimGeocodePlace;
@@ -369,7 +372,10 @@ var USER_AGENT_OPTIONS = {
 
 // The forecast backends, in the order they are tried — data, the way
 // GEOCODE_PROVIDERS is: a `url` for the place, a `normalize` that turns the
-// answer into display text, and the request options it needs.
+// answer into a unit-free reading record `{ condition, temperatureC }`, and the
+// request options it needs. The resolver renders the record to display text at
+// one seam, so a provider decides *what* the weather is and the render decides
+// how to show it — the units live in exactly one place.
 //
 // Every entry used to be a thunk into a private method of the resolver that
 // consumes it, so "adding a provider is an edit to the registry" was not true:
@@ -380,19 +386,19 @@ var FORECAST_PROVIDERS = [
     {
         name: WEATHER_PROVIDER_NAMES.OPEN_METEO,
         url: (place, units) => forecastUrl(place, units),
-        normalize: (data, place, units) => (data && data.current_weather ?
-            weatherText(data.current_weather, units) : "")
+        normalize: (data) => (data && data.current_weather ?
+            weatherReading(data.current_weather) : null)
     },
     {
         name: WEATHER_PROVIDER_NAMES.AVIATION_WEATHER,
         url: (place) => aviationWeatherUrl(place),
-        normalize: (stations, place, units) => aviationWeatherText(stations, place, units),
+        normalize: (stations, place) => aviationWeatherReading(stations, place),
         options: USER_AGENT_OPTIONS
     },
     {
         name: WEATHER_PROVIDER_NAMES.MET_NO,
         url: (place) => metNoForecastUrl(place),
-        normalize: (data, place, units) => metNoWeatherText(data, units),
+        normalize: (data) => metNoWeatherReading(data),
         options: USER_AGENT_OPTIONS
     }
 ];
@@ -428,10 +434,14 @@ var WeatherForecastResolver = class WeatherForecastResolver {
                     onResult(provider.normalize(data, place, units));
                 }, provider.options || {});
             },
-            (text) => Boolean(text),
-            (provider, text) => {
+            (reading) => Boolean(reading),
+            (provider, reading) => {
                 this._last_forecast_provider = provider.name;
-                callback(text, "", provider.name);
+                // the one seam that turns a unit-free record into display text;
+                // WeatherProvider and the city rows still receive a string until
+                // T442b carries the record onward
+                callback(WeatherFormat.formatReading(reading.condition, reading.temperatureC, units),
+                    "", provider.name);
             },
             () => {
                 if (global.log) {
@@ -594,5 +604,5 @@ var WeatherProvider = class WeatherProvider {
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { WeatherProvider, FORECAST_PROVIDERS, GEOCODE_PROVIDERS, WeatherDisplayState, WeatherRefreshScheduler, WeatherLocationResolver, WeatherForecastResolver, STALE_PERIODS, staleAfterSeconds, readingIsStale, HTTP_TIMEOUT_SECONDS, MAX_GEOCODE_CACHE_ENTRIES, MAX_RETRY_ATTEMPTS, WEATHER_DEBOUNCE_MS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, WEATHER_CONDITIONS, REFRESH_SECONDS, RETRY_SECONDS, weatherCondition, geocodeUrl, nominatimGeocodeUrl, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, aviationWeatherStation, aviationWeatherText, metarNumber, locationCacheKey, normalizeUnits, weatherIcon, weatherText, metNoIcon, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
+    module.exports = { WeatherProvider, FORECAST_PROVIDERS, GEOCODE_PROVIDERS, WeatherDisplayState, WeatherRefreshScheduler, WeatherLocationResolver, WeatherForecastResolver, STALE_PERIODS, staleAfterSeconds, readingIsStale, HTTP_TIMEOUT_SECONDS, MAX_GEOCODE_CACHE_ENTRIES, MAX_RETRY_ATTEMPTS, WEATHER_DEBOUNCE_MS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, WEATHER_CONDITIONS, REFRESH_SECONDS, RETRY_SECONDS, weatherCondition, geocodeUrl, nominatimGeocodeUrl, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, aviationWeatherStation, aviationWeatherReading, aviationWeatherText, metarNumber, locationCacheKey, normalizeUnits, weatherIcon, weatherReading, weatherText, metNoIcon, metNoWeatherReading, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
 }
