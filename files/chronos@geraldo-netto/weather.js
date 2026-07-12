@@ -54,6 +54,9 @@ var nominatimGeocodePlace = WeatherFormat.nominatimGeocodePlace;
 
 class WeatherDisplayState {
     constructor(params = {}) {
+        // the reading is the unit-free record; the text is what it rendered to,
+        // kept only until the applet takes the record itself (T442c)
+        this._last_good_reading = null;
         this._last_good_text = "";
         this._last_good_provider = "";
         this._last_good_key = "";
@@ -69,7 +72,7 @@ class WeatherDisplayState {
     }
 
     hasReading() {
-        return Boolean(this._last_good_text);
+        return Boolean(this._last_good_reading);
     }
 
     // A reading belongs to the place and the units it was fetched for. The error
@@ -87,6 +90,7 @@ class WeatherDisplayState {
             return;
         }
 
+        this._last_good_reading = null;
         this._last_good_text = "";
         this._last_good_provider = "";
         this._last_good_key = "";
@@ -96,26 +100,31 @@ class WeatherDisplayState {
     // a reading nobody has managed to refresh for two periods is no longer a
     // reading, and showing it is worse than showing nothing
     isStale(now = this._now()) {
-        if (!this._last_good_text) {
+        if (!this._last_good_reading) {
             return false;
         }
 
         return readingIsStale(this._last_good_at, now, this._stale_after_seconds);
     }
 
+    // The forecast resolver reports a rendered text and, alongside it, the
+    // unit-free reading record it came from. This keeps the record as the last
+    // good one and still carries the text for the applet edge; the error path
+    // re-shows both. When the applet takes the record (T442c) the text falls out.
     reporter(staleKey, callback) {
-        return (text, error, provider) => {
-            if (text && !error) {
+        return (text, error, provider, reading) => {
+            if (reading && !error) {
+                this._last_good_reading = reading;
                 this._last_good_text = text;
                 this._last_good_provider = provider;
                 this._last_good_key = staleKey;
                 this._last_good_at = this._now();
-            } else if (error && this._last_good_text && this._last_good_key === staleKey &&
+            } else if (error && this._last_good_reading && this._last_good_key === staleKey &&
                 !this.isStale()) {
-                callback(this._last_good_text, error, this._last_good_provider);
+                callback(this._last_good_text, error, this._last_good_provider, this._last_good_reading);
                 return;
             }
-            callback(text, error, provider);
+            callback(text, error, provider, reading);
         };
     }
 }
@@ -437,17 +446,18 @@ var WeatherForecastResolver = class WeatherForecastResolver {
             (reading) => Boolean(reading),
             (provider, reading) => {
                 this._last_forecast_provider = provider.name;
-                // the one seam that turns a unit-free record into display text;
-                // WeatherProvider and the city rows still receive a string until
-                // T442b carries the record onward
+                // the render seam: the record becomes display text here, and the
+                // record travels alongside it as a fourth argument so a consumer
+                // that wants the fields (the panel display state) has them and one
+                // that still wants the string (the city rows, until T442e) keeps it
                 callback(WeatherFormat.formatReading(reading.condition, reading.temperatureC, units),
-                    "", provider.name);
+                    "", provider.name, reading);
             },
             () => {
                 if (global.log) {
                     global.log("all weather forecast providers failed");
                 }
-                callback("", WEATHER_ERRORS.SERVICE_UNAVAILABLE, "");
+                callback("", WEATHER_ERRORS.SERVICE_UNAVAILABLE, "", null);
             }
         );
     }
@@ -561,14 +571,16 @@ var WeatherProvider = class WeatherProvider {
 
         const units = normalizeUnits(settings.units);
         const report = this._display_state.reporter(this._staleKey(settings),
-            (text, error, provider) => {
+            (text, error, provider, reading) => {
                 // a failed refresh must not wait out the whole refresh period
                 if (error) {
                     this._scheduler.retry(() => this.refresh(settings, callback));
                 } else {
                     this._scheduler.succeeded();
                 }
-                callback(text, error, provider);
+                // the record rides along; the applet still reads the text until
+                // T442c takes the record itself
+                callback(text, error, provider, reading);
             });
         this._location_resolver.resolve(location, () => {
             return !this._destroyed && generation === this._request_generation;

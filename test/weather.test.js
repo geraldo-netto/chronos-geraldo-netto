@@ -785,7 +785,7 @@ test("weather display state owns stale reading reporting", () => {
     const reportOslo = state.reporter("oslo|si", (text, error, name) => reports.push({ text, error, name }));
 
     assert.equal(state.hasReading(), false);
-    reportRome("☀ 20°C", "", Weather.WEATHER_PROVIDER_NAMES.OPEN_METEO);
+    reportRome("☀ 20°C", "", Weather.WEATHER_PROVIDER_NAMES.OPEN_METEO, { condition: "☀", temperatureC: 20 });
     assert.equal(state.hasReading(), true);
     reportRome("", Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE, "");
     reportOslo("", Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE, "");
@@ -2106,7 +2106,8 @@ test("a reading with no text and no error is not remembered as good", () => {
     state.reporter("rome", (text, error) => seen.push([text, error]))("", "", "");
     assert.equal(state.hasReading(), false);
 
-    state.reporter("rome", (text, error) => seen.push([text, error]))("☀ 20°C", "", "Open-Meteo");
+    state.reporter("rome", (text, error) => seen.push([text, error]))(
+        "☀ 20°C", "", "Open-Meteo", { condition: "☀", temperatureC: 20 });
     assert.equal(state.hasReading(), true);
 });
 
@@ -2124,7 +2125,7 @@ test("a last-good panel reading expires like the city readings do", () => {
     const seen = [];
     const report = (text, error) => seen.push([text, error]);
 
-    state.reporter("rome", report)("☀ 20°C", "", "Open-Meteo");
+    state.reporter("rome", report)("☀ 20°C", "", "Open-Meteo", { condition: "☀", temperatureC: 20 });
     assert.equal(state.isStale(), false);
 
     // the network drops: the reading is still the weather, with a marker on it
@@ -2140,7 +2141,7 @@ test("a last-good panel reading expires like the city readings do", () => {
         "a reading nobody has refreshed for two periods is not a reading");
 
     // and a fresh reading revives it
-    state.reporter("rome", report)("🌧 12°C", "", "Open-Meteo");
+    state.reporter("rome", report)("🌧 12°C", "", "Open-Meteo", { condition: "🌧", temperatureC: 12 });
     assert.equal(state.isStale(), false);
 });
 
@@ -2274,7 +2275,8 @@ test("a reading survives a refresh of the same place, and a units change forgets
     const Weather = loadWeather();
     const state = new Weather.WeatherDisplayState({ now: () => 1000 });
     const reports = [];
-    state.reporter("lisbon|si", (...args) => reports.push(args))("☀ 21°C", "", "Open-Meteo");
+    state.reporter("lisbon|si", (...args) => reports.push(args))(
+        "☀ 21°C", "", "Open-Meteo", { condition: "☀", temperatureC: 21 });
 
     assert.equal(state.hasReading(), true);
 
