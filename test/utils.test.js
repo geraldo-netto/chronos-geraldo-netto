@@ -283,6 +283,7 @@ test("a locale query that never answers is abandoned instead of hanging", () => 
             this.cancelled = true;
         }
     };
+    const reaped = [];
     global.imports.gi.Gio.Subprocess = class {
         constructor(options) {
             this.argv = options.argv;
@@ -290,6 +291,9 @@ test("a locale query that never answers is abandoned instead of hanging", () => 
         init() {}
         communicate_utf8_async() {
             // no answer, ever
+        }
+        force_exit() {
+            reaped.push(this);
         }
     };
 
@@ -305,6 +309,7 @@ test("a locale query that never answers is abandoned instead of hanging", () => 
 
     timeouts[0].callback();
 
+    assert.equal(reaped.length, 1, "the wedged locale process is killed, not just abandoned");
     assert.match(logged.at(-1), /did not answer/);
     assert.deepEqual(heard, [true], "whatever waits on the locale is finally told");
     assert.equal(localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)(),

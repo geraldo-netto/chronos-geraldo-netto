@@ -382,6 +382,12 @@ function _requestInfo(env, force = false) {
 
         _scheduleTimeout(LOCALE_TIMEOUT_SECONDS, () => {
             if (!settled) {
+                // Cancelling the read only stops us waiting; the child keeps
+                // running. A genuinely wedged `locale` — the hung NSS/nscd
+                // lookup above — has to be killed, or it lingers past the applet.
+                if (proc.force_exit) {
+                    proc.force_exit();
+                }
                 cancellable.cancel();
                 if (global.logError) {
                     global.logError("locale -k " + env + " did not answer; using the defaults");
