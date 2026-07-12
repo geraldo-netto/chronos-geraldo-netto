@@ -612,6 +612,12 @@ def load_module(path, name, missing_pytz=False):
     install_stubs()
     sys.path.insert(0, str(APPLET_DIR))
     original_import = builtins.__import__
+    # anything already imported stays; a sibling the module pulls in during exec
+    # (e.g. a gi-free timezone_data split out of the widget module) is imported
+    # by name off the applet dir and would otherwise linger in sys.modules, so a
+    # later load would import that cached copy instead of the edited source — the
+    # same stale-source trap the .pyc guard at the top of this file avoids.
+    preloaded = set(sys.modules)
 
     def guarded_import(import_name, *args, **kwargs):
         if missing_pytz and import_name == "pytz":
@@ -635,6 +641,12 @@ def load_module(path, name, missing_pytz=False):
         # the 5.4 wrapper inserts the applet dir a second time; drop them all
         while str(APPLET_DIR) in sys.path:
             sys.path.remove(str(APPLET_DIR))
+        # drop any applet-dir sibling exec pulled into the module cache
+        for cached_name in set(sys.modules) - preloaded:
+            cached = sys.modules.get(cached_name)
+            cached_file = getattr(cached, "__file__", None)
+            if cached_file and str(APPLET_DIR) in str(cached_file):
+                del sys.modules[cached_name]
 
 
 def tearDownModule():
