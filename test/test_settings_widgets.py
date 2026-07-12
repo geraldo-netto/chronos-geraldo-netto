@@ -61,6 +61,9 @@ class BindObject:
     def set_text(self, text):
         self.props["text"] = text
 
+    def get_text(self):
+        return self.props.get("text", "")
+
     def set_placeholder_text(self, text):
         self.placeholder = text
 
@@ -170,6 +173,13 @@ class GtkEntryCompletion:
             if row[1] == timezone:
                 return index
         raise AssertionError("%s is not in the suggestions" % timezone)
+
+    def matches_index_for(self, city):
+        # the city model's suggestion *is* its value, so it is the first column
+        for index, row in enumerate(self.model.rows):
+            if row[0] == city:
+                return index
+        raise AssertionError("%s is not in the suggestions" % city)
 
     def select(self, index):
         for signal, callback in self.handlers:
@@ -2205,6 +2215,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertEqual(widget.content_widget.get_property("text"), "Lisbon")
 
 
+
 class CountryComboBoxTest(unittest.TestCase):
     """The holiday country can be typed into, and only a real country saves.
 
@@ -2308,3 +2319,60 @@ class CountryComboBoxTest(unittest.TestCase):
         self.assertFalse(match(widget.completion, "kingdom", self.row_of(widget, "bra"), model))
         # one character is enough here: the list is short and the names are long
         self.assertEqual(widget.completion.minimum_key_length, 1)
+
+
+class WeatherLocationPrefillTest(unittest.TestCase):
+    """An empty weather location fills itself from the machine's own timezone.
+
+    The location is the one setting the applet can answer for itself: /etc/localtime
+    already names a city. Nothing is asked of the network to find out where the
+    user is — no IP reaches a geolocation service — and the answer is written into
+    the field rather than resolved behind the user's back, because a timezone names
+    its region's reference city: a user in Genoa is told "Rome", and has to be able
+    to see that and correct it.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(COMMON_PATH, "settings_widgets_common_prefill")
+
+    def entry(self, saved="", local_zone="Europe/Rome"):
+        self.module.local_timezone_name = lambda: local_zone
+        settings = FakeSettings({"weather-location": saved})
+        widget = self.module.WeatherLocationEntry(
+            {"description": "Weather location"}, "weather-location", settings)
+        return widget, settings
+
+    def test_the_city_comes_out_of_the_timezone(self):
+        city = self.module.local_city_name
+
+        self.assertEqual(city("Europe/Rome"), "Rome")
+        self.assertEqual(city("America/Argentina/Buenos_Aires"), "Buenos Aires")
+        # a zone that names no place: UTC, an offset-only zone, the Etc/ block,
+        # and a /etc/localtime that is not a zoneinfo symlink at all
+        for nowhere in ("UTC", "+02", "Etc/UTC", ""):
+            self.assertEqual(city(nowhere), "", "%r names no city" % (nowhere,))
+
+        # no argument at all reads the machine's own zone, which is the whole point
+        self.assertEqual(city(), "Rome")
+
+    def test_an_empty_field_is_filled_from_the_timezone(self):
+        widget, settings = self.entry(saved="")
+
+        self.assertEqual(settings.values["weather-location"], "Rome")
+        self.assertEqual(widget.content_widget.get_property("text"), "Rome",
+                         "the user reads the place the weather will be fetched for")
+
+    def test_a_location_the_user_chose_is_never_overwritten(self):
+        widget, settings = self.entry(saved="Genoa")
+
+        self.assertEqual(settings.values["weather-location"], "Genoa")
+        self.assertEqual(settings.writes, [], "nothing was written over it")
+        self.assertEqual(widget.prefill_from_timezone(), "")
+
+    def test_a_machine_whose_timezone_names_no_city_is_left_alone(self):
+        _widget, settings = self.entry(saved="", local_zone="UTC")
+
+        # the panel already says "Set a weather location"; guessing is worse
+        self.assertEqual(settings.values["weather-location"], "")
+        self.assertEqual(settings.writes, [])

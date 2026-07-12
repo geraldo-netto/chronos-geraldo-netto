@@ -201,3 +201,33 @@ test("the location reaches the applet even though Cinnamon cannot bind it", () =
     assert.equal(applet.weather_location, "Lisbon");
     assert.equal(refreshes, 1, "and the change refetches the weather, once");
 });
+
+test("an empty weather location is filled with the city the timezone names", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+
+    const values = { "weather-location": "" };
+    const settings = {
+        bind: () => {},
+        connect: () => {},
+        getValue: (key) => values[key],
+        setValue: (key, value) => { values[key] = value; }
+    };
+    const applet = {};
+    const panel = new SettingsFacade.PanelSettings(settings);
+
+    assert.equal(panel.fillEmptyWeatherLocation(applet, "Rome"), "Rome");
+    assert.equal(values["weather-location"], "Rome",
+        "it is written into the field, not just used: the user has to be able to correct it");
+    assert.equal(applet.weather_location, "Rome");
+
+    // a location the user chose is never overwritten
+    assert.equal(panel.fillEmptyWeatherLocation(applet, "Lisbon"), "");
+    assert.equal(values["weather-location"], "Rome");
+
+    // ...and a machine whose timezone names no city (UTC, an offset-only zone)
+    // is left alone: the panel already says "Set a weather location"
+    values["weather-location"] = "";
+    assert.equal(panel.fillEmptyWeatherLocation(applet, ""), "");
+    assert.equal(values["weather-location"], "");
+});

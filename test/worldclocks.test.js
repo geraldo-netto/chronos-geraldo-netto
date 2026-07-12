@@ -742,3 +742,32 @@ test("a long clock name ellipsizes instead of widening the popup", () => {
         "utf8");
     assert.match(css, /\.calendar-world-label\s*\{[^}]*max-width/);
 });
+
+// The weather location starts empty, and the machine already knows roughly where
+// it is: its own timezone names a city. Nothing is asked of the network to find
+// that out — no IP goes to a geolocation service — and the answer is written into
+// the settings field rather than resolved invisibly, because the zone names its
+// region's reference city and not necessarily the user's town.
+test("localCityName reads the city out of the machine's own timezone", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+
+    GLib.TimeZone.new_local = () => fakeTimeZone("Europe/Rome");
+    assert.equal(WorldclockData.localCityName(), "Rome");
+
+    GLib.TimeZone.new_local = () => fakeTimeZone("America/Argentina/Buenos_Aires");
+    assert.equal(WorldclockData.localCityName(), "Buenos Aires");
+
+    // a zone that names no place: an offset-only zone, a UTC machine, and a
+    // /etc/localtime that is not a zoneinfo symlink at all
+    GLib.TimeZone.new_local = () => fakeTimeZone("+02");
+    assert.equal(WorldclockData.localCityName(), "");
+
+    GLib.TimeZone.new_local = () => fakeTimeZone("UTC");
+    assert.equal(WorldclockData.localCityName(), "");
+
+    GLib.TimeZone.new_local = () => null;
+    assert.equal(WorldclockData.localCityName(), "",
+        "no zone at all is not a place either");
+});

@@ -9,6 +9,7 @@ const Weather = require("./weather");
 const CityWeather = require("./cityWeather");
 const Holidays = require("./holidays");
 const SettingsFacade = require("./settingsFacade");
+const WorldclockData = require("./worldclockData");
 const HolidayConstants = require("./holidayConstants");
 
 const NO_HOLIDAYS = "none";
@@ -30,6 +31,9 @@ class AppletSettingsBinder {
 
         panel.bindPanelKeys(this.handlers.onSettingsChanged);
         panel.bindWeatherKeys(applet, this.handlers.onWeatherSettingsChanged);
+        // a user who never opens the settings dialog still gets a weather
+        // location: the one their own timezone names
+        panel.fillEmptyWeatherLocation(applet, WorldclockData.localCityName());
         panel.bindKeybinding(this.handlers.onKeybindingChanged);
 
         return {

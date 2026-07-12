@@ -317,6 +317,20 @@ def weather_cities() -> list[str]:
     return _WEATHER_CITIES
 
 
+def local_city_name(timezone: Optional[str] = None) -> str:
+    """The city the machine's own timezone names, as a place a geocoder knows.
+
+    Europe/Rome is "Rome", America/Argentina/Buenos_Aires is "Buenos Aires". A
+    zone with no city in it — UTC, the Etc/ block, a /etc/localtime that is not a
+    zoneinfo symlink — names no place, and answers "".
+    """
+    name = local_timezone_name() if timezone is None else timezone
+    if not name or '/' not in name or name.startswith(TZ_NO_REGION + '/'):
+        return ""
+
+    return name.rsplit('/', maxsplit=1)[-1].replace('_', ' ')
+
+
 class WeatherLocationEntry(JSONSettingsEntry):
     """The weather location, typed with city-name suggestions.
 
@@ -324,6 +338,12 @@ class WeatherLocationEntry(JSONSettingsEntry):
     saves, and finds out from a warning marker on the panel — minutes later,
     after a network round trip — that nothing matched. Suggesting the names the
     machine already knows turns the common case into a pick.
+
+    An empty field is filled with the city of the machine's own timezone, so the
+    weather has somewhere to look before the user has typed anything. It is put
+    *in the field*, not resolved behind the user's back: the timezone names its
+    region's reference city, which for a user in Genoa is Rome, and a wrong
+    location the user can see and correct beats a wrong one they cannot.
     """
 
     def __init__(self, info, key, settings):
@@ -333,6 +353,22 @@ class WeatherLocationEntry(JSONSettingsEntry):
             self.content_widget.set_placeholder_text(WEATHER_LOCATION_HINT)
 
         self.completion = attach_city_completion(self.content_widget, weather_cities())
+        self.prefill_from_timezone()
+
+    def prefill_from_timezone(self) -> str:
+        # only an empty field: a location the user chose is never overwritten,
+        # and clearing the field on purpose refills it — which is the point,
+        # since an empty location is what the panel warns about
+        if self.settings.get_value(self.key):
+            return ""
+
+        city = local_city_name()
+        if not city:
+            return ""
+
+        self.settings.set_value(self.key, city)
+        self.content_widget.set_text(city)
+        return city
 
 
 def country_options(options: dict) -> list[tuple[str, str]]:

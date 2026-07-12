@@ -210,6 +210,25 @@ var PanelSettings = class PanelSettings {
         }
     }
 
+    // An empty weather location is the one setting the applet can answer for
+    // itself: the machine's timezone already names a city. It is written into
+    // the settings key, not just used, so the user opens the dialog and reads
+    // the place the weather is being fetched for — and can correct it, because
+    // the timezone names its region's reference city and not their town.
+    //
+    // Only when it is empty: a location the user chose is never overwritten. The
+    // settings dialog does the same on open, for the same reason; whichever runs
+    // first fills it, and the other one finds it filled.
+    fillEmptyWeatherLocation(target, city) {
+        if (!city || this._settings.getValue(WEATHER_LOCATION_KEY)) {
+            return "";
+        }
+
+        this._settings.setValue(WEATHER_LOCATION_KEY, city);
+        target.weather_location = city;
+        return city;
+    }
+
     bindKeybinding(callback) {
         this._settings.bind(KEY_OPEN_KEY, KEY_OPEN_KEY, callback);
     }
