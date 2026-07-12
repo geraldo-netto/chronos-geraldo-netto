@@ -221,6 +221,28 @@ var CalendarServerConnection = class CalendarServerConnection {
         this._destroyed = true;
     }
 
+    // The proxy is this object's to own: it builds it, connects its signals and
+    // nulls it in destroy(), so it is the only place that should dereference it.
+    // These two methods are what EventsManager and the window coordinator used to
+    // reach through _calendar_server to call — the ownership is no longer split.
+    setTimeRange(start, end, force, cancellable, callFinished) {
+        if (this._calendar_server === null) {
+            return;
+        }
+
+        this._calendar_server.call_set_time_range(start, end, force, cancellable, callFinished);
+    }
+
+    finishSetTimeRange(res) {
+        // no proxy means no reply to finish; let the caller's catch treat it as a
+        // failed fetch and retry, exactly as a thrown finish() did before
+        if (this._calendar_server === null) {
+            throw new Error("calendar server proxy is gone");
+        }
+
+        this._calendar_server.call_set_time_range_finish(res);
+    }
+
     isActive(showEvents) {
         return this._inited &&
                showEvents &&
@@ -350,7 +372,7 @@ var EventWindowCoordinator = class EventWindowCoordinator {
         this.current_selected_signature = null;
     }
 
-    fetchMonthEvents(month_year, force, calendarServer, callFinished, timestampNow, cancellable = null) {
+    fetchMonthEvents(month_year, force, setTimeRange, callFinished, timestampNow, cancellable = null) {
         let changed_month = this.current_month_year === null || !dt_equals(month_year, this.current_month_year);
 
         if (!changed_month && !force) {
@@ -371,13 +393,11 @@ var EventWindowCoordinator = class EventWindowCoordinator {
         // The calendar has 42 boxes
         let end = start.add_days(42).add_seconds(-1);
 
-        // The reply lands in call_finished, which dereferences the proxy that
-        // destroy() has by then set to null: removing the applet mid-call threw
-        // a TypeError that was caught and logged as though the month's events
-        // had failed to arrive. The HTTP paths in this codebase already pass a
-        // cancellable for exactly this; this one passed null.
-        calendarServer.call_set_time_range(
-            start.to_unix(), end.to_unix(), force, cancellable, callFinished);
+        // The reply lands in call_finished. Removing the applet mid-call used to
+        // throw a TypeError there, caught and logged as though the month's events
+        // had failed; the connection now guards its own proxy, and the HTTP paths
+        // in this codebase already pass a cancellable for the same reason.
+        setTimeRange(start.to_unix(), end.to_unix(), force, cancellable, callFinished);
 
         return timestampNow();
     }
@@ -464,10 +484,6 @@ var EventsManager = class EventsManager {
     // _event_index / _window_coordinator directly
     get current_selected_date() {
         return this._window_coordinator.current_selected_date;
-    }
-
-    get _calendar_server() {
-        return this._server_connection._calendar_server;
     }
 
     start_events() {
@@ -624,7 +640,7 @@ var EventsManager = class EventsManager {
         const timestamp = this._window_coordinator.fetchMonthEvents(
             month_year,
             force,
-            this._calendar_server,
+            this._server_connection.setTimeRange.bind(this._server_connection),
             this.call_finished.bind(this),
             GLib.get_monotonic_time,
             this._fetch_cancellable
@@ -643,7 +659,7 @@ var EventsManager = class EventsManager {
         }
 
         try {
-            this._calendar_server.call_set_time_range_finish(res);
+            this._server_connection.finishSetTimeRange(res);
             this._fetch_retry_attempts = 0;
         } catch (e) {
             // the month's events never arrived. Without a retry the grid keeps

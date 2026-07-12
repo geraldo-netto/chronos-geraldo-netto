@@ -273,7 +273,7 @@ test("server connection owns state; the manager keeps only used accessors", () =
     const fakeServer = { status: 2, disconnect() {}, call_set_time_range_finish() {} };
 
     conn._calendar_server = fakeServer;
-    assert.equal(manager._calendar_server, fakeServer, "kept accessor forwards");
+    assert.equal(conn._calendar_server, fakeServer, "the connection owns the proxy");
 
     conn._server_retry_attempts = 3;
     assert.equal(conn.retryDelay() >= 8 * SERVER_RETRY_SECONDS, true);
@@ -292,7 +292,7 @@ test("server connection owns state; the manager keeps only used accessors", () =
     conn.eds_service_found(null, "eds", "owner");
     assert.equal(gio.unwatched.at(-1), 77);
     conn._calendar_server_ready(null, "res");
-    assert.equal(manager._calendar_server, proxy.instance);
+    assert.equal(conn._calendar_server, proxy.instance);
 
     conn._cached_state = 2;
     proxy.instance.status = 1;
@@ -323,7 +323,7 @@ test("proxy ready after destroy connects nothing", () => {
     gio.watches.at(-1).foundCb(null, "eds", "owner");
     manager.destroy();
     proxy.pendingReadyCb(null, "res");
-    assert.equal(manager._calendar_server, null);
+    assert.equal(manager._server_connection._calendar_server, null);
     assert.ok(!manager._server_connection._inited);
 });
 
@@ -408,7 +408,7 @@ test("destroy cancels watch, retry and timers and disconnects proxy signals", ()
 
     assert.equal(timers.pending.size, 0);
     assert.equal(server.disconnected.length, 4);
-    assert.equal(manager._calendar_server, null);
+    assert.equal(manager._server_connection._calendar_server, null);
     assert.ok(manager._destroyed);
 });
 
@@ -817,22 +817,22 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     const coordinator = new EventWindowCoordinator(index);
     const calls = [];
     const emittedEvents = [];
-    const server = {
-        call_set_time_range(start, end, force, cancellable, cb) {
-            calls.push({ start, end, force });
-            cb(this, "res");
-        }
+    // the coordinator is handed a setTimeRange function now, not the proxy: the
+    // connection owns the proxy and exposes this bound method
+    const setTimeRange = (start, end, force, cancellable, cb) => {
+        calls.push({ start, end, force });
+        cb(null, "res");
     };
     let timestamp = 40;
     const month = new FakeDateTime(40 * DAY_US);
 
     assert.equal(coordinator.fetchMonthEvents(
-        month, false, server, () => emittedEvents.push(["finished"]), () => ++timestamp), 41);
+        month, false, setTimeRange, () => emittedEvents.push(["finished"]), () => ++timestamp), 41);
     assert.equal(calls[0].end - calls[0].start, 42 * DAY_S - 1);
     assert.equal(coordinator.fetchMonthEvents(
-        month, false, server, () => {}, () => ++timestamp), null);
+        month, false, setTimeRange, () => {}, () => ++timestamp), null);
     assert.equal(coordinator.fetchMonthEvents(
-        month, true, server, () => {}, () => ++timestamp), 42);
+        month, true, setTimeRange, () => {}, () => ++timestamp), 42);
     assert.equal(calls.length, 2);
 
     const selected = new FakeDateTime(50 * DAY_US);
