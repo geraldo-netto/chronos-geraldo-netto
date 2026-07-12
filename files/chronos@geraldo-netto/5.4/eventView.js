@@ -1,0 +1,822 @@
+// -*- mode: js; js-indent-level: 4; indent-tabs-mode: nil -*-
+
+const Clutter = imports.gi.Clutter;
+const GLib = imports.gi.GLib;
+const St = imports.gi.St;
+const Signals = imports.signals;
+const Pango = imports.gi.Pango;
+const Atk = imports.gi.Atk;
+const Gtk = imports.gi.Gtk;
+const Separator = imports.ui.separator;
+const Tooltips = imports.ui.tooltips;
+const Util = imports.misc.util;
+const Mainloop = imports.mainloop;
+const Utils = require("./utils");
+const EventFormat = require("./eventFormat");
+
+const _ = Utils.translate;
+const joinPhrases = Utils.joinPhrases;
+const ngettext = Utils.translatePlural;
+
+const DATE_FORMAT_FULL = Utils.DATE_FORMAT_FULL;
+const DAY_FORMAT = Utils.DAY_FORMAT;
+
+const locale_cap = EventFormat.localeCap;
+
+// event rows built per main-loop turn: enough that a normal day (a handful of
+// events) is drawn in one go, small enough that a 200-event feed cannot stall
+// the compositor
+const EVENT_ROW_CHUNK = 20;
+
+const EventDataModule = require("./eventData");
+const date_only = EventDataModule.date_only;
+const dt_equals = EventDataModule.dt_equals;
+
+function format_timespan(timespan) {
+    let minutes = Math.floor(timespan / GLib.TIME_SPAN_MINUTE);
+
+    if (minutes < 10) {
+        return ["imminent", _("Starting in a few minutes")];
+    }
+
+    if (minutes < 60) {
+        // Russian declares three plural forms, and 21, 22 and 25 minutes each
+        // take a different one. The line below already uses ngettext for hours;
+        // this one just never did.
+        return ["soon", ngettext("Starting in %d minute", "Starting in %d minutes", minutes).format(minutes)];
+    }
+
+    let hours = Math.floor(minutes / 60);
+
+    if (hours > 6) {
+        let now = GLib.DateTime.new_now_local();
+        let later = now.add_hours(hours);
+
+        if (later.get_hour() > 18) {
+            return ["", _("This evening")];
+        }
+
+        return ["", _("Starting later today")];
+    }
+
+    return ["", ngettext("In %d hour", "In %d hours", hours).format(hours)];
+}
+
+class CalendarLauncher {
+    // find_program_in_path stats every entry in $PATH, and every event row asks
+    // this while it is being built — a day with twenty events meant twenty full
+    // PATH scans on the compositor thread, on each rebuild. gnome-calendar does
+    // not come and go while the shell runs, so ask once.
+    isAvailable() {
+        if (this._available === undefined) {
+            this._available = Boolean(GLib.find_program_in_path("gnome-calendar"));
+        }
+
+        return this._available;
+    }
+
+    launchDate(gdate) {
+        if (!this.isAvailable()) {
+            return false;
+        }
+
+        // --date will be broken anywhere but Mint 20.3 and upstream releases > 41.2
+        // (unless some fixes are backported). Maintainer can patch this to comment
+        // out either line here.
+
+        // Util.trySpawn(["gnome-calendar"], false);
+        Util.trySpawn(["gnome-calendar", "--date", gdate.format("%x")], false);
+        return true;
+    }
+
+    launchUuid(uuid) {
+        if (!this.isAvailable()) {
+            return false;
+        }
+
+        // The uid comes off whatever ICS or CalDAV feed the user subscribed to.
+        // This is the argv form, so there is no shell and no command injection
+        // — but as a separate argument, a uid beginning with a dash reaches
+        // gnome-calendar's option parser as an option. Attaching it to the
+        // switch keeps it a value.
+        Util.trySpawn(["gnome-calendar", "--uuid=" + String(uuid)], false);
+        return true;
+    }
+}
+
+class EventListRenderer {
+    constructor(list) {
+        this.list = list;
+        // The three GLib sources below are armed here and were stored on the
+        // list, which is also the only place that removed them. So the class
+        // that owns the timer was not the class that owns its teardown: a new
+        // arming site in here that forgot to write its id back into the list
+        // leaked a main-loop source into a destroyed menu, and neither class
+        // would have noticed. Whatever arms a source removes it.
+        this._scroll_to_idle_id = 0;
+        this._no_events_timeout_id = 0;
+        this._build_rows_idle_id = 0;
+    }
+
+    // every source this renderer can arm, torn down in one place
+    destroy() {
+        this._cancelScroll();
+        this._cancelNoEventsTimeout();
+        this._cancelRowBuild();
+    }
+
+    setEvents(event_data_list, delay_no_events_box) {
+        this._cancelScroll();
+
+        if (event_data_list != null &&
+            event_data_list.timestamp === this.list._current_event_data_list_timestamp) {
+            this._refreshExistingRows();
+            return;
+        }
+
+        this._clearRows();
+        this._cancelNoEventsTimeout();
+
+        if (event_data_list == null) {
+            this._showNoEvents(delay_no_events_box);
+            return;
+        }
+
+        this._buildRows(event_data_list);
+    }
+
+    _cancelScroll() {
+        if (this._scroll_to_idle_id > 0) {
+            Mainloop.source_remove(this._scroll_to_idle_id);
+            this._scroll_to_idle_id = 0;
+        }
+    }
+
+    _refreshExistingRows() {
+        const now = GLib.DateTime.new_now_local();
+        const today = date_only(now);
+        this.list._rows.forEach((row) => {
+            row.update_variations(now, today);
+        });
+    }
+
+    _clearRows() {
+        this._cancelRowBuild();
+
+        this.list.events_box.get_children().forEach((actor) => {
+            actor.destroy();
+        });
+
+        this.list._rows = [];
+    }
+
+    _cancelNoEventsTimeout() {
+        if (this._no_events_timeout_id > 0) {
+            Mainloop.source_remove(this._no_events_timeout_id);
+            this._no_events_timeout_id = 0;
+        }
+    }
+
+    _showNoEvents(delay_no_events_box) {
+        // Show the 'no events' label, but wait a little bit to give the calendar server
+        // to deliver some events if there are any.
+        if (delay_no_events_box) {
+            // The column used to sit blank for those 600ms and then jump to
+            // "No Events" — an empty state asserted before it was known to be
+            // true. On a slow EDS start the user watched nothing become "no
+            // events" become a list.
+            if (!this.list._unavailable) {
+                this.list.set_no_events_text(_("Loading…"));
+                this.list.no_events_box.show();
+            }
+
+            this._no_events_timeout_id = Mainloop.timeout_add(600, () => {
+                this._no_events_timeout_id = 0;
+                if (!this.list._unavailable) {
+                    this.list.set_no_events_text(_("No Events"));
+                }
+                this.list.no_events_box.show();
+                return GLib.SOURCE_REMOVE;
+            });
+        } else {
+            // Not delayed: the answer is known now, so the column must say so.
+            // Without this the "Loading…" armed by a previous, delayed pass
+            // survives — its 600ms timer was cancelled on the way in here, so
+            // nothing was left to overwrite it — and the user is told the
+            // applet is fetching something that will never arrive, until they
+            // select a different day.
+            if (!this.list._unavailable) {
+                this.list.set_no_events_text(_("No Events"));
+            }
+            this.list.no_events_box.show();
+        }
+
+        this.list._current_event_data_list_timestamp = 0;
+    }
+
+    // One EventRow is ~6 actors plus a separator and a couple of signal
+    // connections, and the count is whatever the user's CalDAV or ICS feeds put
+    // on the day — it is not ours to bound. A 200-event day built ~1,400 actors
+    // in a single main-loop turn, on the thread that draws every window on the
+    // desktop, and a streaming EDS load did it again per delivered batch.
+    //
+    // The first chunk is built straight away, so the column is never empty while
+    // something is there to show; the rest follow on idles, a chunk at a time.
+    _buildRows(event_data_list) {
+        this.list.no_events_box.hide();
+        this.list._current_event_data_list_timestamp = event_data_list.timestamp;
+
+        const events = event_data_list.get_event_list();
+        this._cancelRowBuild();
+
+        const state = {
+            events,
+            index: 0,
+            scroll_to_row: null,
+            timestamp: event_data_list.timestamp
+        };
+
+        this._buildRowChunk(state);
+    }
+
+    _cancelRowBuild() {
+        if (this._build_rows_idle_id > 0) {
+            Mainloop.source_remove(this._build_rows_idle_id);
+            this._build_rows_idle_id = 0;
+        }
+    }
+
+    _buildRowChunk(state) {
+        // the day changed under us while the chunks were still going out
+        if (state.timestamp !== this.list._current_event_data_list_timestamp) {
+            this._build_rows_idle_id = 0;
+            return GLib.SOURCE_REMOVE;
+        }
+
+        const end = Math.min(state.index + EVENT_ROW_CHUNK, state.events.length);
+
+        for (; state.index < end; state.index++) {
+            const event_data = state.events[state.index];
+
+            if (this.list._rows.length > 0) {
+                this.list.events_box.add_actor(new Separator.Separator().actor);
+            }
+
+            const row = new EventRow(
+                event_data,
+                this.list.selected_date,
+                {
+                    use_24h: this.list.desktop_settings.use24h,
+                    launcher: this.list._calendar_launcher
+                }
+            );
+
+            row.connect("view-event", (emitter, uuid) => {
+                if (this.list._calendar_launcher.launchUuid(uuid)) {
+                    this.list.emit("launched-calendar");
+                }
+            });
+
+            this.list.events_box.add_actor(row.actor);
+
+            if (row.is_current_or_next && state.scroll_to_row === null) {
+                state.scroll_to_row = row;
+            }
+
+            this.list._rows.push(row);
+        }
+
+        if (state.index < state.events.length) {
+            this._build_rows_idle_id = Mainloop.idle_add(() => this._buildRowChunk(state));
+            return GLib.SOURCE_REMOVE;
+        }
+
+        this._build_rows_idle_id = 0;
+        if (state.scroll_to_row !== null) {
+            this._queueScroll(state.scroll_to_row);
+        }
+
+        return GLib.SOURCE_REMOVE;
+    }
+
+    _queueScroll(scroll_to_row) {
+        this._scroll_to_idle_id = Mainloop.idle_add(((row) => {
+            let vscroll = this.list.events_scroll_box.get_vscroll_bar();
+
+            if (row != null) {
+                let mid_position = row.actor.y + (row.actor.height / 2) - (this.list.events_box.height / 2);
+                vscroll.get_adjustment().set_value(mid_position);
+            } else {
+                vscroll.get_adjustment().set_value(0);
+            }
+
+            this._scroll_to_idle_id = 0;
+            return GLib.SOURCE_REMOVE;
+        }).bind(null, scroll_to_row));
+    }
+}
+
+class EventList {
+    constructor(desktop_settings, launcher = new CalendarLauncher()) {
+        this.selected_date = GLib.DateTime.new_now_local();
+        this.desktop_settings = desktop_settings;
+        this._calendar_launcher = launcher;
+        this._rows = [];
+        this._current_event_data_list_timestamp = 0;
+        this._unavailable = false;
+        this._renderer = new EventListRenderer(this);
+
+        this.actor = new St.BoxLayout(
+            {
+                style_class: "calendar-events-main-box",
+                vertical: true,
+                visible: false
+            }
+        );
+
+        // the label opens the calendar app: without focus, a key handler and a
+        // tooltip it is a click target no keyboard user can reach and no user
+        // can discover
+        const canLaunch = this._calendar_launcher.isAvailable();
+
+        this.selected_date_label = new St.Label(
+            {
+                style_class: "calendar-events-date-label",
+                reactive: canLaunch,
+                can_focus: canLaunch
+            }
+        );
+
+        if (canLaunch) {
+            // The name is set in set_date(), because an explicit ATK name
+            // *replaces* the label's own text: naming it only "Open the
+            // calendar app" left the selected date - which this heading is the
+            // only place to read - unsayable.
+            if (this.selected_date_label.set_accessible_role && Atk.Role) {
+                this.selected_date_label.accessible_role = Atk.Role.PUSH_BUTTON;
+            }
+
+            this.selected_date_label_tooltip =
+                new Tooltips.Tooltip(this.selected_date_label, _("Open the calendar app"));
+
+            this.selected_date_label.connect("button-press-event", (actor, event) => {
+                if (event.get_button() == Clutter.BUTTON_PRIMARY) {
+                    this.launch_calendar(this.selected_date);
+                    return Clutter.EVENT_STOP;
+                }
+            });
+
+            this.selected_date_label.connect("key-press-event", (actor, event) => {
+                const symbol = event.get_key_symbol();
+                if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter ||
+                    symbol === Clutter.KEY_space) {
+                    this.launch_calendar(this.selected_date);
+                    return Clutter.EVENT_STOP;
+                }
+                return Clutter.EVENT_PROPAGATE;
+            });
+        }
+
+        this.actor.add_actor(this.selected_date_label);
+
+        this.no_events_box = new St.BoxLayout(
+            {
+                style_class: "calendar-events-no-events-box",
+                vertical: true,
+                visible: false,
+                x_align: Clutter.ActorAlign.CENTER,
+                y_align: Clutter.ActorAlign.CENTER,
+                y_expand: true
+            }
+        );
+
+        // without a calendar app there is nothing to launch: a themed button
+        // that silently does nothing is worse than no button at all
+        this.no_events_button = new St.Button(
+            {
+                // the themed button chrome is what makes it read as clickable
+                style_class: canLaunch ? "calendar-events-no-events-button" : "",
+                reactive: canLaunch,
+                can_focus: canLaunch
+            }
+        );
+
+        if (canLaunch) {
+            this.no_events_button.connect('clicked', () => {
+                this.launch_calendar(this.selected_date);
+            });
+        }
+
+        let button_inner_box = new St.BoxLayout(
+            {
+                vertical: true
+            }
+        );
+
+        let no_events_icon = new St.Icon(
+            {
+                style_class: "calendar-events-no-events-icon",
+                icon_name: 'x-office-calendar',
+                icon_type: St.IconType.SYMBOLIC,
+                icon_size: 48
+            }
+        );
+
+        this.no_events_label = new St.Label(
+            {
+                style_class: "calendar-events-no-events-label",
+                y_align: Clutter.ActorAlign.CENTER
+            }
+        );
+        // St.Label ellipsizes at the end by default, and this label carries a
+        // whole remediation sentence when no calendar service is running: the
+        // part that says what to do about it was the part that got cut. The
+        // event_summary label two classes down already wraps for the same
+        // reason; the width cap that gives the wrap something to wrap against
+        // is in the stylesheet.
+        this.no_events_label.get_clutter_text().line_wrap = true;
+        this.no_events_label.get_clutter_text().ellipsize = Pango.EllipsizeMode.NONE;
+
+        const no_events_label = this.no_events_label;
+        button_inner_box.add_actor(no_events_icon);
+        button_inner_box.add_actor(no_events_label);
+        this.no_events_button.add_actor(button_inner_box);
+        this.no_events_box.add_actor(this.no_events_button);
+        this.actor.add_actor(this.no_events_box);
+
+        this.set_no_events_text(_("No Events"));
+
+        this.events_box = new St.BoxLayout(
+            {
+                style_class: 'calendar-events-event-container',
+                vertical: true,
+                accessible_role: Atk.Role.LIST
+            }
+        );
+        // a list that declares itself a list and has no name is announced as
+        // "list", with nothing to say what it is a list of
+        if (this.events_box.set_accessible_name) {
+            this.events_box.set_accessible_name(_("Events for the selected day"));
+        }
+        this.events_scroll_box = new St.ScrollView(
+            {
+                style_class: 'calendar-events-scrollbox vfade',
+                hscrollbar_policy: Gtk.PolicyType.NEVER,
+                vscrollbar_policy: Gtk.PolicyType.AUTOMATIC,
+                enable_auto_scrolling: true
+            }
+        );
+
+        let vscroll = this.events_scroll_box.get_vscroll_bar();
+        vscroll.connect('scroll-start', () => {
+            this.emit("start-pass-events");
+        });
+        vscroll.connect('scroll-stop', () => {
+            this.emit("stop-pass-events");
+        });
+
+        this.events_scroll_box.add_actor(this.events_box);
+        this.actor.add_actor(this.events_scroll_box);
+    }
+
+    launch_calendar(gdate) {
+        // the column is showing "no calendar service is running": there is
+        // nothing to launch, and the button that would have said so is not a
+        // button any more
+        if (this._unavailable) {
+            return;
+        }
+
+        if (this._calendar_launcher.launchDate(gdate)) {
+            this.emit("launched-calendar");
+        }
+    }
+
+    // An explicit ATK name *replaces* the button's child text, so naming the
+    // button "Add an event" once at construction meant the label under it —
+    // "Loading…", "No Events", the unavailable sentence — was never announced
+    // at all: a screen reader heard "Add an event" while the column was still
+    // loading and while it was empty. The text and the name are one state, so
+    // they are written in one place.
+    set_no_events_text(text) {
+        this.no_events_label.set_text(text);
+
+        if (!this.no_events_button.set_accessible_name) {
+            return;
+        }
+
+        // with no calendar app the button launches nothing, and while events
+        // are unavailable it adds nothing: either way it is only a label
+        const canAdd = this._calendar_launcher.isAvailable() && !this._unavailable;
+        this.no_events_button.set_accessible_name(
+            canAdd ? joinPhrases(text, _("Add an event")) : text);
+    }
+
+    set_date(gdate) {
+        if (this.selected_date && dt_equals(this.selected_date, gdate)) {
+            return;
+        }
+
+        const dateText = locale_cap(gdate.format(DATE_FORMAT_FULL));
+        this.selected_date_label.set_text(dateText);
+
+        // the date first, because that is what this heading is for; what
+        // clicking it does comes after
+        if (this.selected_date_label.set_accessible_name) {
+            this.selected_date_label.set_accessible_name(
+                this._calendar_launcher.isAvailable() ?
+                    joinPhrases(dateText, _("Open the calendar app")) : dateText);
+        }
+
+        this.selected_date = gdate;
+    }
+
+    set_events(event_data_list, delay_no_events_box) {
+        if (this._unavailable) {
+            return;
+        }
+
+        this._renderer.setEvents(event_data_list, delay_no_events_box);
+    }
+
+    // events are on but no calendar service answered: hiding the column made
+    // the setting look like it did nothing
+    set_unavailable(unavailable) {
+        if (this._unavailable === unavailable) {
+            return;
+        }
+        this._unavailable = unavailable;
+
+        // In the unavailable state the button announced only the error sentence —
+        // while staying focusable, hoverable, themed as a button and still wired
+        // to launch_calendar(). So it read as "no calendar service is running",
+        // and pressing Enter on it opened gnome-calendar. A control's name has to
+        // say what activating it does; this one is not a control at all here.
+        const canLaunch = this._calendar_launcher.isAvailable() && !unavailable;
+        this.no_events_button.reactive = canLaunch;
+        this.no_events_button.can_focus = canLaunch;
+        this.no_events_button.set_style_class_name(
+            canLaunch ? "calendar-events-no-events-button" : "");
+
+        if (!unavailable) {
+            this.set_no_events_text(_("No Events"));
+            return;
+        }
+
+        this._renderer.setEvents(null, false);
+        // "unavailable" on its own leaves the user with nothing to do about it:
+        // say what is missing and what would fix it
+        this.set_no_events_text(
+            _("Calendar events are unavailable — no calendar service is running. Install or enable Evolution Data Server."));
+        this.no_events_box.show();
+    }
+
+    // the renderer arms every source this class can be holding, so it is the
+    // renderer that removes them
+    destroy() {
+        this._renderer.destroy();
+    }
+}
+Signals.addSignalMethods(EventList.prototype);
+
+class EventRowPresenter {
+    constructor(row) {
+        this.row = row;
+    }
+
+    colorStyle() {
+        return `background-color: ${Utils.safeCssColor(this.row.event.color)};`;
+    }
+
+    connectActivation() {
+        if (!this.row._calendar_launcher.isAvailable()) {
+            return;
+        }
+
+        this.row.actor.connect("button-press-event", (actor, event) => {
+            if (event.get_button() == Clutter.BUTTON_PRIMARY) {
+                this.row.emit("view-event", this.row.event.id);
+                return Clutter.EVENT_STOP;
+            }
+        });
+
+        this.row.actor.connect("key-press-event", (actor, event) => {
+            const symbol = event.get_key_symbol();
+            if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter ||
+                symbol === Clutter.KEY_space) {
+                this.row.emit("view-event", this.row.event.id);
+                return Clutter.EVENT_STOP;
+            }
+            return Clutter.EVENT_PROPAGATE;
+        });
+    }
+
+    update(now = GLib.DateTime.new_now_local(), today = date_only(now)) {
+        const selectedDateOnly = date_only(this.row.selected_date);
+        const state = EventFormat.classifyEventDisplayState(this.row.event, now, today);
+        this.row.is_current_or_next = state.is_current_or_next;
+
+        this._applyState(state);
+        this.row.event_time.set_text(EventFormat.formatEventTimeRange(
+            this.row.event, selectedDateOnly, today,
+            {
+                timeFormat: this.row.use_24h ? "%H:%M" : "%l:%M %p",
+                dayFormat: DAY_FORMAT,
+                translate: _
+            }
+        ));
+
+        this._announce();
+    }
+
+    // The row is a focusable box holding three separate labels — time, summary,
+    // countdown — with no name of its own, inside a box that calls itself a
+    // list. A screen reader read a list with no items in it.
+    _announce() {
+        const actor = this.row.actor;
+        if (!actor.set_accessible_name) {
+            return;
+        }
+
+        const countdown = this.row.countdown_label.text;
+        const name = joinPhrases(this.row.event_time.text, this.row.event.summary, countdown);
+
+        if (this.row.rendered_accessible_name !== name) {
+            this.row.rendered_accessible_name = name;
+            actor.set_accessible_name(name);
+        }
+    }
+
+    _applyState(state) {
+        if (state.phase === EventFormat.EVENT_PHASE_PAST) {
+            this.row.event_time.set_style_class_name("calendar-event-time-past");
+            this._setCountdown("");
+        } else if (state.phase === EventFormat.EVENT_PHASE_UPCOMING) {
+            this.row.event_time.set_style_class_name("calendar-event-time-future");
+            this._applyUpcomingState(state);
+        } else {
+            this._applyPresentState();
+        }
+    }
+
+    // rows refresh in place while the menu is open, so the countdown
+    // pseudo-class must be replaced, never accumulated
+    _setCountdown(text, pseudoClass = "") {
+        this.row.countdown_label.set_text(text);
+        this.row.countdown_label.set_style_pseudo_class(pseudoClass);
+    }
+
+    _applyUpcomingState(state) {
+        if (state.show_countdown) {
+            let [countdown_pclass, text] = format_timespan(state.time_until_start);
+            this._setCountdown(text, countdown_pclass);
+        } else {
+            this._setCountdown("");
+        }
+    }
+
+    _applyPresentState() {
+        this.row.event_time.set_style_class_name("calendar-event-time-present");
+        if (this.row.event.all_day || this.row.event.multi_day) {
+            this._setCountdown("");
+            this.row.event_time.set_style_pseudo_class("all-day");
+        } else {
+            this._setCountdown(_("In progress"), "current");
+        }
+    }
+}
+
+class EventRow {
+    constructor(event, date, params) {
+        this.event = event;
+        this.is_current_or_next = false;
+        this.selected_date = date;
+        this.use_24h = params.use_24h;
+        // The launcher is the list's, and the list is handed one. A default
+        // here silently built a *second* launcher, each with its own memo of
+        // find_program_in_path — which is the one thing the class exists to
+        // avoid, and the rows are where the PATH scans came from.
+        this._calendar_launcher = params.launcher;
+        this._presenter = new EventRowPresenter(this);
+
+        // A row opens the event in the calendar app, and connectActivation()
+        // wires nothing when there is no calendar app to open. The row still
+        // took focus, still lit up on hover and still looked like a button —
+        // one that does nothing on Enter, Space or click. The empty-state
+        // button and the date heading were both already guarded this way; the
+        // rows were the ones that got missed.
+        const canActivate = this._calendar_launcher.isAvailable();
+
+        this.actor = new St.BoxLayout(
+            {
+                style_class: "calendar-event-button",
+                reactive: canActivate,
+                can_focus: canActivate
+            }
+        );
+
+        // the box around these rows declares itself a list; without this its
+        // children are plain boxes and the list has no items
+        if (Atk.Role) {
+            this.actor.accessible_role = Atk.Role.LIST_ITEM;
+        }
+
+        if (canActivate) {
+            this.actor.connect("enter-event", () => {
+                this.actor.add_style_pseudo_class("hover");
+            });
+
+            this.actor.connect("leave-event", () => {
+                this.actor.remove_style_pseudo_class("hover");
+            });
+        }
+
+        this._presenter.connectActivation();
+
+        // The strip is the only sign of which calendar an event belongs to, and
+        // it is a colour and nothing else — no text, no tooltip, no name. That is
+        // information a colour-blind user does not get and a screen reader cannot
+        // say.
+        //
+        // The applet cannot fix that half: cinnamon-calendar-server sends the
+        // calendar's *colour* and never its display name (see the Event tuple in
+        // /usr/libexec/cinnamon/cinnamon-calendar-server.py — uid, color, summary,
+        // all_day, start, end, mod), so there is no name here to announce. What it
+        // can do is stop the strip being read out as an unnamed object beside the
+        // row that already says the time, the summary and the countdown.
+        let color_strip = new St.Bin(
+            {
+                style_class: "calendar-event-color-strip",
+                style: this._presenter.colorStyle()
+            }
+        );
+        if (Atk.Role) {
+            // decorative: the row's own accessible name carries the content
+            color_strip.accessible_role = Atk.Role.SEPARATOR;
+        }
+
+        this.actor.add(color_strip);
+
+        let vbox = new St.BoxLayout(
+            {
+                style_class: "calendar-event-row-content",
+                x_expand: true,
+                vertical: true
+            }
+        );
+        this.actor.add_actor(vbox);
+
+        let label_box = new St.BoxLayout(
+            {
+                name: "label-box",
+                x_expand: true
+            }
+        );
+        vbox.add_actor(label_box);
+
+        this.event_time = new St.Label(
+            {
+                x_align: Clutter.ActorAlign.START,
+                text: "",
+                style_class: "calendar-event-time-present"
+            }
+        );
+        label_box.add(this.event_time, { expand: true, x_fill: true });
+
+        this.countdown_label = new St.Label(
+            {
+                /// text set below
+                x_align: Clutter.ActorAlign.END,
+                style_class: "calendar-event-countdown",
+            }
+        );
+
+        label_box.add(this.countdown_label, { expand: true, x_fill: true });
+
+        let event_summary = new St.Label(
+            {
+                text: this.event.summary,
+                y_expand: true,
+                style_class: "calendar-event-summary"
+            }
+        );
+
+        event_summary.get_clutter_text().line_wrap = true;
+        // Pango.EllipsizeMode has no NEVER: the name reads as undefined, which
+        // GJS coerces to 0 — the value of NONE — so this line has been getting
+        // the behaviour it wanted by accident. Say what it means.
+        event_summary.get_clutter_text().ellipsize = Pango.EllipsizeMode.NONE;
+        vbox.add(event_summary, { expand: true });
+
+        this.update_variations();
+    }
+
+    update_variations(now = GLib.DateTime.new_now_local(), today = date_only(now)) {
+        this._presenter.update(now, today);
+    }
+}
+Signals.addSignalMethods(EventRow.prototype);
+
+if (typeof module !== "undefined") {
+    module.exports = { CalendarLauncher, EventList, EventListRenderer, EventRow, EventRowPresenter, format_timespan };
+}

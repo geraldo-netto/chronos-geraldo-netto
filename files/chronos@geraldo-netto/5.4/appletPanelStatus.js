@@ -1,0 +1,740 @@
+/* global imports */
+/* eslint camelcase: "off" */
+
+const St = imports.gi.St;
+const Atk = imports.gi.Atk;
+const Utils = require("./utils");
+const Weather = require("./weather");
+const WorldclockData = require("./worldclockData");
+
+const _ = Utils.translate;
+const joinPhrases = Utils.joinPhrases;
+
+const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
+// Eight world clocks plus a weather reading reached the old 80-character cap
+// and squeezed every other applet off a 1366px panel. The panel is shared: the
+// suffix is an extra, and the date and time are the point.
+const LABEL_SUFFIX_MAX_LENGTH = 48;
+// the ellipsis everything else in this applet uses, rather than three dots
+const LABEL_ELLIPSIS = "…";
+// the panel label follows the desktop's 12/24-hour setting, and the tooltip is
+// the same applet's readout of the same clocks: a 12-hour user reading
+// "2:52 PM" on the panel should not find "14:52" in its tooltip
+const TOOLTIP_CLOCK_FORMAT_24H = "%d %b %H:%M";
+const TOOLTIP_CLOCK_FORMAT_12H = "%d %b %l:%M %p";
+// label, date and time, temperature, condition: only the numbers are right-aligned
+const TOOLTIP_TEMPERATURE_COLUMN = 2;
+
+const WEATHER_ERROR_TEXT = {
+    [Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND]: _("Location not found"),
+    [Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE]: _("Weather service unavailable"),
+    [Weather.WEATHER_ERRORS.NO_LOCATION]: _("Set a weather location")
+};
+
+function translateWeatherError(error) {
+    return WEATHER_ERROR_TEXT[error] || error;
+}
+
+// the panel readout is a glyph and a temperature; these are the words for it
+const WEATHER_CONDITION_TEXT = {
+    Clear: _("Clear"),
+    "Partly cloudy": _("Partly cloudy"),
+    Cloudy: _("Cloudy"),
+    Rain: _("Rain"),
+    Snow: _("Snow"),
+    Showers: _("Showers"),
+    Thunderstorm: _("Thunderstorm"),
+    Fair: _("Fair")
+};
+
+// The panel has room for a glyph and a temperature, and no more. A screen
+// reader gets the emoji's codepoint name or nothing at all, so the spoken name
+// spells the condition out. `reading` is the weather text to read the condition
+// from; by default that is the whole string, which is how the panel label - the
+// date followed by the reading - asks about only its weather half.
+function describeWeather(text, reading = text) {
+    // the first refresh has not landed yet, and the placeholder for it is an
+    // ellipsis: read aloud, that is nothing at all
+    if (reading === Weather.WEATHER_PENDING_TEXT) {
+        return joinPhrases(text, _("Weather: loading…"));
+    }
+
+    const condition = Weather.weatherCondition(reading);
+    if (!condition) {
+        return text;
+    }
+
+    return joinPhrases(text, WEATHER_CONDITION_TEXT[condition] || condition);
+}
+
+// The result is handed to strftime, so every % in it is a directive. A
+// translator who writes "100 % ungültig", or slips in a stray %d, would
+// otherwise corrupt the panel label — and xgettext does not mark these strings
+// c-format, so msgfmt would not catch it either. %% is strftime's literal
+// percent, and the time beside the message follows the user's own clock rather
+// than a hardcoded 12-hour one.
+function badFormatFallback(view, message) {
+    const use24h = view.desktopSettings && view.desktopSettings.use24h;
+
+    return String(message).replace(/%/g, "%%") + " • " + (use24h ? "%H:%M" : "%l:%M %p");
+}
+
+// Everything the presenter reads and writes, behind one seam.
+//
+// It was the writes only, and the presenter went on reading about fifteen applet
+// privates straight through it — _weather_text, _weather_error, _panel_hovered,
+// _worldclocks, _calendar, events_manager — and wrote one field around it
+// (applet.worldclock_format). PanelView broke its own seam too, reaching for
+// applet._calendar. So the applet's private shape was still the presenter's API:
+// renaming any of those fields threw nothing, because `undefined` is falsy, and
+// the panel suffix, the tooltip's temperature column, the accessible name and
+// the "Source:" credit would all just silently go blank.
+//
+// The reads are here now. AppletMenuBuilder and AppletProviderLifecycle take a
+// context and hand their products back; this is the same idea for the panel.
+class PanelView {
+    constructor(applet) {
+        this.applet = applet;
+    }
+
+    // --- what the panel is being asked to show -----------------------------
+
+    get orientation() {
+        return this.applet.orientation;
+    }
+
+    get showWeather() {
+        return this.applet.show_weather;
+    }
+
+    // the one setting that decides whether the popup grid, the panel suffix, the
+    // tooltip rows and the per-city weather exist at all
+    get worldclocksEnabled() {
+        return this.applet.show_worldclocks !== false;
+    }
+
+    get useCustomFormat() {
+        return this.applet.use_custom_format;
+    }
+
+    get customFormat() {
+        return this.applet.custom_format;
+    }
+
+    get customTooltipFormat() {
+        return this.applet.custom_tooltip_format;
+    }
+
+    get panelClocks() {
+        return this.applet.panel_clocks;
+    }
+
+    get worldclocks() {
+        return this.applet.worldclocks;
+    }
+
+    get panelHovered() {
+        return this.applet._panel_hovered;
+    }
+
+    get menuOpen() {
+        return this.applet.menu.isOpen;
+    }
+
+    get desktopSettings() {
+        return this.applet.desktop_settings;
+    }
+
+    // --- the weather readings ----------------------------------------------
+
+    get weatherText() {
+        return this.applet._weather_text;
+    }
+
+    get weatherError() {
+        return this.applet._weather_error;
+    }
+
+    get weatherProvider() {
+        return this.applet._weather_provider;
+    }
+
+    cityWeatherText(city) {
+        return this.applet.cityWeatherText ? this.applet.cityWeatherText(city) : "";
+    }
+
+    cityWeatherStale(city) {
+        return Boolean(this.applet.cityWeatherStale && this.applet.cityWeatherStale(city));
+    }
+
+    cityWeatherProviderName() {
+        return this.applet.cityWeatherProviderName ? this.applet.cityWeatherProviderName() : "";
+    }
+
+    // --- the clock, and the actors it writes to -----------------------------
+
+    formattedClock() {
+        return this.applet.clock.get_clock();
+    }
+
+    formatClock(format) {
+        return this.applet.clock.get_clock_for_format(format);
+    }
+
+    setClockFormatString(format) {
+        return this.applet.clock.set_format_string(format);
+    }
+
+    setLabel(text) {
+        this.applet.set_applet_label(text);
+    }
+
+    setTooltip(text) {
+        this.applet.set_applet_tooltip(text);
+    }
+
+    setAccessibleName(name) {
+        const actor = this.applet.actor;
+        if (!actor || !actor.set_accessible_name) {
+            return;
+        }
+
+        actor.set_accessible_name(name);
+
+        // The home button and the date heading were both given a PUSH_BUTTON role
+        // in the accessibility pass; the panel button itself was missed. Orca read
+        // out the date, the time and the weather with a filler role and never said
+        // the thing was activatable — and clicking it is how the menu opens.
+        if (Atk.Role && actor.accessible_role !== Atk.Role.PUSH_BUTTON) {
+            actor.accessible_role = Atk.Role.PUSH_BUTTON;
+        }
+    }
+
+    get dayLabel() {
+        return this.applet._day;
+    }
+
+    get dateLabel() {
+        return this.applet._date;
+    }
+
+    // the world-clock rows: the format they render in, whether they are shown at
+    // all, and what they say. The presenter used to set applet.worldclock_format
+    // directly — a write straight past the seam it writes everything else
+    // through.
+    setWorldclockFormat(format) {
+        this.applet.worldclock_format = format;
+        this.applet._worldclocks.setFormat(format);
+    }
+
+    setWorldclocksVisible(visible) {
+        this.applet._worldclocks.setVisible(visible);
+    }
+
+    updateWorldclocks(entries) {
+        this.applet._worldclocks.updateClocks(entries);
+    }
+
+    setWeatherSource(source) {
+        this.applet._worldclocks.setWeatherSource(source);
+    }
+
+    getClockEntries(limit, includeBuiltin) {
+        return this.applet._worldclocks.getClockEntries(
+            limit === null ? undefined : limit, includeBuiltin);
+    }
+
+    // --- the menu's own collaborators --------------------------------------
+
+    todaySelected() {
+        return this.applet._calendar.todaySelected();
+    }
+
+    selectEventsDate() {
+        this.applet.events_manager.select_date(this.applet._calendar.getSelectedDate());
+    }
+
+    // today is already selected: there is nowhere to go, and a button that only
+    // *looks* disabled still takes focus and still fires on Enter
+    setHomeEnabled(enabled) {
+        const button = this.applet.go_home_button;
+
+        // Clearing can_focus on the actor that currently holds the key focus
+        // makes St drop the stage focus to null, and the menu manager closes
+        // the menu the moment focus leaves it. Pressing Enter on "Go to today"
+        // therefore selected today and slammed the popup shut. Hand the focus
+        // to the day the button just jumped to before taking the button's away.
+        if (!enabled && button.can_focus && this._hasKeyFocus(button)) {
+            const calendar = this.applet._calendar;
+            if (calendar && calendar.focusSelectedDay) {
+                calendar.focusSelectedDay();
+            }
+        }
+
+        button.reactive = enabled;
+        button.can_focus = enabled;
+        button.set_style_class_name(enabled ?
+            "calendar-today-home-button-enabled" : "calendar-today-home-button");
+    }
+
+    _hasKeyFocus(actor) {
+        const stage = typeof global !== "undefined" ? global.stage : null;
+        return Boolean(stage && stage.get_key_focus && stage.get_key_focus() === actor);
+    }
+}
+
+class AppletPanelStatusPresenter {
+    // the applet is only here to build the default view: the presenter itself
+    // does not hold it, and reads and writes nothing but the seam
+    constructor(applet, view = new PanelView(applet)) {
+        this.view = view;
+        this._todayFormatCache = null;
+    }
+
+    updateFormatString() {
+        const view = this.view;
+        let in_vertical_panel = (view.orientation === St.Side.LEFT || view.orientation === St.Side.RIGHT);
+        let world_string = view.customFormat;
+        let main_string = view.customFormat;
+
+        if (view.useCustomFormat) {
+            if (!view.setClockFormatString(world_string)) {
+                global.logError("Calendar applet: bad time format string - check your string.");
+                world_string = main_string = badFormatFallback(view, _("Invalid time format; edit it in Settings"));
+            }
+        } else {
+            let use_24h = view.desktopSettings.use24h;
+            let show_seconds = view.desktopSettings.showSeconds;
+
+            if (use_24h) {
+                main_string = show_seconds ? "%H%n%M%n%S" : "%H%n%M";
+                world_string = show_seconds ? "%H:%M:%S (%a)" : "%H:%M (%a)";
+            } else {
+                main_string = show_seconds ? "%l%n%M%n%S" : "%l%n%M";
+                world_string = show_seconds ? "%l:%M:%S (%a)" : "%l:%M (%a)";
+            }
+            // a horizontal panel gets the compact local readout - day, short
+            // month, time; the weekday, year and other zones live in the
+            // tooltip and the popup, so the panel stays narrow
+            if (!in_vertical_panel) {
+                if (use_24h) {
+                    main_string = show_seconds ? "%d %b %H:%M:%S" : "%d %b %H:%M";
+                } else {
+                    main_string = show_seconds ? "%d %b %l:%M:%S %p" : "%d %b %l:%M %p";
+                }
+            }
+        }
+
+        view.setClockFormatString(main_string);
+        // the format changes what the rows say, not which rows exist: rebuilding
+        // the actors here meant every keystroke in the custom-format entry tore
+        // the whole clock grid down and built it again
+        view.setWorldclockFormat(world_string);
+        view.setWorldclocksVisible(this.worldclocksEnabled());
+    }
+
+    // the panel carries the temperature, not the sky: the glyph is a picture of
+    // what the tooltip and the accessible name already say in words
+    stripWeatherIcon(text) {
+        if (!Weather.weatherCondition(text)) {
+            return text;
+        }
+
+        // the glyph is the first code point, and a space follows it
+        return Array.from(text).slice(1).join("").trim();
+    }
+
+    // The one thing show_worldclocks used to do was hide the popup grid. The
+    // panel label, the tooltip and the per-city weather all ignored it: with
+    // the clocks switched off and weather on, the applet still built a
+    // GLib.DateTime per clock every second, still appended the clocks to the
+    // panel label and the tooltip, and still made 8 cities × 1 forecast every
+    // 30 minutes — sixteen HTTP round-trips an hour for a feature that is off.
+    worldclocksEnabled() {
+        return this.view.worldclocksEnabled;
+    }
+
+    buildLabelSuffix(clockTexts = []) {
+        const view = this.view;
+        if (view.orientation === St.Side.LEFT || view.orientation === St.Side.RIGHT) {
+            return "";
+        }
+
+        let parts = [];
+
+        if (view.showWeather) {
+            const reading = this.stripWeatherIcon(view.weatherText);
+            if (view.weatherError) {
+                // the failure marker stays: it is the only sign on the panel
+                // that the reading may be stale
+                parts.push(reading ?
+                    Weather.WEATHER_ERROR_MARKER + " " + reading :
+                    Weather.WEATHER_ERROR_MARKER);
+            } else if (reading) {
+                parts.push(reading);
+            }
+        }
+
+        if (this.worldclocksEnabled() && view.worldclocks && view.worldclocks.length) {
+            clockTexts.forEach((clock) => {
+                parts.push(clock.label + " " + clock.time);
+            });
+        }
+
+        return parts.join(" • ");
+    }
+
+    ellipsizeLabelSuffix(suffix) {
+        if (suffix.length <= LABEL_SUFFIX_MAX_LENGTH) {
+            return suffix;
+        }
+
+        // count code points, not UTF-16 units: the weather glyphs are
+        // astral and a blind slice could split a surrogate pair
+        const chars = Array.from(suffix);
+        if (chars.length <= LABEL_SUFFIX_MAX_LENGTH) {
+            return suffix;
+        }
+
+        return chars.slice(0, LABEL_SUFFIX_MAX_LENGTH - 1).join("").replace(/\s+$/, "") + LABEL_ELLIPSIS;
+    }
+
+    tooltipClockFormat() {
+        const use24h = this.view.desktopSettings && this.view.desktopSettings.use24h;
+
+        return use24h ? TOOLTIP_CLOCK_FORMAT_24H : TOOLTIP_CLOCK_FORMAT_12H;
+    }
+
+    // the panel shows one time and one temperature; the tooltip is where the
+    // rest of the world fits, one row per clock: label, date and time,
+    // temperature, condition
+    tooltipClockRow(entry) {
+        const stamp = entry.localTime && entry.localTime.format ?
+            entry.localTime.format(this.tooltipClockFormat()) : entry.time;
+        const cells = [entry.label, stamp || entry.time];
+
+        if (!this.view.showWeather) {
+            return cells;
+        }
+
+        return cells.concat(this.tooltipWeatherCells(entry));
+    }
+
+    // the weather glyphs are colour emoji: they come from a different font,
+    // taller than the text one, so a row carrying a glyph is taller than a row
+    // without and the table combs. The tooltip has room for words, so it takes
+    // the reading in text and leaves the glyphs to the panel.
+    tooltipWeatherCells(entry) {
+        const view = this.view;
+
+        // UTC is a scale, not a place: it has no weather. The local row takes
+        // the panel reading, and every other row takes its own city's.
+        let reading = "";
+        let error = "";
+        if (entry.builtin) {
+            if (entry.timezone === WorldclockData.UTC_TIMEZONE) {
+                return ["", ""];
+            }
+            reading = view.weatherText || "";
+            // a failed refresh keeps the last good reading, as the panel does:
+            // the marker says it may be old, not gone
+            error = view.weatherError ?
+                Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError) : "";
+        } else {
+            reading = view.cityWeatherText(entry.label) || "";
+            // a city keeps its last reading when a refresh fails, so without
+            // this a temperature from this morning reads as the weather now
+            if (reading && view.cityWeatherStale(entry.label)) {
+                // one msgid: the marker is a glyph the phrase is built around,
+                // and a translator has to be able to put it where it belongs
+                error = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
+            }
+        }
+
+        // the first refresh has not landed: an ellipsis in the temperature
+        // column, with nothing beside it, says less than nothing
+        if (reading === Weather.WEATHER_PENDING_TEXT) {
+            return ["", error || _("Weather: loading…")];
+        }
+
+        const condition = Weather.weatherCondition(reading);
+        const words = condition ? (WEATHER_CONDITION_TEXT[condition] || condition) : "";
+        return [this.stripWeatherIcon(reading), error || words];
+    }
+
+    // The tooltip is rebuilt on every tick while the panel is hovered — once a
+    // minute normally, 1 Hz with clock-show-seconds on — and alignTooltipRows
+    // makes two passes over every cell with Array.from()
+    // plus a " ".repeat() each, which is some eighty allocations for ten clocks.
+    // The tooltip format carries no seconds, so 59 of every 60 rebuilds produced
+    // byte-identical text and were thrown away by set_applet_tooltip's own
+    // equality check. The key says whether anything it is built from has changed.
+    _tooltipKey(dateFormattedTooltip, clockEntries) {
+        const view = this.view;
+
+        return [
+            dateFormattedTooltip,
+            view.showWeather ? view.weatherText : "",
+            view.showWeather ? view.weatherError : "",
+            clockEntries.map((entry) => [
+                entry.label,
+                entry.time,
+                entry.builtin ? "b" : "",
+                view.showWeather ? this.tooltipWeatherCells(entry).join("\u0001") : ""
+            ].join("\u0002")).join("\u0003")
+        ].join("\u0004");
+    }
+
+    setTooltipText(dateFormattedTooltip, clockEntries) {
+        const key = this._tooltipKey(dateFormattedTooltip, clockEntries);
+        if (this._rendered_tooltip_key === key) {
+            return;
+        }
+        this._rendered_tooltip_key = key;
+
+        this.view.setTooltip(this.buildTooltipText(dateFormattedTooltip, clockEntries));
+    }
+
+    // a tooltip is plain text, so the columns can only be lined up by padding;
+    // the temperatures hang off the right of their column so the digits stack
+    alignTooltipRows(rows) {
+        const widths = [];
+        rows.forEach((cells) => {
+            cells.forEach((cell, column) => {
+                const width = Array.from(cell).length;
+                if (!widths[column] || width > widths[column]) {
+                    widths[column] = width;
+                }
+            });
+        });
+
+        return rows.map((cells) => {
+            return cells.map((cell, column) => {
+                const pad = widths[column] - Array.from(cell).length;
+                const padding = " ".repeat(pad > 0 ? pad : 0);
+                if (column === TOOLTIP_TEMPERATURE_COLUMN) {
+                    return padding + cell;
+                }
+                // the last cell of a row needs no padding behind it
+                if (column === cells.length - 1) {
+                    return cell;
+                }
+                return cell + padding;
+            }).join("  ").replace(/\s+$/, "");
+        });
+    }
+
+    buildTooltipText(dateFormattedTooltip, clockEntries = []) {
+        const view = this.view;
+        const lines = [];
+
+        // the shipped tooltip is the clock table; a custom tooltip format is a
+        // header the user asked for, so it keeps its place on top
+        if (view.useCustomFormat && dateFormattedTooltip) {
+            lines.push(dateFormattedTooltip);
+        }
+
+        const rows = clockEntries.map((entry) => this.tooltipClockRow(entry));
+        if (rows.length) {
+            lines.push(...this.alignTooltipRows(rows));
+        } else if (dateFormattedTooltip && !view.useCustomFormat) {
+            lines.push(dateFormattedTooltip);
+        }
+
+        // The weather's failure and its "loading" reached the user only through
+        // the per-clock rows — and there are none when the world clocks are off,
+        // or when no clocks are configured. So with weather on and clocks off, a
+        // failed lookup painted a bare ⚠ on the panel and hovering it explained
+        // nothing at all; NO_LOCATION was a lone ⚠ that never said "set a weather
+        // location". The words existed, and were translated, and were unreachable
+        // in the one configuration where the panel has nothing else to say.
+        if (!rows.length) {
+            const status = this.weatherStatusLine();
+            if (status) {
+                lines.push(status);
+            }
+        }
+
+        // The provider used to be credited here, under a blank line. It is still
+        // credited in the world-clock popup's accessible name and in the README —
+        // the tooltip is a table of times, and a footer is not part of the table.
+        return lines.join("\n");
+    }
+
+    // what the panel's weather is doing, in words, for a tooltip with no clock
+    // rows to hang it on
+    weatherStatusLine() {
+        const view = this.view;
+        if (!view.showWeather) {
+            return "";
+        }
+
+        if (view.weatherError) {
+            return Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError);
+        }
+
+        // the first refresh has not landed: an ellipsis on the panel says nothing
+        if (view.weatherText === Weather.WEATHER_PENDING_TEXT) {
+            return _("Weather: loading…");
+        }
+
+        return "";
+    }
+
+    // the same cells the tooltip prints, as one phrase for the row's name
+    describeClockWeather(clockEntries) {
+        if (!this.view.showWeather) {
+            return clockEntries;
+        }
+
+        return clockEntries.map((entry) => {
+            const [reading, words] = this.tooltipWeatherCells(entry);
+            const weather = [reading, words].filter((cell) => cell).join(", ");
+            return weather ? Object.assign({}, entry, { weather }) : entry;
+        });
+    }
+
+    weatherSourceName() {
+        return this.view.weatherProvider || this.view.cityWeatherProviderName() || "";
+    }
+
+    getFormattedToday() {
+        const view = this.view;
+        const now = new Date();
+        const yearStart = Date.UTC(now.getFullYear(), 0, 0);
+        const dayOfYear = Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - yearStart) / MSECS_IN_DAY);
+        const key = now.getFullYear() + ":" + dayOfYear;
+
+        if (this._todayFormatCache && this._todayFormatCache.key === key) {
+            return this._todayFormatCache;
+        }
+
+        this._todayFormatCache = {
+            key,
+            full: view.formatClock(Utils.DATE_FORMAT_FULL).capitalize(),
+            short: view.formatClock(Utils.DATE_FORMAT_SHORT).capitalize(),
+            day: view.formatClock(Utils.DAY_FORMAT).capitalize()
+        };
+
+        return this._todayFormatCache;
+    }
+
+    _announce(labelString) {
+        const view = this.view;
+        const error = view.showWeather && view.weatherError ?
+            translateWeatherError(view.weatherError) : "";
+        const reading = !error && view.showWeather ? (view.weatherText || "") : "";
+        const name = error ? joinPhrases(labelString, error) :
+            describeWeather(labelString, reading);
+
+        if (this._rendered_accessible_name === name) {
+            return;
+        }
+        this._rendered_accessible_name = name;
+
+        this.view.setAccessibleName(name);
+    }
+
+    _setLabel(label, cacheKey, text) {
+        if (this[cacheKey] === text) {
+            return;
+        }
+
+        this[cacheKey] = text;
+        label.set_text(text);
+    }
+
+    getClockEntries(limit = null, includeBuiltin = true) {
+        return this.view.getClockEntries(limit, includeBuiltin);
+    }
+
+    getUserClockTexts(clockEntries) {
+        return clockEntries.filter((clock) => !clock.builtin).slice(0, this.view.panelClocks).map((clock) => {
+            return {
+                label: clock.label,
+                time: clock.time
+            };
+        });
+    }
+
+    getDateFormattedTooltip(formattedToday) {
+        const view = this.view;
+        if (!view.useCustomFormat) {
+            return formattedToday.full;
+        }
+
+        let dateFormattedTooltip = view.formatClock(view.customTooltipFormat).capitalize();
+        if (!dateFormattedTooltip) {
+            global.logError("Calendar applet: bad tooltip time format string - check your string.");
+            dateFormattedTooltip = view.formatClock(
+                badFormatFallback(view, _("Invalid tooltip format; edit it in Settings")));
+        }
+        return dateFormattedTooltip;
+    }
+
+    updateClockAndDate(forceMenuUpdate = false) {
+        const view = this.view;
+        let label_string = view.formattedClock();
+
+        if (!view.useCustomFormat) {
+            label_string = label_string.capitalize();
+        }
+
+        let refreshMenu = forceMenuUpdate || view.menuOpen;
+        const clocksOn = this.worldclocksEnabled();
+        // the closed panel only shows the configured clocks; formatting any
+        // when none are shown is pure per-second waste. The tooltip lists them
+        // all, so a hovered panel pays for the full set too.
+        const panelShowsClocks = view.panelClocks > 0 &&
+            Boolean(view.worldclocks && view.worldclocks.length);
+        // an undefined hover flag would land on the includeBuiltin default
+        const fullEntries = Boolean(refreshMenu || view.panelHovered);
+        let clockEntries = (clocksOn && (fullEntries || panelShowsClocks)) ?
+            this.getClockEntries(fullEntries ? null : view.panelClocks, fullEntries) : [];
+        let clockTexts = this.getUserClockTexts(clockEntries);
+        let label_suffix = this.buildLabelSuffix(clockTexts);
+        if (label_suffix) {
+            // the temperature reads as part of the clock line, so no bullet
+            // divides them; any world clocks after it keep theirs
+            label_string += " " + this.ellipsizeLabelSuffix(label_suffix);
+        }
+
+        this.view.setLabel(label_string);
+        // the panel label carries the weather failure as a bare glyph; a
+        // screen reader needs the words
+        this._announce(label_string);
+
+        if (!refreshMenu) {
+            if (view.panelHovered) {
+                let formattedToday = this.getFormattedToday();
+                let dateFormattedTooltip = this.getDateFormattedTooltip(formattedToday);
+                this.setTooltipText(dateFormattedTooltip, clockEntries);
+            }
+            return;
+        }
+
+        let formattedToday = this.getFormattedToday();
+        let dateFormattedTooltip = this.getDateFormattedTooltip(formattedToday);
+        view.setHomeEnabled(!view.todaySelected());
+
+        // St.Label compares by pointer, so writing a byte-identical string still
+        // queues a relayout; these change once a day, and the tick is a minute —
+        // or a second, if clock-show-seconds is on
+        this._setLabel(view.dayLabel, "_rendered_day", formattedToday.day);
+        this._setLabel(view.dateLabel, "_rendered_date", formattedToday.short);
+        this.setTooltipText(dateFormattedTooltip, clockEntries);
+
+        view.selectEventsDate();
+
+        // The per-city temperature, the condition in words and the service that
+        // answered lived only in the panel's mouse tooltip, so a keyboard-only
+        // or screen-reader user never got any of it — and the provider credit is
+        // a courtesy the data services are owed.
+        view.updateWorldclocks(this.describeClockWeather(clockEntries));
+        view.setWeatherSource(view.showWeather ? this.weatherSourceName() : "");
+    }
+}
+
+if (typeof module !== "undefined") {
+    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_ELLIPSIS };
+}

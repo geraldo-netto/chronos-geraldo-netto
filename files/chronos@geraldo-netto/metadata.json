@@ -1,0 +1,9 @@
+{
+    "uuid": "chronos@geraldo-netto",
+    "name": "Chronos Calendar",
+    "description": "Calendar with holidays, events, weather, and world clocks",
+    "max-instances": -1,
+    "version": "0.0.1",
+    "multiversion": true,
+    "cinnamon-version": ["5.4"]
+}

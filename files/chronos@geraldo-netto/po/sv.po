@@ -1,0 +1,1499 @@
+# Swedish translation for the chronos@geraldo-netto package.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# Åke Engelbrektson <eson@svenskasprakfiler.se>, 2021.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-12 17:47+0200\n"
+"PO-Revision-Date: 2021-02-27 16:18+0100\n"
+"Last-Translator: Åke Engelbrektson <eson@svenskasprakfiler.se>\n"
+"Language-Team: Svenska Språkfiler <contactform@svenskasprakfiler.se>\n"
+"Language: sv\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 2.3\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: eventFormat.js:67 eventFormat.js:94 eventFormat.js:125 eventFormat.js:139
+#: 5.4/calendar.js:339
+msgid "Today"
+msgstr "Idag"
+
+#: eventFormat.js:100 eventFormat.js:141
+#, javascript-format
+msgid "%s Today"
+msgstr "%s i dag"
+
+#: eventFormat.js:169
+msgid "All day"
+msgstr "Hela dagen"
+
+#: localeUtils.js:167
+#, javascript-format
+msgid "%s — %s"
+msgstr "%s — %s"
+
+#: worldclockData.js:22 settings_widgets_common.py:59
+msgid "Invalid timezone"
+msgstr "Ogiltig tidszon"
+
+#: worldclockData.js:23
+msgid "Local time"
+msgstr "Lokal tid"
+
+#: 5.4/appletMenuBuilder.js:166 5.4/appletMenuBuilder.js:172
+msgid "Go to today"
+msgstr "Gå till i dag"
+
+#: 5.4/appletMenuBuilder.js:255
+msgid "Date and Time Settings"
+msgstr "Inställningar för datum och tid"
+
+#: 5.4/appletPanelStatus.js:29
+msgid "Location not found"
+msgstr "Platsen hittades inte"
+
+#: 5.4/appletPanelStatus.js:30
+msgid "Weather service unavailable"
+msgstr "Vädertjänsten är inte tillgänglig"
+
+#: 5.4/appletPanelStatus.js:31
+msgid "Set a weather location"
+msgstr "Ange en väderplats"
+
+#: 5.4/appletPanelStatus.js:40
+msgid "Clear"
+msgstr "Klart"
+
+#: 5.4/appletPanelStatus.js:41
+msgid "Partly cloudy"
+msgstr "Delvis molnigt"
+
+#: 5.4/appletPanelStatus.js:42
+msgid "Cloudy"
+msgstr "Molnigt"
+
+#: 5.4/appletPanelStatus.js:43
+msgid "Rain"
+msgstr "Regn"
+
+#: 5.4/appletPanelStatus.js:44
+msgid "Snow"
+msgstr "Snö"
+
+#: 5.4/appletPanelStatus.js:45
+msgid "Showers"
+msgstr "Skurar"
+
+#: 5.4/appletPanelStatus.js:46
+msgid "Thunderstorm"
+msgstr "Åska"
+
+#: 5.4/appletPanelStatus.js:47
+msgid "Fair"
+msgstr "Fint väder"
+
+#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:457
+#: 5.4/appletPanelStatus.js:578
+msgid "Weather: loading…"
+msgstr "Väder: läser in…"
+
+#: 5.4/appletPanelStatus.js:303
+msgid "Invalid time format; edit it in Settings"
+msgstr "Ogiltigt tidsformat; ändra det i Inställningar"
+
+#: 5.4/appletPanelStatus.js:450
+#, javascript-format
+msgid "%s Last known reading"
+msgstr "%s Senast kända avläsning"
+
+#: 5.4/appletPanelStatus.js:670
+msgid "Invalid tooltip format; edit it in Settings"
+msgstr "Ogiltigt inforuteformat; ändra det i Inställningar"
+
+#: 5.4/calendar.js:98
+msgid "Holiday service unavailable"
+msgstr "Helgdagstjänsten är inte tillgänglig"
+
+#: 5.4/calendar.js:99
+msgid "Holiday data unavailable"
+msgstr "Helgdagsdata är inte tillgängliga"
+
+#: 5.4/calendar.js:342
+msgid "Selected"
+msgstr "Vald"
+
+#: 5.4/calendar.js:346
+#, javascript-format
+msgid "%d event"
+msgid_plural "%d events"
+msgstr[0] "%d händelse"
+msgstr[1] "%d händelser"
+
+#: 5.4/calendar.js:617 5.4/calendar.js:638
+#, javascript-format
+msgid "Holiday data: %s"
+msgstr "Helgdagsdata: %s"
+
+#: 5.4/calendar.js:617
+msgid "loading…"
+msgstr "läser in…"
+
+#: 5.4/calendar.js:987
+msgid "Previous month"
+msgstr "Föregående månad"
+
+#: 5.4/calendar.js:1017
+msgid "Next month"
+msgstr "Nästa månad"
+
+#: 5.4/calendar.js:1021
+msgid "Previous year"
+msgstr "Föregående år"
+
+#: 5.4/calendar.js:1028
+msgid "Next year"
+msgstr "Nästa år"
+
+#: 5.4/calendar.js:1041
+msgid "Week"
+msgstr "Vecka"
+
+#: 5.4/calendar.js:1292
+#, javascript-format
+msgid "Week %s"
+msgstr "Vecka %s"
+
+#: 5.4/eventView.js:39
+msgid "Starting in a few minutes"
+msgstr "Startar om några minuter"
+
+#: 5.4/eventView.js:46
+#, javascript-format
+msgid "Starting in %d minute"
+msgid_plural "Starting in %d minutes"
+msgstr[0] "Börjar om %d minut"
+msgstr[1] "Börjar om %d minuter"
+
+#: 5.4/eventView.js:56
+msgid "This evening"
+msgstr "Ikväll"
+
+#: 5.4/eventView.js:59
+msgid "Starting later today"
+msgstr "Senare idag"
+
+#: 5.4/eventView.js:62
+#, javascript-format
+msgid "In %d hour"
+msgid_plural "In %d hours"
+msgstr[0] "Om %d timme"
+msgstr[1] "Om %d timmar"
+
+#: 5.4/eventView.js:189
+msgid "Loading…"
+msgstr "Läser in…"
+
+#: 5.4/eventView.js:196 5.4/eventView.js:209 5.4/eventView.js:447
+#: 5.4/eventView.js:562
+msgid "No Events"
+msgstr "Inga händelser"
+
+#: 5.4/eventView.js:360 5.4/eventView.js:528
+msgid "Open the calendar app"
+msgstr "Öppna kalenderprogrammet"
+
+#: 5.4/eventView.js:459
+msgid "Events for the selected day"
+msgstr "Händelser för den valda dagen"
+
+#: 5.4/eventView.js:512
+msgid "Add an event"
+msgstr "Lägg till en händelse"
+
+#: 5.4/eventView.js:570
+msgid ""
+"Calendar events are unavailable — no calendar service is running. Install or "
+"enable Evolution Data Server."
+msgstr ""
+"Kalenderhändelser är inte tillgängliga — ingen kalendertjänst körs. "
+"Installera eller aktivera Evolution Data Server."
+
+#: 5.4/eventView.js:684
+msgid "In progress"
+msgstr "Pågår"
+
+#: 5.4/worldclocks.js:217 5.4/worldclocks.js:218
+msgid "World clocks"
+msgstr "Världsklockor"
+
+#: 5.4/worldclocks.js:217
+#, javascript-format
+msgid "Source: %s"
+msgstr "Källa: %s"
+
+#: settings_widgets_common.py:57
+msgid "City or timezone (e.g. Buenos Aires)"
+msgstr "Stad eller tidszon (t.ex. Buenos Aires)"
+
+#: settings_widgets_common.py:58
+#, python-format
+msgid "Timezone to save: %s"
+msgstr "Tidszon att spara: %s"
+
+#: settings_widgets_common.py:60
+msgid "No timezone selected"
+msgstr "Ingen tidszon vald"
+
+#: settings_widgets_common.py:61
+msgid "UTC and local time are already shown as built-in clocks"
+msgstr "UTC och lokal tid visas redan som inbyggda klockor"
+
+#: settings_widgets_common.py:62
+msgid "Enter a display name for this clock"
+msgstr "Ange ett visningsnamn för den här klockan"
+
+#: settings_widgets_common.py:66
+#, python-format
+msgid "No more than %d clocks can be added."
+msgstr "Högst %d klockor kan läggas till."
+
+#: settings_widgets_common.py:69
+msgid ""
+"No timezone database found. Install python3-pytz to type a city name; "
+"without it, only a full identifier such as America/Sao_Paulo is accepted."
+msgstr ""
+"Ingen tidszonsdatabas hittades. Installera python3-pytz för att kunna skriva "
+"ett stadsnamn; utan den godtas endast en fullständig identifierare såsom "
+"America/Sao_Paulo."
+
+#: settings_widgets_common.py:321
+msgid "Add new entry"
+msgstr "Lägg till ny post"
+
+#: settings_widgets_common.py:323
+msgid "Edit entry"
+msgstr "Redigera post"
+
+#. metadata.json->name
+msgid "Chronos Calendar"
+msgstr ""
+
+#. metadata.json->description
+msgid "Calendar with holidays, events, weather, and world clocks"
+msgstr "Kalender med helgdagar, händelser, väder och världsklockor"
+
+#. 5.4->settings-schema.json->page1->title
+msgid "Calendar"
+msgstr "Kalender"
+
+#. 5.4->settings-schema.json->page2->title
+#. 5.4->settings-schema.json->worldclocks->description
+msgid "World Clocks"
+msgstr "Världsklockor"
+
+#. 5.4->settings-schema.json->section1->title
+msgid "Display"
+msgstr "Visning"
+
+#. 5.4->settings-schema.json->section2->title
+msgid "Get Public Holidays for"
+msgstr "Hämta allmänna helgdagar för"
+
+#. 5.4->settings-schema.json->section3->title
+msgid "Keyboard shortcuts"
+msgstr "Tangentbordsgenvägar"
+
+#. 5.4->settings-schema.json->section4->title
+msgid "Show World Times"
+msgstr "Visa världstider"
+
+#. 5.4->settings-schema.json->section5->title
+msgid "Panel Label"
+msgstr "Paneletikett"
+
+#. 5.4->settings-schema.json->show-events->description
+msgid "Show calendar events"
+msgstr "Visa kalenderhändelser"
+
+#. 5.4->settings-schema.json->show-events->tooltip
+msgid "Check this to display events in the calendar."
+msgstr "Välj detta för att visa händelser i kalendern"
+
+#. 5.4->settings-schema.json->show-week-numbers->description
+msgid "Show week numbers in calendar"
+msgstr "Visa veckonummer i kalendern"
+
+#. 5.4->settings-schema.json->show-week-numbers->tooltip
+msgid "Check this to show week numbers in the calendar."
+msgstr "Markera detta för att visa veckonummer i kalendern."
+
+#. 5.4->settings-schema.json->weekend-length->description
+msgid "Mark as weekend days"
+msgstr "Markera som helgdagar"
+
+#. 5.4->settings-schema.json->weekend-length->tooltip
+msgid "Set how many days are marked as non-working days per week."
+msgstr ""
+"Ange hur många dagar som skall markeras som icke arbetsdagar, varje vecka."
+
+#. 5.4->settings-schema.json->weekend-length->options
+msgid "One day"
+msgstr "En dag"
+
+#. 5.4->settings-schema.json->weekend-length->options
+msgid "Two days"
+msgstr "Två dagar"
+
+#. 5.4->settings-schema.json->use-custom-format->description
+msgid "Use a custom date format"
+msgstr "Använd ett anpassat datumformat"
+
+#. 5.4->settings-schema.json->use-custom-format->tooltip
+msgid ""
+"Check this to define a custom format for the date in the calendar applet."
+msgstr ""
+"Markera detta för att ange ett anpassat format för datumet i "
+"kalenderappleten."
+
+#. 5.4->settings-schema.json->custom-format->description
+msgid "Date format"
+msgstr "Datumformat"
+
+#. 5.4->settings-schema.json->custom-format->tooltip
+msgid "Set your custom format here."
+msgstr "Ange ditt anpassade format här."
+
+#. 5.4->settings-schema.json->custom-tooltip-format->description
+msgid "Date format for tooltip"
+msgstr "Datumformat för inforuta"
+
+#. 5.4->settings-schema.json->custom-tooltip-format->tooltip
+msgid "Set your custom tooltip format here."
+msgstr "Ange ditt anpassade inforuteformat här."
+
+#. 5.4->settings-schema.json->format-button->description
+msgid "Show information on date format syntax"
+msgstr "Visa information om syntax för datumformat"
+
+#. 5.4->settings-schema.json->format-button->tooltip
+msgid "Click this button to know more about the syntax for date formats."
+msgstr ""
+"Klicka på den här knappen för att läsa mer om syntaxen för datumformat."
+
+#. 5.4->settings-schema.json->show-weather->description
+msgid "Show weather on the panel"
+msgstr "Visa väder på panelen"
+
+#. 5.4->settings-schema.json->show-weather->tooltip
+msgid ""
+"Enable a small weather readout in the applet label. The reading is fetched "
+"from a third-party weather service, and the location below is sent to it. A "
+"vertical panel has no room for the readout, so it shows only in the tooltip "
+"and the popup."
+msgstr ""
+"Visa en liten väderavläsning i panelprogrammets etikett. Avläsningen hämtas "
+"från en vädertjänst från tredje part, och platsen nedan skickas till den. En "
+"vertikal panel har inte plats för avläsningen, så där visas den bara i "
+"inforutan och i menyn."
+
+#. 5.4->settings-schema.json->weather-location->description
+msgid "Weather location"
+msgstr "Väderplats"
+
+#. 5.4->settings-schema.json->weather-location->tooltip
+msgid ""
+"City or town used for the weather lookup - for example \"Lisbon\" or \"Porto "
+"Alegre\". Leave it empty and the panel shows a bare warning marker instead "
+"of a reading. It is sent to a third-party geocoding service to find its "
+"coordinates, and then to a third-party forecast service, about every 30 "
+"minutes."
+msgstr ""
+"Stad eller ort som används för väderuppslaget — till exempel \"Lissabon\" "
+"eller \"Porto Alegre\". Lämnas fältet tomt visar panelen endast en "
+"varningssymbol i stället för en avläsning. Orten skickas till en "
+"geokodningstjänst från tredje part för att hitta dess koordinater, och "
+"därefter till en prognostjänst från tredje part, ungefär var 30:e minut."
+
+#. 5.4->settings-schema.json->weather-units->description
+msgid "Weather units"
+msgstr "Väderenheter"
+
+#. 5.4->settings-schema.json->weather-units->tooltip
+msgid ""
+"Temperature scale used for the panel weather readout and for the temperature "
+"beside each world clock."
+msgstr ""
+"Temperaturskala som används för väderavläsningen i panelen och för "
+"temperaturen bredvid varje världsklocka."
+
+#. 5.4->settings-schema.json->weather-units->options
+msgid "SI (Celsius)"
+msgstr "SI (Celsius)"
+
+#. 5.4->settings-schema.json->weather-units->options
+msgid "Imperial (Fahrenheit)"
+msgstr "Imperial (Fahrenheit)"
+
+#. 5.4->settings-schema.json->country->description
+msgid "Country"
+msgstr "Land"
+
+#. 5.4->settings-schema.json->country->tooltip
+msgid ""
+"Country whose public holidays are marked in the calendar. Holidays are off "
+"until you pick a country: the lookup sends your country to a third-party "
+"holiday service."
+msgstr ""
+"Land vars helgdagar markeras i kalendern. Helgdagar är avstängda tills du "
+"väljer ett land: uppslaget skickar ditt land till en helgdagstjänst från "
+"tredje part."
+
+#. 5.4->settings-schema.json->country->options
+msgid "None (disable holidays)"
+msgstr "Inget (stäng av helgdagar)"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Angola"
+msgstr "Angola"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Australia"
+msgstr "Australien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Austria"
+msgstr "Österrike"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Belgium"
+msgstr "Belgien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Bosnia and Herzegovina"
+msgstr "Bosnien och Herzegovina"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Belarus"
+msgstr "Belarus"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Brazil"
+msgstr "Brasilien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Canada"
+msgstr "Kanada"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Chile"
+msgstr "Chile"
+
+#. 5.4->settings-schema.json->country->options
+msgid "China"
+msgstr "Kina"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Colombia"
+msgstr "Colombia"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Croatia"
+msgstr "Kroatien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Cyprus"
+msgstr "Cypern"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Czech Republic"
+msgstr "Tjeckien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Denmark"
+msgstr "Danmark"
+
+#. 5.4->settings-schema.json->country->options
+msgid "El Salvador"
+msgstr "El Salvador"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Estonia"
+msgstr "Estland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Spain"
+msgstr "Spanien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Finland"
+msgstr "Finland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "France"
+msgstr "Frankrike"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Germany"
+msgstr "Tyskland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Greece"
+msgstr "Grekland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Hong Kong"
+msgstr "Hongkong"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Hungary"
+msgstr "Ungern"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Iceland"
+msgstr "Island"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Ireland"
+msgstr "Irland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Isle of Man"
+msgstr "Isle of Man"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Israel"
+msgstr "Israel"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Italy"
+msgstr "Italien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Japan"
+msgstr "Japan"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Korea (South)"
+msgstr "Korea (Syd)"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Kosovo"
+msgstr "Kosovo"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Latvia"
+msgstr "Lettland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Lithuania"
+msgstr "Litauen"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Luxembourg"
+msgstr "Luxemburg"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Macedonia"
+msgstr "Makedonien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Montenegro"
+msgstr "Montenegro"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Mexico"
+msgstr "Mexiko"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Netherlands"
+msgstr "Nederländerna"
+
+#. 5.4->settings-schema.json->country->options
+msgid "New Zealand"
+msgstr "Nya Zeeland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Norway"
+msgstr "Norge"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Peru"
+msgstr "Peru"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Philippines"
+msgstr "Fillipinerna"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Poland"
+msgstr "Polen"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Portugal"
+msgstr "Portugal"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Romania"
+msgstr "Rumänien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Russian Federation"
+msgstr "Ryssland"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Serbia"
+msgstr "Serbien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Singapore"
+msgstr "Singapor"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Slovakia"
+msgstr "Slovakien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Slovenia"
+msgstr "Slovenien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "South Africa"
+msgstr "Sydafrika"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Sweden"
+msgstr "Sverige"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Switzerland"
+msgstr "Schweiz"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Turkey"
+msgstr "Turkiet"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Ukraine"
+msgstr "Ukraina"
+
+#. 5.4->settings-schema.json->country->options
+msgid "United Kingdom"
+msgstr "Storbritannien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "United States of America"
+msgstr "Amerikas förenta stater"
+
+#. 5.4->settings-schema.json->region_aus->description
+#. 5.4->settings-schema.json->region_bel->description
+#. 5.4->settings-schema.json->region_can->description
+#. 5.4->settings-schema.json->region_deu->description
+#. 5.4->settings-schema.json->region_esp->description
+#. 5.4->settings-schema.json->region_nzl->description
+#. 5.4->settings-schema.json->region_svk->description
+#. 5.4->settings-schema.json->region_che->description
+#. 5.4->settings-schema.json->region_gbr->description
+#. 5.4->settings-schema.json->region_usa->description
+msgid "Region"
+msgstr "Region"
+
+#. 5.4->settings-schema.json->region_aus->tooltip
+#. 5.4->settings-schema.json->region_bel->tooltip
+#. 5.4->settings-schema.json->region_can->tooltip
+#. 5.4->settings-schema.json->region_deu->tooltip
+#. 5.4->settings-schema.json->region_esp->tooltip
+#. 5.4->settings-schema.json->region_nzl->tooltip
+#. 5.4->settings-schema.json->region_svk->tooltip
+#. 5.4->settings-schema.json->region_che->tooltip
+#. 5.4->settings-schema.json->region_gbr->tooltip
+#. 5.4->settings-schema.json->region_usa->tooltip
+msgid ""
+"Region whose public holidays are marked, on top of the national ones. Leave "
+"it unset to mark only the holidays that apply nationwide."
+msgstr ""
+"Region vars helgdagar markeras, utöver de nationella. Lämna den oangiven för "
+"att endast markera de helgdagar som gäller i hela landet."
+
+#. 5.4->settings-schema.json->region_aus->options
+#. 5.4->settings-schema.json->region_bel->options
+#. 5.4->settings-schema.json->region_can->options
+#. 5.4->settings-schema.json->region_deu->options
+#. 5.4->settings-schema.json->region_esp->options
+#. 5.4->settings-schema.json->region_nzl->options
+#. 5.4->settings-schema.json->region_svk->options
+#. 5.4->settings-schema.json->region_che->options
+#. 5.4->settings-schema.json->region_gbr->options
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Nationwide only"
+msgstr "Endast nationella"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "Australian Capital Territory"
+msgstr "Australiska huvudstadsområde"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "Queensland"
+msgstr "Queensland"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "New South Wales"
+msgstr "New South Wales"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "Northern Territory"
+msgstr "Northern Territory"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "South Australia"
+msgstr "Södra Australien"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "Tasmania"
+msgstr "Tasmanien"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "Victoria"
+msgstr "Victoria"
+
+#. 5.4->settings-schema.json->region_aus->options
+msgid "Western Australia"
+msgstr "Västra Australien"
+
+#. 5.4->settings-schema.json->region_bel->options
+msgid "Brussels"
+msgstr "Bryssel"
+
+#. 5.4->settings-schema.json->region_bel->options
+msgid "Flemish Region"
+msgstr "Flamländska regionen"
+
+#. 5.4->settings-schema.json->region_bel->options
+msgid "Walloon Region"
+msgstr "Vallonska regionen"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Alberta"
+msgstr "Alberta"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "British Columbia"
+msgstr "British Columbia"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Manitoba"
+msgstr "Manitoba"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "New Brunswick"
+msgstr "New Brunswick"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Newfoundland and Labrador"
+msgstr "Newfoundland och Labrador"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Northwest Territories"
+msgstr "Nordvästterritorierna"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Nova Scotia"
+msgstr "Nova Scotia"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Nunavut"
+msgstr "Nunavut"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Ontario"
+msgstr "Ontario"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Prince Edward Island"
+msgstr "Prince Edward Island"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Quebec"
+msgstr "Québec"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Saskatchewan"
+msgstr "Saskatchewan"
+
+#. 5.4->settings-schema.json->region_can->options
+msgid "Yukon"
+msgstr "Yukon"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Baden-Württemberg"
+msgstr "Baden-Württemberg"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Bayern"
+msgstr "Bayern"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Berlin"
+msgstr "Berlin"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Brandenburg"
+msgstr "Brandenburg"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Bremen"
+msgstr "Bremen"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Hamburg"
+msgstr "Hamburg"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Hessen"
+msgstr "Hessen"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Niedersachsen"
+msgstr "Niedersachsen"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Mecklenburg-Vorpommern"
+msgstr "Mecklenburg-Vorpommern"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Nordrhein-Westfalen"
+msgstr "Nordrhein-Westfalen"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Rheinland-Pfalz"
+msgstr "Rheinland-Pfalz"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Saarland"
+msgstr "Saarland"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Sachsen"
+msgstr "Sachsen"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Sachsen-Anhalt"
+msgstr "Sachsen-Anhalt"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Schleswig-Holstein"
+msgstr "Schleswig-Holstein"
+
+#. 5.4->settings-schema.json->region_deu->options
+msgid "Thüringen"
+msgstr "Thüringen"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Andalucía"
+msgstr "Andalusien"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Aragón"
+msgstr "Aragonien"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Asturias"
+msgstr "Asturias"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Canarias"
+msgstr "Kanada"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Cantabria"
+msgstr "Cantabria"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Castilla y León"
+msgstr "Kastilien och León"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Castilla-La Mancha"
+msgstr "Kastilien-La Mancha"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Cataluña"
+msgstr "Katalonien"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Ceuta"
+msgstr "Ceuta"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Extremadura"
+msgstr "Extremadura"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Galicia"
+msgstr "Galicia"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Islas Baleares"
+msgstr "Balearerna"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "La Rioja"
+msgstr "La Rioja"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Madrid"
+msgstr "Madrid"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Melilla"
+msgstr "Melilla"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Murcia"
+msgstr "Murcia"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Navarra"
+msgstr "Navarra"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "País Vasco"
+msgstr "Baskien"
+
+#. 5.4->settings-schema.json->region_esp->options
+msgid "Valencia"
+msgstr "Valencia"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Auckland"
+msgstr "Auckland"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Bay of Plenty"
+msgstr "Bay of Plenty"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Canterbury"
+msgstr "Canterbury"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Gisborne"
+msgstr "Gisborne"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Hawke's Bay"
+msgstr "Hawke's Bay"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Marlborough"
+msgstr "Marlborough"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Manawatu-Wanganui"
+msgstr "Manawatu-Wanganui"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Nelson"
+msgstr "Nelson"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Northland"
+msgstr "Northland"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Otago"
+msgstr "Otago"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Southland"
+msgstr "Southland"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Tasman"
+msgstr "Tasman"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Taranaki"
+msgstr "Taranaki"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Waikato"
+msgstr "Waikato"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Wellington"
+msgstr "Wellington"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "West Coast"
+msgstr "West Coast"
+
+#. 5.4->settings-schema.json->region_nzl->options
+msgid "Chatham Islands Territory"
+msgstr "Chathamöarnas territorium"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Banskobystrický kraj"
+msgstr "Banskobystrický kraj"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Bratislavský kraj"
+msgstr "Bratislavský kraj"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Košický kraj"
+msgstr "Košický kraj"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Nitriansky kraj"
+msgstr "Nitriansky kraj"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Prešovský kraj"
+msgstr "Prešovský kraj"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Trnavský kraj"
+msgstr "Trnavský kraj"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Trenčiansky kraj"
+msgstr "Trenčiansky kraj"
+
+#. 5.4->settings-schema.json->region_svk->options
+msgid "Žilinský kraj"
+msgstr "Žilinský kraj"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Aargau"
+msgstr "Aargau"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Appenzell Innerrhoden"
+msgstr "Appenzell Innerrhoden"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Appenzell Ausserrhoden"
+msgstr "Appenzell Ausserrhoden"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Basel-Landschaft"
+msgstr "Basel-Landschaft"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Basel-Stadt"
+msgstr "Basel-Stadt"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Bern"
+msgstr "Bern"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Fribourg"
+msgstr "Fribourg"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Geneva"
+msgstr "Genev"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Glarus"
+msgstr "Glarus"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Grisons"
+msgstr "Graubünden"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Jura"
+msgstr "Jura"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Luzern"
+msgstr "Luzern"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Neuchâtel"
+msgstr "Neuchâtel"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Nidwalden"
+msgstr "Nidwalden"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Obwalden"
+msgstr "Obwalden"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "St. Gallen"
+msgstr "St. Gallen"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Schaffhausen"
+msgstr "Schaffhausen"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Schwyz"
+msgstr "Schwyz"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Solothurn"
+msgstr "Solothurn"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Thurgau"
+msgstr "Thurgau"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Ticino"
+msgstr "Ticino"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Uri"
+msgstr "URI"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Valais"
+msgstr "Valais"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Vaud"
+msgstr "Vaud"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Zug"
+msgstr "Zug"
+
+#. 5.4->settings-schema.json->region_che->options
+msgid "Zürich"
+msgstr "Zürich"
+
+#. 5.4->settings-schema.json->region_gbr->options
+msgid "England"
+msgstr "England"
+
+#. 5.4->settings-schema.json->region_gbr->options
+msgid "Northern Ireland"
+msgstr "Nordirland"
+
+#. 5.4->settings-schema.json->region_gbr->options
+msgid "Scotland"
+msgstr "Skottland"
+
+#. 5.4->settings-schema.json->region_gbr->options
+msgid "Wales"
+msgstr "Wales"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Alabama"
+msgstr "Alabama"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Alaska"
+msgstr "Alaska"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Arizona"
+msgstr "Arizona"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Arkansas"
+msgstr "Arkansas"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "California"
+msgstr "Kalifornien"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Colorado"
+msgstr "Colorado"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Connecticut"
+msgstr "Connecticut"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Delaware"
+msgstr "Delaware"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "District of Columbia"
+msgstr "District of Columbia"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Florida"
+msgstr "Florida"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Georgia"
+msgstr "Georgia"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Hawaii"
+msgstr "Hawaii"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Idaho"
+msgstr "Idaho"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Illinois"
+msgstr "Illinois"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Indiana"
+msgstr "Indiana"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Iowa"
+msgstr "Iowa"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Kansas"
+msgstr "Kansas"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Kentucky"
+msgstr "Kentucky"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Louisiana"
+msgstr "Louisiana"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Maine"
+msgstr "Maine"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Maryland"
+msgstr "Maryland"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Massachusetts"
+msgstr "Massachusetts"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Michigan"
+msgstr "Michigan"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Minnesota"
+msgstr "Minnesota"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Mississippi"
+msgstr "Mississippi"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Missouri"
+msgstr "Missouri"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Montana"
+msgstr "Montana"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Nebraska"
+msgstr "Nebraska"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Nevada"
+msgstr "Nevada"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "New Hampshire"
+msgstr "New Hampshire"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "New Jersey"
+msgstr "New Jersey"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "New Mexico"
+msgstr "New Mexico"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "New York"
+msgstr "New York"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "North Carolina"
+msgstr "North Carolina"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "North Dakota"
+msgstr "North Dakota"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Ohio"
+msgstr "Ohio"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Oklahoma"
+msgstr "Oklahoma"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Oregon"
+msgstr "Oregon"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Pennsylvania"
+msgstr "Pennsylvania"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Rhode Island"
+msgstr "Rhode Island"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "South Carolina"
+msgstr "South Carolina"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "South Dakota"
+msgstr "South Dakota"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Tennessee"
+msgstr "Tennessee"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Texas"
+msgstr "Texas"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Utah"
+msgstr "Utah"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Vermont"
+msgstr "Vermont"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Virginia"
+msgstr "Virginia"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Washington"
+msgstr "Washington"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "West Virginia"
+msgstr "West Virginia"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Wisconsin"
+msgstr "Wisconsin"
+
+#. 5.4->settings-schema.json->region_usa->options
+msgid "Wyoming"
+msgstr "Wyoming"
+
+#. 5.4->settings-schema.json->keyOpen->description
+msgid "Show calendar"
+msgstr "Visa kalender"
+
+#. 5.4->settings-schema.json->keyOpen->tooltip
+msgid "Set keybinding(s) to show the calendar."
+msgstr "Ange snabbtangent(er) för att visa kalendern."
+
+#. 5.4->settings-schema.json->show-worldclocks->description
+msgid "Show world clocks in the calendar menu"
+msgstr "Visa världsklockor i kalendermenyn"
+
+#. 5.4->settings-schema.json->show-worldclocks->tooltip
+msgid ""
+"Uncheck to hide the world-clock rows, including the built-in UTC and local "
+"time."
+msgstr ""
+"Avmarkera för att dölja världsklocksraderna, inklusive den inbyggda UTC-"
+"tiden och lokala tiden."
+
+#. 5.4->settings-schema.json->worldclocks->tooltip
+msgid ""
+"UTC and your local time are always shown in the calendar menu; add up to 8 "
+"timezones on top of them. Type a city name and pick it from the suggestions. "
+"With weather on, each clock’s timezone names a city, and that city is sent "
+"to the same third-party services as the location above."
+msgstr ""
+"UTC och din lokala tid visas alltid i kalendermenyn; utöver dem kan du lägga "
+"till upp till 8 tidszoner. Skriv ett stadsnamn och välj det bland förslagen. "
+"Med vädret påslaget anger varje klockas tidszon en stad, och den staden "
+"skickas till samma tredjepartstjänster som platsen ovan."
+
+#. 5.4->settings-schema.json->worldclocks->columns->title
+msgid "Display name"
+msgstr "Visningsnamn"
+
+#. 5.4->settings-schema.json->worldclocks->columns->title
+msgid "Timezone"
+msgstr "Tidszon"
+
+#. 5.4->settings-schema.json->panel-clocks->units
+msgid "clocks"
+msgstr "klockor"
+
+#. 5.4->settings-schema.json->panel-clocks->description
+msgid ""
+"World clocks shown next to the date in the panel (horizontal panels only)"
+msgstr ""
+"Världsklockor som visas bredvid datumet i panelen (endast vågräta paneler)"
+
+#. 5.4->settings-schema.json->panel-clocks->tooltip
+msgid ""
+"How many of the configured world clocks to append to the panel label. The "
+"panel stays minimal by default - configured world clocks always show in the "
+"popup. A vertical panel has no room for them, so it shows none."
+msgstr ""
+"Hur många av de inställda världsklockorna som läggs till i panelens etikett. "
+"Panelen hålls minimal som standard — inställda världsklockor visas alltid i "
+"menyn. En vertikal panel har inte plats för dem och visar därför inga."
+
+#, javascript-format
+#~ msgid "Weather: %s"
+#~ msgstr "Väder: %s"
+
+#~ msgid "World clocks:"
+#~ msgstr "Världsklockor"
+
+#, javascript-format
+#~ msgid "Starting in %d minutes"
+#~ msgstr "Startar om %d minuter"
+
+#~ msgid "Timezone (e.g. Europe/Rome)"
+#~ msgstr "Tidszon (t.ex. Europe/Rome)"
+
+#, python-format
+#~ msgid "Invalid typed timezone; saving selected region/city: %s"
+#~ msgstr "Ogiltig angiven tidszon; sparar vald region/stad: %s"
+
+#~ msgid "City"
+#~ msgstr "Stad"
+
+#~ msgid "Timezone or city name"
+#~ msgstr "Tidszon eller stadsnamn"
+
+#~ msgid "Enable a small weather readout in the applet label."
+#~ msgstr "Aktivera en liten vädervisning i appletens etikett."
+
+#~ msgid "City or town used for the weather lookup."
+#~ msgstr "Stad eller ort som används för väderuppslagningen."
+
+#~ msgid "World clocks shown next to the date in the panel"
+#~ msgstr "Världsklockor som visas bredvid datumet i panelen"
+
+#~ msgid ""
+#~ "How many of the configured world clocks to append to the panel label. Add "
+#~ "clocks in the World Clocks list first - with no clocks configured this "
+#~ "setting shows nothing. Not shown in vertical panels."
+#~ msgstr ""
+#~ "Hur många av de konfigurerade världsklockorna som ska läggas till i "
+#~ "paneletiketten. Lägg först till klockor i listan Världsklockor - utan "
+#~ "konfigurerade klockor visar den här inställningen ingenting. Visas inte i "
+#~ "vertikala paneler."
+
+#~ msgid "Show the local time of up to 10 timezones in the calendar menu."
+#~ msgstr "Visa lokal tid för upp till 10 tidszoner i kalendermenyn."

@@ -1,0 +1,123 @@
+/*
+ * The tooltip is a table of clocks, not a sentence: themes centre tooltip
+ * text, which staggers every row. The columns are padded with spaces, so a
+ * fixed-width font is what makes them line up.
+ *
+ * The id is in the selector because the themes set text-align on #Tooltip
+ * itself, and an id outranks a class however late our sheet is loaded.
+ */
+#Tooltip.calendar-tooltip {
+    /*
+     * `left`, not `start`. St parses text-align as one of left, right, center or
+     * justify — `start` is not a value it knows, so the declaration was thrown
+     * away and the themes' own centred text-align on #Tooltip went on winning.
+     * The rows are padded to a common width and then right-trimmed, so centring
+     * gave every row a different indent and combed the table apart: the monospace
+     * font below was applying and lining nothing up. Verified by hovering the
+     * panel and reading the pixels, which is the only way this was going to be
+     * caught — the string the applet builds is correct either way.
+     */
+    text-align: left;
+    font-family: monospace;
+}
+
+/*
+ * The clock's display name is whatever the user typed in the settings dialog.
+ * With no cap it widened the whole popup — the calendar grid included — to fit
+ * one long name. It ellipsizes now, and its tooltip gives back what was cut.
+ */
+.calendar-world-label {
+    max-width: 180px;
+}
+
+.calendar-world-list {
+    padding: 0.5em 0 0 0.5em;
+}
+
+.calendar-world-time {
+    padding-left: 1em;
+    text-align: right;
+}
+
+.calendar-world-time-invalid {
+    font-style: italic;
+}
+
+/*
+ * A public holiday used to be marked by swapping calendar-work-day for
+ * calendar-nonwork-day — the same class a Saturday already carries — so a
+ * holiday looked exactly like a weekend and the only way to find one was to
+ * hover every bold cell in the month. The underline is what distinguishes it;
+ * the name stays in the tooltip and in the cell's accessible name.
+ *
+ * It is deliberately not a colour: the day cells already spend their
+ * background on today and the selection, and the themes disagree about both.
+ */
+.calendar-holiday-day {
+    text-decoration: underline;
+}
+
+/*
+ * Why a month is marked ⚠.
+ *
+ * This lived in a hover tooltip, and a keyboard cannot open one: Cinnamon's
+ * Tooltip.show() refuses without a mousePosition, which only enter-event and
+ * motion-event ever set. A key-focus-in handler tried to open it anyway and
+ * could not, so a keyboard-only user saw "July ⚠" and had no way to learn why.
+ *
+ * It is an actor now, under the month name, and it appears only when something
+ * is actually wrong — so an ordinary month looks exactly as it did.
+ */
+.calendar-holiday-reason {
+    font-size: 0.8em;
+    max-width: 220px;
+    padding-bottom: 2px;
+    text-align: center;
+}
+
+/*
+ * The empty-state label is one word ("No Events") most of the time, but when
+ * no calendar service is running it carries the whole remediation sentence.
+ * The events column is min-width: 350px with no cap, so the label either
+ * stretched the popup to fit one enormous bold line or — since St.Label
+ * ellipsizes — cut the sentence off before the part that says what to do.
+ * The label wraps now; this is what it wraps against.
+ */
+.calendar-events-no-events-label {
+    max-width: 300px;
+}
+
+/*
+ * Keyboard navigation: every focusable thing must be visibly marked.
+ *
+ * The applet cannot know whether the theme is light or dark, so the marker
+ * pairs a dark border with a light outline: on a dark popup the outline
+ * carries the contrast, on a light one the border does. A single hard-coded
+ * white border disappeared entirely on light themes.
+ */
+.calendar-event-button:focus,
+.calendar-today-home-button:focus,
+.calendar-today-home-button-enabled:focus,
+.calendar-events-no-events-button:focus,
+.calendar-change-month-back:focus,
+.calendar-change-month-forward:focus,
+.calendar-events-date-label:focus {
+    border: 1px solid rgba(0, 0, 0, 0.7);
+    outline: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 4px;
+}
+
+/*
+ * The day cells take the same marker with no radius of their own, because the
+ * themes disagree about their shape: Cinnamon's fallback theme rounds them to
+ * 9999px (a circle), while Mint-Y — the Mint default, which is what almost
+ * everyone actually runs — leaves them square and rounds only on hover. Naming
+ * any radius here is right for one theme and wrong for the other, and the
+ * marker's job is to say where the focus is, not to reshape what it lands on.
+ * Setting none lets each theme's own rule decide.
+ */
+.calendar-day:focus,
+.calendar-day-base:focus {
+    border: 1px solid rgba(0, 0, 0, 0.7);
+    outline: 1px solid rgba(255, 255, 255, 0.7);
+}
