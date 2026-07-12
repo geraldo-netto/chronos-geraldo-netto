@@ -11,12 +11,34 @@
 
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
+const fs = require("node:fs");
 
 const LINES = 98;
 const BRANCHES = 90;
 const FUNCTIONS = 100;
 
 const APPLET_DIR = path.join(__dirname, "..", "..");
+
+// The two directories the include globs above cover. A shipped file that no
+// test require()s never appears in the coverage report, so the per-file loop
+// below cannot hold it to anything — it is silently exempt from the gate. Glob
+// the shipped files from disk and demand each one was actually measured.
+const SHIPPED_DIRS = [
+    path.join(APPLET_DIR, "files", "chronos@geraldo-netto"),
+    path.join(APPLET_DIR, "files", "chronos@geraldo-netto", "5.4")
+];
+
+function shippedFiles() {
+    const files = [];
+    for (const dir of SHIPPED_DIRS) {
+        for (const entry of fs.readdirSync(dir)) {
+            if (entry.endsWith(".js")) {
+                files.push(path.join(dir, entry));
+            }
+        }
+    }
+    return files;
+}
 
 const result = spawnSync("node", [
     "--test",
@@ -39,6 +61,14 @@ if (result.status !== 0) {
 
 const summary = require(path.join(APPLET_DIR, "coverage.json"));
 const failures = [];
+
+const measured = new Set(summary.files.map((file) => path.resolve(file.path)));
+for (const file of shippedFiles()) {
+    if (!measured.has(path.resolve(file))) {
+        failures.push(
+            `${path.relative(APPLET_DIR, file)}: no test loads it, so its coverage was never measured`);
+    }
+}
 
 for (const file of summary.files) {
     const name = path.relative(APPLET_DIR, file.path);
