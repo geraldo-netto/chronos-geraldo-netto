@@ -2,8 +2,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-12 17:47+0200\n"
+"Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
+"issues\n"
+"POT-Creation-Date: 2026-07-12 20:50+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: claudiux\n"
 "Language-Team: \n"
@@ -32,6 +33,14 @@ msgstr "Journée entière"
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
+
+#: localeUtils.js:203
+msgid "%B %-e, %Y"
+msgstr ""
+
+#: localeUtils.js:204
+msgid "%A, %B %-e, %Y"
+msgstr ""
 
 #: worldclockData.js:22 settings_widgets_common.py:59
 msgid "Invalid timezone"
@@ -93,21 +102,21 @@ msgstr "Orage"
 msgid "Fair"
 msgstr "Beau temps"
 
-#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:457
-#: 5.4/appletPanelStatus.js:578
+#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:448
+#: 5.4/appletPanelStatus.js:569
 msgid "Weather: loading…"
 msgstr "Météo : chargement…"
 
-#: 5.4/appletPanelStatus.js:303
+#: 5.4/appletPanelStatus.js:295
 msgid "Invalid time format; edit it in Settings"
 msgstr "Format d’heure non valide ; modifiez-le dans les paramètres"
 
-#: 5.4/appletPanelStatus.js:450
+#: 5.4/appletPanelStatus.js:441
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Dernier relevé connu"
 
-#: 5.4/appletPanelStatus.js:670
+#: 5.4/appletPanelStatus.js:652
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "Format d’infobulle non valide ; modifiez-le dans les paramètres"
 
@@ -268,11 +277,21 @@ msgstr ""
 "pour saisir un nom de ville ; sans elle, seul un identifiant complet tel que "
 "America/Sao_Paulo est accepté."
 
-#: settings_widgets_common.py:321
+#: settings_widgets_common.py:73
+#, fuzzy
+msgid "City or town (e.g. Lisbon)"
+msgstr "Ville ou fuseau horaire (par ex. Buenos Aires)"
+
+#: settings_widgets_common.py:74
+#, fuzzy
+msgid "Type a country name"
+msgstr "Fuseau horaire ou nom de ville"
+
+#: settings_widgets_common.py:626
 msgid "Add new entry"
 msgstr "Ajouter une nouvelle entrée"
 
-#: settings_widgets_common.py:323
+#: settings_widgets_common.py:628
 msgid "Edit entry"
 msgstr "Modifier l'entrée sélectionnée"
 
@@ -1432,27 +1451,24 @@ msgstr "Nom affiché"
 msgid "Timezone"
 msgstr "Fuseau horaire"
 
-#. 5.4->settings-schema.json->panel-clocks->units
-msgid "clocks"
-msgstr "horloges"
+#~ msgid "clocks"
+#~ msgstr "horloges"
 
-#. 5.4->settings-schema.json->panel-clocks->description
-msgid ""
-"World clocks shown next to the date in the panel (horizontal panels only)"
-msgstr ""
-"Horloges mondiales affichées à côté de la date dans le panneau (panneaux "
-"horizontaux uniquement)"
+#~ msgid ""
+#~ "World clocks shown next to the date in the panel (horizontal panels only)"
+#~ msgstr ""
+#~ "Horloges mondiales affichées à côté de la date dans le panneau (panneaux "
+#~ "horizontaux uniquement)"
 
-#. 5.4->settings-schema.json->panel-clocks->tooltip
-msgid ""
-"How many of the configured world clocks to append to the panel label. The "
-"panel stays minimal by default - configured world clocks always show in the "
-"popup. A vertical panel has no room for them, so it shows none."
-msgstr ""
-"Nombre d’horloges mondiales configurées à ajouter à l’étiquette du panneau. "
-"Le panneau reste minimal par défaut : les horloges configurées apparaissent "
-"toujours dans le menu. Un panneau vertical n’a pas la place de les afficher, "
-"il n’en montre aucune."
+#~ msgid ""
+#~ "How many of the configured world clocks to append to the panel label. The "
+#~ "panel stays minimal by default - configured world clocks always show in "
+#~ "the popup. A vertical panel has no room for them, so it shows none."
+#~ msgstr ""
+#~ "Nombre d’horloges mondiales configurées à ajouter à l’étiquette du "
+#~ "panneau. Le panneau reste minimal par défaut : les horloges configurées "
+#~ "apparaissent toujours dans le menu. Un panneau vertical n’a pas la place "
+#~ "de les afficher, il n’en montre aucune."
 
 #, javascript-format
 #~ msgid "Weather: %s"
@@ -1477,9 +1493,6 @@ msgstr ""
 
 #~ msgid "City"
 #~ msgstr "Ville"
-
-#~ msgid "Timezone or city name"
-#~ msgstr "Fuseau horaire ou nom de ville"
 
 #~ msgid "Enable a small weather readout in the applet label."
 #~ msgstr "Activer un petit affichage météo dans l’étiquette de l’applet."

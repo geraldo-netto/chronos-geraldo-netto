@@ -6,8 +6,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-12 17:47+0200\n"
+"Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
+"issues\n"
+"POT-Creation-Date: 2026-07-12 20:50+0200\n"
 "PO-Revision-Date: 2025-04-03 19:37+0300\n"
 "Last-Translator: Kimmo Kujansuu <mrkujansuu@gmail.com>\n"
 "Language-Team: \n"
@@ -36,6 +37,14 @@ msgstr "Koko päivä"
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
+
+#: localeUtils.js:203
+msgid "%B %-e, %Y"
+msgstr ""
+
+#: localeUtils.js:204
+msgid "%A, %B %-e, %Y"
+msgstr ""
 
 #: worldclockData.js:22 settings_widgets_common.py:59
 msgid "Invalid timezone"
@@ -97,21 +106,21 @@ msgstr "Ukkosta"
 msgid "Fair"
 msgstr "Poutaa"
 
-#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:457
-#: 5.4/appletPanelStatus.js:578
+#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:448
+#: 5.4/appletPanelStatus.js:569
 msgid "Weather: loading…"
 msgstr "Sää: ladataan…"
 
-#: 5.4/appletPanelStatus.js:303
+#: 5.4/appletPanelStatus.js:295
 msgid "Invalid time format; edit it in Settings"
 msgstr "Virheellinen ajan muoto; muokkaa sitä asetuksissa"
 
-#: 5.4/appletPanelStatus.js:450
+#: 5.4/appletPanelStatus.js:441
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Viimeisin tunnettu lukema"
 
-#: 5.4/appletPanelStatus.js:670
+#: 5.4/appletPanelStatus.js:652
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "Virheellinen työkaluvihjeen muoto; muokkaa sitä asetuksissa"
 
@@ -271,11 +280,21 @@ msgstr ""
 "kirjoittaa kaupungin nimen; ilman sitä hyväksytään vain täydellinen "
 "tunniste, kuten America/Sao_Paulo."
 
-#: settings_widgets_common.py:321
+#: settings_widgets_common.py:73
+#, fuzzy
+msgid "City or town (e.g. Lisbon)"
+msgstr "Kaupunki tai aikavyöhyke (esim. Buenos Aires)"
+
+#: settings_widgets_common.py:74
+#, fuzzy
+msgid "Type a country name"
+msgstr "Aikavyöhyke tai kaupungin nimi"
+
+#: settings_widgets_common.py:626
 msgid "Add new entry"
 msgstr "Lisää uusi kohde"
 
-#: settings_widgets_common.py:323
+#: settings_widgets_common.py:628
 msgid "Edit entry"
 msgstr "Muokkaa merkintää"
 
@@ -1429,26 +1448,24 @@ msgstr "Näyttönimi"
 msgid "Timezone"
 msgstr "Aikavyöhyke"
 
-#. 5.4->settings-schema.json->panel-clocks->units
-msgid "clocks"
-msgstr "kelloa"
+#~ msgid "clocks"
+#~ msgstr "kelloa"
 
-#. 5.4->settings-schema.json->panel-clocks->description
-msgid ""
-"World clocks shown next to the date in the panel (horizontal panels only)"
-msgstr ""
-"Maailmankellot näytetään paneelissa päivämäärän vieressä (vain vaakapaneelit)"
+#~ msgid ""
+#~ "World clocks shown next to the date in the panel (horizontal panels only)"
+#~ msgstr ""
+#~ "Maailmankellot näytetään paneelissa päivämäärän vieressä (vain "
+#~ "vaakapaneelit)"
 
-#. 5.4->settings-schema.json->panel-clocks->tooltip
-msgid ""
-"How many of the configured world clocks to append to the panel label. The "
-"panel stays minimal by default - configured world clocks always show in the "
-"popup. A vertical panel has no room for them, so it shows none."
-msgstr ""
-"Kuinka monta määritetyistä maailmankelloista lisätään paneelin tekstiin. "
-"Paneeli pidetään oletuksena vähäeleisenä — määritetyt maailmankellot näkyvät "
-"aina ponnahdusvalikossa. Pystypaneelissa ei ole niille tilaa, joten siinä ei "
-"näytetä yhtään."
+#~ msgid ""
+#~ "How many of the configured world clocks to append to the panel label. The "
+#~ "panel stays minimal by default - configured world clocks always show in "
+#~ "the popup. A vertical panel has no room for them, so it shows none."
+#~ msgstr ""
+#~ "Kuinka monta määritetyistä maailmankelloista lisätään paneelin tekstiin. "
+#~ "Paneeli pidetään oletuksena vähäeleisenä — määritetyt maailmankellot "
+#~ "näkyvät aina ponnahdusvalikossa. Pystypaneelissa ei ole niille tilaa, "
+#~ "joten siinä ei näytetä yhtään."
 
 #, javascript-format
 #~ msgid "Weather: %s"
@@ -1473,9 +1490,6 @@ msgstr ""
 
 #~ msgid "City"
 #~ msgstr "Kaupunki"
-
-#~ msgid "Timezone or city name"
-#~ msgstr "Aikavyöhyke tai kaupungin nimi"
 
 #~ msgid "Enable a small weather readout in the applet label."
 #~ msgstr "Ota käyttöön pieni säätieto sovelman selitteessä."

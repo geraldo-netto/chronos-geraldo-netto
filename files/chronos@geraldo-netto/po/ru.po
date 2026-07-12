@@ -2,8 +2,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-12 17:47+0200\n"
+"Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
+"issues\n"
+"POT-Creation-Date: 2026-07-12 20:50+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: blogdron\n"
 "Language-Team: \n"
@@ -33,6 +34,14 @@ msgstr "Все дни"
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
+
+#: localeUtils.js:203
+msgid "%B %-e, %Y"
+msgstr ""
+
+#: localeUtils.js:204
+msgid "%A, %B %-e, %Y"
+msgstr ""
 
 #: worldclockData.js:22 settings_widgets_common.py:59
 msgid "Invalid timezone"
@@ -94,21 +103,21 @@ msgstr "Гроза"
 msgid "Fair"
 msgstr "Малооблачно"
 
-#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:457
-#: 5.4/appletPanelStatus.js:578
+#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:448
+#: 5.4/appletPanelStatus.js:569
 msgid "Weather: loading…"
 msgstr "Погода: загрузка…"
 
-#: 5.4/appletPanelStatus.js:303
+#: 5.4/appletPanelStatus.js:295
 msgid "Invalid time format; edit it in Settings"
 msgstr "Недопустимый формат времени; измените его в настройках"
 
-#: 5.4/appletPanelStatus.js:450
+#: 5.4/appletPanelStatus.js:441
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Последнее известное значение"
 
-#: 5.4/appletPanelStatus.js:670
+#: 5.4/appletPanelStatus.js:652
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "Недопустимый формат подсказки; измените его в настройках"
 
@@ -271,11 +280,21 @@ msgstr ""
 "вводить название города; без неё принимается только полный идентификатор, "
 "например America/Sao_Paulo."
 
-#: settings_widgets_common.py:321
+#: settings_widgets_common.py:73
+#, fuzzy
+msgid "City or town (e.g. Lisbon)"
+msgstr "Город или часовой пояс (например, Buenos Aires)"
+
+#: settings_widgets_common.py:74
+#, fuzzy
+msgid "Type a country name"
+msgstr "Часовой пояс или название города"
+
+#: settings_widgets_common.py:626
 msgid "Add new entry"
 msgstr "Добавить новый элемент"
 
-#: settings_widgets_common.py:323
+#: settings_widgets_common.py:628
 msgid "Edit entry"
 msgstr "Редактировать элемент"
 
@@ -1427,24 +1446,22 @@ msgstr "Отображаемое имя"
 msgid "Timezone"
 msgstr "Часовой пояс"
 
-#. 5.4->settings-schema.json->panel-clocks->units
-msgid "clocks"
-msgstr "часы"
+#~ msgid "clocks"
+#~ msgstr "часы"
 
-#. 5.4->settings-schema.json->panel-clocks->description
-msgid ""
-"World clocks shown next to the date in the panel (horizontal panels only)"
-msgstr "Мировые часы рядом с датой на панели (только горизонтальные панели)"
+#~ msgid ""
+#~ "World clocks shown next to the date in the panel (horizontal panels only)"
+#~ msgstr "Мировые часы рядом с датой на панели (только горизонтальные панели)"
 
-#. 5.4->settings-schema.json->panel-clocks->tooltip
-msgid ""
-"How many of the configured world clocks to append to the panel label. The "
-"panel stays minimal by default - configured world clocks always show in the "
-"popup. A vertical panel has no room for them, so it shows none."
-msgstr ""
-"Сколько из настроенных мировых часов добавлять к метке панели. По умолчанию "
-"панель остаётся минимальной — настроенные мировые часы всегда видны в меню. "
-"На вертикальной панели для них нет места, поэтому там они не показываются."
+#~ msgid ""
+#~ "How many of the configured world clocks to append to the panel label. The "
+#~ "panel stays minimal by default - configured world clocks always show in "
+#~ "the popup. A vertical panel has no room for them, so it shows none."
+#~ msgstr ""
+#~ "Сколько из настроенных мировых часов добавлять к метке панели. По "
+#~ "умолчанию панель остаётся минимальной — настроенные мировые часы всегда "
+#~ "видны в меню. На вертикальной панели для них нет места, поэтому там они "
+#~ "не показываются."
 
 #, javascript-format
 #~ msgid "Weather: %s"
@@ -1467,9 +1484,6 @@ msgstr ""
 
 #~ msgid "City"
 #~ msgstr "Город"
-
-#~ msgid "Timezone or city name"
-#~ msgstr "Часовой пояс или название города"
 
 #~ msgid "Enable a small weather readout in the applet label."
 #~ msgstr "Включить краткую сводку погоды в метке апплета."

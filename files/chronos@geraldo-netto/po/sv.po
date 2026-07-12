@@ -6,8 +6,9 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-07-12 17:47+0200\n"
+"Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
+"issues\n"
+"POT-Creation-Date: 2026-07-12 20:50+0200\n"
 "PO-Revision-Date: 2021-02-27 16:18+0100\n"
 "Last-Translator: Åke Engelbrektson <eson@svenskasprakfiler.se>\n"
 "Language-Team: Svenska Språkfiler <contactform@svenskasprakfiler.se>\n"
@@ -36,6 +37,14 @@ msgstr "Hela dagen"
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
+
+#: localeUtils.js:203
+msgid "%B %-e, %Y"
+msgstr ""
+
+#: localeUtils.js:204
+msgid "%A, %B %-e, %Y"
+msgstr ""
 
 #: worldclockData.js:22 settings_widgets_common.py:59
 msgid "Invalid timezone"
@@ -97,21 +106,21 @@ msgstr "Åska"
 msgid "Fair"
 msgstr "Fint väder"
 
-#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:457
-#: 5.4/appletPanelStatus.js:578
+#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:448
+#: 5.4/appletPanelStatus.js:569
 msgid "Weather: loading…"
 msgstr "Väder: läser in…"
 
-#: 5.4/appletPanelStatus.js:303
+#: 5.4/appletPanelStatus.js:295
 msgid "Invalid time format; edit it in Settings"
 msgstr "Ogiltigt tidsformat; ändra det i Inställningar"
 
-#: 5.4/appletPanelStatus.js:450
+#: 5.4/appletPanelStatus.js:441
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Senast kända avläsning"
 
-#: 5.4/appletPanelStatus.js:670
+#: 5.4/appletPanelStatus.js:652
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "Ogiltigt inforuteformat; ändra det i Inställningar"
 
@@ -271,11 +280,21 @@ msgstr ""
 "ett stadsnamn; utan den godtas endast en fullständig identifierare såsom "
 "America/Sao_Paulo."
 
-#: settings_widgets_common.py:321
+#: settings_widgets_common.py:73
+#, fuzzy
+msgid "City or town (e.g. Lisbon)"
+msgstr "Stad eller tidszon (t.ex. Buenos Aires)"
+
+#: settings_widgets_common.py:74
+#, fuzzy
+msgid "Type a country name"
+msgstr "Tidszon eller stadsnamn"
+
+#: settings_widgets_common.py:626
 msgid "Add new entry"
 msgstr "Lägg till ny post"
 
-#: settings_widgets_common.py:323
+#: settings_widgets_common.py:628
 msgid "Edit entry"
 msgstr "Redigera post"
 
@@ -1432,25 +1451,23 @@ msgstr "Visningsnamn"
 msgid "Timezone"
 msgstr "Tidszon"
 
-#. 5.4->settings-schema.json->panel-clocks->units
-msgid "clocks"
-msgstr "klockor"
+#~ msgid "clocks"
+#~ msgstr "klockor"
 
-#. 5.4->settings-schema.json->panel-clocks->description
-msgid ""
-"World clocks shown next to the date in the panel (horizontal panels only)"
-msgstr ""
-"Världsklockor som visas bredvid datumet i panelen (endast vågräta paneler)"
+#~ msgid ""
+#~ "World clocks shown next to the date in the panel (horizontal panels only)"
+#~ msgstr ""
+#~ "Världsklockor som visas bredvid datumet i panelen (endast vågräta paneler)"
 
-#. 5.4->settings-schema.json->panel-clocks->tooltip
-msgid ""
-"How many of the configured world clocks to append to the panel label. The "
-"panel stays minimal by default - configured world clocks always show in the "
-"popup. A vertical panel has no room for them, so it shows none."
-msgstr ""
-"Hur många av de inställda världsklockorna som läggs till i panelens etikett. "
-"Panelen hålls minimal som standard — inställda världsklockor visas alltid i "
-"menyn. En vertikal panel har inte plats för dem och visar därför inga."
+#~ msgid ""
+#~ "How many of the configured world clocks to append to the panel label. The "
+#~ "panel stays minimal by default - configured world clocks always show in "
+#~ "the popup. A vertical panel has no room for them, so it shows none."
+#~ msgstr ""
+#~ "Hur många av de inställda världsklockorna som läggs till i panelens "
+#~ "etikett. Panelen hålls minimal som standard — inställda världsklockor "
+#~ "visas alltid i menyn. En vertikal panel har inte plats för dem och visar "
+#~ "därför inga."
 
 #, javascript-format
 #~ msgid "Weather: %s"
@@ -1472,9 +1489,6 @@ msgstr ""
 
 #~ msgid "City"
 #~ msgstr "Stad"
-
-#~ msgid "Timezone or city name"
-#~ msgstr "Tidszon eller stadsnamn"
 
 #~ msgid "Enable a small weather readout in the applet label."
 #~ msgstr "Aktivera en liten vädervisning i appletens etikett."
