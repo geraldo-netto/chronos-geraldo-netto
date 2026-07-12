@@ -79,13 +79,42 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 
 ## Open - parked
 
-The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. They are ready to pick up deliberately.
+The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. Each is unpacked below into ordered sub-steps that each land on their own with the suite green — do them in order, one commit per step.
 
-- **T442** (weather port returns a normalized record) — the deepest rewrite in the tree: the reading string flows through `WeatherDisplayState`, the resolver, `WeatherProvider`, the applet's `weather_text`, the city readings map and every staleness comparison, all string-keyed, so it rewrites a large slice of the weather/panel/tooltip/cityWeather suites. The C→F triplication under it was already closed by T426.
-- **T448** (split the holiday adapter port) — removing `EnricoServiceAdapter`'s dead `validResponse`/`expandHoliday`/`localizeName`/`validHoliday` forwards breaks ~9 tests that construct `Enrico` with a bare adapter as its service (in production the service is the `FallbackAdapter`, which has those methods). Landing it means reworking those test setups to build a proper service. Attempted and reverted on 2026-07-12 for that reason.
-- **T446** (rename `Enrico`→`HolidayService`, `enrico.json`→`holidays.json` with migration, `ENRICO_*`→`COUNTRY_TO_ISO2`/`REGION_TO_SUBDIVISION`) — a rename across `holidays.js`, `holidayServiceAdapters.js`, `holidayConstants.js`, `holidayCache.js`, every holiday test, the `gjs_import` parity lists and the `schema_static` `ENRICO_REGION_TO_COUNTY` assertion, plus new cache-migration logic and tests. The largest ripple of the five, over the same fragile holiday-test surface as T448.
-- **T445** (split `weather.js` into `weatherScheduler.js` + `weatherProviders.js`) — new modules plus new `5.4/` shims, entries in the `gjs_import` `EXPORTS` map and `gjsImportsMock`, coverage-glob inclusion, and the `WeatherFormat` re-export block kept in `weather.js` (a test derives it from that file's source).
-- **T444** (split `settings_widgets_common.py` into a gi-free `timezone_data.py`) — the timezone half moves out, but `test_settings_widgets.py` loads the widgets module and calls the moved functions on it, `coverage.py` globs the new file, `schema_static` reads `MAX_CLOCKS` from the widgets file, and the Python import path under the test harness's `load_module` has to resolve the new sibling.
+### T442 — weather port returns a normalized record `{ temperatureC, condition }`
+The reading string flows through `WeatherDisplayState`, the resolver, `WeatherProvider`, the applet's `weather_text`, the city readings map and every staleness comparison, all string-keyed. Convert it one seam at a time, keeping a string at the next boundary until that boundary's step arrives.
+
+- **T442a** — Add the record shape at the source only: each `FORECAST_PROVIDERS[].normalize` returns `{ temperatureC, condition }`, and `WeatherForecastResolver` renders the display string from it at one seam (via `formatReading`), so `WeatherProvider` and everything downstream still receive the same string. Update the adapter + resolver tests to the record. No consumer changes yet.
+- **T442b** — Carry the record through `WeatherDisplayState`: store the record, key staleness on the place+units key (already tracked) rather than the text, and change the reporter/`WeatherProvider` callback to pass the record. The applet's surface still derives a string from it. Update the display-state tests.
+- **T442c** — Change the applet's weather surface from `weather_text` to `weather_reading` (the record), threaded through `settingsFacade`/`appletLifecycle`. Update the applet-wiring tests.
+- **T442d** — In `appletPanelStatus`, read `reading.condition` and `reading.temperatureC` for the panel suffix, the accessible name and the built-in tooltip cells; delete `stripWeatherIcon` and `weatherCondition`. Update the panel/tooltip tests.
+- **T442e** — Do the same for the city readings: `cityWeather` stores records keyed by city, and `tooltipWeatherCells`' city path reads the fields. Update the cityWeather + city-tooltip tests. `weatherCondition`/`stripWeatherIcon` are now gone from the whole tree.
+
+### T448 — split the holiday adapter port (`fetchYear` only; the chain owns `HolidayRecordContract`)
+Attempted and reverted on 2026-07-12: removing the forwards first broke ~9 tests. Land the test rework *before* the deletion so each step stays green.
+
+- **T448a** — Rework the tests that construct `Enrico` with a bare `EnricoServiceAdapter` as its service so they pass a real service (wrap it in `HolidayServiceFallbackAdapter`, or a minimal double exposing `validResponse`/`expandHoliday`). Green with the forwards still present.
+- **T448b** — Repoint the record-contract tests that call `validHoliday`/`validResponse`/`expandHoliday`/`localizeName` on an `EnricoServiceAdapter` to a `HolidayRecordContract` instance (it is already re-exported).
+- **T448c** — Delete the dead `validResponse`/`expandHoliday`/`localizeName`/`validHoliday` forwards and `_record`/`_lang` from `EnricoServiceAdapter`; drop the `lang` arg at its one production call site (`holidays.js` `httpBackedService`). Note in a comment that an adapter is `fetchYear` and nothing else.
+
+### T444 — split `settings_widgets_common.py` into a gi-free `timezone_data.py`
+- **T444a** — Harness prep only: make `test_settings_widgets.py`'s `load_module` put the applet directory on `sys.path` so a new sibling import resolves. No production change; suite unchanged.
+- **T444b** — Create `timezone_data.py` (no `gi` imports) holding `TimezoneResolver`, `local_timezone_name`, `local_city_name`, `looks_like_iana`, `completion_key`, `RESERVED_TIMEZONES`. Have `settings_widgets_common.py` `from timezone_data import …` and re-export them so `self.module.X` still resolves. Keep `MAX_CLOCKS` in `settings_widgets_common.py` (where `schema_static` reads it) unless you also update that regex.
+- **T444c** — Confirm `coverage.py` measures `timezone_data.py` (it globs `*.py`) and add any missing coverage; optionally point the pure timezone tests at `timezone_data` directly. The `5.4/settings_widgets.py` shim is unchanged — it re-exports only the widget names.
+
+### T445 — split `weather.js` into `weatherScheduler.js` + `weatherProviders.js`
+Keep `weather.js` as the barrel: it requires the new modules and re-exports them, so consumers and the `weather` parity list are unchanged. The `WeatherFormat` re-export block **stays in `weather.js`** (a test derives it from that file's source).
+
+- **T445a** — Extract `WeatherRefreshScheduler` into `weatherScheduler.js` with the standard root-module header and a `5.4/weatherScheduler.js` shim; `weather.js` requires and re-exports it. Add the module to `gjsImportsMock` and give it an `EXPORTS` entry in `gjs_import.test.js`; it is auto-included by the coverage glob, so cover it.
+- **T445b** — Extract `GEOCODE_PROVIDERS`, `FORECAST_PROVIDERS`, `WeatherLocationResolver` and `WeatherForecastResolver` into `weatherProviders.js` the same way (shim, mock entry, `EXPORTS`, coverage).
+- **T445c** — `weather.js` is now `WeatherProvider` + `WeatherDisplayState` + the two barrels; confirm the parity and coverage gates are green and the `WeatherFormat` re-export test still finds its block.
+
+### T446 — rename `Enrico`, `enrico.json` and the `ENRICO_*` constants
+Do it in dependency order, smallest ripple first; each rename is mechanical but wide. (Easiest after T448, which removes some of the fragile Enrico test setups.)
+
+- **T446a** — Rename `ENRICO_COUNTRY_TO_ISO2`→`COUNTRY_TO_ISO2` and `ENRICO_REGION_TO_COUNTY`→`REGION_TO_SUBDIVISION` in `holidayConstants.js` and every consumer (`holidayServiceAdapters.js` `enricoRegionCode`), plus the `schema_static` `ENRICO_REGION_TO_COUNTY` assertion, the `gjs_import` list and the holiday tests.
+- **T446b** — Rename the `Enrico` domain class → `HolidayService` across `holidays.js`, its `gjs_import` parity entry and the holiday tests. (`EnricoServiceAdapter` keeps its name — it really is the Enrico provider.)
+- **T446c** — Rename the on-disk cache `enrico.json`→`holidays.json`, with a one-shot migration that reads the old path when the new one is absent so no user loses their cache, and add migration tests.
 
 ## Rejected
 
