@@ -54,7 +54,7 @@ class AppletSettingsBinder {
 // plain objects in a test" — but it could not substitute a single one of them.
 // Every provider was a bare `new` on a concrete class, and the graph below each
 // one self-assembled through default arguments: new HolidayProviderFacade()
-// reached for new Enrico(), which built the chain, the three adapters, the
+// reached for new HolidayService(), which built the chain, the three adapters, the
 // repository and the cache; WeatherProvider built its display state, scheduler,
 // two resolvers and a live Soup session. The wiring lived in four files'
 // parameter lists, and no test could reach into it.

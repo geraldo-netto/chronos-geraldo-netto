@@ -271,7 +271,7 @@ const EXPORTS = {
         "nominatimGeocodePlace", "WEATHER_DEBOUNCE_MS"],
     holidays: ["Provider", "HolidayCacheRepository", "HolidayCache", "EnricoServiceAdapter",
         "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
-        "HolidayServiceFallbackAdapter", "Enrico", "HolidayProviderFacade",
+        "HolidayServiceFallbackAdapter", "HolidayService", "HolidayProviderFacade",
         "HOLIDAY_ERRORS"],
     holidayAdapters: ["HolidayServiceFallbackAdapter"],
     holidayCache: ["HolidayCacheRepository", "HolidayCache", "validCachedHoliday",

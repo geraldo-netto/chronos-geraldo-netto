@@ -193,7 +193,7 @@ afterEach(() => {
 
 test("retrieveForYear without a country reports instead of throwing", () => {
     const Holidays = loadHolidays();
-    const enrico = new Holidays.Enrico({ fetchYear() { throw new Error("no fetch expected"); } }, {
+    const enrico = new Holidays.HolidayService({ fetchYear() { throw new Error("no fetch expected"); } }, {
         years: {}, country: null, region: "global", data: [],
         recordAttempt() {}, setData() {}
     });
@@ -205,13 +205,13 @@ test("retrieveForYear without a country reports instead of throwing", () => {
 });
 
 test("clearPlace disables the provider and resets status", () => {
-    const { Enrico } = loadHolidays();
+    const { HolidayService } = loadHolidays();
     const cache = {
         years: {}, country: "ita", region: "global", data: [],
         recordAttempt() {}, setPlace() {}, setData() {},
         clearPlace() { this.country = null; }
     };
-    const enrico = new Enrico({ fetchYear() {} }, cache);
+    const enrico = new HolidayService({ fetchYear() {} }, cache);
     enrico.last_error = "boom";
     enrico.clearPlace();
     assert.equal(enrico.country, null);
@@ -283,14 +283,14 @@ test("HolidayCache falls back to receive time when the Date header is missing", 
 // T77 regression: a fetch that lands after clearPlace() must not write
 // the payload under a "null" country key in the cache file
 test("an inflight fetch landing after clearPlace does not persist", () => {
-    const { Enrico } = loadHolidays();
+    const { HolidayService } = loadHolidays();
     let fetchCallback = null;
     const service = {
         fetchYear: (_country, _region, _year, callback) => { fetchCallback = callback; },
         validResponse: () => true,
         expandHoliday: (holiday) => [holiday]
     };
-    const enrico = new Enrico(service);
+    const enrico = new HolidayService(service);
     const saves = [];
     enrico.cache._save = (country, data) => saves.push([country, data]);
 
@@ -309,8 +309,8 @@ test("an inflight fetch landing after clearPlace does not persist", () => {
     assert.equal(saves[0][0], "ita");
 });
 
-test("Enrico expands provider rows before recording cache fetches", () => {
-    const { Enrico } = loadHolidays();
+test("HolidayService expands provider rows before recording cache fetches", () => {
+    const { HolidayService } = loadHolidays();
     const recorded = [];
     const service = {
         expandHoliday(holidayRow, region) {
@@ -341,7 +341,7 @@ test("Enrico expands provider rows before recording cache fetches", () => {
             this.country = null;
         }
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
 
     assert.deepEqual(enrico.expandData([{ name: "Fetched" }]), [
         { year: 2026, month: 1, day: 1, region: "global", name: "Fetched", flags: [] }
@@ -364,7 +364,7 @@ test("Enrico expands provider rows before recording cache fetches", () => {
 // a payload that fails validation is not a fetch result: nothing is recorded and
 // nothing reaches the disk
 test("a rejected response is neither recorded nor written", () => {
-    const { Enrico } = loadHolidays();
+    const { HolidayService } = loadHolidays();
     const cache = {
         country: "ita", region: "global", years: {}, data: [],
         recordAttempt() {}, setPlace() {}, setData() {}, clearPlace() {},
@@ -372,7 +372,7 @@ test("a rejected response is neither recorded nor written", () => {
         prune() { this.pruned = true; },
         persist() { this.persisted = true; }
     };
-    const enrico = new Enrico({
+    const enrico = new HolidayService({
         fetchYear() {},
         validResponse: () => false,
         expandHoliday: (holiday) => [holiday]
@@ -439,7 +439,7 @@ test("holiday validation rejects out-of-range months and days", () => {
     assert.deepEqual(nager._dateParts("2026-05-31"), { year: 2026, month: 5, day: 31 });
 });
 
-test("Enrico.destroy aborts its own session and silences late callbacks", () => {
+test("HolidayService.destroy aborts its own session and silences late callbacks", () => {
     const aborted = [];
     const soup = makeSoup3();
     soup.Session.prototype.abort = function() {
@@ -461,7 +461,7 @@ test("Enrico.destroy aborts its own session and silences late callbacks", () => 
         setPlace() {}, stale: () => true, matchMonth: () => new Map(),
         setData() {}
     };
-    const enrico = new Holidays.Enrico(service, cache);
+    const enrico = new Holidays.HolidayService(service, cache);
     enrico.cache.country = "ita";
 
     let called = 0;
@@ -494,7 +494,7 @@ test("holiday HTTP session carries an explicit timeout", () => {
     assert.ok(Holidays.HTTP_TIMEOUT_SECONDS > 0);
     assert.equal(instances.length, 0, "session is lazy: nothing at import time");
 
-    const enrico = new Holidays.Enrico();
+    const enrico = new Holidays.HolidayService();
     assert.equal(instances.length, 0, "still lazy after construction");
 
     enrico._getHttpSession();
@@ -507,12 +507,12 @@ test("holiday HTTP session carries an explicit timeout", () => {
 
     // a second applet instance owns a separate session, so destroying one
     // never aborts the other's in-flight requests
-    const other = new Holidays.Enrico();
+    const other = new Holidays.HolidayService();
     other._getHttpSession();
     assert.equal(instances.length, 2);
 
     // the default service fetches through the session its own provider owns
-    const fetching = new Holidays.Enrico();
+    const fetching = new Holidays.HolidayService();
     fetching.country = "usa";
     fetching.region = "global";
     fetching.retrieveForYear(2026);
@@ -682,7 +682,7 @@ test("a fetch that lands after the place was cleared is not persisted", () => {
 });
 
 test("a cache directory that cannot be created degrades instead of throwing", () => {
-    const { HolidayCacheRepository, HolidayCache, Enrico } = loadHolidays();
+    const { HolidayCacheRepository, HolidayCache, HolidayService } = loadHolidays();
     const logged = [];
     global.logError = (error) => logged.push(error);
     global.imports.gi.GLib.mkdir_with_parents = () => {
@@ -711,7 +711,7 @@ test("a cache directory that cannot be created degrades instead of throwing", ()
         (country, done) => repository.loadAsync(country, done),
         (country, data) => repository.save(country, data)
     );
-    const enrico = new Enrico({
+    const enrico = new HolidayService({
         fetchYear(_country, region, year, callback) {
             callback([{ year, month: 1, day: 1, region, name: "New Year", flags: [] }],
                 { year, region, providerName: "Enrico" }, new Date().toUTCString());
@@ -803,9 +803,9 @@ test("Provider.loadJsonAsync always reports failures through the callback", () =
     });
 });
 
-test("Enrico localizes, deduplicates, caches, and matches holidays by month", () => {
-    const { Enrico } = loadHolidays();
-    const enrico = new Enrico();
+test("HolidayService localizes, deduplicates, caches, and matches holidays by month", () => {
+    const { HolidayService } = loadHolidays();
+    const enrico = new HolidayService();
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -823,8 +823,8 @@ test("Enrico localizes, deduplicates, caches, and matches holidays by month", ()
     assert.equal(enrico.staleCache(2026), false);
 });
 
-test("Enrico setPlace treats a null region as the global region", () => {
-    const { Enrico } = loadHolidays();
+test("HolidayService setPlace treats a null region as the global region", () => {
+    const { HolidayService } = loadHolidays();
     fs.mkdirSync(cachePath(), { recursive: true });
     fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
         usa: {
@@ -833,7 +833,7 @@ test("Enrico setPlace treats a null region as the global region", () => {
         }
     }));
 
-    const enrico = new Enrico();
+    const enrico = new HolidayService();
     let retrieved = false;
     enrico.retrieveForYear = function() {
         retrieved = true;
@@ -849,11 +849,11 @@ test("Enrico setPlace treats a null region as the global region", () => {
     assert.deepEqual(enrico.matchMonth(2026, 1).get("1/1"), ["New Year", []]);
 });
 
-test("Enrico setPlace honors the retry backoff after a failed fetch", () => {
-    const { Enrico } = loadHolidays();
+test("HolidayService setPlace honors the retry backoff after a failed fetch", () => {
+    const { HolidayService } = loadHolidays();
     const year = new Date().getFullYear();
 
-    const enrico = new Enrico();
+    const enrico = new HolidayService();
     let retrieved = 0;
     enrico.retrieveForYear = function() {
         retrieved++;
@@ -879,7 +879,7 @@ test("Enrico setPlace honors the retry backoff after a failed fetch", () => {
 });
 
 test("a corrupt cache file is ignored instead of breaking holidays", () => {
-    const { Enrico } = loadHolidays();
+    const { HolidayService } = loadHolidays();
     fs.mkdirSync(cachePath(), { recursive: true });
 
     const payloads = [
@@ -891,7 +891,7 @@ test("a corrupt cache file is ignored instead of breaking holidays", () => {
     for (const payload of payloads) {
         fs.writeFileSync(cachePath("enrico.json"), payload);
 
-        const enrico = new Enrico();
+        const enrico = new HolidayService();
         let retrievedYear = null;
         enrico.retrieveForYear = function(year) {
             retrievedYear = year;
@@ -905,8 +905,8 @@ test("a corrupt cache file is ignored instead of breaking holidays", () => {
     }
 });
 
-test("Enrico setPlace loads cache and getHolidays retrieves stale years", () => {
-    const { Enrico } = loadHolidays();
+test("HolidayService setPlace loads cache and getHolidays retrieves stale years", () => {
+    const { HolidayService } = loadHolidays();
     fs.mkdirSync(cachePath(), { recursive: true });
     fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
         usa: {
@@ -915,7 +915,7 @@ test("Enrico setPlace loads cache and getHolidays retrieves stale years", () => 
         }
     }));
 
-    const enrico = new Enrico();
+    const enrico = new HolidayService();
     let retrievedYear = null;
     enrico.retrieveForYear = function(year, callback) {
         retrievedYear = year;
@@ -941,17 +941,17 @@ test("Enrico setPlace loads cache and getHolidays retrieves stale years", () => 
     assert.deepEqual(holidays.get("3/8"), ["Fetched", []]);
 });
 
-test("Enrico retrieveForYear builds params and addData ignores provider errors", () => {
-    const { Enrico, EnricoServiceAdapter, HolidayServiceFallbackAdapter } = loadHolidays();
+test("HolidayService retrieveForYear builds params and addData ignores provider errors", () => {
+    const { HolidayService, EnricoServiceAdapter, HolidayServiceFallbackAdapter } = loadHolidays();
     let captured = null;
-    // Enrico's service is a fallback chain in production; a bare adapter is only a
+    // HolidayService's service is a fallback chain in production; a bare adapter is only a
     // fetchYear, so wrap it the way the applet does — the record contract (validate
     // and expand) is the chain's, not any one adapter's
     const primary = new EnricoServiceAdapter((url, params, callback) => {
         captured = { url, params };
         callback([holiday("Fetched", params.year, 7, 4)], params, "Sat, 04 Jul 2026 00:00:00 GMT");
     });
-    const enrico = new Enrico();
+    const enrico = new HolidayService();
     enrico.service = new HolidayServiceFallbackAdapter(primary, []);
     enrico.country = "usa";
     enrico.region = "ca";
@@ -979,8 +979,8 @@ test("Enrico retrieveForYear builds params and addData ignores provider errors",
 // and global.logError, and it was the one remote string with no clamp and no
 // type check on it.
 test("a hostile provider error string cannot flood the tooltip or the log", () => {
-    const { Enrico, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
-    const enrico = new Enrico({ fetchYear() {}, validResponse: () => true, expandHoliday: () => [] },
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const enrico = new HolidayService({ fetchYear() {}, validResponse: () => true, expandHoliday: () => [] },
         new HolidayCache(() => {}, () => {}));
     const logged = [];
     global.logError = (message) => logged.push(String(message));
@@ -1001,9 +1001,9 @@ test("a hostile provider error string cannot flood the tooltip or the log", () =
     assert.ok(logged.length >= 3);
 });
 
-test("Enrico validates remote payloads before caching", () => {
-    const { Enrico, HOLIDAY_ERRORS } = loadHolidays();
-    const enrico = new Enrico();
+test("HolidayService validates remote payloads before caching", () => {
+    const { HolidayService, HOLIDAY_ERRORS } = loadHolidays();
+    const enrico = new HolidayService();
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -1033,8 +1033,8 @@ test("Enrico validates remote payloads before caching", () => {
     assert.equal(enrico.last_error, "");
 });
 
-test("Enrico surfaces provider errors to getHolidays callbacks", () => {
-    const { Enrico } = loadHolidays();
+test("HolidayService surfaces provider errors to getHolidays callbacks", () => {
+    const { HolidayService } = loadHolidays();
     const service = {
         validResponse() {
             return false;
@@ -1043,7 +1043,7 @@ test("Enrico surfaces provider errors to getHolidays callbacks", () => {
             callback({ error: "Enrico unavailable" }, { year, region: "global", providerName: "Test Provider" }, null);
         }
     };
-    const enrico = new Enrico(service);
+    const enrico = new HolidayService(service);
     enrico.country = "usa";
     enrico.region = "global";
     let result = null;
@@ -1061,7 +1061,7 @@ test("Enrico surfaces provider errors to getHolidays callbacks", () => {
 // failure recorded for France's 2026/global was read back by Germany — also
 // "global" — whose data was cached and fresh, so nothing ever overwrote it.
 test("a failure under one country is not reported under the next", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+    const { HolidayService, HolidayCache } = loadHolidays();
     const year = new Date().getFullYear();
     let fail = true;
 
@@ -1075,7 +1075,7 @@ test("a failure under one country is not reported under the next", () => {
         }
     };
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
 
     // France fails
     enrico.setPlace("fra", "global");
@@ -1184,8 +1184,8 @@ test("HolidayCache backs off after a failed fetch attempt", () => {
     assert.equal(cache.stale(2027, "global"), true);
 });
 
-test("Enrico records the attempt when the fetch lands, not when it starts", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+test("HolidayService records the attempt when the fetch lands, not when it starts", () => {
+    const { HolidayService, HolidayCache } = loadHolidays();
     let fetched = false;
     const cache = new HolidayCache(
         (_country, done) => done({ years: {}, holidays: [] }),
@@ -1197,7 +1197,7 @@ test("Enrico records the attempt when the fetch lands, not when it starts", () =
             callback({ error: "offline" }, { year: new Date().getFullYear() }, null);
         }
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     enrico.setPlace("usa", "global");
 
     assert.equal(fetched, true);
@@ -1206,7 +1206,7 @@ test("Enrico records the attempt when the fetch lands, not when it starts", () =
 });
 
 test("a fetch that lands after the country changed does not write to the new country", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+    const { HolidayService, HolidayCache } = loadHolidays();
     const stored = { fra: { years: {}, holidays: [] }, jpn: { years: {}, holidays: [] } };
     const saved = [];
     const cache = new HolidayCache(
@@ -1230,7 +1230,7 @@ test("a fetch that lands after the country changed does not write to the new cou
         expandHoliday: (single) => [single]
     };
 
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     const year = new Date().getFullYear();
 
     enrico.setPlace("fra", "global");          // France asks...
@@ -1249,7 +1249,7 @@ test("a fetch that lands after the country changed does not write to the new cou
 });
 
 test("the per-year status record does not outlive the years the grid can reach", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+    const { HolidayService, HolidayCache } = loadHolidays();
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
     const service = {
         fetchYear(_country, _region, year, callback) {
@@ -1258,7 +1258,7 @@ test("the per-year status record does not outlive the years the grid can reach",
         validResponse: () => true,
         expandHoliday: () => []
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     enrico.setPlace("usa", "global");
 
     const current = new Date().getFullYear();
@@ -1569,7 +1569,7 @@ test("an unbounded holiday span is rejected, not expanded", () => {
 });
 
 test("holiday status is reported per year, not shared across months", () => {
-    const { Enrico, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
     const cache = new HolidayCache(
         (_country, done) => done({ years: {}, holidays: [] }),
         () => {}
@@ -1585,7 +1585,7 @@ test("holiday status is reported per year, not shared across months", () => {
             name: single.name[0].text, flags: single.flags
         }]
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -1603,7 +1603,7 @@ test("holiday status is reported per year, not shared across months", () => {
 });
 
 test("a throw while storing a fetch never wedges the year", () => {
-    const { Enrico, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
     const cache = new HolidayCache(
         (_country, done) => done({ years: {}, holidays: [] }),
         () => {}
@@ -1620,7 +1620,7 @@ test("a throw while storing a fetch never wedges the year", () => {
             throw new Error("bad payload");
         }
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     enrico.country = "usa";
     enrico.region = "global";
     global.logError = () => {};
@@ -1637,7 +1637,7 @@ test("a throw while storing a fetch never wedges the year", () => {
 });
 
 test("a fresh year answers from the cache without a fetch", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+    const { HolidayService, HolidayCache } = loadHolidays();
     const cache = new HolidayCache(
         (_country, done) => done({ years: {}, holidays: [] }),
         () => {}
@@ -1652,7 +1652,7 @@ test("a fresh year answers from the cache without a fetch", () => {
             name: single.name[0].text, flags: single.flags
         }]
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -1671,7 +1671,7 @@ test("a fresh year answers from the cache without a fetch", () => {
 });
 
 test("setPlace repaints when the fetch for the new place lands", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+    const { HolidayService, HolidayCache } = loadHolidays();
     let pending = null;
     const cache = new HolidayCache(
         (_country, done) => done({ years: {}, holidays: [] }),
@@ -1683,7 +1683,7 @@ test("setPlace repaints when the fetch for the new place lands", () => {
         },
         validResponse: () => false
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     let repaints = 0;
 
     enrico.setPlace("usa", "global", () => repaints++);
@@ -1694,7 +1694,7 @@ test("setPlace repaints when the fetch for the new place lands", () => {
 });
 
 test("a second month of the same grid joins the in-flight year fetch", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+    const { HolidayService, HolidayCache } = loadHolidays();
     let pending = null;
     let fetches = 0;
     const cache = new HolidayCache(
@@ -1712,7 +1712,7 @@ test("a second month of the same grid joins the in-flight year fetch", () => {
             name: single.name[0].text, flags: single.flags
         })]
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -1731,8 +1731,8 @@ test("a second month of the same grid joins the in-flight year fetch", () => {
     assert.deepEqual(answers, [["6", 0], ["7", 1]]);
 });
 
-test("Enrico deduplicates in-flight year fetches", () => {
-    const { Enrico, HolidayCache } = loadHolidays();
+test("HolidayService deduplicates in-flight year fetches", () => {
+    const { HolidayService, HolidayCache } = loadHolidays();
     let fetches = 0;
     let pending = null;
     const cache = new HolidayCache(
@@ -1745,7 +1745,7 @@ test("Enrico deduplicates in-flight year fetches", () => {
             pending = callback;
         }
     };
-    const enrico = new Enrico(service, cache);
+    const enrico = new HolidayService(service, cache);
     enrico.country = "usa";
     enrico.region = "global";
     let callbacks = 0;
@@ -1762,13 +1762,13 @@ test("every country the settings offer can reach the fallback providers", () => 
     const { SUPPORTED_COUNTRIES, COUNTRY_TO_ISO2 } = require(holidayConstantsPath);
 
     // a country in the combobox with no ISO code cannot be asked of either
-    // fallback provider: if Enrico is down it simply has no holidays, silently
+    // fallback provider: if HolidayService is down it simply has no holidays, silently
     const unreachable = SUPPORTED_COUNTRIES.filter((country) => !COUNTRY_TO_ISO2[country]);
 
     assert.deepEqual(unreachable, []);
 });
 
-test("NagerDateServiceAdapter maps Enrico countries and regions", () => {
+test("NagerDateServiceAdapter maps HolidayService countries and regions", () => {
     const { NagerDateServiceAdapter } = loadHolidays();
     const { COUNTRY_TO_ISO2, REGION_TO_SUBDIVISION } = require(holidayConstantsPath);
     const adapter = new NagerDateServiceAdapter(() => {});
@@ -2087,13 +2087,13 @@ test("fuzz: OpenHolidays translation keeps only rows it can actually place", () 
     assert.ok(dropped > 0, "and some must be rejected");
 });
 
-// Enrico is the *primary* provider: it parses first for every user with holidays
+// HolidayService is the *primary* provider: it parses first for every user with holidays
 // on, and it was the one untrusted-JSON parser with no fuzz harness at all. The
 // interlock that matters here is between validHoliday and expandHoliday —
 // expandHoliday's `while (iter < limit)` is bounded only because validHoliday is
 // supposed to have rejected oversized spans first, and nothing ever tested the
 // two together.
-test("fuzz: Enrico's parser cannot be made to run away or return junk", () => {
+test("fuzz: HolidayService's parser cannot be made to run away or return junk", () => {
     const { HolidayRecordContract } = loadHolidays();
     const { MAX_HOLIDAY_SPAN_DAYS } = require(
         path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js"));
@@ -2262,8 +2262,8 @@ test("NagerDateServiceAdapter fuzzes date, county and type translation", () => {
     assert.ok(translated.length > 0, "fuzz corpus keeps some valid rows");
 });
 
-test("HolidayServiceFallbackAdapter retries Enrico failures with Nager data", () => {
-    const { Enrico, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
+test("HolidayServiceFallbackAdapter retries HolidayService failures with Nager data", () => {
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
     const primary = new EnricoServiceAdapter((_url, params, callback) => {
         callback(null, params, "Enrico failed");
     });
@@ -2285,7 +2285,7 @@ test("HolidayServiceFallbackAdapter retries Enrico failures with Nager data", ()
             saved = data;
         }
     );
-    const enrico = new Enrico(new HolidayServiceFallbackAdapter(primary, fallback), cache);
+    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, fallback), cache);
 
     enrico.country = "usa";
     enrico.region = "ca";
@@ -2316,7 +2316,7 @@ test("destroying the applet stops the provider chain instead of advancing it", (
     let alive = true;
     service.setLivenessCheck(() => alive);
 
-    // the applet is removed from the panel while Enrico's request is in flight
+    // the applet is removed from the panel while HolidayService's request is in flight
     alive = false;
     let answered = false;
     service.fetchYear("usa", "global", 2026, () => {
@@ -2338,8 +2338,8 @@ test("destroying the applet stops the provider chain instead of advancing it", (
 });
 
 test("an empty answer from the primary does not end the provider chain", () => {
-    const { Enrico, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
-    // Enrico answers [] for the country/year pairs it does not cover: a
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
+    // HolidayService answers [] for the country/year pairs it does not cover: a
     // well-formed payload that says "no holidays here"
     const primary = new EnricoServiceAdapter((_url, params, callback) => {
         callback([], params, "Enrico answered empty");
@@ -2350,7 +2350,7 @@ test("an empty answer from the primary does not end the provider chain", () => {
         ], params, NAGER_STAMP);
     });
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
-    const enrico = new Enrico(new HolidayServiceFallbackAdapter(primary, fallback), cache);
+    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, fallback), cache);
 
     enrico.country = "usa";
     enrico.region = "ca";
@@ -2362,12 +2362,12 @@ test("an empty answer from the primary does not end the provider chain", () => {
 });
 
 test("an empty answer is believed once every provider gives one", () => {
-    const { Enrico, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
     const empty = (_url, params, callback) => callback([], params, "Sat, 04 Jul 2026 00:00:00 GMT");
     const primary = new EnricoServiceAdapter(empty);
     const fallback = new NagerDateServiceAdapter(empty);
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
-    const enrico = new Enrico(new HolidayServiceFallbackAdapter(primary, fallback), cache);
+    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, fallback), cache);
 
     enrico.country = "usa";
     enrico.region = "ca";
@@ -2380,7 +2380,7 @@ test("an empty answer is believed once every provider gives one", () => {
 });
 
 test("HolidayServiceFallbackAdapter tries OpenHolidays before Nager", () => {
-    const { Enrico, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
     const primary = new EnricoServiceAdapter((_url, params, callback) => {
         callback(null, params, "Enrico failed");
     });
@@ -2405,7 +2405,7 @@ test("HolidayServiceFallbackAdapter tries OpenHolidays before Nager", () => {
             saved = data;
         }
     );
-    const enrico = new Enrico(new HolidayServiceFallbackAdapter(primary, [openHolidays, nager]), cache);
+    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, [openHolidays, nager]), cache);
 
     enrico.country = "che";
     enrico.region = "zh";
@@ -2642,7 +2642,7 @@ test("the version shim forwards the shared provider module", () => {
         NagerDateServiceAdapter: class {},
         OpenHolidaysServiceAdapter: class {},
         HolidayServiceFallbackAdapter: class {},
-        Enrico: class {},
+        HolidayService: class {},
         HolidayProviderFacade: class {},
         HOLIDAY_ERRORS: {}
     };
@@ -2701,8 +2701,8 @@ test("HolidayProviderFacade exposes only place and holiday retrieval", () => {
 
 // The chain used to validate and expand every provider's payload with the
 // *primary's* validator, so the port's contract was one vendor's payload shape:
-// the two ISO adapters had to reshape their answers into Enrico's wire format to
-// get past a check that belonged to Enrico. A provider that did not was rejected
+// the two ISO adapters had to reshape their answers into HolidayService's wire format to
+// get past a check that belonged to HolidayService. A provider that did not was rejected
 // as INVALID_RESPONSE with nothing to say the validator was the wrong one.
 test("the chain validates against the record contract, not against the primary", () => {
     const { HolidayServiceFallbackAdapter, HolidayRecordContract } = loadHolidays();
@@ -2767,11 +2767,11 @@ test("HolidayServiceFallbackAdapter reports provider success and failure", () =>
     assert.equal(exhaustedLogs.at(-1), "all holiday providers failed for ita/global/2027");
 });
 
-// The point of the record contract: Enrico is the flakiest of the three
+// The point of the record contract: HolidayService is the flakiest of the three
 // providers, and dropping it used to break the other two — they were validated
 // and expanded by *its* validator. A chain of the two ISO providers, with no
-// Enrico anywhere in it, has to work.
-test("the chain works with no Enrico in it at all", () => {
+// HolidayService anywhere in it, has to work.
+test("the chain works with no HolidayService in it at all", () => {
     const {
         HolidayServiceFallbackAdapter, HolidayRecordContract,
         OpenHolidaysServiceAdapter, NagerDateServiceAdapter
@@ -2807,11 +2807,11 @@ test("the chain works with no Enrico in it at all", () => {
     }]);
 });
 
-// Enrico built a real HolidayCacheRepository in its constructor whether or not a
+// HolidayService built a real HolidayCacheRepository in its constructor whether or not a
 // cache was injected — resolving a path, creating a directory — for an object
 // that could never be used.
 test("a provider given a cache does not build a repository it cannot use", () => {
-    const { Enrico } = loadHolidays();
+    const { HolidayService } = loadHolidays();
     const cache = {
         country: "ita", region: "global", years: {}, data: [],
         setPlace() {}, setData() {}, clearPlace() {}, recordAttempt() {},
@@ -2819,7 +2819,7 @@ test("a provider given a cache does not build a repository it cannot use", () =>
         matchMonth: () => new Map()
     };
 
-    const enrico = new Enrico({ fetchYear() {} }, cache);
+    const enrico = new HolidayService({ fetchYear() {} }, cache);
 
     assert.equal(enrico.cache, cache);
     assert.equal(enrico.cacheRepository, undefined,
@@ -2831,7 +2831,7 @@ test("a provider given a cache does not build a repository it cannot use", () =>
         loadAsync: (country, done) => { loads.push(country); done({ years: {}, holidays: [] }); },
         save: () => {}
     };
-    const backed = new Enrico({ fetchYear() {} }, null, { cacheRepository: repository });
+    const backed = new HolidayService({ fetchYear() {} }, null, { cacheRepository: repository });
     backed.cache.setPlace("fra", "global", () => {});
     assert.deepEqual(loads, ["fra"]);
 });
@@ -3033,11 +3033,11 @@ test("a payload with an absurd number of holidays is refused, not expanded", () 
 });
 
 test("the rows a payload expands to are bounded too", () => {
-    const { Enrico, MAX_EXPANDED_HOLIDAY_ROWS } = loadHolidays();
+    const { HolidayService, MAX_EXPANDED_HOLIDAY_ROWS } = loadHolidays();
     const logged = [];
     global.logError = (message) => logged.push(String(message));
 
-    const enrico = new Enrico({
+    const enrico = new HolidayService({
         fetchYear() {},
         // a hundred holidays, each spanning a year: a valid payload, and 36,600
         // rows on the compositor thread

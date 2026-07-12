@@ -70,7 +70,7 @@ var MAX_EXPANDED_HOLIDAY_ROWS = HolidayServiceAdapters.MAX_EXPANDED_HOLIDAY_ROWS
 // provider *instance*, not per module — a second applet on the panel must not
 // have its requests aborted when the first one is removed.
 //
-// Enrico used to own this lifecycle itself, along with eight other things.
+// HolidayService used to own this lifecycle itself, along with eight other things.
 var HolidaySession = class HolidaySession {
     constructor(create = _newHttpSession) {
         this._create = create;
@@ -113,7 +113,7 @@ function httpBackedService(getSession, params = {}) {
 
 // The outcome of the last fetch for a year+region: what the month label shows.
 //
-// Enrico kept this as a bare object and pruned it by hand, alongside the HTTP
+// HolidayService kept this as a bare object and pruned it by hand, alongside the HTTP
 // session, the provider chain, the cache repository, the cache, the inflight
 // map, the place-generation counter, the staleness policy and the validation
 // policy. It is a small thing with a rule of its own — the key carries no
@@ -216,7 +216,7 @@ var HolidayInflight = class HolidayInflight {
     }
 };
 
-var Enrico = class Enrico {
+var HolidayService = class HolidayService {
     constructor (service, cache, params = {}) {
         this._session = params.httpSession || new HolidaySession();
         this.service = service || httpBackedService(() => this._getHttpSession());
@@ -244,7 +244,7 @@ var Enrico = class Enrico {
     }
 
     _fileBackedCache(repository) {
-        this.cacheRepository = repository || new HolidayCacheRepository(Enrico.fn);
+        this.cacheRepository = repository || new HolidayCacheRepository(HolidayService.fn);
 
         return new HolidayCache(
             (country, done) => this.cacheRepository.loadAsync(country, done),
@@ -520,12 +520,12 @@ var Enrico = class Enrico {
         }
     }
 };
-Enrico.fn = "/enrico.json";
+HolidayService.fn = "/enrico.json";
 
 // The composition root for the holiday half: the graph, written out once.
 //
 // It used to assemble itself through default arguments across three files — new
-// HolidayProviderFacade() reached for new Enrico(), which reached for
+// HolidayProviderFacade() reached for new HolidayService(), which reached for
 // httpBackedService(), which built the three adapters and the chain, and then
 // the repository and the cache. Nothing could substitute anything, and the
 // wiring lived in four constructors' parameter lists.
@@ -540,7 +540,7 @@ function createHolidayProvider(params = {}) {
     const service = params.service ||
         httpBackedService(() => session.get(), { lang, record, load: params.load });
 
-    const provider = params.provider || new Enrico(service, params.cache, {
+    const provider = params.provider || new HolidayService(service, params.cache, {
         httpSession: session,
         cacheRepository: params.cacheRepository,
         status: params.status,
@@ -551,7 +551,7 @@ function createHolidayProvider(params = {}) {
 }
 
 var HolidayProviderFacade = class HolidayProviderFacade {
-    constructor(provider = new Enrico()) {
+    constructor(provider = new HolidayService()) {
         this._provider = provider;
     }
 
@@ -578,5 +578,5 @@ var HolidayProviderFacade = class HolidayProviderFacade {
 
 if (typeof module !== "undefined") {
     module.exports = {
-        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, HolidayServiceFallbackAdapter, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, HolidaySession, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, Enrico, HolidayProviderFacade, HOLIDAY_ERRORS };
+        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, HolidayServiceFallbackAdapter, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, HolidaySession, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
 }
