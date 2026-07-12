@@ -6,9 +6,11 @@ Audit ledger for this applet. Full-source rescan on 2026-07-12 (fresh pass) agai
 
 **Findings verified by running or mutating the code are marked [verified]**, each naming the experiment.
 
-Baseline at scan time: `npm test` green **on this machine** (JS coverage per-file 98/90/100, Python 98 %+), `npm run lint` clean. But both gates are weaker than they read (T424, T428, T373) and **no CI runs them at all** (T440), so the green baseline is a local fact, not a shipped one.
+Baseline at scan time: `npm test` green **on this machine** (JS coverage per-file 98/90/100, Python 98 %+), `npm run lint` clean. But both gates are weaker than they read (T428, T373) and **no CI runs them at all** (T440), so the green baseline is a local fact, not a shipped one.
 
-Open items: 50 (Critical 0, High 11, Medium 19, Low 20).
+A batch on 2026-07-12 closed 27 of the findings (see `git log`): the six README fixes, the makepot `cd`, the single-sourced constants, the i18n trio, the dead `_urlForLog`, the lazy city Soup session, the tooltip-key seconds, the locale-subprocess reap, the chunked-response cap, the geocode fan-out pool, the JS/Python timezone-city parity, the logind resume, the holiday refetch-storm, the C→F unification, the five complexity splits, the `updateFormatString` table, the calendar-server proxy encapsulation, the EventList seam, the coverage-gate honesty fix, and the ATK-description fix. Five of that batch's targets were **parked** rather than done — the heavy reorganizations, all Medium and none a live bug; see "Open - parked" for the rationale.
+
+Open items: 23 (Critical 0, High 3, Medium 10, Low 10).
 
 ## Findings
 
@@ -52,12 +54,13 @@ Open items: 50 (Critical 0, High 11, Medium 19, Low 20).
 
 ## Suggested order
 
-1. **T440, T428, T424, T373** — make the gates real (add CI, extend the eslint ruleset, close both coverage-honesty holes) *before* the code fixes, so the fixes arrive with a working net.
-2. **T420, T425, T429** — the live functional defects: the holiday refetch storm, the timezone-city divergence that geocodes `"UTC"`, and the dead resume path.
-3. **T421, T422, T423, T435–T439** — the packaging/docs blockers to any first release or Spices submission.
-4. **T430, T431, T432, T433** — the i18n regressions from the recent feature work.
-5. **T359, T374, T434, T449** — the tests that lie; each is a bug free to come back.
-6. Everything else, severity order. The architecture rows (T442–T448) are refactors — schedule when touching those files, not as standalone churn.
+The 2026-07-12 batch closed the live defects, the i18n regressions and the docs/packaging quick wins. What remains:
+
+1. **T440, T428, T373** — make the gates real (add CI, extend the eslint ruleset, close the Python coverage-glob hole). The JS coverage-honesty hole (T424) is done; these three finish the net.
+2. **T422, T437, T438, T439** — the packaging blockers to a first release or Spices submission (LICENSE, `uuid`, `cinnamon-version`, the icon symlink).
+3. **T359, T374, T434, T449** — the tests that lie; each is a bug free to come back.
+4. **The parked reorganizations** (T442, T448, T446, T445, T444) — schedule when next touching those files, not as standalone churn; see "Open - parked".
+5. Everything else, severity order.
 
 ## Clean categories
 
@@ -76,7 +79,13 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 
 ## Open - parked
 
-- **T442** (weather port returns a normalized record) — deferred on 2026-07-12. It is the deepest rewrite in the tree: the reading string flows through `WeatherDisplayState`, the resolver, `WeatherProvider`, the applet's `weather_text`, the city readings map and every staleness comparison, all string-keyed, so it rewrites a large slice of the weather/panel/tooltip/cityWeather suites. Medium design-smell, no live bug — the C→F triplication under it was already closed by T426. Pick up when the weather layer is next opened.
+The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. They are ready to pick up deliberately.
+
+- **T442** (weather port returns a normalized record) — the deepest rewrite in the tree: the reading string flows through `WeatherDisplayState`, the resolver, `WeatherProvider`, the applet's `weather_text`, the city readings map and every staleness comparison, all string-keyed, so it rewrites a large slice of the weather/panel/tooltip/cityWeather suites. The C→F triplication under it was already closed by T426.
+- **T448** (split the holiday adapter port) — removing `EnricoServiceAdapter`'s dead `validResponse`/`expandHoliday`/`localizeName`/`validHoliday` forwards breaks ~9 tests that construct `Enrico` with a bare adapter as its service (in production the service is the `FallbackAdapter`, which has those methods). Landing it means reworking those test setups to build a proper service. Attempted and reverted on 2026-07-12 for that reason.
+- **T446** (rename `Enrico`→`HolidayService`, `enrico.json`→`holidays.json` with migration, `ENRICO_*`→`COUNTRY_TO_ISO2`/`REGION_TO_SUBDIVISION`) — a rename across `holidays.js`, `holidayServiceAdapters.js`, `holidayConstants.js`, `holidayCache.js`, every holiday test, the `gjs_import` parity lists and the `schema_static` `ENRICO_REGION_TO_COUNTY` assertion, plus new cache-migration logic and tests. The largest ripple of the five, over the same fragile holiday-test surface as T448.
+- **T445** (split `weather.js` into `weatherScheduler.js` + `weatherProviders.js`) — new modules plus new `5.4/` shims, entries in the `gjs_import` `EXPORTS` map and `gjsImportsMock`, coverage-glob inclusion, and the `WeatherFormat` re-export block kept in `weather.js` (a test derives it from that file's source).
+- **T444** (split `settings_widgets_common.py` into a gi-free `timezone_data.py`) — the timezone half moves out, but `test_settings_widgets.py` loads the widgets module and calls the moved functions on it, `coverage.py` globs the new file, `schema_static` reads `MAX_CLOCKS` from the widgets file, and the Python import path under the test harness's `load_module` has to resolve the new sibling.
 
 ## Rejected
 
