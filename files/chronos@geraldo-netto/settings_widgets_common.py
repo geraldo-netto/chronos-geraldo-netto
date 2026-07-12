@@ -282,7 +282,7 @@ def attach_city_completion(entry, cities):
 
     The suggestions come from the timezone database that is already loaded for
     the world clocks — nothing is fetched, so no keystroke reaches the geocoder.
-    That database is not a gazetteer: it names about 440 cities, so a small town
+    That database is not a gazetteer: it names only a few hundred cities, so a small town
     will not be suggested. The field stays free text and any name still saves;
     the completion is a shortcut, not a whitelist.
     """
