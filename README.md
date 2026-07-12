@@ -51,14 +51,6 @@ test runner and Python's `unittest`.
 
 ## Installation
 
-### From Cinnamon Spices (recommended)
-
-1. Right-click a panel → **Applets** (or System Settings → **Applets**).
-2. Open the **Download** tab, search for **Chronos Calendar**, and click the
-   install button.
-3. Switch to the **Manage** tab, select the applet, and click **+** to add it
-   to the panel.
-
 ### Manual installation
 
 1. Copy the applet directory into your local applets folder:
@@ -78,6 +70,14 @@ test runner and Python's `unittest`.
 
 Since it replaces the stock clock, you may want to right-click the stock
 **Calendar** applet and remove it from the panel afterwards.
+
+### From Cinnamon Spices
+
+Not yet published. Once the applet is accepted into the
+[Cinnamon Spices](https://cinnamon-spices.linuxmint.com/applets) catalogue you
+will be able to install it from a panel's **Applets → Download** tab by
+searching for **Chronos Calendar**; until then, use the manual installation
+above.
 
 ### Configuration
 
