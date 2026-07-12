@@ -160,13 +160,15 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
         "https://nominatim.openstreetmap.org/search?q=New%20York&format=json&limit=1"
     );
     assert.equal(Weather.locationCacheKey(" New York "), "new york");
+    // always Celsius now, whatever the units: formatTemperature does the
+    // imperial conversion so all three providers share one rule
     assert.equal(
         Weather.forecastUrl({ latitude: 41.9, longitude: 12.5 }, "si"),
         "https://api.open-meteo.com/v1/forecast?latitude=41.9&longitude=12.5&current_weather=true&timezone=auto&temperature_unit=celsius"
     );
     assert.equal(
         Weather.forecastUrl({ latitude: 41.9, longitude: 12.5 }, "imperial"),
-        "https://api.open-meteo.com/v1/forecast?latitude=41.9&longitude=12.5&current_weather=true&timezone=auto&temperature_unit=fahrenheit"
+        "https://api.open-meteo.com/v1/forecast?latitude=41.9&longitude=12.5&current_weather=true&timezone=auto&temperature_unit=celsius"
     );
     // injection attempts from a hostile geocode reply must be encoded away
     assert.ok(!Weather.forecastUrl(
@@ -286,7 +288,9 @@ test("supports selectable SI and imperial weather units", () => {
     }
 
     assert.equal(Weather.normalizeUnits("imperial"), "imperial");
-    assert.equal(Weather.weatherText({ weathercode: 1, temperature: 68.1 }, "imperial"), "⛅ 68°F");
+    // the temperature is Celsius now (Open-Meteo is asked for Celsius); imperial
+    // converts it: 20 °C is 68 °F
+    assert.equal(Weather.weatherText({ weathercode: 1, temperature: 20 }, "imperial"), "⛅ 68°F");
 
     const schema = JSON.parse(fs.readFileSync(schema52Path, "utf8"));
     assert.equal(schema["weather-units"].default, "si");
@@ -297,7 +301,8 @@ test("formats weather text and maps every fuzzed weather code to an icon", () =>
     const Weather = loadWeather();
 
     assert.equal(Weather.weatherText({ weathercode: 0, temperature: 21.4 }, "metric"), "☀ 21°C");
-    assert.equal(Weather.weatherText({ weathercode: 63, temperature: 70.6 }, "imperial"), "🌧 71°F");
+    // 21.7 °C converts to 71 °F
+    assert.equal(Weather.weatherText({ weathercode: 63, temperature: 21.7 }, "imperial"), "🌧 71°F");
     assert.equal(Weather.weatherText(null, "metric"), "");
 
     // a degraded Open-Meteo station reports no temperature; rounding that

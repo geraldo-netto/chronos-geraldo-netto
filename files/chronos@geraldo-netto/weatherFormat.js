@@ -99,6 +99,23 @@ function normalizeUnits(units) {
     return WEATHER_UNITS.SI;
 }
 
+// One temperature rule for all three providers. They each hand back Celsius —
+// METAR is Celsius by definition, MET.no reports Celsius, and Open-Meteo is now
+// asked for Celsius rather than converting server-side — and this owns the
+// imperial conversion, the rounding and the suffix. Two adapters used to carry
+// their own `* 9 / 5 + 32` and the Open-Meteo path asked the API to convert, so
+// the rule lived in three places that could disagree: the same city could read
+// 21°C on one provider and 70°F on another in one tooltip.
+function formatTemperature(celsius, units) {
+    const imperial = normalizeUnits(units) === WEATHER_UNITS.IMPERIAL;
+    const value = imperial ? celsius * 9 / 5 + 32 : celsius;
+    return Math.round(value) + (imperial ? "°F" : "°C");
+}
+
+function formatReading(icon, celsius, units) {
+    return icon + " " + formatTemperature(celsius, units);
+}
+
 function weatherIcon(weatherCode) {
     if (weatherCode === 0) {
         return "☀";
@@ -138,19 +155,13 @@ function locationCacheKey(location) {
     return location.trim().toLowerCase();
 }
 
-function forecastUrl(place, units) {
-    let url = "https://api.open-meteo.com/v1/forecast?latitude=" +
+function forecastUrl(place) {
+    // always Celsius: formatTemperature owns the imperial conversion, so all
+    // three providers go through one rounding-and-suffix rule and the same city
+    // cannot read a different unit depending on which one answered
+    return "https://api.open-meteo.com/v1/forecast?latitude=" +
         encodeURIComponent(place.latitude) + "&longitude=" + encodeURIComponent(place.longitude) +
-        "&current_weather=true&timezone=auto";
-    const normalizedUnits = normalizeUnits(units);
-
-    if (normalizedUnits === WEATHER_UNITS.IMPERIAL) {
-        url += "&temperature_unit=fahrenheit";
-    } else {
-        url += "&temperature_unit=celsius";
-    }
-
-    return url;
+        "&current_weather=true&timezone=auto&temperature_unit=celsius";
 }
 
 function metNoForecastUrl(place) {
@@ -271,15 +282,7 @@ function aviationWeatherText(stations, place, units) {
     }
 
     // METAR temperatures are Celsius by definition
-    let temperature = metarNumber(station.temp);
-    let suffix = "°C";
-
-    if (normalizeUnits(units) === WEATHER_UNITS.IMPERIAL) {
-        temperature = temperature * 9 / 5 + 32;
-        suffix = "°F";
-    }
-
-    return aviationWeatherIcon(station) + " " + Math.round(temperature) + suffix;
+    return formatReading(aviationWeatherIcon(station), metarNumber(station.temp), units);
 }
 
 function weatherText(weather, units) {
@@ -296,11 +299,9 @@ function weatherText(weather, units) {
         return "";
     }
 
-    const icon = weatherIcon(weather.weathercode);
-    const temp = Math.round(weather.temperature);
-    const suffix = normalizeUnits(units) === WEATHER_UNITS.IMPERIAL ? "°F" : "°C";
-
-    return icon + " " + temp + suffix;
+    // Open-Meteo is asked for Celsius (forecastUrl), so this converts like the
+    // other two rather than trusting a server-side unit
+    return formatReading(weatherIcon(weather.weathercode), weather.temperature, units);
 }
 
 function metNoIcon(symbolCode) {
@@ -371,15 +372,7 @@ function metNoWeatherText(forecast, units) {
 
     const summary = metNoSummary(data);
     const icon = metNoIcon(summary ? summary.symbol_code : "");
-    let temperature = data.instant.details.air_temperature;
-    let suffix = "°C";
-
-    if (normalizeUnits(units) === WEATHER_UNITS.IMPERIAL) {
-        temperature = temperature * 9 / 5 + 32;
-        suffix = "°F";
-    }
-
-    return icon + " " + Math.round(temperature) + suffix;
+    return formatReading(icon, data.instant.details.air_temperature, units);
 }
 
 function openMeteoGeocodePlace(data) {
