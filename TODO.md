@@ -81,9 +81,6 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 
 The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. Each is unpacked below into ordered sub-steps that each land on their own with the suite green — do them in order, one commit per step.
 
-### T444 — split `settings_widgets_common.py` into a gi-free `timezone_data.py`
-- **T444c** — Confirm `coverage.py` measures `timezone_data.py` (it globs `*.py`) and add any missing coverage; optionally point the pure timezone tests at `timezone_data` directly. The `5.4/settings_widgets.py` shim is unchanged — it re-exports only the widget names.
-
 ### T445 — split `weather.js` into `weatherScheduler.js` + `weatherProviders.js`
 Keep `weather.js` as the barrel: it requires the new modules and re-exports them, so consumers and the `weather` parity list are unchanged. The `WeatherFormat` re-export block **stays in `weather.js`** (a test derives it from that file's source).
 

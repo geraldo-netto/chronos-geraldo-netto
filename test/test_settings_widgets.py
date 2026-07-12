@@ -2475,3 +2475,46 @@ class WeatherLocationPrefillTest(unittest.TestCase):
         # the panel already says "Set a weather location"; guessing is worse
         self.assertEqual(settings.values["weather-location"], "")
         self.assertEqual(settings.writes, [])
+
+
+class TimezoneDataStandsAloneTest(unittest.TestCase):
+    """timezone_data.py is the gi-free half of the feature — no Gtk/Atk/GLib and
+    no widgets. It has to import and answer with none of them present, which is
+    the whole reason the split exists: the timezone logic can be exercised
+    without a settings-dialog environment.
+    """
+
+    def load_gi_free(self):
+        # deliberately no install_stubs(): timezone_data reaches for nothing in
+        # gi.repository, so it execs against the bare standard library. A future
+        # edit that imports gi here would make this raise instead.
+        spec = importlib.util.spec_from_file_location(
+            "timezone_data_standalone", APPLET_DIR / "timezone_data.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_the_source_reaches_for_no_gtk_atk_or_glib(self):
+        source = (APPLET_DIR / "timezone_data.py").read_text()
+        for forbidden in ("import gi", "gi.repository", "from xapp", "JsonSettingsWidgets"):
+            self.assertNotIn(forbidden, source,
+                             "timezone_data must stay free of the widget toolkit: %r" % forbidden)
+
+    def test_it_resolves_and_folds_without_the_toolkit(self):
+        module = self.load_gi_free()
+
+        # neither pytz nor zoneinfo: the resolver still checks IANA shape. A
+        # fixed local zone keeps the built-in set off the machine's own, so
+        # "Europe/Rome" is not reserved wherever this runs.
+        resolver = module.TimezoneResolver(None, None, local_timezone=FIXED_LOCAL_TIMEZONE)
+        self.assertFalse(resolver.any_timezone_data())
+        self.assertEqual(resolver.normalize("Europe/Rome"), "Europe/Rome")
+        self.assertIsNone(resolver.normalize("not a zone"))
+
+        self.assertEqual(module.completion_key("Buenos_Aires"), "buenos aires")
+        self.assertEqual(module.local_city_name("Europe/Rome"), "Rome")
+        self.assertEqual(module.local_city_name("Etc/UTC"), "")
+        self.assertTrue(module.looks_like_iana("America/Sao_Paulo"))
+        # the non-string guard: junk off a settings file is not an identifier
+        self.assertFalse(module.looks_like_iana(None))
+        self.assertIn("utc", module.RESERVED_TIMEZONES)
