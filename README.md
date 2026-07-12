@@ -57,6 +57,9 @@ test runner and Python's `unittest`.
 
    ```sh
    git clone https://github.com/geraldo-netto/chronos-geraldo-netto.git
+   # the applets folder does not exist yet on a machine that has never
+   # installed a third-party applet; rsync only creates the last component
+   mkdir -p ~/.local/share/cinnamon/applets
    # --exclude keeps stale Python bytecode out of the install
    rsync -a --exclude '__pycache__' \
          "chronos-geraldo-netto/files/chronos@geraldo-netto" \
