@@ -129,7 +129,7 @@ class EventListRenderer {
         this._cancelScroll();
 
         if (event_data_list != null &&
-            event_data_list.timestamp === this.list._current_event_data_list_timestamp) {
+            event_data_list.timestamp === this.list.currentTimestamp) {
             this._refreshExistingRows();
             return;
         }
@@ -155,19 +155,14 @@ class EventListRenderer {
     _refreshExistingRows() {
         const now = GLib.DateTime.new_now_local();
         const today = date_only(now);
-        this.list._rows.forEach((row) => {
+        this.list.rows.forEach((row) => {
             row.update_variations(now, today);
         });
     }
 
     _clearRows() {
         this._cancelRowBuild();
-
-        this.list.events_box.get_children().forEach((actor) => {
-            actor.destroy();
-        });
-
-        this.list._rows = [];
+        this.list.clearRows();
     }
 
     _cancelNoEventsTimeout() {
@@ -184,18 +179,13 @@ class EventListRenderer {
             // The column used to sit blank for those 600ms and then jump to
             // "No Events" — an empty state asserted before it was known to be
             // true. On a slow EDS start the user watched nothing become "no
-            // events" become a list.
-            if (!this.list._unavailable) {
-                this.list.set_no_events_text(_("Loading…"));
-                this.list.no_events_box.show();
-            }
+            // events" become a list. showNoEvents keeps the "unavailable" text
+            // rule (the box shows either way).
+            this.list.showNoEvents(_("Loading…"));
 
             this._no_events_timeout_id = Mainloop.timeout_add(600, () => {
                 this._no_events_timeout_id = 0;
-                if (!this.list._unavailable) {
-                    this.list.set_no_events_text(_("No Events"));
-                }
-                this.list.no_events_box.show();
+                this.list.showNoEvents(_("No Events"));
                 return GLib.SOURCE_REMOVE;
             });
         } else {
@@ -205,13 +195,10 @@ class EventListRenderer {
             // nothing was left to overwrite it — and the user is told the
             // applet is fetching something that will never arrive, until they
             // select a different day.
-            if (!this.list._unavailable) {
-                this.list.set_no_events_text(_("No Events"));
-            }
-            this.list.no_events_box.show();
+            this.list.showNoEvents(_("No Events"));
         }
 
-        this.list._current_event_data_list_timestamp = 0;
+        this.list.setCurrentTimestamp(0);
     }
 
     // One EventRow is ~6 actors plus a separator and a couple of signal
@@ -223,8 +210,8 @@ class EventListRenderer {
     // The first chunk is built straight away, so the column is never empty while
     // something is there to show; the rest follow on idles, a chunk at a time.
     _buildRows(event_data_list) {
-        this.list.no_events_box.hide();
-        this.list._current_event_data_list_timestamp = event_data_list.timestamp;
+        this.list.hideNoEvents();
+        this.list.setCurrentTimestamp(event_data_list.timestamp);
 
         const events = event_data_list.get_event_list();
         this._cancelRowBuild();
@@ -248,7 +235,7 @@ class EventListRenderer {
 
     _buildRowChunk(state) {
         // the day changed under us while the chunks were still going out
-        if (state.timestamp !== this.list._current_event_data_list_timestamp) {
+        if (state.timestamp !== this.list.currentTimestamp) {
             this._build_rows_idle_id = 0;
             return GLib.SOURCE_REMOVE;
         }
@@ -258,32 +245,30 @@ class EventListRenderer {
         for (; state.index < end; state.index++) {
             const event_data = state.events[state.index];
 
-            if (this.list._rows.length > 0) {
-                this.list.events_box.add_actor(new Separator.Separator().actor);
+            if (this.list.rows.length > 0) {
+                this.list.addSeparator();
             }
 
             const row = new EventRow(
                 event_data,
-                this.list.selected_date,
+                this.list.selectedDate,
                 {
-                    use_24h: this.list.desktop_settings.use24h,
-                    launcher: this.list._calendar_launcher
+                    use_24h: this.list.desktopSettings.use24h,
+                    launcher: this.list.calendarLauncher
                 }
             );
 
             row.connect("view-event", (emitter, uuid) => {
-                if (this.list._calendar_launcher.launchUuid(uuid)) {
-                    this.list.emit("launched-calendar");
+                if (this.list.calendarLauncher.launchUuid(uuid)) {
+                    this.list.emitLaunched();
                 }
             });
-
-            this.list.events_box.add_actor(row.actor);
 
             if (row.is_current_or_next && state.scroll_to_row === null) {
                 state.scroll_to_row = row;
             }
 
-            this.list._rows.push(row);
+            this.list.addRow(row);
         }
 
         if (state.index < state.events.length) {
@@ -301,10 +286,10 @@ class EventListRenderer {
 
     _queueScroll(scroll_to_row) {
         this._scroll_to_idle_id = Mainloop.idle_add(((row) => {
-            let vscroll = this.list.events_scroll_box.get_vscroll_bar();
+            let vscroll = this.list.scrollBox.get_vscroll_bar();
 
             if (row != null) {
-                let mid_position = row.actor.y + (row.actor.height / 2) - (this.list.events_box.height / 2);
+                let mid_position = row.actor.y + (row.actor.height / 2) - (this.list.eventsBox.height / 2);
                 vscroll.get_adjustment().set_value(mid_position);
             } else {
                 vscroll.get_adjustment().set_value(0);
@@ -529,6 +514,72 @@ class EventList {
         }
 
         this.selected_date = gdate;
+    }
+
+    // The renderer used to read and write the list's private fields directly —
+    // this.list._rows, this.list._current_event_data_list_timestamp and the rest
+    // — so renaming one of them broke nothing at parse time and the renderer just
+    // pushed into a fresh undefined. It goes through these named seams now, and
+    // the list is the only writer of its own fields. Same shape as CalendarGridHost.
+    get rows() {
+        return this._rows;
+    }
+
+    get currentTimestamp() {
+        return this._current_event_data_list_timestamp;
+    }
+
+    setCurrentTimestamp(timestamp) {
+        this._current_event_data_list_timestamp = timestamp;
+    }
+
+    get calendarLauncher() {
+        return this._calendar_launcher;
+    }
+
+    get eventsBox() {
+        return this.events_box;
+    }
+
+    get scrollBox() {
+        return this.events_scroll_box;
+    }
+
+    get selectedDate() {
+        return this.selected_date;
+    }
+
+    get desktopSettings() {
+        return this.desktop_settings;
+    }
+
+    addSeparator() {
+        this.events_box.add_actor(new Separator.Separator().actor);
+    }
+
+    addRow(row) {
+        this.events_box.add_actor(row.actor);
+        this._rows.push(row);
+    }
+
+    clearRows() {
+        this.events_box.get_children().forEach((actor) => actor.destroy());
+        this._rows = [];
+    }
+
+    showNoEvents(text) {
+        if (!this._unavailable) {
+            this.set_no_events_text(text);
+        }
+        this.no_events_box.show();
+    }
+
+    hideNoEvents() {
+        this.no_events_box.hide();
+    }
+
+    emitLaunched() {
+        this.emit("launched-calendar");
     }
 
     set_events(event_data_list, delay_no_events_box) {
