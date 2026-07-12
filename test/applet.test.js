@@ -1131,8 +1131,19 @@ test("settings binding wires schema keys and creates settings facades", () => {
     assert.ok(stub.events_settings);
     assert.deepEqual(binds[0], ["ctor", "chronos@geraldo-netto", 42]);
     assert.ok(binds.some((row) => row[1] === "show-events"));
-    assert.ok(binds.some((row) => row[1] === "weather-location"));
     assert.ok(binds.some((row) => row[0] === "hotkey"));
+
+    // REGRESSION: weather-location is drawn by a custom widget, and Cinnamon
+    // binds only the types in its SETTINGS_TYPES table — "custom" is not one.
+    // It was bound anyway: the bind failed with "Invalid setting type", the
+    // applet property stayed undefined for the life of the process, and the
+    // weather silently never loaded for anyone. It is mirrored by hand instead.
+    assert.ok(!binds.some((row) => row[0] === "bind" && row[1] === "weather-location"),
+        "a custom-widget key cannot be bound; Cinnamon refuses it");
+    // the mirror reads the key and writes the applet property itself: this
+    // double answers [] for every getValue, and that is what lands on it
+    assert.deepEqual(stub.weather_location, [],
+        "the location reaches the applet through the mirror, not through bind()");
 });
 
 test("the provider lifecycle binds regions, defaults country, and refreshes the calendar", () => {

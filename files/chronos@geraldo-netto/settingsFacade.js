@@ -18,20 +18,31 @@ var REGION_KEY_PREFIX = "region_";
 var WORLDCLOCKS_KEY = "worldclocks";
 var SHOW_WORLDCLOCKS_KEY = "show-worldclocks";
 var KEY_OPEN_KEY = "keyOpen";
+var WEATHER_LOCATION_KEY = "weather-location";
 
 // key -> applet property, grouped by the handler each one triggers
 var PANEL_KEYS = [
     [SHOW_EVENTS_KEY, "show_events"],
+    ["panel-clocks", "panel_clocks"],
     ["use-custom-format", "use_custom_format"],
     ["custom-format", "custom_format"],
     ["custom-tooltip-format", "custom_tooltip_format"],
-    ["panel-clocks", "panel_clocks"],
     [SHOW_WORLDCLOCKS_KEY, "show_worldclocks"]
 ];
 var WEATHER_KEYS = [
     ["show-weather", "show_weather"],
-    ["weather-location", "weather_location"],
     ["weather-units", "weather_units"]
+];
+
+// Keys the settings dialog draws with a widget of its own, which makes their
+// schema type "custom" — and Cinnamon binds only the types in its SETTINGS_TYPES
+// table, which "custom" is not in. settings.bind() on one of these logs
+// "Invalid setting type 'custom'" and binds nothing, so the applet property stays
+// undefined for the life of the process: the location never reaches the geocoder
+// and the weather silently never loads. changed::<key> is still emitted for them,
+// so they are mirrored onto the applet by hand.
+var CUSTOM_WEATHER_KEYS = [
+    [WEATHER_LOCATION_KEY, "weather_location"]
 ];
 
 // Cinnamon's desktop schema, and the three keys this applet reads from it.
@@ -186,9 +197,17 @@ var PanelSettings = class PanelSettings {
         }
     }
 
-    bindWeatherKeys(callback) {
+    bindWeatherKeys(target, callback) {
         for (let [key, property] of WEATHER_KEYS) {
             this._settings.bind(key, property, callback);
+        }
+
+        for (let [key, property] of CUSTOM_WEATHER_KEYS) {
+            target[property] = this._settings.getValue(key);
+            this._settings.connect("changed::" + key, () => {
+                target[property] = this._settings.getValue(key);
+                callback();
+            });
         }
     }
 
@@ -219,7 +238,9 @@ if (typeof module !== "undefined") {
         WORLDCLOCKS_KEY,
         SHOW_WORLDCLOCKS_KEY,
         KEY_OPEN_KEY,
+        WEATHER_LOCATION_KEY,
         PANEL_KEYS,
-        WEATHER_KEYS
+        WEATHER_KEYS,
+        CUSTOM_WEATHER_KEYS
     };
 }

@@ -29,7 +29,7 @@ class AppletSettingsBinder {
         const panel = new SettingsFacade.PanelSettings(settings);
 
         panel.bindPanelKeys(this.handlers.onSettingsChanged);
-        panel.bindWeatherKeys(this.handlers.onWeatherSettingsChanged);
+        panel.bindWeatherKeys(applet, this.handlers.onWeatherSettingsChanged);
         panel.bindKeybinding(this.handlers.onKeybindingChanged);
 
         return {

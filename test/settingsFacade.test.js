@@ -165,3 +165,39 @@ test("the desktop settings read the keys the schema does carry", () => {
     desktop.disconnect(2);
     assert.deepEqual(connected.at(-1), ["disconnect", 2]);
 });
+
+// REGRESSION: weather-location is drawn by a widget of the applet's own, which
+// makes its schema type "custom" — and Cinnamon binds only the types in its
+// SETTINGS_TYPES table. bind() on it logged "Invalid setting type 'custom'" and
+// bound nothing, so applet.weather_location stayed undefined for the life of the
+// process: every lookup went out with no location and the weather never loaded,
+// for every user, with the cause only in the Cinnamon log.
+test("the location reaches the applet even though Cinnamon cannot bind it", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+
+    const bound = [];
+    const listeners = {};
+    const values = { "weather-location": "Genoa" };
+    const settings = {
+        bind: (key, property, callback) => bound.push([key, property, callback]),
+        connect: (signal, callback) => { listeners[signal] = callback; },
+        getValue: (key) => values[key],
+        setValue: (key, value) => { values[key] = value; }
+    };
+    const applet = {};
+    let refreshes = 0;
+
+    new SettingsFacade.PanelSettings(settings).bindWeatherKeys(applet, () => refreshes++);
+
+    assert.deepEqual(bound.map(([key]) => key), ["show-weather", "weather-units"],
+        "the custom-widget key is not among the bound ones");
+    assert.equal(applet.weather_location, "Genoa",
+        "and it still reaches the applet, through the mirror");
+
+    // a changed:: signal is emitted for every key, bound or not
+    values["weather-location"] = "Lisbon";
+    listeners["changed::weather-location"]();
+    assert.equal(applet.weather_location, "Lisbon");
+    assert.equal(refreshes, 1, "and the change refetches the weather, once");
+});
