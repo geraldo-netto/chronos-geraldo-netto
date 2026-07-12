@@ -2206,14 +2206,67 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertIs(self.module.weather_cities(), cities,
                       "the timezone database is read on the first field, not on every page")
 
-    def test_the_field_saves_what_the_user_typed(self):
+    def test_the_field_shows_the_saved_location(self):
+        widget, _settings = self.entry({"weather-location": "Lisbon"})
+
+        self.assertEqual(widget.content_widget.get_text(), "Lisbon")
+
+    def test_typing_writes_nothing_until_the_edit_is_finished(self):
         widget, settings = self.entry({"weather-location": "Lisbon"})
 
-        # the entry is bound to the key, so what it holds is what the applet reads
-        self.assertEqual(settings.bound[0], "weather-location")
-        self.assertIs(settings.bound[1], widget.content_widget)
-        self.assertEqual(widget.content_widget.get_property("text"), "Lisbon")
+        # every write of this key reaches the applet and geocodes what it finds
+        # 750ms later. "Gen" is not a place, and Open-Meteo matching nothing sends
+        # the fragment on to Nominatim, whose policy is one request a second.
+        for fragment in ("G", "Ge", "Gen", "Geno", "Genoa"):
+            widget.content_widget.set_text(fragment)
+            widget.content_widget.emit_changed()
 
+        self.assertEqual(settings.writes, [], "a half-typed name is not a location")
+
+        # leaving the field ends the edit, and that is the one write
+        widget.on_commit()
+        self.assertEqual(settings.writes, [("weather-location", "Genoa")])
+
+    def test_picking_a_suggestion_saves_it_at_once(self):
+        widget, settings = self.entry({"weather-location": ""})
+        settings.writes.clear()
+
+        widget.completion.select(widget.completion.matches_index_for("Lisbon"))
+
+        self.assertEqual(settings.values["weather-location"], "Lisbon")
+        self.assertEqual(widget.content_widget.get_text(), "Lisbon")
+
+    def test_committing_the_same_location_writes_nothing(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+        settings.writes.clear()
+
+        # focus leaves the field and nothing was edited: a write here would
+        # refetch the same place for nothing
+        widget.on_commit()
+        widget.content_widget.set_text("  Lisbon  ")
+        widget.on_commit()
+
+        self.assertEqual(settings.writes, [])
+
+    def test_closing_the_window_mid_edit_still_saves_the_name(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+        settings.writes.clear()
+
+        # the user types a name and closes the settings window with the cursor
+        # still in the field: focus-out never fires, and the edit would be lost
+        widget.content_widget.set_text("Genoa")
+        handlers = dict(widget.content_widget.handlers)
+        self.assertIn("destroy", handlers, "the field commits when it is torn down")
+        handlers["destroy"](widget.content_widget)
+
+        self.assertEqual(settings.values["weather-location"], "Genoa")
+
+    def test_a_location_changed_elsewhere_shows_up_in_the_field(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+
+        settings.set_value("weather-location", "Porto")
+
+        self.assertEqual(widget.content_widget.get_text(), "Porto")
 
 
 class CountryComboBoxTest(unittest.TestCase):

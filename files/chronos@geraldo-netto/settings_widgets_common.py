@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from JsonSettingsWidgets import JSONSettingsBackend, JSONSettingsEntry, JSONSettingsList
+from JsonSettingsWidgets import JSONSettingsBackend, JSONSettingsList
 from xapp.SettingsWidgets import ComboBox, Entry, SettingsLabel, SettingsWidget
 import logging
 from typing import Any, Callable, Iterable, Optional
@@ -331,7 +331,7 @@ def local_city_name(timezone: Optional[str] = None) -> str:
     return name.rsplit('/', maxsplit=1)[-1].replace('_', ' ')
 
 
-class WeatherLocationEntry(JSONSettingsEntry):
+class WeatherLocationEntry(Entry, JSONSettingsBackend):
     """The weather location, typed with city-name suggestions.
 
     A plain entry against a geocoder is a guessing game: the user types a name,
@@ -344,29 +344,90 @@ class WeatherLocationEntry(JSONSettingsEntry):
     *in the field*, not resolved behind the user's back: the timezone names its
     region's reference city, which for a user in Genoa is Rome, and a wrong
     location the user can see and correct beats a wrong one they cannot.
+
+    The field saves when the edit is *finished* — a suggestion picked, Enter
+    pressed, focus left — and not on every keystroke, which is what Cinnamon's
+    bound entry does. Every write of this key reaches the applet and, 750ms
+    later, geocodes whatever the key now holds. Typing "Genoa" with a pause in
+    it therefore used to geocode "Gen": a fragment that matches nothing at
+    Open-Meteo, so the resolver fell through to Nominatim — whose usage policy is
+    one request a second — and cached the failure. Nothing half-typed is a place,
+    and no fragment is worth a round trip.
     """
 
+    bind_prop = "text"
+    # None: this widget writes the key itself. With a direction, xapp binds the
+    # entry's "text" property to the key and every keystroke is a write.
+    bind_dir = None
+
     def __init__(self, info, key, settings):
-        super().__init__(key, settings, info)
+        self.backend = "json"
+        self.key = key
+        self.settings = settings
+
+        Entry.__init__(self, label=info.get("description", ""),
+                       expand_width=True, tooltip=info.get("tooltip", ""))
+        self.bind_object = self.content_widget
 
         if hasattr(self.content_widget, "set_placeholder_text"):
             self.content_widget.set_placeholder_text(WEATHER_LOCATION_HINT)
 
         self.completion = attach_city_completion(self.content_widget, weather_cities())
+
+        self.attach()
         self.prefill_from_timezone()
+
+    def on_setting_changed(self, *args):
+        # the key changed under the dialog — another instance of the applet, or
+        # the applet's own timezone prefill
+        text = self.get_value() or ""
+        if self.content_widget.get_text() != text:
+            self.content_widget.set_text(text)
+
+    def connect_widget_handlers(self, *args):
+        # the ways an edit ends. Not "changed", which is every keystroke.
+        self.content_widget.connect("activate", self.on_commit)
+        self.content_widget.connect("focus-out-event", self.on_commit)
+        # closing the settings window while the cursor is still in the field
+        # never fires focus-out, and the name the user typed would go with it
+        self.content_widget.connect("destroy", self.on_commit)
+        if self.completion is not None:
+            self.completion.connect("match-selected", self.on_suggestion_picked)
+
+    def on_suggestion_picked(self, completion, model, tree_iter) -> bool:
+        # a picked suggestion is a finished edit: save it without waiting for the
+        # user to leave the field
+        city = model[tree_iter][0]
+        self.content_widget.set_text(city)
+        self.content_widget.set_position(-1)
+        self.commit(city)
+        return True
+
+    def on_commit(self, *args) -> bool:
+        self.commit(self.content_widget.get_text())
+        # False: an "activate" or a focus change carries on as it would have
+        return False
+
+    def commit(self, text) -> str:
+        location = (text or "").strip()
+        if location == (self.get_value() or ""):
+            return ""
+
+        self.set_value(location)
+        return location
 
     def prefill_from_timezone(self) -> str:
         # only an empty field: a location the user chose is never overwritten,
         # and clearing the field on purpose refills it — which is the point,
         # since an empty location is what the panel warns about
-        if self.settings.get_value(self.key):
+        if self.get_value():
             return ""
 
         city = local_city_name()
         if not city:
             return ""
 
-        self.settings.set_value(self.key, city)
+        self.set_value(city)
         self.content_widget.set_text(city)
         return city
 
