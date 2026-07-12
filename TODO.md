@@ -87,7 +87,6 @@ The reading string flows through `WeatherDisplayState`, the resolver, `WeatherPr
 ### T448 — split the holiday adapter port (`fetchYear` only; the chain owns `HolidayRecordContract`)
 Attempted and reverted on 2026-07-12: removing the forwards first broke ~9 tests. Land the test rework *before* the deletion so each step stays green.
 
-- **T448a** — Rework the tests that construct `Enrico` with a bare `EnricoServiceAdapter` as its service so they pass a real service (wrap it in `HolidayServiceFallbackAdapter`, or a minimal double exposing `validResponse`/`expandHoliday`). Green with the forwards still present.
 - **T448b** — Repoint the record-contract tests that call `validHoliday`/`validResponse`/`expandHoliday`/`localizeName` on an `EnricoServiceAdapter` to a `HolidayRecordContract` instance (it is already re-exported).
 - **T448c** — Delete the dead `validResponse`/`expandHoliday`/`localizeName`/`validHoliday` forwards and `_record`/`_lang` from `EnricoServiceAdapter`; drop the `lang` arg at its one production call site (`holidays.js` `httpBackedService`). Note in a comment that an adapter is `fetchYear` and nothing else.
 

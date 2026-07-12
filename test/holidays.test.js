@@ -941,14 +941,17 @@ test("Enrico setPlace loads cache and getHolidays retrieves stale years", () => 
 });
 
 test("Enrico retrieveForYear builds params and addData ignores provider errors", () => {
-    const { Enrico, EnricoServiceAdapter } = loadHolidays();
+    const { Enrico, EnricoServiceAdapter, HolidayServiceFallbackAdapter } = loadHolidays();
     let captured = null;
-    const service = new EnricoServiceAdapter((url, params, callback) => {
+    // Enrico's service is a fallback chain in production; a bare adapter is only a
+    // fetchYear, so wrap it the way the applet does — the record contract (validate
+    // and expand) is the chain's, not any one adapter's
+    const primary = new EnricoServiceAdapter((url, params, callback) => {
         captured = { url, params };
         callback([holiday("Fetched", params.year, 7, 4)], params, "Sat, 04 Jul 2026 00:00:00 GMT");
     });
     const enrico = new Enrico();
-    enrico.service = service;
+    enrico.service = new HolidayServiceFallbackAdapter(primary, []);
     enrico.country = "usa";
     enrico.region = "ca";
 
