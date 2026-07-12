@@ -8,6 +8,7 @@ const { makeSoup3 } = require("./helpers/soup");
 
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "weather.js");
 const schedulerPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "weatherScheduler.js");
+const providersPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "weatherProviders.js");
 const utilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "utils.js");
 const ioUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const localeUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
@@ -22,6 +23,9 @@ function loadWeather(soupOverrides = {}) {
     // the scheduler captures GLib at load; reload it so it binds this call's
     // GLib mock rather than a previous test's timers
     delete require.cache[require.resolve(schedulerPath)];
+    // the provider chains capture Utils/weatherFormat at load; reload them with
+    // the scheduler so the barrel and its parts stay in step
+    delete require.cache[require.resolve(providersPath)];
     // weather delegates its HTTP path to utils; reload it so it captures
     // this call's Soup mock instead of a previous test's
     delete require.cache[require.resolve(utilsPath)];

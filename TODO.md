@@ -84,7 +84,6 @@ The five heaviest reorganizations from the 2026-07-12 batch were parked rather t
 ### T445 — split `weather.js` into `weatherScheduler.js` + `weatherProviders.js`
 Keep `weather.js` as the barrel: it requires the new modules and re-exports them, so consumers and the `weather` parity list are unchanged. The `WeatherFormat` re-export block **stays in `weather.js`** (a test derives it from that file's source).
 
-- **T445b** — Extract `GEOCODE_PROVIDERS`, `FORECAST_PROVIDERS`, `WeatherLocationResolver` and `WeatherForecastResolver` into `weatherProviders.js` the same way (shim, mock entry, `EXPORTS`, coverage).
 - **T445c** — `weather.js` is now `WeatherProvider` + `WeatherDisplayState` + the two barrels; confirm the parity and coverage gates are green and the `WeatherFormat` re-export test still finds its block.
 
 ### T446 — rename `Enrico`, `enrico.json` and the `ENRICO_*` constants

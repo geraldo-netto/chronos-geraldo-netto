@@ -8,6 +8,7 @@ const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const modulePath = path.join(APPLET_DIR, "cityWeather.js");
 const weatherPath = path.join(APPLET_DIR, "weather.js");
 const schedulerPath = path.join(APPLET_DIR, "weatherScheduler.js");
+const providersPath = path.join(APPLET_DIR, "weatherProviders.js");
 const utilsPath = path.join(APPLET_DIR, "utils.js");
 const ioUtilsPath = path.join(APPLET_DIR, "ioUtils.js");
 const localeUtilsPath = path.join(APPLET_DIR, "localeUtils.js");
@@ -22,7 +23,7 @@ let soup;
 function loadCityWeather(soupOptions = {}) {
     // the HTTP path lives in ioUtils, which captures Soup at load time: reload
     // it so the default (uninjected) session speaks to this call's mock
-    [modulePath, weatherPath, schedulerPath, utilsPath, ioUtilsPath, localeUtilsPath].forEach(
+    [modulePath, weatherPath, schedulerPath, providersPath, utilsPath, ioUtilsPath, localeUtilsPath].forEach(
         (file) => delete require.cache[require.resolve(file)]);
 
     soup = makeSoup3(Object.assign({ data: "{}" }, soupOptions));
