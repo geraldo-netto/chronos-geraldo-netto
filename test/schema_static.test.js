@@ -314,6 +314,19 @@ test("the clock cap is the same in schema, JS, Python, and the README", () => {
     }
 });
 
+test("the holiday refresh period is the same in code and the README", () => {
+    // UPDATE_PERIOD_DAYS is the one source; the README quotes it in prose
+    const cache = fs.readFileSync(path.join(appletDir, "holidayCache.js"), "utf8");
+    const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
+
+    const days = Number(/var UPDATE_PERIOD_DAYS = (\d+);/.exec(cache)[1]);
+    const readmeDays = Array.from(readme.matchAll(/every\s+(\d+)\s+days/gi)).map((m) => Number(m[1]));
+    assert.notEqual(readmeDays.length, 0, "the README must state the refresh period");
+    for (const stated of readmeDays) {
+        assert.equal(stated, days);
+    }
+});
+
 test("the clock list is tall enough to show every clock the cap allows", () => {
     // Cinnamon's List widget defaults to 200px, and a GTK tree view spends 29px
     // on the header and 22px on each row: eight clocks want 205px, so the last

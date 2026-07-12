@@ -11,7 +11,10 @@ const HolidayConstants = typeof require === "function" ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
 
-var UPDATE_PERIOD = 24 * 60 * 60 * 1000 * 50; // last number is num of days
+// Named so the number the README quotes ("once every 50 days") has one place
+// to read it from; schema_static.test.js asserts the two agree.
+var UPDATE_PERIOD_DAYS = 50;
+var UPDATE_PERIOD = UPDATE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
 var RETRY_PERIOD = 60 * 60 * 1000;
 // Holiday names come from three third-party services and land in a Pango
 // tooltip. Same-day names are joined, so a provider that repeats itself grows
@@ -506,5 +509,5 @@ var HolidayCache = class HolidayCache {
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HolidayCacheRepository, HolidayCache, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_COUNTRIES, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
+    module.exports = { HolidayCacheRepository, HolidayCache, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_COUNTRIES, UPDATE_PERIOD_DAYS, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
 }
