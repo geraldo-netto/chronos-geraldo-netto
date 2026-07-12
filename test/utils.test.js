@@ -568,6 +568,145 @@ test("httpGetJson refuses a response that declares itself oversized, before read
     assert.doesNotMatch(logged[0], /Berlin/, "and the location stays out of the log");
 });
 
+// A Soup 3 double that streams: send_async yields an input stream, and the
+// stream hands back the chunks one read at a time, then an empty buffer for EOF.
+// This is the path a real Soup takes, and the only one that can cap a chunked
+// body — one with no Content-Length for _declaredTooLarge to see.
+function makeStreamingSoup({ chunks = [], status = 200, contentLength = null } = {}) {
+    return {
+        MAJOR_VERSION: 3,
+        MessagePriority: { NORMAL: 0 },
+        Message: {
+            new(method, url) {
+                return {
+                    method,
+                    url,
+                    get_request_headers() {
+                        return { append() {} };
+                    },
+                    get_response_headers() {
+                        return { get_content_length: () => contentLength, get_one: () => null };
+                    },
+                    get_status() {
+                        return status;
+                    },
+                    connect() {}
+                };
+            }
+        },
+        Session: class {
+            send_async(_message, _priority, _cancellable, callback) {
+                callback(this, {});
+            }
+            send_finish() {
+                let index = 0;
+                return {
+                    read_bytes_async(_count, _priority, _cancellable, callback) {
+                        callback(this, {});
+                    },
+                    read_bytes_finish() {
+                        const chunk = index < chunks.length ? chunks[index] : Buffer.alloc(0);
+                        index++;
+                        return { get_data: () => chunk };
+                    }
+                };
+            }
+        }
+    };
+}
+
+test("httpGetJson streams a body in chunks and parses it", () => {
+    const utils = loadIoUtils();
+    global.logError = () => {};
+
+    // one JSON payload split across two reads, then EOF
+    Object.assign(global.imports.gi.Soup, makeStreamingSoup({
+        chunks: [Buffer.from('{"ci'), Buffer.from('ty":"Rome"}')]
+    }));
+    const soup = global.imports.gi.Soup;
+
+    let received = "unset";
+    utils.httpGetJson(new soup.Session(), "https://example.test/x", (data) => {
+        received = data;
+    });
+
+    assert.deepEqual(received, { city: "Rome" });
+});
+
+test("httpGetJson aborts a streamed body once it passes the cap", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    let cancelled = false;
+    global.imports.gi.Gio.Cancellable = class {
+        cancel() {
+            cancelled = true;
+        }
+    };
+    // no Content-Length: this is exactly the chunked case _declaredTooLarge
+    // cannot see, so the cap has to fire during the read
+    Object.assign(global.imports.gi.Soup, makeStreamingSoup({
+        chunks: [Buffer.alloc(utils.MAX_RESPONSE_BYTES + 1)]
+    }));
+    const soup = global.imports.gi.Soup;
+
+    let received = "unset";
+    utils.httpGetJson(new soup.Session(), "https://example.test/flood?token=secret", (data) => {
+        received = data;
+    });
+
+    assert.equal(received, null, "an oversized streamed body must not be parsed");
+    assert.equal(cancelled, true, "and the read is aborted, not drained");
+    assert.match(logged[0], /exceeds/);
+    assert.doesNotMatch(logged[0], /token=secret/);
+});
+
+test("httpGetJson refuses a streamed response that declares itself oversized", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    let streamed = false;
+    const soupDouble = makeStreamingSoup({ contentLength: utils.MAX_RESPONSE_BYTES + 1 });
+    soupDouble.Session.prototype.send_finish = function() {
+        streamed = true;
+        return { read_bytes_async() {}, read_bytes_finish() {} };
+    };
+    Object.assign(global.imports.gi.Soup, soupDouble);
+    const soup = global.imports.gi.Soup;
+
+    let received = "unset";
+    utils.httpGetJson(new soup.Session(), "https://example.test/huge?city=Berlin", (data) => {
+        received = data;
+    });
+
+    assert.equal(received, null);
+    assert.equal(streamed, false, "the declared length is refused before any read");
+    assert.match(logged[0], /declares more than/);
+});
+
+test("httpGetJson reports a stream that fails to open", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    const soupDouble = makeStreamingSoup({});
+    soupDouble.Session.prototype.send_finish = function() {
+        throw new Error("connection reset");
+    };
+    Object.assign(global.imports.gi.Soup, soupDouble);
+    const soup = global.imports.gi.Soup;
+
+    let received = "unset";
+    utils.httpGetJson(new soup.Session(), "https://example.test/x", (data) => {
+        received = data;
+    });
+
+    assert.equal(received, null);
+    assert.match(logged[0], /connection reset/);
+});
+
 test("httpGetJson will not follow a redirect down to plain http", () => {
     const utils = loadIoUtils();
     const logged = [];

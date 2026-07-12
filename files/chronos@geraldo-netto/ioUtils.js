@@ -196,6 +196,52 @@ function _declaredTooLarge(message) {
     return Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES;
 }
 
+// Read a body in bounded chunks and stop the instant the running total passes
+// the cap, rather than letting the whole thing land in memory first. This is
+// what closes the chunked-transfer hole: a response with no Content-Length slips
+// past _declaredTooLarge, and send_and_read_finish would have spent the memory
+// before any length check could look.
+var READ_CHUNK_BYTES = 64 * 1024;
+
+function _concatChunks(chunks, total) {
+    const body = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        body.set(chunk, offset);
+        offset += chunk.length;
+    }
+    return body;
+}
+
+function _readCapped(stream, cancellable, url, deliver) {
+    const chunks = [];
+    let total = 0;
+    const readMore = () => {
+        stream.read_bytes_async(READ_CHUNK_BYTES, 0, cancellable, (source, result) => {
+            try {
+                const chunk = source.read_bytes_finish(result).get_data();
+                if (!chunk || chunk.length === 0) {
+                    deliver(null, _concatChunks(chunks, total));
+                    return;
+                }
+                total += chunk.length;
+                if (total > MAX_RESPONSE_BYTES) {
+                    throw new Error("response from " + _urlForLog(url) + " exceeds " +
+                        MAX_RESPONSE_BYTES + " bytes");
+                }
+                chunks.push(chunk);
+                readMore();
+            } catch (e) {
+                if (cancellable) {
+                    cancellable.cancel();
+                }
+                deliver(e, null);
+            }
+        });
+    };
+    readMore();
+}
+
 function httpGetJson(session, url, callback, options = {}) {
     const message = Soup.Message.new("GET", url);
     _setRequestHeaders(message, options.headers);
@@ -213,24 +259,25 @@ function httpGetJson(session, url, callback, options = {}) {
         });
     }
 
-    session.send_and_read_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
-        let data = null;
-        // the callback runs outside the try: if it throws, the error must
-        // not be swallowed and the callback must not run a second time
-        try {
-            if (_declaredTooLarge(message)) {
-                throw new Error("response from " + _urlForLog(url) + " declares more than " +
-                    MAX_RESPONSE_BYTES + " bytes");
-            }
+    // Each path below calls back exactly once, and always outside its try: a
+    // throw from the callback must not be swallowed as if it were a read error.
+    const fail = (e) => {
+        if (global.logError) {
+            global.logError(e);
+        }
+        callback(null, message);
+    };
 
-            const bytes = source.send_and_read_finish(result);
+    const parseBody = (body) => {
+        let data = null;
+        try {
             if (_downgraded(message, url)) {
                 throw new Error("refusing a response from " + _urlForLog(url) + " redirected to plain http");
             }
 
             if (message.get_status() === 200) {
-                const body = bytes.get_data();
-                // the declared length can lie, or be absent entirely
+                // the declared length can lie, or be absent entirely; the
+                // capped read already enforced this on the streaming path
                 if (body && body.length > MAX_RESPONSE_BYTES) {
                     throw new Error("response from " + _urlForLog(url) + " exceeds " +
                         MAX_RESPONSE_BYTES + " bytes");
@@ -253,6 +300,44 @@ function httpGetJson(session, url, callback, options = {}) {
             }
         }
         callback(data, message);
+    };
+
+    // Stream and cap incrementally where the Soup supports it (Soup 3). The
+    // send_and_read path stays for an older Soup, and is what the pre-read
+    // _declaredTooLarge guards; the streaming path guards the same declared
+    // length and then bounds the body as it arrives.
+    if (typeof session.send_async === "function") {
+        session.send_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
+            let stream = null;
+            try {
+                if (_declaredTooLarge(message)) {
+                    throw new Error("response from " + _urlForLog(url) + " declares more than " +
+                        MAX_RESPONSE_BYTES + " bytes");
+                }
+                stream = source.send_finish(result);
+            } catch (e) {
+                fail(e);
+                return;
+            }
+            _readCapped(stream, cancellable, url, (err, body) =>
+                err ? fail(err) : parseBody(body));
+        });
+        return;
+    }
+
+    session.send_and_read_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
+        let body = null;
+        try {
+            if (_declaredTooLarge(message)) {
+                throw new Error("response from " + _urlForLog(url) + " declares more than " +
+                    MAX_RESPONSE_BYTES + " bytes");
+            }
+            body = source.send_and_read_finish(result).get_data();
+        } catch (e) {
+            fail(e);
+            return;
+        }
+        parseBody(body);
     });
 }
 
