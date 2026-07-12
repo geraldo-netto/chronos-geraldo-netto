@@ -157,14 +157,13 @@ var HolidayRecordContract = class HolidayRecordContract {
     }
 };
 
+// An adapter is a fetchYear and nothing else: it builds the request and hands
+// the raw payload back. Validating, expanding and localizing it is the record
+// contract's job, owned by the fallback chain that composes the adapters — so
+// this carries no record and no lang of its own.
 var EnricoServiceAdapter = class EnricoServiceAdapter {
-    constructor(loadJsonAsync = unavailableLoadJsonAsync, lang = _lcLang()) {
+    constructor(loadJsonAsync = unavailableLoadJsonAsync) {
         this._loadJsonAsync = loadJsonAsync;
-        this._lang = lang;
-        // Enrico's wire format happens to be the record shape, so its
-        // "translation" is the identity — but the rule is the contract's, not
-        // this adapter's, and the chain asks the contract
-        this._record = new HolidayRecordContract(lang);
         this.name = HOLIDAY_PROVIDER_NAMES.ENRICO;
     }
 
@@ -189,22 +188,6 @@ var EnricoServiceAdapter = class EnricoServiceAdapter {
         }
 
         return url;
-    }
-
-    localizeName(holiday) {
-        return this._record.localizeName(holiday);
-    }
-
-    validHoliday(holiday) {
-        return this._record.validHoliday(holiday);
-    }
-
-    validResponse(data) {
-        return this._record.validResponse(data);
-    }
-
-    expandHoliday(holiday, region) {
-        return this._record.expandHoliday(holiday, region);
     }
 
     fetchYear(country, region, year, callback) {

@@ -81,14 +81,6 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 
 The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. Each is unpacked below into ordered sub-steps that each land on their own with the suite green — do them in order, one commit per step.
 
-### T442 — weather port returns a normalized record `{ temperatureC, condition }`
-The reading string flows through `WeatherDisplayState`, the resolver, `WeatherProvider`, the applet's `weather_text`, the city readings map and every staleness comparison, all string-keyed. Convert it one seam at a time, keeping a string at the next boundary until that boundary's step arrives.
-
-### T448 — split the holiday adapter port (`fetchYear` only; the chain owns `HolidayRecordContract`)
-Attempted and reverted on 2026-07-12: removing the forwards first broke ~9 tests. Land the test rework *before* the deletion so each step stays green.
-
-- **T448c** — Delete the dead `validResponse`/`expandHoliday`/`localizeName`/`validHoliday` forwards and `_record`/`_lang` from `EnricoServiceAdapter`; drop the `lang` arg at its one production call site (`holidays.js` `httpBackedService`). Note in a comment that an adapter is `fetchYear` and nothing else.
-
 ### T444 — split `settings_widgets_common.py` into a gi-free `timezone_data.py`
 - **T444a** — Harness prep only: make `test_settings_widgets.py`'s `load_module` put the applet directory on `sys.path` so a new sibling import resolves. No production change; suite unchanged.
 - **T444b** — Create `timezone_data.py` (no `gi` imports) holding `TimezoneResolver`, `local_timezone_name`, `local_city_name`, `looks_like_iana`, `completion_key`, `RESERVED_TIMEZONES`. Have `settings_widgets_common.py` `from timezone_data import …` and re-export them so `self.module.X` still resolves. Keep `MAX_CLOCKS` in `settings_widgets_common.py` (where `schema_static` reads it) unless you also update that regex.

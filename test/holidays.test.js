@@ -2522,10 +2522,8 @@ test("both fallback adapters share one default provider order", () => {
 test("service adapters fail loudly without an injected JSON loader", () => {
     loadHolidays();
     const { EnricoServiceAdapter } = require(holidayServiceAdaptersPath);
-    const localizedAdapter = new EnricoServiceAdapter(() => {});
-    const adapter = new EnricoServiceAdapter(undefined, "en");
+    const adapter = new EnricoServiceAdapter(undefined);
 
-    assert.equal(typeof localizedAdapter._lang, "string");
     assert.throws(() => adapter.fetchYear("usa", "global", 2026, () => {}),
         /holiday service adapter has no JSON loader/);
 });

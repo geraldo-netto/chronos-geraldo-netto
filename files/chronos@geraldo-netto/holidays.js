@@ -102,7 +102,7 @@ function httpBackedService(getSession, params = {}) {
     const load = params.load || Provider.loaderFor(getSession);
 
     return new HolidayServiceFallbackAdapter(
-        new EnricoServiceAdapter(load, lang),
+        new EnricoServiceAdapter(load),
         [
             new OpenHolidaysServiceAdapter(load, lang),
             new NagerDateServiceAdapter(load)
