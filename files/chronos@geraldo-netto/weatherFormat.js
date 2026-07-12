@@ -81,16 +81,6 @@ var WEATHER_CONDITIONS = {
     "🌤": "Fair"
 };
 
-function weatherCondition(text) {
-    if (typeof text !== "string" || !text) {
-        return "";
-    }
-
-    // the glyph is the first code point, not the first UTF-16 unit
-    const icon = Array.from(text)[0];
-    return WEATHER_CONDITIONS[icon] || "";
-}
-
 function normalizeUnits(units) {
     if (units === WEATHER_UNITS.IMPERIAL) {
         return WEATHER_UNITS.IMPERIAL;
@@ -428,5 +418,5 @@ function nominatimGeocodePlace(data) {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, weatherCondition, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, aviationWeatherText, weatherReading, weatherText, metNoIcon, metNoSummary, metNoWeatherReading, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
+    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, aviationWeatherText, weatherReading, weatherText, metNoIcon, metNoSummary, metNoWeatherReading, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
 }

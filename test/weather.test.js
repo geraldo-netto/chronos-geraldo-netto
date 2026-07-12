@@ -805,23 +805,22 @@ test("every readout glyph has a word for it", () => {
     const Weather = loadWeather();
 
     // both providers funnel into the same eight glyphs, so every glyph either
-    // side can emit must map to a condition
+    // side can emit must map to a condition word for a screen reader
     const codes = [0, 2, 45, 61, 71, 80, 95, 85];
     for (const code of codes) {
-        const text = Weather.weatherText({ weathercode: code, temperature: 12 }, "si");
-        assert.notEqual(Weather.weatherCondition(text), "",
+        const reading = Weather.weatherReading({ weathercode: code, temperature: 12 });
+        assert.notEqual(Weather.WEATHER_CONDITIONS[reading.condition], undefined,
             `the glyph for code ${code} has no condition`);
     }
 
     for (const symbol of ["clearsky_day", "fair_day", "partlycloudy_day", "cloudy", "fog",
         "snow", "rainshowers_day", "rain", "thunderstorm", "unknown"]) {
-        assert.notEqual(Weather.weatherCondition(Weather.metNoIcon(symbol)), "",
+        assert.notEqual(Weather.WEATHER_CONDITIONS[Weather.metNoIcon(symbol)], undefined,
             `the MET Norway glyph for ${symbol} has no condition`);
     }
 
-    assert.equal(Weather.weatherCondition("☀ 12°C"), "Clear");
-    assert.equal(Weather.weatherCondition(""), "");
-    assert.equal(Weather.weatherCondition("12°C"), "", "a readout with no glyph has no condition");
+    assert.equal(Weather.WEATHER_CONDITIONS["☀"], "Clear");
+    assert.equal(Weather.WEATHER_CONDITIONS["🌤"], "Fair");
 });
 
 test("a provider whose refresh fails schedules its own retry", () => {

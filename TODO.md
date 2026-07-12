@@ -84,8 +84,6 @@ The five heaviest reorganizations from the 2026-07-12 batch were parked rather t
 ### T442 — weather port returns a normalized record `{ temperatureC, condition }`
 The reading string flows through `WeatherDisplayState`, the resolver, `WeatherProvider`, the applet's `weather_text`, the city readings map and every staleness comparison, all string-keyed. Convert it one seam at a time, keeping a string at the next boundary until that boundary's step arrives.
 
-- **T442e** — Do the same for the city readings: `cityWeather` stores records keyed by city, and `tooltipWeatherCells`' city path reads the fields. Update the cityWeather + city-tooltip tests. `weatherCondition`/`stripWeatherIcon` are now gone from the whole tree.
-
 ### T448 — split the holiday adapter port (`fetchYear` only; the chain owns `HolidayRecordContract`)
 Attempted and reverted on 2026-07-12: removing the forwards first broke ~9 tests. Land the test rework *before* the deletion so each step stays green.
 

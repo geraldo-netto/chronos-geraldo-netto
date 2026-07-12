@@ -270,7 +270,7 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
         _weather_text: "\u2600 20\u00b0C",
         _weather_provider: "Open-Meteo",
-        cityWeatherText: (city) => (city === "Tokyo" ? "\ud83c\udf27 12\u00b0C" : ""),
+        cityWeatherReading: (city) => (city === "Tokyo" ? { condition: "\ud83c\udf27", temperatureC: 12 } : null),
         cityWeatherStale: () => false,
         cityWeatherProviderName: () => "Open-Meteo",
         _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
@@ -647,7 +647,7 @@ test("the panel presenter reads and writes through a view it is given", () => {
         weatherText: "",
         weatherError: "",
         weatherProvider: "",
-        cityWeatherText: () => "",
+        cityWeatherReading: () => null,
         cityWeatherStale: () => false,
         cityWeatherProviderName: () => "",
         formattedClock: () => "12 Jul 14:03",
@@ -717,7 +717,7 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
         _weather_provider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
         panel_clocks: 0,
-        cityWeatherText: (city) => (city === "New York" ? "🌧 12°C" : ""),
+        cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : null),
         cityWeatherProviderName: () => "Aviation Weather"
     });
     const entries = [
@@ -1981,20 +1981,20 @@ test("city weather is asked about the timezone's city, not the clock's name", ()
 test("city weather readings and provider name come from the city provider", () => {
     const stub = Object.assign(Object.create(Proto), {
         _cityWeatherProvider: {
-            readingFor: (city) => (city === "Tokyo" ? "☀ 30°C" : ""),
+            recordFor: (city) => (city === "Tokyo" ? { condition: "☀", temperatureC: 30 } : null),
             staleFor: (city) => city === "Tokyo",
             lastProvider: "Open-Meteo"
         }
     });
-    assert.equal(Proto.cityWeatherText.call(stub, "Tokyo"), "☀ 30°C");
-    assert.equal(Proto.cityWeatherText.call(stub, "Nowhere"), "");
+    assert.deepEqual(Proto.cityWeatherReading.call(stub, "Tokyo"), { condition: "☀", temperatureC: 30 });
+    assert.equal(Proto.cityWeatherReading.call(stub, "Nowhere"), null);
     assert.equal(Proto.cityWeatherStale.call(stub, "Tokyo"), true);
     assert.equal(Proto.cityWeatherProviderName.call(stub), "Open-Meteo");
 
     // the tooltip asks for these on every hover, including on a half-built
     // applet: no provider means no reading, not a crash
     const partial = Object.assign(Object.create(Proto), { _cityWeatherProvider: null });
-    assert.equal(Proto.cityWeatherText.call(partial, "Tokyo"), "");
+    assert.equal(Proto.cityWeatherReading.call(partial, "Tokyo"), null);
     assert.equal(Proto.cityWeatherStale.call(partial, "Tokyo"), false);
     assert.equal(Proto.cityWeatherProviderName.call(partial), "");
 });
@@ -2007,7 +2007,8 @@ test("the weather being fetched is said in words, not as an ellipsis", () => {
         _weather_text: Weather.WEATHER_PENDING_TEXT,
         _weather_error: "",
         worldclocks: [{ label: "Tokyo" }],
-        cityWeatherText: () => Weather.WEATHER_PENDING_TEXT,
+        // a city not read yet has no record; unlike the panel it reserves no slot
+        cityWeatherReading: () => null,
         actor: { set_accessible_name: (name) => names.push(name) }
     });
 
@@ -2017,8 +2018,8 @@ test("the weather being fetched is said in words, not as an ellipsis", () => {
 
     const cells = panelStatus(stub).tooltipWeatherCells(
         tooltipEntry("Tokyo", "Asia/Tokyo", "12 Jul 07:51", false));
-    assert.deepEqual(cells, ["", "Weather: loading…"],
-        "and an ellipsis alone in the temperature column says less than nothing");
+    assert.deepEqual(cells, ["", ""],
+        "a city not read yet is a blank cell, not a placeholder");
 });
 
 test("the tooltip says when a city's temperature is no longer current", () => {
@@ -2027,7 +2028,7 @@ test("the tooltip says when a city's temperature is no longer current", () => {
         _weather_text: "☀ 20°C",
         _weather_error: "",
         worldclocks: [{ label: "Tokyo" }],
-        cityWeatherText: () => "☀ 30°C",
+        cityWeatherReading: () => ({ condition: "☀", temperatureC: 30 }),
         cityWeatherStale: (city) => city === "Tokyo"
     });
 
@@ -2152,7 +2153,7 @@ test("a clock row with no zoned time falls back to the preformatted time", () =>
         show_weather: true,
         _weather_text: "",
         _weather_error: "",
-        // an applet that never built a city provider: no cityWeatherText at all
+        // an applet that never built a city provider: no cityWeatherReading at all
         worldclocks: [{ label: "Rome" }]
     });
     const presenter = panelStatus(stub);
@@ -2284,7 +2285,7 @@ test("the panel suffix carries the temperature alone, and the failure marker whe
 
     assert.equal(suffix, "20°C");
     assert.ok(!suffix.includes("•"), "no bullet divides the clock from its temperature");
-    assert.equal(Weather.weatherCondition(suffix), "", "no leading condition glyph");
+    assert.equal(Weather.WEATHER_CONDITIONS[Array.from(suffix)[0]], undefined, "no leading condition glyph");
 
     // every glyph the providers can emit leaves the panel showing the number alone
     for (const glyph of Object.keys(Weather.WEATHER_CONDITIONS)) {
@@ -2317,7 +2318,7 @@ test("the tooltip is a UTC/local/city table and nothing else", () => {
         _weather_provider: "Open-Meteo",
         worldclocks: [{ label: "New York" }, { label: "Tokyo" }],
         panel_clocks: 1,
-        cityWeatherText: (city) => (city === "New York" ? "🌧 12°C" : "🌨 -1°C"),
+        cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : { condition: "🌨", temperatureC: -1 }),
         cityWeatherProviderName: () => "Aviation Weather"
     });
     const entries = [
@@ -2368,7 +2369,7 @@ test("nothing hangs off the bottom of the tooltip table", () => {
         _weather_provider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
         panel_clocks: 1,
-        cityWeatherText: () => "🌧 12°C",
+        cityWeatherReading: () => ({ condition: "🌧", temperatureC: 12 }),
         cityWeatherProviderName: () => "Aviation Weather"
     });
     const entries = [
@@ -2404,11 +2405,12 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         use_custom_format: false,
+        weather_units: "si",
         _weather_text: "",
         _weather_error: "",
         _weather_provider: "",
         worldclocks: Object.keys(readings).map((label) => ({ label })),
-        cityWeatherText: (city) => readings[city] || "",
+        cityWeatherReading: (city) => (readings[city] ? readingFrom(readings[city]) : null),
         cityWeatherProviderName: () => ""
     });
     const entries = Object.keys(readings).map((label) =>
@@ -2624,7 +2626,7 @@ test("the tooltip repeats the date line only when the format is not custom", () 
         _weather_error: "",
         worldclocks: [],
         panel_clocks: 0,
-        cityWeatherText: () => "",
+        cityWeatherReading: () => null,
         cityWeatherProviderName: () => ""
     };
 
@@ -2769,7 +2771,7 @@ test("a panel view can be substituted whole", () => {
         weatherUnits: "si",
         get weatherError() { reads.push("weatherError"); return ""; },
         weatherProvider: "Open-Meteo",
-        cityWeatherText: () => "",
+        cityWeatherReading: () => null,
         cityWeatherStale: () => false,
         cityWeatherProviderName: () => "",
         formattedClock: () => "12 Jul 14:03",
@@ -2803,7 +2805,7 @@ test("a weather failure explains itself even with no world clocks", () => {
         worldclocks: [],
         desktopSettings: { use24h: true },
         weatherProvider: "",
-        cityWeatherText: () => "",
+        cityWeatherReading: () => null,
         cityWeatherStale: () => false,
         cityWeatherProviderName: () => ""
     };
@@ -3010,7 +3012,7 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
         menuOpen: false,
         desktopSettings: { use24h: true },
         weatherText: "", weatherError: "", weatherProvider: "",
-        cityWeatherText: () => "", cityWeatherStale: () => false,
+        cityWeatherReading: () => null, cityWeatherStale: () => false,
         cityWeatherProviderName: () => "",
         formattedClock: () => "12 Jul 14:03",
         formatClock: () => "Sunday, 12 July 2026",

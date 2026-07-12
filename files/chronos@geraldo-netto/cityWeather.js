@@ -106,10 +106,12 @@ var CityWeatherProvider = class CityWeatherProvider {
     }
 
     // the readings outlive a refresh: a city that failed this round keeps the
-    // temperature it last had rather than blinking out of the tooltip
-    readingFor(city) {
+    // temperature it last had rather than blinking out of the tooltip. The
+    // reading is the unit-free record { condition, temperatureC }; the tooltip
+    // renders it in the user's unit.
+    recordFor(city) {
         const reading = this._readingFor(city);
-        return reading ? reading.text : "";
+        return reading ? reading.record : null;
     }
 
     // ...but a reading nobody has managed to refresh for two whole periods is
@@ -375,19 +377,19 @@ var CityWeatherProvider = class CityWeatherProvider {
             }
 
             this._forecast_resolver.refresh(place, units, () => this._isCurrent(generation),
-                (text, forecastError, provider) => {
+                (text, forecastError, provider, reading) => {
                     if (!this._isCurrent(generation)) {
                         return;
                     }
 
-                    if (forecastError || !text) {
+                    if (forecastError || !reading) {
                         // the city keeps the reading it had; it is now aging,
                         // and staleFor() says so once it is two periods old
                         done(false);
                         return;
                     }
 
-                    this._readings.set(locationCacheKey(city.label), { text, at: this._now() });
+                    this._readings.set(locationCacheKey(city.label), { record: reading, at: this._now() });
                     this._last_provider = provider || this._last_provider;
                     // the panel is repainted once, when the round finishes
                     round.changed = true;

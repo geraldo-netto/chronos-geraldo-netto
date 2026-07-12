@@ -335,8 +335,8 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         }, () => this._updateClockAndDate(), force);
     }
 
-    cityWeatherText(city) {
-        return this._cityWeatherProvider ? this._cityWeatherProvider.readingFor(city) : "";
+    cityWeatherReading(city) {
+        return this._cityWeatherProvider ? this._cityWeatherProvider.recordFor(city) : null;
     }
 
     cityWeatherStale(city) {

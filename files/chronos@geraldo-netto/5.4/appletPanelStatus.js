@@ -180,8 +180,8 @@ class PanelView {
         return this.applet._weather_provider;
     }
 
-    cityWeatherText(city) {
-        return this.applet.cityWeatherText ? this.applet.cityWeatherText(city) : "";
+    cityWeatherReading(city) {
+        return this.applet.cityWeatherReading ? this.applet.cityWeatherReading(city) : null;
     }
 
     cityWeatherStale(city) {
@@ -478,31 +478,26 @@ class AppletPanelStatusPresenter {
         return record ? this._readingCells(record, error) : ["", error];
     }
 
-    // every non-built-in row takes its own city's reading, which it keeps when a
-    // refresh fails — without the marker a temperature from this morning would
-    // read as the weather now. The city reading is still a string here; T442e
-    // moves it to a record and drops the last string-parsing in the tree.
+    // every non-built-in row takes its own city's reading record, which it keeps
+    // when a refresh fails — without the marker a temperature from this morning
+    // would read as the weather now. A city with no reading yet shows a blank
+    // cell rather than a placeholder: unlike the panel, the city provider reserves
+    // no slot, so there is no "loading" state to report.
     _cityWeatherCells(entry) {
         const view = this.view;
-        const reading = view.cityWeatherText(entry.label) || "";
+        const record = view.cityWeatherReading(entry.label);
+        if (!record) {
+            return ["", ""];
+        }
+
         let error = "";
-        if (reading && view.cityWeatherStale(entry.label)) {
+        if (view.cityWeatherStale(entry.label)) {
             // one msgid: the marker is a glyph the phrase is built around, and a
             // translator has to be able to put it where it belongs
             error = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
         }
 
-        // the first refresh has not landed: an ellipsis in the temperature
-        // column, with nothing beside it, says less than nothing
-        if (reading === Weather.WEATHER_PENDING_TEXT) {
-            return ["", error || _("Weather: loading…")];
-        }
-
-        const condition = Weather.weatherCondition(reading);
-        const words = condition ? (WEATHER_CONDITION_TEXT[condition] || condition) : "";
-        // the glyph is the first code point, and a space follows it
-        const temperature = condition ? Array.from(reading).slice(1).join("").trim() : reading;
-        return [temperature, error || words];
+        return this._readingCells(record, error);
     }
 
     tooltipWeatherCells(entry) {

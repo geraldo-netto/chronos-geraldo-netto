@@ -47,6 +47,17 @@ function loadCityWeather(soupOptions = {}) {
     return require(modulePath);
 }
 
+// the unit-free record { condition, temperatureC } a display string stands for.
+// The provider stores records now; the test tables stay written as readable
+// strings and R() turns them into the record the resolver hands over.
+function R(text) {
+    if (!text) {
+        return null;
+    }
+    const chars = Array.from(text);
+    return { condition: chars[0], temperatureC: parseFloat(chars.slice(1).join("")) };
+}
+
 // a resolver pair that answers from a table instead of the network
 function stubResolvers(readings, calls = {}) {
     calls.geocodes = calls.geocodes || [];
@@ -74,7 +85,10 @@ function stubResolvers(readings, calls = {}) {
                 if (!isCurrent()) {
                     return;
                 }
-                callback(readings[calls.geocodes[calls.geocodes.length - 1]], "", "Open-Meteo");
+                // the resolver renders text and hands the record alongside it;
+                // the provider stores the record
+                const text = readings[calls.geocodes[calls.geocodes.length - 1]] || "";
+                callback(text, "", "Open-Meteo", R(text));
             }
         }
     };
@@ -101,18 +115,18 @@ test("every world-clock city gets its own reading", () => {
     provider.refresh({ showWeather: true, units: "si", cities: ["São Paulo", "Tokyo", "Atlantis"] },
         () => updates++);
 
-    assert.equal(provider.readingFor("São Paulo"), "⛅ 24°C");
-    assert.equal(provider.readingFor("Tokyo"), "☀ 31°C");
+    assert.deepEqual(provider.recordFor("São Paulo"), R("⛅ 24°C"));
+    assert.deepEqual(provider.recordFor("Tokyo"), R("☀ 31°C"));
     // a city that will not geocode simply has no temperature; its clock row
     // still shows the time
-    assert.equal(provider.readingFor("Atlantis"), "");
+    assert.equal(provider.recordFor("Atlantis"), null);
     assert.equal(provider.lastProvider, "Open-Meteo");
     // the callback rebuilds the whole panel label and tooltip, padding every
     // column to its widest cell: a round of eight cities used to trigger eight
     // of them, for one set of readings nobody can read until they are all in
     assert.equal(updates, 1, "the panel is repainted once, when the round finishes");
     // the lookup is case- and space-insensitive, like the panel location cache
-    assert.equal(provider.readingFor(" tokyo "), "☀ 31°C");
+    assert.deepEqual(provider.recordFor(" tokyo "), R("☀ 31°C"));
 });
 
 test("readings are dropped when weather is off or the city is removed", () => {
@@ -121,15 +135,15 @@ test("readings are dropped when weather is off or the city is removed", () => {
         Object.assign({ httpGetJson() {} }, stubResolvers({ Tokyo: "☀ 31°C", Lisbon: "☁ 17°C" })));
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Tokyo", "Lisbon"] }, () => {});
-    assert.equal(provider.readingFor("Tokyo"), "☀ 31°C");
+    assert.deepEqual(provider.recordFor("Tokyo"), R("☀ 31°C"));
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Tokyo"] }, () => {});
-    assert.equal(provider.readingFor("Lisbon"), "", "a removed clock leaves no stale temperature");
-    assert.equal(provider.readingFor("Tokyo"), "☀ 31°C");
+    assert.equal(provider.recordFor("Lisbon"), null, "a removed clock leaves no stale temperature");
+    assert.deepEqual(provider.recordFor("Tokyo"), R("☀ 31°C"));
 
     // weather is opt-in: with it off, no city is read and nothing is kept
     provider.refresh({ showWeather: false, units: "si", cities: ["Tokyo"] }, () => {});
-    assert.equal(provider.readingFor("Tokyo"), "");
+    assert.equal(provider.recordFor("Tokyo"), null);
 });
 
 test("duplicate and blank cities are asked for once, and only eight at most", () => {
@@ -159,7 +173,7 @@ test("a stale refresh and a destroyed provider write nothing", () => {
         },
         forecastResolver: {
             refresh(place, units, isCurrent, callback) {
-                callback("☀ 20°C", "", "Open-Meteo");
+                callback("☀ 20°C", "", "Open-Meteo", R("☀ 20°C"));
             }
         }
     });
@@ -168,11 +182,11 @@ test("a stale refresh and a destroyed provider write nothing", () => {
     // the user edited the clocks before the first geocode came back
     provider.refresh({ showWeather: true, units: "si", cities: ["Rome"] }, () => {});
     pending[0]();
-    assert.equal(provider.readingFor("Rome"), "", "the superseded lookup is dropped");
+    assert.equal(provider.recordFor("Rome"), null, "the superseded lookup is dropped");
 
     provider.destroy();
     pending[1]();
-    assert.equal(provider.readingFor("Rome"), "");
+    assert.equal(provider.recordFor("Rome"), null);
 });
 
 test("scheduling arms a repeating timer only while there are cities to read", () => {
@@ -288,7 +302,7 @@ test("the constructor falls back to GLib timers and a Utils HTTP session", () =>
     // the point is that the default httpGetJson reached the wire at all
     const geocodes = soup.messages.filter((message) => message.url.includes("geocoding-api"));
     assert.equal(geocodes.length, 1);
-    assert.equal(provider.readingFor("Rome"), "");
+    assert.equal(provider.recordFor("Rome"), null);
 
     // the periodic callback re-reads and stays armed
     assert.equal(timeouts[0].callback(), global.imports.gi.GLib.SOURCE_CONTINUE);
@@ -326,11 +340,11 @@ test("destroy aborts the session and turns schedule and refresh into no-ops", ()
     provider._getHttpSession();
 
     provider.refresh(settings, () => updates++);
-    assert.equal(provider.readingFor("Rome"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
 
     provider.destroy();
     assert.equal(aborts.length, 1, "an in-flight request must not outlive the applet");
-    assert.equal(provider.readingFor("Rome"), "", "destroy drops the readings");
+    assert.equal(provider.recordFor("Rome"), null, "destroy drops the readings");
 
     // a settings signal that lands during teardown must not restart the applet
     provider.schedule(settings, () => updates++);
@@ -345,7 +359,7 @@ test("destroy aborts the session and turns schedule and refresh into no-ops", ()
     assert.doesNotThrow(() => plain.destroy());
 });
 
-test("readingFor answers empty for anything that is not a city name", () => {
+test("recordFor answers null for anything that is not a city name", () => {
     const CityWeather = loadCityWeather();
     const provider = new CityWeather.CityWeatherProvider(
         Object.assign({ httpGetJson() {} }, stubResolvers({ Rome: "☀ 20°C" })));
@@ -353,10 +367,10 @@ test("readingFor answers empty for anything that is not a city name", () => {
     provider.refresh({ showWeather: true, units: "si", cities: ["Rome"] }, () => {});
 
     for (const input of ["", "   ", null, undefined, 42, {}, [], true, NaN]) {
-        assert.equal(provider.readingFor(input), "");
+        assert.equal(provider.recordFor(input), null);
     }
 
-    assert.equal(provider.readingFor("Rome"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
 });
 
 test("a forecast that fails or comes back empty keeps the previous reading", () => {
@@ -371,7 +385,7 @@ test("a forecast that fails or comes back empty keeps the previous reading", () 
         },
         forecastResolver: {
             refresh(place, units, isCurrent, callback) {
-                callback(answer[0], answer[1], answer[2]);
+                callback(answer[0], answer[1], answer[2], R(answer[0]));
             }
         }
     });
@@ -379,21 +393,21 @@ test("a forecast that fails or comes back empty keeps the previous reading", () 
     let updates = 0;
 
     provider.refresh(settings, () => updates++);
-    assert.equal(provider.readingFor("Rome"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
     assert.equal(updates, 1);
 
     // the network dropped: the tooltip keeps yesterday's number rather than
     // blinking the temperature out of the row
     answer = ["", "Weather service unavailable", ""];
     provider.refresh(settings, () => updates++);
-    assert.equal(provider.readingFor("Rome"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
     assert.equal(provider.lastProvider, "Open-Meteo");
     assert.equal(updates, 1, "a failed round redraws nothing");
 
     // every provider answered, none had a reading for the place
     answer = ["", "", ""];
     provider.refresh(settings, () => updates++);
-    assert.equal(provider.readingFor("Rome"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
     assert.equal(updates, 1);
 });
 
@@ -410,7 +424,7 @@ test("the geocoder is asked about the timezone's city, never the user's label", 
         },
         forecastResolver: {
             refresh(_place, _units, _isCurrent, callback) {
-                callback("☀ 20°C", "", "Open-Meteo");
+                callback("☀ 20°C", "", "Open-Meteo", R("☀ 20°C"));
             }
         }
     });
@@ -428,8 +442,8 @@ test("the geocoder is asked about the timezone's city, never the user's label", 
     assert.deepEqual(asked, ["Buenos Aires"],
         "a nickname never reaches a third-party geocoder");
     // the tooltip still finds the reading under the name the user gave it
-    assert.equal(provider.readingFor("Mom's place"), "☀ 20°C");
-    assert.equal(provider.readingFor("Somewhere"), "");
+    assert.deepEqual(provider.recordFor("Mom's place"), R("☀ 20°C"));
+    assert.equal(provider.recordFor("Somewhere"), null);
 });
 
 test("a city that fails to read is retried, and says so once it is old", () => {
@@ -457,14 +471,14 @@ test("a city that fails to read is retried, and says so once it is old", () => {
         },
         forecastResolver: {
             refresh(_place, _units, _isCurrent, callback) {
-                callback(answer[0], answer[1], answer[2]);
+                callback(answer[0], answer[1], answer[2], R(answer[0]));
             }
         }
     });
     const settings = { showWeather: true, units: "si", cities: ["Rome"] };
 
     provider.schedule(settings, () => {});
-    assert.equal(provider.readingFor("Rome"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
     assert.equal(provider.staleFor("Rome"), false);
     assert.equal(timers.length, 1, "just the periodic timer while everything works");
 
@@ -482,14 +496,14 @@ test("a city that fails to read is retried, and says so once it is old", () => {
     // the reading it is still showing was taken two periods ago, and is no
     // longer the weather
     clock += (CityWeather.CITY_STALE_AFTER_SECONDS + 1) * 1000;
-    assert.equal(provider.readingFor("Rome"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
     assert.equal(provider.staleFor("Rome"), true);
     assert.equal(provider.staleFor("Atlantis"), false, "a city with no reading is not stale");
 
     // the network comes back
     answer = ["🌧 12°C", "", "Open-Meteo"];
     timers[2].callback();
-    assert.equal(provider.readingFor("Rome"), "🌧 12°C");
+    assert.deepEqual(provider.recordFor("Rome"), R("🌧 12°C"));
     assert.equal(provider.staleFor("Rome"), false);
     assert.equal(timers.length, 3, "and no further retry is queued");
 });
@@ -576,7 +590,7 @@ test("city lists fuzz junk, blanks and duplicates into a capped unique list", ()
     assert.deepEqual(provider._cities({ cities: "Rome" }), []);
 });
 
-test("readingFor and refresh fuzz random settings without throwing or keeping strays", () => {
+test("recordFor and refresh fuzz random settings without throwing or keeping strays", () => {
     const CityWeather = loadCityWeather();
     const rand = makeRandom(FUZZ_SEED ^ 0x5c17);
     const readings = { Rome: "☀ 20°C", Tokyo: "⛅ 24°C", Oslo: "🌨 -2°C", "São Paulo": "🌧 19°C" };
@@ -602,9 +616,12 @@ test("readingFor and refresh fuzz random settings without throwing or keeping st
         for (const input of inputs) {
             let reading;
             assert.doesNotThrow(() => {
-                reading = provider.readingFor(input);
+                reading = provider.recordFor(input);
             });
-            assert.equal(typeof reading, "string", "the tooltip row always gets a string");
+            assert.ok(reading === null ||
+                (typeof reading === "object" && typeof reading.condition === "string" &&
+                    typeof reading.temperatureC === "number"),
+                "the tooltip row always gets a reading record or nothing");
         }
     }
 });
@@ -627,7 +644,7 @@ test("a forecast answering after a newer refresh is dropped", () => {
             // hold the answer instead of calling back, so the test decides when
             // the slow reply lands
             refresh(place, units, isCurrent, callback) {
-                pending.push(() => callback("⛅ 24°C", "", "Open-Meteo"));
+                pending.push(() => callback("⛅ 24°C", "", "Open-Meteo", R("⛅ 24°C")));
             }
         }
     });
@@ -640,12 +657,12 @@ test("a forecast answering after a newer refresh is dropped", () => {
     const stale = pending.shift();
     stale();
 
-    assert.equal(provider.readingFor("Lisbon"), "",
+    assert.equal(provider.recordFor("Lisbon"), null,
         "the superseded round must not write a reading, error or not");
     assert.equal(updates, 0, "and it must not redraw the tooltip");
 
     pending.shift()();
-    assert.equal(provider.readingFor("Lisbon"), "⛅ 24°C", "the current round still lands");
+    assert.deepEqual(provider.recordFor("Lisbon"), R("⛅ 24°C"), "the current round still lands");
     assert.equal(updates, 1);
 });
 
@@ -665,7 +682,7 @@ test("staleness follows the refresh period the provider was given", () => {
     }, stubResolvers({ Lisbon: "☀ 20°C" }, calls)));
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => {});
-    assert.equal(provider.readingFor("Lisbon"), "☀ 20°C");
+    assert.deepEqual(provider.recordFor("Lisbon"), R("☀ 20°C"));
     assert.equal(provider.staleFor("Lisbon"), false);
 
     // two refresh periods less a second: still the weather
