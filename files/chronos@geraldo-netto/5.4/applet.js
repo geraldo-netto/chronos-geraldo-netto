@@ -69,6 +69,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _initProviders() {
+        // the reading is the unit-free record the panel renders from; the text
+        // is the placeholder/empty/pending string state the record cannot carry
+        this._weather_reading = null;
         this._weather_text = "";
         this._weather_error = "";
         this._weather_provider = "";
@@ -346,8 +349,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
     // an HTTP completion, so its caller is the main loop, not the code that
     // asked for the forecast
-    _setWeatherStatus(weatherText, weatherError = "", weatherProvider = "") {
+    _setWeatherStatus(weatherText, weatherError = "", weatherProvider = "", weatherReading = null) {
         this._guarded(() => {
+            this._weather_reading = weatherReading || null;
             this._weather_text = weatherText;
             this._weather_error = weatherError;
             this._weather_provider = weatherProvider || "";

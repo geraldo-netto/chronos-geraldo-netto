@@ -162,6 +162,12 @@ class PanelView {
         return this.applet._weather_text;
     }
 
+    // the unit-free reading record the panel renders from; the panel and tooltip
+    // read its fields (T442d), leaving weatherText for the pending/empty states
+    get weatherReading() {
+        return this.applet._weather_reading;
+    }
+
     get weatherError() {
         return this.applet._weather_error;
     }

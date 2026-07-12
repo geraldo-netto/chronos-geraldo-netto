@@ -317,7 +317,7 @@ test("applets surface weather provider failures", () => {
     const panelStatus = source("5.4/appletPanelStatus.js");
     assert.match(code, /this\._weather_error = "";/);
     assert.match(code, /this\._weather_provider = "";/);
-    assert.match(code, /_setWeatherStatus\(weatherText, weatherError = "", weatherProvider = ""\) \{[\s\S]*?this\._weather_error = weatherError;[\s\S]*?this\._weather_provider = weatherProvider \|\| "";/);
+    assert.match(code, /_setWeatherStatus\(weatherText, weatherError = "", weatherProvider = "", weatherReading = null\) \{[\s\S]*?this\._weather_reading = weatherReading \|\| null;[\s\S]*?this\._weather_error = weatherError;[\s\S]*?this\._weather_provider = weatherProvider \|\| "";/);
     assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER\);\n/);
     assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER \+ " " \+ translateWeatherError\(view\.weatherError\)/);
     assert.match(panelStatus, /_\("Set a weather location"\)/);

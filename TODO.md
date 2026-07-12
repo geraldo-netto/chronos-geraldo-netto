@@ -84,7 +84,6 @@ The five heaviest reorganizations from the 2026-07-12 batch were parked rather t
 ### T442 — weather port returns a normalized record `{ temperatureC, condition }`
 The reading string flows through `WeatherDisplayState`, the resolver, `WeatherProvider`, the applet's `weather_text`, the city readings map and every staleness comparison, all string-keyed. Convert it one seam at a time, keeping a string at the next boundary until that boundary's step arrives.
 
-- **T442c** — Change the applet's weather surface from `weather_text` to `weather_reading` (the record), threaded through `settingsFacade`/`appletLifecycle`. Update the applet-wiring tests.
 - **T442d** — In `appletPanelStatus`, read `reading.condition` and `reading.temperatureC` for the panel suffix, the accessible name and the built-in tooltip cells; delete `stripWeatherIcon` and `weatherCondition`. Update the panel/tooltip tests.
 - **T442e** — Do the same for the city readings: `cityWeather` stores records keyed by city, and `tooltipWeatherCells`' city path reads the fields. Update the cityWeather + city-tooltip tests. `weatherCondition`/`stripWeatherIcon` are now gone from the whole tree.
 

@@ -754,11 +754,16 @@ test("_setWeatherStatus stores state and refreshes the clock line", () => {
     const stub = Object.assign(Object.create(Proto), {
         _updateClockAndDate: () => updated++
     });
-    Proto._setWeatherStatus.call(stub, "☀", "err", "prov");
-    assert.equal(stub._weather_text, "☀");
+    Proto._setWeatherStatus.call(stub, "☀ 20°C", "err", "prov", { condition: "☀", temperatureC: 20 });
+    assert.equal(stub._weather_text, "☀ 20°C");
+    assert.deepEqual(stub._weather_reading, { condition: "☀", temperatureC: 20 });
     assert.equal(stub._weather_error, "err");
     assert.equal(stub._weather_provider, "prov");
     assert.equal(updated, 1);
+
+    // the pending placeholder and the switched-off state carry no record
+    Proto._setWeatherStatus.call(stub, "…", "", "");
+    assert.equal(stub._weather_reading, null);
 });
 
 test("weather refresh scheduling forwards the settings snapshot", () => {
@@ -2717,8 +2722,18 @@ test("the panel presenter goes through the view for every read", () => {
     // ...and the view is the only thing that touches the applet's shape
     const view = source.slice(source.indexOf("class PanelView"), presenterStart);
     assert.match(view, /this\.applet\._weather_text/);
+    assert.match(view, /this\.applet\._weather_reading/);
     assert.match(view, /this\.applet\.worldclock_format = format;/,
         "including the one field the presenter used to write around the seam");
+});
+
+// the record is on the surface now; the panel and tooltip read its fields in
+// T442d, so for now the view just exposes it
+test("the panel view exposes the weather reading record", () => {
+    const view = new PanelStatusModule.PanelView({
+        _weather_reading: { condition: "☀", temperatureC: 20 }
+    });
+    assert.deepEqual(view.weatherReading, { condition: "☀", temperatureC: 20 });
 });
 
 // and the reads are a contract now, so a view can answer them without an applet
