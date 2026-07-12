@@ -138,6 +138,9 @@ function gjsImportsMock() {
                             tryProvidersInOrder() {},
                             providerName() {}
                         },
+                        weatherScheduler: {
+                            WeatherRefreshScheduler: class {}
+                        },
                         weatherFormat: {
                             REFRESH_SECONDS: 1800,
                             RETRY_SECONDS: 30,
@@ -251,6 +254,7 @@ const EXPORTS = {
         "aviationWeatherUrl", "aviationWeatherIcon", "aviationWeatherStation",
         "aviationWeatherText", "metarNumber", "locationCacheKey", "metNoIcon",
         "metNoSummary", "metNoWeatherText", "openMeteoGeocodePlace", "nominatimGeocodePlace"],
+    weatherScheduler: ["WeatherRefreshScheduler"],
     weather: ["WeatherProvider", "WEATHER_ERROR_MARKER", "WEATHER_ERRORS", "MAX_RETRY_ATTEMPTS",
         "WEATHER_USER_AGENT", "WEATHER_PROVIDER_NAMES", "geocodeUrl",
         "nominatimGeocodeUrl", "forecastUrl", "metNoForecastUrl",
@@ -308,8 +312,8 @@ test("weather.js hands on every name it takes from weatherFormat", () => {
     // the Node side reads the same collaborators through globalThis.imports
     const originalImports = global.imports;
     global.imports = gjsImportsMock();
-    for (const file of ["weather.js", "weatherFormat.js", "utils.js", "localeUtils.js",
-        "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
+    for (const file of ["weather.js", "weatherScheduler.js", "weatherFormat.js", "utils.js",
+        "localeUtils.js", "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
         delete require.cache[require.resolve(path.join(APPLET_DIR, file))];
     }
     const node = require(path.join(APPLET_DIR, "weather.js"));
@@ -333,7 +337,7 @@ test("root modules never call require() outside the Node guard", () => {
             if (line.startsWith("//") || line.startsWith("*")) {
                 continue;
             }
-            assert.match(line, /typeof require|^require\("\.\/utils"\) :$|^require\("\.\/localeUtils"\) :$|^require\("\.\/ioUtils"\) :$|^require\("\.\/styleUtils"\) :$|^require\("\.\/providerUtils"\) :$|^require\("\.\/holidayAdapters"\) :$|^require\("\.\/holidayConstants"\) :$|^require\("\.\/holidayCache"\) :$|^require\("\.\/holidayServiceAdapters"\) :$|^require\("\.\/worldclockData"\) :$|^require\("\.\/weatherFormat"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$/,
+            assert.match(line, /typeof require|^require\("\.\/utils"\) :$|^require\("\.\/localeUtils"\) :$|^require\("\.\/ioUtils"\) :$|^require\("\.\/styleUtils"\) :$|^require\("\.\/providerUtils"\) :$|^require\("\.\/holidayAdapters"\) :$|^require\("\.\/holidayConstants"\) :$|^require\("\.\/holidayCache"\) :$|^require\("\.\/holidayServiceAdapters"\) :$|^require\("\.\/worldclockData"\) :$|^require\("\.\/weatherFormat"\) :$|^require\("\.\/weatherScheduler"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$/,
                 `${moduleName}.js: unguarded require: ${line}`);
         }
     }
