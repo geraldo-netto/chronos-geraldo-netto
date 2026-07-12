@@ -353,9 +353,8 @@ test("Enrico expands provider rows before recording cache fetches", () => {
         year: 2026, month: 1, day: 1, region: "global", name: "Fetched", flags: []
     });
     // the provider owns the fetch, so the provider is what decides the result is
-    // worth trimming and writing; the cache used to do both from inside
-    // recordFetch, i.e. a disk write from inside a data structure
-    assert.equal(cache.pruned, true);
+    // worth writing; the cache used to do this from inside recordFetch, i.e. a
+    // disk write from inside a data structure
     assert.equal(cache.persisted, true);
 
     enrico.clearPlace();
@@ -1269,7 +1268,7 @@ test("the per-year status record does not outlive the years the grid can reach",
         [`${current - 1}/global`, `${current + 1}/global`, `${current}/global`].sort());
 });
 
-test("the cache prunes years the grid can no longer reach", () => {
+test("the cache persists only the reachable window but keeps the session's data", () => {
     const { HolidayCache } = loadHolidays();
     const saved = [];
     const cache = new HolidayCache(
@@ -1289,13 +1288,46 @@ test("the cache prunes years the grid can no longer reach", () => {
 
     cache.recordFetch(current, "global", null,
         [{ year: current, month: 7, day: 4, region: "global", name: "Fresh", flags: [] }]);
-    cache.prune();
     cache.persist();
 
-    assert.deepEqual(cache.data.map((single) => single.name), ["Current", "Fresh"]);
-    assert.equal(cache.years[old], undefined);
-    assert.equal(cache.attempts[old], undefined);
+    // the live data keeps everything the session read — the out-of-window year
+    // still renders and its freshness stamp still throttles it
+    assert.deepEqual(cache.data.map((single) => single.name), ["Ancient", "Current", "Fresh"]);
+    assert.deepEqual(cache.years[old], { global: "Thu, 01 Jan 2020 00:00:00 GMT" });
+    assert.deepEqual(cache.attempts[old], { global: "Thu, 01 Jan 2020 00:00:00 GMT" });
+    // but the file carries only the window the grid can reach
     assert.deepEqual(saved[0][1].holidays.map((single) => single.name), ["Current", "Fresh"]);
+    assert.equal(saved[0][1].years[old], undefined);
+});
+
+// The bug this guards: pruning live state discarded a year browsed to that is
+// outside the window, along with the stamp that throttles it, so every calendar
+// update refetched it over the network and rewrote the disk, forever, while the
+// holidays never rendered.
+test("a fetched out-of-window year stays in memory and is not refetched", () => {
+    const { HolidayCache } = loadHolidays();
+    const saved = [];
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        (country, data) => saved.push([country, data])
+    );
+    cache.setPlace("usa", "global");
+
+    const now = new Date();
+    const current = now.getFullYear();
+    const ahead = current + 3;
+    const retrieved = now.toUTCString();
+
+    cache.recordFetch(ahead, "global", retrieved,
+        [{ year: ahead, month: 12, day: 25, region: "global", name: "Future", flags: [] }]);
+    cache.persist(now);
+
+    // it renders: the reading is in the live data and matchable
+    assert.equal(cache.matchMonth(ahead, 12, "global").get("12/25")[0], "Future");
+    // and it is not stale, so the next update does not refetch it
+    assert.equal(cache.stale(ahead, "global", now), false);
+    // the file stays bounded to the window
+    assert.deepEqual(saved[0][1].holidays, []);
 });
 
 test("the cache file is read once for loading and written asynchronously", () => {

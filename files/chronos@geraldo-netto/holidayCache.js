@@ -321,26 +321,25 @@ var HolidayCache = class HolidayCache {
         this._rebuildIndex();
     }
 
-    // Without this the cache grows for every year ever browsed and re-parses
-    // all of it at startup. Pruning happens on the write path only: data
-    // loaded for this session stays usable, and what gets persisted is the
-    // window the grid can actually reach.
-    prune(now = new Date()) {
+    // What gets persisted is the window the grid can actually reach, so the file
+    // does not grow for every year ever browsed and startup does not re-parse all
+    // of it. This is a *copy*: the live data, years and attempts are left whole.
+    // Pruning them in place discarded a just-fetched out-of-window year and the
+    // freshness stamp that throttles it, so browsing two years ahead refetched
+    // over the network and rewrote the disk on every calendar update, forever,
+    // and the holidays never rendered.
+    _windowedForPersist(now = new Date()) {
         const current = now.getFullYear();
         const keep = (year) => Math.abs(Number(year) - current) <= YEAR_WINDOW;
 
-        const kept = this.data.filter((single) => keep(single.year));
-        if (kept.length !== this.data.length) {
-            this.setData(kept);
-        }
-
-        for (const record of [this.years, this.attempts]) {
-            for (const year of Object.keys(record)) {
-                if (!keep(year)) {
-                    delete record[year];
-                }
+        const years = {};
+        for (const year of Object.keys(this.years)) {
+            if (keep(year)) {
+                years[year] = this.years[year];
             }
         }
+
+        return { years, holidays: this.data.filter((single) => keep(single.year)) };
     }
 
     // The memo gains an entry for every month scrolled to, empty ones
@@ -493,17 +492,14 @@ var HolidayCache = class HolidayCache {
         return this._rememberMonth(monthKey, matched);
     }
 
-    persist() {
+    persist(now = new Date()) {
         // an inflight fetch can land after clearPlace(); saving then
         // would write the payload under a "null" country key
         if (!this.country) {
             return;
         }
 
-        this._save(this.country, {
-            years: this.years,
-            holidays: this.data
-        });
+        this._save(this.country, this._windowedForPersist(now));
     }
 };
 

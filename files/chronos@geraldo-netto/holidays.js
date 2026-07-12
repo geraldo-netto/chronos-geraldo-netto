@@ -362,11 +362,11 @@ var Enrico = class Enrico {
         this.last_error = "";
         const regionId = params.region || GLOBAL_REGION;
         this.cache.recordFetch(params.year, regionId, retrieved, this.expandData(data, regionId));
-        // a fetch that landed is worth keeping: trim what the grid can no longer
-        // reach, and write. The cache used to do both from inside recordFetch,
-        // which put a disk write inside a data structure and left no way to
-        // record a result without one.
-        this.cache.prune();
+        // a fetch that landed is written; persist() writes only the reachable
+        // window but keeps the whole of the session's data in memory, so a year
+        // the user browsed to still renders and is not refetched every update.
+        // The cache used to do this from inside recordFetch, i.e. a disk write
+        // from inside a data structure.
         this.cache.persist();
     }
 
