@@ -2111,6 +2111,12 @@ class DialogValidationFeedbackTest(unittest.TestCase):
         self.assertNotIn(
             "error", widgets["timezone"].bind_object.get_style_context().classes,
             "the timezone is fine; do not mark it")
+        # the label field says the real reason, not the generic "Invalid
+        # timezone" that set_invalid writes and describe_widget must overwrite
+        self.assertEqual(
+            widgets["label"].bind_object.get_accessible().description,
+            "Enter a display name for this clock",
+            "a screen reader hears the real problem with the field")
 
     def test_a_valid_clock_clears_every_mark(self):
         dialog, widgets = self._dialog({"label": "Home", "timezone": "Europe/Rome"})

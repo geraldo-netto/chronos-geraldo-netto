@@ -899,16 +899,19 @@ class ClockDialogStatePresenter:
     def _report(self, widgets, text, invalid=None):
         self.preview_label.set_text(text)
 
-        # the message is about a field, so a screen reader has to read it *with*
-        # that field rather than as a stray line of text somewhere in the dialog
-        described = widgets.get(invalid) if invalid else None
-        describe_widget(described, self.preview_label, text)
-
-        # ...and it has to be visible as well as sayable: an error style on the
-        # label, and the entry marked as holding something invalid
+        # the visible cue first: an error style on the label, and the offending
+        # entry marked invalid. set_invalid writes a generic "Invalid timezone"
+        # ATK description on that entry, so describe_widget has to run *after* it
+        # — a valid timezone with an empty name is not an invalid timezone, and
+        # the screen reader must hear the real reason, not the generic one.
         set_error_state(self.preview_label, bool(invalid))
         for field, widget in widgets.items():
             set_invalid(widget, field == invalid)
+
+        # the message is about a field, so a screen reader reads it *with* that
+        # field; this description wins over the generic one set_invalid wrote
+        described = widgets.get(invalid) if invalid else None
+        describe_widget(described, self.preview_label, text)
 
 class ClockDialogBuilder:
     def __init__(self, clocks_list):
