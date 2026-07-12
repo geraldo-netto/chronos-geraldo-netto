@@ -1,0 +1,36 @@
+{
+  "name": "chronos-geraldo-netto",
+  "version": "0.0.1",
+  "description": "Development tooling for the Chronos Calendar Cinnamon applet: the test suites, the coverage gate and the linters. The applet itself ships from files/.",
+  "license": "GPL-2.0-or-later",
+  "author": "Geraldo Netto <geraldonetto@gmail.com> (https://github.com/geraldo-netto)",
+  "contributors": [
+    "Claus Colloseus (ccprog) <ccprog@gmx.de> — original calendar@ccprog applet",
+    "Simon Wiles (simonwiles) — original calendar@simonwiles.net applet"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/geraldo-netto/chronos-geraldo-netto.git"
+  },
+  "bugs": {
+    "url": "https://github.com/geraldo-netto/chronos-geraldo-netto/issues"
+  },
+  "homepage": "https://github.com/geraldo-netto/chronos-geraldo-netto#readme",
+  "private": true,
+  "scripts": {
+    "lint": "npm run lint:js && npm run lint:py",
+    "lint:js": "eslint .",
+    "lint:py": "if python3 -c 'import pyflakes' 2>/dev/null; then python3 -m pyflakes files/chronos@geraldo-netto test; else echo 'pyflakes not installed; skipping python lint'; fi",
+    "test": "npm run test:js && npm run test:py",
+    "test:js": "node test/helpers/coverage.js",
+    "test:py": "python3 test/helpers/coverage.py",
+    "test:js:raw": "node --test --experimental-test-coverage --test-coverage-include='files/chronos@geraldo-netto/*.js' --test-coverage-include='files/chronos@geraldo-netto/5.4/*.js' --test-coverage-lines=98 --test-coverage-branches=90 --test-coverage-functions=100 test/*.test.js",
+    "test:py:raw": "python3 -m unittest discover -s test -p '*.py'"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5"
+  }
+}
