@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/issues\n"
-"POT-Creation-Date: 2026-07-12 19:38+0200\n"
+"POT-Creation-Date: 2026-07-12 20:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -35,6 +35,14 @@ msgstr ""
 #: localeUtils.js:167
 #, javascript-format
 msgid "%s — %s"
+msgstr ""
+
+#: localeUtils.js:203
+msgid "%B %-e, %Y"
+msgstr ""
+
+#: localeUtils.js:204
+msgid "%A, %B %-e, %Y"
 msgstr ""
 
 #: worldclockData.js:22 settings_widgets_common.py:59
@@ -274,11 +282,11 @@ msgstr ""
 msgid "Type a country name"
 msgstr ""
 
-#: settings_widgets_common.py:565
+#: settings_widgets_common.py:626
 msgid "Add new entry"
 msgstr ""
 
-#: settings_widgets_common.py:567
+#: settings_widgets_common.py:628
 msgid "Edit entry"
 msgstr ""
 

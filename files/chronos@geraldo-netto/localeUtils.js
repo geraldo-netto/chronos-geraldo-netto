@@ -191,8 +191,18 @@ function _fillTemplate(template, values) {
 var MSECS_IN_DAY = 24 * 60 * 60 * 1000;
 
 var DAY_FORMAT = CinnamonDesktop.WallClock.lctime_format("cinnamon", "%A");
-var DATE_FORMAT_SHORT = CinnamonDesktop.WallClock.lctime_format("cinnamon", translate("%B %-e, %Y"));
-var DATE_FORMAT_FULL = CinnamonDesktop.WallClock.lctime_format("cinnamon", translate("%A, %B %-e, %Y"));
+var DATE_FORMAT_SHORT;
+var DATE_FORMAT_FULL;
+{
+    // cinnamon-xlet-makepot extracts only the _() keyword, so these two date
+    // formats were invisible to translators under the bare translate() name and
+    // every locale was stuck with the US month-day-year order. Alias locally,
+    // not at module scope, for the same reason joinPhrases does: a module-level
+    // `const _` would shadow the GJS global `_` the translate fallbacks read.
+    const _ = translate;
+    DATE_FORMAT_SHORT = CinnamonDesktop.WallClock.lctime_format("cinnamon", _("%B %-e, %Y"));
+    DATE_FORMAT_FULL = CinnamonDesktop.WallClock.lctime_format("cinnamon", _("%A, %B %-e, %Y"));
+}
 
 const re = /^(\w+)=(.*)$/;
 const DEFAULT_LOCALE_INFO = {
