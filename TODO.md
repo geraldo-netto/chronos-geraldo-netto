@@ -81,11 +81,6 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 
 The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. Each is unpacked below into ordered sub-steps that each land on their own with the suite green — do them in order, one commit per step.
 
-### T445 — split `weather.js` into `weatherScheduler.js` + `weatherProviders.js`
-Keep `weather.js` as the barrel: it requires the new modules and re-exports them, so consumers and the `weather` parity list are unchanged. The `WeatherFormat` re-export block **stays in `weather.js`** (a test derives it from that file's source).
-
-- **T445c** — `weather.js` is now `WeatherProvider` + `WeatherDisplayState` + the two barrels; confirm the parity and coverage gates are green and the `WeatherFormat` re-export test still finds its block.
-
 ### T446 — rename `Enrico`, `enrico.json` and the `ENRICO_*` constants
 Do it in dependency order, smallest ripple first; each rename is mechanical but wide. (Easiest after T448, which removes some of the fragile Enrico test setups.)
 

@@ -518,6 +518,27 @@ test("regression: the exported resolvers and refresh period are var bindings", (
     }
 });
 
+// weather.js is a barrel now: the numbers and words, the refresh clock and the
+// provider chains each live in their own module. weather.js requires all three
+// and adds WeatherProvider + WeatherDisplayState on top. This pins that shape so
+// a future edit cannot quietly inline a part back or drop one of the requires.
+test("weather.js is the barrel over weatherFormat, weatherScheduler and weatherProviders", () => {
+    const source = fs.readFileSync(modulePath, "utf8");
+    for (const dep of ["weatherFormat", "weatherScheduler", "weatherProviders"]) {
+        assert.match(source, new RegExp('require\\("\\./' + dep + '"\\)'),
+            "weather.js must require " + dep);
+    }
+
+    const Weather = loadWeather();
+    // a symbol that originates in each part reaches consumers through the barrel
+    assert.equal(typeof Weather.staleAfterSeconds, "function", "carried on from weatherFormat");
+    assert.equal(typeof Weather.WeatherRefreshScheduler, "function", "carried on from weatherScheduler");
+    assert.equal(typeof Weather.WeatherForecastResolver, "function", "carried on from weatherProviders");
+    // ...and weather.js's own two additions
+    assert.equal(typeof Weather.WeatherProvider, "function");
+    assert.equal(typeof Weather.WeatherDisplayState, "function");
+});
+
 // pick the nearest station that carries a usable temperature, whatever the
 // service put in the rest of the payload
 // an oracle written from the METAR contract, not from the module: a reading is
