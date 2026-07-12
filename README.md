@@ -43,7 +43,8 @@ with the applet:
 | Python 3 | ≥ 3.8 | the settings-widget suite | already present |
 | eslint | ^9 (pinned in `package.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` (skipped when absent) | `python3 -m pip install pyflakes` |
-| gettext | any | regenerating `po/*.pot` via `po/makepot` | `sudo apt install gettext` |
+| cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
+| gettext | any | compiling `po/*.po` to `.mo` at install time (`msgfmt`) | `sudo apt install gettext` |
 
 `npm install` pulls exactly one direct dependency, eslint, into `node_modules/`.
 The test suites themselves need no packages at all — they run on Node's built-in
