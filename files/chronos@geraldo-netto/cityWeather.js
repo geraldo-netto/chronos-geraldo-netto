@@ -299,31 +299,42 @@ var CityWeatherProvider = class CityWeatherProvider {
     // its timezone names). Those are not the same string, and only the second
     // one leaves the machine. A plain string means both, which is what a bare
     // provider in a test hands us.
+    // A settings entry is either a bare string (label and query both) or an
+    // object with its own label and query. Coerce and validate one; a built-in
+    // clock or a timezone that names no city has no query and drops out here,
+    // its row still showing the time.
+    _normalizeCityEntry(entry) {
+        const label = typeof entry === "string" ? entry : (entry && entry.label);
+        const query = typeof entry === "string" ? entry : (entry && entry.query);
+
+        if (typeof label !== "string" || !label.trim()) {
+            return null;
+        }
+        if (typeof query !== "string" || !query.trim()) {
+            return null;
+        }
+
+        return { label: label.trim(), query: query.trim() };
+    }
+
     _cities(settings) {
         const cities = settings && Array.isArray(settings.cities) ? settings.cities : [];
         const seen = new Set();
         const unique = [];
 
         for (const entry of cities) {
-            const label = typeof entry === "string" ? entry : (entry && entry.label);
-            const query = typeof entry === "string" ? entry : (entry && entry.query);
-
-            if (typeof label !== "string" || !label.trim()) {
-                continue;
-            }
-            // no place to ask about: the clock is a built-in, or its timezone
-            // names no city. Its row still shows the time.
-            if (typeof query !== "string" || !query.trim()) {
+            const city = this._normalizeCityEntry(entry);
+            if (!city) {
                 continue;
             }
 
-            const key = locationCacheKey(label);
+            const key = locationCacheKey(city.label);
             if (seen.has(key)) {
                 continue;
             }
 
             seen.add(key);
-            unique.push({ label: label.trim(), query: query.trim() });
+            unique.push(city);
             if (unique.length >= MAX_CITIES) {
                 break;
             }

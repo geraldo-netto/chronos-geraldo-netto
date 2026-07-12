@@ -1279,26 +1279,36 @@ class Calendar {
             if (annotating) {
                 cells.set(`${iter.getMonth() + 1}/${iter.getDate()}`, cell);
             }
-
-            if (this.show_week_numbers && iter.getDay() == 4) {
-                const week = monthWindow.weekLabelForRow(row - 2);
-                const label = this._week_labels[row - 2];
-                if (label.text !== week) {
-                    label.text = week;
-                    // the gutter cell is a bare number ("28"), and the one place
-                    // that says what it counts is the column header — a
-                    // different actor, which a screen reader reading this cell
-                    // never visits
-                    const name = _("Week %s").format(week);
-                    if (label.set_accessible_name) {
-                        label.set_accessible_name(name);
-                    }
-                    label.accessible_name = name;
-                }
-            }
         }
 
+        this._updateWeekNumbers(monthWindow);
         this._holidayAnnotator.annotate(monthWindow.months, cells, holiday_generation);
+    }
+
+    // the gutter is six rows, not forty-two cells: lifted out of the day-cell
+    // loop, where it sat three levels deep and drove the method's complexity
+    _updateWeekNumbers(monthWindow) {
+        if (!this.show_week_numbers) {
+            return;
+        }
+
+        for (let rowIndex = 0; rowIndex < this._week_labels.length; rowIndex++) {
+            const week = monthWindow.weekLabelForRow(rowIndex);
+            const label = this._week_labels[rowIndex];
+            if (label.text === week) {
+                continue;
+            }
+
+            label.text = week;
+            // the gutter cell is a bare number ("28"), and the one place that
+            // says what it counts is the column header — a different actor, which
+            // a screen reader reading this cell never visits
+            const name = _("Week %s").format(week);
+            if (label.set_accessible_name) {
+                label.set_accessible_name(name);
+            }
+            label.accessible_name = name;
+        }
     }
 
     _dayHeadingStyleClass(iter) {

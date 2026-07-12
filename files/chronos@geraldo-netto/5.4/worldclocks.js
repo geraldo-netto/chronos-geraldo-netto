@@ -143,6 +143,28 @@ var Worldclocks = class Worldclocks {
         }
     }
 
+    // which clocks to render: the built-ins unless excluded, plus user clocks up
+    // to the cap. Selected first so the entry construction below is a plain map.
+    _selectClocks(limit, includeBuiltin) {
+        const selected = [];
+        let userClockCount = 0;
+
+        for (const clock of this.clocks) {
+            if (clock.builtin && !includeBuiltin) {
+                continue;
+            }
+            if (!clock.builtin) {
+                if (userClockCount >= limit) {
+                    continue;
+                }
+                userClockCount++;
+            }
+            selected.push(clock);
+        }
+
+        return selected;
+    }
+
     getClockEntries(limit = MAX_CLOCKS, includeBuiltin = true) {
         // with the menu closed and no panel clocks configured there is nothing
         // to render, and this runs on every tick for the life of the session
@@ -152,34 +174,19 @@ var Worldclocks = class Worldclocks {
 
         const time = GLib.DateTime.new_now_utc();
         this._refreshLocalTimezone(time.to_unix ? time.to_unix() : 0);
-        let userClockCount = 0;
-        let entries = [];
 
-        for (const clock of this.clocks) {
-            if (clock.builtin && !includeBuiltin) {
-                continue;
-            }
-
-            if (!clock.builtin) {
-                if (userClockCount >= limit) {
-                    continue;
-                }
-                userClockCount++;
-            }
-
+        return this._selectClocks(limit, includeBuiltin).map((clock) => {
             const localTime = clock.tz ? time.to_timezone(clock.tz) : null;
             const text = localTime ? this._formatTime(localTime) : INVALID_TIMEZONE_TEXT;
-            entries.push({
+            return {
                 clock,
                 label: clock.label,
                 timezone: clock.timezone,
                 time: text,
                 localTime,
                 builtin: clock.builtin
-            });
-        }
-
-        return entries;
+            };
+        });
     }
 
     updateClocks (entries = this.getClockEntries()) {

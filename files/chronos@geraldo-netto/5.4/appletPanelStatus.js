@@ -429,32 +429,42 @@ class AppletPanelStatusPresenter {
     // taller than the text one, so a row carrying a glyph is taller than a row
     // without and the table combs. The tooltip has room for words, so it takes
     // the reading in text and leaves the glyphs to the panel.
-    tooltipWeatherCells(entry) {
+    // the local row takes the panel reading; UTC is a scale, not a place, and
+    // answers null so it shows no weather. A failed refresh keeps the last good
+    // reading, as the panel does — the marker says it may be old, not gone.
+    _builtinWeatherReading(entry) {
         const view = this.view;
-
-        // UTC is a scale, not a place: it has no weather. The local row takes
-        // the panel reading, and every other row takes its own city's.
-        let reading = "";
-        let error = "";
-        if (entry.builtin) {
-            if (entry.timezone === WorldclockData.UTC_TIMEZONE) {
-                return ["", ""];
-            }
-            reading = view.weatherText || "";
-            // a failed refresh keeps the last good reading, as the panel does:
-            // the marker says it may be old, not gone
-            error = view.weatherError ?
-                Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError) : "";
-        } else {
-            reading = view.cityWeatherText(entry.label) || "";
-            // a city keeps its last reading when a refresh fails, so without
-            // this a temperature from this morning reads as the weather now
-            if (reading && view.cityWeatherStale(entry.label)) {
-                // one msgid: the marker is a glyph the phrase is built around,
-                // and a translator has to be able to put it where it belongs
-                error = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
-            }
+        if (entry.timezone === WorldclockData.UTC_TIMEZONE) {
+            return null;
         }
+
+        const error = view.weatherError ?
+            Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError) : "";
+        return { reading: view.weatherText || "", error };
+    }
+
+    // every non-built-in row takes its own city's reading, which it keeps when a
+    // refresh fails — without the marker a temperature from this morning would
+    // read as the weather now
+    _cityWeatherReading(entry) {
+        const view = this.view;
+        const reading = view.cityWeatherText(entry.label) || "";
+        let error = "";
+        if (reading && view.cityWeatherStale(entry.label)) {
+            // one msgid: the marker is a glyph the phrase is built around, and a
+            // translator has to be able to put it where it belongs
+            error = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
+        }
+
+        return { reading, error };
+    }
+
+    tooltipWeatherCells(entry) {
+        const source = entry.builtin ? this._builtinWeatherReading(entry) : this._cityWeatherReading(entry);
+        if (!source) {
+            return ["", ""];
+        }
+        const { reading, error } = source;
 
         // the first refresh has not landed: an ellipsis in the temperature
         // column, with nothing beside it, says less than nothing

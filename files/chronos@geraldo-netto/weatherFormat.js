@@ -182,43 +182,34 @@ function aviationWeatherUrl(place) {
     return "https://aviationweather.gov/api/data/metar?format=json&bbox=" + encodeURIComponent(box);
 }
 
-// a METAR carries the present weather in its own codes and the sky in an
-// oktas-based cover; the precipitation code wins, as a rain shower under a
-// broken sky is rain to the person reading the panel
+// A METAR carries the present weather in its own codes and the sky in an
+// oktas-based cover. These are two lookup tables written as data: the present
+// codes are tried in order (the precipitation code wins, as a rain shower under
+// a broken sky is rain to the person reading the panel), then the cover code.
+const AVIATION_PRESENT_ICONS = [
+    [["TS"], "⛈"],
+    [["SN", "SG", "IC"], "🌨"],
+    [["SH"], "🌦"],
+    [["RA", "DZ", "PL"], "🌧"],
+    [["FG", "BR", "HZ"], "☁"]
+];
+const AVIATION_COVER_ICONS = {
+    CAVOK: "☀", CLR: "☀", SKC: "☀", NSC: "☀",
+    FEW: "🌤",
+    SCT: "⛅",
+    BKN: "☁", OVC: "☁", OVX: "☁"
+};
+
 function aviationWeatherIcon(station) {
     const present = typeof station.wxString === "string" ? station.wxString.toUpperCase() : "";
-
-    if (present.indexOf("TS") !== -1) {
-        return "⛈";
-    }
-    if (present.indexOf("SN") !== -1 || present.indexOf("SG") !== -1 || present.indexOf("IC") !== -1) {
-        return "🌨";
-    }
-    if (present.indexOf("SH") !== -1) {
-        return "🌦";
-    }
-    if (present.indexOf("RA") !== -1 || present.indexOf("DZ") !== -1 || present.indexOf("PL") !== -1) {
-        return "🌧";
-    }
-    if (present.indexOf("FG") !== -1 || present.indexOf("BR") !== -1 || present.indexOf("HZ") !== -1) {
-        return "☁";
+    for (const [codes, icon] of AVIATION_PRESENT_ICONS) {
+        if (codes.some((code) => present.indexOf(code) !== -1)) {
+            return icon;
+        }
     }
 
     const cover = typeof station.cover === "string" ? station.cover.toUpperCase() : "";
-    if (cover === "CAVOK" || cover === "CLR" || cover === "SKC" || cover === "NSC") {
-        return "☀";
-    }
-    if (cover === "FEW") {
-        return "🌤";
-    }
-    if (cover === "SCT") {
-        return "⛅";
-    }
-    if (cover === "BKN" || cover === "OVC" || cover === "OVX") {
-        return "☁";
-    }
-
-    return "🌤";
+    return AVIATION_COVER_ICONS[cover] || "🌤";
 }
 
 // A METAR station with nothing to report sends "temp": null, and Number(null),
