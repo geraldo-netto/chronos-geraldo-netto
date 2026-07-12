@@ -1,0 +1,1811 @@
+const assert = require("node:assert/strict");
+const { afterEach, beforeEach, test } = require("node:test");
+const vm = require("node:vm");
+const fs = require("node:fs");
+const path = require("node:path");
+const { makeRandom } = require("./helpers/prng");
+const { makeSoup3 } = require("./helpers/soup");
+
+const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "utils.js");
+const localeModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
+const ioModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
+const styleModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "styleUtils.js");
+const providerModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "providerUtils.js");
+const versionDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4");
+const shimPath = path.join(versionDir, "utils.js");
+
+let originalImports;
+let originalLog;
+let originalLogError;
+
+function loadUtils(options = "") {
+    delete require.cache[require.resolve(modulePath)];
+    delete require.cache[require.resolve(localeModulePath)];
+    delete require.cache[require.resolve(ioModulePath)];
+    delete require.cache[require.resolve(styleModulePath)];
+    delete require.cache[require.resolve(providerModulePath)];
+    const spawnOutput = typeof options === "string" ? options : (options.spawnOutput || "");
+    const spawnFails = typeof options === "object" ? options.spawnFails : null;
+    const noSubprocess = typeof options === "object" && options.noSubprocess === true;
+    const neverAnswers = typeof options === "object" && options.neverAnswers === true;
+    // GJS hands back a string; the old byte-array behaviour is kept for the one
+    // test that pins it
+    const utf8Output = typeof options !== "object" || options.utf8Output !== false;
+    const spawn = typeof options === "object" && options.spawn ?
+        options.spawn :
+        function(command) {
+            assert.equal(command.startsWith("locale -k "), true);
+            return [true, new Uint8Array(Buffer.from(spawnOutput)), new Uint8Array(0), 0];
+        };
+
+    global.imports = {
+        gi: {
+            Cinnamon: {
+                get_file_contents_utf8_sync(filePath) {
+                    return fs.readFileSync(filePath, "utf8");
+                },
+                write_string_to_stream(stream, data) {
+                    stream.write(data);
+                }
+            },
+            CinnamonDesktop: {
+                WallClock: {
+                    lctime_format(_domain, format) {
+                        return `localized:${format}`;
+                    }
+                }
+            },
+            Gio: {
+                FileCreateFlags: { NONE: 0, REPLACE_DESTINATION: 2 },
+                Cancellable: class {
+                    constructor() {
+                        this.cancelled = false;
+                        // the query in flight, so a test can check the teardown
+                        // actually cancels the subprocess
+                        this.constructor.last = this;
+                    }
+                    cancel() {
+                        this.cancelled = true;
+                    }
+                },
+                BufferedOutputStream: {
+                    new_sized(raw) {
+                        return raw;
+                    }
+                },
+                SubprocessFlags: { STDOUT_PIPE: 1 },
+                // `locale -k` runs asynchronously; the double answers straight
+                // away so the tests stay deterministic
+                Subprocess: class {
+                    constructor(options) {
+                        if (typeof spawnFails === "function") {
+                            spawnFails();
+                        }
+                        this.argv = options.argv;
+                    }
+                    init() {}
+                    communicate_utf8_async(_stdin, cancellable, callback) {
+                        this._cancellable = cancellable;
+                        // GJS still calls back when the cancellable is cancelled —
+                        // the finish() below is what raises. A test cancels, then
+                        // settles, to walk the path a real teardown walks.
+                        this.constructor.settle = () => callback(this, "result");
+
+                        // a wedged NSS or nscd lookup: the callback never fires
+                        if (neverAnswers) {
+                            return;
+                        }
+                        callback(this, "result");
+                    }
+                    communicate_utf8_finish() {
+                        if (this._cancellable && this._cancellable.cancelled) {
+                            throw new Error("Operation was cancelled");
+                        }
+                        const [ok, stdout] = spawn(this.argv.join(" "));
+                        if (!ok) {
+                            return [ok, null];
+                        }
+                        // the real communicate_utf8_finish answers with a
+                        // decoded string, as its name says; returning bytes
+                        // here hid a TypeError that only ever fired in Cinnamon
+                        return [ok, utf8Output ? Buffer.from(stdout).toString("utf8") : stdout];
+                    }
+                }
+            },
+            Soup: makeSoup3(),
+            GLib: {
+                SpawnFlags: { SEARCH_PATH: 4 },
+                PRIORITY_DEFAULT: 0,
+                timeout_add_seconds: () => 1
+            }
+        },
+        byteArray: {
+            toString(data) {
+                // decode as UTF-8 like GJS ByteArray, not Array.prototype.toString
+                return Buffer.from(data).toString("utf8");
+            }
+        }
+    };
+
+    if (noSubprocess) {
+        delete global.imports.gi.Gio.Subprocess;
+    }
+
+    return require(modulePath);
+}
+
+function loadLocaleUtils(options = "") {
+    loadUtils(options);
+    return require(localeModulePath);
+}
+
+function loadIoUtils(options = "") {
+    loadUtils(options);
+    return require(ioModulePath);
+}
+
+function loadStyleUtils(options = "") {
+    loadUtils(options);
+    return require(styleModulePath);
+}
+
+function loadProviderUtils(options = "") {
+    loadUtils(options);
+    return require(providerModulePath);
+}
+
+function localeInfo(utils, env) {
+    return utils.lazyLocaleValue(env, (info) => info)();
+}
+
+function runForwardingShim(shimFile, moduleName, shared) {
+    const context = {
+        module: { exports: null },
+        imports: {
+            ui: {
+                appletManager: {
+                    applets: {
+                        "chronos@geraldo-netto": { [moduleName]: shared }
+                    }
+                }
+            }
+        }
+    };
+
+    vm.createContext(context);
+    vm.runInContext(fs.readFileSync(shimFile, "utf8"), context);
+    return context.module.exports;
+}
+
+function randomLocalePayload(seed = 0x10ca1e, count = 20) {
+    const lines = [];
+    const expected = {};
+    const rand = makeRandom(seed);
+    const malformed = [
+        "",
+        "# comment",
+        "missing_equals",
+        "prefix key_0=999",
+        " key_1=888",
+        "key-with-dash=777"
+    ];
+
+    for (let i = 0; i < count; i++) {
+        if (rand() < 0.35) {
+            lines.push(malformed[Math.floor(rand() * malformed.length)]);
+        }
+
+        const key = rand() < 0.25 && i > 0 ? `key_${Math.floor(rand() * i)}` : `key_${i}`;
+        if (i % 2 === 0) {
+            const value = Math.floor(rand() * 10000);
+            lines.push(`${key}=${value}`);
+            expected[key] = value;
+        } else {
+            const value = `value_${i}_${Math.floor(rand() * 0x1000000).toString(36)}_quote_'`;
+            lines.push(`${key}="${value}"`);
+            expected[key] = value;
+        }
+    }
+
+    lines.push("# trailing_key=12345");
+    return { lines, expected };
+}
+
+beforeEach(() => {
+    originalImports = global.imports;
+    originalLog = global.log;
+    originalLogError = global.logError;
+    global.log = function() {};
+    global.logError = function() {};
+});
+
+test("httpGetJson parses Soup 3 and reports HTTP failures", () => {
+    const utils = loadIoUtils();
+    let parsed = null;
+
+    const okSoup = global.imports.gi.Soup;
+    const okSession = new okSoup.Session();
+    utils.httpGetJson(okSession, "https://example.test/ok", (data, message) => {
+        parsed = { data, message };
+    });
+
+    assert.deepEqual(parsed, { data: { ok: true }, message: okSoup.messages[0] });
+
+    let failed = "unset";
+    Object.assign(global.imports.gi.Soup, makeSoup3({ data: '{"ok":true}', status: 500 }));
+    const failedSoup = global.imports.gi.Soup;
+    utils.httpGetJson(new failedSoup.Session(), "https://example.test/fail", (data, message) => {
+        failed = { data, message };
+    });
+
+    assert.deepEqual(failed, { data: null, message: failedSoup.messages[0] });
+});
+
+// REGRESSION: communicate_utf8_finish() answers with a decoded string, as its
+// name says, and the parser handed that to a TextDecoder — which throws
+// "Provided input cannot be converted to ArrayBufferView". The throw was caught,
+// so the applet just silently used English day names and a US work week forever.
+// The test double had been returning bytes, which is the only reason no test saw
+// it: it was a bug that existed exclusively in Cinnamon.
+test("the locale output is parsed whether it arrives as text or as bytes", () => {
+    // deliberately NOT the English defaults: a parse that silently fails falls
+    // back to those, and a test that asserts them cannot tell the difference
+    const payload = 'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\nfirst_workday=1\n';
+    const expected = { abday: "Dom;Seg;Ter;Qua;Qui;Sex;Sáb", first_workday: 1 };
+
+    const fromString = loadLocaleUtils({ spawnOutput: payload });
+    assert.deepEqual(localeInfo(fromString, "LC_TIME"), expected);
+
+    // older GJS handed back a byte array here; both still parse
+    const fromBytes = loadLocaleUtils({ spawnOutput: payload, utf8Output: false });
+    assert.deepEqual(localeInfo(fromBytes, "LC_TIME"), expected);
+});
+
+test("a locale query that never answers is abandoned instead of hanging", () => {
+    const timeouts = [];
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    // `locale` wedges — a hung NSS or nscd lookup does this — so the callback
+    // never fires. It is asked once and never retried, so without a deadline
+    // the day names stay English for the life of the session.
+    loadUtils();
+    global.imports.gi.GLib.PRIORITY_DEFAULT = 0;
+    global.imports.gi.GLib.timeout_add_seconds = (_priority, seconds, callback) => {
+        timeouts.push({ seconds, callback });
+        return timeouts.length;
+    };
+    global.imports.gi.Gio.Cancellable = class {
+        constructor() {
+            this.cancelled = false;
+        }
+        cancel() {
+            this.cancelled = true;
+        }
+    };
+    global.imports.gi.Gio.Subprocess = class {
+        constructor(options) {
+            this.argv = options.argv;
+        }
+        init() {}
+        communicate_utf8_async() {
+            // no answer, ever
+        }
+    };
+
+    delete require.cache[require.resolve(localeModulePath)];
+    const localeUtils = require(localeModulePath);
+
+    const heard = [];
+    localeUtils.onLocaleInfoChanged("LC_TIME", () => heard.push(true));
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+
+    assert.deepEqual(heard, [], "the hung query tells nobody anything");
+    assert.equal(timeouts.length, 1, "but a deadline is armed");
+
+    timeouts[0].callback();
+
+    assert.match(logged.at(-1), /did not answer/);
+    assert.deepEqual(heard, [true], "whatever waits on the locale is finally told");
+    assert.equal(localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+        "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
+        "and the applet falls back to the defaults rather than waiting forever");
+
+    // ...and the session is not condemned to English day names because `locale`
+    // was wedged for five seconds at login. The request flag used to be set
+    // before the query and cleared on no failure path at all, so one hung lookup
+    // degraded the applet permanently. A retry is armed instead.
+    const retry = timeouts.at(-1);
+    assert.equal(retry.seconds, 60, "a retry is armed, not just a deadline");
+
+    // this time locale answers
+    global.imports.gi.Gio.Subprocess = class {
+        constructor(options) {
+            this.argv = options.argv;
+        }
+        init() {}
+        communicate_utf8_async(_stdin, _cancellable, callback) {
+            callback(this, "result");
+        }
+        communicate_utf8_finish() {
+            return [true, "abday=\"Dom;Seg;Ter;Qua;Qui;Sex;Sáb\"\n"];
+        }
+    };
+    retry.callback();
+
+    assert.equal(localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+        "Dom;Seg;Ter;Qua;Qui;Sex;Sáb",
+        "the locale that answers a minute later is the locale the applet uses");
+});
+
+// ...and a `locale` that is wedged for good must not be asked forever: storing
+// the defaults wakes every memo that reads the locale, and each one asks again
+test("a locale that never recovers is retried a few times and then left alone", () => {
+    const timeouts = [];
+    const spawns = [];
+    global.logError = () => {};
+
+    loadUtils();
+    global.imports.gi.GLib.PRIORITY_DEFAULT = 0;
+    global.imports.gi.GLib.timeout_add_seconds = (_priority, seconds, callback) => {
+        timeouts.push({ seconds, callback });
+        return timeouts.length;
+    };
+    global.imports.gi.Gio.Cancellable = class {
+        cancel() {}
+    };
+    global.imports.gi.Gio.Subprocess = class {
+        constructor(options) {
+            spawns.push(options.argv.join(" "));
+        }
+        init() {}
+        communicate_utf8_async() {
+            // wedged, every time
+        }
+    };
+
+    delete require.cache[require.resolve(localeModulePath)];
+    const localeUtils = require(localeModulePath);
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+
+    // fire every deadline and every retry the module arms, until it stops arming
+    for (let i = 0; i < timeouts.length && i < 20; i++) {
+        timeouts[i].callback();
+        localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    }
+
+    assert.equal(spawns.length, 3, "three attempts, then it stops asking");
+    assert.ok(spawns.every((argv) => argv === "locale -k LC_TIME"));
+});
+
+// the guards that keep a failed lookup from spinning: a real answer is final, a
+// degraded one waits for the armed retry, and the attempt cap is terminal
+// the deadline fired and the subprocess answers anyway: whichever lands first is
+// the answer, and the loser must not overwrite it or re-notify everyone
+test("a locale answer that arrives after the deadline is dropped", () => {
+    const timeouts = [];
+    let deferred = null;
+    global.logError = () => {};
+
+    loadUtils();
+    global.imports.gi.GLib.PRIORITY_DEFAULT = 0;
+    global.imports.gi.GLib.timeout_add_seconds = (_priority, seconds, callback) => {
+        timeouts.push({ seconds, callback });
+        return timeouts.length;
+    };
+    global.imports.gi.Gio.Cancellable = class {
+        cancel() {}
+    };
+    global.imports.gi.Gio.Subprocess = class {
+        constructor(options) {
+            this.argv = options.argv;
+        }
+        init() {}
+        communicate_utf8_async(_stdin, _cancellable, callback) {
+            deferred = () => callback(this, "result");
+        }
+        communicate_utf8_finish() {
+            return [true, 'abday="Late;Late;Late;Late;Late;Late;Late"\n'];
+        }
+    };
+
+    delete require.cache[require.resolve(localeModulePath)];
+    const localeUtils = require(localeModulePath);
+
+    const heard = [];
+    localeUtils.onLocaleInfoChanged("LC_TIME", () => heard.push(true));
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+
+    // the deadline fires first: the defaults are stored
+    timeouts[0].callback();
+    assert.equal(heard.length, 1);
+
+    // ...and the subprocess answers afterwards
+    deferred();
+
+    assert.equal(heard.length, 1, "the late answer does not wake everyone a second time");
+    assert.equal(localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+        "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
+        "and it does not overwrite the answer already given");
+});
+
+test("a settled locale query is not asked again", () => {
+    const spawns = [];
+    const utils = loadUtils({
+        spawn(command) {
+            spawns.push(command);
+            return [true, new Uint8Array(Buffer.from('abday="A;B;C;D;E;F;G"\n')), new Uint8Array(0), 0];
+        }
+    });
+
+    const abday = () => utils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    assert.equal(abday(), "A;B;C;D;E;F;G");
+
+    // reading it again must not spawn `locale` a second time
+    abday();
+    utils.lazyLocaleValue("LC_TIME", (info) => info.first_workday)();
+    assert.equal(spawns.length, 1, "a real answer is final");
+});
+
+test("a failing locale query falls back to the defaults instead of throwing", () => {
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    // the response cannot be read
+    const broken = loadLocaleUtils({
+        spawn() {
+            throw new Error("locale died");
+        }
+    });
+    assert.deepEqual(localeInfo(broken, "LC_ADDRESS"), { country_ab3: "usa", lang_ab: "en" });
+
+    // the subprocess cannot even be spawned
+    const unspawnable = loadLocaleUtils({
+        spawnFails() {
+            throw new Error("locale is not installed");
+        }
+    });
+    assert.deepEqual(localeInfo(unspawnable, "LC_TIME"), {
+        abday: "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
+        first_workday: 2
+    });
+
+    assert.equal(logged.length, 2);
+});
+
+test("an old Gio without Subprocess still yields the locale defaults", () => {
+    const utils = loadLocaleUtils({ noSubprocess: true });
+
+    assert.deepEqual(localeInfo(utils, "LC_ADDRESS"), { country_ab3: "usa", lang_ab: "en" });
+});
+
+test("a locale query that answers with nothing falls back to the defaults", () => {
+    const utils = loadLocaleUtils({
+        spawn() {
+            return [false, null];
+        }
+    });
+
+    assert.deepEqual(localeInfo(utils, "LC_TIME"), {
+        abday: "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
+        first_workday: 2
+    });
+});
+
+test("locale listeners are notified when the query lands, and can unsubscribe", () => {
+    const utils = loadLocaleUtils('first_workday=3\n');
+    let notified = 0;
+    const unsubscribe = utils.onLocaleInfoChanged("LC_TIME", () => notified++);
+
+    // the value is picked before the query answers and recomputed after
+    const workday = utils.lazyLocaleValue("LC_TIME", (info) => info.first_workday);
+    assert.equal(workday(), 3);
+    assert.equal(notified, 1);
+
+    unsubscribe();
+    loadLocaleUtils('first_workday=1\n');
+    assert.equal(notified, 1, "an unsubscribed listener stops hearing about it");
+});
+
+test("httpGetJson refuses to parse an oversized response body", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    const huge = "x".repeat(utils.MAX_RESPONSE_BYTES + 1);
+    Object.assign(global.imports.gi.Soup, makeSoup3({ data: huge }));
+    const soup = global.imports.gi.Soup;
+
+    let received = "unset";
+    utils.httpGetJson(new soup.Session(), "https://example.test/huge?token=secret", (data) => {
+        received = data;
+    });
+
+    assert.equal(received, null, "an oversized body must not be parsed");
+    assert.equal(logged.length, 1);
+    assert.match(logged[0], /exceeds/);
+    assert.doesNotMatch(logged[0], /token=secret/, "the log must not carry the query string");
+});
+
+test("httpGetJson refuses a response that declares itself oversized, before reading it", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    // Soup buffers the whole body before handing it over, so a size check that
+    // runs afterwards has already paid for the memory. The declared length is
+    // what is available before the read.
+    let read = false;
+    Object.assign(global.imports.gi.Soup, makeSoup3({
+        messageMethods: {
+            get_response_headers() {
+                return {
+                    get_content_length: () => utils.MAX_RESPONSE_BYTES + 1,
+                    get_one: () => null
+                };
+            }
+        },
+        onFinish() {
+            read = true;
+            return { get_data: () => Buffer.from("{}") };
+        }
+    }));
+    const soup = global.imports.gi.Soup;
+
+    let received = "unset";
+    utils.httpGetJson(new soup.Session(), "https://example.test/huge?city=Berlin", (data) => {
+        received = data;
+    });
+
+    assert.equal(received, null);
+    assert.equal(read, false, "the gigabyte is never pulled into the compositor");
+    assert.match(logged[0], /declares more than/);
+    assert.doesNotMatch(logged[0], /Berlin/, "and the location stays out of the log");
+});
+
+test("httpGetJson will not follow a redirect down to plain http", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    // the query string carries the user's location, so a downgrade puts it on
+    // the wire in cleartext; "restarted" fires before the redirected request
+    // goes out
+    let restarted = null;
+    Object.assign(global.imports.gi.Soup, makeSoup3({
+        messageMethods: {
+            connect(signal, handler) {
+                if (signal === "restarted") {
+                    restarted = handler;
+                }
+            },
+            get_uri() {
+                return { get_scheme: () => "http" };
+            }
+        }
+    }));
+    const soup = global.imports.gi.Soup;
+
+    let cancellable = null;
+    const session = new soup.Session();
+    session.send_and_read_async = function(_message, _priority, cancel, callback) {
+        cancellable = cancel;
+        restarted();                       // the endpoint redirects us to http
+        callback(this, {});
+    };
+
+    let received = "unset";
+    utils.httpGetJson(session, "https://example.test/geo?city=Berlin", (data) => {
+        received = data;
+    });
+
+    assert.ok(cancellable && cancellable.cancelled, "the redirected request is cancelled");
+    assert.equal(received, null);
+    assert.match(logged[0], /plain http/);
+    assert.doesNotMatch(logged[0], /Berlin/);
+});
+
+test("httpGetJson invokes a throwing callback exactly once", () => {
+    const utils = loadIoUtils();
+    const failedMessage = {
+        get_status() {
+            return 500;
+        }
+    };
+    global.imports.gi.Soup.Message.new = function() {
+        return failedMessage;
+    };
+
+    // a consumer error must escape instead of being logged as a network
+    // failure, and must not re-run the callback with data = null
+    let calls = 0;
+    assert.throws(() => {
+        utils.httpGetJson({
+            send_and_read_async(_message, _priority, _cancellable, callback) {
+                callback(this, {});
+            },
+            send_and_read_finish() {
+                return {
+                    get_data() {
+                        return Buffer.from('{"ok":true}');
+                    }
+                };
+            }
+        }, "https://example.test/fail", () => {
+            calls++;
+            throw new Error("consumer exploded");
+        });
+    }, /consumer exploded/);
+
+    assert.equal(calls, 1);
+});
+
+test("httpGetJson applies request headers when provided", () => {
+    const utils = loadIoUtils();
+    const recorded = [];
+    global.imports.gi.Soup.Message.new = function() {
+        return {
+            request_headers: {
+                append(header, value) {
+                    recorded.push([header, value]);
+                }
+            },
+            get_status() {
+                return 200;
+            }
+        };
+    };
+
+    utils.httpGetJson({
+        send_and_read_async(_message, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        send_and_read_finish() {
+            return {
+                get_data() {
+                    return Buffer.from("{}");
+                }
+            };
+        }
+    }, "https://example.test/ua", () => {}, {
+        headers: { "User-Agent": "test-agent" }
+    });
+
+    assert.deepEqual(recorded, [["User-Agent", "test-agent"]]);
+
+    // no options: nothing recorded, nothing thrown
+    utils.httpGetJson({
+        send_and_read_async(_message, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        send_and_read_finish() {
+            return {
+                get_data() {
+                    return Buffer.from("{}");
+                }
+            };
+        }
+    }, "https://example.test/plain", () => {});
+    assert.equal(recorded.length, 1);
+
+    global.imports.gi.Soup.Message.new = function() {
+        return {
+            get_request_headers() {
+                return null;
+            },
+            get_status() {
+                return 200;
+            }
+        };
+    };
+    utils.httpGetJson({
+        send_and_read_async(_message, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        send_and_read_finish() {
+            return {
+                get_data() {
+                    return Buffer.from("{}");
+                }
+            };
+        }
+    }, "https://example.test/no-headers", () => {}, {
+        headers: { "User-Agent": "test-agent" }
+    });
+    assert.equal(recorded.length, 1);
+});
+
+test("httpGetJson reports malformed JSON as null data", () => {
+    const utils = loadIoUtils();
+    const okMessage = {
+        get_status() {
+            return 200;
+        }
+    };
+    global.imports.gi.Soup.Message.new = function() {
+        return okMessage;
+    };
+
+    let malformed = "unset";
+    utils.httpGetJson({
+        send_and_read_async(_message, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        send_and_read_finish() {
+            return {
+                get_data() {
+                    return Buffer.from("not json");
+                }
+            };
+        }
+    }, "https://example.test/malformed", (data, message) => {
+        malformed = { data, message };
+    });
+
+    assert.equal(malformed.data, null);
+    assert.equal(malformed.message, okMessage);
+});
+
+// The old version of this appended "{" as the *last* byte of every payload, so
+// all 120 rounds were guaranteed-invalid JSON and landed on the identical
+// JSON.parse-throws branch: replacing `data = JSON.parse(...)` with `data = null`
+// passed it 120/120. It never explored the size cap, a non-200 status, or a body
+// that parses to something that is not an object — the paths that actually
+// matter here.
+test("fuzz: httpGetJson answers with a parsed object or null, and never throws", () => {
+    const utils = loadIoUtils();
+    const rand = makeRandom(0xdec0de);
+
+    const bodies = [
+        // valid JSON of every shape the providers can send
+        () => Buffer.from(JSON.stringify({ ok: true, n: Math.floor(rand() * 1000) })),
+        () => Buffer.from(JSON.stringify([1, 2, 3])),
+        // valid JSON that is not an object: a scalar is not a payload
+        () => Buffer.from(JSON.stringify(Math.floor(rand() * 100))),
+        () => Buffer.from("null"),
+        () => Buffer.from('"a string"'),
+        // truncated, and truncated in the middle rather than always at the end
+        () => {
+            const whole = JSON.stringify({ current_weather: { temperature: 12 } });
+            return Buffer.from(whole.slice(0, 1 + Math.floor(rand() * (whole.length - 1))));
+        },
+        // random bytes, which may or may not be valid UTF-8
+        () => {
+            const length = Math.floor(rand() * 48);
+            const bytes = Buffer.alloc(length);
+            for (let i = 0; i < length; i++) {
+                bytes[i] = Math.floor(rand() * 256);
+            }
+            return bytes;
+        },
+        () => Buffer.alloc(0),
+        // past the cap: parsing this on the compositor thread is the thing the
+        // cap exists to prevent
+        () => Buffer.from('{"x":"' + "y".repeat(utils.MAX_RESPONSE_BYTES) + '"}')
+    ];
+
+    let parsedObjects = 0;
+    let refused = 0;
+
+    for (let round = 0; round < 240; round++) {
+        const body = bodies[Math.floor(rand() * bodies.length)]();
+        const status = rand() < 0.25 ? [301, 404, 500, 503][Math.floor(rand() * 4)] : 200;
+        const message = { get_status: () => status };
+        global.imports.gi.Soup.Message.new = () => message;
+
+        let calls = 0;
+        let seen = "unset";
+
+        assert.doesNotThrow(() => {
+            utils.httpGetJson({
+                send_and_read_async(_message, _priority, _cancellable, callback) {
+                    callback(this, {});
+                },
+                send_and_read_finish() {
+                    return { get_data: () => body };
+                }
+            }, "https://example.test/fuzz?place=Lisbon", (data, msg) => {
+                calls++;
+                seen = { data, msg };
+            });
+        }, `body of ${body.length} bytes, status ${status}`);
+
+        assert.equal(calls, 1, "the callback fires exactly once, whatever happened");
+
+        // the contract: an object, or null. Never a scalar, never a partial
+        // parse, never a throw.
+        assert.ok(seen.data === null || (typeof seen.data === "object" && seen.data !== null),
+            `data must be an object or null, got ${typeof seen.data}`);
+
+        if (seen.data === null) {
+            refused++;
+        } else {
+            parsedObjects++;
+        }
+
+        if (status !== 200) {
+            assert.equal(seen.data, null, "a failed request has no data");
+        }
+        if (body.length > utils.MAX_RESPONSE_BYTES) {
+            assert.equal(seen.data, null, "an oversized body is never parsed");
+        }
+    }
+
+    // a fuzz that only ever explored one branch would satisfy every assertion
+    // above and prove nothing
+    assert.ok(parsedObjects > 0, "some rounds must have parsed a real payload");
+    assert.ok(refused > 0, "and some must have been refused");
+});
+
+test("createHttpSession owns Soup session timeout setup", () => {
+    const utils = loadIoUtils();
+    const session = utils.createHttpSession({ timeout: 30, idleTimeout: 15 });
+
+    assert.equal(session.timeout, 30);
+    assert.equal(session.idle_timeout, 15);
+
+    const defaults = utils.createHttpSession();
+    assert.equal(defaults.timeout, 0);
+    assert.equal(defaults.idle_timeout, 0);
+
+    const timeoutOnly = utils.createHttpSession({ timeout: 5 });
+    assert.equal(timeoutOnly.timeout, 5);
+    assert.equal(timeoutOnly.idle_timeout, 0);
+});
+
+afterEach(() => {
+    global.imports = originalImports;
+    global.log = originalLog;
+    global.logError = originalLogError;
+});
+
+test("lazy locale values parse quoted strings and numeric locale values", () => {
+    const utils = loadLocaleUtils([
+        'abday="Sun;Mon;Tue"',
+        "first_workday=2",
+        "malformed",
+        'country_ab3="USA"'
+    ].join("\n"));
+
+    assert.deepEqual(localeInfo(utils, "LC_TIME"), {
+        abday: "Sun;Mon;Tue",
+        first_workday: 2,
+        country_ab3: "USA"
+    });
+});
+
+test("lazy locale values decode locale output through ByteArray when TextDecoder is absent", () => {
+    const originalTextDecoder = global.TextDecoder;
+    global.TextDecoder = undefined;
+    const Utils = loadLocaleUtils('country_ab3="ita"\nfirst_workday=1\n');
+    const info = localeInfo(Utils, "LC_TIME");
+    global.TextDecoder = originalTextDecoder;
+
+    assert.equal(info.country_ab3, "ita");
+    assert.equal(info.first_workday, 1);
+});
+
+test("lazy locale values cache locale values by category", () => {
+    let calls = 0;
+    const utils = loadLocaleUtils({
+        spawn(command) {
+            calls++;
+            if (command.endsWith("LC_ADDRESS")) {
+                return [true, Buffer.from('country_ab3="ITA"\n'), Buffer.alloc(0), 0];
+            }
+
+            return [true, Buffer.from('first_workday=3\n'), Buffer.alloc(0), 0];
+        }
+    });
+
+    assert.equal(localeInfo(utils, "LC_ADDRESS").country_ab3, "ITA");
+    assert.equal(localeInfo(utils, "LC_ADDRESS").country_ab3, "ITA");
+    assert.equal(calls, 1);
+
+    assert.equal(localeInfo(utils, "LC_TIME").first_workday, 3);
+    assert.equal(calls, 2);
+});
+
+test("lazy locale values return defaults for missing keys and spawn failures", () => {
+    const partial = loadLocaleUtils('country_ab3="FRA"\n');
+
+    assert.deepEqual(localeInfo(partial, "LC_ADDRESS"), {
+        country_ab3: "FRA",
+        lang_ab: "en"
+    });
+
+    const failed = loadLocaleUtils({
+        spawn() {
+            return [false, Buffer.alloc(0), Buffer.from("locale missing"), 1];
+        }
+    });
+
+    assert.deepEqual(localeInfo(failed, "LC_ADDRESS"), {
+        country_ab3: "usa",
+        lang_ab: "en"
+    });
+    assert.deepEqual(localeInfo(failed, "LC_TIME"), {
+        abday: "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
+        first_workday: 2
+    });
+});
+
+test("exports localized date format constants", () => {
+    const utils = loadLocaleUtils();
+
+    assert.equal(utils.DAY_FORMAT, "localized:%A");
+    assert.equal(utils.DATE_FORMAT_SHORT, "localized:%B %-e, %Y");
+    assert.equal(utils.DATE_FORMAT_FULL, "localized:%A, %B %-e, %Y");
+});
+
+test("translatePlural falls back without gettext plural support", () => {
+    const utils = loadLocaleUtils();
+
+    assert.equal(utils.translatePlural("one", "many", 1), "one");
+    assert.equal(utils.translatePlural("one", "many", 2), "many");
+});
+
+test("lazy locale values fuzz mixed locale key/value payloads", () => {
+    for (let round = 0; round < 20; round++) {
+        const payload = randomLocalePayload(0x10ca1e + round * 997, 24);
+        const utils = loadLocaleUtils(payload.lines.join("\n"));
+        const info = localeInfo(utils, "LC_ADDRESS");
+
+        for (const [key, value] of Object.entries(payload.expected)) {
+            assert.equal(info[key], value, `round ${round}: ${key}`);
+        }
+
+        assert.equal(info.trailing_key, undefined);
+        assert.equal(info["key-with-dash"], undefined);
+    }
+});
+
+// The network body is capped because it is parsed on the compositor thread. The
+// cache file is parsed on the same thread, by the same JSON.parse, and it is
+// writable by anything running as the user — and it had no bound at all.
+//
+// This used to hand readJsonFileAsync a double with no load_contents_async, so
+// it took the sync fallback and the cap on the async path — the only path that
+// runs in the applet — was asserted by nothing. Dropping the bound from it kept
+// the suite green.
+test("an oversized cache file is refused, not parsed", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    const oversized = JSON.stringify({ padding: "x".repeat(utils.MAX_CACHE_FILE_BYTES) });
+    const file = {
+        query_exists: () => true,
+        load_contents_async(_cancellable, callback) {
+            callback(this, {});
+        },
+        load_contents_finish() {
+            return [true, Buffer.from(oversized, "utf8"), "etag-1"];
+        }
+    };
+
+    let received = "unset";
+    utils.readJsonFileAsync(file, (data) => {
+        received = data;
+    });
+
+    assert.deepEqual(received, {}, "a cache file past the cap must not be parsed");
+    assert.ok(logged.some((line) => /past the .* cap/.test(line)),
+        "and it says so, rather than silently reading as empty");
+});
+
+// _urlForLog is the applet's only privacy control on the logging path: the
+// user's city and country ride in the query string of every geocode and holiday
+// request. Four examples are not a property.
+test("fuzz: the log sanitizer never lets a query or fragment through", () => {
+    const utils = loadIoUtils();
+    const rand = makeRandom(0x109);
+    const pick = (pool) => pool[Math.floor(rand() * pool.length)];
+
+    const schemes = ["https", "http", "HTTPS", "ftp", "weird+scheme-1.0"];
+    const hosts = ["api.open-meteo.com", "user:pw@nominatim.openstreetmap.org", "127.0.0.1:8080", "[::1]"];
+    const paths = ["", "/", "/v1/search", "/a/b/c.json", "/path with spaces"];
+    // the secret is whatever the user typed: a city, a country, a clock's name
+    const secrets = ["São Paulo", "Mom's place", "usa", "Kraków", "12 Elm Street"];
+
+    for (let round = 0; round < 500; round++) {
+        const secret = pick(secrets);
+        const encoded = rand() < 0.5 ? encodeURIComponent(secret) : secret;
+        const query = rand() < 0.8 ? `?name=${encoded}&count=1` : "";
+        const fragment = rand() < 0.3 ? `#${encoded}` : "";
+        const url = `${pick(schemes)}://${pick(hosts)}${pick(paths)}${query}${fragment}`;
+
+        const logged = utils._urlForLog(url);
+
+        assert.equal(typeof logged, "string");
+        assert.doesNotMatch(logged, /[?#]/, "no query and no fragment survive");
+        if (query || fragment) {
+            assert.equal(logged.includes(encoded), false,
+                `the location must not reach the log: ${url}`);
+        }
+        assert.ok(url.startsWith(logged), "what is kept is a prefix of the real URL");
+    }
+
+    // and anything that is not a URL at all is still answered with a string
+    for (const junk of [null, undefined, 42, {}, [], "", "not a url", "//protocol-relative/x?y=1"]) {
+        const logged = utils._urlForLog(junk);
+        assert.equal(typeof logged, "string");
+        assert.doesNotMatch(logged, /[?#]/);
+    }
+});
+
+test("readJsonFileAsync reads off the main loop and never throws at the caller", () => {
+    const utils = loadIoUtils();
+    const asyncFile = (contents, options = {}) => ({
+        query_exists: () => options.exists !== false,
+        load_contents_async(_cancellable, callback) {
+            if (options.throwOnCall) {
+                throw new Error("no reader");
+            }
+            callback(this, { contents });
+        },
+        load_contents_finish(result) {
+            if (options.throwOnFinish) {
+                throw new Error("read failed");
+            }
+            return [true, Buffer.from(result.contents, "utf8")];
+        }
+    });
+    const read = (file) => {
+        let got = "unset";
+        utils.readJsonFileAsync(file, (data) => {
+            got = data;
+        });
+        return got;
+    };
+
+    assert.deepEqual(read(asyncFile('{"usa":{"holidays":[]}}')), { usa: { holidays: [] } });
+    assert.deepEqual(read(asyncFile("{ not json")), {}, "a corrupt file reads as empty");
+    assert.deepEqual(read(asyncFile("null")), {}, "a file that parses to a scalar reads as empty");
+    assert.deepEqual(read(asyncFile("{}", { exists: false })), {}, "a missing file is not read at all");
+    assert.deepEqual(read(asyncFile("{}", { throwOnFinish: true })), {});
+    assert.deepEqual(read(asyncFile("{}", { throwOnCall: true })), {});
+});
+
+// Without REPLACE_DESTINATION a symlink planted at the cache path is followed
+// and its target overwritten. The flag was documented at length and asserted by
+// nothing: changing it to NONE kept the whole suite green.
+test("the cache write replaces a planted symlink instead of following it", () => {
+    const utils = loadIoUtils();
+    const Gio = global.imports.gi.Gio;
+    let flags = null;
+
+    utils.writeJsonFileAsync({
+        replace_contents_async(bytes, etag, backup, givenFlags, cancellable, callback) {
+            flags = givenFlags;
+            callback({ replace_contents_finish() {} }, {});
+        }
+    }, { a: 1 });
+
+    assert.equal(flags, Gio.FileCreateFlags.REPLACE_DESTINATION);
+    assert.notEqual(Gio.FileCreateFlags.REPLACE_DESTINATION, Gio.FileCreateFlags.NONE);
+});
+
+test("the translations are looked for where the applet is installed", () => {
+    const bind = (appletPath) => {
+        loadUtils();
+        const domains = [];
+        global.imports.gettext = {
+            bindtextdomain: (domain, localeDir) => domains.push(localeDir),
+            dgettext: (_domain, str) => str
+        };
+        global.imports.gi.GLib.get_home_dir = () => "/home/test";
+        global.imports.ui = {
+            appletManager: {
+                appletMeta: { "chronos@geraldo-netto": { path: appletPath } }
+            }
+        };
+        delete require.cache[require.resolve(modulePath)];
+        delete require.cache[require.resolve(localeModulePath)];
+        require(localeModulePath);
+        return domains[0];
+    };
+
+    assert.equal(bind("/home/test/.local/share/cinnamon/applets/chronos@geraldo-netto"),
+        "/home/test/.local/share/locale");
+    assert.equal(bind("/usr/share/cinnamon/applets/chronos@geraldo-netto"),
+        "/usr/share/locale");
+});
+
+test("date formats prefer the applet's own gettext domain", () => {
+    loadUtils();
+    const domains = [];
+    global.imports.gettext = {
+        bindtextdomain(domain, localeDir) {
+            domains.push({ domain, localeDir });
+        },
+        dgettext(domain, str) {
+            if (domain === "chronos@geraldo-netto" && str === "%B %-e, %Y") {
+                return "%-e. %B %Y"; // translated in the UUID domain
+            }
+            return domain === "cinnamon" ? `cinnamon:${str}` : str;
+        }
+    };
+    global.imports.gi.GLib.get_home_dir = () => "/home/test";
+    delete require.cache[require.resolve(modulePath)];
+    delete require.cache[require.resolve(localeModulePath)];
+
+    const utils = require(modulePath);
+    const localeUtils = require(localeModulePath);
+
+    assert.deepEqual(domains, [{
+        domain: "chronos@geraldo-netto",
+        localeDir: "/home/test/.local/share/locale"
+    }]);
+    // translated in the UUID domain
+    assert.equal(utils.DATE_FORMAT_SHORT, "localized:%-e. %B %Y");
+    assert.equal(localeUtils.DATE_FORMAT_SHORT, "localized:%-e. %B %Y");
+    // Untranslated in our domain stays English — it never asks Cinnamon's.
+    // That lookup matches on the English word rather than the meaning: "Fair"
+    // is untranslated in all 15 of our catalogs, and Cinnamon's translates it
+    // as a quality rating (de "Ausreichend", fr "Moyen", es "Normal"), so a
+    // German user with weather on was told the sky was adequate.
+    assert.equal(utils.DATE_FORMAT_FULL, "localized:%A, %B %-e, %Y");
+    assert.equal(localeUtils.translate("Fair"), "Fair");
+    assert.equal(utils.translate("Fair"), "Fair");
+    assert.equal(localeUtils.translatePlural("%d event", "%d events", 2), "%d events");
+});
+
+test("month window offset reaches week start for every day and locale", () => {
+    const utils = loadLocaleUtils();
+
+    // exhaustive: ISO day of month's first day (1=Mon..7=Sun) x locale
+    // week start (0=Sun..6=Sat)
+    for (let isoWeekDay = 1; isoWeekDay <= 7; isoWeekDay++) {
+        for (let weekStart = 0; weekStart <= 6; weekStart++) {
+            const offset = utils.monthWindowStartOffset(isoWeekDay, weekStart);
+
+            assert.ok(offset >= 0 && offset <= 6,
+                `offset ${offset} out of range for iso ${isoWeekDay}, start ${weekStart}`);
+
+            // stepping back `offset` days must land exactly on the week start
+            const gridStartDay = ((isoWeekDay % 7) - offset + 7) % 7;
+            assert.equal(gridStartDay, weekStart,
+                `iso ${isoWeekDay} - ${offset} days lands on ${gridStartDay}, not ${weekStart}`);
+        }
+    }
+
+    // the reported regression: month starting on Sunday, Sunday-week-start
+    // locale — the old code backed up 7 days and missed the grid's last week
+    assert.equal(utils.monthWindowStartOffset(7, 0), 0);
+    // and the common cases stay put
+    assert.equal(utils.monthWindowStartOffset(1, 1), 0);
+    assert.equal(utils.monthWindowStartOffset(7, 1), 6);
+});
+
+test("version shims forward the shared utility module", () => {
+    const shared = {
+        MSECS_IN_DAY: 86400000,
+        UI_ERROR_MARKER: "!",
+        DAY_FORMAT: "day",
+        DATE_FORMAT_SHORT: "short",
+        DATE_FORMAT_FULL: "full",
+        translate() {},
+        translatePlural() {},
+        createHttpSession() {},
+        HTTP_TIMEOUT_SECONDS: 30,
+        httpGetJson() {},
+        monthWindowStartOffset() {},
+        readJsonFile() {},
+        readJsonFileAsync() {},
+        writeJsonFile() {}
+    };
+    assert.equal(runForwardingShim(shimPath, "utils", shared), shared);
+});
+
+// A shim only earns its place if a 5.4 module requires it: the root modules
+// reach their siblings through the applet importer, never through 5.4/.
+test("every version shim is required by a 5.4 module", () => {
+    const files = fs.readdirSync(versionDir).filter((name) => name.endsWith(".js"));
+    const sources = files.map((name) => fs.readFileSync(path.join(versionDir, name), "utf8"));
+
+    for (const name of files) {
+        const source = fs.readFileSync(path.join(versionDir, name), "utf8");
+        const isShim = /applets\["chronos@geraldo-netto"\]\.\w+;/.test(source) && source.split("\n").length < 10;
+        if (!isShim) {
+            continue;
+        }
+
+        const moduleName = name.replace(/\.js$/, "");
+        const required = sources.some((other) => other.includes(`require("./${moduleName}")`));
+        assert.equal(required, true, `5.4/${name} is a shim with no 5.4 consumer`);
+    }
+});
+
+test("safeCssColor allows plain color syntax and blocks style injection", () => {
+    const StyleUtils = loadStyleUtils();
+    assert.equal(StyleUtils.safeCssColor("#abc"), "#abc");
+    assert.equal(StyleUtils.safeCssColor("#AABBCCDD"), "#AABBCCDD");
+    assert.equal(StyleUtils.safeCssColor("rgb(1, 2, 3)"), "rgb(1, 2, 3)");
+    assert.equal(StyleUtils.safeCssColor("rgba(1,2,3,.5)"), "rgba(1,2,3,.5)");
+    assert.equal(StyleUtils.safeCssColor(" red "), "red");
+    assert.equal(StyleUtils.safeCssColor("red; background-image: url(http://x)"), "transparent");
+    assert.equal(StyleUtils.safeCssColor("url(javascript:x)"), "transparent");
+    assert.equal(StyleUtils.safeCssColor(null), "transparent");
+    assert.equal(StyleUtils.safeCssColor("#abc", "#000"), "#abc");
+    assert.equal(StyleUtils.safeCssColor("}; *{color:red}", "#000"), "#000");
+});
+
+test("fuzz: safeCssColor output never carries declaration separators", () => {
+    const StyleUtils = loadStyleUtils();
+    const rand = makeRandom(20260709);
+    const alphabet = "#;:(){}abcdef0123456789 rgbaurl-%.,";
+    for (let i = 0; i < 500; i++) {
+        let candidate = "";
+        const len = Math.floor(rand() * 24);
+        for (let j = 0; j < len; j++) {
+            candidate += alphabet[Math.floor(rand() * alphabet.length)];
+        }
+        const result = StyleUtils.safeCssColor(candidate);
+        assert.ok(!result.includes(";") && !result.includes("}"),
+            `unsafe output for input "${candidate}": "${result}"`);
+    }
+});
+
+// Exponential backoff with a ceiling and jitter was written four times — panel
+// weather, city weather, EDS reconnect, month fetch — and two of the four had
+// no jitter at all. This is the one copy.
+test("backoffDelay doubles, caps, and spreads", () => {
+    const ProviderUtils = require(providerModulePath);
+    const delay = (attempt, random) =>
+        ProviderUtils.backoffDelay(attempt, { base: 5, cap: 40, random: () => random });
+
+    // it doubles from the base
+    assert.equal(delay(0, 0), 5);
+    assert.equal(delay(1, 0), 10);
+    assert.equal(delay(2, 0), 20);
+    // and stops at the ceiling
+    assert.equal(delay(3, 0), 40);
+    assert.equal(delay(30, 0), 40);
+
+    // the jitter is drawn from [0, base) and lands on top of the backoff, so a
+    // saturated backoff still spreads: capping the total would put every
+    // instance on the network back at exactly the ceiling, together
+    assert.equal(delay(1, 0.5), 12);
+    assert.equal(delay(30, 0.99), 44);
+    assert.notEqual(delay(30, 0), delay(30, 0.99));
+
+    // a negative attempt count is still the base, not a fraction of a second
+    assert.equal(delay(-3, 0), 5);
+});
+
+// a nameless provider is logged by its URL, and a geocode URL carries the place
+// the user typed — which is what _urlForLog exists to strip
+test("a provider with no name is logged by a stripped URL, or not at all", () => {
+    const providerUtils = loadProviderUtils();
+    const logged = [];
+    global.log = (message) => logged.push(String(message));
+
+    // fails, so the chain logs the failover and moves on
+    providerUtils.tryProvidersInOrder(
+        [
+            { url: "https://geocoding-api.open-meteo.com/v1/search?name=Lisbon" },
+            {},
+            { name: "Nominatim" }
+        ],
+        (provider, onResult) => onResult(null),
+        (result) => Boolean(result),
+        () => {},
+        () => {}
+    );
+
+    assert.ok(logged.some((line) => line.includes("geocoding-api.open-meteo.com")),
+        "a nameless provider is named by its URL");
+    assert.ok(logged.every((line) => !line.includes("Lisbon")),
+        "and the place the user typed is stripped out of it");
+    assert.ok(logged.some((line) => line.includes("unknown provider")),
+        "a provider with neither a name nor a URL is still logged");
+
+    // ...and a provider slot that holds nothing at all
+    assert.equal(providerUtils.providerName(null), "unknown provider");
+    assert.equal(providerUtils.providerName({ name: "Enrico" }), "Enrico");
+});
+
+test("joinPhrases drops the parts that are not there", () => {
+    const localeUtils = loadLocaleUtils();
+
+    assert.equal(localeUtils.joinPhrases(), "");
+    assert.equal(localeUtils.joinPhrases("", null, undefined), "",
+        "an accessible name with nothing in it is not a separator on its own");
+    assert.equal(localeUtils.joinPhrases("Tokyo"), "Tokyo");
+    assert.equal(localeUtils.joinPhrases("Tokyo", "", "07:51"), "Tokyo — 07:51");
+    // 0 is a value, not an absence
+    assert.equal(localeUtils.joinPhrases(0, "events"), "0 — events");
+});
+
+test("orderProvidersByLastSuccess prefers the last successful provider", () => {
+    const ProviderUtils = loadProviderUtils();
+    const providers = [{ name: "a" }, { name: "b" }, { name: "c" }];
+    assert.equal(ProviderUtils.orderProvidersByLastSuccess(providers, ""), providers);
+    assert.deepEqual(ProviderUtils.orderProvidersByLastSuccess(providers, "b").map((p) => p.name),
+        ["b", "a", "c"]);
+    assert.deepEqual(providers.map((p) => p.name), ["a", "b", "c"], "input not mutated");
+    assert.deepEqual(ProviderUtils.orderProvidersByLastSuccess(providers, "zzz").map((p) => p.name),
+        ["a", "b", "c"]);
+});
+
+test("a failing provider is never logged with the location in its URL", () => {
+    const ProviderUtils = loadProviderUtils();
+    const logs = [];
+    global.log = (message) => logs.push(message);
+
+    // the geocode providers are the ones whose URL carries the user's typed
+    // location; if one is ever left nameless, the log must still not carry it
+    ProviderUtils.tryProvidersInOrder(
+        [
+            { url: "https://geocoding-api.open-meteo.com/v1/search?name=Sao%20Paulo&count=1" },
+            { name: "Nominatim" }
+        ],
+        (provider, onResult) => onResult(provider.name ? "found" : null),
+        (result) => Boolean(result),
+        () => {},
+        () => { throw new Error("should not exhaust"); }
+    );
+
+    assert.equal(logs.length, 1);
+    assert.doesNotMatch(logs[0], /Sao|%20|\?|name=/,
+        "the query string is what carries the place, and it never reaches the log");
+    assert.match(logs[0], /geocoding-api\.open-meteo\.com/,
+        "the host still names the provider that failed");
+});
+
+test("tryProvidersInOrder falls back and retains the first failure", () => {
+    const ProviderUtils = loadProviderUtils();
+    const results = { a: null, b: "good" };
+    const attempts = [];
+    const logs = [];
+    global.log = (message) => logs.push(message);
+    let success = null;
+    ProviderUtils.tryProvidersInOrder(
+        [{ name: "a" }, { name: "b" }],
+        (provider, onResult) => {
+            attempts.push(provider.name);
+            onResult(results[provider.name]);
+        },
+        (result) => Boolean(result),
+        (provider, result) => { success = { provider: provider.name, result }; },
+        () => { throw new Error("should not exhaust"); }
+    );
+    assert.deepEqual(attempts, ["a", "b"]);
+    assert.deepEqual(success, { provider: "b", result: "good" });
+    assert.deepEqual(logs, ["provider a failed; trying next provider"]);
+
+    let exhausted = null;
+    ProviderUtils.tryProvidersInOrder(
+        [{ name: "a" }, { name: "b" }],
+        (provider, onResult) => onResult({ error: provider.name }),
+        () => false,
+        () => { throw new Error("should not succeed"); },
+        (failure) => { exhausted = failure; }
+    );
+    assert.deepEqual(exhausted, { error: "a" }, "first failure reported, not last");
+});
+
+test("fuzz: tryProvidersInOrder always terminates with success or exhaustion", () => {
+    const ProviderUtils = loadProviderUtils();
+    const rand = makeRandom(77);
+    for (let i = 0; i < 300; i++) {
+        const count = 1 + Math.floor(rand() * 5);
+        const okIndex = rand() < 0.5 ? Math.floor(rand() * count) : -1;
+        const providers = Array.from({ length: count }, (_, n) => ({ name: `p${n}` }));
+        let outcome = null;
+        ProviderUtils.tryProvidersInOrder(
+            providers,
+            (provider, onResult) => onResult(provider.name === `p${okIndex}` ? "ok" : null),
+            (r) => r === "ok",
+            (provider) => { outcome = "success:" + provider.name; },
+            () => { outcome = "exhausted"; }
+        );
+        assert.equal(outcome, okIndex >= 0 ? `success:p${okIndex}` : "exhausted");
+    }
+});
+
+test("lazyLocaleValue defers getInfo until first use and memoizes", () => {
+    const Utils = loadLocaleUtils();
+    let calls = 0;
+    // exercise through a wrapped pick to observe evaluation timing
+    const lazy = Utils.lazyLocaleValue("LC_TIME", (info) => {
+        calls++;
+        return info.abday;
+    });
+    assert.equal(calls, 0, "nothing evaluated at creation");
+    const first = lazy();
+    assert.equal(calls, 1);
+    const second = lazy();
+    assert.equal(calls, 1, "memoized");
+    assert.equal(first, second);
+});
+
+test("httpGetJson logs sanitized non-200 responses before reporting null", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(message);
+
+    const session = {
+        send_and_read_async(message, priority, cancellable, callback) {
+            callback(session, {});
+        },
+        send_and_read_finish() {
+            return { get_data: () => Buffer.from("ignored") };
+        }
+    };
+    global.imports.gi.Soup.Message = {
+        new: (method, url) => ({ method, url, get_status: () => 503 })
+    };
+
+    let reported = "unset";
+    utils.httpGetJson(session, "https://x.test/y?name=Private%20Place#top", (data) => { reported = data; });
+    assert.equal(reported, null);
+    const message = String(logged[0]);
+    assert.match(message, /503/);
+    assert.match(message, /https:\/\/x\.test\/y/);
+    assert.doesNotMatch(message, /Private/);
+    assert.doesNotMatch(message, /name=/);
+});
+
+test("_urlForLog strips query strings and fragments", () => {
+    const utils = loadIoUtils();
+    assert.equal(utils._urlForLog("https://x.test/y?name=Private%20Place#top"), "https://x.test/y");
+    assert.equal(utils._urlForLog("/relative/path?token=secret"), "/relative/path");
+    assert.equal(utils._urlForLog(null), "");
+});
+
+test("httpGetJson reports Soup 3 read failures through the callback", () => {
+    const utils = loadIoUtils();
+    const error = new Error("read failed");
+    const logged = [];
+    global.logError = (message) => logged.push(message);
+
+    const session = {
+        send_and_read_async(message, priority, cancellable, callback) {
+            callback(session, {});
+        },
+        send_and_read_finish() {
+            throw error;
+        }
+    };
+    global.imports.gi.Soup.Message = {
+        new: (method, url) => ({ method, url, get_status: () => 200 })
+    };
+
+    let reported = "unset";
+    utils.httpGetJson(session, "https://x.test/y", (data) => { reported = data; });
+    assert.equal(reported, null);
+    assert.deepEqual(logged, [error]);
+});
+
+// utils.js is the seam between the two module systems the applet lives in: GJS
+// has `imports` and no require(), Node has require() and no `imports`. Only one
+// arm of every ternary can run per host, so the module is compiled once and run
+// against both hosts; a re-export that works under Node but resolves to
+// undefined under the GJS importer is exactly how the applet breaks on a real
+// desktop while the suite stays green.
+function runInBothHosts(file) {
+    const script = new vm.Script(fs.readFileSync(file, "utf8"), { filename: file });
+
+    const gjsContext = { imports: gjsImportsMock() };
+    script.runInNewContext(gjsContext);
+
+    const nodeContext = {
+        require: (request) => require(path.join(path.dirname(file), request)),
+        module: { exports: {} }
+    };
+    // Node's module scope has no `imports` binding at all
+    nodeContext.globalThis = nodeContext;
+    script.runInNewContext(nodeContext);
+
+    return { gjs: gjsContext, node: nodeContext.module.exports };
+}
+
+// the doubles the GJS importer would hand back for the sibling modules
+function gjsImportsMock() {
+    const stub = {
+        MSECS_IN_DAY: 86400000,
+        DAY_FORMAT: "%A",
+        DATE_FORMAT_SHORT: "%B %-e, %Y",
+        DATE_FORMAT_FULL: "%A, %B %-e, %Y",
+        translate: (str) => str,
+        translatePlural: (s, p, n) => (n === 1 ? s : p),
+        monthWindowStartOffset() {},
+        lazyLocaleValue() {},
+        onLocaleInfoChanged() {},
+        cancelPendingLocaleQueries() {},
+        registerLocaleConsumer() {},
+        readJsonFileAsync() {},
+        writeJsonFileAsync() {},
+        createHttpSession() {},
+        HTTP_TIMEOUT_SECONDS: 30,
+        httpGetJson() {},
+        _urlForLog() {},
+        safeCssColor() {},
+        joinPhrases(...parts) { return parts.join(" — "); },
+        backoffDelay() {},
+        orderProvidersByLastSuccess() {},
+        tryProvidersInOrder() {}
+    };
+
+    return {
+        gi: { GLib: {}, Gio: {}, Cinnamon: {}, Soup: {} },
+        ui: {
+            appletManager: {
+                applets: {
+                    "chronos@geraldo-netto": {
+                        localeUtils: stub,
+                        ioUtils: stub,
+                        styleUtils: stub,
+                        providerUtils: stub
+                    }
+                }
+            }
+        }
+    };
+}
+
+test("utils.js re-exports the same API under the GJS importer and under Node", () => {
+    loadUtils();
+    const hosts = runInBothHosts(modulePath);
+
+    // every symbol Node exports must also be a top-level var under GJS: the
+    // GJS importer only sees var/function declarations
+    for (const symbol of Object.keys(hosts.node)) {
+        assert.notEqual(hosts.gjs[symbol], undefined,
+            `utils.${symbol} is missing when loaded through imports.ui.appletManager`);
+    }
+
+    assert.equal(hosts.gjs.UI_ERROR_MARKER, "⚠");
+    assert.equal(hosts.gjs.MSECS_IN_DAY, 86400000);
+});
+
+test("httpGetJson tolerates a Soup message that exposes no request headers", () => {
+    const utils = loadIoUtils();
+    let parsed = "unset";
+
+    const session = {
+        send_and_read_async(message, priority, cancellable, callback) {
+            callback(session, {});
+        },
+        send_and_read_finish() {
+            return { get_data: () => Buffer.from('{"ok":true}') };
+        }
+    };
+    // Soup 3 exposes request_headers as a property and through a getter; a
+    // binding that offers neither must not cost the caller its response
+    global.imports.gi.Soup.Message = {
+        new: (method, url) => ({ method, url, get_status: () => 200 })
+    };
+
+    utils.httpGetJson(session, "https://x.test/y", (data) => { parsed = data; },
+        { headers: { "User-Agent": "calendar" } });
+    assert.deepEqual(parsed, { ok: true });
+});
+
+test("_urlForLog keeps a bare origin with no path", () => {
+    const utils = loadIoUtils();
+    // the geocoder is reached at the origin itself; there is no path to keep
+    assert.equal(utils._urlForLog("https://api.test"), "https://api.test");
+    assert.equal(utils._urlForLog("https://api.test?q=Private"), "https://api.test");
+});
+
+test("writeJsonFileAsync logs async failures on both the call and the completion", () => {
+    const utils = loadIoUtils();
+    const errors = [];
+    global.logError = (error) => errors.push(error);
+
+    const finishError = new Error("disk full");
+    utils.writeJsonFileAsync({
+        replace_contents_async(bytes, etag, backup, flags, cancellable, callback) {
+            callback({
+                replace_contents_finish() { throw finishError; }
+            }, {});
+        }
+    }, { a: 1 });
+
+    assert.deepEqual(errors, [finishError], "a failed write completion is reported, not swallowed");
+
+    const callError = new Error("no such directory");
+    assert.doesNotThrow(() => utils.writeJsonFileAsync({
+        replace_contents_async() { throw callError; }
+    }, { a: 1 }));
+    assert.deepEqual(errors, [finishError, callError]);
+});
+
+// The parts joined here are an event summary from an ICS feed, a holiday name
+// from a third-party service, and a provider's own error string. They were passed
+// as the replacement argument of String.replace, where $&, $`, $' and $1 are
+// expanded as replacement patterns — and the two substitutions were chained, so
+// the second scanned the string the first had built.
+test("fuzz: a hostile phrase cannot corrupt the phrase it is joined to", () => {
+    const utils = loadUtils();
+    const rand = makeRandom(0x5eed);
+
+    // every replacement pattern String.replace understands, plus the format
+    // specifier the template itself uses
+    const nasty = ["$&", "$`", "$'", "$1", "$$", "%s", "%d", "$<name>"];
+    const words = ["Team sync", "50%sale", "Lunch", "Réunion", "会議", ""];
+    const pick = (pool) => pool[Math.floor(rand() * pool.length)];
+
+    for (let round = 0; round < 500; round++) {
+        const left = pick(words) + pick(nasty) + pick(words);
+        const right = pick(words) + pick(nasty) + pick(words);
+
+        const joined = utils.joinPhrases(left, right);
+
+        // whatever the parts contain, they arrive whole and in order
+        if (left && right) {
+            assert.ok(joined.includes(left), `left part mangled: ${JSON.stringify(joined)}`);
+            assert.ok(joined.includes(right), `right part mangled: ${JSON.stringify(joined)}`);
+            assert.equal(joined, left + " — " + right);
+        }
+        // the template's own placeholder is never left behind unfilled
+        assert.equal(joined.includes("%s — %s"), false);
+    }
+});
+
+test("a %s inside a phrase is text, not a placeholder", () => {
+    const utils = loadUtils();
+
+    // the bug, exactly: the second substitution scanned what the first had built,
+    // so this announced "10:00 — 50In progressale — %s"
+    assert.equal(utils.joinPhrases("10:00", "50%sale", "In progress"),
+        "10:00 — 50%sale — In progress");
+
+    // and the replacement patterns arrive as themselves
+    assert.equal(utils.joinPhrases("a$&b", "c$`d"), "a$&b — c$`d");
+});
+
+// Every listener used to be told whenever *any* env answered. The calendar's
+// listener responds by rebuilding its header — destroy_all_children(), which
+// drops all 42 day cells and every per-cell holiday tooltip, and makes the next
+// update reconstruct 42 Cinnamon.Stacks, 42 St.Buttons, 42 GenericContainers and
+// 84 signal connections. LC_ADDRESS is asked for only to pick the holiday
+// provider's language, and nothing in the header depends on it — yet its arrival
+// tore the whole grid down.
+test("a locale listener hears about its own env and no other", () => {
+    const localeUtils = loadLocaleUtils("abday=\"Sun;Mon;Tue;Wed;Thu;Fri;Sat\"");
+    const heard = { LC_TIME: 0, LC_ADDRESS: 0 };
+
+    localeUtils.onLocaleInfoChanged("LC_TIME", () => heard.LC_TIME++);
+    localeUtils.onLocaleInfoChanged("LC_ADDRESS", () => heard.LC_ADDRESS++);
+
+    // the holiday provider's language: LC_ADDRESS answers
+    localeUtils.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab)();
+
+    assert.equal(heard.LC_ADDRESS, 1, "the listener that asked about it is told");
+    assert.equal(heard.LC_TIME, 0,
+        "and the grid is not rebuilt for an env nothing in it depends on");
+
+    // ...and the one the header does depend on still lands
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    assert.equal(heard.LC_TIME, 1);
+});
+
+// The locale query's 5-second deadline and its 60-second retry are module-level
+// GLib timers with no owner: nothing anywhere removed them. Remove the applet a
+// second after login, while `locale` is wedged on a hung NSS lookup, and the
+// retry still spawns a subprocess up to two minutes after the applet is gone.
+test("the locale query's timers can be reaped when the applet goes away", () => {
+    const removed = [];
+    const armed = [];
+    const localeUtils = loadLocaleUtils({
+        spawn: () => [false, new Uint8Array(0), new Uint8Array(0), 1]
+    });
+    global.imports.gi.GLib.timeout_add_seconds = (priority, seconds, callback) => {
+        armed.push({ seconds, callback });
+        return armed.length;
+    };
+    global.imports.gi.GLib.source_remove = (id) => removed.push(id);
+
+    // asking for the locale arms the deadline; the query fails and arms the retry
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    assert.ok(armed.length > 0, "the deadline is armed");
+
+    localeUtils.cancelPendingLocaleQueries();
+
+    assert.deepEqual(removed, armed.map((_unused, index) => index + 1),
+        "every timer the locale query armed is removed");
+
+    // ...and a second teardown is not an error
+    assert.doesNotThrow(() => localeUtils.cancelPendingLocaleQueries());
+});
+
+// A timer that has already fired is not there to remove, and Cinnamon may have
+// disposed the source under us on a reload: the teardown reports it and carries
+// on rather than stranding the timers behind it.
+test("a timer that will not be removed does not strand the ones behind it", () => {
+    const errors = [];
+    global.logError = (error) => errors.push(error);
+
+    const removed = [];
+    const localeUtils = loadLocaleUtils({
+        spawn: () => [false, new Uint8Array(0), new Uint8Array(0), 1]
+    });
+    let armed = 0;
+    global.imports.gi.GLib.timeout_add_seconds = () => ++armed;
+    global.imports.gi.GLib.source_remove = (id) => {
+        if (id === 1) {
+            throw new Error("no such source");
+        }
+        removed.push(id);
+    };
+
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    assert.ok(armed >= 2, "the deadline and the retry are both armed");
+
+    localeUtils.cancelPendingLocaleQueries();
+
+    assert.equal(errors.length, 1, "the one that would not go is reported");
+    assert.deepEqual(removed, [2], "and the rest are still removed");
+});
+
+// The subprocess itself is still running when the applet goes away: the deadline
+// that would have cancelled it is gone too, so the teardown cancels it directly.
+test("the teardown cancels the locale subprocess still in flight", () => {
+    const localeUtils = loadLocaleUtils({ neverAnswers: true });
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+
+    const cancellable = global.imports.gi.Gio.Cancellable.last;
+    assert.ok(cancellable, "a query is in flight");
+    assert.equal(cancellable.cancelled, false);
+
+    localeUtils.cancelPendingLocaleQueries();
+
+    assert.equal(cancellable.cancelled, true,
+        "the subprocess is not left running after the applet is gone");
+});
+
+// The applet is multi-instance, the locale query is process-wide, and the
+// teardown that cancelled it was neither: removing one of two calendar applets
+// cancelled the query the *other* one was still waiting on.
+test("removing one applet does not cancel the locale query another is waiting on", () => {
+    const localeUtils = loadLocaleUtils({ neverAnswers: true });
+
+    // two calendar applets on the panel
+    localeUtils.registerLocaleConsumer();
+    localeUtils.registerLocaleConsumer();
+
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    const cancellable = global.imports.gi.Gio.Cancellable.last;
+    assert.equal(cancellable.cancelled, false, "a query is in flight");
+
+    // the user removes one of them
+    localeUtils.cancelPendingLocaleQueries();
+    assert.equal(cancellable.cancelled, false,
+        "the applet that stayed is still waiting on this answer");
+
+    // ...and when the last one goes, the query goes with it
+    localeUtils.cancelPendingLocaleQueries();
+    assert.equal(cancellable.cancelled, true);
+});
+
+// A cancel we asked for is not a locale that failed. Landing it in _degrade()
+// spent one of three attempts and marked the env degraded, so three add/removes
+// during the first seconds of login — while `locale` is genuinely still in
+// flight — left every instance in the process pinned to the English defaults and
+// the US work week for the rest of the session, with the retry ladder used up.
+test("a locale query we cancelled ourselves does not spend a retry attempt", () => {
+    global.logError = () => {};
+    const localeUtils = loadLocaleUtils({ neverAnswers: true });
+    const Subprocess = global.imports.gi.Gio.Subprocess;
+
+    localeUtils.registerLocaleConsumer();
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+
+    const first = global.imports.gi.Gio.Cancellable.last;
+    localeUtils.cancelPendingLocaleQueries();
+    assert.equal(first.cancelled, true);
+
+    // GJS calls back on the cancelled query; finish() raises, and that used to be
+    // read as "the locale is broken" rather than "we hung up"
+    Subprocess.settle();
+
+    // the next applet asks, and gets a fresh query rather than the defaults
+    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+
+    assert.notEqual(global.imports.gi.Gio.Cancellable.last, first,
+        "the question is asked again, not written off as answered");
+});

@@ -1,0 +1,91 @@
+function makeSoup3({
+    data = '{"ok":true}',
+    status = 200,
+    date = "Mon, 01 Jan 2024 00:00:00 GMT",
+    onMessage = null,
+    onSend = null,
+    onFinish = null,
+    messageMethods = {},
+    sessionMethods = {}
+} = {}) {
+    const messages = [];
+    // how many sessions were built, and whether they were aborted: a session per
+    // applet at startup, or one left running after the applet is gone, are both
+    // things worth being able to assert
+    const sessions = [];
+
+    const soup = {
+        MAJOR_VERSION: 3,
+        MessagePriority: { NORMAL: 0 },
+        Message: {
+            new(method, url) {
+                const requestHeaders = [];
+                const message = {
+                    method,
+                    url,
+                    requestHeaders,
+                    get_request_headers() {
+                        return {
+                            append(name, value) {
+                                requestHeaders.push([name, value]);
+                            }
+                        };
+                    },
+                    get_response_headers() {
+                        return {
+                            get_one(name) {
+                                return name.toLowerCase() === "date" ? date : null;
+                            }
+                        };
+                    },
+                    get_status() {
+                        return status;
+                    },
+                    ...messageMethods
+                };
+                messages.push(message);
+                if (onMessage) {
+                    onMessage(message);
+                }
+                return message;
+            }
+        },
+        Session: class {
+            constructor() {
+                this.timeout = 0;
+                this.idle_timeout = 0;
+                this.aborted = false;
+                sessions.push(this);
+            }
+
+            abort() {
+                this.aborted = true;
+            }
+
+            send_and_read_async(message, priority, cancellable, callback) {
+                if (onSend) {
+                    onSend(message, priority, cancellable);
+                }
+                callback(this, {});
+            }
+
+            send_and_read_finish(result) {
+                if (onFinish) {
+                    return onFinish(result);
+                }
+                return {
+                    get_data() {
+                        return Buffer.from(data);
+                    }
+                };
+            }
+        },
+        messages,
+        sessions
+    };
+
+    Object.assign(soup.Session.prototype, sessionMethods);
+    return soup;
+}
+
+module.exports = { makeSoup3 };

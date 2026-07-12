@@ -1,0 +1,933 @@
+const assert = require("node:assert/strict");
+const { test } = require("node:test");
+const fs = require("node:fs");
+const path = require("node:path");
+const { makeRandom } = require("./helpers/prng");
+
+const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
+
+const DAY_US = 24 * 3600 * 1000 * 1000;
+const DAY_S = 24 * 3600;
+
+class FakeDateTime {
+    constructor(usec) {
+        this.usec = usec;
+    }
+
+    to_unix() {
+        return Math.floor(this.usec / 1000000);
+    }
+
+    difference(other) {
+        return this.usec - other.usec;
+    }
+
+    compare(other) {
+        return this.usec === other.usec ? 0 : (this.usec < other.usec ? -1 : 1);
+    }
+
+    add_seconds(seconds) {
+        return new FakeDateTime(this.usec + seconds * 1000000);
+    }
+
+    add_days(days) {
+        return new FakeDateTime(this.usec + days * DAY_US);
+    }
+
+    add_hours(hours) {
+        return new FakeDateTime(this.usec + hours * 3600 * 1000000);
+    }
+
+    get_hour() {
+        return Math.floor((this.usec % DAY_US) / (3600 * 1000000));
+    }
+
+    get_year() {
+        return 2000;
+    }
+
+    get_month() {
+        return 1;
+    }
+
+    get_day_of_month() {
+        return Math.floor(this.usec / DAY_US);
+    }
+
+    format(fmt) {
+        return `${fmt}|day${Math.floor(this.usec / DAY_US)}`;
+    }
+}
+
+const NOW = new FakeDateTime(50 * DAY_US + 12 * 3600 * 1000000);
+
+class MockActor {
+    constructor(options = {}) {
+        this.options = options;
+        this.children = [];
+        this.handlers = {};
+        this.style_class = options.style_class || "";
+        this.style = options.style || "";
+        this.text = options.text || "";
+        this.visible = options.visible;
+        this.pseudo_classes = new Set();
+    }
+
+    connect(name, cb) {
+        (this.handlers[name] = this.handlers[name] || []).push(cb);
+        return this.handlers[name].length;
+    }
+
+    fire(name, ...args) {
+        (this.handlers[name] || []).forEach((cb) => cb(this, ...args));
+    }
+
+    add(child) {
+        this.children.push(child);
+    }
+
+    add_actor(child) {
+        this.children.push(child);
+    }
+
+    get_children() {
+        return this.children.slice();
+    }
+
+    show() {
+        this.visible = true;
+    }
+
+    hide() {
+        this.visible = false;
+    }
+
+    destroy() {
+        this.destroyed = true;
+    }
+
+    get_vscroll_bar() {
+        if (!this.vscroll) {
+            this.vscroll = {
+                handlers: {},
+                connect(name, cb) {
+                    this.handlers[name] = cb;
+                    return Object.keys(this.handlers).length;
+                },
+                get_adjustment() {
+                    return {
+                        values: [],
+                        set_value(value) {
+                            this.values.push(value);
+                        }
+                    };
+                }
+            };
+        }
+        return this.vscroll;
+    }
+
+    add_style_pseudo_class(name) {
+        this.pseudo_classes.add(name);
+    }
+
+    remove_style_pseudo_class(name) {
+        this.pseudo_classes.delete(name);
+    }
+
+    set_style_pseudo_class(name) {
+        this.pseudo_classes = new Set(name ? [name] : []);
+    }
+
+    set_style_class_name(name) {
+        this.style_class = name;
+    }
+
+    set_text(text) {
+        this.text = text;
+    }
+
+    set_accessible_name(name) {
+        this.accessible_name = name;
+    }
+
+    set_accessible_role(role) {
+        this.accessible_role = role;
+    }
+
+    // one text object per actor, so what production writes to it can be read
+    // back — a fresh object per call silently swallowed every assignment
+    get_clutter_text() {
+        if (!this._clutter_text) {
+            this._clutter_text = { line_wrap: false, ellipsize: null };
+        }
+        return this._clutter_text;
+    }
+}
+
+global.log = () => {};
+
+// GJS installs a printf-style String.prototype.format
+if (!String.prototype.format) {
+    Object.defineProperty(String.prototype, "format", {
+        value: function(...args) {
+            let i = 0;
+            return this.replace(/%[ds]/g, () => String(args[i++]));
+        }
+    });
+}
+global.imports = {
+    gi: {
+        Clutter: { ActorAlign: { START: 0, END: 1, CENTER: 2 }, BUTTON_PRIMARY: 1, EVENT_STOP: true,
+            EVENT_PROPAGATE: false, KEY_Return: 65293, KEY_KP_Enter: 65421, KEY_space: 32 },
+        GLib: {
+            SOURCE_REMOVE: false,
+            TIME_SPAN_MINUTE: 60 * 1000 * 1000,
+            TIME_SPAN_DAY: DAY_US,
+            get_home_dir: () => "/home/x",
+            get_monotonic_time: () => 1,
+            get_user_cache_dir: () => "/tmp/cache",
+            build_filenamev: (parts) => parts.join("/"),
+            find_program_in_path: () => null,
+            DateTime: {
+                new_from_unix_local: (unix) => new FakeDateTime(unix * 1000000),
+                new_local: (y, m, day) => new FakeDateTime(day * DAY_US),
+                new_now_local: () => NOW
+            }
+        },
+        St: { BoxLayout: MockActor, Bin: MockActor, Label: MockActor, Widget: MockActor,
+            ScrollView: MockActor, Button: MockActor, Icon: MockActor,
+            IconType: { SYMBOLIC: 1 } },
+        // the real enum, which has no NEVER: the stub used to invent one, so
+        // production's Pango.EllipsizeMode.NEVER — undefined under GJS, and
+        // only coerced to NONE by luck — looked deliberate here
+        Pango: { EllipsizeMode: { NONE: 0, START: 1, MIDDLE: 2, END: 3 } },
+        Cinnamon: {},
+        Atk: { Role: { LIST: 1, LIST_ITEM: 2, PUSH_BUTTON: 3 } },
+        Gtk: { PolicyType: { NEVER: 0, AUTOMATIC: 1 } },
+        Gio: {},
+        Soup: { MAJOR_VERSION: 3, Session: class {} },
+        CinnamonDesktop: { WallClock: { lctime_format: (d, f) => f } }
+    },
+    lang: {
+        bind: (self, fn, ...args) => fn.bind(self, ...args)
+    },
+    byteArray: {},
+    signals: {
+        addSignalMethods(proto) {
+            proto.connect = function() { return 1; };
+            proto.emit = function(name, ...args) {
+                this._emitted = this._emitted || [];
+                this._emitted.push({ name, args });
+            };
+        }
+    },
+    mainloop: { timeout_add_seconds: () => 1, idle_add: () => 1, source_remove: () => {},
+        timeout_add: () => 1 },
+    gettext: {
+        bindtextdomain: () => {},
+        dgettext: (domain, str) => str,
+        dngettext: (domain, s, p, n) => (n === 1 ? s : p)
+    },
+    ui: {
+        separator: { Separator: class { constructor() { this.actor = new MockActor(); } } },
+        tooltips: { Tooltip: class { constructor(actor, text) { this.actor = actor; this.text = text; } set_text(text) { this.text = text; } } },
+        appletManager: { applets: { "chronos@geraldo-netto": {} } }
+    },
+    misc: { util: {} }
+};
+
+// the root modules read global.imports at require time, so load them after
+// the mock exists and then expose them through the native-importer path
+const rootModules = global.imports.ui.appletManager.applets["chronos@geraldo-netto"];
+rootModules.utils = require(path.join(APPLET_DIR, "utils.js"));
+rootModules.eventData = require(path.join(APPLET_DIR, "eventData.js"));
+rootModules.eventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
+rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
+
+const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+
+// A row's launcher is the list's: EventRow used to default to a fresh
+// CalendarLauncher, which quietly gave every row its own memo of
+// find_program_in_path — the one thing the class exists to prevent.
+// the desktop-settings facade: the applet reads use24h off it rather than
+// passing a raw "clock-use-24h" string to Gio
+function desktopSettings(use24h = true) {
+    return { use24h, showSeconds: false, connect: () => 1, disconnect: () => {} };
+}
+
+function rowParams(overrides = {}) {
+    return Object.assign(
+        { use_24h: true, launcher: new EventView.CalendarLauncher() },
+        overrides);
+}
+const EventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
+const { EventData } = require(path.join(APPLET_DIR, "eventData.js"));
+
+function makeRowEvent({ startUnix, endUnix, allDay = false, color = "#123456" }) {
+    return new EventData({
+        deep_unpack: () => ["id1", color, "Team sync", allDay, startUnix, endUnix, 1]
+    }, 0);
+}
+
+const TODAY = new FakeDateTime(50 * DAY_US);
+
+test("EventRow renders the formatted time range into its label", () => {
+    const event = makeRowEvent({ startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600 });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+
+    const expected = EventFormat.formatEventTimeRange(event, TODAY, TODAY, {
+        timeFormat: "%H:%M",
+        dayFormat: global.imports.ui.appletManager.applets["chronos@geraldo-netto"].utils.DAY_FORMAT,
+        translate: (s) => s
+    });
+    assert.equal(row.event_time.text, expected);
+    assert.equal(row.event_time.style_class, "calendar-event-time-future");
+    assert.ok(row.countdown_label.text.length > 0, "upcoming-today event shows a countdown");
+    assert.equal(row.is_current_or_next, true);
+});
+
+// the rows sit in a box that declares itself a list, and they were plain
+// focusable boxes holding three separate labels: a list with no items, whose
+// items had no names
+test("an event row says its time, its summary and its countdown as one thing", () => {
+    const event = makeRowEvent({ startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600 });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+
+    assert.equal(row.actor.accessible_role, global.imports.gi.Atk.Role.LIST_ITEM);
+    assert.equal(row.actor.accessible_name,
+        [row.event_time.text, "Team sync", row.countdown_label.text].join(" — "));
+
+    // a past event has no countdown, and its name does not trail an empty dash
+    const past = new EventView.EventRow(
+        makeRowEvent({ startUnix: 50 * DAY_S + 3600, endUnix: 50 * DAY_S + 7200 }),
+        TODAY, rowParams());
+    assert.equal(past.actor.accessible_name, `${past.event_time.text} — Team sync`);
+});
+
+test("EventRow marks past events and clears the countdown", () => {
+    const event = makeRowEvent({ startUnix: 50 * DAY_S + 3600, endUnix: 50 * DAY_S + 7200 });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+    assert.equal(row.event_time.style_class, "calendar-event-time-past");
+    assert.equal(row.countdown_label.text, "");
+    assert.equal(row.is_current_or_next, false);
+});
+
+test("EventRow shows In progress for a current timed event", () => {
+    const event = makeRowEvent({ startUnix: 50 * DAY_S + 11 * 3600, endUnix: 50 * DAY_S + 13 * 3600 });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+    assert.equal(row.countdown_label.text, "In progress");
+    assert.equal(row.event_time.style_class, "calendar-event-time-present");
+});
+
+test("EventRow colors its strip from the event and toggles hover", () => {
+    const event = makeRowEvent({
+        startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600, color: "#abcdef"
+    });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+    const strip = row.actor.children[0];
+    assert.ok(strip.options.style.includes("#abcdef"));
+
+    const hostile = makeRowEvent({
+        startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600,
+        color: "red; background-image: url(http://evil)"
+    });
+    const hostileRow = new EventView.EventRow(hostile, TODAY, rowParams());
+    const hostileStrip = hostileRow.actor.children[0];
+    assert.ok(!hostileStrip.options.style.includes("url("), hostileStrip.options.style);
+    assert.ok(hostileStrip.options.style.includes("transparent"));
+
+    // hover only means something on a row that can be opened, so the row under
+    // test needs a calendar app to open
+    const launcher = { isAvailable: () => true, launchDate: () => true, launchUuid: () => true };
+    const live = new EventView.EventRow(event, TODAY, { use_24h: true, launcher });
+    live.actor.fire("enter-event");
+    assert.ok(live.actor.pseudo_classes.has("hover"));
+    live.actor.fire("leave-event");
+    assert.ok(!live.actor.pseudo_classes.has("hover"));
+});
+
+// T26: format_timespan thresholds (fake now is day 50 at 12:00)
+const MIN_US = 60 * 1000 * 1000;
+
+test("format_timespan: under 10 minutes is imminent", () => {
+    const [pclass, text] = EventView.format_timespan(9 * MIN_US);
+    assert.equal(pclass, "imminent");
+    assert.equal(text, "Starting in a few minutes");
+});
+
+test("format_timespan: under an hour counts minutes", () => {
+    const [pclass, text] = EventView.format_timespan(45 * MIN_US);
+    assert.equal(pclass, "soon");
+    assert.equal(text, "Starting in 45 minutes");
+});
+
+test("format_timespan: whole hours use the plural form", () => {
+    assert.deepEqual(EventView.format_timespan(60 * MIN_US), ["", "In 1 hour"]);
+    assert.deepEqual(EventView.format_timespan(3 * 3600 * 1000 * 1000), ["", "In 3 hours"]);
+    assert.deepEqual(EventView.format_timespan(6 * 3600 * 1000 * 1000), ["", "In 6 hours"]);
+});
+
+test("format_timespan uses UUID-domain plural translations when present", () => {
+    const original = global.imports.gettext.dngettext;
+    global.imports.gettext.dngettext = (domain, singular, plural, n) =>
+        domain === "chronos@geraldo-netto" ? "Translated %d" : (n === 1 ? singular : plural);
+    assert.deepEqual(EventView.format_timespan(2 * 3600 * 1000 * 1000), ["", "Translated 2"]);
+    global.imports.gettext.dngettext = original;
+});
+
+test("format_timespan: beyond six hours becomes evening or later today", () => {
+    // now is 12:00; +7h lands at 19:00 (> 18) => evening
+    assert.deepEqual(EventView.format_timespan(7 * 3600 * 1000 * 1000), ["", "This evening"]);
+    // the boundary: +6h at 18:00 is not > 18, but 6h is not > 6 either => plural hours
+    assert.deepEqual(EventView.format_timespan(6.5 * 3600 * 1000 * 1000), ["", "In 6 hours"]);
+});
+
+test("fuzz: format_timespan always returns a class and non-empty text", () => {
+    const rand = makeRandom(999);
+    for (let i = 0; i < 400; i++) {
+        const span = Math.floor(rand() * 12 * 3600 * 1000 * 1000);
+        const [pclass, text] = EventView.format_timespan(span);
+        assert.ok(["imminent", "soon", ""].includes(pclass));
+        assert.equal(typeof text, "string");
+        assert.ok(text.length > 0);
+    }
+});
+
+test("EventRow is keyboard-focusable and activates on Return/space", () => {
+    // rows only wire activation when gnome-calendar is installed
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const event = makeRowEvent({ startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600 });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+    global.imports.gi.GLib.find_program_in_path = () => null;
+
+    assert.equal(row.actor.options.can_focus, true);
+
+    const emitted = [];
+    row.emit = (name, id) => emitted.push([name, id]);
+    row.actor.fire("key-press-event", { get_key_symbol: () => 65293 }); // Return
+    row.actor.fire("key-press-event", { get_key_symbol: () => 32 });    // space
+    row.actor.fire("key-press-event", { get_key_symbol: () => 999 });   // ignored
+    assert.deepEqual(emitted, [["view-event", "id1"], ["view-event", "id1"]]);
+});
+
+test("EventList launches calendar only when available", () => {
+    const spawned = [];
+    global.imports.misc.util.trySpawn = (args) => spawned.push(args);
+
+    // no gnome-calendar on this box
+    const without = new EventView.EventList(desktopSettings());
+    without.launch_calendar(TODAY);
+    assert.deepEqual(spawned, []);
+
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const with_ = new EventView.EventList(desktopSettings());
+    global.imports.gi.GLib.find_program_in_path = () => null;
+
+    with_.launch_calendar(TODAY);
+    assert.deepEqual(spawned, [["gnome-calendar", "--date", TODAY.format("%x")]]);
+    assert.equal(with_._emitted.at(-1).name, "launched-calendar");
+});
+
+test("CalendarLauncher owns date and uuid launch commands", () => {
+    const spawned = [];
+    global.imports.misc.util.trySpawn = (args) => spawned.push(args);
+
+    // gnome-calendar does not come and go while the shell runs, so a launcher
+    // asks $PATH once and keeps the answer: a launcher built without it stays
+    // unavailable, one built with it stays available
+    global.imports.gi.GLib.find_program_in_path = () => null;
+    const missing = new EventView.CalendarLauncher();
+    assert.equal(missing.isAvailable(), false);
+    assert.equal(missing.launchDate(TODAY), false);
+    assert.equal(missing.launchUuid("uuid-1"), false);
+
+    let scans = 0;
+    global.imports.gi.GLib.find_program_in_path = () => {
+        scans++;
+        return "/usr/bin/gnome-calendar";
+    };
+    const present = new EventView.CalendarLauncher();
+    assert.equal(present.isAvailable(), true);
+    assert.equal(present.launchDate(TODAY), true);
+    assert.equal(present.launchUuid("uuid-1"), true);
+    assert.equal(scans, 1, "the PATH is scanned once, not once per event row");
+    global.imports.gi.GLib.find_program_in_path = () => null;
+
+    // the uid comes off a subscribed feed, so one that starts with a dash must
+    // reach gnome-calendar as a value, not as an option
+    assert.deepEqual(spawned, [
+        ["gnome-calendar", "--date", TODAY.format("%x")],
+        ["gnome-calendar", "--uuid=uuid-1"]
+    ]);
+
+    present.launchUuid("--version");
+    assert.deepEqual(spawned.at(-1), ["gnome-calendar", "--uuid=--version"]);
+});
+
+test("the selected-date label is reachable from the keyboard and explains itself", () => {
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const list = new EventView.EventList(desktopSettings());
+    global.imports.gi.GLib.find_program_in_path = () => null;
+
+    const launched = [];
+    list.launch_calendar = (date) => launched.push(date);
+
+    assert.equal(list.selected_date_label.options.can_focus, true);
+    assert.equal(list.selected_date_label_tooltip.text, "Open the calendar app");
+
+    // An explicit ATK name replaces the label's own text, so naming this only
+    // "Open the calendar app" made the selected date - which this heading is
+    // the only place to read - unsayable. The date leads; what clicking it does
+    // comes after.
+    list.set_date(new FakeDateTime(10 * DAY_US));
+    const dateText = list.selected_date_label.text;
+    assert.ok(dateText, "the heading shows the selected date");
+    assert.equal(list.selected_date_label.accessible_name, `${dateText} — Open the calendar app`);
+    assert.equal(list.selected_date_label.accessible_role,
+        global.imports.gi.Atk.Role.PUSH_BUTTON);
+
+    // Enter, KP_Enter and space activate it; anything else is left alone
+    const press = (symbol) =>
+        list.selected_date_label.handlers["key-press-event"][0](
+            list.selected_date_label, { get_key_symbol: () => symbol });
+
+    for (const symbol of [65293, 65421, 32]) {
+        assert.equal(press(symbol), true);
+    }
+    assert.equal(press(999), false);
+    assert.equal(launched.length, 3);
+});
+
+test("the selected-date label is inert without a calendar app", () => {
+    // gnome-calendar is absent in this harness by default
+    const list = new EventView.EventList(desktopSettings());
+
+    assert.equal(list.selected_date_label.options.reactive, false);
+    assert.equal(list.selected_date_label.options.can_focus, false);
+    assert.equal((list.selected_date_label.handlers["key-press-event"] || []).length, 0);
+});
+
+test("set_unavailable swaps the placeholder text and blocks event rendering", () => {
+    const list = new EventView.EventList(desktopSettings());
+
+    list.set_unavailable(true);
+    // "unavailable" on its own leaves the user with nothing to do about it
+    assert.match(list.no_events_label.text, /^Calendar events are unavailable/);
+    assert.match(list.no_events_label.text, /Evolution Data Server/,
+        "the message says what is missing and what would fix it");
+    assert.equal(list.no_events_button.accessible_name, list.no_events_label.text,
+        "the button says what the label under it says, and no more");
+    assert.doesNotMatch(list.no_events_button.accessible_name, /Add an event/,
+        "and it no longer claims it adds an event");
+    assert.equal(list.no_events_box.visible, true);
+
+    // events that arrive while no service is available must not overwrite it
+    list.set_events(null, false);
+    assert.match(list.no_events_label.text, /^Calendar events are unavailable/);
+
+    list.set_unavailable(false);
+    assert.equal(list.no_events_label.text, "No Events");
+    list.set_unavailable(false);
+});
+
+// an explicit ATK name replaces the button's child text, so a name fixed at
+// construction meant neither "Loading…" nor "No Events" was ever announced
+test("the empty state's name follows the words under it", () => {
+    const launcher = { isAvailable: () => true, launchDate: () => true, launchUuid: () => true };
+    const list = new EventView.EventList(desktopSettings(), launcher);
+
+    assert.match(list.no_events_button.accessible_name, /^No Events — /);
+
+    const pending = [];
+    const originalTimeout = global.imports.mainloop.timeout_add;
+    global.imports.mainloop.timeout_add = (delay, cb) => {
+        pending.push(cb);
+        return pending.length;
+    };
+
+    list.set_events(null, true);
+    assert.equal(list.no_events_label.text, "Loading…");
+    assert.match(list.no_events_button.accessible_name, /^Loading… — /,
+        "a screen reader must hear the column is still loading, not 'Add an event'");
+
+    pending.forEach((cb) => cb());
+    global.imports.mainloop.timeout_add = originalTimeout;
+
+    assert.equal(list.no_events_label.text, "No Events");
+    assert.match(list.no_events_button.accessible_name, /^No Events — /);
+});
+
+// the unavailable message is a whole sentence, and an St.Label ellipsizes:
+// the half that says what to do about it was the half that got cut
+test("the empty-state message wraps instead of being cut off", () => {
+    const list = new EventView.EventList(desktopSettings());
+    const text = list.no_events_label.get_clutter_text();
+
+    assert.equal(text.line_wrap, true);
+    assert.equal(text.ellipsize, 0, "Pango.EllipsizeMode.NONE");
+
+    // and the label has a width to wrap against: the column itself has a
+    // min-width and no max, so without this the popup just grows
+    const css = fs.readFileSync(
+        path.join(APPLET_DIR, "5.4", "stylesheet.css"), "utf8");
+    assert.match(css, /\.calendar-events-no-events-label\s*\{[^}]*max-width/);
+});
+
+// arming "Loading…" and then answering before the 600ms timer fires cancels the
+// timer that would have written "No Events" — the column stayed on "Loading…"
+test("an undelayed empty answer clears a pending Loading… state", () => {
+    const list = new EventView.EventList(desktopSettings());
+
+    const pending = [];
+    const originalTimeout = global.imports.mainloop.timeout_add;
+    global.imports.mainloop.timeout_add = (delay, cb) => {
+        pending.push(cb);
+        return pending.length;
+    };
+
+    list.set_events(null, true);
+    assert.equal(list.no_events_label.text, "Loading…");
+
+    // EDS answers "nothing here" before the timer fires: setEvents cancels it
+    list.set_events(null, false);
+    global.imports.mainloop.timeout_add = originalTimeout;
+
+    assert.equal(list.no_events_label.text, "No Events",
+        "the column must not sit on Loading… for a fetch that already answered");
+    assert.equal(list.no_events_box.visible, true);
+});
+
+test("the empty state is not a button when there is no calendar app to open", () => {
+    // gnome-calendar is absent in this harness by default
+    const list = new EventView.EventList(desktopSettings());
+
+    assert.equal(list.no_events_button.options.reactive, false);
+    assert.equal(list.no_events_button.options.can_focus, false);
+    assert.equal(list.no_events_button.options.style_class, "",
+        "no themed button chrome: it would look clickable and do nothing");
+    assert.equal((list.no_events_button.handlers["clicked"] || []).length, 0);
+});
+
+test("an event row is not a button when there is no calendar app to open", () => {
+    // gnome-calendar is absent in this harness by default, so connectActivation
+    // wires nothing: a focusable, hovering row that ignores Enter is a lie
+    const event = makeRowEvent({ startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600 });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+
+    assert.equal(row.actor.options.reactive, false);
+    assert.equal(row.actor.options.can_focus, false);
+    assert.equal((row.actor.handlers["key-press-event"] || []).length, 0);
+    assert.equal((row.actor.handlers["enter-event"] || []).length, 0,
+        "and it does not light up on hover either");
+});
+
+test("EventList constructor wires clickable labels, buttons, and scroll pass-through", () => {
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const list = new EventView.EventList(desktopSettings());
+    global.imports.gi.GLib.find_program_in_path = () => null;
+    const launched = [];
+    list.launch_calendar = (date) => launched.push(date);
+
+    assert.equal(
+        list.selected_date_label.fire("button-press-event", { get_button: () => 1 }),
+        undefined
+    );
+    list.no_events_button.fire("clicked");
+    assert.equal(launched.length, 2);
+
+    list.events_scroll_box.vscroll.handlers["scroll-start"]();
+    list.events_scroll_box.vscroll.handlers["scroll-stop"]();
+    assert.deepEqual(list._emitted.map((event) => event.name), [
+        "start-pass-events", "stop-pass-events"
+    ]);
+});
+
+test("EventList set_date skips unchanged dates and updates changed dates", () => {
+    const list = new EventView.EventList(desktopSettings());
+    list.set_date(TODAY);
+    const first = list.selected_date_label.text;
+    list.set_date(TODAY);
+    assert.equal(list.selected_date_label.text, first);
+
+    const tomorrow = TODAY.add_days(1);
+    list.set_date(tomorrow);
+    assert.notEqual(list.selected_date_label.text, first);
+    assert.equal(list.selected_date, tomorrow);
+});
+
+test("EventList set_events covers empty, delayed, reuse, and scroll paths", () => {
+    const removed = [];
+    const idleCallbacks = [];
+    global.imports.mainloop.source_remove = (id) => removed.push(id);
+    global.imports.mainloop.timeout_add = (delay, cb) => {
+        idleCallbacks.push(cb);
+        return 10 + idleCallbacks.length;
+    };
+    global.imports.mainloop.idle_add = (cb) => {
+        idleCallbacks.push(cb);
+        return 20 + idleCallbacks.length;
+    };
+
+    const list = new EventView.EventList(desktopSettings());
+    list._renderer._scroll_to_idle_id = 42;
+    list._renderer._no_events_timeout_id = 43;
+    list.events_box.children.push(new MockActor(), new MockActor());
+    list.set_events(null, true);
+    assert.ok(removed.includes(42));
+    assert.ok(removed.includes(43));
+    assert.ok(list.events_box.children.every((actor) => actor.destroyed));
+
+    // the events may still be on their way from a slow calendar server: the
+    // column used to sit blank and then jump to "No Events", asserting an empty
+    // state before it was known to be true
+    assert.equal(list.no_events_box.visible, true);
+    assert.equal(list.no_events_label.text, "Loading…");
+
+    idleCallbacks.shift()();
+    assert.equal(list.no_events_box.visible, true);
+    assert.equal(list.no_events_label.text, "No Events", "and now it really is empty");
+
+    list.set_events(null, false);
+    assert.equal(list.no_events_box.visible, true);
+
+    const event = makeRowEvent({
+        startUnix: 50 * DAY_S + 14 * 3600,
+        endUnix: 50 * DAY_S + 15 * 3600
+    });
+    const dataList = {
+        timestamp: 99,
+        get_event_list: () => [event]
+    };
+    list.set_events(dataList, false);
+    assert.equal(list.no_events_box.visible, false);
+    assert.equal(list._rows.length, 1);
+    assert.ok(list.events_box.children.length >= 1);
+    idleCallbacks.pop()();
+
+    const beforeRows = list._rows.slice();
+    list.set_events(dataList, false);
+    assert.equal(list._rows[0], beforeRows[0], "same timestamp refreshes row variations");
+
+    // destroying the list tears down every source the renderer armed: the class
+    // that arms a timer is the class that removes it
+    list._renderer._no_events_timeout_id = 31;
+    list._renderer._scroll_to_idle_id = 32;
+    list._renderer._build_rows_idle_id = 33;
+    list.destroy();
+    assert.ok(removed.includes(31));
+    assert.ok(removed.includes(32));
+    assert.ok(removed.includes(33));
+});
+
+// A row is ~6 actors plus a separator, and the count is whatever the user's
+// CalDAV or ICS feed puts on the day. A 200-event day built ~1,400 actors in one
+// main-loop turn, on the thread that draws every window on the desktop.
+test("a huge day is built across turns, not in one burst", () => {
+    const idles = [];
+    const originalIdle = global.imports.mainloop.idle_add;
+    global.imports.mainloop.idle_add = (cb) => {
+        idles.push(cb);
+        return idles.length;
+    };
+
+    const list = new EventView.EventList(desktopSettings());
+    const events = Array.from({ length: 55 }, (_unused, index) => makeRowEvent({
+        startUnix: 50 * DAY_S + index * 60,
+        endUnix: 50 * DAY_S + index * 60 + 30
+    }));
+
+    list.set_events({ timestamp: 7, get_event_list: () => events }, false);
+
+    const built = () => list._rows.length;
+    assert.ok(built() > 0, "the column is never empty while there is something to show");
+    assert.ok(built() < events.length, "and the rest is not built in the same turn");
+
+    // drain the idles the build queued
+    for (let i = 0; i < idles.length && built() < events.length; i++) {
+        idles[i]();
+    }
+    global.imports.mainloop.idle_add = originalIdle;
+
+    assert.equal(built(), events.length, "every event is on screen when it settles");
+    assert.equal(list._renderer._build_rows_idle_id, 0, "and nothing is left armed");
+});
+
+test("a day that changes mid-build abandons the build", () => {
+    const idles = [];
+    const removed = [];
+    const originalIdle = global.imports.mainloop.idle_add;
+    const originalRemove = global.imports.mainloop.source_remove;
+    global.imports.mainloop.idle_add = (cb) => {
+        idles.push(cb);
+        return idles.length;
+    };
+    global.imports.mainloop.source_remove = (id) => removed.push(id);
+
+    const list = new EventView.EventList(desktopSettings());
+    const events = Array.from({ length: 55 }, (_unused, index) => makeRowEvent({
+        startUnix: 50 * DAY_S + index * 60,
+        endUnix: 50 * DAY_S + index * 60 + 30
+    }));
+
+    list.set_events({ timestamp: 7, get_event_list: () => events }, false);
+    const afterFirstChunk = list._rows.length;
+
+    // the user picks another day: the chunks still queued belong to the old one
+    list._current_event_data_list_timestamp = 9;
+    idles.forEach((cb) => cb());
+
+    assert.equal(list._rows.length, afterFirstChunk,
+        "the abandoned build must not interleave two days' rows");
+    assert.equal(list._renderer._build_rows_idle_id, 0);
+
+    // and a fresh build cancels whatever was still armed
+    list._renderer._build_rows_idle_id = 42;
+    list.set_events(null, false);
+    assert.ok(removed.includes(42));
+
+    global.imports.mainloop.idle_add = originalIdle;
+    global.imports.mainloop.source_remove = originalRemove;
+});
+
+test("EventList set_events builds separators for multiple rows", () => {
+    const list = new EventView.EventList(desktopSettings());
+    const first = makeRowEvent({
+        startUnix: 50 * DAY_S + 14 * 3600,
+        endUnix: 50 * DAY_S + 15 * 3600
+    });
+    const second = makeRowEvent({
+        startUnix: 51 * DAY_S + 9 * 3600,
+        endUnix: 51 * DAY_S + 10 * 3600
+    });
+    list.set_events({
+        timestamp: 123,
+        get_event_list: () => [first, second]
+    }, false);
+    assert.equal(list._rows.length, 2);
+    assert.equal(list.events_box.children.length, 3, "row, separator, row");
+});
+
+test("EventList bridges row view-event signals to calendar launch by uuid", () => {
+    const originalConnect = EventView.EventRow.prototype.connect;
+    let viewCallback = null;
+    EventView.EventRow.prototype.connect = function(name, cb) {
+        if (name === "view-event") {
+            viewCallback = cb;
+        }
+        return 1;
+    };
+    const spawned = [];
+    global.imports.misc.util.trySpawn = (args) => spawned.push(args);
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const list = new EventView.EventList(desktopSettings());
+    const event = makeRowEvent({
+        startUnix: 51 * DAY_S + 9 * 3600,
+        endUnix: 51 * DAY_S + 10 * 3600
+    });
+    list.set_events({ timestamp: 777, get_event_list: () => [event] }, false);
+    viewCallback(null, "uuid-1");
+    EventView.EventRow.prototype.connect = originalConnect;
+    global.imports.gi.GLib.find_program_in_path = () => null;
+
+    assert.equal(list._emitted.at(-1).name, "launched-calendar");
+    assert.deepEqual(spawned.at(-1), ["gnome-calendar", "--uuid=uuid-1"]);
+});
+
+// T73 regression: refreshing a row through its phases must replace the
+// countdown pseudo-class, never stack them
+test("countdown pseudo-classes never accumulate across refreshes", () => {
+    const event = makeRowEvent({
+        startUnix: 50 * DAY_S + 13 * 3600,
+        endUnix: 50 * DAY_S + 14 * 3600
+    });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+    const at = (h, m) => new FakeDateTime(50 * DAY_US + (h * 3600 + m * 60) * 1000000);
+
+    row.update_variations(at(10, 0), TODAY); // 3 h away: text, no class
+    assert.deepEqual([...row.countdown_label.pseudo_classes], []);
+
+    row.update_variations(at(12, 15), TODAY); // 45 min away
+    assert.deepEqual([...row.countdown_label.pseudo_classes], ["soon"]);
+
+    row.update_variations(at(12, 56), TODAY); // 4 min away
+    assert.deepEqual([...row.countdown_label.pseudo_classes], ["imminent"],
+        "soon must not linger under imminent");
+
+    row.update_variations(at(13, 30), TODAY); // in progress
+    assert.deepEqual([...row.countdown_label.pseudo_classes], ["current"]);
+
+    row.update_variations(at(14, 30), TODAY); // past
+    assert.deepEqual([...row.countdown_label.pseudo_classes], [],
+        "past clears the countdown class");
+    assert.equal(row.countdown_label.text, "");
+});
+
+test("EventRow activation covers mouse, keyboard, and current all-day branches", () => {
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const event = makeRowEvent({
+        startUnix: 50 * DAY_S + 14 * 3600,
+        endUnix: 50 * DAY_S + 15 * 3600
+    });
+    const row = new EventView.EventRow(event, TODAY, rowParams({ use_24h: false }));
+    global.imports.gi.GLib.find_program_in_path = () => null;
+
+    const emitted = [];
+    row.emit = (name, id) => emitted.push([name, id]);
+    row.actor.fire("button-press-event", { get_button: () => 1 });
+    row.actor.fire("key-press-event", { get_key_symbol: () => 65421 });
+    assert.deepEqual(emitted, [["view-event", "id1"], ["view-event", "id1"]]);
+
+    const allDay = makeRowEvent({
+        startUnix: 50 * DAY_S,
+        endUnix: 51 * DAY_S,
+        allDay: true
+    });
+    const allDayRow = new EventView.EventRow(allDay, TODAY, rowParams());
+    allDayRow.update_variations(NOW, TODAY);
+    assert.equal(allDayRow.countdown_label.text, "");
+    assert.ok(allDayRow.event_time.pseudo_classes.has("all-day"));
+});
+
+// set_unavailable() rewrote the button's label and its accessible name and left
+// it focusable, hoverable, themed as a button and still wired to
+// launch_calendar(). So in the "no calendar service" state it announced only the
+// error sentence — and pressing Enter on it launched gnome-calendar. A control's
+// name has to say what activating it does; this one is not a control at all here.
+test("the empty-state button stops being a button when there is nothing to launch", () => {
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const list = new EventView.EventList(desktopSettings());
+
+    assert.equal(list.no_events_button.options.can_focus, true);
+    assert.equal(list.no_events_button.options.reactive, true);
+
+    list.set_unavailable(true);
+
+    assert.equal(list.no_events_button.can_focus, false,
+        "it does not take focus in a state where activating it does nothing");
+    assert.equal(list.no_events_button.reactive, false);
+    assert.equal(list.no_events_button.style_class, "",
+        "and it does not look like a button either");
+    assert.match(list.no_events_label.text, /no calendar service is running/);
+
+    // ...and it launches nothing, whatever reaches it
+    const launched = [];
+    list.connect("launched-calendar", () => launched.push(true));
+    list.launch_calendar(list.selected_date);
+    assert.deepEqual(launched, [], "Enter on the error message must not open a calendar app");
+
+    // the service comes back: so does the button
+    list.set_unavailable(false);
+    assert.equal(list.no_events_button.can_focus, true);
+    assert.equal(list.no_events_button.style_class, "calendar-events-no-events-button");
+});
+
+// the box declares itself a list and had no name, so a screen reader announced
+// "list" with nothing to say what it is a list of
+test("the events list says what it is a list of", () => {
+    const list = new EventView.EventList(desktopSettings());
+
+    const Atk = global.imports.gi.Atk;
+    assert.equal(list.events_box.options.accessible_role, Atk.Role.LIST);
+    assert.equal(list.events_box.accessible_name, "Events for the selected day");
+});

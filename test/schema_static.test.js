@@ -1,0 +1,444 @@
+const assert = require("node:assert/strict");
+const { test } = require("node:test");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const readmePath = path.join(__dirname, "..", "README.md");
+const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
+
+function schema(version) {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", version, "settings-schema.json"), "utf8"));
+}
+
+// The Spices site offers an update only when metadata.json says so: the applet's
+// version is the manifest's, and package.json is only the tooling's idea of it.
+// They were once allowed to disagree — package.json carried no version at all —
+// and a release then means whichever file you happened to read.
+test("the manifest and the tooling agree on the version", () => {
+    const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+
+    assert.match(metadata.version, /^\d+\.\d+\.\d+$/);
+    assert.equal(pkg.version, metadata.version,
+        "the tooling and the applet disagree about which version this is");
+});
+
+test("5.4 schema exposes Belgium holiday regions", () => {
+    const schema52 = schema("5.4");
+
+    assert.ok(schema52.has_region.default.includes("bel"));
+    assert.deepEqual(schema52.region_bel, {
+        type: "combobox",
+        // the value that means "no region": an unset region and "global" are the
+        // same thing to the applet, and this is the one the user can pick
+        default: "global",
+        // One msgid, not ten. These were briefly named for their countries
+        // ("Region in Belgium"), which orphaned the "Region" translation that
+        // existed in all 15 catalogs and asked for 150 new ones — to say
+        // something the user can already see, since each combobox is gated on
+        // its own country and appears directly under the country that selects
+        // it. Identical strings collapse to one msgid, which is the point.
+        description: "Region",
+        tooltip: "Region whose public holidays are marked, on top of the national ones. " +
+            "Leave it unset to mark only the holidays that apply nationwide.",
+        options: {
+            // The tooltip tells the user to leave it unset — and once a region
+            // was picked there was no value in the list that returned to unset,
+            // so regional holidays could never be turned off again from the
+            // dialog. "global" is what the applet already maps an unset region
+            // onto; now it is a value the user can choose.
+            "Nationwide only": "global",
+            Brussels: "bru",
+            "Flemish Region": "vlg",
+            "Walloon Region": "wal"
+        },
+        dependency: "country=bel"
+    });
+});
+
+test("schema groups panel label controls together", () => {
+    const data = schema("5.4");
+    const layout = data.layout;
+
+    assert.deepEqual(layout.section5, {
+        type: "section",
+        title: "Panel Label",
+        keys: ["show-weather", "weather-location", "weather-units"]
+    });
+    assert.ok(layout.page1.sections.includes("section5"));
+    assert.equal(layout.section1.keys.includes("show-weather"), false);
+    // panel-clocks lives with the switch that greys it out, not on another page
+    assert.deepEqual(layout.section4.keys,
+        ["show-worldclocks", "panel-clocks", "worldclocks"]);
+});
+
+test("the country combobox and the supported-country list agree", () => {
+    const data = schema("5.4");
+    const constants = require(path.join(appletDir, "holidayConstants.js"));
+
+    const offered = Object.values(data.country.options).filter((code) => code !== "none");
+    assert.deepEqual(offered.slice().sort(), constants.SUPPORTED_COUNTRIES.slice().sort(),
+        "a country the combobox offers but the applet rejects would silently disable holidays");
+});
+
+// The country combobox is gated against SUPPORTED_COUNTRIES; the region
+// comboboxes were gated against nothing. Add a region to region_usa without
+// adding it to ENRICO_REGION_TO_COUNTY.usa and enricoRegionCode() answers null,
+// so both ISO fallback providers quietly serve nationwide-only holidays: no
+// error, no log, wrong calendar.
+test("every region the dialog offers is a region the providers understand", () => {
+    const data = schema("5.4");
+    const constants = require(path.join(appletDir, "holidayConstants.js"));
+    const regions = constants.ENRICO_REGION_TO_COUNTY;
+
+    assert.deepEqual(data.has_region.default.slice().sort(), Object.keys(regions).sort(),
+        "has_region lists the countries that have a region selector");
+
+    for (const country of Object.keys(regions)) {
+        const key = `region_${country}`;
+        assert.ok(data[key], `${country} has regions but no ${key} combobox`);
+        assert.equal(data[key].dependency, `country=${country}`);
+
+        // "global" is not a region, it is the absence of one
+        const offered = Object.values(data[key].options)
+            .filter((code) => code !== "global").sort();
+        const known = Object.keys(regions[country]).sort();
+        assert.deepEqual(offered, known,
+            `${key} and ENRICO_REGION_TO_COUNTY.${country} disagree`);
+
+        assert.equal(data[key].options["Nationwide only"], "global",
+            `${key} offers no way back to nationwide-only holidays`);
+        assert.equal(data[key].default, "global");
+    }
+
+    // ...and no combobox offers regions for a country the map has never heard of
+    for (const key of Object.keys(data).filter((name) => name.startsWith("region_"))) {
+        assert.ok(regions[key.slice("region_".length)],
+            `${key} offers regions the providers cannot resolve`);
+    }
+});
+
+// settingsFacade.test.js asserts the facade passed SettingsFacade.SHOW_WEEK_NUMBERS_KEY
+// — a constant imported from the module under test — so both sides of the
+// assertion are the same symbol and the key's *value* was never checked against
+// anything. Rename SHOW_WEEK_NUMBERS_KEY to "show_week_numbers" and Cinnamon
+// binds nothing, week numbers silently stop working, and every test stays green.
+test("every settings key the facade binds exists in the schema", () => {
+    const data = schema("5.4");
+    const facade = fs.readFileSync(path.join(appletDir, "settingsFacade.js"), "utf8");
+
+    // the literal key strings, as the facade declares them
+    const declared = Array.from(facade.matchAll(/^var \w+_KEY = "([^"]+)";$/gm))
+        .map(([, key]) => key);
+    assert.ok(declared.length >= 8, "the key constants were not found");
+
+    // The facade is also the boundary for Cinnamon's desktop schema, whose keys
+    // are naturally not in the applet's own. They are checked against the list
+    // DesktopSettings actually asks Gio for, so a key added there and forgotten
+    // in that list — which is what tells the applet the key has gone missing —
+    // still fails this.
+    const desktopKeys = Array.from(
+        facade.matchAll(/^var DESKTOP_KEYS = \[([^\]]+)\];$/gm)
+    ).flatMap(([, names]) => names.split(",").map((name) => name.trim()));
+    assert.ok(desktopKeys.length >= 3, "the desktop key list was not found");
+
+    for (const key of declared) {
+        const constant = facade.match(
+            new RegExp(`^var (\\w+_KEY) = "${key}";$`, "m"))[1];
+
+        if (desktopKeys.includes(constant)) {
+            continue;
+        }
+
+        assert.ok(Object.prototype.hasOwnProperty.call(data, key),
+            `the facade binds "${key}", which the schema does not define`);
+    }
+
+    // ...and the key->property tables, which are the other half of the binding
+    const bound = Array.from(facade.matchAll(/^\s+\["([a-z][\w-]*)", "\w+"\],?$/gm))
+        .map(([, key]) => key);
+    assert.ok(bound.length >= 5, "the key/property tables were not found");
+
+    for (const key of bound) {
+        assert.ok(Object.prototype.hasOwnProperty.call(data, key),
+            `the facade binds "${key}", which the schema does not define`);
+    }
+
+    // the region keys are built from a prefix, so check the prefix resolves too
+    const prefix = /^var REGION_KEY_PREFIX = "([^"]+)";$/m.exec(facade)[1];
+    const regions = Object.keys(data).filter((key) => key.startsWith(prefix));
+    assert.ok(regions.length > 0, `no schema key starts with "${prefix}"`);
+});
+
+test("the layout lists only keys that render a widget", () => {
+    const data = schema("5.4");
+    const layout = data.layout;
+
+    for (const sectionName of Object.keys(layout)) {
+        const section = layout[sectionName];
+        if (!section || section.type !== "section") {
+            continue;
+        }
+
+        for (const key of section.keys) {
+            // "generic" is a data-only key: xlet-settings renders nothing for
+            // it, so listing it implies a control that never appears
+            assert.notEqual(data[key].type, "generic",
+                `${sectionName} lists ${key}, which renders no widget`);
+        }
+    }
+});
+
+// a dependent control sits inside the indented group under the switch that
+// turns it on; one that forgets to say so hangs out of the group it belongs to
+test("keys that depend on the same switch are indented alike", () => {
+    const data = schema("5.4");
+    const groups = {};
+
+    for (const key of Object.keys(data)) {
+        const entry = data[key];
+        if (!entry || !entry.dependency || entry.type === "generic") {
+            continue;
+        }
+        (groups[entry.dependency] = groups[entry.dependency] || []).push(key);
+    }
+
+    for (const [dependency, keys] of Object.entries(groups)) {
+        // the world-clock list and the region comboboxes are pages of their own,
+        // not rows inside a switch's group
+        if (keys.some((key) => data[key].type === "custom" || key.startsWith("region_"))) {
+            continue;
+        }
+
+        const indented = keys.filter((key) => data[key].indent === true);
+        assert.ok(indented.length === 0 || indented.length === keys.length,
+            `${dependency} indents ${indented.join(", ")} but not ` +
+            `${keys.filter((key) => data[key].indent !== true).join(", ")}`);
+    }
+});
+
+test("controls that cannot do anything are gated", () => {
+    const data = schema("5.4");
+    // with the clocks feature off there is nothing to put on the panel
+    assert.equal(data["panel-clocks"].dependency, "show-worldclocks");
+    assert.equal(data.worldclocks.dependency, "show-worldclocks");
+    // the vertical-panel limitation is stated where the user reads it
+    assert.match(data["panel-clocks"].description, /horizontal panels only/);
+
+    // ...and a control has to live on the page as the switch that greys it out.
+    // panel-clocks sat in "Panel Label" on the Calendar page while
+    // show-worldclocks is on the World Clocks page, so a user who turned the
+    // clocks off found a dead spinbutton on a different page with the cause
+    // nowhere in sight.
+    const pageOf = (key) => Object.entries(data.layout)
+        .filter(([, entry]) => entry && entry.sections)
+        .find(([, page]) => page.sections.some((section) =>
+            data.layout[section].keys && data.layout[section].keys.includes(key)))[0];
+
+    for (const [key, entry] of Object.entries(data)) {
+        if (!entry || typeof entry !== "object" || !entry.dependency) {
+            continue;
+        }
+
+        const on = entry.dependency.split("=")[0];
+        if (!data[on]) {
+            continue;
+        }
+
+        assert.equal(pageOf(key), pageOf(on),
+            `${key} is greyed out by ${on}, which is on another page: ` +
+            "the user cannot see why the control is dead");
+    }
+});
+
+// Flip on "Show weather on the panel", leave the location empty, and a bare
+// warning triangle welds itself to the clock. The words that explain it live in
+// the panel's mouse tooltip — not in the settings dialog, where the user is
+// standing when they make it happen.
+test("the weather location says what an empty one does", () => {
+    const data = schema("5.4");
+
+    assert.equal(data["weather-location"].default, "");
+    assert.match(data["weather-location"].tooltip, /empty/i);
+    // and it shows what a good answer looks like
+    assert.match(data["weather-location"].tooltip, /Lisbon/);
+});
+
+test("the Spices manifest credits the applets this one was merged from", () => {
+    const info = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "info.json"), "utf8"));
+    const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
+
+    assert.equal(info.author, "Geraldo Netto");
+    assert.match(info.original_author, /ccprog/);
+    assert.match(info.original_author, /simonwiles/);
+    // the README names the same two upstreams
+    assert.match(readme, /calendar@ccprog/);
+    assert.match(readme, /calendar@simonwiles\.net/);
+});
+
+test("the manual install does not copy Python bytecode", () => {
+    const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
+    // a plain cp -r drags __pycache__ from the working tree into the install
+    assert.doesNotMatch(readme, /cp -r "cinnamon-spices-applets/);
+    assert.match(readme, /--exclude '__pycache__'/);
+});
+
+test("network lookups are opt-in", () => {
+    const data = schema("5.4");
+    // both third-party lookups must be off until the user turns them on
+    assert.equal(data["show-weather"].default, false);
+    assert.equal(data.country.default, "none");
+});
+
+test("the clock cap is the same in schema, JS, Python, and the README", () => {
+    // the cap lives in several unlinked places; this test is the link
+    const worldclocks = fs.readFileSync(path.join(appletDir, "worldclockData.js"), "utf8");
+    const widgets = fs.readFileSync(path.join(appletDir, "settings_widgets_common.py"), "utf8");
+    const cityWeather = fs.readFileSync(path.join(appletDir, "cityWeather.js"), "utf8");
+    const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
+    const data = schema("5.4");
+
+    const jsCap = Number(/var MAX_CLOCKS = (\d+);/.exec(worldclocks)[1]);
+    const pyCap = Number(/^MAX_CLOCKS = (\d+)$/m.exec(widgets)[1]);
+
+    assert.equal(jsCap, pyCap);
+    assert.equal(data["panel-clocks"].max, jsCap);
+    assert.match(data.worldclocks.tooltip, new RegExp(`up to ${jsCap} timezones`));
+
+    // one city per clock: cityWeather must not carry a cap of its own, or a
+    // raised clock cap leaves the extra clocks with a blank temperature column
+    // and nothing to say why
+    assert.match(cityWeather, /const MAX_CITIES = WorldclockData\.MAX_CLOCKS;/,
+        "the city cap is the clock cap, not a copy of its current value");
+
+    // the README states the cap in prose; every mention must agree
+    // the prose wraps, so allow the count and its noun to sit on separate lines
+    const readmeCaps = Array.from(readme.matchAll(/up\s+to\s+(\d+)\s+(?:extra\s+)?(?:clocks|timezones)/gi))
+        .map((match) => Number(match[1]));
+    assert.notEqual(readmeCaps.length, 0, "the README must state the clock cap");
+    for (const cap of readmeCaps) {
+        assert.equal(cap, jsCap);
+    }
+});
+
+test("the clock list is tall enough to show every clock the cap allows", () => {
+    // Cinnamon's List widget defaults to 200px, and a GTK tree view spends 29px
+    // on the header and 22px on each row: eight clocks want 205px, so the last
+    // one sat under a scrollbar. Measured on the default theme; a theme with a
+    // bigger font grows the rows, hence the slack.
+    const HEADER_HEIGHT = 29;
+    const ROW_HEIGHT = 22;
+    const widgets = fs.readFileSync(path.join(appletDir, "settings_widgets_common.py"), "utf8");
+    const cap = Number(/^MAX_CLOCKS = (\d+)$/m.exec(widgets)[1]);
+    const data = schema("5.4");
+
+    assert.ok(data.worldclocks.height >= HEADER_HEIGHT + (cap * ROW_HEIGHT),
+        "raising the clock cap without raising the list height hides clocks behind a scrollbar");
+});
+
+test("timezone entry dialog title is localized and extracted", () => {
+    const widgets = fs.readFileSync(path.join(appletDir, "settings_widgets_common.py"), "utf8");
+    const pot = fs.readFileSync(path.join(appletDir, "po", "chronos@geraldo-netto.pot"), "utf8");
+
+    assert.match(widgets, /_\("City or timezone \(e\.g\. Buenos Aires\)"\)/);
+    assert.match(pot, /msgid "City or timezone \(e\.g\. Buenos Aires\)"/);
+});
+
+// The applet's own name was translated — "Kalender", "Calendrier", "行事曆",
+// "Calendário Geraldo" — so it appeared under a different name per locale in the
+// Applets manager, and README's "search for Chronos Calendar" was wrong for
+// those users. A product name is a name.
+//
+// The name is read from the manifest rather than written here twice: renaming the
+// applet must not quietly turn this test into a no-op that matches nothing.
+test("the applet's name is not translated", () => {
+    const poDir = path.join(appletDir, "po");
+    const { name } = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
+    const pattern = new RegExp(`msgid "${name}"\\nmsgstr "([^"]*)"`);
+
+    const catalogs = fs.readdirSync(poDir).filter((file) => file.endsWith(".po"));
+    assert.ok(catalogs.length > 0, "there are catalogs to check");
+
+    for (const file of catalogs) {
+        const catalog = fs.readFileSync(path.join(poDir, file), "utf8");
+        const entry = pattern.exec(catalog);
+
+        assert.ok(entry, `${file} has no entry for the applet name "${name}"`);
+        assert.equal(entry[1], "", `${file} renames the applet to "${entry[1]}"`);
+    }
+});
+
+test("world clock strings stay extracted into the template", () => {
+    const pot = fs.readFileSync(path.join(appletDir, "po", "chronos@geraldo-netto.pot"), "utf8");
+
+    assert.match(pot, /msgid "Local time"/);
+    assert.match(pot, /worldclocks->tooltip[\s\S]*UTC and your local time are always shown/);
+    assert.match(pot, /worldclocks->tooltip[\s\S]*timezones on top of them/);
+    assert.match(pot, /worldclocks->tooltip[\s\S]*pick it from the suggestions/);
+});
+
+// the README is not where consent is given: the settings dialog is. The country
+// setting has said so all along; the two weather settings, which also leave the
+// machine, did not.
+test("every setting that leaves the machine says so where it is switched on", () => {
+    const schema54 = schema("5.4");
+
+    for (const key of ["show-weather", "weather-location", "worldclocks", "country"]) {
+        assert.match(schema54[key].tooltip, /third-party/,
+            `${key} sends something to a third party and its tooltip must say so`);
+    }
+});
+
+test("README documents weather privacy data flow", () => {
+    const readme = fs.readFileSync(readmePath, "utf8");
+
+    assert.match(readme, /Open-Meteo/);
+    assert.match(readme, /geocoding-api\.open-meteo\.com/);
+    assert.match(readme, /api\.open-meteo\.com/);
+    assert.match(readme, /every 30 minutes/);
+});
+
+// The schema change that renamed "Region" to ten per-country descriptions
+// orphaned a translation that existed in all 15 catalogs, and nothing noticed:
+// the pot is regenerated by hand, and no test compared it with the schema. Every
+// user-visible schema string has to be a msgid the template actually carries, or
+// it renders in English for everyone.
+test("every string the settings dialog shows is in the translation template", () => {
+    const data = schema("5.4");
+    const pot = fs.readFileSync(
+        path.join(appletDir, "po", "chronos@geraldo-netto.pot"), "utf8");
+
+    // msgids as the template declares them, unwrapped
+    const msgids = new Set(
+        Array.from(pot.matchAll(/^msgid ((?:"(?:[^"\\]|\\.)*"\n?)+)/gm))
+            .map(([, raw]) => raw.match(/"(?:[^"\\]|\\.)*"/g)
+                .map((part) => JSON.parse(part)).join("")));
+
+    const shown = [];
+    for (const [key, entry] of Object.entries(data)) {
+        if (!entry || typeof entry !== "object" || key === "layout") {
+            continue;
+        }
+        for (const field of ["description", "tooltip", "title", "units"]) {
+            if (typeof entry[field] === "string" && entry[field]) {
+                shown.push([key, field, entry[field]]);
+            }
+        }
+
+        // a combobox's option labels are what the user actually reads in the
+        // list, and they are translated too — "Angola", "Brussels", "None
+        // (disable holidays)" are all msgids
+        if (entry.options && typeof entry.options === "object") {
+            for (const label of Object.keys(entry.options)) {
+                shown.push([key, "option", label]);
+            }
+        }
+    }
+    assert.ok(shown.length > 20, "the schema strings were not found");
+
+    for (const [key, field, text] of shown) {
+        assert.ok(msgids.has(text),
+            `${key}.${field} is shown to the user but is not a msgid: ` +
+            `"${text.slice(0, 60)}" — it will render in English in all 15 languages`);
+    }
+});
