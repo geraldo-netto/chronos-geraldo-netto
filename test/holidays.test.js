@@ -1759,18 +1759,18 @@ test("Enrico deduplicates in-flight year fetches", () => {
 });
 
 test("every country the settings offer can reach the fallback providers", () => {
-    const { SUPPORTED_COUNTRIES, ENRICO_COUNTRY_TO_ISO2 } = require(holidayConstantsPath);
+    const { SUPPORTED_COUNTRIES, COUNTRY_TO_ISO2 } = require(holidayConstantsPath);
 
     // a country in the combobox with no ISO code cannot be asked of either
     // fallback provider: if Enrico is down it simply has no holidays, silently
-    const unreachable = SUPPORTED_COUNTRIES.filter((country) => !ENRICO_COUNTRY_TO_ISO2[country]);
+    const unreachable = SUPPORTED_COUNTRIES.filter((country) => !COUNTRY_TO_ISO2[country]);
 
     assert.deepEqual(unreachable, []);
 });
 
 test("NagerDateServiceAdapter maps Enrico countries and regions", () => {
     const { NagerDateServiceAdapter } = loadHolidays();
-    const { ENRICO_COUNTRY_TO_ISO2, ENRICO_REGION_TO_COUNTY } = require(holidayConstantsPath);
+    const { COUNTRY_TO_ISO2, REGION_TO_SUBDIVISION } = require(holidayConstantsPath);
     const adapter = new NagerDateServiceAdapter(() => {});
 
     assert.equal(adapter.countryCode("usa"), "US");
@@ -1782,8 +1782,8 @@ test("NagerDateServiceAdapter maps Enrico countries and regions", () => {
     assert.equal(adapter.countyCode("esp", "ex"), "ES-EX");
     assert.equal(adapter.countyCode("gbr", "sct"), "GB-SCT");
     assert.equal(adapter.countyCode("usa", "global"), null);
-    assert.equal(ENRICO_COUNTRY_TO_ISO2.che, "CH");
-    assert.equal(ENRICO_REGION_TO_COUNTY.che.zh, "CH-ZH");
+    assert.equal(COUNTRY_TO_ISO2.che, "CH");
+    assert.equal(REGION_TO_SUBDIVISION.che.zh, "CH-ZH");
 
     const params = adapter.params("usa", "ca", 2026);
     assert.deepEqual(params, {

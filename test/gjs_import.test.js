@@ -208,8 +208,8 @@ function gjsImportsMock() {
                             HOLIDAY_PROVIDER_NAMES: {},
                             GLOBAL_REGION: "global",
                             OPEN_HOLIDAYS_COUNTRIES: {},
-                            ENRICO_COUNTRY_TO_ISO2: {},
-                            ENRICO_REGION_TO_COUNTY: {}
+                            COUNTRY_TO_ISO2: {},
+                            REGION_TO_SUBDIVISION: {}
                         },
                         holidayCache: {
                             HolidayCacheRepository: class {},
@@ -281,7 +281,7 @@ const EXPORTS = {
         "IsoHolidayServiceAdapter", "EnricoServiceAdapter", "NagerDateServiceAdapter",
         "OpenHolidaysServiceAdapter", "HolidayServiceFallbackAdapter"],
     holidayConstants: ["HOLIDAY_ERRORS", "HOLIDAY_PROVIDER_NAMES", "GLOBAL_REGION",
-        "OPEN_HOLIDAYS_COUNTRIES", "ENRICO_COUNTRY_TO_ISO2", "ENRICO_REGION_TO_COUNTY"],
+        "OPEN_HOLIDAYS_COUNTRIES", "COUNTRY_TO_ISO2", "REGION_TO_SUBDIVISION"],
     worldclockData: ["MAX_CLOCKS", "LOCAL_TIMEZONE", "INVALID_TIMEZONE_TEXT",
         "LOCAL_TIME_TEXT", "timezoneFromIdentifier", "builtinClocks",
         "timezoneIdentity", "timezoneCityName", "builtInTimezoneKeys"],

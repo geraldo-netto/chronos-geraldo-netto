@@ -52,7 +52,7 @@ var OPEN_HOLIDAYS_COUNTRIES = {
     swe: true,
     zaf: true
 };
-var ENRICO_COUNTRY_TO_ISO2 = {
+var COUNTRY_TO_ISO2 = {
     ago: "AO",
     aus: "AU",
     aut: "AT",
@@ -114,7 +114,7 @@ var ENRICO_COUNTRY_TO_ISO2 = {
     xkx: "XK",
     zaf: "ZA"
 };
-var ENRICO_REGION_TO_COUNTY = {
+var REGION_TO_SUBDIVISION = {
     aus: {
         act: "AU-ACT",
         nsw: "AU-NSW",
@@ -304,5 +304,5 @@ var ENRICO_REGION_TO_COUNTY = {
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, ENRICO_COUNTRY_TO_ISO2, ENRICO_REGION_TO_COUNTY };
+    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, REGION_TO_SUBDIVISION };
 }

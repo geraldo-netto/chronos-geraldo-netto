@@ -19,8 +19,8 @@ const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
 var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS;
 var HOLIDAY_PROVIDER_NAMES = HolidayConstants.HOLIDAY_PROVIDER_NAMES;
 var OPEN_HOLIDAYS_COUNTRIES = HolidayConstants.OPEN_HOLIDAYS_COUNTRIES;
-var ENRICO_COUNTRY_TO_ISO2 = HolidayConstants.ENRICO_COUNTRY_TO_ISO2;
-var ENRICO_REGION_TO_COUNTY = HolidayConstants.ENRICO_REGION_TO_COUNTY;
+var COUNTRY_TO_ISO2 = HolidayConstants.COUNTRY_TO_ISO2;
+var REGION_TO_SUBDIVISION = HolidayConstants.REGION_TO_SUBDIVISION;
 var ENRICO_URL = "https://kayaposoft.com/enrico/json/v2.0?action=getHolidaysForYear";
 
 function unavailableLoadJsonAsync() {
@@ -198,9 +198,9 @@ var EnricoServiceAdapter = class EnricoServiceAdapter {
 };
 
 // both ISO-based fallback providers key their regions off the same
-// Enrico county table and parse the same YYYY-MM-DD date strings
+// region-to-subdivision table and parse the same YYYY-MM-DD date strings
 function enricoRegionCode(country, region) {
-    const regions = ENRICO_REGION_TO_COUNTY[country];
+    const regions = REGION_TO_SUBDIVISION[country];
     if (!regions || !region || region === GLOBAL_REGION) {
         return null;
     }
@@ -298,7 +298,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     }
 
     countryCode(country) {
-        return ENRICO_COUNTRY_TO_ISO2[country] || null;
+        return COUNTRY_TO_ISO2[country] || null;
     }
 
     countyCode(country, region) {
@@ -368,7 +368,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
             return null;
         }
 
-        return ENRICO_COUNTRY_TO_ISO2[country] || null;
+        return COUNTRY_TO_ISO2[country] || null;
     }
 
     subdivisionCode(country, region) {

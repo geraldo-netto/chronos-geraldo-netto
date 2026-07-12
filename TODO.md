@@ -84,7 +84,6 @@ The five heaviest reorganizations from the 2026-07-12 batch were parked rather t
 ### T446 — rename `Enrico`, `enrico.json` and the `ENRICO_*` constants
 Do it in dependency order, smallest ripple first; each rename is mechanical but wide. (Easiest after T448, which removes some of the fragile Enrico test setups.)
 
-- **T446a** — Rename `ENRICO_COUNTRY_TO_ISO2`→`COUNTRY_TO_ISO2` and `ENRICO_REGION_TO_COUNTY`→`REGION_TO_SUBDIVISION` in `holidayConstants.js` and every consumer (`holidayServiceAdapters.js` `enricoRegionCode`), plus the `schema_static` `ENRICO_REGION_TO_COUNTY` assertion, the `gjs_import` list and the holiday tests.
 - **T446b** — Rename the `Enrico` domain class → `HolidayService` across `holidays.js`, its `gjs_import` parity entry and the holiday tests. (`EnricoServiceAdapter` keeps its name — it really is the Enrico provider.)
 - **T446c** — Rename the on-disk cache `enrico.json`→`holidays.json`, with a one-shot migration that reads the old path when the new one is absent so no user loses their cache, and add migration tests.
 
