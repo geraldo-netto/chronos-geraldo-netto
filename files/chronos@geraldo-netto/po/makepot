@@ -1,6 +1,11 @@
 #!/bin/bash
+set -euo pipefail
 
-cd ..
+# Resolve to the applet root (this script's parent) regardless of the caller's
+# working directory. A bare `cd ..` was relative to $PWD: run from the repo root
+# it climbed out of the repository and harvested a .pot from every sibling
+# project into ../po.
+cd "$(dirname "$0")/.."
 uuid="chronos@geraldo-netto"
 version=$(python3 -c "import json;print(json.load(open('metadata.json'))['version'])")
 
