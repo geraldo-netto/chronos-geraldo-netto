@@ -408,21 +408,22 @@ test("cache staleness is deterministic under an injected clock", () => {
 
 test("holiday validation rejects out-of-range months and days", () => {
     const Holidays = loadHolidays();
-    const enrico = new Holidays.EnricoServiceAdapter(() => {});
+    // validHoliday is the record contract's rule; the adapter forwards to it
+    const record = new Holidays.HolidayRecordContract();
     const base = {
         name: [{ lang: "en", text: "X" }],
         flags: []
     };
-    assert.ok(enrico.validHoliday({ ...base, date: { year: 2026, month: 12, day: 31 } }));
-    assert.ok(enrico.validHoliday({ ...base, date: { year: 2024, month: 2, day: 29 } }));
-    assert.ok(!enrico.validHoliday({ ...base, date: { year: 2026, month: 13, day: 1 } }));
-    assert.ok(!enrico.validHoliday({ ...base, date: { year: 2026, month: 0, day: 1 } }));
-    assert.ok(!enrico.validHoliday({ ...base, date: { year: 2026, month: 5, day: 32 } }));
-    assert.ok(!enrico.validHoliday({ ...base, date: { year: 2026, month: 5, day: 0 } }));
-    assert.ok(!enrico.validHoliday({ ...base, date: { year: 2026, month: 2, day: 29 } }));
-    assert.ok(!enrico.validHoliday({ ...base, date: { year: 2026, month: 2, day: 30 } }));
-    assert.ok(!enrico.validHoliday({ ...base, date: { year: 2026, month: 4, day: 31 } }));
-    assert.ok(!enrico.validHoliday({
+    assert.ok(record.validHoliday({ ...base, date: { year: 2026, month: 12, day: 31 } }));
+    assert.ok(record.validHoliday({ ...base, date: { year: 2024, month: 2, day: 29 } }));
+    assert.ok(!record.validHoliday({ ...base, date: { year: 2026, month: 13, day: 1 } }));
+    assert.ok(!record.validHoliday({ ...base, date: { year: 2026, month: 0, day: 1 } }));
+    assert.ok(!record.validHoliday({ ...base, date: { year: 2026, month: 5, day: 32 } }));
+    assert.ok(!record.validHoliday({ ...base, date: { year: 2026, month: 5, day: 0 } }));
+    assert.ok(!record.validHoliday({ ...base, date: { year: 2026, month: 2, day: 29 } }));
+    assert.ok(!record.validHoliday({ ...base, date: { year: 2026, month: 2, day: 30 } }));
+    assert.ok(!record.validHoliday({ ...base, date: { year: 2026, month: 4, day: 31 } }));
+    assert.ok(!record.validHoliday({
         ...base,
         date: { year: 2026, month: 4, day: 30 },
         dateTo: { year: 2026, month: 4, day: 31 }
@@ -1543,7 +1544,9 @@ test("a tampered cache file cannot inject malformed holidays", () => {
 
 test("an unbounded holiday span is rejected, not expanded", () => {
     const ServiceAdapters = require(holidayServiceAdaptersPath);
-    const adapter = new ServiceAdapters.EnricoServiceAdapter(() => {}, "en");
+    // the validate-and-expand rule is the record contract's, not the adapter's;
+    // the adapter is a fetchYear and forwards to this
+    const record = new ServiceAdapters.HolidayRecordContract("en");
 
     const hostile = {
         date: { year: 2026, month: 1, day: 1 },
@@ -1552,9 +1555,9 @@ test("an unbounded holiday span is rejected, not expanded", () => {
         flags: []
     };
 
-    assert.equal(adapter.validHoliday(hostile), false, "the payload must never reach the cache");
+    assert.equal(record.validHoliday(hostile), false, "the payload must never reach the cache");
     // even reached directly, expansion stays bounded instead of freezing the shell
-    assert.ok(adapter.expandHoliday(hostile, "global").length <= ServiceAdapters.MAX_HOLIDAY_SPAN_DAYS + 1);
+    assert.ok(record.expandHoliday(hostile, "global").length <= ServiceAdapters.MAX_HOLIDAY_SPAN_DAYS + 1);
 
     const yearLong = {
         date: { year: 2026, month: 1, day: 1 },
@@ -1562,7 +1565,7 @@ test("an unbounded holiday span is rejected, not expanded", () => {
         name: [{ lang: "en", text: "Long" }],
         flags: []
     };
-    assert.equal(adapter.validHoliday(yearLong), true, "a normal multi-day holiday still passes");
+    assert.equal(record.validHoliday(yearLong), true, "a normal multi-day holiday still passes");
 });
 
 test("holiday status is reported per year, not shared across months", () => {
@@ -1794,7 +1797,7 @@ test("NagerDateServiceAdapter maps Enrico countries and regions", () => {
 });
 
 test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
-    const { EnricoServiceAdapter, NagerDateServiceAdapter } = loadHolidays();
+    const { HolidayRecordContract, NagerDateServiceAdapter } = loadHolidays();
     let capturedUrl = null;
     const adapter = new NagerDateServiceAdapter((url, params, callback) => {
         capturedUrl = url;
@@ -1846,7 +1849,7 @@ test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
         flags: ["public_holiday"]
     });
     assert.deepEqual(result.data[1].date, { year: 2026, month: 3, day: 31 });
-    assert.equal(new EnricoServiceAdapter(() => {}).validResponse(result.data), true);
+    assert.equal(new HolidayRecordContract().validResponse(result.data), true);
 
     const globalRows = adapter.translateResponse([
         {
@@ -1869,7 +1872,7 @@ test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
 });
 
 test("OpenHolidaysServiceAdapter maps countries, regions, and localized holidays", () => {
-    const { EnricoServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
+    const { HolidayRecordContract, OpenHolidaysServiceAdapter } = loadHolidays();
     const { OPEN_HOLIDAYS_COUNTRIES } = require(holidayConstantsPath);
     let capturedUrl = null;
     const adapter = new OpenHolidaysServiceAdapter((url, params, callback) => {
@@ -1931,7 +1934,7 @@ test("OpenHolidaysServiceAdapter maps countries, regions, and localized holidays
         name: [{ lang: "en", text: "Berchtold's Day" }],
         flags: ["optional"]
     });
-    assert.equal(new EnricoServiceAdapter(() => {}).validResponse(result.data), true);
+    assert.equal(new HolidayRecordContract().validResponse(result.data), true);
 
     const globalParams = adapter.params("che", "global", 2026);
     const globalRows = adapter.translateResponse([
@@ -2091,10 +2094,11 @@ test("fuzz: OpenHolidays translation keeps only rows it can actually place", () 
 // supposed to have rejected oversized spans first, and nothing ever tested the
 // two together.
 test("fuzz: Enrico's parser cannot be made to run away or return junk", () => {
-    const { EnricoServiceAdapter } = loadHolidays();
+    const { HolidayRecordContract } = loadHolidays();
     const { MAX_HOLIDAY_SPAN_DAYS } = require(
         path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js"));
-    const adapter = new EnricoServiceAdapter(() => {}, "de");
+    // the parser under fuzz is the record contract's; the adapter forwards to it
+    const record = new HolidayRecordContract("de");
     const rand = makeRandom(0xe27100);
 
     const junkDates = [
@@ -2138,7 +2142,7 @@ test("fuzz: Enrico's parser cannot be made to run away or return junk", () => {
                     { year: 2030, month, day }][Math.floor(rand() * 3)];
         }
 
-        const valid = adapter.validHoliday(holiday);
+        const valid = record.validHoliday(holiday);
         if (valid) {
             accepted++;
         } else {
@@ -2150,7 +2154,7 @@ test("fuzz: Enrico's parser cannot be made to run away or return junk", () => {
         // be able to expand without running away
         let days = null;
         assert.doesNotThrow(() => {
-            days = adapter.expandHoliday(holiday, "global");
+            days = record.expandHoliday(holiday, "global");
         }, JSON.stringify(holiday));
 
         assert.ok(days.length >= 1, "a holiday is at least one day");
@@ -2169,7 +2173,7 @@ test("fuzz: Enrico's parser cannot be made to run away or return junk", () => {
 
         // the localized name is one the payload actually carried, and it prefers
         // the user's language (de) over English
-        const localized = adapter.localizeName(holiday);
+        const localized = record.localizeName(holiday);
         const texts = holiday.name.map((entry) => entry.text);
         assert.ok(texts.includes(localized), "the name shown must be a name that was sent");
 
@@ -2181,12 +2185,12 @@ test("fuzz: Enrico's parser cannot be made to run away or return junk", () => {
 
     // validResponse is the gate the whole chain leans on: one bad row must
     // condemn the body, not slip through with the good ones
-    assert.equal(adapter.validResponse([
+    assert.equal(record.validResponse([
         { date: { year: 2030, month: 1, day: 1 }, name: [{ lang: "de", text: "x" }], flags: [] },
         { date: "broken", name: [], flags: [] }
     ]), false);
-    assert.equal(adapter.validResponse("not an array"), false);
-    assert.equal(adapter.validResponse([]), true, "an empty year is a valid answer");
+    assert.equal(record.validResponse("not an array"), false);
+    assert.equal(record.validResponse([]), true, "an empty year is a valid answer");
 
     assert.ok(accepted > 0, "some payloads must be accepted");
     assert.ok(rejected > 0, "and some must be rejected");
@@ -2460,11 +2464,11 @@ test("HolidayServiceFallbackAdapter tries the last successful provider first", (
 });
 
 test("expandHoliday spans month boundaries without corrupting dates", () => {
-    const { EnricoServiceAdapter } = loadHolidays();
-    const adapter = new EnricoServiceAdapter(() => {}, "en");
+    const { HolidayRecordContract } = loadHolidays();
+    const record = new HolidayRecordContract("en");
 
     function expand(from, to) {
-        return adapter.expandHoliday({
+        return record.expandHoliday({
             date: from,
             dateTo: to,
             name: [{ lang: "en", text: "Span" }],
@@ -2586,10 +2590,12 @@ test("IsoHolidayServiceAdapter owns generic translation and unsupported-country 
     assert.equal(translated.retrieved, STAMP);
 });
 
-test("EnricoServiceAdapter localizes and expands provider holidays", () => {
-    const { EnricoServiceAdapter } = loadHolidays();
-    const adapter = new EnricoServiceAdapter(() => {}, "it");
-    const rows = adapter.expandHoliday({
+test("EnricoServiceAdapter builds params and the record localizes and expands", () => {
+    const { EnricoServiceAdapter, HolidayRecordContract } = loadHolidays();
+    // params/url are the adapter's; validate/expand/localize are the record's
+    const adapter = new EnricoServiceAdapter(() => {});
+    const record = new HolidayRecordContract("it");
+    const rows = record.expandHoliday({
         date: { year: 2026, month: 4, day: 24 },
         dateTo: { year: 2026, month: 4, day: 26 },
         name: [
@@ -2617,11 +2623,11 @@ test("EnricoServiceAdapter localizes and expands provider holidays", () => {
     assert.ok(adapter.url(adapter.params("u sa", "new york", 2026)).includes("region=new%20york"));
 });
 
-test("EnricoServiceAdapter falls back to the first holiday name", () => {
-    const { EnricoServiceAdapter } = loadHolidays();
-    const adapter = new EnricoServiceAdapter(() => {}, "it");
+test("the record contract falls back to the first holiday name", () => {
+    const { HolidayRecordContract } = loadHolidays();
+    const record = new HolidayRecordContract("it");
 
-    assert.equal(adapter.localizeName({
+    assert.equal(record.localizeName({
         name: [
             { lang: "fr", text: "Fete" },
             { lang: "de", text: "Feiertag" }
