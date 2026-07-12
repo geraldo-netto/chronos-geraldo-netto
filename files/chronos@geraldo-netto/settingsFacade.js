@@ -23,7 +23,6 @@ var WEATHER_LOCATION_KEY = "weather-location";
 // key -> applet property, grouped by the handler each one triggers
 var PANEL_KEYS = [
     [SHOW_EVENTS_KEY, "show_events"],
-    ["panel-clocks", "panel_clocks"],
     ["use-custom-format", "use_custom_format"],
     ["custom-format", "custom_format"],
     ["custom-tooltip-format", "custom_tooltip_format"],

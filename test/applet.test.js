@@ -356,23 +356,24 @@ function suffixStub(overrides = {}) {
         show_weather: true,
         _weather_text: "",
         _weather_error: "",
-        worldclocks: [],
-        panel_clocks: 2
+        worldclocks: []
     }, overrides);
 }
 
-test("buildLabelSuffix composes weather and clocks; vertical panels get none", () => {
+test("buildLabelSuffix is the weather and nothing else; vertical panels get none", () => {
     assert.equal(panelStatus(suffixStub({ orientation: St.Side.LEFT })).buildLabelSuffix(), "");
 
     // the panel shows the temperature; the sky glyph is in the tooltip and in
     // the accessible name, both of which say it in words anyway
     assert.equal(panelStatus(suffixStub({ _weather_text: "☀ 20°C" })).buildLabelSuffix(), "20°C");
 
+    // world clocks never reach the panel, however many are configured: they are
+    // a table, and the panel is one line the date and the weather already share
     const withClocks = suffixStub({
         _weather_text: "☀ 20°C",
-        worldclocks: [{}]
+        worldclocks: [{ label: "NY" }, { label: "Tokyo" }]
     });
-    assert.equal(panelStatus(withClocks).buildLabelSuffix([{ label: "NY", time: "04:00" }]), "20°C • NY 04:00");
+    assert.equal(panelStatus(withClocks).buildLabelSuffix(), "20°C");
 
     const stale = suffixStub({ _weather_text: "☀ 20°C", _weather_error: "boom" });
     assert.equal(panelStatus(stale).buildLabelSuffix(), "⚠ 20°C");
@@ -492,19 +493,19 @@ test("_updateClockAndDate with the menu closed only updates the label", () => {
     assert.equal(calls.tooltip.length, 0, "tooltip untouched while not hovered");
     assert.equal(calls.selected, 0, "no event-selection churn while closed");
     assert.equal(calls.worldTicks, 0, "hidden clocks not updated");
-    assert.equal(calls.clockEntries, 1, "configured clocks are formatted once for the label");
-    assert.equal(calls.lastLimit, 1, "closed ticks only format panel clocks");
-    assert.equal(calls.lastIncludeBuiltin, false, "closed ticks skip built-in rows");
+    // nothing on a closed panel shows a clock, so a closed tick converts no
+    // timezone: that was a GLib.DateTime per configured city, every second
+    assert.equal(calls.clockEntries, 0, "a closed panel formats no world clocks");
     assert.equal(calls.dayText.length, 0);
 
     stub._panel_hovered = true;
     Proto._updateClockAndDate.call(stub);
     assert.equal(calls.tooltip.length, 1, "hovered panel refreshes the tooltip");
-    assert.equal(calls.clockEntries, 2, "hovered tooltip reuses the per-tick clock entries");
-    // the tooltip is the full table - UTC, local and every configured city -
-    // so hovering pays for the rows the panel label leaves out
+    // the tooltip is the full table — UTC, local and every configured city —
+    // so a hovered panel pays for the whole set, and only then
+    assert.equal(calls.clockEntries, 1, "the clocks are formatted for the tooltip that shows them");
     assert.equal(calls.lastIncludeBuiltin, true, "a hovered tooltip lists the built-in rows");
-    assert.equal(calls.lastLimit, undefined, "a hovered tooltip is not capped by panel_clocks");
+    assert.equal(calls.lastLimit, undefined, "a hovered tooltip is capped by nothing");
 });
 
 test("a closed panel with nothing to show does no per-tick clock work", () => {
@@ -2204,11 +2205,9 @@ test("the panel suffix carries the temperature alone, and the failure marker whe
     assert.equal(panelStatus(stale).buildLabelSuffix(), `${Weather.WEATHER_ERROR_MARKER} 20°C`);
     assert.equal(Weather.WEATHER_ERROR_MARKER, "⚠");
 
-    // world clocks after the reading keep their bullets
-    const withClocks = suffixStub({ _weather_text: "⛅ 20°C", worldclocks: [{}] });
-    assert.equal(
-        panelStatus(withClocks).buildLabelSuffix([{ label: "NY", time: "04:00" }]),
-        "20°C • NY 04:00");
+    // and the reading is alone up there: a configured clock adds nothing
+    const withClocks = suffixStub({ _weather_text: "⛅ 20°C", worldclocks: [{ label: "NY" }] });
+    assert.equal(panelStatus(withClocks).buildLabelSuffix(), "20°C");
 });
 
 // REGRESSION: the tooltip used to be a run-on line per clock, and the UTC row
@@ -2339,21 +2338,19 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
 // REGRESSION: hovering the panel used to redraw the tooltip from the panel's
 // own clock subset - the rows capped by panel_clocks, with the built-in UTC and
 // local rows left out - so the tooltip lost exactly the rows it exists to show.
-test("a hovered panel asks for every clock entry, not the panel subset", () => {
+test("a hovered panel shows every clock in the tooltip and none on the panel", () => {
     const { stub, calls } = updateStub({ menuOpen: false });
-    stub.panel_clocks = 1;
     stub._panel_hovered = true;
 
     Proto._updateClockAndDate.call(stub);
 
-    assert.equal(calls.lastLimit, undefined, "the tooltip is not capped by panel_clocks");
+    assert.equal(calls.lastLimit, undefined, "the tooltip is capped by nothing");
     assert.equal(calls.lastIncludeBuiltin, true, "the tooltip keeps the UTC and local rows");
     assert.equal(calls.tooltip.length, 1);
 
-    // the label still only shows the clocks the user put on the panel
-    assert.match(calls.label[0], /NY/);
-    assert.doesNotMatch(calls.label[0], /Tokyo|Sydney|UTC/);
-    // and the tooltip shows the rows the label leaves out
+    // the panel label is the date and the weather: no clock reaches it
+    assert.doesNotMatch(calls.label[0], /NY|Tokyo|Sydney|UTC/);
+    // and the tooltip is where they all are, built-in rows included
     assert.match(calls.tooltip[0], /UTC/);
     assert.match(calls.tooltip[0], /Sydney/);
 });
@@ -2502,16 +2499,15 @@ test("the world-clock block hides only when the setting says so", () => {
     assert.equal(shown[2], true, "an absent setting still shows them");
 });
 
-test("an empty or absent clock list adds no clock text to the panel suffix", () => {
-    // reading .length off an absent list would throw, so the guard is real
-    assert.equal(panelStatus(suffixStub({ worldclocks: undefined })).buildLabelSuffix(
-        [{ label: "NY", time: "04:00" }]), "");
-    assert.equal(panelStatus(suffixStub({ worldclocks: null })).buildLabelSuffix(
-        [{ label: "NY", time: "04:00" }]), "");
-    assert.equal(panelStatus(suffixStub({ worldclocks: [] })).buildLabelSuffix(
-        [{ label: "NY", time: "04:00" }]), "");
-    assert.equal(panelStatus(suffixStub({ worldclocks: [{ label: "NY" }] })).buildLabelSuffix(
-        [{ label: "NY", time: "04:00" }]), "NY 04:00");
+test("no clock list, however shaped, puts a clock on the panel", () => {
+    // the panel label asks the clock list nothing at all now, so an absent,
+    // empty or populated list all produce the same suffix: the weather
+    for (const worldclocks of [undefined, null, [], [{ label: "NY" }]]) {
+        assert.equal(panelStatus(suffixStub({ worldclocks })).buildLabelSuffix(), "");
+        assert.equal(
+            panelStatus(suffixStub({ worldclocks, _weather_text: "☀ 20°C" })).buildLabelSuffix(),
+            "20°C");
+    }
 });
 
 test("a suffix exactly at the length cap is kept whole, one past it is cut", () => {

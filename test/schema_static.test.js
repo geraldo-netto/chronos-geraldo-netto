@@ -67,9 +67,8 @@ test("schema groups panel label controls together", () => {
     });
     assert.ok(layout.page1.sections.includes("section5"));
     assert.equal(layout.section1.keys.includes("show-weather"), false);
-    // panel-clocks lives with the switch that greys it out, not on another page
-    assert.deepEqual(layout.section4.keys,
-        ["show-worldclocks", "panel-clocks", "worldclocks"]);
+    // the clocks list lives with the switch that greys it out, not on another page
+    assert.deepEqual(layout.section4.keys, ["show-worldclocks", "worldclocks"]);
 });
 
 test("the country combobox and the supported-country list agree", () => {
@@ -219,17 +218,12 @@ test("keys that depend on the same switch are indented alike", () => {
 
 test("controls that cannot do anything are gated", () => {
     const data = schema("5.4");
-    // with the clocks feature off there is nothing to put on the panel
-    assert.equal(data["panel-clocks"].dependency, "show-worldclocks");
+    // with the clocks feature off there is nothing to configure
     assert.equal(data.worldclocks.dependency, "show-worldclocks");
-    // the vertical-panel limitation is stated where the user reads it
-    assert.match(data["panel-clocks"].description, /horizontal panels only/);
 
-    // ...and a control has to live on the page as the switch that greys it out.
-    // panel-clocks sat in "Panel Label" on the Calendar page while
-    // show-worldclocks is on the World Clocks page, so a user who turned the
-    // clocks off found a dead spinbutton on a different page with the cause
-    // nowhere in sight.
+    // ...and a control has to live on the page as the switch that greys it out:
+    // a control greyed out by a switch on another page leaves the user looking
+    // at a dead widget with the cause nowhere in sight.
     const pageOf = (key) => Object.entries(data.layout)
         .filter(([, entry]) => entry && entry.sections)
         .find(([, page]) => page.sections.some((section) =>
@@ -302,7 +296,6 @@ test("the clock cap is the same in schema, JS, Python, and the README", () => {
     const pyCap = Number(/^MAX_CLOCKS = (\d+)$/m.exec(widgets)[1]);
 
     assert.equal(jsCap, pyCap);
-    assert.equal(data["panel-clocks"].max, jsCap);
     assert.match(data.worldclocks.tooltip, new RegExp(`up to ${jsCap} timezones`));
 
     // one city per clock: cityWeather must not carry a cap of its own, or a

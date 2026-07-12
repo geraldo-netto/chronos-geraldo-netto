@@ -64,7 +64,6 @@
             "title": "Show World Times",
             "keys": [
                 "show-worldclocks",
-                "panel-clocks",
                 "worldclocks"
             ]
         },
@@ -538,16 +537,5 @@
             }
         ],
         "default": []
-    },
-    "panel-clocks": {
-        "type": "spinbutton",
-        "default": 0,
-        "min": 0,
-        "max": 8,
-        "step": 1,
-        "units": "clocks",
-        "dependency": "show-worldclocks",
-        "description": "World clocks shown next to the date in the panel (horizontal panels only)",
-        "tooltip": "How many of the configured world clocks to append to the panel label. The panel stays minimal by default - configured world clocks always show in the popup. A vertical panel has no room for them, so it shows none."
     }
 }

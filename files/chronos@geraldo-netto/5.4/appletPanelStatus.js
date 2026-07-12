@@ -125,14 +125,6 @@ class PanelView {
         return this.applet.custom_tooltip_format;
     }
 
-    get panelClocks() {
-        return this.applet.panel_clocks;
-    }
-
-    get worldclocks() {
-        return this.applet.worldclocks;
-    }
-
     get panelHovered() {
         return this.applet._panel_hovered;
     }
@@ -354,7 +346,12 @@ class AppletPanelStatusPresenter {
         return this.view.worldclocksEnabled;
     }
 
-    buildLabelSuffix(clockTexts = []) {
+    // World clocks never reach the panel. They are a table — a label and a time
+    // per city — and the panel is a single line that the date and the weather
+    // already share; a clock appended to it is the first thing the panel drops
+    // when it runs out of room. They are shown in full where there is room to
+    // show them: the tooltip and the popup.
+    buildLabelSuffix() {
         const view = this.view;
         if (view.orientation === St.Side.LEFT || view.orientation === St.Side.RIGHT) {
             return "";
@@ -373,12 +370,6 @@ class AppletPanelStatusPresenter {
             } else if (reading) {
                 parts.push(reading);
             }
-        }
-
-        if (this.worldclocksEnabled() && view.worldclocks && view.worldclocks.length) {
-            clockTexts.forEach((clock) => {
-                parts.push(clock.label + " " + clock.time);
-            });
         }
 
         return parts.join(" • ");
@@ -648,15 +639,6 @@ class AppletPanelStatusPresenter {
         return this.view.getClockEntries(limit, includeBuiltin);
     }
 
-    getUserClockTexts(clockEntries) {
-        return clockEntries.filter((clock) => !clock.builtin).slice(0, this.view.panelClocks).map((clock) => {
-            return {
-                label: clock.label,
-                time: clock.time
-            };
-        });
-    }
-
     getDateFormattedTooltip(formattedToday) {
         const view = this.view;
         if (!view.useCustomFormat) {
@@ -682,17 +664,14 @@ class AppletPanelStatusPresenter {
 
         let refreshMenu = forceMenuUpdate || view.menuOpen;
         const clocksOn = this.worldclocksEnabled();
-        // the closed panel only shows the configured clocks; formatting any
-        // when none are shown is pure per-second waste. The tooltip lists them
-        // all, so a hovered panel pays for the full set too.
-        const panelShowsClocks = view.panelClocks > 0 &&
-            Boolean(view.worldclocks && view.worldclocks.length);
-        // an undefined hover flag would land on the includeBuiltin default
-        const fullEntries = Boolean(refreshMenu || view.panelHovered);
-        let clockEntries = (clocksOn && (fullEntries || panelShowsClocks)) ?
-            this.getClockEntries(fullEntries ? null : view.panelClocks, fullEntries) : [];
-        let clockTexts = this.getUserClockTexts(clockEntries);
-        let label_suffix = this.buildLabelSuffix(clockTexts);
+        // Nobody reads a clock off the closed panel any more, so a closed panel
+        // formats none: a GLib.DateTime per city per second, for a table only the
+        // tooltip and the popup draw. They are built when one of those two is
+        // about to be shown, and then in full.
+        const showingClocks = Boolean(refreshMenu || view.panelHovered);
+        let clockEntries = (clocksOn && showingClocks) ?
+            this.getClockEntries(null, true) : [];
+        let label_suffix = this.buildLabelSuffix();
         if (label_suffix) {
             // the temperature reads as part of the clock line, so no bullet
             // divides them; any world clocks after it keep theirs
