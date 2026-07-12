@@ -33,7 +33,6 @@ var writeJsonFileAsync = IoUtils.writeJsonFileAsync;
 var createHttpSession = IoUtils.createHttpSession;
 var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS;
 var httpGetJson = IoUtils.httpGetJson;
-var _urlForLog = IoUtils._urlForLog;
 var safeCssColor = StyleUtils.safeCssColor;
 var backoffDelay = ProviderUtils.backoffDelay;
 var orderProvidersByLastSuccess = ProviderUtils.orderProvidersByLastSuccess;
@@ -55,7 +54,6 @@ if (typeof module !== "undefined") {
         writeJsonFileAsync,
         createHttpSession,
         HTTP_TIMEOUT_SECONDS,
-        _urlForLog,
         safeCssColor,
         lazyLocaleValue,
         onLocaleInfoChanged,

@@ -236,7 +236,7 @@ const EXPORTS = {
     styleUtils: ["safeCssColor"],
     providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     utils: ["MSECS_IN_DAY", "UI_ERROR_MARKER", "onLocaleInfoChanged", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
-        "translate", "translatePlural", "createHttpSession", "HTTP_TIMEOUT_SECONDS", "httpGetJson", "_urlForLog", "monthWindowStartOffset", "readJsonFileAsync",
+        "translate", "translatePlural", "createHttpSession", "HTTP_TIMEOUT_SECONDS", "httpGetJson", "monthWindowStartOffset", "readJsonFileAsync",
         "writeJsonFileAsync", "safeCssColor", "lazyLocaleValue", "backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale", "HTTP_TIMEOUT_SECONDS",
