@@ -2104,6 +2104,29 @@ test("a clock row with no zoned time falls back to the preformatted time", () =>
     }), ["Rome", "18:52", "", ""]);
 });
 
+test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", () => {
+    // the tooltip body has no seconds; if the change-detection key kept them, a
+    // hovered panel with clock-show-seconds on rebuilt the whole tooltip every
+    // second for a byte-identical string
+    const stub = {
+        show_weather: false,
+        use_custom_format: false,
+        _weather_text: "",
+        _weather_error: "",
+        worldclocks: []
+    };
+    const presenter = panelStatus(stub);
+    const at = (seconds) => ({
+        label: "Rome",
+        time: `18:52:${seconds}`,
+        builtin: false,
+        localTime: { format: () => "18 Jul 18:52" }
+    });
+
+    assert.equal(presenter._tooltipKey("Fri", [at("00")]), presenter._tooltipKey("Fri", [at("59")]),
+        "the second must not change the key when the rendered tooltip is the same");
+});
+
 test("the tooltip names no source when neither provider has answered", () => {
     // a plain object, not an applet: a half-built applet has no city provider
     // methods at all

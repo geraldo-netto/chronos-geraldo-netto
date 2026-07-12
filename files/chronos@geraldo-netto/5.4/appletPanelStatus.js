@@ -396,13 +396,21 @@ class AppletPanelStatusPresenter {
         return use24h ? TOOLTIP_CLOCK_FORMAT_24H : TOOLTIP_CLOCK_FORMAT_12H;
     }
 
+    // the stamp the tooltip actually shows: the no-seconds tooltip format, not
+    // entry.time (which carries seconds when clock-show-seconds is on). The
+    // change-detection key must read this same value or it recomputes the whole
+    // tooltip every second for a string that never changes.
+    tooltipClockStamp(entry) {
+        const stamp = entry.localTime && entry.localTime.format ?
+            entry.localTime.format(this.tooltipClockFormat()) : entry.time;
+        return stamp || entry.time;
+    }
+
     // the panel shows one time and one temperature; the tooltip is where the
     // rest of the world fits, one row per clock: label, date and time,
     // temperature, condition
     tooltipClockRow(entry) {
-        const stamp = entry.localTime && entry.localTime.format ?
-            entry.localTime.format(this.tooltipClockFormat()) : entry.time;
-        const cells = [entry.label, stamp || entry.time];
+        const cells = [entry.label, this.tooltipClockStamp(entry)];
 
         if (!this.view.showWeather) {
             return cells;
@@ -469,7 +477,7 @@ class AppletPanelStatusPresenter {
             view.showWeather ? view.weatherError : "",
             clockEntries.map((entry) => [
                 entry.label,
-                entry.time,
+                this.tooltipClockStamp(entry),
                 entry.builtin ? "b" : "",
                 view.showWeather ? this.tooltipWeatherCells(entry).join("\u0001") : ""
             ].join("\u0002")).join("\u0003")
