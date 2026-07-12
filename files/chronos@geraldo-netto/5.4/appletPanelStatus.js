@@ -25,6 +25,25 @@ const TOOLTIP_CLOCK_FORMAT_12H = "%d %b %l:%M %p";
 // label, date and time, temperature, condition: only the numbers are right-aligned
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
 
+// The derived (non-custom) clock formats, chosen by three independent booleans:
+// panel orientation, 12/24-hour, and seconds. A table instead of a four-deep
+// nest — the panel's main label depends on all three, the world-clock format on
+// two. Flat lookup, so no logic to follow.
+const PANEL_CLOCK_FORMATS = {
+    vertical: {
+        h24: { seconds: "%H%n%M%n%S", plain: "%H%n%M" },
+        h12: { seconds: "%l%n%M%n%S", plain: "%l%n%M" }
+    },
+    horizontal: {
+        h24: { seconds: "%d %b %H:%M:%S", plain: "%d %b %H:%M" },
+        h12: { seconds: "%d %b %l:%M:%S %p", plain: "%d %b %l:%M %p" }
+    }
+};
+const WORLD_CLOCK_FORMATS = {
+    h24: { seconds: "%H:%M:%S (%a)", plain: "%H:%M (%a)" },
+    h12: { seconds: "%l:%M:%S (%a)", plain: "%l:%M (%a)" }
+};
+
 const WEATHER_ERROR_TEXT = {
     [Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND]: _("Location not found"),
     [Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE]: _("Weather service unavailable"),
@@ -285,7 +304,6 @@ class AppletPanelStatusPresenter {
 
     updateFormatString() {
         const view = this.view;
-        let in_vertical_panel = (view.orientation === St.Side.LEFT || view.orientation === St.Side.RIGHT);
         let world_string = view.customFormat;
         let main_string = view.customFormat;
 
@@ -295,26 +313,14 @@ class AppletPanelStatusPresenter {
                 world_string = main_string = badFormatFallback(view, _("Invalid time format; edit it in Settings"));
             }
         } else {
-            let use_24h = view.desktopSettings.use24h;
-            let show_seconds = view.desktopSettings.showSeconds;
-
-            if (use_24h) {
-                main_string = show_seconds ? "%H%n%M%n%S" : "%H%n%M";
-                world_string = show_seconds ? "%H:%M:%S (%a)" : "%H:%M (%a)";
-            } else {
-                main_string = show_seconds ? "%l%n%M%n%S" : "%l%n%M";
-                world_string = show_seconds ? "%l:%M:%S (%a)" : "%l:%M (%a)";
-            }
-            // a horizontal panel gets the compact local readout - day, short
+            // a horizontal panel gets the compact local readout — day, short
             // month, time; the weekday, year and other zones live in the
             // tooltip and the popup, so the panel stays narrow
-            if (!in_vertical_panel) {
-                if (use_24h) {
-                    main_string = show_seconds ? "%d %b %H:%M:%S" : "%d %b %H:%M";
-                } else {
-                    main_string = show_seconds ? "%d %b %l:%M:%S %p" : "%d %b %l:%M %p";
-                }
-            }
+            const vertical = view.orientation === St.Side.LEFT || view.orientation === St.Side.RIGHT;
+            const hour = view.desktopSettings.use24h ? "h24" : "h12";
+            const slot = view.desktopSettings.showSeconds ? "seconds" : "plain";
+            main_string = PANEL_CLOCK_FORMATS[vertical ? "vertical" : "horizontal"][hour][slot];
+            world_string = WORLD_CLOCK_FORMATS[hour][slot];
         }
 
         view.setClockFormatString(main_string);

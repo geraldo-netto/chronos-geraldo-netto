@@ -1325,6 +1325,13 @@ test("_updateFormatString covers custom, invalid, 12h, 24h, and vertical panel b
     assert.equal(stub.clock.formats.at(-1), "%d %b %l:%M %p");
     assert.equal(stub.worldclock_format, "%l:%M (%a)");
 
+    // seconds on: the compact panel readout and the world format both grow %S
+    stub.desktop_settings.value = true;
+    stub.desktop_settings.showSeconds = true;
+    Proto._updateFormatString.call(stub);
+    assert.equal(stub.clock.formats.at(-1), "%d %b %H:%M:%S");
+    assert.equal(stub.worldclock_format, "%H:%M:%S (%a)");
+
     stub.use_custom_format = true;
     stub.custom_format = "bad";
     Proto._updateFormatString.call(stub);
