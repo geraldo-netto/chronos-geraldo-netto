@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/issues\n"
-"POT-Creation-Date: 2026-07-12 19:10+0200\n"
+"POT-Creation-Date: 2026-07-12 19:38+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -97,21 +97,21 @@ msgstr ""
 msgid "Fair"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:457
-#: 5.4/appletPanelStatus.js:578
+#: 5.4/appletPanelStatus.js:59 5.4/appletPanelStatus.js:448
+#: 5.4/appletPanelStatus.js:569
 msgid "Weather: loading…"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:303
+#: 5.4/appletPanelStatus.js:295
 msgid "Invalid time format; edit it in Settings"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:450
+#: 5.4/appletPanelStatus.js:441
 #, javascript-format
 msgid "%s Last known reading"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:670
+#: 5.4/appletPanelStatus.js:652
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr ""
 
@@ -274,11 +274,11 @@ msgstr ""
 msgid "Type a country name"
 msgstr ""
 
-#: settings_widgets_common.py:529
+#: settings_widgets_common.py:565
 msgid "Add new entry"
 msgstr ""
 
-#: settings_widgets_common.py:531
+#: settings_widgets_common.py:567
 msgid "Edit entry"
 msgstr ""
 
@@ -1407,20 +1407,4 @@ msgstr ""
 
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
-msgstr ""
-
-#. 5.4->settings-schema.json->panel-clocks->units
-msgid "clocks"
-msgstr ""
-
-#. 5.4->settings-schema.json->panel-clocks->description
-msgid ""
-"World clocks shown next to the date in the panel (horizontal panels only)"
-msgstr ""
-
-#. 5.4->settings-schema.json->panel-clocks->tooltip
-msgid ""
-"How many of the configured world clocks to append to the panel label. The "
-"panel stays minimal by default - configured world clocks always show in the "
-"popup. A vertical panel has no room for them, so it shows none."
 msgstr ""
