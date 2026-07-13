@@ -8,9 +8,9 @@ Audit ledger for this applet. Full-source rescan on 2026-07-12 (fresh pass) agai
 
 Baseline at scan time: `npm test` green **on this machine** (JS coverage per-file 98/90/100, Python 98 %+), `npm run lint` clean. But the Python coverage gate is weaker than it reads (T373) and **no CI runs them at all** (T440), so the green baseline is a local fact, not a shipped one.
 
-A batch on 2026-07-12 closed 27 of the findings (see `git log`): the six README fixes, the makepot `cd`, the single-sourced constants, the i18n trio, the dead `_urlForLog`, the lazy city Soup session, the tooltip-key seconds, the locale-subprocess reap, the chunked-response cap, the geocode fan-out pool, the JS/Python timezone-city parity, the logind resume, the holiday refetch-storm, the C→F unification, the five complexity splits, the `updateFormatString` table, the calendar-server proxy encapsulation, the EventList seam, the coverage-gate honesty fix, and the ATK-description fix. Five of that batch's targets were **parked** rather than done — the heavy reorganizations, all Medium and none a live bug; see "Open - parked" for the rationale.
+A batch on 2026-07-12 closed 27 of the findings (see `git log`): the six README fixes, the makepot `cd`, the single-sourced constants, the i18n trio, the dead `_urlForLog`, the lazy city Soup session, the tooltip-key seconds, the locale-subprocess reap, the chunked-response cap, the geocode fan-out pool, the JS/Python timezone-city parity, the logind resume, the holiday refetch-storm, the C→F unification, the five complexity splits, the `updateFormatString` table, the calendar-server proxy encapsulation, the EventList seam, the coverage-gate honesty fix, and the ATK-description fix. Five of that batch's targets were **parked** rather than done — the heavy reorganizations, all Medium and none a live bug. All five have since landed (T442, T444, T445, T446, T448).
 
-Open items: 14 (Critical 0, High 0, Medium 6, Low 8).
+Open items: 13 (Critical 0, High 0, Medium 6, Low 7).
 
 ## Findings
 
@@ -33,7 +33,6 @@ None open.
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T444 | architecture | Low | open | L | **[verified]** `settings_widgets_common.py` is a 1195-line module with ~9 responsibilities (gettext bootstrap, X11 window centering, IANA timezone domain logic, GTK completion plumbing, three custom widgets, a list-edit factory, ATK helpers, a dialog presenter, a dialog builder). The pure timezone half (`TimezoneResolver`, `local_city_name`, `looks_like_iana`, `completion_key`) has no `gi` dependency yet forces `test_settings_widgets.py` to stand up a GTK stack to test string functions. | Fix: split at the GTK line into `timezone_data.py` (no `gi`) + the widgets. The `5.4/` shim re-exports only the three widget names, so the split is invisible to Cinnamon. |
 | T455 | dead code | Low | open | S | **[verified]** `cityWeather.js:34` `CITY_STALE_AFTER_SECONDS` is computed at load and exported, but production reads none of it — `CityWeatherProvider` computes its own threshold at `:54`. Only `cityWeather.test.js` reads it. | Verified by grep. Fix: delete the constant and its `module.exports` entry. |
 | T461 | testing / validation | Low | open | S | **[verified]** `settings_widgets_common.py:818` `looks_like_iana`'s character-class check (`ch.isalnum() or ch in "_+-"`) is never exercised — it is the only validation of a typed timezone when no tz database is present, and every no-db test input passes both checks or is rejected by the length check first. A garbage value shaped `Area/City baz` would be accepted and saved as a timezone. | Verified: mutating the return to `True` left all Python tests passing; mutating the length guard was killed. Fix: add a no-db `normalize()` case with a 2–3 segment value containing spaces/punctuation, assert `None`. |
 | T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete, or promote to the root `icon.png` T439 needs. |
@@ -49,8 +48,7 @@ The 2026-07-12 batch closed the live defects, the i18n regressions and the docs/
 1. **T440, T373** — make the gates real (add CI, close the Python coverage-glob hole). The eslint ruleset (T428) and the JS coverage-honesty hole (T424) are done; these two finish the net.
 2. **T439** — the last packaging blocker to a first release or Spices submission (the icon symlink).
 3. **T374, T434, T449** — the tests that lie; each is a bug free to come back.
-4. **The parked reorganizations** (T444) — schedule when next touching those files, not as standalone churn; see "Open - parked".
-5. Everything else, severity order.
+4. Everything else, severity order.
 
 ## Clean categories
 
@@ -66,10 +64,6 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 - **Settings-schema → runtime.** Every current schema key is read and acted on; `format-button` resolves to `on_custom_format_button_pressed`; `has_region`'s default matches `ENRICO_REGION_TO_COUNTY` and the country combobox matches `SUPPORTED_COUNTRIES`; `region_*`/`has_region` are reached at runtime via `REGION_KEY_PREFIX + country` concatenation (grep-false-positives, not gaps). The ten `5.4/*.js` shims are whole-module pass-throughs, so no per-symbol drift is possible.
 - **Signal wiring, including the calendar nav buttons (T359).** Renaming/breaking the signals — `enter-event`, `start-pass-events`, day-cell `clicked`, country `changed::`, `open-state-changed`, `view-event`, calendar-server `connect`, Soup `restarted`, the label clamp — each failed the suite. The month/year nav buttons now fail it too; scroll is still tested by direct call.
 - **Not applicable**: database / migrations, multi-tenancy, Electron, Rust, ML / retrieval / RAG, vectorization, CLI surface, SQL injection, CORS/CSRF, prompt injection.
-
-## Open - parked
-
-One of the five heaviest reorganizations from the 2026-07-12 batch is still parked (T444); the weather split (T445), the Enrico rename (T446), the holiday port split (T448) and the weather port record (T442) have since landed. It is Medium, it is not a live bug, and it carries test-infrastructure ripple that is error-prone to do at speed. Unpack it into ordered sub-steps that land on their own with the suite green — one commit per step.
 
 ## Rejected
 
