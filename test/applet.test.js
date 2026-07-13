@@ -417,11 +417,14 @@ test("ellipsizeLabelSuffix never splits surrogate pairs", () => {
 // T27c: menu-state gating in _updateClockAndDate
 function updateStub({ menuOpen = false } = {}) {
     const calls = { label: [], tooltip: [], selected: 0, worldTicks: 0, dayText: [], clockEntries: 0, lastEntries: null };
+    // the entries carry their timezone, as the real ones do: the city weather is
+    // keyed on the city the timezone names, not on the label — two clocks may
+    // share a label, and the user's name for a row is not a place
     const clockEntries = [
-        { label: "UTC", time: "UTC:%H:%M", builtin: true },
-        { label: "NY", time: "04:00", builtin: false },
-        { label: "Tokyo", time: "18:00", builtin: false },
-        { label: "Sydney", time: "20:00", builtin: false }
+        { label: "UTC", timezone: "UTC", time: "UTC:%H:%M", builtin: true },
+        { label: "NY", timezone: "America/New_York", time: "04:00", builtin: false },
+        { label: "Tokyo", timezone: "Asia/Tokyo", time: "18:00", builtin: false },
+        { label: "Sydney", timezone: "Australia/Sydney", time: "20:00", builtin: false }
     ];
     const stub = Object.assign(Object.create(Proto), {
         clock: clockStub(),
@@ -2453,11 +2456,16 @@ test("nothing hangs off the bottom of the tooltip table", () => {
 // widths are measured from the rows, never assumed, so one long name pushes the
 // whole table over and a short one leaves it where it is
 test("the tooltip columns are as wide as the longest cell in them", () => {
-    const readings = {
-        "Rio": "☀ 5°C",
-        "Buenos Aires": "⛅ 11°C",
-        "Sault Ste. Marie, Ontario": "🌨 -12°C"
-    };
+    // the label is the user's name for the row; the reading is of the city the
+    // row's timezone names, and that is what it is keyed by
+    const rows = [
+        { label: "Rio", timezone: "America/Sao_Paulo", city: "Sao Paulo", reading: "☀ 5°C" },
+        { label: "Buenos Aires", timezone: "America/Argentina/Buenos_Aires",
+            city: "Buenos Aires", reading: "⛅ 11°C" },
+        { label: "Sault Ste. Marie, Ontario", timezone: "America/Toronto",
+            city: "Toronto", reading: "🌨 -12°C" }
+    ];
+    const readings = Object.fromEntries(rows.map((row) => [row.city, row.reading]));
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         use_custom_format: false,
@@ -2465,12 +2473,12 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
         _weather_reading: null,
         _weather_error: "",
         _weather_provider: "",
-        worldclocks: Object.keys(readings).map((label) => ({ label })),
+        worldclocks: rows.map(({ label, timezone }) => ({ label, timezone })),
         cityWeatherReading: (city) => (readings[city] ? readingFrom(readings[city]) : null),
         cityWeatherProviderName: () => ""
     });
-    const entries = Object.keys(readings).map((label) =>
-        tooltipEntry(label, "Etc/UTC", "11 Jul 18:52", false));
+    const entries = rows.map((row) =>
+        tooltipEntry(row.label, row.timezone, "11 Jul 18:52", false));
 
     const lines = panelStatus(stub).buildTooltipText("", entries).split("\n");
     const longest = "Sault Ste. Marie, Ontario".length;

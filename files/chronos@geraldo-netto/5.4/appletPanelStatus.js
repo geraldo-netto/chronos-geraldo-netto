@@ -482,13 +482,17 @@ class AppletPanelStatusPresenter {
     // no slot, so there is no "loading" state to report.
     _cityWeatherCells(entry) {
         const view = this.view;
-        const record = view.cityWeatherReading(entry.label);
+        // the reading is of the city the timezone names, which is also what was
+        // geocoded; the label is the user's name for the row and two rows may
+        // share one
+        const city = WorldclockData.timezoneCityName(entry.timezone);
+        const record = view.cityWeatherReading(city);
         if (!record) {
             return ["", ""];
         }
 
         let error = "";
-        if (view.cityWeatherStale(entry.label)) {
+        if (view.cityWeatherStale(city)) {
             // one msgid: the marker is a glyph the phrase is built around, and a
             // translator has to be able to put it where it belongs
             error = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);

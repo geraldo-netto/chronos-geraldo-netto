@@ -465,9 +465,50 @@ test("the geocoder is asked about the timezone's city, never the user's label", 
 
     assert.deepEqual(asked, ["Buenos Aires"],
         "a nickname never reaches a third-party geocoder");
-    // the tooltip still finds the reading under the name the user gave it
-    assert.deepEqual(provider.recordFor("Mom's place"), R("☀ 20°C"));
+    // ...and the reading is filed under the city it is *of*. It used to be filed
+    // under the label, which is the user's own name for the row and is unique
+    // only by luck: see the two clocks called "Home", below.
+    assert.deepEqual(provider.recordFor("Buenos Aires"), R("☀ 20°C"));
+    assert.equal(provider.recordFor("Mom's place"), null);
     assert.equal(provider.recordFor("Somewhere"), null);
+});
+
+// REGRESSION: the readings were keyed by the clock's label — free text the user
+// types, which nothing makes unique, and which clockDisplayLabel clamps to 24
+// code points so two labels sharing 23 characters collapse too. Two clocks both
+// called "Home" therefore shared one entry: the second city was never geocoded,
+// never fetched, and its row showed the first city's temperature, with no
+// staleness marker and no error to say so.
+test("two clocks with the same label each get their own city's weather", () => {
+    const CityWeather = loadCityWeather();
+    const asked = [];
+    const provider = new CityWeather.CityWeatherProvider({
+        httpGetJson() {},
+        locationResolver: {
+            resolve(city, _isCurrent, callback) {
+                asked.push(city);
+                callback({ latitude: 1, longitude: 2, name: city }, "");
+            }
+        },
+        forecastResolver: {
+            refresh(place, _isCurrent, callback) {
+                callback(place.name === "Tokyo" ? R("🌧 12°C") : R("☀ 20°C"), "", "Open-Meteo");
+            }
+        }
+    });
+
+    provider.refresh({
+        showWeather: true,
+        units: "si",
+        cities: [
+            { label: "Home", query: "Lisbon" },
+            { label: "Home", query: "Tokyo" }
+        ]
+    }, () => {});
+
+    assert.deepEqual(asked.sort(), ["Lisbon", "Tokyo"], "both cities are read");
+    assert.deepEqual(provider.recordFor("Lisbon"), R("☀ 20°C"));
+    assert.deepEqual(provider.recordFor("Tokyo"), R("🌧 12°C"));
 });
 
 test("a city that fails to read is retried, and says so once it is old", () => {

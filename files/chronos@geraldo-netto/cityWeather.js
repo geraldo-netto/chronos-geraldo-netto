@@ -110,6 +110,9 @@ var CityWeatherProvider = class CityWeatherProvider {
         return this._last_provider;
     }
 
+    // `city` is the geocoded city — what the reading is *of* — and not the clock's
+    // label, which is the user's own name for the row and is not unique.
+    //
     // the readings outlive a refresh: a city that failed this round keeps the
     // temperature it last had rather than blinking out of the tooltip. The
     // reading is the unit-free record { condition, temperatureC }; the tooltip
@@ -232,7 +235,7 @@ var CityWeatherProvider = class CityWeatherProvider {
             return;
         }
 
-        const wanted = new Set(cities.map((city) => locationCacheKey(city.label)));
+        const wanted = new Set(cities.map((city) => locationCacheKey(city.query)));
         for (const key of Array.from(this._readings.keys())) {
             if (!wanted.has(key)) {
                 this._readings.delete(key);
@@ -333,7 +336,12 @@ var CityWeatherProvider = class CityWeatherProvider {
                 continue;
             }
 
-            const key = locationCacheKey(city.label);
+            // keyed on the city, not on the label: the label is the user's own
+            // name for the clock and nothing makes it unique. Two clocks both
+            // called "Home" — Lisbon and Tokyo — collapsed into one entry here,
+            // so Tokyo was never geocoded, never fetched, and its row showed
+            // Lisbon's temperature with nothing to say it was the wrong city.
+            const key = locationCacheKey(city.query);
             if (seen.has(key)) {
                 continue;
             }
@@ -392,7 +400,7 @@ var CityWeatherProvider = class CityWeatherProvider {
                         return;
                     }
 
-                    this._readings.set(locationCacheKey(city.label), { record: reading, at: this._now() });
+                    this._readings.set(locationCacheKey(city.query), { record: reading, at: this._now() });
                     this._last_provider = provider || this._last_provider;
                     // the panel is repainted once, when the round finishes
                     round.changed = true;
