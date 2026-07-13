@@ -272,11 +272,6 @@ function aviationWeatherReading(stations, place) {
     return { condition: aviationWeatherIcon(station), temperatureC: metarNumber(station.temp) };
 }
 
-function aviationWeatherText(stations, place, units) {
-    const reading = aviationWeatherReading(stations, place);
-    return reading ? formatReading(reading.condition, reading.temperatureC, units) : "";
-}
-
 function weatherReading(weather) {
     // Open-Meteo answers `temperature: null` for a degraded station, and an
     // unchecked Math.round() turns that into "NaN°C" — a non-empty string,
@@ -290,11 +285,6 @@ function weatherReading(weather) {
     // Open-Meteo is asked for Celsius (forecastUrl), so the temperature is
     // Celsius like the other two rather than a server-side conversion
     return { condition: weatherIcon(weather.weathercode), temperatureC: weather.temperature };
-}
-
-function weatherText(weather, units) {
-    const reading = weatherReading(weather);
-    return reading ? formatReading(reading.condition, reading.temperatureC, units) : "";
 }
 
 function metNoIcon(symbolCode) {
@@ -368,11 +358,6 @@ function metNoWeatherReading(forecast) {
     return { condition: icon, temperatureC: data.instant.details.air_temperature };
 }
 
-function metNoWeatherText(forecast, units) {
-    const reading = metNoWeatherReading(forecast);
-    return reading ? formatReading(reading.condition, reading.temperatureC, units) : "";
-}
-
 function openMeteoGeocodePlace(data) {
     if (!data || !Array.isArray(data.results) || !data.results.length) {
         return null;
@@ -418,5 +403,5 @@ function nominatimGeocodePlace(data) {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, aviationWeatherText, weatherReading, weatherText, metNoIcon, metNoSummary, metNoWeatherReading, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
+    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon, metNoSummary, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
 }

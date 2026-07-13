@@ -18,6 +18,17 @@ const schema52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto"
 let originalImports;
 let originalLogError;
 
+// The port answers with a unit-free reading record, never with display text: the
+// provider says what the weather is and the presenter decides how to show it.
+// These tests used to assert the rendered string the resolver handed back, so
+// they render it here — which is exactly what the panel now does.
+function shown(reading, units = "metric") {
+    const WeatherFormat = require(path.join(
+        __dirname, "..", "files", "chronos@geraldo-netto", "weatherFormat.js"));
+    return reading ?
+        WeatherFormat.formatReading(reading.condition, reading.temperatureC, units) : "";
+}
+
 function loadWeather(soupOverrides = {}) {
     delete require.cache[require.resolve(modulePath)];
     // the scheduler captures GLib at load; reload it so it binds this call's
@@ -99,11 +110,11 @@ test("aviationweather METARs are read from the nearest station that has a temper
     ];
 
     assert.equal(Weather.aviationWeatherStation(stations, place).icaoId, "SBMT");
-    assert.equal(Weather.aviationWeatherText(stations, place, "si"), "☁ 23°C");
+    assert.equal(shown(Weather.aviationWeatherReading(stations, place), "si"), "☁ 23°C");
     // METAR temperatures are Celsius; imperial has to convert
-    assert.equal(Weather.aviationWeatherText(stations, place, "imperial"), "☁ 73°F");
-    assert.equal(Weather.aviationWeatherText([], place, "si"), "");
-    assert.equal(Weather.aviationWeatherText(null, place, "si"), "");
+    assert.equal(shown(Weather.aviationWeatherReading(stations, place), "imperial"), "☁ 73°F");
+    assert.equal(shown(Weather.aviationWeatherReading([], place), "si"), "");
+    assert.equal(shown(Weather.aviationWeatherReading(null, place), "si"), "");
     assert.equal(Weather.aviationWeatherStation([{ lat: "x", lon: 1, temp: 5 }], place), null);
 });
 
@@ -137,8 +148,8 @@ test("the METAR service answers between Open-Meteo and MET.no", () => {
     });
     const values = [];
 
-    resolver.refresh({ latitude: 41.9, longitude: 12.5 }, "si", () => true, (text, error, name) => {
-        values.push({ text, error, name });
+    resolver.refresh({ latitude: 41.9, longitude: 12.5 }, () => true, (reading, error, name) => {
+        values.push({ text: shown(reading, "si"), error, name });
     });
 
     assert.deepEqual(values, [
@@ -292,13 +303,13 @@ test("supports selectable SI and imperial weather units", () => {
 
     for (const units of ["si", "metric", "", null, undefined]) {
         assert.equal(Weather.normalizeUnits(units), "si");
-        assert.equal(Weather.weatherText({ weathercode: 1, temperature: 20.2 }, units), "⛅ 20°C");
+        assert.equal(shown(Weather.weatherReading({ weathercode: 1, temperature: 20.2 }), units), "⛅ 20°C");
     }
 
     assert.equal(Weather.normalizeUnits("imperial"), "imperial");
     // the temperature is Celsius now (Open-Meteo is asked for Celsius); imperial
     // converts it: 20 °C is 68 °F
-    assert.equal(Weather.weatherText({ weathercode: 1, temperature: 20 }, "imperial"), "⛅ 68°F");
+    assert.equal(shown(Weather.weatherReading({ weathercode: 1, temperature: 20 }), "imperial"), "⛅ 68°F");
 
     const schema = JSON.parse(fs.readFileSync(schema52Path, "utf8"));
     assert.equal(schema["weather-units"].default, "si");
@@ -328,22 +339,22 @@ test("the forecast normalizers return a unit-free reading record", () => {
     assert.equal(Weather.metNoWeatherReading({}), null);
 
     // and the string form is that record rendered at the caller's unit
-    assert.equal(Weather.weatherText({ weathercode: 0, temperature: 21.4 }, "si"), "☀ 21°C");
-    assert.equal(Weather.weatherText({ weathercode: 0, temperature: 21.4 }, "imperial"), "☀ 71°F");
+    assert.equal(shown(Weather.weatherReading({ weathercode: 0, temperature: 21.4 }), "si"), "☀ 21°C");
+    assert.equal(shown(Weather.weatherReading({ weathercode: 0, temperature: 21.4 }), "imperial"), "☀ 71°F");
 });
 
 test("formats weather text and maps every fuzzed weather code to an icon", () => {
     const Weather = loadWeather();
 
-    assert.equal(Weather.weatherText({ weathercode: 0, temperature: 21.4 }, "metric"), "☀ 21°C");
+    assert.equal(shown(Weather.weatherReading({ weathercode: 0, temperature: 21.4 }), "metric"), "☀ 21°C");
     // 21.7 °C converts to 71 °F
-    assert.equal(Weather.weatherText({ weathercode: 63, temperature: 21.7 }, "imperial"), "🌧 71°F");
-    assert.equal(Weather.weatherText(null, "metric"), "");
+    assert.equal(shown(Weather.weatherReading({ weathercode: 63, temperature: 21.7 }), "imperial"), "🌧 71°F");
+    assert.equal(shown(Weather.weatherReading(null), "metric"), "");
 
     // a degraded Open-Meteo station reports no temperature; rounding that
     // gives "NaN°C", which the provider chain would read as an answer
     for (const missing of [null, undefined, "warm", NaN, Infinity]) {
-        assert.equal(Weather.weatherText({ weathercode: 0, temperature: missing }, "metric"), "",
+        assert.equal(shown(Weather.weatherReading({ weathercode: 0, temperature: missing }), "metric"), "",
             `a temperature of ${String(missing)} is no reading at all`);
     }
 
@@ -409,9 +420,9 @@ test("formats MET.no forecast data with SI and imperial units", () => {
     assert.equal(Weather.metNoIcon("snow"), "🌨");
     assert.equal(Weather.metNoIcon("rainshowersandthunder_day"), "⛈");
     assert.equal(Weather.metNoIcon("heavysnowandthunder"), "⛈");
-    assert.equal(Weather.metNoWeatherText(forecast, "si"), "🌧 10°C");
-    assert.equal(Weather.metNoWeatherText(forecast, "imperial"), "🌧 51°F");
-    assert.equal(Weather.metNoWeatherText({}, "si"), "");
+    assert.equal(shown(Weather.metNoWeatherReading(forecast), "si"), "🌧 10°C");
+    assert.equal(shown(Weather.metNoWeatherReading(forecast), "imperial"), "🌧 51°F");
+    assert.equal(shown(Weather.metNoWeatherReading({}), "si"), "");
 
     for (const symbol of ["clearsky", "fair", "partlycloudy", "cloudy", "fog", "rain", "drizzle", "sleet", "snow", "rainshowers", "unknown"]) {
         const icon = Weather.metNoIcon(symbol);
@@ -428,19 +439,19 @@ test("MET.no summaries fall back through longer forecast horizons", () => {
     }
     const instant = { details: { air_temperature: 3.6 } };
 
-    assert.equal(Weather.metNoWeatherText(forecastWith({
+    assert.equal(shown(Weather.metNoWeatherReading(forecastWith({
         instant,
         next_6_hours: { summary: { symbol_code: "snow" } }
-    }), "si"), "🌨 4°C");
-    assert.equal(Weather.metNoWeatherText(forecastWith({
+    })), "si"), "🌨 4°C");
+    assert.equal(shown(Weather.metNoWeatherReading(forecastWith({
         instant,
         next_12_hours: { summary: { symbol_code: "cloudy" } }
-    }), "si"), "☁ 4°C");
-    assert.equal(Weather.metNoWeatherText(forecastWith({ instant }), "si"), "🌤 4°C");
-    assert.equal(Weather.metNoWeatherText(forecastWith({
+    })), "si"), "☁ 4°C");
+    assert.equal(shown(Weather.metNoWeatherReading(forecastWith({ instant })), "si"), "🌤 4°C");
+    assert.equal(shown(Weather.metNoWeatherReading(forecastWith({
         next_1_hours: { summary: { symbol_code: "rain" } }
-    }), "si"), "");
-    assert.equal(Weather.metNoWeatherText(forecastWith(null), "si"), "");
+    })), "si"), "");
+    assert.equal(shown(Weather.metNoWeatherReading(forecastWith(null)), "si"), "");
 });
 
 test("MET.no forecast parser fuzzes truncated payloads without throwing", () => {
@@ -497,7 +508,7 @@ test("MET.no forecast parser fuzzes truncated payloads without throwing", () => 
         ]);
 
         assert.doesNotThrow(() => {
-            const text = Weather.metNoWeatherText(forecast, rand() < 0.5 ? "si" : "imperial");
+            const text = shown(Weather.metNoWeatherReading(forecast), rand() < 0.5 ? "si" : "imperial");
             assert.equal(typeof text, "string");
             assert.ok(text === "" || /^[^\s]+ -?\d+°[CF]$/.test(text), `unexpected text: ${text}`);
         });
@@ -568,7 +579,7 @@ test("a METAR station with no temperature never wins the nearest-station race", 
     ];
 
     assert.equal(Weather.aviationWeatherStation(stations, place).icaoId, "REPORTING");
-    assert.equal(Weather.aviationWeatherText(stations, place, "si"), "⛅ 14°C");
+    assert.equal(shown(Weather.aviationWeatherReading(stations, place), "si"), "⛅ 14°C");
 
     // and a station whose coordinates are missing is not sitting at Null Island
     assert.equal(Weather.aviationWeatherStation(
@@ -631,7 +642,7 @@ test("aviation weather fuzzes malformed station payloads without throwing", () =
 
         assert.doesNotThrow(() => {
             station = Weather.aviationWeatherStation(stations, place);
-            text = Weather.aviationWeatherText(stations, place, units);
+            text = shown(Weather.aviationWeatherReading(stations, place), units);
         });
 
         // it never invents a station, and never picks one it cannot read
@@ -689,7 +700,7 @@ test("aviation weather fuzzes malformed station payloads without throwing", () =
     // an empty box and a service that answered with something other than a list
     for (const empty of [[], null, undefined, {}, "no stations"]) {
         assert.equal(Weather.aviationWeatherStation(empty, place), null);
-        assert.equal(Weather.aviationWeatherText(empty, place, "si"), "");
+        assert.equal(shown(Weather.aviationWeatherReading(empty, place), "si"), "");
     }
 
     // a station without a temperature is skipped even when it is the closest one
@@ -698,8 +709,8 @@ test("aviation weather fuzzes malformed station payloads without throwing", () =
         { icaoId: "LFPG", lat: 49.01, lon: 2.55, temp: 10, cover: "OVC" }
     ];
     assert.equal(Weather.aviationWeatherStation(stations, place).icaoId, "LFPG");
-    assert.equal(Weather.aviationWeatherText(stations, place, "si"), "☁ 10°C");
-    assert.equal(Weather.aviationWeatherText(stations, place, "imperial"), "☁ 50°F");
+    assert.equal(shown(Weather.aviationWeatherReading(stations, place), "si"), "☁ 10°C");
+    assert.equal(shown(Weather.aviationWeatherReading(stations, place), "imperial"), "☁ 50°F");
 });
 
 test("provider sessions carry an explicit HTTP timeout", () => {
@@ -739,12 +750,12 @@ test("enabled weather without a location reports the setup hint", () => {
     const provider = new Weather.WeatherProvider({ httpGetJson() { throw new Error("no request expected"); } });
     const reports = [];
     provider.refresh({ showWeather: true, location: "  ", units: "si" },
-        (text, error, name) => reports.push({ text, error, name }));
-    assert.deepEqual(reports, [{ text: "", error: Weather.WEATHER_ERRORS.NO_LOCATION, name: "" }]);
+        (reading, error, name) => reports.push({ reading, error, name }));
+    assert.deepEqual(reports, [{ reading: null, error: Weather.WEATHER_ERRORS.NO_LOCATION, name: "" }]);
 
     provider.refresh({ showWeather: false, location: "", units: "si" },
-        (text, error, name) => reports.push({ text, error, name }));
-    assert.deepEqual(reports[1], { text: "", error: "", name: "" }, "disabled stays silent");
+        (reading, error, name) => reports.push({ reading, error, name }));
+    assert.deepEqual(reports[1], { reading: null, error: "", name: "" }, "disabled stays silent");
 });
 
 test("the first fetch shows a pending placeholder, later ones do not", () => {
@@ -762,16 +773,20 @@ test("the first fetch shows a pending placeholder, later ones do not", () => {
 
     const reports = [];
     const settings = { showWeather: true, location: "Rome", units: "si" };
-    provider.schedule(settings, (text, error) => reports.push({ text, error }));
-    assert.equal(reports[0].text, Weather.WEATHER_PENDING_TEXT, "placeholder first");
+    // pending is a state now, not the "…" string: nothing downstream has to
+    // compare a display string against a placeholder to know a fetch is running
+    provider.schedule(settings, (reading, error, _name, pending) =>
+        reports.push({ reading, error, pending }));
+    assert.deepEqual(reports[0], { reading: null, error: "", pending: true }, "placeholder first");
     respond();
-    assert.ok(reports[1].text.length > 0);
-    assert.notEqual(reports[1].text, Weather.WEATHER_PENDING_TEXT);
+    assert.deepEqual(reports[1].reading, { condition: "⛅", temperatureC: 12.6 });
+    assert.ok(!reports[1].pending);
 
-    provider.schedule(settings, (text, error) => reports.push({ text, error }));
+    provider.schedule(settings, (reading, error, _name, pending) =>
+        reports.push({ reading, error, pending }));
     respond();
     assert.equal(reports.length, 3, "no placeholder once a reading exists");
-    assert.notEqual(reports[2].text, Weather.WEATHER_PENDING_TEXT);
+    assert.ok(!reports[2].pending);
 });
 
 test("transient failures keep reporting the last good reading", () => {
@@ -791,19 +806,19 @@ test("transient failures keep reporting the last good reading", () => {
 
     const reports = [];
     const settings = { showWeather: true, location: "Rome", units: "si" };
-    provider.refresh(settings, (text, error, name) => reports.push({ text, error, name }));
-    assert.ok(reports[0].text.length > 0);
+    provider.refresh(settings, (reading, error, name) => reports.push({ reading, error, name }));
+    assert.deepEqual(reports[0].reading, { condition: "⛅", temperatureC: 12.6 });
     assert.equal(reports[0].error, "");
 
     fail = true;
-    provider.refresh(settings, (text, error, name) => reports.push({ text, error, name }));
-    assert.equal(reports[1].text, reports[0].text, "stale reading retained");
+    provider.refresh(settings, (reading, error, name) => reports.push({ reading, error, name }));
+    assert.deepEqual(reports[1].reading, reports[0].reading, "stale reading retained");
     assert.ok(reports[1].error.length > 0, "error still reported");
 
     // a different location must not inherit the stale reading
     provider.refresh({ showWeather: true, location: "Oslo", units: "si" },
-        (text, error, name) => reports.push({ text, error, name }));
-    assert.equal(reports[2].text, "");
+        (reading, error, name) => reports.push({ reading, error, name }));
+    assert.equal(reports[2].reading, null);
 });
 
 test("weather display state owns stale reading reporting", () => {
@@ -1236,11 +1251,11 @@ test("weather forecast resolver owns fallback and last-success ordering", () => 
     });
     const values = [];
 
-    resolver.refresh({ latitude: 1, longitude: 2 }, "si", () => true, (text, error, providerName) => {
-        values.push({ text, error, providerName });
+    resolver.refresh({ latitude: 1, longitude: 2 }, () => true, (reading, error, providerName) => {
+        values.push({ text: shown(reading, "si"), error, providerName });
     });
-    resolver.refresh({ latitude: 1, longitude: 2 }, "si", () => true, (text, error, providerName) => {
-        values.push({ text, error, providerName });
+    resolver.refresh({ latitude: 1, longitude: 2 }, () => true, (reading, error, providerName) => {
+        values.push({ text: shown(reading, "si"), error, providerName });
     });
 
     assert.deepEqual(values, [
@@ -1263,7 +1278,7 @@ test("weather forecast resolver owns fallback and last-success ordering", () => 
         }
     });
     const staleValues = [];
-    staleResolver.refresh({ latitude: 1, longitude: 2 }, "si", () => false, (...args) => staleValues.push(args));
+    staleResolver.refresh({ latitude: 1, longitude: 2 }, () => false, (...args) => staleValues.push(args));
     staleRequests[0].callback({ current_weather: { weathercode: 1, temperature: 20 } });
     assert.deepEqual(staleValues, []);
 
@@ -1277,8 +1292,8 @@ test("weather forecast resolver owns fallback and last-success ordering", () => 
         }
     });
     try {
-        failedResolver.refresh({ latitude: 1, longitude: 2 }, "si", () => true, (text, error, providerName) => {
-            failed.push({ text, error, providerName });
+        failedResolver.refresh({ latitude: 1, longitude: 2 }, () => true, (reading, error, providerName) => {
+            failed.push({ text: shown(reading, "si"), error, providerName });
         });
     } finally {
         global.log = originalLog;
@@ -1307,8 +1322,8 @@ test("refresh geocodes, fetches forecast, and reports formatted text", () => {
 
     let text = null;
     let providerName = null;
-    provider.refresh({ showWeather: true, location: "Rome", units: "metric" }, (value, _error, servedBy) => {
-        text = value;
+    provider.refresh({ showWeather: true, location: "Rome", units: "metric" }, (reading, _error, servedBy) => {
+        text = shown(reading, "metric");
         providerName = servedBy;
     });
 
@@ -1330,9 +1345,9 @@ test("refresh returns empty text when disabled, blank, or unresolved", () => {
     });
     const values = [];
 
-    provider.refresh({ showWeather: false, location: "Rome", units: "metric" }, (value) => values.push(value));
-    provider.refresh({ showWeather: true, location: "   ", units: "metric" }, (value) => values.push(value));
-    provider.refresh({ showWeather: true, location: "Nowhere", units: "metric" }, (value) => values.push(value));
+    provider.refresh({ showWeather: false, location: "Rome", units: "metric" }, (reading) => values.push(shown(reading)));
+    provider.refresh({ showWeather: true, location: "   ", units: "metric" }, (reading) => values.push(shown(reading)));
+    provider.refresh({ showWeather: true, location: "Nowhere", units: "metric" }, (reading) => values.push(shown(reading)));
 
     assert.deepEqual(values, ["", "", ""]);
     assert.equal(calls, 2);
@@ -1347,8 +1362,8 @@ test("refresh reports weather failures with user-visible status", () => {
         }
     });
 
-    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (text, error) => {
-        geocodeFailures.push({ text, error });
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (reading, error) => {
+        geocodeFailures.push({ text: shown(reading, "si"), error });
     });
 
     assert.deepEqual(geocodeFailures, [{ text: "", error: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE }]);
@@ -1360,8 +1375,8 @@ test("refresh reports weather failures with user-visible status", () => {
             callback({ results: [] });
         }
     });
-    unresolvedProvider.refresh({ showWeather: true, location: "Nowhere", units: "si" }, (text, error) => {
-        unresolved.push({ text, error });
+    unresolvedProvider.refresh({ showWeather: true, location: "Nowhere", units: "si" }, (reading, error) => {
+        unresolved.push({ text: shown(reading, "si"), error });
     });
     assert.deepEqual(unresolved, [{ text: "", error: Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND }]);
 
@@ -1417,8 +1432,8 @@ test("refresh falls back to MET.no forecast with required user agent", () => {
     });
     let result = null;
 
-    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (text, error, providerName) => {
-        result = { text, error, providerName };
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (reading, error, providerName) => {
+        result = { text: shown(reading, "si"), error, providerName };
     });
 
     assert.deepEqual(result, { text: "🌧 10°C", error: "", providerName: Weather.WEATHER_PROVIDER_NAMES.MET_NO });
@@ -1429,8 +1444,8 @@ test("refresh falls back to MET.no forecast with required user agent", () => {
     assert.ok(requests[3].url.includes("api.met.no"));
     assert.equal(requests[3].options.headers["User-Agent"], Weather.WEATHER_USER_AGENT);
 
-    provider.refresh({ showWeather: true, location: "rome", units: "si" }, (text, error, providerName) => {
-        result = { text, error, providerName };
+    provider.refresh({ showWeather: true, location: "rome", units: "si" }, (reading, error, providerName) => {
+        result = { text: shown(reading, "si"), error, providerName };
     });
 
     assert.deepEqual(result, { text: "🌧 10°C", error: "", providerName: Weather.WEATHER_PROVIDER_NAMES.MET_NO });
@@ -1484,9 +1499,9 @@ test("a forecast backend can be added without editing the resolver", () => {
     });
 
     let result = null;
-    resolver.refresh({ latitude: 1, longitude: 2 }, "si", () => true,
-        (text, error, provider) => {
-            result = { text, error, provider };
+    resolver.refresh({ latitude: 1, longitude: 2 }, () => true,
+        (reading, error, provider) => {
+            result = { text: shown(reading, "si"), error, provider };
         });
 
     assert.deepEqual(asked.map((call) => call.url),
@@ -1518,8 +1533,8 @@ test("a forecast with no temperature fails over instead of reading NaN", () => {
     });
     let result = null;
 
-    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (text, error, providerName) => {
-        result = { text, error, providerName };
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (reading, error, providerName) => {
+        result = { text: shown(reading, "si"), error, providerName };
     });
 
     assert.ok(asked.some((url) => url.includes("aviationweather.gov")),
@@ -1550,11 +1565,11 @@ test("refresh falls back to Nominatim geocode with required user agent", () => {
     });
     const values = [];
 
-    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (text, error, providerName) => {
-        values.push({ text, error, providerName });
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (reading, error, providerName) => {
+        values.push({ text: shown(reading, "si"), error, providerName });
     });
-    provider.refresh({ showWeather: true, location: " rome ", units: "si" }, (text, error, providerName) => {
-        values.push({ text, error, providerName });
+    provider.refresh({ showWeather: true, location: " rome ", units: "si" }, (reading, error, providerName) => {
+        values.push({ text: shown(reading, "si"), error, providerName });
     });
 
     assert.deepEqual(values, [
@@ -1593,7 +1608,9 @@ test("schedule refreshes immediately, repeats, and can stop the timer", () => {
     });
     const values = [];
 
-    provider.schedule({ showWeather: true, location: "Oslo", units: "metric" }, (value) => values.push(value));
+    provider.schedule({ showWeather: true, location: "Oslo", units: "metric" },
+        (reading, _error, _name, pending) =>
+            values.push(pending ? Weather.WEATHER_PENDING_TEXT : shown(reading)));
     assert.equal(scheduled.seconds, 15);
     assert.deepEqual(values, [Weather.WEATHER_PENDING_TEXT, "🌦 5°C"]);
 
@@ -1627,9 +1644,9 @@ test("schedule skips the repeat timer while weather is disabled or blank", () =>
         { showWeather: true, location: "   ", units: "metric" }
     ]) {
         const values = [];
-        provider.schedule(settings, (...value) => values.push(value));
+        provider.schedule(settings, (reading, error, name) => values.push([reading, error, name]));
         const expectedError = settings.showWeather ? "Set a weather location" : "";
-        assert.deepEqual(values, [["", expectedError, ""]], JSON.stringify(settings));
+        assert.deepEqual(values, [[null, expectedError, ""]], JSON.stringify(settings));
         assert.equal(scheduled, 0, JSON.stringify(settings));
         assert.equal(provider._scheduler.timerId, 0, JSON.stringify(settings));
     }
@@ -1657,11 +1674,11 @@ test("destroy aborts the session and suppresses pending weather callbacks", () =
         }
     });
 
-    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (value) => values.push(value));
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (reading) => values.push(shown(reading)));
     provider.destroy();
 
     pending[0].callback({ results: [{ latitude: 1, longitude: 2 }] });
-    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (value) => values.push(value));
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, (reading) => values.push(shown(reading)));
 
     // nothing asked for a session — httpGetJson is injected — so there is none
     // to abort, and destroy() must not trip over that
@@ -1669,8 +1686,8 @@ test("destroy aborts the session and suppresses pending weather callbacks", () =
     assert.deepEqual(values, []);
     assert.equal(pending.length, 1);
 
-    provider.schedule({ showWeather: true, location: "Rome", units: "si" }, (value) => values.push(value));
-    provider.queue({ showWeather: true, location: "Rome", units: "si" }, (value) => values.push(value));
+    provider.schedule({ showWeather: true, location: "Rome", units: "si" }, (reading) => values.push(shown(reading)));
+    provider.queue({ showWeather: true, location: "Rome", units: "si" }, (reading) => values.push(shown(reading)));
     assert.deepEqual(values, []);
     assert.equal(pending.length, 1);
 });
@@ -1730,10 +1747,10 @@ test("refresh ignores stale geocode and forecast callbacks", () => {
         }
     });
 
-    provider.refresh({ showWeather: true, location: "Older", units: "si" }, (value) => values.push(value));
+    provider.refresh({ showWeather: true, location: "Older", units: "si" }, (reading) => values.push(shown(reading)));
     assert.equal(pending.length, 1);
 
-    provider.refresh({ showWeather: true, location: "Newer", units: "si" }, (value) => values.push(value));
+    provider.refresh({ showWeather: true, location: "Newer", units: "si" }, (reading) => values.push(shown(reading)));
     assert.equal(pending.length, 2);
 
     pending[0].callback({ results: [{ latitude: 1, longitude: 1 }] });
@@ -1743,7 +1760,7 @@ test("refresh ignores stale geocode and forecast callbacks", () => {
     pending[1].callback({ results: [{ latitude: 2, longitude: 2 }] });
     assert.equal(pending.length, 3);
 
-    provider.refresh({ showWeather: true, location: "Newest", units: "si" }, (value) => values.push(value));
+    provider.refresh({ showWeather: true, location: "Newest", units: "si" }, (reading) => values.push(shown(reading)));
     assert.equal(pending.length, 4);
     pending[3].callback({ results: [{ latitude: 3, longitude: 3 }] });
     assert.equal(pending.length, 5);
@@ -1769,8 +1786,8 @@ test("refresh caches geocode results by normalized location", () => {
     });
     const values = [];
 
-    provider.refresh({ showWeather: true, location: " Rome ", units: "si" }, (value) => values.push(value));
-    provider.refresh({ showWeather: true, location: "rome", units: "si" }, (value) => values.push(value));
+    provider.refresh({ showWeather: true, location: " Rome ", units: "si" }, (reading) => values.push(shown(reading)));
+    provider.refresh({ showWeather: true, location: "rome", units: "si" }, (reading) => values.push(shown(reading)));
 
     assert.deepEqual(values, ["⛅ 10°C", "⛅ 10°C"]);
     assert.equal(provider._location_resolver.cache.has("rome"), true);
@@ -2276,7 +2293,8 @@ test("changing the location does not leave the old city's temperature on the pan
 
     const reported = [];
     const lisbon = { showWeather: true, location: "Lisbon", units: "si" };
-    provider.schedule(lisbon, (text, error) => reported.push([text, error]));
+    provider.schedule(lisbon, (reading, error, _name, pending) =>
+        reported.push([pending ? Weather.WEATHER_PENDING_TEXT : shown(reading, "si"), error]));
 
     // the geocode, then the forecast
     pending.shift().callback({ results: [{ latitude: 38, longitude: -9 }] });
@@ -2287,7 +2305,8 @@ test("changing the location does not leave the old city's temperature on the pan
 
     // the user types a new location
     const tokyo = { showWeather: true, location: "Tokyo", units: "si" };
-    provider.schedule(tokyo, (text, error) => reported.push([text, error]));
+    provider.schedule(tokyo, (reading, error, _name, pending) =>
+        reported.push([pending ? Weather.WEATHER_PENDING_TEXT : shown(reading, "si"), error]));
 
     assert.deepEqual(reported[0], ["…", ""],
         "the panel says it is fetching, instead of showing Lisbon's temperature as Tokyo's");
@@ -2299,20 +2318,53 @@ test("changing the location does not leave the old city's temperature on the pan
     assert.deepEqual(reported.at(-1), ["☀ 30°C", ""]);
 });
 
-test("a reading survives a refresh of the same place, and a units change forgets it", () => {
+test("a reading survives a refresh of the same place, and a change of place forgets it", () => {
     const Weather = loadWeather();
     const state = new Weather.WeatherDisplayState({ now: () => 1000 });
     const reports = [];
-    state.reporter("lisbon|si", (...args) => reports.push(args))(
-        "☀ 21°C", "", "Open-Meteo", { condition: "☀", temperatureC: 21 });
+    state.reporter("lisbon", (...args) => reports.push(args))(
+        { condition: "☀", temperatureC: 21 }, "", "Open-Meteo");
 
     assert.equal(state.hasReading(), true);
 
     // the same place, asked again: the reading is still that place's
-    state.forgetUnless("lisbon|si");
+    state.forgetUnless("lisbon");
     assert.equal(state.hasReading(), true);
 
-    // 21 °C is not 21 °F: a units change makes the number wrong, not just old
-    state.forgetUnless("lisbon|imperial");
+    // Lisbon's temperature is not Tokyo's, and showing it as Tokyo's is the bug
+    // this key exists to prevent
+    state.forgetUnless("tokyo");
     assert.equal(state.hasReading(), false);
+});
+
+// The key used to carry the units as well, because the stored reading was
+// rendered text: "21°C" was a different reading from "70°F", so switching the
+// unit threw the reading away, re-geocoded and refetched. The record is Celsius
+// and unit-free — the presenter converts — so the same reading serves both.
+test("switching between Celsius and Fahrenheit re-renders instead of refetching", () => {
+    const Weather = loadWeather();
+    const requests = [];
+    const provider = new Weather.WeatherProvider({
+        httpGetJson(url, callback) {
+            requests.push(url);
+            if (url.includes("geocoding-api")) {
+                callback({ results: [{ latitude: 38, longitude: -9 }] });
+            } else {
+                callback({ current_weather: { weathercode: 0, temperature: 21 } });
+            }
+        }
+    });
+
+    const readings = [];
+    provider.refresh({ showWeather: true, location: "Lisbon", units: "metric" },
+        (reading) => readings.push(reading));
+    provider.refresh({ showWeather: true, location: "Lisbon", units: "imperial" },
+        (reading) => readings.push(reading));
+
+    assert.equal(provider._display_state.hasReading(), true,
+        "the units changed, not the place: the reading still stands");
+    assert.deepEqual(readings[1], { condition: "☀", temperatureC: 21 },
+        "and it is the same unit-free record, whatever the panel is about to render it as");
+    assert.equal(shown(readings[1], "metric"), "☀ 21°C");
+    assert.equal(shown(readings[1], "imperial"), "☀ 70°F");
 });

@@ -156,14 +156,18 @@ class PanelView {
 
     // --- the weather readings ----------------------------------------------
 
-    get weatherText() {
-        return this.applet._weather_text;
-    }
-
-    // the unit-free reading record the panel renders from; the panel and tooltip
-    // read its fields, leaving weatherText for the pending/empty states
+    // the unit-free reading record everything on the panel and in the tooltip is
+    // rendered from: this side of the applet is the only one that knows the units
     get weatherReading() {
         return this.applet._weather_reading;
+    }
+
+    // the first refresh has not landed yet. It used to be told by comparing the
+    // stored text against the "…" placeholder, which made a display string load
+    // bearing: a provider that rendered its own ellipsis would have been read as
+    // a pending fetch.
+    get weatherPending() {
+        return this.applet._weather_pending;
     }
 
     // the record is Celsius; the panel and tooltip render its temperature in the
@@ -355,7 +359,7 @@ class AppletPanelStatusPresenter {
         const view = this.view;
         // the first refresh has not landed: the placeholder is the panel's, and
         // it is the one weather state the record cannot carry
-        if (view.weatherText === Weather.WEATHER_PENDING_TEXT) {
+        if (view.weatherPending) {
             return Weather.WEATHER_PENDING_TEXT;
         }
 
@@ -470,7 +474,7 @@ class AppletPanelStatusPresenter {
             Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError) : "";
         // the first refresh has not landed: an ellipsis in the temperature
         // column, with nothing beside it, says less than nothing
-        if (view.weatherText === Weather.WEATHER_PENDING_TEXT) {
+        if (view.weatherPending) {
             return ["", error || _("Weather: loading…")];
         }
 
@@ -516,7 +520,7 @@ class AppletPanelStatusPresenter {
 
         return [
             dateFormattedTooltip,
-            view.showWeather ? view.weatherText : "",
+            view.showWeather ? this.panelReadingText() : "",
             view.showWeather ? view.weatherError : "",
             clockEntries.map((entry) => [
                 entry.label,
@@ -616,7 +620,7 @@ class AppletPanelStatusPresenter {
         }
 
         // the first refresh has not landed: an ellipsis on the panel says nothing
-        if (view.weatherText === Weather.WEATHER_PENDING_TEXT) {
+        if (view.weatherPending) {
             return _("Weather: loading…");
         }
 
@@ -666,7 +670,7 @@ class AppletPanelStatusPresenter {
         const error = view.showWeather && view.weatherError ?
             translateWeatherError(view.weatherError) : "";
         const showing = !error && view.showWeather;
-        const pending = showing && view.weatherText === Weather.WEATHER_PENDING_TEXT;
+        const pending = showing && view.weatherPending;
         const condition = showing && view.weatherReading ? view.weatherReading.condition : "";
         const name = error ? joinPhrases(labelString, error) :
             describeWeather(labelString, condition, pending);

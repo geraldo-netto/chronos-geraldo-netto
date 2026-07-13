@@ -82,15 +82,15 @@ function stubResolvers(readings, calls = {}) {
             }
         },
         forecastResolver: {
-            refresh(place, units, isCurrent, callback) {
-                calls.forecasts.push(units);
+            // the port hands back a unit-free record and nothing else: no units
+            // reach it, and no display text leaves it
+            refresh(place, isCurrent, callback) {
+                calls.forecasts.push(place);
                 if (!isCurrent()) {
                     return;
                 }
-                // the resolver renders text and hands the record alongside it;
-                // the provider stores the record
                 const text = readings[calls.geocodes[calls.geocodes.length - 1]] || "";
-                callback(text, "", "Open-Meteo", R(text));
+                callback(R(text), "", "Open-Meteo");
             }
         }
     };
@@ -247,12 +247,17 @@ test("typing the panel location does not re-read the world-clock cities", () => 
     assert.equal(calls.forecasts.length, 2, "and are not read again");
     assert.equal(timers.length, 1, "nor is the refresh timer rebuilt");
 
-    // adding a clock, or switching the unit, is a real change
+    // adding a clock is a real change; switching the unit is not — the readings
+    // are unit-free records, so °F re-renders what is already held rather than
+    // geocoding and refetching every city again
     provider.schedule({ showWeather: true, units: "si", cities: ["Rome", "Tokyo", "Rome"] }, () => {});
     assert.equal(calls.forecasts.length, 2, "a duplicate city is not a change");
 
     provider.schedule({ showWeather: true, units: "imperial", cities: ["Rome", "Tokyo"] }, () => {});
-    assert.equal(calls.forecasts.length, 4, "a different unit is");
+    assert.equal(calls.forecasts.length, 2, "and neither is a different unit");
+
+    provider.schedule({ showWeather: true, units: "si", cities: ["Rome", "Tokyo", "Oslo"] }, () => {});
+    assert.equal(calls.forecasts.length, 4, "a new clock is: the round runs again");
 });
 
 // Regression: schedule() used to arm the 30-minute timer unconditionally, so a
@@ -386,8 +391,8 @@ test("a forecast that fails or comes back empty keeps the previous reading", () 
             }
         },
         forecastResolver: {
-            refresh(place, units, isCurrent, callback) {
-                callback(answer[0], answer[1], answer[2], R(answer[0]));
+            refresh(place, isCurrent, callback) {
+                callback(R(answer[0]), answer[1], answer[2]);
             }
         }
     });
@@ -425,8 +430,8 @@ test("the geocoder is asked about the timezone's city, never the user's label", 
             }
         },
         forecastResolver: {
-            refresh(_place, _units, _isCurrent, callback) {
-                callback("☀ 20°C", "", "Open-Meteo", R("☀ 20°C"));
+            refresh(_place, _isCurrent, callback) {
+                callback(R("☀ 20°C"), "", "Open-Meteo");
             }
         }
     });
@@ -472,8 +477,8 @@ test("a city that fails to read is retried, and says so once it is old", () => {
             }
         },
         forecastResolver: {
-            refresh(_place, _units, _isCurrent, callback) {
-                callback(answer[0], answer[1], answer[2], R(answer[0]));
+            refresh(_place, _isCurrent, callback) {
+                callback(R(answer[0]), answer[1], answer[2]);
             }
         }
     });
@@ -530,8 +535,8 @@ test("a city weather outage that never clears is logged, not just retried", () =
             }
         },
         forecastResolver: {
-            refresh(_place, _units, _isCurrent, callback) {
-                callback("", "Weather service unavailable", "");
+            refresh(_place, _isCurrent, callback) {
+                callback(null, "Weather service unavailable", "");
             }
         }
     });
@@ -645,8 +650,8 @@ test("a forecast answering after a newer refresh is dropped", () => {
         forecastResolver: {
             // hold the answer instead of calling back, so the test decides when
             // the slow reply lands
-            refresh(place, units, isCurrent, callback) {
-                pending.push(() => callback("⛅ 24°C", "", "Open-Meteo", R("⛅ 24°C")));
+            refresh(place, isCurrent, callback) {
+                pending.push(() => callback(R("⛅ 24°C"), "", "Open-Meteo"));
             }
         }
     });

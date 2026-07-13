@@ -167,13 +167,14 @@ var CityWeatherProvider = class CityWeatherProvider {
         }
     }
 
-    // What the cities are read from: the clock list, the unit, and whether
-    // weather is on at all. The panel's weather location is not in here — it
-    // is a different place, asked a different question.
+    // What the cities are read from: the clock list, and whether weather is on at
+    // all. The panel's weather location is not in here — it is a different place,
+    // asked a different question. Nor is the unit: the readings are unit-free
+    // records now, so switching °C to °F re-renders the tooltip from what is
+    // already held instead of geocoding and refetching every city again.
     _signature(settings) {
         return [
             this._active(settings) ? "on" : "off",
-            Weather.normalizeUnits(settings && settings.units),
             this._cities(settings).map((city) => city.label + "@" + city.query).join(",")
         ].join("|");
     }
@@ -235,7 +236,6 @@ var CityWeatherProvider = class CityWeatherProvider {
             }
         }
 
-        const units = Weather.normalizeUnits(settings.units);
         // the round is done when every city has answered one way or the other;
         // if any of them failed, the round failed and is worth retrying
         const round = { outstanding: cities.length, failed: 0, changed: false, completed: false, settings, queue: cities.slice() };
@@ -247,7 +247,7 @@ var CityWeatherProvider = class CityWeatherProvider {
             }
             const city = round.queue.shift();
             if (city) {
-                this._refreshCity(city, units, generation, callback, round);
+                this._refreshCity(city, generation, callback, round);
             }
         };
         for (let started = 0; started < GEOCODE_CONCURRENCY; started++) {
@@ -349,7 +349,7 @@ var CityWeatherProvider = class CityWeatherProvider {
         return !this._destroyed && generation === this._generation;
     }
 
-    _refreshCity(city, units, generation, callback, round) {
+    _refreshCity(city, generation, callback, round) {
         const settings = round.settings;
         const done = (ok) => this._cityDone(generation, round, settings, callback, ok);
 
@@ -376,8 +376,8 @@ var CityWeatherProvider = class CityWeatherProvider {
                 return;
             }
 
-            this._forecast_resolver.refresh(place, units, () => this._isCurrent(generation),
-                (text, forecastError, provider, reading) => {
+            this._forecast_resolver.refresh(place, () => this._isCurrent(generation),
+                (reading, forecastError, provider) => {
                     if (!this._isCurrent(generation)) {
                         return;
                     }

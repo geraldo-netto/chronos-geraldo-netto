@@ -57,21 +57,17 @@ var aviationWeatherIcon = WeatherFormat.aviationWeatherIcon;
 var metarNumber = WeatherFormat.metarNumber;
 var aviationWeatherStation = WeatherFormat.aviationWeatherStation;
 var aviationWeatherReading = WeatherFormat.aviationWeatherReading;
-var aviationWeatherText = WeatherFormat.aviationWeatherText;
 var weatherReading = WeatherFormat.weatherReading;
-var weatherText = WeatherFormat.weatherText;
 var metNoIcon = WeatherFormat.metNoIcon;
 var metNoWeatherReading = WeatherFormat.metNoWeatherReading;
-var metNoWeatherText = WeatherFormat.metNoWeatherText;
 var openMeteoGeocodePlace = WeatherFormat.openMeteoGeocodePlace;
 var nominatimGeocodePlace = WeatherFormat.nominatimGeocodePlace;
 
 class WeatherDisplayState {
     constructor(params = {}) {
-        // the reading is the unit-free record; the text is what it rendered to,
-        // kept only until the applet takes the record itself (T442c)
+        // the reading is the unit-free record, and it is all there is: nothing
+        // on this side of the port renders it
         this._last_good_reading = null;
-        this._last_good_text = "";
         this._last_good_provider = "";
         this._last_good_key = "";
         this._last_good_at = 0;
@@ -105,7 +101,6 @@ class WeatherDisplayState {
         }
 
         this._last_good_reading = null;
-        this._last_good_text = "";
         this._last_good_provider = "";
         this._last_good_key = "";
         this._last_good_at = 0;
@@ -121,24 +116,22 @@ class WeatherDisplayState {
         return readingIsStale(this._last_good_at, now, this._stale_after_seconds);
     }
 
-    // The forecast resolver reports a rendered text and, alongside it, the
-    // unit-free reading record it came from. This keeps the record as the last
-    // good one and still carries the text for the applet edge; the error path
-    // re-shows both. When the applet takes the record (T442c) the text falls out.
+    // The forecast resolver reports the unit-free reading record, and nothing
+    // else: what it looks like on the panel is decided where it is shown. A
+    // failed refresh re-shows the last good record — marked, not dropped.
     reporter(staleKey, callback) {
-        return (text, error, provider, reading) => {
+        return (reading, error, provider) => {
             if (reading && !error) {
                 this._last_good_reading = reading;
-                this._last_good_text = text;
                 this._last_good_provider = provider;
                 this._last_good_key = staleKey;
                 this._last_good_at = this._now();
             } else if (error && this._last_good_reading && this._last_good_key === staleKey &&
                 !this.isStale()) {
-                callback(this._last_good_text, error, this._last_good_provider, this._last_good_reading);
+                callback(this._last_good_reading, error, this._last_good_provider);
                 return;
             }
-            callback(text, error, provider, reading);
+            callback(reading, error, provider);
         };
     }
 }
@@ -207,8 +200,11 @@ var WeatherProvider = class WeatherProvider {
         this._display_state.forgetUnless(this._staleKey(settings));
 
         if (!this._display_state.hasReading() && settings.showWeather && location) {
-            // first fetch: reserve the panel slot instead of popping in later
-            callback(WEATHER_PENDING_TEXT, "", "");
+            // First fetch: reserve the panel slot instead of popping in later.
+            // "Pending" is a state, not a reading — it used to travel as the
+            // placeholder *string*, which every consumer had to compare against
+            // to find out that no reading had landed yet.
+            callback(null, "", "", true);
         }
 
         this._request_generation++;
@@ -237,29 +233,26 @@ var WeatherProvider = class WeatherProvider {
         const generation = ++this._request_generation;
         const location = settings.location ? settings.location.trim() : "";
         if (!settings.showWeather) {
-            callback("", "", "");
+            callback(null, "", "");
             return;
         }
 
         if (!location) {
             // weather is on but unconfigured: surface a hint instead of
             // silently showing nothing
-            callback("", WEATHER_ERRORS.NO_LOCATION, "");
+            callback(null, WEATHER_ERRORS.NO_LOCATION, "");
             return;
         }
 
-        const units = normalizeUnits(settings.units);
         const report = this._display_state.reporter(this._staleKey(settings),
-            (text, error, provider, reading) => {
+            (reading, error, provider) => {
                 // a failed refresh must not wait out the whole refresh period
                 if (error) {
                     this._scheduler.retry(() => this.refresh(settings, callback));
                 } else {
                     this._scheduler.succeeded();
                 }
-                // the record rides along; the applet still reads the text until
-                // T442c takes the record itself
-                callback(text, error, provider, reading);
+                callback(reading, error, provider);
             });
         this._location_resolver.resolve(location, () => {
             return !this._destroyed && generation === this._request_generation;
@@ -269,22 +262,26 @@ var WeatherProvider = class WeatherProvider {
             }
 
             if (!place) {
-                report("", error, "");
+                report(null, error, "");
                 return;
             }
 
-            this._refreshForecast(place, units, generation, report);
+            this._refreshForecast(place, generation, report);
         });
     }
 
-    // what a reading is a reading *of*: the place, and the units it is in
+    // What a reading is a reading *of*: the place. It used to be the place and
+    // the units, because the stored reading was rendered text and °F was a
+    // different reading from °C — so switching the unit threw the reading away
+    // and refetched. The record is unit-free, so the same reading serves both
+    // and only a change of place invalidates it.
     _staleKey(settings) {
         const location = settings.location ? settings.location.trim() : "";
-        return locationCacheKey(location) + "|" + normalizeUnits(settings.units);
+        return locationCacheKey(location);
     }
 
-    _refreshForecast(place, units, generation, callback) {
-        this._forecast_resolver.refresh(place, units, () => {
+    _refreshForecast(place, generation, callback) {
+        this._forecast_resolver.refresh(place, () => {
             return !this._destroyed && generation === this._request_generation;
         }, callback);
     }
@@ -295,5 +292,5 @@ var WeatherProvider = class WeatherProvider {
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { WeatherProvider, FORECAST_PROVIDERS, GEOCODE_PROVIDERS, WeatherDisplayState, WeatherRefreshScheduler, WeatherLocationResolver, WeatherForecastResolver, STALE_PERIODS, staleAfterSeconds, readingIsStale, HTTP_TIMEOUT_SECONDS, MAX_GEOCODE_CACHE_ENTRIES, MAX_RETRY_ATTEMPTS, WEATHER_DEBOUNCE_MS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, WEATHER_CONDITIONS, REFRESH_SECONDS, RETRY_SECONDS, geocodeUrl, nominatimGeocodeUrl, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, aviationWeatherStation, aviationWeatherReading, aviationWeatherText, metarNumber, locationCacheKey, normalizeUnits, formatTemperature, weatherIcon, weatherReading, weatherText, metNoIcon, metNoWeatherReading, metNoWeatherText, openMeteoGeocodePlace, nominatimGeocodePlace };
+    module.exports = { WeatherProvider, FORECAST_PROVIDERS, GEOCODE_PROVIDERS, WeatherDisplayState, WeatherRefreshScheduler, WeatherLocationResolver, WeatherForecastResolver, STALE_PERIODS, staleAfterSeconds, readingIsStale, HTTP_TIMEOUT_SECONDS, MAX_GEOCODE_CACHE_ENTRIES, MAX_RETRY_ATTEMPTS, WEATHER_DEBOUNCE_MS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, WEATHER_CONDITIONS, REFRESH_SECONDS, RETRY_SECONDS, geocodeUrl, nominatimGeocodeUrl, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, aviationWeatherStation, aviationWeatherReading, metarNumber, locationCacheKey, normalizeUnits, formatTemperature, weatherIcon, weatherReading, metNoIcon, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
 }

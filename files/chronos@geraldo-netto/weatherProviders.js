@@ -31,7 +31,6 @@ const aviationWeatherUrl = WeatherFormat.aviationWeatherUrl;
 const aviationWeatherReading = WeatherFormat.aviationWeatherReading;
 const metNoForecastUrl = WeatherFormat.metNoForecastUrl;
 const metNoWeatherReading = WeatherFormat.metNoWeatherReading;
-const formatReading = WeatherFormat.formatReading;
 
 // The geocoders, in the order they are tried. Named, because a nameless provider
 // is logged by its URL when the chain moves on - and a geocode URL carries the
@@ -154,9 +153,9 @@ var USER_AGENT_OPTIONS = {
 // The forecast backends, in the order they are tried — data, the way
 // GEOCODE_PROVIDERS is: a `url` for the place, a `normalize` that turns the
 // answer into a unit-free reading record `{ condition, temperatureC }`, and the
-// request options it needs. The resolver renders the record to display text at
-// one seam, so a provider decides *what* the weather is and the render decides
-// how to show it — the units live in exactly one place.
+// request options it needs. A provider says *what* the weather is; nothing on
+// this side of the port knows how it will be shown, and the units live in the
+// presenter alone.
 //
 // Every entry used to be a thunk into a private method of the resolver that
 // consumes it, so "adding a provider is an edit to the registry" was not true:
@@ -166,7 +165,7 @@ var USER_AGENT_OPTIONS = {
 var FORECAST_PROVIDERS = [
     {
         name: WEATHER_PROVIDER_NAMES.OPEN_METEO,
-        url: (place, units) => forecastUrl(place, units),
+        url: (place) => forecastUrl(place),
         normalize: (data) => (data && data.current_weather ?
             weatherReading(data.current_weather) : null)
     },
@@ -196,34 +195,34 @@ var WeatherForecastResolver = class WeatherForecastResolver {
         return this._last_forecast_provider;
     }
 
-    refresh(place, units, isCurrent, callback) {
-        this._tryForecastProviders(this._orderedForecastProviders(), place, units, isCurrent, callback);
+    // no units: a reading is unit-free, and the URLs all ask for Celsius. What
+    // the temperature is shown in is the presenter's business, not the port's.
+    refresh(place, isCurrent, callback) {
+        this._tryForecastProviders(this._orderedForecastProviders(), place, isCurrent, callback);
     }
 
     _orderedForecastProviders() {
         return Utils.orderProvidersByLastSuccess(this._providers, this._last_forecast_provider);
     }
 
-    _tryForecastProviders(providers, place, units, isCurrent, callback) {
+    _tryForecastProviders(providers, place, isCurrent, callback) {
         Utils.tryProvidersInOrder(
             providers,
             (provider, onResult) => {
-                this._httpGetJson(provider.url(place, units), (data) => {
+                this._httpGetJson(provider.url(place), (data) => {
                     if (!isCurrent()) {
                         return;
                     }
-                    onResult(provider.normalize(data, place, units));
+                    onResult(provider.normalize(data, place));
                 }, provider.options || {});
             },
             (reading) => Boolean(reading),
             (provider, reading) => {
                 this._last_forecast_provider = provider.name;
-                // the render seam: the record becomes display text here, and the
-                // record travels alongside it as a fourth argument so a consumer
-                // that wants the fields (the panel display state) has them and one
-                // that still wants the string (the city rows) keeps it
-                callback(formatReading(reading.condition, reading.temperatureC, units),
-                    "", provider.name, reading);
+                // the port ends here: a reading record, and who answered. No
+                // display text is built on this path at all — the presenter that
+                // knows the units renders it, once, at the edge that shows it
+                callback(reading, "", provider.name);
             },
             () => {
                 if (global.log) {

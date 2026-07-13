@@ -268,7 +268,7 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
         show_weather: true,
         show_worldclocks: true,
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
-        _weather_text: "\u2600 20\u00b0C",
+        _weather_reading: { condition: "\u2600", temperatureC: 20 },
         _weather_provider: "Open-Meteo",
         cityWeatherReading: (city) => (city === "Tokyo" ? { condition: "\ud83c\udf27", temperatureC: 12 } : null),
         cityWeatherStale: () => false,
@@ -361,7 +361,6 @@ function suffixStub(overrides = {}) {
         orientation: St.Side.TOP,
         show_weather: true,
         weather_units: "si",
-        _weather_text: "",
         _weather_reading: null,
         _weather_error: "",
         worldclocks: []
@@ -430,7 +429,6 @@ function updateStub({ menuOpen = false } = {}) {
         _todayFormatCache: null,
         show_weather: false,
         weather_units: "si",
-        _weather_text: "",
         _weather_reading: null,
         _weather_error: "",
         _weather_provider: "",
@@ -484,7 +482,7 @@ test("a weather failure on the panel is announced in words", () => {
     stub.actor = { names: [], set_accessible_name(name) { this.names.push(name); } };
     stub.show_weather = true;
     stub._weather_error = "Weather service unavailable";
-    stub._weather_text = "";
+    stub._weather_reading = null;
 
     Proto._updateClockAndDate.call(stub);
 
@@ -644,7 +642,9 @@ test("the panel presenter reads and writes through a view it is given", () => {
         panelHovered: true,
         menuOpen: true,
         desktopSettings: { use24h: true, showSeconds: false },
-        weatherText: "",
+        weatherReading: null,
+        weatherPending: false,
+        weatherUnits: "metric",
         weatherError: "",
         weatherProvider: "",
         cityWeatherReading: () => null,
@@ -765,16 +765,18 @@ test("_setWeatherStatus stores state and refreshes the clock line", () => {
     const stub = Object.assign(Object.create(Proto), {
         _updateClockAndDate: () => updated++
     });
-    Proto._setWeatherStatus.call(stub, "☀ 20°C", "err", "prov", { condition: "☀", temperatureC: 20 });
-    assert.equal(stub._weather_text, "☀ 20°C");
+    Proto._setWeatherStatus.call(stub, { condition: "☀", temperatureC: 20 }, "err", "prov");
     assert.deepEqual(stub._weather_reading, { condition: "☀", temperatureC: 20 });
+    assert.equal(stub._weather_pending, false);
     assert.equal(stub._weather_error, "err");
     assert.equal(stub._weather_provider, "prov");
     assert.equal(updated, 1);
 
-    // the pending placeholder and the switched-off state carry no record
-    Proto._setWeatherStatus.call(stub, "…", "", "");
+    // the reserved first-fetch slot and the switched-off state carry no record;
+    // pending is a flag, not a placeholder string the panel has to recognize
+    Proto._setWeatherStatus.call(stub, null, "", "", true);
     assert.equal(stub._weather_reading, null);
+    assert.equal(stub._weather_pending, true);
 });
 
 test("weather refresh scheduling forwards the settings snapshot", () => {
@@ -2003,8 +2005,9 @@ test("the weather being fetched is said in words, not as an ellipsis", () => {
     const names = [];
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        // the placeholder the provider shows until the first refresh lands
-        _weather_text: Weather.WEATHER_PENDING_TEXT,
+        // no reading has landed yet: the state the provider reserves the slot with
+        _weather_reading: null,
+        _weather_pending: true,
         _weather_error: "",
         worldclocks: [{ label: "Tokyo" }],
         // a city not read yet has no record; unlike the panel it reserves no slot
@@ -2025,7 +2028,7 @@ test("the weather being fetched is said in words, not as an ellipsis", () => {
 test("the tooltip says when a city's temperature is no longer current", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        _weather_text: "☀ 20°C",
+        _weather_reading: { condition: "☀", temperatureC: 20 },
         _weather_error: "",
         worldclocks: [{ label: "Tokyo" }],
         cityWeatherReading: () => ({ condition: "☀", temperatureC: 30 }),
@@ -2048,7 +2051,7 @@ test("_setWeatherStatus clears the provider name when a refresh reports none", (
 
     // a failed refresh carries no provider: the tooltip must not keep naming
     // the source of a reading that is gone
-    Proto._setWeatherStatus.call(stub, "", "Weather service unavailable");
+    Proto._setWeatherStatus.call(stub, null, "Weather service unavailable");
     assert.equal(stub._weather_provider, "");
 });
 
@@ -2151,7 +2154,7 @@ test("a condition with no translation of its own is still spoken", () => {
 test("a clock row with no zoned time falls back to the preformatted time", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        _weather_text: "",
+        _weather_reading: null,
         _weather_error: "",
         // an applet that never built a city provider: no cityWeatherReading at all
         worldclocks: [{ label: "Rome" }]
@@ -2180,7 +2183,7 @@ test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", (
     const stub = {
         show_weather: false,
         use_custom_format: false,
-        _weather_text: "",
+        _weather_reading: null,
         _weather_error: "",
         worldclocks: []
     };
@@ -2202,7 +2205,7 @@ test("the tooltip names no source when neither provider has answered", () => {
     const stub = {
         show_weather: true,
         use_custom_format: false,
-        _weather_text: "",
+        _weather_reading: null,
         _weather_error: "",
         _weather_provider: "",
         worldclocks: []
@@ -2364,7 +2367,7 @@ test("nothing hangs off the bottom of the tooltip table", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         use_custom_format: false,
-        _weather_text: "☀ 20°C",
+        _weather_reading: { condition: "☀", temperatureC: 20 },
         _weather_error: "",
         _weather_provider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
@@ -2406,7 +2409,7 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
         show_weather: true,
         use_custom_format: false,
         weather_units: "si",
-        _weather_text: "",
+        _weather_reading: null,
         _weather_error: "",
         _weather_provider: "",
         worldclocks: Object.keys(readings).map((label) => ({ label })),
@@ -2534,7 +2537,7 @@ test("fuzz: the panel label builder never throws on any weather state", () => {
         const stub = suffixStub({
             orientation,
             show_weather: rand() < 0.8,
-            _weather_text: glyph + readings[Math.floor(rand() * readings.length)],
+            _weather_reading: { condition: glyph, temperatureC: readings[Math.floor(rand() * readings.length)] },
             _weather_error: errors[Math.floor(rand() * errors.length)],
             worldclocks: Array.from({ length: Math.floor(rand() * 9) }, () => ({}))
         });
@@ -2622,7 +2625,7 @@ test("a suffix exactly at the length cap is kept whole, one past it is cut", () 
 test("the tooltip repeats the date line only when the format is not custom", () => {
     const base = {
         show_weather: false,
-        _weather_text: "",
+        _weather_reading: null,
         _weather_error: "",
         worldclocks: [],
         panel_clocks: 0,
@@ -2648,7 +2651,6 @@ test("the accessible name speaks the error, or the condition, or neither", () =>
         const stub = Object.assign({
             actor: { set_accessible_name: (name) => spoken.push(name) },
             show_weather: true,
-            _weather_text: "",
             _weather_reading: { condition: "🌧", temperatureC: 8 },
             _weather_error: ""
         }, overrides);
@@ -2738,7 +2740,7 @@ test("the panel presenter goes through the view for every read", () => {
         "the presenter holds no applet: everything it knows comes through the view");
     // ...and the view is the only thing that touches the applet's shape
     const view = source.slice(source.indexOf("class PanelView"), presenterStart);
-    assert.match(view, /this\.applet\._weather_text/);
+    assert.match(view, /this\.applet\._weather_reading/);
     assert.match(view, /this\.applet\._weather_reading/);
     assert.match(view, /this\.applet\.worldclock_format = format;/,
         "including the one field the presenter used to write around the seam");
@@ -2766,8 +2768,8 @@ test("a panel view can be substituted whole", () => {
         panelHovered: false,
         menuOpen: false,
         desktopSettings: { use24h: true },
-        get weatherText() { reads.push("weatherText"); return "☀ 20°C"; },
         get weatherReading() { reads.push("weatherReading"); return { condition: "☀", temperatureC: 20 }; },
+        get weatherPending() { reads.push("weatherPending"); return false; },
         weatherUnits: "si",
         get weatherError() { reads.push("weatherError"); return ""; },
         weatherProvider: "Open-Meteo",
@@ -2787,7 +2789,7 @@ test("a panel view can be substituted whole", () => {
 
     assert.equal(view.label, "12 Jul 14:03 20°C");
     assert.match(view.name, /Clear/, "the condition is said in words, not left as a glyph");
-    assert.ok(reads.includes("weatherText"));
+    assert.ok(reads.includes("weatherReading"));
 });
 
 // The weather error's words reached the user only through tooltipWeatherCells(),
@@ -2811,7 +2813,8 @@ test("a weather failure explains itself even with no world clocks", () => {
     };
 
     const failed = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
-        weatherText: "☀ 20°C",
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE
     }));
     const tooltip = failed.buildTooltipText("Sunday, 12 July 2026", []);
@@ -2821,21 +2824,25 @@ test("a weather failure explains itself even with no world clocks", () => {
 
     // the configured-nothing case: a lone ⚠ that never said what to do about it
     const unset = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
-        weatherText: "",
+        weatherReading: null,
+        weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.NO_LOCATION
     }));
     assert.match(unset.buildTooltipText("Sunday, 12 July 2026", []), /Set a weather location/);
 
     // ...and the first refresh, which is an ellipsis on the panel and nothing at all aloud
     const pending = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
-        weatherText: Weather.WEATHER_PENDING_TEXT,
+        weatherReading: null,
+        weatherPending: true,
+        weatherUnits: "metric",
         weatherError: ""
     }));
     assert.match(pending.buildTooltipText("Sunday, 12 July 2026", []), /loading/);
 
     // a working reading says nothing extra: the temperature is on the panel
     const fine = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
-        weatherText: "☀ 20°C",
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherUnits: "metric",
         weatherError: ""
     }));
     assert.equal(fine.buildTooltipText("Sunday, 12 July 2026", []), "Sunday, 12 July 2026");
@@ -3011,7 +3018,8 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
         panelHovered: true,
         menuOpen: false,
         desktopSettings: { use24h: true },
-        weatherText: "", weatherError: "", weatherProvider: "",
+        weatherReading: null, weatherPending: false, weatherUnits: "metric",
+        weatherError: "", weatherProvider: "",
         cityWeatherReading: () => null, cityWeatherStale: () => false,
         cityWeatherProviderName: () => "",
         formattedClock: () => "12 Jul 14:03",
