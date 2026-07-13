@@ -851,7 +851,9 @@ test("worldclockData exposes the same API under the GJS importer and under Node"
     const nodeContext = {
         require: (request) => require(path.join(path.dirname(dataModulePath), request)),
         module: { exports: {} },
-        globalThis: { imports: gjsContext.imports }
+        globalThis: { imports: gjsContext.imports },
+        // the loader guard asks whether this is Node, not whether require() exists
+        process: { versions: { node: process.versions.node } }
     };
     require.cache[require.resolve(utilsPath)] = { exports: { translate: (str) => str } };
     script.runInNewContext(nodeContext);

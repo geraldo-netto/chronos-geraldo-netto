@@ -11,6 +11,9 @@ const gjsGlobals = {
     globalThis: "readonly",
     module: "writable",
     require: "readonly",
+    // the applet asks whether it is running under Node — Cinnamon's cjs has no
+    // `process`, and that is exactly what the question is for
+    process: "readonly",
     TextDecoder: "readonly",
     TextEncoder: "readonly",
     Date: "readonly",

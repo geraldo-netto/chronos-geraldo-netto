@@ -5,8 +5,22 @@
 // EventDataList, shared by 5.4/eventView.js and unit-testable in Node.
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
+// Which host is loading this file — and it is asked of the *host*, not of
+// require(). It used to test `typeof require === "function"`, on the stated
+// assumption that "Cinnamon provides neither require() nor module". That was true
+// of 5.4 through 6.4 and is not true of Cinnamon master, which sets
+// globalThis.require = xletRequire (js/ui/extension.js). There the test would
+// invert: the root modules would take the require() branch, _requireLocal would
+// resolve "./localeUtils" against extension.meta.path — which
+// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
+// applet would fail to load, because localeUtils.js is not in there.
+//
+// Node is what this asks about, because Node is the only host that requires these
+// files directly. Cinnamon's cjs has no `process`.
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node);
 const GLib = GjsImports.gi.GLib;
-const TextUtils = typeof require === "function" ?
+const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 

@@ -2,23 +2,37 @@
 /* eslint camelcase: "off" */
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
-const Utils = typeof require === "function" ?
+// Which host is loading this file — and it is asked of the *host*, not of
+// require(). It used to test `typeof require === "function"`, on the stated
+// assumption that "Cinnamon provides neither require() nor module". That was true
+// of 5.4 through 6.4 and is not true of Cinnamon master, which sets
+// globalThis.require = xletRequire (js/ui/extension.js). There the test would
+// invert: the root modules would take the require() branch, _requireLocal would
+// resolve "./localeUtils" against extension.meta.path — which
+// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
+// applet would fail to load, because localeUtils.js is not in there.
+//
+// Node is what this asks about, because Node is the only host that requires these
+// files directly. Cinnamon's cjs has no `process`.
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node);
+const Utils = IS_NODE ?
     require("./utils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
 
 // GJS exports only var bindings: anything another module reaches for
 // through imports.ui.appletManager must be declared with var
-const WeatherFormat = typeof require === "function" ?
+const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
 // The refresh clock lives in its own module now; weather.js is the barrel that
 // requires it and hands it on, so consumers and the parity list are unchanged.
-const WeatherScheduler = typeof require === "function" ?
+const WeatherScheduler = IS_NODE ?
     require("./weatherScheduler") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
 // The geocode/forecast chains and their resolvers live in their own module now;
 // weather.js is the barrel that requires them and hands them on unchanged.
-const WeatherProviders = typeof require === "function" ?
+const WeatherProviders = IS_NODE ?
     require("./weatherProviders") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherProviders;
 

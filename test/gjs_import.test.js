@@ -378,6 +378,47 @@ test("the barrel carries its parts to Node, and nothing reads a part off it in G
     }
 });
 
+// REGRESSION (forward-compat): the loader guard asked `typeof require ===
+// "function"`, on the stated assumption that Cinnamon provides neither require()
+// nor module. True of 5.4 through 6.4. Cinnamon master sets globalThis.require =
+// xletRequire (js/ui/extension.js), and there the test inverts: every root module
+// would take the require() branch, _requireLocal would resolve "./localeUtils"
+// against extension.meta.path — which findExtensionSubdirectory has already
+// repointed at the 5.4/ directory — and the applet would fail to load, because the
+// root modules are not in there.
+//
+// So the question is asked of the host: Node has `process`, Cinnamon's cjs does
+// not. This runs every root module in a context shaped like Cinnamon master —
+// require() present, importer present, no process — and requires that it still
+// reads its collaborators through the importer.
+test("a host with both require() and the importer loads through the importer", () => {
+    for (const moduleName of Object.keys(EXPORTS)) {
+        const modulePath = path.join(APPLET_DIR, moduleName + ".js");
+        const context = {
+            imports: gjsImportsMock(),
+            // Cinnamon master's xletRequire: it resolves against the *version*
+            // directory, so a root module reaching it would get nothing
+            require: (request) => {
+                throw new Error(
+                    `${moduleName}.js called require(${request}) under the GJS importer`);
+            },
+            module: { exports: {} }
+        };
+        context.globalThis = context;
+        vm.createContext(context);
+
+        assert.doesNotThrow(
+            () => vm.runInContext(fs.readFileSync(modulePath, "utf8"), context,
+                { filename: modulePath }),
+            `${moduleName}.js must not require() when the applet importer is there`);
+
+        for (const symbol of EXPORTS[moduleName]) {
+            assert.notEqual(context[symbol], undefined,
+                `${moduleName}.${symbol} is missing after loading through the importer`);
+        }
+    }
+});
+
 test("root modules never call require() outside the Node guard", () => {
     for (const moduleName of Object.keys(EXPORTS)) {
         const source = fs.readFileSync(path.join(APPLET_DIR, moduleName + ".js"), "utf8");

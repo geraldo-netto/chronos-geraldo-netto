@@ -1656,7 +1656,11 @@ function runInBothHosts(file) {
 
     const nodeContext = {
         require: (request) => require(path.join(path.dirname(file), request)),
-        module: { exports: {} }
+        module: { exports: {} },
+        // what the module actually asks about: Cinnamon's cjs has no `process`,
+        // and Cinnamon master *does* have require(), so require() cannot be the
+        // question
+        process: { versions: { node: process.versions.node } }
     };
     // Node's module scope has no `imports` binding — the GJS globals are reached
     // through globalThis, which is how a module under Node still gets at gi

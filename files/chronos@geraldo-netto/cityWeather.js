@@ -2,22 +2,36 @@
 /* eslint camelcase: "off" */
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
-const Utils = typeof require === "function" ?
+// Which host is loading this file — and it is asked of the *host*, not of
+// require(). It used to test `typeof require === "function"`, on the stated
+// assumption that "Cinnamon provides neither require() nor module". That was true
+// of 5.4 through 6.4 and is not true of Cinnamon master, which sets
+// globalThis.require = xletRequire (js/ui/extension.js). There the test would
+// invert: the root modules would take the require() branch, _requireLocal would
+// resolve "./localeUtils" against extension.meta.path — which
+// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
+// applet would fail to load, because localeUtils.js is not in there.
+//
+// Node is what this asks about, because Node is the only host that requires these
+// files directly. Cinnamon's cjs has no `process`.
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node);
+const Utils = IS_NODE ?
     require("./utils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
 // the parts, not the barrel: requiring ./weather pulled in WeatherProvider — the
 // panel provider this module is the twin of — and its Soup session, for a handful
 // of constants, two resolvers and the refresh clock
-const Weather = typeof require === "function" ?
+const Weather = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
-const WeatherProviders = typeof require === "function" ?
+const WeatherProviders = IS_NODE ?
     require("./weatherProviders") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherProviders;
-const WeatherScheduler = typeof require === "function" ?
+const WeatherScheduler = IS_NODE ?
     require("./weatherScheduler") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
-const WorldclockData = typeof require === "function" ?
+const WorldclockData = IS_NODE ?
     require("./worldclockData") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
 

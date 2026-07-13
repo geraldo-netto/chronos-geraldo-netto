@@ -14,13 +14,27 @@
 // The chain consults the contract for one decision only: whether a provider's
 // answer counts, or whether the next provider should be tried.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
-const Utils = typeof require === "function" ?
+// Which host is loading this file — and it is asked of the *host*, not of
+// require(). It used to test `typeof require === "function"`, on the stated
+// assumption that "Cinnamon provides neither require() nor module". That was true
+// of 5.4 through 6.4 and is not true of Cinnamon master, which sets
+// globalThis.require = xletRequire (js/ui/extension.js). There the test would
+// invert: the root modules would take the require() branch, _requireLocal would
+// resolve "./localeUtils" against extension.meta.path — which
+// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
+// applet would fail to load, because localeUtils.js is not in there.
+//
+// Node is what this asks about, because Node is the only host that requires these
+// files directly. Cinnamon's cjs has no `process`.
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node);
+const Utils = IS_NODE ?
     require("./utils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
-const HolidayAdapters = typeof require === "function" ?
+const HolidayAdapters = IS_NODE ?
     require("./holidayAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayAdapters;
-const HolidayConstants = typeof require === "function" ?
+const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
 
