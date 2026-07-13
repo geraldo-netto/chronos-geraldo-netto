@@ -17,11 +17,11 @@ msgstr ""
 
 #: dateFormats.js:23
 msgid "%B %-e, %Y"
-msgstr ""
+msgstr "%-e %B %Y"
 
 #: dateFormats.js:24
 msgid "%A, %B %-e, %Y"
-msgstr ""
+msgstr "%A %-e %B %Y"
 
 #: eventFormat.js:67 eventFormat.js:94 eventFormat.js:125 eventFormat.js:139
 #: 5.4/calendar.js:360
@@ -113,7 +113,7 @@ msgstr "Format d’heure non valide ; modifiez-le dans les paramètres"
 
 #: 5.4/appletPanelStatus.js:507
 msgid "No weather for this timezone"
-msgstr ""
+msgstr "Pas de météo pour ce fuseau horaire"
 
 #: 5.4/appletPanelStatus.js:519
 #, javascript-format

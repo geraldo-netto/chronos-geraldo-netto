@@ -19,11 +19,11 @@ msgstr ""
 
 #: dateFormats.js:23
 msgid "%B %-e, %Y"
-msgstr ""
+msgstr "%Y年%-m月%-e日"
 
 #: dateFormats.js:24
 msgid "%A, %B %-e, %Y"
-msgstr ""
+msgstr "%Y年%-m月%-e日 %A"
 
 #: eventFormat.js:67 eventFormat.js:94 eventFormat.js:125 eventFormat.js:139
 #: 5.4/calendar.js:360
@@ -115,7 +115,7 @@ msgstr "時間格式無效；請在設定中編輯"
 
 #: 5.4/appletPanelStatus.js:507
 msgid "No weather for this timezone"
-msgstr ""
+msgstr "此時區沒有天氣資訊"
 
 #: 5.4/appletPanelStatus.js:519
 #, javascript-format

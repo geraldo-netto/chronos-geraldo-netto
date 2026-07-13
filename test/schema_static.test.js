@@ -330,6 +330,41 @@ test("the documented install compiles the catalogs the applet reads", () => {
     assert.ok(catalogs.length >= 15, `${catalogs.length} catalogs`);
 });
 
+// REGRESSION: localeUtils wraps the two date formats in _() precisely so a
+// translator can reorder them — and not one of the fifteen catalogs translated
+// either, so gettext returned the msgid and every locale rendered the US
+// month-day-year order. A German user's event-list heading read "Samstag, Juli 12,
+// 2026", and the same string is the grid's ACCESSIBLE_DATE_FORMAT, so her screen
+// reader announced all 42 day cells that way too.
+//
+// The machinery was right; the data was never filled in. This is the data.
+test("every catalog orders the date the way its language does", () => {
+    const poDir = path.join(appletDir, "po");
+    const catalogs = fs.readdirSync(poDir).filter((name) => name.endsWith(".po"));
+    assert.ok(catalogs.length >= 15);
+
+    // the msgids, as localeUtils declares them
+    const dateFormats = fs.readFileSync(path.join(appletDir, "dateFormats.js"), "utf8");
+    const msgids = Array.from(dateFormats.matchAll(/_\("([^"]*%B[^"]*)"\)/g)).map(([, id]) => id);
+    assert.deepEqual(msgids, ["%B %-e, %Y", "%A, %B %-e, %Y"]);
+
+    for (const catalog of catalogs) {
+        const source = fs.readFileSync(path.join(poDir, catalog), "utf8");
+
+        for (const msgid of msgids) {
+            const entry = new RegExp(`^msgid "${msgid.replace(/[%\-.*+?^${}()|[\]\\]/g, "\\$&")}"\nmsgstr "(.*)"$`, "m");
+            const match = source.match(entry);
+            assert.ok(match, `${catalog} has no entry for ${msgid}`);
+            assert.notEqual(match[1], "",
+                `${catalog} leaves ${msgid} untranslated, so it renders in US order`);
+
+            // a format string, not a sentence: the fields must survive translation
+            assert.match(match[1], /%[-\w]*[Bbm]/, `${catalog}: ${msgid} lost its month`);
+            assert.match(match[1], /%[-\w]*[eYd]/, `${catalog}: ${msgid} lost its day or year`);
+        }
+    }
+});
+
 // Cinnamon matches the running series against this list literally: a manifest
 // that names only 5.4 is "incompatible" on Mint's current 6.x, even though the
 // multiversion 5.4/ tree loads there fine — and the README promises 5.4 or newer.
