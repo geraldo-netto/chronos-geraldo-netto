@@ -511,6 +511,26 @@ test("a holiday failure is announced in words, not just a glyph", () => {
     assert.doesNotMatch(label.accessible_name, /Holiday data/);
 });
 
+// REGRESSION: the provider's own JSON error string was stored as the applet's
+// error and displayed verbatim — translateHolidayError was a lookup with a
+// passthrough fallback, so an English sentence from a vendor was pinned under the
+// month name in an otherwise French interface, in the label, its accessible name
+// and the tooltip. A broken or hostile endpoint chose that sentence.
+test("a provider's own error sentence is never shown to the user", () => {
+    const label = new MockActor();
+    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+        holidayProvider: { country: "fra", getHolidays() {} }
+    }));
+    annotator.attachLabel(label);
+
+    annotator.setStatus("Le service Enrico est momentanément indisponible", "Enrico");
+
+    assert.doesNotMatch(label.text, /Enrico est/);
+    assert.doesNotMatch(label.accessible_name, /Enrico est/);
+    assert.match(label.accessible_name, /Holiday data unavailable/,
+        "the applet's own message, which every catalog can translate");
+});
+
 // A tooltip is driven by enter-event, and a non-reactive actor is not pickable,
 // so it never emits one: the holiday status tooltip was writing text nobody
 // could ever see, and the warning glyph on the month label went unexplained for

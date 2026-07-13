@@ -1213,9 +1213,11 @@ test("HolidayService retrieveForYear builds params and addData ignores provider 
     global.logError = (message) => logged.push(message);
     enrico.addData({ error: "bad" }, { year: 2026, providerName: "Enrico" }, STAMP);
     assert.equal(enrico.cache.data.length, before);
+    // the operator gets the provider's own words; the user does not
     assert.deepEqual(logged, [
         "holiday provider Enrico returned invalid data for 2026: bad"
     ]);
+    assert.equal(enrico.last_error, "Holiday data unavailable");
 });
 
 // The provider's own error string reaches a Pango tooltip, an accessible name
@@ -1228,14 +1230,17 @@ test("a hostile provider error string cannot flood the tooltip or the log", () =
     const logged = [];
     global.logError = (message) => logged.push(String(message));
 
+    // what the user is told is always the applet's own message, in their language:
+    // the vendor's sentence is a diagnostic and goes to the log
     enrico.addData({ error: "x".repeat(4 * 1024 * 1024) }, { year: 2026 }, STAMP);
-    assert.ok(enrico.last_error.length <= 300,
+    assert.equal(enrico.last_error, HOLIDAY_ERRORS.INVALID_RESPONSE);
+    assert.ok(logged.at(-1).length <= 400,
         "a 4 MiB error string is laid out on the compositor thread");
-    assert.ok(enrico.last_error.endsWith("…"));
+    assert.ok(logged.at(-1).endsWith("…"));
 
     // newlines in it would forge lines in the Cinnamon log
     enrico.addData({ error: "boom\nJan 01 00:00:00 cinnamon: forged" }, { year: 2026 }, STAMP);
-    assert.doesNotMatch(enrico.last_error, /\n/);
+    assert.doesNotMatch(logged.at(-1), /\n/);
 
     // and a non-string error is an invalid response, not an object stringified
     // into the month label
@@ -1296,7 +1301,9 @@ test("HolidayService surfaces provider errors to getHolidays callbacks", () => {
     });
 
     assert.deepEqual(Array.from(result.dates.entries()), []);
-    assert.equal(result.error, "Enrico unavailable");
+    // the vendor said "Enrico unavailable"; the grid is told the applet's own
+    // error identifier, which the UI has a translation for
+    assert.equal(result.error, "Holiday data unavailable");
     assert.equal(result.providerName, "Test Provider");
 });
 
@@ -1320,11 +1327,12 @@ test("a failure under one country is not reported under the next", () => {
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
     const enrico = new HolidayService(service, cache, { record: service });
 
-    // France fails
+    // France fails — reported as the applet's own error, not as the vendor's
+    // sentence, which is what an untranslatable English string in a French UI was
     enrico.setPlace("fra", "global");
     let seen = null;
     enrico.getHolidays(year, 7, (dates, error) => { seen = error; });
-    assert.equal(seen, "Holiday service unavailable");
+    assert.equal(seen, "Holiday data unavailable");
 
     // the user switches to Germany, which answers
     fail = false;

@@ -105,8 +105,16 @@ const HOLIDAY_ERROR_TEXT = {
     [Holidays.HOLIDAY_ERRORS.INVALID_RESPONSE]: _("Holiday data unavailable")
 };
 
+// The passthrough fallback is what let a provider's raw JSON sentence become UI
+// text. The providers hand up the applet's own error identifiers now, and anything
+// else is a bug in this file rather than a string to show the user in whatever
+// language a vendor happened to write it.
 function translateHolidayError(error) {
-    return HOLIDAY_ERROR_TEXT[error] || error;
+    if (!error) {
+        return "";
+    }
+
+    return HOLIDAY_ERROR_TEXT[error] || HOLIDAY_ERROR_TEXT[Holidays.HOLIDAY_ERRORS.INVALID_RESPONSE];
 }
 
 // The window depends only on the displayed month and the week start, but

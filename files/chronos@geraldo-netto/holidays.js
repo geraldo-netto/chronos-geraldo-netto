@@ -311,19 +311,24 @@ var HolidayService = class HolidayService {
         }
 
         if (data.error) {
-            // The provider's own error string, straight out of the JSON body.
-            // It reaches the month-label tooltip, the label's accessible name
-            // and global.logError, and it was the one remote string that skipped
-            // the clamp every other one goes through: a hostile or broken
-            // endpoint could make it the whole 4 MiB response, which Pango then
-            // lays out on the compositor thread, or slip newlines into it and
-            // forge lines in the Cinnamon log.
-            this.last_error = HolidayCacheModule.clampHolidayName(
+            // The provider's own error string is a diagnostic, not UI text. It
+            // used to *become* the UI text: translateHolidayError is a lookup with
+            // a passthrough fallback, so an untranslated English sentence from a
+            // vendor was pinned under the month name in an otherwise French
+            // interface, in the label, its accessible name and the tooltip — and a
+            // broken or hostile endpoint chose that sentence.
+            //
+            // What the user is told is that the data did not arrive, in their own
+            // language. What the maintainer is told is what the provider said,
+            // clamped and stripped of newlines: it is the one remote string that
+            // skipped the clamp every other one goes through, so a 4 MiB response
+            // could be laid out by Pango on the compositor thread, or forge lines
+            // in the Cinnamon log.
+            const reported = HolidayCacheModule.clampHolidayName(
                 typeof data.error === "string" ? data.error.replace(/[\r\n]+/g, " ") : "");
-            if (!this.last_error) {
-                this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
-            }
-            logHolidayDataError(this.last_provider, params && params.year, this.last_error);
+            this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
+            logHolidayDataError(this.last_provider, params && params.year,
+                reported || HOLIDAY_ERRORS.INVALID_RESPONSE);
             return;
         }
 
