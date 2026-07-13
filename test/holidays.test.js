@@ -447,6 +447,34 @@ test("holiday validation rejects out-of-range months and days", () => {
     assert.deepEqual(nager._dateParts("2026-05-31"), { year: 2026, month: 5, day: 31 });
 });
 
+// REGRESSION: teardown released the timers, the signals and the HTTP session, and
+// kept every heavy structure the applet had built. Cinnamon's Applet base class
+// has no destroy(), and AppletContextMenu holds the applet's actor, which holds
+// _delegate — so the applet object survives its removal from the panel, and with
+// it a year of holidays for every year the user ever scrolled to. Ten add/remove
+// cycles retained 38 MiB.
+test("destroying the provider drops the holidays it was holding", () => {
+    const { HolidayCache } = loadHolidays();
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+
+    cache.setPlace("ita", "global");
+    for (let year = 1990; year < 2030; year++) {
+        for (let day = 1; day <= 12; day++) {
+            cache.addUnique({ year, month: 1, day, region: "global", name: "Holiday", flags: [] });
+        }
+        cache.recordAttempt(year, "global");
+    }
+    assert.ok(cache.data.length > 400, "the session's browsing, as the cache holds it");
+    assert.ok(cache.matchMonth(2026, 1).size > 0, "and the derived month index");
+
+    cache.release();
+
+    assert.deepEqual(cache.data, []);
+    assert.deepEqual(cache.years, {});
+    assert.deepEqual(cache.attempts, {});
+    assert.equal(cache.matchMonth(2026, 1).size, 0, "the indexes go with the data");
+});
+
 test("HolidayService.destroy aborts its own session and silences late callbacks", () => {
     const aborted = [];
     const soup = makeSoup3();

@@ -259,6 +259,28 @@ test("start_events watches the EDS bus once", () => {
 // returns an object, so Cinnamon goes on to call on_applet_added_to_panel(),
 // which starts the events manager. Destroyed has to be terminal, or the watch
 // comes back on an applet that will never be torn down again.
+// REGRESSION: destroy() released the timers, the DBus watch and the proxy, and
+// kept the event index — a month of EventData, four GLib.DateTime each. Cinnamon's
+// Applet has no destroy(), and the applet outlives its removal from the panel
+// through AppletContextMenu's sourceActor, so nothing else ever dropped them: ten
+// add/remove cycles retained 38 MiB.
+test("destroy drops the events it was holding, not just the timers", () => {
+    const manager = readyManager();
+    const day = 20000 * 24 * 3600;
+
+    for (let i = 0; i < 30; i++) {
+        registerDays(manager, makeEventData({
+            id: `ev${i}`, startUnix: day + i * 3600, endUnix: day + i * 3600 + 1800
+        }));
+    }
+    assert.ok(Object.keys(manager._event_index.eventsByDate).length > 0);
+
+    manager.destroy();
+
+    assert.deepEqual(manager._event_index.eventsByDate, {},
+        "the index the applet outlives its panel with");
+});
+
 test("a destroyed connection does not start watching the bus again", () => {
     const manager = makeManager();
     manager.destroy();

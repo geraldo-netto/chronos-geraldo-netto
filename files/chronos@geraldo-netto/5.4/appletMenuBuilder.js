@@ -24,6 +24,7 @@ class AppletMenuBuilder {
         this._calendar_signal_ids = [];
         this._calendar = null;
         this._eventList = null;
+        this._menu_items = [];
     }
 
     build() {
@@ -135,6 +136,15 @@ class AppletMenuBuilder {
                     this._calendar.disconnect(id);
                 }
                 this._calendar_signal_ids = [];
+            },
+            () => {
+                // the applet's own context menu is Cinnamon's, and it holds these
+                // items — and each item's activate closure holds this builder,
+                // which holds the applet
+                for (const item of this._menu_items) {
+                    item.destroy();
+                }
+                this._menu_items = [];
             }
         ];
 
@@ -255,6 +265,11 @@ class AppletMenuBuilder {
             let item = new PopupMenu.PopupMenuItem(_("Date and Time Settings"));
             item.connect("activate", () => context.onLaunchSettings());
             menu.addMenuItem(item);
+            // Cinnamon's AppletContextMenu is not the applet's to destroy, and it
+            // holds every item ever added to it — including this one, whose
+            // activate closure captures this builder, which captures the applet.
+            // Removing the applet from the panel does not remove the item.
+            this._menu_items.push(item);
         }
     }
 }

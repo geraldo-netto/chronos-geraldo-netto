@@ -918,6 +918,12 @@ class Calendar {
             this.events_manager.disconnect(id);
         }
         this._events_manager_signal_ids = [];
+
+        // the actors go with the menu, but these arrays are the grid's own, and
+        // the applet that holds the grid outlives its removal from the panel
+        this._day_cells = [];
+        this._week_labels = [];
+        this._day_headings = [];
     }
 
     _update_events_enabled(em) {

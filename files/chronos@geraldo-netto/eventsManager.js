@@ -762,6 +762,13 @@ var EventsManager = class EventsManager {
         this._cancel_reload_today();
         this._cancel_fetch_retry();
 
+        // A month of EventData, four GLib.DateTime each, and the applet that owns
+        // this outlives its removal from the panel — Cinnamon's Applet has no
+        // destroy(), and AppletContextMenu holds the actor, which holds _delegate.
+        // Releasing the timers and the signals but keeping the data is how ten
+        // add/remove cycles retained 38 MiB.
+        this._event_index.clear();
+
         this._destroyed = true;
     }
 

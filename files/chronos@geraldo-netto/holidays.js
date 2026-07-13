@@ -253,6 +253,10 @@ var HolidayService = class HolidayService {
         this._destroyed = true;
         this._inflight.clear();
         this._session.abort();
+        this._status.clear();
+        if (this.cache && this.cache.release) {
+            this.cache.release();
+        }
     }
 
     _statusFor(year) {

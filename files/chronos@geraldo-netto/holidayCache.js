@@ -500,6 +500,21 @@ var HolidayCache = class HolidayCache {
         this.country = null;
     }
 
+    // The applet is gone: the persisted copy is already on disk, and every
+    // structure below is a month of the user's browsing that nothing will read
+    // again. Held, they keep a year of holidays per year browsed alive for the
+    // rest of the login session — the applet object outlives its removal (see
+    // AppletContextMenu's sourceActor), so nothing else drops them.
+    release() {
+        this.data = [];
+        this._holidayIndex.clear();
+        this._monthIndex.clear();
+        this._matchedMonthCache.clear();
+        this.years = {};
+        this.attempts = {};
+        this._indexedDataLength = 0;
+    }
+
     recordAttempt(year, region, attempted = new Date().toUTCString()) {
         if (this.attempts[year]) {
             this.attempts[year][region] = attempted;
