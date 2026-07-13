@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const fs = require("node:fs");
 const path = require("node:path");
-const { testBodies } = require("./helpers/cognitive");
+const { testBodies, functionBodies } = require("./helpers/cognitive");
 
 // The limit the project holds its code to, and the rule applies to tests: a test
 // nobody can follow is not a specification of anything, and a fuzz body that
@@ -14,6 +14,7 @@ const { testBodies } = require("./helpers/cognitive");
 const MAX_COGNITIVE_COMPLEXITY = 15;
 
 const TEST_DIR = __dirname;
+const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 
 test("no test body is too complex to follow", () => {
     const offenders = [];
@@ -54,4 +55,38 @@ test("the cognitive-complexity walker counts nesting, not just branches", () => 
         "one sequence of && costs 1, plus the if");
     assert.equal(complexity("function f(a, b) { if (a && b || a) {} }"), 3,
         "alternating operators cost one each");
+});
+
+// The limit was scoped to TEST_DIR, so the rule the tests are held to did not
+// apply to the code they test. Measured with this same walker when the gate was
+// pointed here, httpGetJson was 42, the `locale -k` state machine 32, the
+// provider teardown 21 and the grid's holiday annotator 20 — precisely the
+// functions where an added branch silently bypasses a size guard, a cancellation
+// or a generation check.
+function appletSources(dir = APPLET_DIR) {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            return entry.name === "po" || entry.name === "__pycache__" ? [] : appletSources(full);
+        }
+        return entry.isFile() && entry.name.endsWith(".js") ? [full] : [];
+    });
+}
+
+test("no function in the applet is too complex to follow", () => {
+    const offenders = [];
+
+    for (const file of appletSources()) {
+        const source = fs.readFileSync(file, "utf8");
+        for (const body of functionBodies(source)) {
+            if (body.complexity > MAX_COGNITIVE_COMPLEXITY) {
+                offenders.push(
+                    `${path.relative(APPLET_DIR, file)}:${body.line} — ${body.complexity} — ${body.name}`);
+            }
+        }
+    }
+
+    assert.deepEqual(offenders, [],
+        "extract the steps into named helpers; the limit is the same one the tests " +
+        "are held to:\n  " + offenders.join("\n  "));
 });

@@ -233,53 +233,69 @@ class AppletProviderLifecycle {
     // UPower handler firing into a dead applet on every resume, for the rest of
     // the session. The applet's own _destroy() has isolated its steps for
     // exactly this reason all along; this one did not.
+    _releaseClockNotify() {
+        if (this._clock_notify_id > 0) {
+            this.clock.disconnect(this._clock_notify_id);
+            this._clock_notify_id = 0;
+        }
+    }
+
+    _releaseActorSignals() {
+        for (let id of this._actor_signal_ids) {
+            this.context.actor.disconnect(id);
+        }
+        this._actor_signal_ids = [];
+    }
+
+    _releaseEventsManager() {
+        if (!this.eventsManager) {
+            return;
+        }
+
+        for (let id of this._events_manager_signal_ids) {
+            this.eventsManager.disconnect(id);
+        }
+        this._events_manager_signal_ids = [];
+        this.eventsManager.destroy();
+    }
+
+    _releaseDesktopSettings() {
+        for (let id of this._desktop_settings_signal_ids) {
+            this.context.desktopSettings.disconnect(id);
+        }
+        this._desktop_settings_signal_ids = [];
+    }
+
+    _releaseUPower() {
+        if (this._up_resume_signal_id > 0) {
+            this._up_client.disconnect(this._up_resume_signal_id);
+            this._up_resume_signal_id = 0;
+        }
+    }
+
+    _releaseLogind() {
+        if (this._logind_sleep_signal_id > 0 && Gio && Gio.DBus && Gio.DBus.system) {
+            Gio.DBus.system.signal_unsubscribe(this._logind_sleep_signal_id);
+            this._logind_sleep_signal_id = 0;
+        }
+    }
+
+    // Every step runs even if an earlier one throws: a teardown that stops at the
+    // first failure leaves the rest of the applet's signals and timers connected
+    // to a destroyed object for the life of the session.
     destroy() {
         this._destroyed = true;
 
         const steps = [
-            () => {
-                if (this._clock_notify_id > 0) {
-                    this.clock.disconnect(this._clock_notify_id);
-                    this._clock_notify_id = 0;
-                }
-            },
-            () => {
-                for (let id of this._actor_signal_ids) {
-                    this.context.actor.disconnect(id);
-                }
-                this._actor_signal_ids = [];
-            },
+            () => this._releaseClockNotify(),
+            () => this._releaseActorSignals(),
             () => this.weatherProvider && this.weatherProvider.destroy(),
             () => this.cityWeatherProvider && this.cityWeatherProvider.destroy(),
             () => this.holidayProvider && this.holidayProvider.destroy(),
-            () => {
-                if (!this.eventsManager) {
-                    return;
-                }
-                for (let id of this._events_manager_signal_ids) {
-                    this.eventsManager.disconnect(id);
-                }
-                this._events_manager_signal_ids = [];
-                this.eventsManager.destroy();
-            },
-            () => {
-                for (let id of this._desktop_settings_signal_ids) {
-                    this.context.desktopSettings.disconnect(id);
-                }
-                this._desktop_settings_signal_ids = [];
-            },
-            () => {
-                if (this._up_resume_signal_id > 0) {
-                    this._up_client.disconnect(this._up_resume_signal_id);
-                    this._up_resume_signal_id = 0;
-                }
-            },
-            () => {
-                if (this._logind_sleep_signal_id > 0 && Gio && Gio.DBus && Gio.DBus.system) {
-                    Gio.DBus.system.signal_unsubscribe(this._logind_sleep_signal_id);
-                    this._logind_sleep_signal_id = 0;
-                }
-            }
+            () => this._releaseEventsManager(),
+            () => this._releaseDesktopSettings(),
+            () => this._releaseUPower(),
+            () => this._releaseLogind()
         ];
 
         for (const step of steps) {

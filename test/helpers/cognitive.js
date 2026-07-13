@@ -117,4 +117,52 @@ function testBodies(source) {
     return found;
 }
 
-module.exports = { complexityOf, testBodies, PARSE_OPTIONS };
+// Every function, method and closure a source file declares, with the complexity
+// of each — the production counterpart of testBodies. A method is scored whole,
+// so the closures inside it count towards it and are not also reported alone:
+// that is what makes an eight-arm table of arrow steps read as one function, and
+// it is the number the limit is about.
+function functionBodies(source) {
+    const tree = espree.parse(source, PARSE_OPTIONS);
+    const found = [];
+
+    const visit = (node, parent) => {
+        const isMethod = node.type === "MethodDefinition" || node.type === "PropertyDefinition";
+        const target = isMethod ? node.value : node;
+
+        if ((isMethod && target && FUNCTIONS.has(target.type)) || FUNCTIONS.has(node.type)) {
+            found.push({
+                name: nameOf(node, parent),
+                line: node.loc.start.line,
+                complexity: complexityOf(target)
+            });
+
+            // scored whole: what is inside it is part of it
+            return;
+        }
+
+        childNodes(node).forEach((child) => visit(child, node));
+    };
+
+    visit(tree, null);
+    return found;
+}
+
+function nameOf(node, parent) {
+    if (node.id && node.id.name) {
+        return node.id.name;
+    }
+    if (node.key && node.key.name) {
+        return node.key.name;
+    }
+    if (parent && parent.type === "VariableDeclarator" && parent.id && parent.id.name) {
+        return parent.id.name;
+    }
+    if (parent && parent.type === "Property" && parent.key && parent.key.name) {
+        return parent.key.name;
+    }
+
+    return "<anonymous>";
+}
+
+module.exports = { complexityOf, testBodies, functionBodies, PARSE_OPTIONS };

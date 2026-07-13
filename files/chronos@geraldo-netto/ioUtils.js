@@ -45,6 +45,20 @@ function decodeUtf8(data) {
 // the oldest release this applet loads on, ships GLib 2.72, where every
 // Gio.File has it. The only thing that ever took that branch was a test double
 // too thin to have one. Same story for the sync write below.
+// A file that is missing, oversized, corrupt or not an object all mean the same
+// thing to a caller: there is no cache. Only the etag distinguishes them, and it
+// is null unless Gio handed one back.
+function _parseCacheFile(contents, ok) {
+    if (!ok || tooBig(contents.length, MAX_CACHE_FILE_BYTES, "the holiday cache file")) {
+        return {};
+    }
+
+    const parsed = JSON.parse(decodeUtf8(contents));
+
+    // a corrupt file may parse to null or a scalar
+    return parsed && typeof parsed === "object" ? parsed : {};
+}
+
 function readJsonFileAsync (file, callback) {
     if (!file.query_exists(null)) {
         callback({});
@@ -61,14 +75,7 @@ function readJsonFileAsync (file, callback) {
                 // than silently overwrite another writer who got there first
                 const [ok, contents, tag] = source.load_contents_finish(result);
                 etag = tag || null;
-                if (ok && !tooBig(contents.length, MAX_CACHE_FILE_BYTES,
-                    "the holiday cache file")) {
-                    const parsed = JSON.parse(decodeUtf8(contents));
-                    // a corrupt file may parse to null or a scalar
-                    if (parsed && typeof parsed === "object") {
-                        data = parsed;
-                    }
-                }
+                data = _parseCacheFile(contents, ok);
             } catch (e) {
                 if (global.logError) {
                     global.logError(e);
@@ -242,15 +249,55 @@ function _readCapped(stream, cancellable, url, deliver) {
     readMore();
 }
 
-function httpGetJson(session, url, callback, options = {}) {
-    const message = Soup.Message.new("GET", url);
-    _setRequestHeaders(message, options.headers);
+function _tooLarge(url, what) {
+    return new Error("response from " + urlForLog(url) + " " + what + " " +
+        MAX_RESPONSE_BYTES + " bytes");
+}
 
-    // libsoup follows redirects by default, and would follow an https -> http
-    // downgrade — putting the query string, which carries the user's location,
-    // on the wire in cleartext. "restarted" fires before the redirected request
-    // goes out, so cancelling there stops it rather than noticing afterwards.
-    const cancellable = Gio.Cancellable ? new Gio.Cancellable() : null;
+// A declared length that lies, or is absent, is the chunked-transfer hole: this
+// is the pre-read guard, and the capped read is the one that closes it.
+function _refuseDeclaredTooLarge(message, url) {
+    if (_declaredTooLarge(message)) {
+        throw _tooLarge(url, "declares more than");
+    }
+}
+
+// Throws on anything that is not a payload; the caller turns a throw into a null
+// result, which is what every caller of httpGetJson already treats as failure.
+function _jsonFromBody(message, url, body) {
+    if (_downgraded(message, url)) {
+        throw new Error("refusing a response from " + urlForLog(url) + " redirected to plain http");
+    }
+
+    if (message.get_status() !== 200) {
+        if (global.logError) {
+            global.logError("HTTP " + message.get_status() + " fetching " + urlForLog(url));
+        }
+        return null;
+    }
+
+    // the declared length can lie, or be absent entirely; the capped read already
+    // enforced this on the streaming path
+    if (body && body.length > MAX_RESPONSE_BYTES) {
+        throw _tooLarge(url, "exceeds");
+    }
+
+    const parsed = JSON.parse(decodeUtf8(body));
+
+    // "a string", 42 and null are all valid JSON and none of them is a payload.
+    // Every caller then reaches for a property on it — data.current_weather,
+    // data.error, data.length — and a scalar answers undefined to all of them, so
+    // a broken endpoint reads as an empty result rather than a failure.
+    // readJsonFile has guarded this on the disk side all along; the network side
+    // did not.
+    return parsed && typeof parsed === "object" ? parsed : null;
+}
+
+// libsoup follows redirects by default, and would follow an https -> http
+// downgrade — putting the query string, which carries the user's location, on the
+// wire in cleartext. "restarted" fires before the redirected request goes out, so
+// cancelling there stops it rather than noticing afterwards.
+function _cancelOnDowngrade(message, url, cancellable) {
     if (cancellable && typeof message.connect === "function") {
         message.connect("restarted", () => {
             if (_downgraded(message, url)) {
@@ -258,6 +305,47 @@ function httpGetJson(session, url, callback, options = {}) {
             }
         });
     }
+}
+
+// Stream and cap incrementally where the Soup supports it (Soup 3): the declared
+// length is guarded before the read, and the body is bounded as it arrives.
+function _sendStreaming(session, message, url, cancellable, deliver, fail) {
+    session.send_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
+        let stream = null;
+        try {
+            _refuseDeclaredTooLarge(message, url);
+            stream = source.send_finish(result);
+        } catch (e) {
+            fail(e);
+            return;
+        }
+        _readCapped(stream, cancellable, url, (err, body) =>
+            err ? fail(err) : deliver(body));
+    });
+}
+
+// The whole-body path, for a Soup with no send_async: only the declared length
+// bounds it, which is what the streaming path exists to improve on.
+function _sendAtOnce(session, message, url, cancellable, deliver, fail) {
+    session.send_and_read_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
+        let body = null;
+        try {
+            _refuseDeclaredTooLarge(message, url);
+            body = source.send_and_read_finish(result).get_data();
+        } catch (e) {
+            fail(e);
+            return;
+        }
+        deliver(body);
+    });
+}
+
+function httpGetJson(session, url, callback, options = {}) {
+    const message = Soup.Message.new("GET", url);
+    _setRequestHeaders(message, options.headers);
+
+    const cancellable = Gio.Cancellable ? new Gio.Cancellable() : null;
+    _cancelOnDowngrade(message, url, cancellable);
 
     // Each path below calls back exactly once, and always outside its try: a
     // throw from the callback must not be swallowed as if it were a read error.
@@ -268,32 +356,10 @@ function httpGetJson(session, url, callback, options = {}) {
         callback(null, message);
     };
 
-    const parseBody = (body) => {
+    const deliver = (body) => {
         let data = null;
         try {
-            if (_downgraded(message, url)) {
-                throw new Error("refusing a response from " + urlForLog(url) + " redirected to plain http");
-            }
-
-            if (message.get_status() === 200) {
-                // the declared length can lie, or be absent entirely; the
-                // capped read already enforced this on the streaming path
-                if (body && body.length > MAX_RESPONSE_BYTES) {
-                    throw new Error("response from " + urlForLog(url) + " exceeds " +
-                        MAX_RESPONSE_BYTES + " bytes");
-                }
-                const parsed = JSON.parse(decodeUtf8(body));
-                // "a string", 42 and null are all valid JSON and none of them is
-                // a payload. Every caller then reaches for a property on it —
-                // data.current_weather, data.error, data.length — and a scalar
-                // answers undefined to all of them, so a broken endpoint reads
-                // as an empty result rather than a failure. readJsonFile has
-                // guarded this on the disk side all along; the network side did
-                // not.
-                data = parsed && typeof parsed === "object" ? parsed : null;
-            } else if (global.logError) {
-                global.logError("HTTP " + message.get_status() + " fetching " + urlForLog(url));
-            }
+            data = _jsonFromBody(message, url, body);
         } catch (e) {
             if (global.logError) {
                 global.logError(e);
@@ -302,43 +368,8 @@ function httpGetJson(session, url, callback, options = {}) {
         callback(data, message);
     };
 
-    // Stream and cap incrementally where the Soup supports it (Soup 3). The
-    // send_and_read path stays for an older Soup, and is what the pre-read
-    // _declaredTooLarge guards; the streaming path guards the same declared
-    // length and then bounds the body as it arrives.
-    if (typeof session.send_async === "function") {
-        session.send_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
-            let stream = null;
-            try {
-                if (_declaredTooLarge(message)) {
-                    throw new Error("response from " + urlForLog(url) + " declares more than " +
-                        MAX_RESPONSE_BYTES + " bytes");
-                }
-                stream = source.send_finish(result);
-            } catch (e) {
-                fail(e);
-                return;
-            }
-            _readCapped(stream, cancellable, url, (err, body) =>
-                err ? fail(err) : parseBody(body));
-        });
-        return;
-    }
-
-    session.send_and_read_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
-        let body = null;
-        try {
-            if (_declaredTooLarge(message)) {
-                throw new Error("response from " + urlForLog(url) + " declares more than " +
-                    MAX_RESPONSE_BYTES + " bytes");
-            }
-            body = source.send_and_read_finish(result).get_data();
-        } catch (e) {
-            fail(e);
-            return;
-        }
-        parseBody(body);
-    });
+    const send = typeof session.send_async === "function" ? _sendStreaming : _sendAtOnce;
+    send(session, message, url, cancellable, deliver, fail);
 }
 
 // every endpoint this applet speaks to is https; a redirect that lands on

@@ -654,6 +654,29 @@ class CalendarHolidayAnnotator {
         this.monthLabel.setAccessibleName(status ? joinPhrases(month, status) : month);
     }
 
+    // an answer for a country the user has since changed away from owns nothing
+    // on this grid
+    _isCurrent(holiday_generation) {
+        return holiday_generation === this.host.holidayGeneration;
+    }
+
+    _reportProvider(error, providerName) {
+        if (error) {
+            this.setStatus(error, providerName);
+        } else if (!this.error) {
+            this.setStatus("", providerName);
+        }
+    }
+
+    _markCells(dates, cells) {
+        for (const [date, [name, flags]] of dates.entries()) {
+            const cell = cells.get(date);
+            if (cell) {
+                this._annotateCell(cell, name, flags);
+            }
+        }
+    }
+
     annotate(months, cells, holiday_generation) {
         const holiday = this.host.holidayProvider;
         if (!holiday || !holiday.country) {
@@ -669,24 +692,13 @@ class CalendarHolidayAnnotator {
             const [y, m] = month.split('/');
             awaited++;
             holiday.getHolidays(y, m, (dates, error, providerName) => {
-                if (holiday_generation !== this.host.holidayGeneration) {
+                if (!this._isCurrent(holiday_generation)) {
                     return;
                 }
 
                 awaited--;
-
-                if (error) {
-                    this.setStatus(error, providerName);
-                } else if (!this.error) {
-                    this.setStatus("", providerName);
-                }
-
-                for (const [date, [name, flags]] of dates.entries()) {
-                    const cell = cells.get(date);
-                    if (!cell) continue;
-
-                    this._annotateCell(cell, name, flags);
-                }
+                this._reportProvider(error, providerName);
+                this._markCells(dates, cells);
             });
         }
 

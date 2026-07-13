@@ -225,7 +225,10 @@ test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
     const code = source("5.4/calendar.js");
     assert.match(code, /this\._holiday_update_generation = 0;/);
     assert.match(code, /const holiday_generation = \+\+this\._holiday_update_generation;/);
-    assert.match(code, /if \(holiday_generation !== this\.host\.holidayGeneration\) \{[\s\S]*?return;/);
+    // the guard is a named predicate now; what this pins is that the callback
+    // still asks it before touching the grid
+    assert.match(code, /_isCurrent\(holiday_generation\) \{[\s\S]*?return holiday_generation === this\.host\.holidayGeneration;/);
+    assert.match(code, /if \(!this\._isCurrent\(holiday_generation\)\) \{[\s\S]*?return;/);
     assert.match(code, /destroy\(\) \{[\s\S]*?this\._holiday_update_generation\+\+;/);
 });
 
@@ -241,7 +244,8 @@ test("calendars surface holiday provider failures", () => {
     assert.match(code, /HOLIDAY_ERROR_MARKER/);
     assert.match(code, /new Tooltips\.Tooltip\(this\.label\)/);
     assert.match(code, /Holiday data: %s/);
-    assert.match(code, /holiday\.getHolidays\(y, m, \(dates, error, providerName\) => \{[\s\S]*?if \(error\) \{[\s\S]*?this\.setStatus\(error, providerName\);/);
+    assert.match(code, /holiday\.getHolidays\(y, m, \(dates, error, providerName\) => \{[\s\S]*?this\._reportProvider\(error, providerName\);/);
+    assert.match(code, /_reportProvider\(error, providerName\) \{[\s\S]*?if \(error\) \{[\s\S]*?this\.setStatus\(error, providerName\);/);
 });
 
 // request URLs carry the configured country; they must never reach the log

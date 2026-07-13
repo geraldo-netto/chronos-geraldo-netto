@@ -209,39 +209,28 @@ function _degrade(env) {
 // reads the locale, and each one asks again — so without a gate, a failure would
 // spawn `locale` afresh on the spot, fail again, and spin. Only the retry above
 // may re-ask.
-function _requestInfo(env, force = false) {
+function _shouldAsk(env, force) {
     if (requested[env]) {
-        return;
+        return false;
     }
     // a real answer is final
     if (localeInfoCache[env] && !degraded[env]) {
-        return;
+        return false;
     }
     if (degraded[env] && !force) {
-        return;
+        return false;
     }
-    if (attempts[env] >= LOCALE_MAX_ATTEMPTS) {
-        return;
-    }
-    requested[env] = true;
 
-    try {
-        // argv form: no shell, no interpolation
-        const proc = new Gio.Subprocess({
-            argv: ["locale", "-k", env],
-            flags: Gio.SubprocessFlags.STDOUT_PIPE
-        });
-        proc.init(null);
+    return !(attempts[env] >= LOCALE_MAX_ATTEMPTS);
+}
 
-        // `locale` can wedge — a hung NSS or nscd lookup is the classic way —
-        // and this is asked for once and never retried. Without a deadline the
-        // callback simply never fires: day names and the work week stay on the
-        // English defaults for the life of the session, nothing that waits on
-        // the locale is ever told, and the process is never reaped.
-        const cancellable = new Gio.Cancellable();
-        _cancellables[env] = cancellable;
-        let settled = false;
-        const succeed = (info) => {
+// The two ways a query ends, and the state each one leaves behind. Exactly one of
+// them runs: whichever gets there first, the deadline or the answer.
+function _settlers(env) {
+    let settled = false;
+
+    return {
+        succeed(info) {
             if (settled) {
                 return;
             }
@@ -249,8 +238,8 @@ function _requestInfo(env, force = false) {
             requested[env] = false;
             degraded[env] = false;
             _storeInfo(env, info);
-        };
-        const fail = () => {
+        },
+        fail() {
             if (settled) {
                 return;
             }
@@ -267,40 +256,75 @@ function _requestInfo(env, force = false) {
             }
 
             _degrade(env);
-        };
+        },
+        get settled() {
+            return settled;
+        }
+    };
+}
 
-        _scheduleTimeout(LOCALE_TIMEOUT_SECONDS, () => {
-            if (!settled) {
-                // Cancelling the read only stops us waiting; the child keeps
-                // running. A genuinely wedged `locale` — the hung NSS/nscd
-                // lookup above — has to be killed, or it lingers past the applet.
-                if (proc.force_exit) {
-                    proc.force_exit();
-                }
-                cancellable.cancel();
-                if (global.logError) {
-                    global.logError("locale -k " + env + " did not answer; using the defaults");
-                }
-                fail();
+// `locale` can wedge — a hung NSS or nscd lookup is the classic way — and this is
+// asked for once and never retried. Without a deadline the callback simply never
+// fires: day names and the work week stay on the English defaults for the life of
+// the session, nothing that waits on the locale is ever told, and the process is
+// never reaped.
+function _armDeadline(env, proc, cancellable, settlers) {
+    _scheduleTimeout(LOCALE_TIMEOUT_SECONDS, () => {
+        if (!settlers.settled) {
+            // Cancelling the read only stops us waiting; the child keeps running.
+            // A genuinely wedged `locale` has to be killed, or it lingers past the
+            // applet.
+            if (proc.force_exit) {
+                proc.force_exit();
             }
-            return false;
-        });
+            cancellable.cancel();
+            if (global.logError) {
+                global.logError("locale -k " + env + " did not answer; using the defaults");
+            }
+            settlers.fail();
+        }
+        return false;
+    });
+}
 
-        proc.communicate_utf8_async(null, cancellable, (source, result) => {
-            try {
-                const [ok, output] = source.communicate_utf8_finish(result);
-                if (ok && output) {
-                    succeed(_parseInfo(env, output));
-                } else {
-                    fail();
-                }
-            } catch (e) {
-                if (global.logError) {
-                    global.logError(e);
-                }
-                fail();
+function _readLocaleOutput(env, proc, cancellable, settlers) {
+    proc.communicate_utf8_async(null, cancellable, (source, result) => {
+        try {
+            const [ok, output] = source.communicate_utf8_finish(result);
+            if (ok && output) {
+                settlers.succeed(_parseInfo(env, output));
+            } else {
+                settlers.fail();
             }
+        } catch (e) {
+            if (global.logError) {
+                global.logError(e);
+            }
+            settlers.fail();
+        }
+    });
+}
+
+function _requestInfo(env, force = false) {
+    if (!_shouldAsk(env, force)) {
+        return;
+    }
+    requested[env] = true;
+
+    try {
+        // argv form: no shell, no interpolation
+        const proc = new Gio.Subprocess({
+            argv: ["locale", "-k", env],
+            flags: Gio.SubprocessFlags.STDOUT_PIPE
         });
+        proc.init(null);
+
+        const cancellable = new Gio.Cancellable();
+        _cancellables[env] = cancellable;
+        const settlers = _settlers(env);
+
+        _armDeadline(env, proc, cancellable, settlers);
+        _readLocaleOutput(env, proc, cancellable, settlers);
     } catch (e) {
         if (global.logError) {
             global.logError(e);

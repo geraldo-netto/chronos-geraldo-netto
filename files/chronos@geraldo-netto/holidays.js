@@ -348,23 +348,57 @@ var HolidayService = class HolidayService {
         return this._inflight.has(this._inflightKey(year));
     }
 
+    // Holidays are on but no country is set — nothing to ask, and this runs
+    // inside the async calendar-update path where a throw has no local handler,
+    // so it reports the error state instead.
+    _reportNoCountry(year, callback) {
+        this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
+        this.last_provider = "";
+        this._status.record(this._inflightKey(year));
+        if (global.logError) {
+            global.logError("holiday provider has no country configured");
+        }
+        if (callback) {
+            callback();
+        }
+    }
+
+    // Everything the answer touches, once it is known to belong to the place that
+    // is still selected. The attempt is recorded on completion, not on dispatch:
+    // an attempt recorded up front makes the year look fresh to every other month
+    // in the grid, which then renders no holidays at all.
+    _acceptYear(year, region, inflightKey, generation, data, params, date) {
+        this.cache.recordAttempt(year, region);
+
+        let callbacks = [];
+        try {
+            this.addData(data, params, date);
+        } catch (e) {
+            // a payload that survives validation can still throw while being
+            // expanded or persisted; leaving the key behind would block every
+            // later fetch of this year for the whole session
+            this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
+            if (global.logError) {
+                global.logError(e);
+            }
+        } finally {
+            this._status.record(inflightKey);
+            callbacks = this._inflight.settle(inflightKey, generation);
+            this._status.prune();
+        }
+
+        for (let waiting of callbacks) {
+            waiting();
+        }
+    }
+
     retrieveForYear (year, callback) {
         if (this._destroyed) {
             return;
         }
 
         if (!this.country) {
-            // this runs inside the async calendar-update path where a throw
-            // has no local handler; report the error state instead
-            this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
-            this.last_provider = "";
-            this._status.record(this._inflightKey(year));
-            if (global.logError) {
-                global.logError("holiday provider has no country configured");
-            }
-            if (callback) {
-                callback();
-            }
+            this._reportNoCountry(year, callback);
             return;
         }
 
@@ -378,46 +412,20 @@ var HolidayService = class HolidayService {
 
         const region = this.region;
         this.service.fetchYear(this.country, region, year, (data, params, date) => {
-            // The fetch may finish after the applet was removed from the panel
-            // — running callbacks then would touch destroyed actors — or after
-            // the user picked another country, in which case this.cache now
-            // holds that country's data and writing to it would file France's
-            // holidays under Japan, mark Japan's year fresh for the update
-            // period, and persist the lot.
-            // The place changed while this was in flight. setPlace() has already
-            // emptied the inflight map, and the new place's request may already
-            // have refilled it under this very key — so touching it here is how
-            // the old response used to delete the *new* request's callbacks.
-            // This response owns nothing any more. Leave it all alone.
+            // The fetch may finish after the applet was removed from the panel —
+            // running callbacks then would touch destroyed actors — or after the
+            // user picked another country, in which case this.cache now holds that
+            // country's data and writing to it would file France's holidays under
+            // Japan, mark Japan's year fresh for the update period, and persist the
+            // lot. setPlace() has already emptied the inflight map, and the new
+            // place's request may already have refilled it under this very key — so
+            // touching it here is how the old response used to delete the *new*
+            // request's callbacks. This response owns nothing any more.
             if (!this._isCurrentPlace(generation)) {
                 return;
             }
 
-            // recorded on completion, not on dispatch: an attempt recorded up
-            // front makes the year look fresh to every other month in the
-            // grid, which then renders no holidays at all
-            this.cache.recordAttempt(year, region);
-
-            let callbacks = [];
-            try {
-                this.addData(data, params, date);
-            } catch (e) {
-                // a payload that survives validation can still throw while
-                // being expanded or persisted; leaving the key behind would
-                // block every later fetch of this year for the whole session
-                this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
-                if (global.logError) {
-                    global.logError(e);
-                }
-            } finally {
-                this._status.record(inflightKey);
-                callbacks = this._inflight.settle(inflightKey, generation);
-                this._status.prune();
-            }
-
-            for (let waiting of callbacks) {
-                waiting();
-            }
+            this._acceptYear(year, region, inflightKey, generation, data, params, date);
         });
     }
 
