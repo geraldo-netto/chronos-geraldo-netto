@@ -695,12 +695,37 @@ test("gc timer culls stale events and reports", () => {
         unpack: () => [eventVariant({ id: "old", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 })]
     });
     manager.last_update_timestamp = 10 ** 9;
+    // the ingest above emits too; this round's emits are the ones being asserted
+    const before = emitted(manager, "events-updated").length;
     manager._start_gc_timer();
     fireTimer(manager._gc_timer_id);
     // the emptied day is dropped, so the day reads as "no events" instead of
     // rendering an empty list
     assert.equal(manager._event_index.eventsByDate[10 * DAY_S], undefined);
     assert.equal(manager._event_index.getByUnixKey(10 * DAY_S), null);
+
+    // ...and it says so. The test was called "and reports" and asserted only the
+    // index: renaming the signal to anything at all left the suite green, and
+    // 5.4/calendar.js is its only subscriber — so the grid kept the event dots of
+    // events the GC had just deleted, until something else happened to repaint it.
+    assert.equal(emitted(manager, "events-updated").length, before + 1,
+        "the grid is told to repaint, and by that name");
+});
+
+// nothing culled means nothing to repaint: an emit here would rebuild the grid's
+// dots every gc period for no reason
+test("a gc round that culls nothing tells nobody", () => {
+    const manager = readyManager();
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({ id: "live", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 })]
+    });
+    manager.last_update_timestamp = 0;
+    const before = emitted(manager, "events-updated").length;
+    manager._start_gc_timer();
+    fireTimer(manager._gc_timer_id);
+
+    assert.equal(emitted(manager, "events-updated").length, before,
+        "nothing was culled, so nothing was said");
 });
 
 test("a failed month fetch is retried with backoff", () => {
