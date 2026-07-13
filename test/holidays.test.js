@@ -3239,6 +3239,46 @@ test("the inflight ledger joins a running fetch instead of starting a second", (
     assert.equal(inflight.has("2027/global"), false);
 });
 
+// The generation guard in settle() was never executed by any test: replacing the
+// whole condition with `if (false)` survived mutation, which is proof no test ever
+// reached it — it would have thrown on entry.callbacks.
+//
+// It is the stale-response defence. Change country mid-fetch and the old (BR)
+// response lands after setPlace() has emptied the map and the new (FR) request has
+// refilled it under the same year/region key. Without the tag the old response
+// deletes the *new* request's entry: the FR response then finds no callbacks and
+// nothing repaints, while fetching() answers false for a request that is still
+// live, which fires a duplicate. The month stays on the old country's holidays
+// until the user scrolls away and back.
+test("a response for a place the user has left settles nothing", () => {
+    const { HolidayInflight } = loadHolidays();
+    const inflight = new HolidayInflight();
+    const answered = [];
+
+    // Brazil's fetch starts, in generation 1
+    assert.equal(inflight.start("2026/global", () => answered.push("brazil"), 1), true);
+
+    // the user picks France: the map is emptied and refilled under the same key,
+    // in generation 2
+    inflight.clear();
+    assert.equal(inflight.start("2026/global", () => answered.push("france"), 2), true);
+
+    // now Brazil's response lands
+    assert.deepEqual(inflight.settle("2026/global", 1), [],
+        "it takes no callbacks that are not its own");
+    assert.equal(inflight.has("2026/global"), true,
+        "and it removes nothing: France's fetch is still in flight");
+
+    // ...and France's own response still finds its caller
+    const callbacks = inflight.settle("2026/global", 2);
+    callbacks.forEach((callback) => callback());
+    assert.deepEqual(answered, ["france"]);
+    assert.equal(inflight.has("2026/global"), false);
+
+    // a response for a key nobody is waiting on is not an error either
+    assert.deepEqual(inflight.settle("2030/global", 2), []);
+});
+
 // ...and with nothing replaced at all, the root builds the real thing: one HTTP
 // session, built on first fetch, shared by the three adapters and aborted on
 // destroy.
