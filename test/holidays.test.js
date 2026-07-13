@@ -721,6 +721,13 @@ test("the cache file keeps a handful of countries, not every one ever tried", ()
     assert.deepEqual(Object.keys(written).sort(),
         tried.slice(-MAX_CACHED_COUNTRIES).sort());
 
+    // ...and the in-memory pending map is not a second, unbounded copy of the
+    // file. It held a year-of-holidays blob for every country the session ever
+    // selected — up to all 58 while the user browses the settings dialog — and
+    // re-merged the lot into the file on every later flush, which is the bound
+    // MAX_CACHED_COUNTRIES was added to enforce.
+    assert.deepEqual(repository._pending, {},
+        "what is on disk is not also held in memory");
 });
 
 test("the month-match memo is bounded, and scrolling back is still free", () => {

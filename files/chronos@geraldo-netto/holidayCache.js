@@ -267,13 +267,32 @@ var HolidayCacheRepository = class HolidayCacheRepository {
     // be a synchronous read — on the compositor thread, in the file that added
     // an async reader precisely to keep this parse off it — and the file it
     // parses grows with every country the user has ever tried.
+    // What survived the prune is on disk, so holding it here as well kept a full
+    // year-of-holidays blob for every country the session ever selected — up to
+    // all 58 while a user browses the settings dialog — and every later flush
+    // re-merged the lot into the freshly-read file before pruning it again. That
+    // is precisely the bound MAX_CACHED_COUNTRIES exists to enforce.
+    //
+    // Only the entries this round actually wrote are dropped, and only if a save
+    // has not replaced them since: a save that lands mid-write belongs to the next
+    // round.
+    _releasePending(flushed) {
+        for (const country of Object.keys(flushed)) {
+            if (this._pending[country] === flushed[country]) {
+                delete this._pending[country];
+            }
+        }
+    }
+
     _flush(file, merges = 0) {
         this._writing = true;
         this._dirty = false;
 
+        const flushing = Object.assign({}, this._pending);
+
         Utils.readJsonFileAsync(file, (data, etag) => {
-            Object.keys(this._pending).forEach((country) => {
-                data[country] = this._pending[country];
+            Object.keys(flushing).forEach((country) => {
+                data[country] = flushing[country];
             });
             const allData = this._pruneCountries(data);
             this._all = allData;
@@ -292,11 +311,14 @@ var HolidayCacheRepository = class HolidayCacheRepository {
                     // our snapshot is out of date, not our data: re-read, merge
                     // the pending countries into the newer file, write again.
                     // Bounded: a cache is a cache, and spinning against a busy
-                    // writer would be worse than losing a holiday refetch.
+                    // writer would be worse than losing a holiday refetch. The
+                    // pending entries stay put — the retry is what writes them.
                     this._all = null;
                     this._flush(file, merges + 1);
                     return;
                 }
+
+                this._releasePending(flushing);
 
                 if (this._dirty) {
                     this._flush(file);
