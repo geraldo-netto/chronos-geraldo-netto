@@ -960,6 +960,40 @@ test("a destroyed applet does not re-arm its once-a-second clock handler", () =>
         "the handler would tick against destroyed actors for the rest of the session");
 });
 
+// The panel's clock ticks because the applet connects to WallClock's
+// "notify::clock" — and the signal name was asserted nowhere: renaming it to
+// anything at all left the suite green, and the panel would simply stop ticking.
+// Its siblings are pinned (renaming "notify-resume" or "enter-event" fails the
+// suite), so this was a gap, not a policy.
+test("the panel clock connects to the tick signal WallClock actually emits", () => {
+    const connects = [];
+    const clock = {
+        connect: (signal, callback) => {
+            connects.push([signal, callback]);
+            return connects.length;
+        },
+        disconnect: () => {}
+    };
+    const lifecycle = new AppletModule.AppletProviderLifecycle({ actor: { disconnect() {} } });
+    lifecycle.clock = clock;
+
+    let ticks = 0;
+    lifecycle.connectClockNotify(() => ticks++);
+
+    assert.deepEqual(connects.map(([signal]) => signal), ["notify::clock"],
+        "any other name and the clock never updates again");
+    assert.ok(lifecycle._clock_notify_id > 0, "and the id is kept, so teardown can release it");
+
+    // the callback that was handed over is the one the signal drives
+    connects[0][1]();
+    assert.equal(ticks, 1);
+
+    // asked twice, connected once: a second connect would tick the panel twice a
+    // second and leak the first handler
+    lifecycle.connectClockNotify(() => {});
+    assert.equal(connects.length, 1);
+});
+
 // The provider teardown was one unguarded block: a throw in the first step —
 // abort() on a Soup session Cinnamon has already disposed during a reload, say —
 // left the city-weather provider, the holiday provider and the events manager
