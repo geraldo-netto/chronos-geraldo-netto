@@ -1402,6 +1402,38 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertFalse(hasattr(wrapper_52, "list_edit_factory"),
                          "the shim is the widgets Cinnamon names, and nothing else")
 
+    def test_the_shim_puts_the_applet_dir_on_the_path_when_it_is_missing(self):
+        """The shim's whole job: cinnamon-settings imports it by the schema's
+        name, with the applet directory nowhere on sys.path, and it has to make
+        `from settings_widgets_common import …` resolve. Every other test loads it
+        with the directory already on the path — the harness puts it there — so
+        the one line that does the job never ran, and the coverage gate could not
+        see it because it did not look inside 5.4/ at all.
+        """
+        install_stubs()
+        applet_dir = str(APPLET_DIR)
+        saved_path = list(sys.path)
+        saved_modules = dict(sys.modules)
+        sys.path = [entry for entry in sys.path if entry != applet_dir]
+        try:
+            spec = importlib.util.spec_from_file_location(
+                "settings_widgets_52_path_test", APPLET_DIR / "5.4" / "settings_widgets.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertIn(applet_dir, sys.path,
+                          "the shim did not make its own siblings importable")
+            # appended, never inserted at 0: this runs inside the shared
+            # cinnamon-settings process, and a directory at the front of sys.path
+            # would shadow the standard library for everything else in it
+            self.assertEqual(sys.path[-1], applet_dir)
+            self.assertEqual(sorted(module.__all__),
+                             ["ClocksList", "CountryComboBox", "WeatherLocationEntry"])
+        finally:
+            sys.path = saved_path
+            for name in set(sys.modules) - set(saved_modules):
+                del sys.modules[name]
+
 
 class BuildDialogContentTest(unittest.TestCase):
     @classmethod

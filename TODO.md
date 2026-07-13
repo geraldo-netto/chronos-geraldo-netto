@@ -6,11 +6,11 @@ Audit ledger for this applet. Full-source rescan on 2026-07-12 (fresh pass) agai
 
 **Findings verified by running or mutating the code are marked [verified]**, each naming the experiment.
 
-Baseline at scan time: `npm test` green **on this machine** (JS coverage per-file 98/90/100, Python 98 %+), `npm run lint` clean. But the Python coverage gate is weaker than it reads (T373) and **no CI runs them at all** (T440), so the green baseline is a local fact, not a shipped one.
+Baseline at scan time: `npm test` green **on this machine** (JS coverage per-file 98/90/100, Python 98 %+), `npm run lint` clean. But **no CI runs them at all** (T440), so the green baseline is a local fact, not a shipped one.
 
 A batch on 2026-07-12 closed 27 of the findings (see `git log`): the six README fixes, the makepot `cd`, the single-sourced constants, the i18n trio, the dead `_urlForLog`, the lazy city Soup session, the tooltip-key seconds, the locale-subprocess reap, the chunked-response cap, the geocode fan-out pool, the JS/Python timezone-city parity, the logind resume, the holiday refetch-storm, the C→F unification, the five complexity splits, the `updateFormatString` table, the calendar-server proxy encapsulation, the EventList seam, the coverage-gate honesty fix, and the ATK-description fix. Five of that batch's targets were **parked** rather than done — the heavy reorganizations, all Medium and none a live bug. All five have since landed (T442, T444, T445, T446, T448).
 
-Open items: 13 (Critical 0, High 0, Medium 6, Low 7).
+Open items: 12 (Critical 0, High 0, Medium 5, Low 7).
 
 ## Findings
 
@@ -26,7 +26,6 @@ None open.
 | T439 | packaging | Medium | open | S | **[verified]** `5.4/icon.png` is committed as a git **symlink** (mode `120000` → `../icon.png`), not a file. Symlinks are fragile in a published xlet: zip/tarball delivery and some install paths do not preserve them, leaving the applet iconless. There is also no `icon.png` at the applet root. | Verified: `git ls-files -s` → `120000 …`. (This is the "duplicate icon" the old ledger waved off as convention — it is a symlink, which is the actual risk.) Fix: replace with a real copy, and place a root `icon.png`. |
 | T440 | CI / release | Medium | open | M | **[verified]** README:162 says "run it before opening a pull request — a lint failure is a build failure," but there is **no CI**: no `.github/`, no workflow, no hook. Nothing enforces eslint, pyflakes, the suites, or the coverage thresholds. And `package.json:15` `lint:py` is `if import pyflakes; then …; else echo skipping; fi` — **exit 0 either way**, so a machine without pyflakes silently checks nothing. | Verified: `ls .github` → absent; `npm test`/`npm run lint` pass locally. Fix: add `.github/workflows/ci.yml` running `npm ci && npm run lint && npm test` on push/PR, and make `lint:py` fail (not skip) when pyflakes is missing. (Reconciles the old T351/T375, which cited a workflow that never existed.) |
 | T449 | test complexity | Medium | open | M | **[verified]** Five test bodies exceed the forbidden 15 (the rule applies to tests): `holidays.test.js:1970/2058/2164` = 22 each, `schema_static.test.js:399` = 17, `eventData.test.js:355` = 16. Each fuzz body re-derives the expected classification inline, so its oracle is a second hand-rolled copy of the validator it tests — both can be wrong the same way. | Verified: espree + SonarSource walker. Fix: hoist the junk-payload tables to module scope and extract the per-row expectation into a named pure helper, leaving the body a loop + one assert. |
-| T373 | testing / coverage-honesty | Medium | open | S | **[verified]** `test/helpers/coverage.py:24` globs `"*.py"` **non-recursively**, so `5.4/settings_widgets.py` — the file Cinnamon's `create_custom_widget` actually loads — is excluded from the gate, while the comment three lines above claims "the 5.4 shim … is measured with it." | Verified: the non-recursive glob returns only `settings_widgets_common.py`; the shim is in the `5.4/` subdir. (It is a thin re-export, so the blast radius is small, but the gate's claim is false.) Fix: `rglob("*.py")`. |
 | T374 | testing | Medium | open | M | `test/worldclocks.test.js:74`: `makeZonedTime().format(fmt)` returns `` `${tz.timezone}:${fmt}` `` — the double echoes its own input, so every clock-rendering assertion checks the mock, not time. With zero DST/transition tests and no `TZ` pinned, no test in the repo can tell a correct world clock from one an hour off. | Not refuted this pass. Fix: format through a real `Intl.DateTimeFormat` at a fixed instant, and add a DST-transition case. |
 
 ### Low
@@ -45,7 +44,7 @@ None open.
 
 The 2026-07-12 batch closed the live defects, the i18n regressions and the docs/packaging quick wins. What remains:
 
-1. **T440, T373** — make the gates real (add CI, close the Python coverage-glob hole). The eslint ruleset (T428) and the JS coverage-honesty hole (T424) are done; these two finish the net.
+1. **T440** — make the gates real (add CI). The eslint ruleset (T428), the JS coverage-honesty hole (T424) and the Python coverage glob (T373) are done; CI finishes the net.
 2. **T439** — the last packaging blocker to a first release or Spices submission (the icon symlink).
 3. **T374, T434, T449** — the tests that lie; each is a bug free to come back.
 4. Everything else, severity order.

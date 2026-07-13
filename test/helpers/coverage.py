@@ -21,10 +21,13 @@ import unittest
 from pathlib import Path
 
 APPLET_DIR = Path(__file__).resolve().parent.parent.parent
-SOURCES = sorted((APPLET_DIR / "files" / "chronos@geraldo-netto").glob("*.py"))
+SOURCES = sorted((APPLET_DIR / "files" / "chronos@geraldo-netto").rglob("*.py"))
 
 # The dialog is the user-facing half and is held to the JS suite's line gate.
-# The 5.4 shim is three lines of sys.path plumbing and is measured with it.
+# The 5.4 shim is three lines of sys.path plumbing and is measured with it — it
+# lives in a subdirectory, and the glob here was non-recursive, so the one file
+# Cinnamon's create_custom_widget actually loads was the one file the gate did
+# not look at, while the comment above claimed it did.
 LINE_THRESHOLD = 98.0
 
 
@@ -42,6 +45,11 @@ def executable_lines(path: Path) -> set[int]:
         for constant in current.co_consts:
             if isinstance(constant, types.CodeType):
                 pending.append(constant)
+
+    # 3.12 emits a line 0 for the module code object's implicit RESUME. It is not
+    # a line anyone can execute or cover, and on an eight-line file it is an eighth
+    # of the score.
+    lines.discard(0)
 
     return lines
 
@@ -81,13 +89,14 @@ def main() -> int:
         percent = 100.0 * len(did_run) / len(can_run) if can_run else 100.0
 
         missed = sorted(can_run - did_run)
-        print(f"{path.name:32} {percent:6.2f} %  ({len(did_run)}/{len(can_run)})")
+        shown = path.relative_to(APPLET_DIR / "files" / "chronos@geraldo-netto")
+        print(f"{str(shown):32} {percent:6.2f} %  ({len(did_run)}/{len(can_run)})")
         if missed:
             print(f"{'':32} missed: {', '.join(str(line) for line in missed[:12])}"
                   + (" …" if len(missed) > 12 else ""))
 
         if percent + 1e-9 < LINE_THRESHOLD:
-            failures.append(f"{path.name}: {percent:.2f} % is under the {LINE_THRESHOLD} % gate")
+            failures.append(f"{shown}: {percent:.2f} % is under the {LINE_THRESHOLD} % gate")
 
     if failures:
         print("\npython coverage below the gate:\n")
