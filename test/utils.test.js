@@ -1669,6 +1669,8 @@ function gjsImportsMock() {
         httpGetJson() {},
         urlForLog() {},
         safeCssColor() {},
+        clampText() {},
+        TEXT_ELLIPSIS: "…",
         joinPhrases(...parts) { return parts.join(" — "); },
         backoffDelay() {},
         orderProvidersByLastSuccess() {},
@@ -1684,7 +1686,8 @@ function gjsImportsMock() {
                         localeUtils: stub,
                         ioUtils: stub,
                         styleUtils: stub,
-                        providerUtils: stub
+                        providerUtils: stub,
+                        textUtils: stub
                     }
                 }
             }

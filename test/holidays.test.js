@@ -685,6 +685,13 @@ test("a holiday name cannot grow without bound", () => {
     assert.equal(clampHolidayName(undefined), "");
     assert.equal(clampHolidayName("x".repeat(1000)).length, MAX_HOLIDAY_NAME_LENGTH);
 
+    // REGRESSION: it sliced UTF-16 units, so a provider whose holiday name carried
+    // an emoji at the cap handed Pango half a surrogate pair. It counts code
+    // points now — the same rule the clock labels and the panel suffix use.
+    const clamped = clampHolidayName("y".repeat(MAX_HOLIDAY_NAME_LENGTH - 1) + "🎉");
+    assert.equal(Array.from(clamped).length, MAX_HOLIDAY_NAME_LENGTH);
+    assert.doesNotMatch(clamped, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+
     // a provider repeating itself on the same date is what grows the cell
     for (let i = 0; i < 200; i++) {
         cache.addUnique({ year: 2026, month: 1, day: 1, region: "global", name: "Holiday " + i, flags: [] });

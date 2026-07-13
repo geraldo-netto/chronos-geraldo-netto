@@ -18,8 +18,9 @@ const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
 // and squeezed every other applet off a 1366px panel. The panel is shared: the
 // suffix is an extra, and the date and time are the point.
 const LABEL_SUFFIX_MAX_LENGTH = 48;
-// the ellipsis everything else in this applet uses, rather than three dots
-const LABEL_ELLIPSIS = "…";
+// the ellipsis everything else in this applet uses, rather than three dots — it
+// is the one clampText appends, and the tests read it from here
+const LABEL_ELLIPSIS = Utils.TEXT_ELLIPSIS;
 // the panel label follows the desktop's 12/24-hour setting, and the tooltip is
 // the same applet's readout of the same clocks: a 12-hour user reading
 // "2:52 PM" on the panel should not find "14:52" in its tooltip
@@ -410,18 +411,7 @@ class AppletPanelStatusPresenter {
     }
 
     ellipsizeLabelSuffix(suffix) {
-        if (suffix.length <= LABEL_SUFFIX_MAX_LENGTH) {
-            return suffix;
-        }
-
-        // count code points, not UTF-16 units: the weather glyphs are
-        // astral and a blind slice could split a surrogate pair
-        const chars = Array.from(suffix);
-        if (chars.length <= LABEL_SUFFIX_MAX_LENGTH) {
-            return suffix;
-        }
-
-        return chars.slice(0, LABEL_SUFFIX_MAX_LENGTH - 1).join("").replace(/\s+$/, "") + LABEL_ELLIPSIS;
+        return Utils.clampText(suffix, LABEL_SUFFIX_MAX_LENGTH);
     }
 
     tooltipClockFormat() {

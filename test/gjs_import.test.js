@@ -65,7 +65,13 @@ function gjsImportsMock() {
                             EventData: class {},
                             EventDataList: class {}
                         },
+                        textUtils: {
+                            clampText(text, max) { return String(text).slice(0, max); },
+                            TEXT_ELLIPSIS: "…"
+                        },
                         utils: {
+                            clampText(text, max) { return String(text).slice(0, max); },
+                            TEXT_ELLIPSIS: "…",
                             MSECS_IN_DAY: 86400000,
                             UI_ERROR_MARKER: "⚠",
                             DAY_FORMAT: "%A",
@@ -244,8 +250,9 @@ const EXPORTS = {
         "lazyLocaleValue", "onLocaleInfoChanged", "cancelPendingLocaleQueries", "registerLocaleConsumer"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
+    textUtils: ["clampText", "TEXT_ELLIPSIS"],
     providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
-    utils: ["MSECS_IN_DAY", "UI_ERROR_MARKER", "onLocaleInfoChanged", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
+    utils: ["clampText", "TEXT_ELLIPSIS", "MSECS_IN_DAY", "UI_ERROR_MARKER", "onLocaleInfoChanged", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "translate", "translatePlural", "createHttpSession", "HTTP_TIMEOUT_SECONDS", "httpGetJson", "monthWindowStartOffset", "readJsonFileAsync",
         "writeJsonFileAsync", "safeCssColor", "lazyLocaleValue", "backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
@@ -354,7 +361,7 @@ test("root modules never call require() outside the Node guard", () => {
             if (line.startsWith("//") || line.startsWith("*")) {
                 continue;
             }
-            assert.match(line, /typeof require|^require\("\.\/utils"\) :$|^require\("\.\/localeUtils"\) :$|^require\("\.\/ioUtils"\) :$|^require\("\.\/styleUtils"\) :$|^require\("\.\/providerUtils"\) :$|^require\("\.\/holidayAdapters"\) :$|^require\("\.\/holidayConstants"\) :$|^require\("\.\/holidayCache"\) :$|^require\("\.\/holidayServiceAdapters"\) :$|^require\("\.\/worldclockData"\) :$|^require\("\.\/weatherFormat"\) :$|^require\("\.\/weatherScheduler"\) :$|^require\("\.\/weatherProviders"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$/,
+            assert.match(line, /typeof require|^require\("\.\/utils"\) :$|^require\("\.\/localeUtils"\) :$|^require\("\.\/ioUtils"\) :$|^require\("\.\/styleUtils"\) :$|^require\("\.\/providerUtils"\) :$|^require\("\.\/holidayAdapters"\) :$|^require\("\.\/holidayConstants"\) :$|^require\("\.\/holidayCache"\) :$|^require\("\.\/holidayServiceAdapters"\) :$|^require\("\.\/worldclockData"\) :$|^require\("\.\/textUtils"\) :$|^require\("\.\/weatherFormat"\) :$|^require\("\.\/weatherScheduler"\) :$|^require\("\.\/weatherProviders"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$/,
                 `${moduleName}.js: unguarded require: ${line}`);
         }
     }

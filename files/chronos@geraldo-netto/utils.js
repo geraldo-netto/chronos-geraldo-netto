@@ -2,6 +2,9 @@
 /* eslint camelcase: "off" */
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
+const TextUtils = typeof require === "function" ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const LocaleUtils = typeof require === "function" ?
     require("./localeUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeUtils;
@@ -30,6 +33,8 @@ var cancelPendingLocaleQueries = LocaleUtils.cancelPendingLocaleQueries;
 var registerLocaleConsumer = LocaleUtils.registerLocaleConsumer;
 var readJsonFileAsync = IoUtils.readJsonFileAsync;
 var writeJsonFileAsync = IoUtils.writeJsonFileAsync;
+var clampText = TextUtils.clampText;
+var TEXT_ELLIPSIS = TextUtils.TEXT_ELLIPSIS;
 var createHttpSession = IoUtils.createHttpSession;
 var LazyHttpSession = IoUtils.LazyHttpSession;
 var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS;
@@ -53,6 +58,8 @@ if (typeof module !== "undefined") {
         monthWindowStartOffset,
         readJsonFileAsync,
         writeJsonFileAsync,
+        clampText,
+        TEXT_ELLIPSIS,
         createHttpSession,
         LazyHttpSession,
         HTTP_TIMEOUT_SECONDS,

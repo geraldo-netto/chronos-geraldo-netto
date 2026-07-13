@@ -6,6 +6,10 @@
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const GLib = GjsImports.gi.GLib;
+const TextUtils = typeof require === "function" ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+
 
 function js_date_to_gdatetime(js_date) {
     let unix = js_date.getTime() / 1000; // getTime returns ms
@@ -62,12 +66,7 @@ function eventUnixTime(value) {
 var MAX_EVENT_SUMMARY_LENGTH = 300;
 
 function clampEventSummary(summary) {
-    const text = typeof summary === "string" ? summary : "";
-    if (text.length <= MAX_EVENT_SUMMARY_LENGTH) {
-        return text;
-    }
-
-    return text.slice(0, MAX_EVENT_SUMMARY_LENGTH - 1) + "…";
+    return TextUtils.clampText(summary, MAX_EVENT_SUMMARY_LENGTH);
 }
 
 var EventData = class EventData {

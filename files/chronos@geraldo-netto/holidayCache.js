@@ -7,6 +7,9 @@ const GLib = GjsImports.gi.GLib;
 const Utils = typeof require === "function" ?
     require("./utils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const TextUtils = typeof require === "function" ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const HolidayConstants = typeof require === "function" ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
@@ -51,12 +54,7 @@ function validCachedHoliday(single) {
 }
 
 function clampHolidayName(name) {
-    const text = typeof name === "string" ? name : "";
-    if (text.length <= MAX_HOLIDAY_NAME_LENGTH) {
-        return text;
-    }
-
-    return text.slice(0, MAX_HOLIDAY_NAME_LENGTH - 1) + "…";
+    return TextUtils.clampText(name, MAX_HOLIDAY_NAME_LENGTH);
 }
 
 // The rows are checked; the freshness record has to be too. stale() only asks

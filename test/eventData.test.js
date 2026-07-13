@@ -350,6 +350,14 @@ test("a huge event summary is clamped, not laid out", () => {
     assert.equal(new EventData(makeVariant(Object.assign({ summary: "Team sync" }, times)), 1).summary,
         "Team sync");
     assert.equal(new EventData(makeVariant(Object.assign({ summary: null }, times)), 1).summary, "");
+
+    // REGRESSION: the clamp sliced UTF-16 units, so a feed whose SUMMARY carried
+    // an emoji at the 300th code point had it cut in half and handed the lone
+    // surrogate to Pango. It counts code points now.
+    const astral = new EventData(makeVariant(Object.assign(
+        { summary: "x".repeat(max - 1) + "🎉" }, times)), 1);
+    assert.equal(Array.from(astral.summary).length, max);
+    assert.doesNotMatch(astral.summary, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
 });
 
 // A day's worth of events as the calendar server might deliver them. All-day

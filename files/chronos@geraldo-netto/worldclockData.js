@@ -6,6 +6,9 @@ const GLib = GjsImports.gi.GLib;
 const Utils = typeof require === "function" ?
     require("./utils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const TextUtils = typeof require === "function" ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const _ = Utils.translate;
 
 // user-configurable clocks; the built-in UTC and local rows come on top
@@ -140,15 +143,7 @@ function selectUserClocks(clocks) {
 }
 
 function clockDisplayLabel(label) {
-    const text = typeof label === "string" ? label : "";
-    // code points, not UTF-16 units: a blind slice splits a surrogate pair, and
-    // emoji in a clock name are entirely normal
-    const chars = Array.from(text);
-    if (chars.length <= MAX_CLOCK_LABEL_LENGTH) {
-        return text;
-    }
-
-    return chars.slice(0, MAX_CLOCK_LABEL_LENGTH - 1).join("").replace(/\s+$/, "") + "…";
+    return TextUtils.clampText(label, MAX_CLOCK_LABEL_LENGTH);
 }
 
 if (typeof module !== "undefined") {
