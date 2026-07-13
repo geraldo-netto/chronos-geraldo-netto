@@ -447,6 +447,84 @@ test("holiday validation rejects out-of-range months and days", () => {
     assert.deepEqual(nager._dateParts("2026-05-31"), { year: 2026, month: 5, day: 31 });
 });
 
+// The tests above feed out-of-range *integers*. Every type guard in the validator
+// survived mutation because nothing ever fed it a wrong *type* — and the wire is
+// where the wrong types come from: Enrico hands date:{year,month,day} straight off
+// the network into this.
+//
+// A string month is the one that bites. The roundtrip check coerces ("5" - 1 is
+// 4), so without Number.isInteger the record is accepted, persisted — and then
+// rejected on reload by validCachedHoliday, which does check. The two validators
+// would disagree about the same row.
+test("a holiday date off the wire is rejected unless its parts are integers", () => {
+    const Holidays = loadHolidays();
+    const record = new Holidays.HolidayRecordContract();
+    const base = { name: [{ lang: "en", text: "X" }], flags: [] };
+    const valid = { year: 2026, month: 5, day: 5 };
+
+    assert.ok(record.validHoliday({ ...base, date: valid }));
+
+    for (const [field, hostile] of [
+        ["year", "2026"], ["month", "5"], ["day", "5"],
+        ["year", 2026.5], ["month", 5.5], ["day", 5.5],
+        ["year", null], ["month", undefined], ["day", true],
+        ["month", [5]], ["day", { valueOf: () => 5 }]
+    ]) {
+        const date = { ...valid, [field]: hostile };
+        assert.ok(!record.validHoliday({ ...base, date }),
+            `${field}=${JSON.stringify(hostile)} is not a date part`);
+    }
+
+    // and what the cache accepts on reload is the same rule, so a record that was
+    // persisted can always be read back
+    const { validCachedHoliday } = require(holidayCachePath);
+    assert.ok(validCachedHoliday(
+        { year: 2026, month: 5, day: 5, name: "X", flags: [], region: "global" }));
+    assert.ok(!validCachedHoliday(
+        { year: 2026, month: "5", day: 5, name: "X", flags: [], region: "global" }));
+});
+
+// Every per-row type guard in the two ISO adapters survived mutation: without
+// them a *single* malformed row stops being "skip that row" and becomes "reject
+// the whole country's payload", which fails the chain over to the next provider —
+// so one bad row from Nager loses every good row with it.
+test("one malformed row is dropped; the rest of the country's holidays survive", () => {
+    const Holidays = loadHolidays();
+    const params = { year: 2026, countryCode: "IT", region: "global", lang: "en" };
+
+    const nager = new Holidays.NagerDateServiceAdapter(() => {});
+    const nagerRows = [
+        { date: "2026-01-01", name: "New Year", localName: "Capodanno" },
+        { date: 20260101, name: "A number is not a date" },
+        { date: "2026-05-01", name: 42 },
+        { date: "2026-05-01", name: "Labour Day", counties: "not an array" },
+        { date: "2026-12-25", name: "Christmas" }
+    ];
+    const nagerOut = nager.translateResponse(nagerRows, params);
+    assert.deepEqual(nagerOut.map((holiday) => holiday.date.month), [1, 12],
+        "the two well-formed rows come through, and only those");
+
+    const open = new Holidays.OpenHolidaysServiceAdapter(() => {}, "en");
+    const openRows = [
+        { startDate: "2026-01-01", name: [{ language: "EN", text: "New Year" }] },
+        { startDate: null, name: [{ language: "EN", text: "No date" }] },
+        { startDate: "2026-05-01", name: "not a list" },
+        { startDate: "2026-05-01", name: [] },
+        { startDate: "2026-12-25", name: [{ language: "EN", text: "Christmas" }], endDate: 7 },
+        { startDate: "2026-12-26", name: [{ language: "EN", text: "St Stephen" }] }
+    ];
+    const openOut = open.translateResponse(openRows, params);
+    assert.deepEqual(openOut.map((holiday) => holiday.date.month), [1, 12],
+        "a bad endDate, a bad name and a missing date each cost their own row");
+
+    // the payload is a list of records either way — not the INVALID_RESPONSE that
+    // a throw here would have been read as
+    for (const out of [nagerOut, openOut]) {
+        assert.ok(Array.isArray(out));
+        assert.ok(new Holidays.HolidayRecordContract().validResponse(out));
+    }
+});
+
 // REGRESSION: teardown released the timers, the signals and the HTTP session, and
 // kept every heavy structure the applet had built. Cinnamon's Applet base class
 // has no destroy(), and AppletContextMenu holds the applet's actor, which holds
