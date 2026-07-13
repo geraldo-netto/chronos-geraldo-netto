@@ -279,8 +279,14 @@ test("the weather location says what an empty one does", () => {
 
 test("the Spices manifest credits the applets this one was merged from", () => {
     const info = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "info.json"), "utf8"));
+    const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
     const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
 
+    // the Spices manifest is keyed by uuid; info.json carried none, so the one
+    // file the site reads to place the xlet did not say which xlet it was
+    assert.equal(info.uuid, "chronos@geraldo-netto");
+    assert.equal(info.uuid, metadata.uuid,
+        "info.json and metadata.json disagree about the uuid");
     assert.equal(info.author, "Geraldo Netto");
     assert.match(info.original_author, /ccprog/);
     assert.match(info.original_author, /simonwiles/);
