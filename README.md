@@ -252,8 +252,9 @@ lookup per city, on the same 30-minute period; with weather off, no city is
 looked up and the tooltip shows times only.
 
 Hovering the panel gives the whole table — UTC first, then local time, then
-each configured city — as `city  date time  temperature  condition`, with the
-answering service named at the foot. The times follow your desktop's 12- or
+each configured city — as `city  date time  temperature  condition`. The
+service that answered is named in the world-clock popup rather than under the
+table, which is a table of times. The times follow your desktop's 12- or
 24-hour setting, the same as the panel. The columns are as wide as their longest
 cell, so any city name lines up, and the condition is spelled out rather than
 drawn: the weather emoji are taller than the text font and would space the rows
