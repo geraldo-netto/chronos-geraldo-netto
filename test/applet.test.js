@@ -2353,7 +2353,7 @@ test("the tooltip is a UTC/local/city table and nothing else", () => {
 
     // no row carries a weather glyph: they are colour emoji from another font,
     // and a row that has one is taller than a row that has not
-    lines.forEach((line) => assert.doesNotMatch(line, /[☀🌧🌨⛅☁🌦⛈🌤]/));
+    lines.forEach((line) => assert.doesNotMatch(line, /[☀🌧🌨⛅☁🌦⛈🌤]/u));
 });
 
 // The tooltip is a table, and a table is all it is. The provider credit used to

@@ -29,6 +29,10 @@ const UUID = "chronos@geraldo-netto";
 const STATUS_UNKNOWN = 0;
 const STATUS_NO_CALENDARS = 1;
 
+// days an event is indexed across before the walk gives up: a bugged event whose
+// end never arrives would otherwise index days forever
+const MAX_SPANNED_DAYS = 50;
+
 var EDS_BUS_NAME = "org.gnome.evolution.dataserver.Calendar8"
 var SERVER_RETRY_SECONDS = 5;
 var SERVER_RETRY_MAX_SECONDS = 300;
@@ -283,10 +287,10 @@ var EventIndex = class EventIndex {
         let changed = false;
         let selected_changed = false;
 
-        // don't loop endlessly in case of a bugged event
-        let escape = 0;
+        // don't loop endlessly in case of a bugged event: the bound is the loop's
+        // own condition, not a counter checked inside a `while (true)`
         let date_iter = date_only(data.start);
-        do {
+        for (let escape = 0; escape <= MAX_SPANNED_DAYS; escape++) {
             let hash = date_iter.to_unix();
 
             if (this.eventsByDate[hash] === undefined) {
@@ -300,13 +304,12 @@ var EventIndex = class EventIndex {
                 }
             }
 
-            if (data.ends_on_date_only(date_iter) || escape == 50) {
+            if (data.ends_on_date_only(date_iter)) {
                 break;
             }
 
-            escape++;
             date_iter = date_iter.add_days(1);
-        } while (true);
+        }
 
         return { changed, selected_changed };
     }

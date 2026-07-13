@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-12 (fresh pass) agai
 
 **Findings verified by running or mutating the code are marked [verified]**, each naming the experiment.
 
-Baseline at scan time: `npm test` green **on this machine** (JS coverage per-file 98/90/100, Python 98 %+), `npm run lint` clean. But both gates are weaker than they read (T428, T373) and **no CI runs them at all** (T440), so the green baseline is a local fact, not a shipped one.
+Baseline at scan time: `npm test` green **on this machine** (JS coverage per-file 98/90/100, Python 98 %+), `npm run lint` clean. But the Python coverage gate is weaker than it reads (T373) and **no CI runs them at all** (T440), so the green baseline is a local fact, not a shipped one.
 
 A batch on 2026-07-12 closed 27 of the findings (see `git log`): the six README fixes, the makepot `cd`, the single-sourced constants, the i18n trio, the dead `_urlForLog`, the lazy city Soup session, the tooltip-key seconds, the locale-subprocess reap, the chunked-response cap, the geocode fan-out pool, the JS/Python timezone-city parity, the logind resume, the holiday refetch-storm, the C→F unification, the five complexity splits, the `updateFormatString` table, the calendar-server proxy encapsulation, the EventList seam, the coverage-gate honesty fix, and the ATK-description fix. Five of that batch's targets were **parked** rather than done — the heavy reorganizations, all Medium and none a live bug; see "Open - parked" for the rationale.
 
@@ -19,7 +19,7 @@ Open items: 23 (Critical 0, High 3, Medium 10, Low 10).
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
 | T422 | packaging / legal | High | done | S | **[verified]** No `LICENSE`/`COPYING` anywhere, though `package.json:5` and README both declare `GPL-2.0-or-later` and the applet redistributes two GPL works (`calendar@ccprog`, `calendar@simonwiles.net`). `metadata.json` carries no license field at all. | Verified: `git ls-files` lists no LICENSE/COPYING. Fix: add top-level `LICENSE` with the GPL-2.0 text and the "or later" notice; add `"license"` to `metadata.json`. |
-| T428 | testing / lint | High | open | S | **[verified]** `eslint.config.mjs` extends **no** ruleset — `js.configs.recommended` is absent; only `no-unused-vars`/`no-undef`/`no-shadow` are on. So the one static gate is a near no-op for correctness bugs. | Verified now: a file with unreachable code after `return`, a duplicate object key, and `if (o = 3)` lints **clean, exit 0** — only the unused-var fired. (Supersedes the old T360, which cited a CI step that does not exist.) Fix: `import js from "@eslint/js"` and extend `js.configs.recommended`, then fix the fallout. |
+| T428 | testing / lint | High | done | S | **[verified]** `eslint.config.mjs` extends **no** ruleset — `js.configs.recommended` is absent; only `no-unused-vars`/`no-undef`/`no-shadow` are on. So the one static gate is a near no-op for correctness bugs. | Verified now: a file with unreachable code after `return`, a duplicate object key, and `if (o = 3)` lints **clean, exit 0** — only the unused-var fired. (Supersedes the old T360, which cited a CI step that does not exist.) Fix: `import js from "@eslint/js"` and extend `js.configs.recommended`, then fix the fallout. |
 | T359 | testing | High | open | M | **[verified]** `calendar.js:989,1023,1030` wire the month/year nav buttons with `.connect('clicked', …)`, but `test/calendar.test.js` calls `_onPrevMonthButtonClicked()` / `_onNextYearButtonClicked()` **directly**, so the wiring is untested. | Re-verified this pass: renamed the prev-month button's signal `'clicked'` → `'clicked-nope'` → **72 pass / 0 fail, exit 0**. The same mutation on the day-cell `'clicked'`, `'scroll-event'`, `'style-changed'` and `changed::` signals *does* fail, so it is specifically the nav wiring. Fix: dispatch through the emitted signal in the test, or assert the connect list. |
 
 ### Medium
@@ -56,7 +56,7 @@ Open items: 23 (Critical 0, High 3, Medium 10, Low 10).
 
 The 2026-07-12 batch closed the live defects, the i18n regressions and the docs/packaging quick wins. What remains:
 
-1. **T440, T428, T373** — make the gates real (add CI, extend the eslint ruleset, close the Python coverage-glob hole). The JS coverage-honesty hole (T424) is done; these three finish the net.
+1. **T440, T373** — make the gates real (add CI, close the Python coverage-glob hole). The eslint ruleset (T428) is done. The JS coverage-honesty hole (T424) is done; these three finish the net.
 2. **T437, T438, T439** — the packaging blockers to a first release or Spices submission (LICENSE, `uuid`, `cinnamon-version`, the icon symlink).
 3. **T359, T374, T434, T449** — the tests that lie; each is a bug free to come back.
 4. **The parked reorganizations** (T442, T448, T444) — schedule when next touching those files, not as standalone churn; see "Open - parked".

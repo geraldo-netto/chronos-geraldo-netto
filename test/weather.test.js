@@ -1790,18 +1790,18 @@ test("applets bind only weather settings to debounced refresh", () => {
     assert.match(facade, /var CUSTOM_WEATHER_KEYS = \[\s*\[WEATHER_LOCATION_KEY, "weather_location"\]/);
     assert.match(lifecycle, /bindWeatherKeys\(applet, this\.handlers\.onWeatherSettingsChanged\)/);
 
-    const generalSettingsChanged = source.match(/_onSettingsChanged\(\) \{([\s\S]*?)\n    \}/);
+    const generalSettingsChanged = source.match(/_onSettingsChanged\(\) \{([\s\S]*?)\n {4}\}/);
     assert.ok(generalSettingsChanged);
     assert.doesNotMatch(generalSettingsChanged[1], /_scheduleWeatherRefresh|_queueWeatherRefresh/);
 });
 
 test("applets schedule weather once when added to a panel", () => {
     const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "applet.js"), "utf8");
-    const panelAdded = source.match(/on_applet_added_to_panel\(\) \{([\s\S]*?)\n    \}/);
+    const panelAdded = source.match(/on_applet_added_to_panel\(\) \{([\s\S]*?)\n {4}\}/);
     assert.ok(panelAdded);
     assert.equal((panelAdded[1].match(/this\._scheduleWeatherRefresh\(\);/g) || []).length, 1);
 
-    const generalSettingsChanged = source.match(/_onSettingsChanged\(\) \{([\s\S]*?)\n    \}/);
+    const generalSettingsChanged = source.match(/_onSettingsChanged\(\) \{([\s\S]*?)\n {4}\}/);
     assert.ok(generalSettingsChanged);
     assert.doesNotMatch(generalSettingsChanged[1], /_scheduleWeatherRefresh/);
 });
@@ -1812,7 +1812,7 @@ test("applets refresh weather when the system resumes", () => {
     assert.match(lifecycle, /connect\("notify-resume", context\.onResume\)/);
     assert.match(lifecycle, /connect\("notify::resume", context\.onResume\)/);
 
-    const onResume = source.match(/_onResume\(\) \{([\s\S]*?)\n    \}/);
+    const onResume = source.match(/_onResume\(\) \{([\s\S]*?)\n {4}\}/);
     assert.ok(onResume);
     assert.match(onResume[1], /this\._updateClockAndDate\(\);/);
     assert.match(onResume[1], /this\._scheduleWeatherRefresh\(\{ force: true \}\);/);

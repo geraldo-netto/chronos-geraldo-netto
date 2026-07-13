@@ -157,7 +157,7 @@ test("5.4 event manager ignores server callbacks after destroy", () => {
     const code = source("eventsManager.js");
 
     assert.match(code, /this\._destroyed = false;/);
-    assert.match(code, /destroy\(\) \{[\s\S]*?this\._destroyed = true;\n    \}/);
+    assert.match(code, /destroy\(\) \{[\s\S]*?this\._destroyed = true;\n {4}\}/);
     // the proxy-ready callback and the retry queue must both bail out once
     // destroyed, or the 4 proxy signals leak and retries resurrect the manager
     assert.match(code, /_calendar_server_ready\(obj, res\) \{[\s\S]{0,250}?if \(this\._destroyed\) \{\n\s+return;\n\s+\}[\s\S]*?try \{/);
