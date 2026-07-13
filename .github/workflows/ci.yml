@@ -1,0 +1,39 @@
+name: CI
+
+# The README says "a lint failure is a build failure" — this is the build that
+# makes that true. Nothing enforced eslint, pyflakes, either suite or either
+# coverage gate before: the green baseline was one maintainer's machine.
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # the engines field asks for >= 20; 22 is the current LTS and is what the
+      # suite's node:test coverage flags are tuned against
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      # pyflakes is what lint:py runs. It used to skip itself when the import
+      # failed — exit 0 either way — so the Python lint was a no-op on any
+      # machine that did not happen to have it. It fails now, so CI installs it.
+      - run: python3 -m pip install --upgrade pyflakes
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      # both suites, both coverage gates: JS 98/90/100 per file, Python 98 lines
+      - run: npm test

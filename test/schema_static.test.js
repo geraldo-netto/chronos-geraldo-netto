@@ -277,6 +277,29 @@ test("the weather location says what an empty one does", () => {
     assert.match(data["weather-location"].tooltip, /Lisbon/);
 });
 
+// The README promised that a lint failure was a build failure, and there was no
+// build: no workflow, no hook, nothing that ran either suite or either coverage
+// gate. The gates were one maintainer's machine. This asserts the workflow runs
+// what the README says it runs, so deleting a step fails the suite that step runs.
+test("CI runs the gates the README promises", () => {
+    const workflow = fs.readFileSync(
+        path.join(__dirname, "..", ".github", "workflows", "ci.yml"), "utf8");
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+
+    assert.match(workflow, /on:[\s\S]*push:[\s\S]*pull_request:/, "on push and on pull request");
+    assert.match(workflow, /run: npm ci/);
+    assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
+    assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
+    // pyflakes is what lint:py runs, and lint:py now fails when it is missing:
+    // a workflow that does not install it cannot pass
+    assert.match(workflow, /pip install .*pyflakes/);
+
+    // and the script it runs is a gate, not a skip: it used to be
+    // `if import pyflakes; then …; else echo skipping; fi` — exit 0 either way
+    assert.doesNotMatch(pkg.scripts["lint:py"], /skipping/);
+    assert.match(pkg.scripts["lint:py"], /exit 1/);
+});
+
 // Cinnamon matches the running series against this list literally: a manifest
 // that names only 5.4 is "incompatible" on Mint's current 6.x, even though the
 // multiversion 5.4/ tree loads there fine — and the README promises 5.4 or newer.

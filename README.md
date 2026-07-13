@@ -154,7 +154,7 @@ step skips itself when it is missing:
 
 ```sh
 npm install                      # once: installs eslint into node_modules/
-python3 -m pip install pyflakes   # optional, for the Python lint step
+python3 -m pip install pyflakes   # required: the Python lint step is a gate
 
 npm run lint      # eslint over the applet and the tests, pyflakes over the Python
 npm run lint:js   # eslint only
@@ -163,7 +163,10 @@ npm run lint:py   # pyflakes only
 
 The eslint rules live in [`eslint.config.mjs`](eslint.config.mjs). It lints the
 applet under `files/` as GJS and the suites under `test/` as Node, so run it
-before opening a pull request — a lint failure is a build failure.
+before opening a pull request — a lint failure is a build failure. That is
+literal: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `npm run
+lint` and `npm test` — both suites and both coverage gates — on every push and
+pull request.
 
 ### How the source is laid out (development)
 
