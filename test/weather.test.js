@@ -1769,6 +1769,57 @@ test("destroy aborts the session and suppresses pending weather callbacks", () =
     assert.equal(pending.length, 1);
 });
 
+// REGRESSION: queue() dropped the cached geocode unconditionally, and it is
+// reached from the one handler that fires for *every* weather key — so switching
+// °C to °F re-issued the geocoding request and the forecast request. The reading
+// record is unit-free on purpose and _staleKey() deliberately excludes the units
+// ("the same reading serves both"): a unit change is a re-render, not a refetch.
+// On an Open-Meteo outage the geocode falls through to Nominatim, whose usage
+// policy is one request a second.
+test("changing the units re-renders; it does not re-resolve the location", () => {
+    const Weather = loadWeather();
+    const urls = [];
+    const timers = [];
+    const provider = new Weather.WeatherProvider({
+        debounceMs: 0,
+        httpGetJson(url, callback) {
+            urls.push(url);
+            if (url.includes("geocoding-api")) {
+                callback({ results: [{ latitude: 1, longitude: 2 }] });
+            } else {
+                callback({ current_weather: { weathercode: 0, temperature: 8 } });
+            }
+        },
+        scheduleDebounceTimer(_ms, callback) { timers.push(callback); return timers.length; },
+        scheduleTimer() { return 42; },
+        removeTimer() {}
+    });
+
+    const settled = () => {
+        while (timers.length) {
+            timers.shift()();
+        }
+    };
+
+    provider.queue({ showWeather: true, location: "Rome", units: "si" }, () => {});
+    settled();
+    const afterFirst = urls.length;
+    assert.ok(urls.some((url) => url.includes("geocoding-api")), "the first read resolves the city");
+
+    urls.length = 0;
+    provider.queue({ showWeather: true, location: "Rome", units: "imperial" }, () => {});
+    settled();
+    assert.deepEqual(urls.filter((url) => url.includes("geocoding-api")), [],
+        "the same city is not geocoded again for a unit change");
+
+    // and a location the user actually edited is re-resolved
+    urls.length = 0;
+    provider.queue({ showWeather: true, location: "Lisbon", units: "imperial" }, () => {});
+    settled();
+    assert.ok(urls.some((url) => url.includes("geocoding-api")), "a new city is");
+    assert.ok(afterFirst > 0);
+});
+
 test("queue debounces weather refreshes before scheduling", () => {
     const Weather = loadWeather();
     const removed = [];

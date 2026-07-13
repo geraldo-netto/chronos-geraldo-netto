@@ -100,6 +100,9 @@ var WeatherProvider = class WeatherProvider {
     constructor(params = {}) {
         this._request_generation = 0;
         this._destroyed = false;
+        // the location the geocode cache was last asked about, so a settings
+        // change that did not touch it does not throw the geocode away
+        this._resolved_location_key = "";
         this._display_state = params.displayState || new WeatherDisplayState(params);
         this._httpGetJson = params.httpGetJson || this._httpGetJson.bind(this);
         this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(params);
@@ -165,16 +168,31 @@ var WeatherProvider = class WeatherProvider {
         this._scheduler.schedule(settings, () => this.refresh(settings, callback));
     }
 
+    // The user edited the location: re-resolve it rather than answering from a hit
+    // that may have been wrong.
+    //
+    // Only when it actually changed. This runs for *every* weather key — the
+    // handler is one — so flipping °C to °F dropped the geocode and re-issued the
+    // geocoding request and the forecast request. The reading record is unit-free
+    // on purpose and _staleKey() deliberately excludes the units ("the same reading
+    // serves both"), so a unit toggle needs a re-render, not two round trips; and
+    // on an Open-Meteo outage the geocode falls through to Nominatim, whose usage
+    // policy is one request a second.
+    _forgetIfLocationChanged(location) {
+        const key = location ? WeatherFormat.locationCacheKey(location) : "";
+        if (key && key !== this._resolved_location_key) {
+            this._location_resolver.forget(location);
+        }
+
+        this._resolved_location_key = key;
+    }
+
     queue(settings, callback) {
         if (this._destroyed) {
             return;
         }
 
-        // the user edited the location: re-resolve it rather than answering
-        // from a hit that may have been wrong
-        if (settings.location) {
-            this._location_resolver.forget(settings.location);
-        }
+        this._forgetIfLocationChanged(settings.location);
 
         this._scheduler.queue(settings, (queuedSettings) => this.schedule(queuedSettings, callback));
     }
