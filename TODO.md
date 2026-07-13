@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-13 against every `ag
 
 Baseline: `npm test` green (670 JS tests, JS coverage per-file 98/90/100; Python 111 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 65 (Critical 0, High 9, Medium 29, Low 27).
+Open items: 34 (Critical 0, High 1, Medium 15, Low 18).
 
 ## Findings
 
@@ -61,12 +61,11 @@ Open items: 65 (Critical 0, High 9, Medium 29, Low 27).
 
 ## Suggested order
 
-1. **T439** — the icon does not survive delivery, so the applet cannot be submitted to Spices. Small.
-2. **T463, T473, T474** — the memory and network waste, in that order (the leak compounds the cache growth).
-3. **T468–T471, T481–T485** — the mutation survivors. Each is a test that cannot fail, and one of them (T470) is also a real validation hole.
-4. **T465, T466** — the i18n data and the hardcoded date order: every locale is affected, and both are Small.
-5. **T464** — the forward-compat landmine, before the Cinnamon after 6.4 ships.
-6. Everything else, severity order. The dead-code cluster (T492–T494, T512–T519) is one sitting.
+1. **T439** — the icon is a git symlink, so it does not survive zip delivery and the applet ships iconless. Small, and it blocks a Spices submission.
+2. **T498** — the screenshot is `calendar@ccprog`'s 2022 UI, not Chronos. It needs a running desktop, so it is the maintainer's to take.
+3. **T496, T499, T500** — the packaging, release and CI story, in that order: what is submitted, how a version reaches installed users, and what the build checks beyond the code.
+4. **T477, T479, T480** — the accessibility and RTL gaps.
+5. Everything else, severity order. The dead-code cluster (T492–T494, T512–T515, T518) is one sitting.
 
 ## Clean categories
 
