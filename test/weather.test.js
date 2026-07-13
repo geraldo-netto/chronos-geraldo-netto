@@ -1225,18 +1225,20 @@ test("weather location resolver owns geocode fallback and cache", () => {
     });
     const resolved = [];
 
-    resolver.resolve(" Rome ", () => current, (place, error, cacheKey) => {
-        resolved.push({ place, error, cacheKey });
+    resolver.resolve(" Rome ", () => current, (place, error) => {
+        resolved.push({ place, error });
     });
-    resolver.resolve("rome", () => current, (place, error, cacheKey) => {
-        resolved.push({ place, error, cacheKey });
+    resolver.resolve("rome", () => current, (place, error) => {
+        resolved.push({ place, error });
     });
 
     assert.equal(resolved.length, 2);
     assert.equal(resolved[0].place.name, "Rome, Italy");
     assert.equal(resolved[0].error, "");
-    assert.equal(resolved[0].cacheKey, "rome");
     assert.equal(resolved[1].place, resolved[0].place);
+    // the cache key is the resolver's own business — the port hands back a place
+    // and an error, which is what both production callbacks take. That the two
+    // spellings share one key is asserted through the cache and the request count.
     assert.equal(resolver.cache.get("rome"), resolved[0].place);
     assert.equal(requests.filter((request) => request.url.includes("geocoding-api")).length, 1);
     assert.equal(requests.filter((request) => request.url.includes("nominatim.openstreetmap.org")).length, 1);
@@ -1454,10 +1456,13 @@ test("refresh reports weather failures with user-visible status", () => {
             }
         }
     });
-    forecastProvider.refresh({ showWeather: true, location: "Rome", units: "si" }, (text, error) => {
-        forecastFailures.push({ text, error });
+    forecastProvider.refresh({ showWeather: true, location: "Rome", units: "si" }, (reading, error) => {
+        forecastFailures.push({ reading, error });
     });
-    assert.deepEqual(forecastFailures, [{ text: "", error: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE }]);
+    // an exhausted forecast chain hands back null, the same "no reading" every
+    // other path on this port uses — it used to be the empty string, alone
+    assert.deepEqual(forecastFailures,
+        [{ reading: null, error: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE }]);
 });
 
 test("refresh falls back to MET.no forecast with required user agent", () => {

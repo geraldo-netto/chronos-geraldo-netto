@@ -88,18 +88,18 @@ var WeatherLocationResolver = class WeatherLocationResolver {
         const cacheKey = locationCacheKey(location);
         const cachedPlace = this._geocode_cache.get(cacheKey);
         if (cachedPlace) {
-            callback(cachedPlace, "", cacheKey);
+            callback(cachedPlace, "");
             return;
         }
 
         this._geocodeLocation(location, isCurrent, (place, error) => {
             if (!place) {
-                callback(null, error, cacheKey);
+                callback(null, error);
                 return;
             }
 
             this._remember(cacheKey, place);
-            callback(place, "", cacheKey);
+            callback(place, "");
         });
     }
 
@@ -228,7 +228,9 @@ var WeatherForecastResolver = class WeatherForecastResolver {
                 if (global.log) {
                     global.log("all weather forecast providers failed");
                 }
-                callback("", WEATHER_ERRORS.SERVICE_UNAVAILABLE, "", null);
+                // null is what "no reading" is everywhere else on this port;
+                // the fourth argument was for a receiver that does not exist
+                callback(null, WEATHER_ERRORS.SERVICE_UNAVAILABLE, "");
             }
         );
     }
