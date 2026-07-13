@@ -692,7 +692,7 @@ test("a translation containing a percent sign cannot corrupt the panel label", (
     assert.match(escaped, /%H:%M$/, "and the time follows the user's own clock");
 
     assert.match(PanelStatusModule.badFormatFallback(twelve, "Bad %d format"),
-        /^Bad %%d format .*%l:%M %p$/, "a stray directive cannot survive either");
+        /^Bad %%d format .*%-l:%M %p$/, "a stray directive cannot survive either");
 });
 
 test("the tooltip clock follows the 12-hour setting the panel follows", () => {
@@ -707,7 +707,7 @@ test("the tooltip clock follows the 12-hour setting the panel follows", () => {
 
     // a US user reading "2:52 PM" on the panel should not find "14:52" in that
     // same applet's tooltip
-    assert.match(panelStatus(twelveHour).tooltipClockFormat(), /%l:%M %p$/);
+    assert.match(panelStatus(twelveHour).tooltipClockFormat(), /%-l:%M %p$/);
     assert.match(panelStatus(twentyFour).tooltipClockFormat(), /%H:%M$/);
 });
 
@@ -1426,8 +1426,8 @@ test("_updateFormatString covers custom, invalid, 12h, 24h, and vertical panel b
     stub.orientation = St.Side.TOP;
     stub.desktop_settings.value = false;
     Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%d %b %l:%M %p");
-    assert.equal(stub.worldclock_format, "%l:%M (%a)");
+    assert.equal(stub.clock.formats.at(-1), "%d %b %-l:%M %p");
+    assert.equal(stub.worldclock_format, "%-l:%M (%a)");
 
     // seconds on: the compact panel readout and the world format both grow %S
     stub.desktop_settings.value = true;
@@ -2333,8 +2333,8 @@ test("a horizontal panel label is applet-formatted, never the desktop clock form
     const cases = [
         { use24h: true, seconds: false, expected: "%d %b %H:%M" },
         { use24h: true, seconds: true, expected: "%d %b %H:%M:%S" },
-        { use24h: false, seconds: false, expected: "%d %b %l:%M %p" },
-        { use24h: false, seconds: true, expected: "%d %b %l:%M:%S %p" }
+        { use24h: false, seconds: false, expected: "%d %b %-l:%M %p" },
+        { use24h: false, seconds: true, expected: "%d %b %-l:%M:%S %p" }
     ];
 
     for (const side of [St.Side.TOP, St.Side.BOTTOM]) {

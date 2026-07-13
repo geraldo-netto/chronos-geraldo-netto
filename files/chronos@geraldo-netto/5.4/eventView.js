@@ -669,7 +669,7 @@ class EventRowPresenter {
         this.row.event_time.set_text(EventFormat.formatEventTimeRange(
             this.row.event, selectedDateOnly, today,
             {
-                timeFormat: this.row.use_24h ? "%H:%M" : "%l:%M %p",
+                timeFormat: this.row.use_24h ? "%H:%M" : "%-l:%M %p",
                 dayFormat: DAY_FORMAT,
                 translate: _
             }

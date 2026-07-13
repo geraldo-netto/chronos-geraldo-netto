@@ -23,9 +23,14 @@ const LABEL_SUFFIX_MAX_LENGTH = 48;
 const LABEL_ELLIPSIS = Utils.TEXT_ELLIPSIS;
 // the panel label follows the desktop's 12/24-hour setting, and the tooltip is
 // the same applet's readout of the same clocks: a 12-hour user reading
-// "2:52 PM" on the panel should not find "14:52" in its tooltip
+// "2:52 PM" on the panel should not find "14:52" in its tooltip.
+//
+// The hour field is %-l throughout. Its padded sibling renders every hour before
+// ten with a leading space, so a horizontal panel showed a double space before the
+// time and the vertical layout's stacked hour sat visibly off centre. The
+// world-clock rows escaped it only because worldclocks.js trims what it formats.
 const TOOLTIP_CLOCK_FORMAT_24H = "%d %b %H:%M";
-const TOOLTIP_CLOCK_FORMAT_12H = "%d %b %l:%M %p";
+const TOOLTIP_CLOCK_FORMAT_12H = "%d %b %-l:%M %p";
 // label, date and time, temperature, condition: only the numbers are right-aligned
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
 
@@ -36,16 +41,16 @@ const TOOLTIP_TEMPERATURE_COLUMN = 2;
 const PANEL_CLOCK_FORMATS = {
     vertical: {
         h24: { seconds: "%H%n%M%n%S", plain: "%H%n%M" },
-        h12: { seconds: "%l%n%M%n%S", plain: "%l%n%M" }
+        h12: { seconds: "%-l%n%M%n%S", plain: "%-l%n%M" }
     },
     horizontal: {
         h24: { seconds: "%d %b %H:%M:%S", plain: "%d %b %H:%M" },
-        h12: { seconds: "%d %b %l:%M:%S %p", plain: "%d %b %l:%M %p" }
+        h12: { seconds: "%d %b %-l:%M:%S %p", plain: "%d %b %-l:%M %p" }
     }
 };
 const WORLD_CLOCK_FORMATS = {
     h24: { seconds: "%H:%M:%S (%a)", plain: "%H:%M (%a)" },
-    h12: { seconds: "%l:%M:%S (%a)", plain: "%l:%M (%a)" }
+    h12: { seconds: "%-l:%M:%S (%a)", plain: "%-l:%M (%a)" }
 };
 
 const WEATHER_ERROR_TEXT = {
@@ -97,7 +102,7 @@ function describeWeather(text, condition = "", pending = false) {
 function badFormatFallback(view, message) {
     const use24h = view.desktopSettings && view.desktopSettings.use24h;
 
-    return String(message).replace(/%/g, "%%") + " • " + (use24h ? "%H:%M" : "%l:%M %p");
+    return String(message).replace(/%/g, "%%") + " • " + (use24h ? "%H:%M" : "%-l:%M %p");
 }
 
 // Everything the presenter reads and writes, behind one seam.
