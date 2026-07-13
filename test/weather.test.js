@@ -967,6 +967,57 @@ test("a failed refresh retries sooner than the refresh period, with backoff", ()
     assert.equal(schedules.at(-1).seconds, 30);
 });
 
+// The attempt counter is clamped: Math.min(attempts + 1, MAX_RETRY_ATTEMPTS).
+// Replacing that with a bare increment left the whole suite green — the delay is
+// capped at the refresh period either way, so the clamp's effect is invisible in
+// the schedule. What it actually bounds is the counter, and the counter is what
+// retriesExhausted() reads: a permanently-offline laptop retries every half hour
+// for the life of the session, and an unbounded count is the exponent Math.pow is
+// raised to on every one of them.
+test("the retry counter stops at the ceiling instead of counting up forever", () => {
+    const Weather = loadWeather();
+    const { MAX_RETRY_ATTEMPTS } = Weather;
+    const schedules = [];
+    const scheduler = new Weather.WeatherRefreshScheduler({
+        refreshSeconds: 1800,
+        retrySeconds: 30,
+        random: () => 0,
+        scheduleTimer(seconds) {
+            schedules.push(seconds);
+            return schedules.length;
+        },
+        removeTimer() {}
+    });
+    scheduler.schedule({ showWeather: true, location: "Rome", units: "si" }, () => {});
+
+    assert.equal(scheduler.retriesExhausted(), false, "a healthy scheduler has not given up");
+
+    // the ceiling, exactly: one retry short of it is not exhausted
+    for (let attempt = 0; attempt < MAX_RETRY_ATTEMPTS - 1; attempt++) {
+        scheduler.retry(() => {});
+    }
+    assert.equal(scheduler._retry_attempts, MAX_RETRY_ATTEMPTS - 1);
+    assert.equal(scheduler.retriesExhausted(), false, "one short of the ceiling");
+
+    scheduler.retry(() => {});
+    assert.equal(scheduler._retry_attempts, MAX_RETRY_ATTEMPTS);
+    assert.equal(scheduler.retriesExhausted(), true, "and at it");
+
+    // an outage that never clears: fifty more failures do not push the counter
+    // past the ceiling, and the delay stays pinned at the refresh period
+    for (let attempt = 0; attempt < 50; attempt++) {
+        scheduler.retry(() => {});
+    }
+    assert.equal(scheduler._retry_attempts, MAX_RETRY_ATTEMPTS,
+        "the counter is clamped, not incremented");
+    assert.equal(schedules.at(-1), 1800, "the backoff is still capped at the refresh period");
+
+    // and one success puts it all back
+    scheduler.succeeded();
+    assert.equal(scheduler._retry_attempts, 0);
+    assert.equal(scheduler.retriesExhausted(), false);
+});
+
 test("the retry is jittered, so every machine does not come back at once", () => {
     const Weather = loadWeather();
     const schedules = [];
