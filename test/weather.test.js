@@ -171,8 +171,14 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
     const Weather = loadWeather();
 
     assert.equal(
-        Weather.geocodeUrl(" New York "),
-        "https://geocoding-api.open-meteo.com/v1/search?name=New%20York&count=1&language=en&format=json"
+        Weather.geocodeUrl(" New York ", "en_US.UTF-8"),
+        "https://geocoding-api.open-meteo.com/v1/search?name=New%20York&count=10&language=en&format=json"
+    );
+    // the search is run in the language the session runs in: asked in English,
+    // "Genova" is Génova, Guatemala before Genova, Italy
+    assert.equal(
+        Weather.geocodeUrl("Genova", "it_IT.UTF-8"),
+        "https://geocoding-api.open-meteo.com/v1/search?name=Genova&count=10&language=it&format=json"
     );
     assert.equal(
         Weather.nominatimGeocodeUrl(" New York "),
@@ -238,6 +244,110 @@ test("normalizes primary and fallback geocode responses", () => {
         assert.equal(place.latitude, latitude);
         assert.equal(place.longitude, longitude);
     }
+});
+
+// The Genova bug, in a test: Open-Meteo answers with four namesakes and the city
+// the user meant, and the first hit is not it.
+const GENOVA_RESULTS = {
+    results: [
+        { name: "Génova", country: "Guatemala", population: 3744, latitude: 14.6, longitude: -91.8 },
+        { name: "Génova", country: "Colombia", population: 7140, latitude: 4.2, longitude: -75.8 },
+        { name: "Genova", country: "Italy", population: 580097, latitude: 44.4, longitude: 8.9 },
+        { name: "Genova", country: "Italy", population: 30, latitude: 45.9, longitude: 9.3 }
+    ]
+};
+
+test("the geocode hit is the one the user typed, not the one the API ranked first", () => {
+    const Weather = loadWeather();
+
+    const genova = Weather.openMeteoGeocodePlace(GENOVA_RESULTS, "Genova");
+    assert.equal(genova.country, "Italy");
+    assert.equal(genova.latitude, 44.4);
+    // the exact spelling beats the accented namesakes, and among the two cities
+    // that spell it the same the half-million one beats the hamlet
+    assert.equal(genova.population, 580097);
+
+    // typed with the accent, the answer is the accented city — the largest of them
+    const genovaAccented = Weather.openMeteoGeocodePlace(GENOVA_RESULTS, "Génova");
+    assert.equal(genovaAccented.country, "Colombia");
+
+    // a name nobody matches falls back to the most populous hit rather than to
+    // whichever one the geocoder happened to put first
+    const unmatched = Weather.openMeteoGeocodePlace(GENOVA_RESULTS, "nowhere");
+    assert.equal(unmatched.country, "Italy");
+    assert.equal(unmatched.population, 580097);
+
+    // a hit with no usable coordinates is skipped, not returned
+    const skipped = Weather.openMeteoGeocodePlace({
+        results: [null, { name: "Genova", latitude: "x", longitude: 8.9 },
+            { name: "Genova", country: "Italy", latitude: 44.4, longitude: 8.9 }]
+    }, "Genova");
+    assert.equal(skipped.latitude, 44.4);
+    assert.equal(Weather.openMeteoGeocodePlace({ results: [{ latitude: "x", longitude: 1 }] }, "x"), null);
+
+    // an unranked payload — no name, no population — is still a place
+    assert.deepEqual(
+        Weather.openMeteoGeocodePlace({ results: [{ latitude: 41.9, longitude: 12.5, population: "many" }] }),
+        { latitude: 41.9, longitude: 12.5, population: "many" }
+    );
+});
+
+test("the resolved place is named, country and all", () => {
+    const Weather = loadWeather();
+
+    assert.equal(Weather.placeLabel({ name: "Genova", country: "Italy" }), "Genova, Italy");
+    // the country alone does not settle it: Italy has two Genovas, and only the
+    // region says which one this is
+    assert.equal(
+        Weather.placeLabel({ name: "Genova", admin1: "Liguria", country: "Italy" }),
+        "Genova, Liguria, Italy"
+    );
+    assert.equal(Weather.placeLabel({ name: "Genova", admin1: "  ", country: "Italy" }), "Genova, Italy");
+    // Nominatim names the country inside display_name and has no country field
+    assert.equal(Weather.placeLabel({ name: "Genova, Liguria, Italia" }), "Genova, Liguria, Italia");
+    assert.equal(Weather.placeLabel({ latitude: 44.4, longitude: 8.9 }), "");
+    assert.equal(Weather.placeLabel(null), "");
+});
+
+const LOCALE_VARIABLES = ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"];
+
+function withLocaleEnvironment(locale, assertions) {
+    const saved = LOCALE_VARIABLES.map((name) => [name, process.env[name]]);
+    LOCALE_VARIABLES.forEach((name) => delete process.env[name]);
+    if (locale) {
+        process.env.LANG = locale;
+    }
+
+    try {
+        assertions();
+    } finally {
+        saved.forEach(([name, value]) => {
+            if (value === undefined) {
+                delete process.env[name];
+            } else {
+                process.env[name] = value;
+            }
+        });
+    }
+}
+
+test("the geocoder is asked in the language the session runs in", () => {
+    const Weather = loadWeather();
+
+    assert.equal(Weather.geocodeLanguage("pt_BR.UTF-8"), "pt");
+    assert.equal(Weather.geocodeLanguage("it"), "it");
+    // a locale that names no language, or names it in more than two letters, is
+    // not a language the geocoder knows: ask in English rather than in nonsense
+    assert.equal(Weather.geocodeLanguage("C"), Weather.GEOCODE_LANGUAGE_FALLBACK);
+    assert.equal(Weather.geocodeLanguage("POSIX"), "en");
+
+    // no locale given: the session's own is what the search is run in
+    withLocaleEnvironment("de_DE.UTF-8", () => {
+        assert.equal(Weather.geocodeLanguage(), "de");
+    });
+    withLocaleEnvironment("", () => {
+        assert.equal(Weather.geocodeLanguage(), "en");
+    });
 });
 
 function assertNullOrFinitePlace(place) {

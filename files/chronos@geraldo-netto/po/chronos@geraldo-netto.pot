@@ -114,6 +114,11 @@ msgstr ""
 msgid "Weather: loading…"
 msgstr ""
 
+#. %s is the city and country the weather location resolved to, e.g. "Genova, Italy"
+#: 5.4/appletPanelStatus.js:668
+msgid "Weather: %s"
+msgstr ""
+
 #: 5.4/appletPanelStatus.js:368
 msgid "Invalid time format; edit it in Settings"
 msgstr ""

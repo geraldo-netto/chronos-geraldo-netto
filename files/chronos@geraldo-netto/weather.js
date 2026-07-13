@@ -275,10 +275,22 @@ var WeatherProvider = class WeatherProvider {
         return WeatherFormat.locationCacheKey(location);
     }
 
+    // A reading is a reading *of* somewhere, and the somewhere is what the
+    // geocoder picked — not what the user typed. Those are not always the same
+    // city ("Genova" has namesakes in Guatemala, Colombia and Mexico), so the
+    // resolved place travels with the reading and the tooltip shows it: the user
+    // can see which Genova the temperature belongs to.
     _refreshForecast(place, generation, callback) {
+        const label = WeatherFormat.placeLabel(place);
         this._forecast_resolver.refresh(place, () => {
             return !this._destroyed && generation === this._request_generation;
-        }, callback);
+        }, (reading, error, provider) => {
+            // a geocoder that named no place — Nominatim without a display_name —
+            // leaves the record as it was rather than carrying an empty line into
+            // the tooltip
+            callback(reading && label ? Object.assign({}, reading, { place: label }) : reading,
+                error, provider);
+        });
     }
 
     _httpGetJson(url, callback, options = {}) {

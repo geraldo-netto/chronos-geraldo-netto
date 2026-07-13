@@ -63,6 +63,12 @@ function readingIsStale(readingAt, now, staleAfter) {
 // number nobody reads
 var MAX_RETRY_ATTEMPTS = 8;
 var MAX_GEOCODE_CACHE_ENTRIES = 16;
+// One hit was all that was ever asked for, so the first one the geocoder happened
+// to rank highest was the city, whatever it was. A handful of them, ranked here by
+// what the user typed and by how many people live there, is what makes a wrong
+// first hit survivable.
+var GEOCODE_CANDIDATE_COUNT = 10;
+var GEOCODE_LANGUAGE_FALLBACK = "en";
 var HTTP_TIMEOUT_SECONDS = Utils.HTTP_TIMEOUT_SECONDS;
 var WEATHER_DEBOUNCE_MS = 750;
 var WEATHER_UNITS = {
@@ -154,9 +160,36 @@ function weatherIcon(weatherCode) {
     return "🌤";
 }
 
-function geocodeUrl(location) {
+// The session's language, as a bare ISO 639-1 code. GLib knows it in Cinnamon;
+// the environment is what says so under Node, and both can name a language the
+// geocoder has never heard of, so anything that is not two letters is "en".
+function hostLanguage() {
+    const environment = IS_NODE ? process.env : {};
+    const names = !IS_NODE && GjsImports.gi.GLib.get_language_names ?
+        GjsImports.gi.GLib.get_language_names() : [];
+
+    return names[0] || environment.LC_ALL || environment.LC_MESSAGES ||
+        environment.LANG || environment.LANGUAGE || "";
+}
+
+function geocodeLanguage(locale) {
+    const raw = locale || hostLanguage();
+    const language = String(raw).toLowerCase().split(/[._@:-]/)[0];
+
+    return (/^[a-z]{2}$/).test(language) ? language : GEOCODE_LANGUAGE_FALLBACK;
+}
+
+// Open-Meteo ranks a search by the language it is asked in, not only by the name
+// it is asked about, and it used to be asked in English whoever was asking.
+// "Genova" in English is Génova, Guatemala — 3744 people — before Genova, Italy,
+// because Genoa is the English name for the Italian city; the panel showed a
+// Guatemalan temperature and nothing said so. Asked in Italian, the Italian city
+// is the first hit. A user types a city in the language their session runs in,
+// so that is the language to ask in.
+function geocodeUrl(location, locale) {
     return "https://geocoding-api.open-meteo.com/v1/search?name=" +
-        encodeURIComponent(location.trim()) + "&count=1&language=en&format=json";
+        encodeURIComponent(location.trim()) + "&count=" + GEOCODE_CANDIDATE_COUNT +
+        "&language=" + geocodeLanguage(locale) + "&format=json";
 }
 
 function nominatimGeocodeUrl(location) {
@@ -381,12 +414,16 @@ function metNoWeatherReading(forecast) {
     return { condition: icon, temperatureC: data.instant.details.air_temperature };
 }
 
-function openMeteoGeocodePlace(data) {
-    if (!data || !Array.isArray(data.results) || !data.results.length) {
-        return null;
-    }
+// "Genova" and "Génova" are two cities, and a user who types one of them without
+// the accent — as an Italian keyboard makes easy, and as the city itself spells it
+// — means the one they spelled. Folded, so that the accent is not the whole of the
+// comparison; compared unfolded first, so that the exact spelling still wins.
+function foldPlaceName(name) {
+    return String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .trim().toLowerCase();
+}
 
-    const place = data.results[0];
+function placeCandidate(place) {
     if (!place || typeof place !== "object") {
         return null;
     }
@@ -399,6 +436,63 @@ function openMeteoGeocodePlace(data) {
     }
 
     return Object.assign({}, place, { latitude, longitude });
+}
+
+// What makes one hit better than another, in order: the user's spelling exactly;
+// then their spelling with the accents taken off both sides; then population.
+// Population alone is not enough — it would answer "Genova" with the largest of
+// the four Génovas — and an exact name alone is not enough either, since a
+// thirty-person hamlet shares its name with the city.
+function placeRank(place, query) {
+    const typed = String(query || "").trim();
+    const name = String(place.name || "");
+    const population = Number(place.population);
+    const exact = name.toLowerCase() === typed.toLowerCase() ? 2 : 0;
+    const folded = foldPlaceName(name) === foldPlaceName(typed) ? 1 : 0;
+
+    return [exact || folded, Number.isFinite(population) ? population : 0];
+}
+
+function betterPlace(candidate, best, query) {
+    if (!best) {
+        return candidate;
+    }
+
+    const [candidateName, candidatePopulation] = placeRank(candidate, query);
+    const [bestName, bestPopulation] = placeRank(best, query);
+
+    if (candidateName !== bestName) {
+        return candidateName > bestName ? candidate : best;
+    }
+
+    return candidatePopulation > bestPopulation ? candidate : best;
+}
+
+function openMeteoGeocodePlace(data, query) {
+    if (!data || !Array.isArray(data.results) || !data.results.length) {
+        return null;
+    }
+
+    return data.results.reduce((best, result) => {
+        const candidate = placeCandidate(result);
+        return candidate ? betterPlace(candidate, best, query) : best;
+    }, null);
+}
+
+// The place a reading is *of*, in words, so that the user can see which Genova
+// they got. Open-Meteo names the region and the country in their own fields;
+// Nominatim's display_name already carries both. The region is in here because
+// the country alone does not always settle it: Italy has the city of Genova in
+// Liguria and a thirty-person Genova in Veneto, and "Genova, Italy" is the name
+// of both.
+function placeLabel(place) {
+    if (!place || !place.name) {
+        return "";
+    }
+
+    return [place.name, place.admin1, place.country]
+        .filter((part) => typeof part === "string" && part.trim())
+        .join(", ");
 }
 
 function nominatimGeocodePlace(data) {
@@ -426,5 +520,5 @@ function nominatimGeocodePlace(data) {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon, metNoSummary, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
+    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, GEOCODE_CANDIDATE_COUNT, GEOCODE_LANGUAGE_FALLBACK, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, geocodeLanguage, placeLabel, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon, metNoSummary, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
 }

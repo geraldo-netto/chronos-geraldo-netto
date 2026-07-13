@@ -127,11 +127,13 @@ var WeatherLocationResolver = class WeatherLocationResolver {
     }
 
     _geocodeLocation(location, isCurrent, callback) {
-        // `url` is built per lookup; the rest of the provider is fixed
+        // `url` is built per lookup; the rest of the provider is fixed. The
+        // normalizer is bound to the same lookup, because choosing between the
+        // hits a geocoder returns needs the name they were asked about.
         const providers = this._providers.map((provider) => ({
             name: provider.name,
             url: provider.url(location),
-            normalize: provider.normalize,
+            normalize: (data) => provider.normalize(data, location),
             options: provider.options
         }));
 

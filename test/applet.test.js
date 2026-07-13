@@ -784,6 +784,34 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
         /20°C.*⚠ boom/);
 });
 
+test("the tooltip names the city the panel temperature is of", () => {
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: true,
+        use_custom_format: false,
+        weather_units: "si",
+        _weather_reading: { condition: "☀", temperatureC: 20, place: "Genova, Italy" },
+        _weather_error: "",
+        worldclocks: [],
+        panel_clocks: 0,
+        cityWeatherReading: () => null,
+        cityWeatherProviderName: () => ""
+    });
+
+    // "Genova" also names cities in Guatemala, Colombia and Mexico: which one the
+    // geocoder picked is the difference between the weather and someone else's
+    const lines = panelStatus(stub).buildTooltipText("", []).split("\n");
+    assert.equal(lines[lines.length - 1], "Weather: Genova, Italy");
+
+    // a reading no geocoder named a place for adds no line at all
+    stub._weather_reading = { condition: "☀", temperatureC: 20 };
+    assert.ok(!panelStatus(stub).buildTooltipText("", []).includes("Weather:"));
+
+    // ...and neither does weather that is switched off
+    stub.show_weather = false;
+    stub._weather_reading = { condition: "☀", temperatureC: 20, place: "Genova, Italy" };
+    assert.ok(!panelStatus(stub).buildTooltipText("", []).includes("Genova"));
+});
+
 test("the tooltip falls back to the date line when there are no clocks", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: false,
