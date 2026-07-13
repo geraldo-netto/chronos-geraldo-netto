@@ -277,6 +277,34 @@ test("the weather location says what an empty one does", () => {
     assert.match(data["weather-location"].tooltip, /Lisbon/);
 });
 
+// Cinnamon matches the running series against this list literally: a manifest
+// that names only 5.4 is "incompatible" on Mint's current 6.x, even though the
+// multiversion 5.4/ tree loads there fine — and the README promises 5.4 or newer.
+// The list is the promise; the loader picks the highest 5.4/-style directory at
+// or below the running series, so one directory serves them all.
+test("the manifest supports every Cinnamon series the README promises", () => {
+    const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
+    const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
+    const supported = metadata["cinnamon-version"];
+
+    assert.match(readme, /Cinnamon \*\*5\.4 or newer\*\*/);
+    assert.equal(supported[0], "5.4", "5.4 is the floor the README states");
+    assert.ok(supported.some((series) => series.startsWith("6.")),
+        "a 6.x series is missing, so the Applets manager calls this incompatible on Mint 22");
+
+    // ascending, with no gap in the series Cinnamon actually ships
+    assert.deepEqual(supported, [...supported].sort(
+        (a, b) => Number(a.split(".")[0]) - Number(b.split(".")[0]) ||
+            Number(a.split(".")[1]) - Number(b.split(".")[1])));
+
+    // and every version directory that ships is one the manifest claims
+    const versionDirs = fs.readdirSync(appletDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory() && /^\d+\.\d+$/.test(entry.name))
+        .map((entry) => entry.name);
+    versionDirs.forEach((dir) => assert.ok(supported.includes(dir),
+        `the ${dir}/ tree ships but the manifest does not claim ${dir}`));
+});
+
 test("the Spices manifest credits the applets this one was merged from", () => {
     const info = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "info.json"), "utf8"));
     const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
