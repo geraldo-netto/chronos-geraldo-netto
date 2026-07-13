@@ -4,6 +4,7 @@
     "description": "Calendar with holidays, events, weather, and world clocks",
     "max-instances": -1,
     "version": "0.0.1",
+    "license": "GPL-2.0-or-later",
     "multiversion": true,
     "cinnamon-version": ["5.4"]
 }

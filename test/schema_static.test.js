@@ -23,6 +23,25 @@ test("the manifest and the tooling agree on the version", () => {
         "the tooling and the applet disagree about which version this is");
 });
 
+// The applet declares GPL-2.0-or-later in package.json and the README, and it
+// redistributes two GPL works — but shipped no license text at all, which makes
+// the declaration unenforceable and the redistribution a GPL violation. The
+// manifest is what Cinnamon and the Spices site read, so it has to say so too.
+test("the license is declared everywhere it is claimed, and its text ships", () => {
+    const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
+    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+    const license = fs.readFileSync(path.join(__dirname, "..", "LICENSE"), "utf8");
+
+    assert.equal(metadata.license, "GPL-2.0-or-later");
+    assert.equal(pkg.license, metadata.license,
+        "the tooling and the applet disagree about the license");
+    assert.match(fs.readFileSync(readmePath, "utf8"), /GPL-2\.0-or-later/);
+
+    // the text itself, and the "or later" the identifier promises
+    assert.match(license, /GNU GENERAL PUBLIC LICENSE\n\s+Version 2, June 1991/);
+    assert.match(license, /any later\nversion/);
+});
+
 test("5.4 schema exposes Belgium holiday regions", () => {
     const schema52 = schema("5.4");
 
