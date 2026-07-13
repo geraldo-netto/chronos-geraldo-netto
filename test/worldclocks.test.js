@@ -60,6 +60,9 @@ class MockLabel {
     constructor(options = {}) {
         this.text = options.text || "";
         this.options = options;
+        // every write, so a test can assert that a tick which changed nothing
+        // wrote nothing: St compares by pointer and this runs once a second
+        this.texts = [];
         // every St.Label has one; the clock name ellipsizes through it
         this.clutter_text = { ellipsize: 0, line_wrap: false };
     }
@@ -70,6 +73,7 @@ class MockLabel {
 
     set_text(text) {
         this.text = text;
+        this.texts.push(text);
     }
 
     set_accessible_name(name) {
@@ -376,8 +380,8 @@ test("buildClocks caps configured clocks at 8 on top of the built-ins", () => {
 
     assert.equal(worldclocks.actor.visible, true);
     assert.equal(worldclocks.clocks.length, BUILTIN_ROWS + MAX_CLOCKS);
-    // every row attaches a name label and a time label
-    assert.equal(worldclocks.layout.children.length, (BUILTIN_ROWS + MAX_CLOCKS) * 2);
+    // every row attaches a name, a time and the city's temperature
+    assert.equal(worldclocks.layout.children.length, (BUILTIN_ROWS + MAX_CLOCKS) * 3);
 
     const firstUserLabel = worldclocks.layout.children
         .find((cell) => cell.column === 0 && cell.row === BUILTIN_ROWS);
@@ -499,6 +503,38 @@ test("changing the format re-renders the clocks without rebuilding them", () => 
 });
 
 // the service that answered was named only in the panel's mouse tooltip
+// REGRESSION: the reading reached the row's accessible name and the panel's mouse
+// tooltip, and nowhere a user could look at — while settings-schema.json promised
+// units "used … for the temperature beside each world clock". Open the menu with
+// the hotkey, or on a touchscreen, and the rows were bare times.
+test("each clock row draws its city's temperature, not just says it", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }], "%H:%M");
+
+    const tokyo = worldclocks.clocks.at(-1);
+    worldclocks.updateClocks([
+        { clock: tokyo, label: "Tokyo", time: "18:00", weather: "12°C, Rain", builtin: false }
+    ]);
+
+    assert.equal(tokyo.weather.text, "12°C", "the cell carries the temperature");
+    assert.match(tokyo.display.accessible_name, /Rain/,
+        "and the name still carries the condition in words");
+
+    // written once: this runs on every tick and St compares by pointer
+    const before = tokyo.weather.texts.length;
+    worldclocks.updateClocks([
+        { clock: tokyo, label: "Tokyo", time: "18:00", weather: "12°C, Rain", builtin: false }
+    ]);
+    assert.equal(tokyo.weather.texts.length, before);
+
+    // a row with no reading yet shows an empty cell, not a stale one
+    worldclocks.updateClocks([
+        { clock: tokyo, label: "Tokyo", time: "18:01", builtin: false }
+    ]);
+    assert.equal(tokyo.weather.text, "");
+});
+
 test("the clock list names the weather service that answered", () => {
     const { Worldclocks } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });
@@ -724,8 +760,8 @@ test("fuzzed clock lists never crash and always respect the cap and invalid mark
         assert.equal(worldclocks.actor.visible, true);
         assert.equal(worldclocks.clocks.length, BUILTIN_ROWS + shown.length);
 
-        // every row attaches a label and a time display
-        assert.equal(worldclocks.layout.children.length, (BUILTIN_ROWS + shown.length) * 2);
+        // every row attaches a label, a time display and a temperature cell
+        assert.equal(worldclocks.layout.children.length, (BUILTIN_ROWS + shown.length) * 3);
 
         shown.forEach((entry, index) =>
             assertClockMatchesEntry(worldclocks.clocks[BUILTIN_ROWS + index], entry, index));

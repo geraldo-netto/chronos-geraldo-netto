@@ -39,6 +39,13 @@
     text-align: right;
 }
 
+/* the temperature column: the same muted weight as the time it sits beside, and
+   never wider than the reading it holds */
+.calendar-world-weather {
+    padding-left: 1em;
+    text-align: right;
+}
+
 .calendar-world-time-invalid {
     font-style: italic;
 }

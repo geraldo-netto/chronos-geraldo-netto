@@ -78,11 +78,22 @@ var Worldclocks = class Worldclocks {
                 x_align: Clutter.ActorAlign.END,
                 style_class: tz ? "calendar-world-time" : "calendar-world-time calendar-world-time-invalid"
             });
-            this.clocks.push({
-                label: item.label, timezone: item.timezone, display, tz, builtin,
-                rendered_time: null, rendered_name: null
-            });
             this.layout.attach(display, 1, i, 1, 1);
+
+            // The temperature the settings dialog promises "beside each world
+            // clock". It existed in the row's accessible name and in the panel's
+            // mouse tooltip, and nowhere a user could look at: open the menu with
+            // the hotkey, or on a touchscreen, and the rows were bare times.
+            let weather = new St.Label({
+                x_align: Clutter.ActorAlign.END,
+                style_class: "calendar-world-weather"
+            });
+            this.layout.attach(weather, 2, i, 1, 1);
+
+            this.clocks.push({
+                label: item.label, timezone: item.timezone, display, weather, tz, builtin,
+                rendered_time: null, rendered_name: null, rendered_weather: null
+            });
         });
     }
 
@@ -214,6 +225,15 @@ var Worldclocks = class Worldclocks {
                 if (clock.display.set_accessible_name) {
                     clock.display.set_accessible_name(name);
                 }
+            }
+
+            // ...and the same reading, drawn. The accessible name carries the
+            // condition in words as well; the cell is the temperature, which is
+            // what the row has room for beside a time.
+            const reading = entry.weather ? String(entry.weather).split(",")[0].trim() : "";
+            if (clock.rendered_weather !== reading && clock.weather) {
+                clock.rendered_weather = reading;
+                clock.weather.set_text(reading);
             }
         }
     }
