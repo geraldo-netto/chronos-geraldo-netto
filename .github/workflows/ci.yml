@@ -29,11 +29,20 @@ jobs:
       # pyflakes is what lint:py runs. It used to skip itself when the import
       # failed — exit 0 either way — so the Python lint was a no-op on any
       # machine that did not happen to have it. It fails now, so CI installs it.
-      - run: python3 -m pip install --upgrade pyflakes
+      #
+      # pytz is what the settings dialog resolves timezones with, and CI did not
+      # install it: sixteen tests skipped themselves here and the coverage gate
+      # printed byte-identical numbers, so the line that wires pytz into the
+      # dialog was verified on a maintainer's laptop and nowhere else.
+      - run: python3 -m pip install --upgrade pyflakes pytz
 
       - run: npm ci
 
       - run: npm run lint
 
-      # both suites, both coverage gates: JS 98/90/100 per file, Python 98 lines
+      # both suites, both coverage gates: JS 98/90/100 per file, Python 98 lines.
+      # CHRONOS_REQUIRE_PYTZ turns the pytz skips into a failure, so a future
+      # dependency drop cannot quietly take those sixteen tests out of CI again.
       - run: npm test
+        env:
+          CHRONOS_REQUIRE_PYTZ: "1"

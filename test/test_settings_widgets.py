@@ -1,6 +1,7 @@
 import builtins
 import importlib.util
 import json
+import os
 import random
 import re
 
@@ -26,6 +27,16 @@ try:
     HAS_PYTZ = _pytz is not None
 except ImportError:
     HAS_PYTZ = False
+
+# The skip is for a contributor who has not installed pytz; it was also what CI
+# did, on every push, and neither suite count nor coverage number moved when
+# sixteen tests took themselves out of the run. CI sets this, so there the
+# missing dependency is a build failure rather than a quiet skip.
+if os.environ.get("CHRONOS_REQUIRE_PYTZ") == "1" and not HAS_PYTZ:
+    raise RuntimeError(
+        "CHRONOS_REQUIRE_PYTZ=1 but pytz is not importable: the timezone tests "
+        "would skip themselves and the gates would still report green. "
+        "pip install pytz")
 
 requires_pytz = unittest.skipUnless(HAS_PYTZ, "pytz is not installed")
 
@@ -1233,7 +1244,14 @@ class SettingsWidgetsTest(unittest.TestCase):
         GtkDialog.on_run = script
         clocks.open_add_edit_dialog()
 
-        self.assertEqual(completed["matches"], ["America/Argentina/Buenos_Aires"])
+        # asserted as a membership, not as the whole list: this runs against the
+        # real pytz, and a tzdata build that still carries the pre-1993
+        # America/Buenos_Aires alias offers it here too. The city completing at all
+        # is the behaviour; how many spellings of it the host knows is not.
+        self.assertIn("America/Argentina/Buenos_Aires", completed["matches"])
+        self.assertTrue(
+            all("Buenos_Aires" in match for match in completed["matches"]),
+            completed["matches"])
         # picking a suggestion writes the identifier, not the pretty label
         self.assertEqual(completed["text"], "America/Argentina/Buenos_Aires")
 
