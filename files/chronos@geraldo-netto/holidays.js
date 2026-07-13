@@ -59,7 +59,7 @@ var HolidayCache = HolidayCacheModule.HolidayCache;
 var EnricoServiceAdapter = HolidayServiceAdapters.EnricoServiceAdapter;
 var NagerDateServiceAdapter = HolidayServiceAdapters.NagerDateServiceAdapter;
 var OpenHolidaysServiceAdapter = HolidayServiceAdapters.OpenHolidaysServiceAdapter;
-var HolidayServiceFallbackAdapter = HolidayServiceAdapters.HolidayServiceFallbackAdapter;
+var createHolidayServiceChain = HolidayServiceAdapters.createHolidayServiceChain;
 // the record shape the app owns: what an answer from *any* provider must be
 var HolidayRecordContract = HolidayServiceAdapters.HolidayRecordContract;
 var MAX_HOLIDAYS_PER_YEAR = HolidayServiceAdapters.MAX_HOLIDAYS_PER_YEAR;
@@ -101,7 +101,7 @@ function httpBackedService(getSession, params = {}) {
     const record = params.record || new HolidayRecordContract(lang);
     const load = params.load || Provider.loaderFor(getSession);
 
-    return new HolidayServiceFallbackAdapter(
+    return createHolidayServiceChain(
         new EnricoServiceAdapter(load),
         [
             new OpenHolidaysServiceAdapter(load, lang),
@@ -587,5 +587,5 @@ var HolidayProviderFacade = class HolidayProviderFacade {
 
 if (typeof module !== "undefined") {
     module.exports = {
-        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, HolidayServiceFallbackAdapter, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, HolidaySession, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
+        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, HolidaySession, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
 }

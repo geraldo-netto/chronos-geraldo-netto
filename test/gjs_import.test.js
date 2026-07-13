@@ -198,7 +198,7 @@ function gjsImportsMock() {
                             builtInTimezoneKeys() {}
                         },
                         holidayAdapters: {
-                            HolidayServiceFallbackAdapter: class {}
+                            HolidayFallbackChain: class {}
                         },
                         holidayConstants: {
                             HOLIDAY_ERRORS: {},
@@ -217,7 +217,7 @@ function gjsImportsMock() {
                             EnricoServiceAdapter: class {},
                             NagerDateServiceAdapter: class {},
                             OpenHolidaysServiceAdapter: class {},
-                            HolidayServiceFallbackAdapter: class {}
+                            createHolidayServiceChain: () => ({})
                         }
                     }
                 }
@@ -268,15 +268,15 @@ const EXPORTS = {
         "nominatimGeocodePlace", "WEATHER_DEBOUNCE_MS"],
     holidays: ["Provider", "HolidayCacheRepository", "HolidayCache", "EnricoServiceAdapter",
         "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
-        "HolidayServiceFallbackAdapter", "HolidayService", "HolidayProviderFacade",
+        "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
         "HOLIDAY_ERRORS"],
-    holidayAdapters: ["HolidayServiceFallbackAdapter"],
+    holidayAdapters: ["HolidayFallbackChain"],
     holidayCache: ["HolidayCacheRepository", "HolidayCache", "validCachedHoliday",
         "validCachedStamp", "validCachedYears", "clampHolidayName", "MAX_HOLIDAY_NAME_LENGTH", "MAX_MEMOIZED_MONTHS",
         "UPDATE_PERIOD", "RETRY_PERIOD", "YEAR_WINDOW", "GLOBAL_REGION"],
     holidayServiceAdapters: ["validDateParts", "regionSubdivisionCode", "isoDateParts",
         "IsoHolidayServiceAdapter", "EnricoServiceAdapter", "NagerDateServiceAdapter",
-        "OpenHolidaysServiceAdapter", "HolidayServiceFallbackAdapter"],
+        "OpenHolidaysServiceAdapter", "createHolidayServiceChain"],
     holidayConstants: ["HOLIDAY_ERRORS", "HOLIDAY_PROVIDER_NAMES", "GLOBAL_REGION",
         "OPEN_HOLIDAYS_COUNTRIES", "COUNTRY_TO_ISO2", "REGION_TO_SUBDIVISION"],
     worldclockData: ["MAX_CLOCKS", "LOCAL_TIMEZONE", "INVALID_TIMEZONE_TEXT",

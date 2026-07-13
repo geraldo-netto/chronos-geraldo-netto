@@ -481,14 +481,18 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
 // which put the contract's whole surface on the port: a fourth provider's author
 // could not tell which of the six methods an adapter owed. The domain holds the
 // contract itself now, so the port is fetchYear and nothing else.
-var HolidayServiceFallbackAdapter = class HolidayServiceFallbackAdapter extends HolidayAdapters.HolidayServiceFallbackAdapter {
-    constructor(primary = new EnricoServiceAdapter(),
-        fallbacks = [new OpenHolidaysServiceAdapter(), new NagerDateServiceAdapter()],
-        record = new HolidayRecordContract()) {
-        super(primary, fallbacks, (data) => record.validResponse(data));
-        this.record = record;
-    }
-};
+// A subclass here bound a *second* class to the name HolidayFallbackChain already
+// had, with an incompatible third parameter — a record where the base takes a
+// validator — so constructing the base with what the subclass takes threw
+// `this._validResponse is not a function` inside an HTTP callback, where it read
+// as a provider failure. It only ever existed to bind default arguments, and a
+// factory says that without shadowing anything.
+function createHolidayServiceChain(primary = new EnricoServiceAdapter(),
+    fallbacks = [new OpenHolidaysServiceAdapter(), new NagerDateServiceAdapter()],
+    record = new HolidayRecordContract()) {
+    return new HolidayAdapters.HolidayFallbackChain(
+        primary, fallbacks, (data) => record.validResponse(data));
+}
 
 if (typeof module !== "undefined") {
     module.exports = {
@@ -496,6 +500,6 @@ if (typeof module !== "undefined") {
         MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
         regionSubdivisionCode, isoDateParts, IsoHolidayServiceAdapter, HolidayRecordContract,
         EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter,
-        HolidayServiceFallbackAdapter
+        createHolidayServiceChain
     };
 }

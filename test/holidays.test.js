@@ -1024,7 +1024,7 @@ test("HolidayService setPlace loads cache and getHolidays retrieves stale years"
 });
 
 test("HolidayService retrieveForYear builds params and addData ignores provider errors", () => {
-    const { HolidayService, EnricoServiceAdapter, HolidayServiceFallbackAdapter } = loadHolidays();
+    const { HolidayService, EnricoServiceAdapter, createHolidayServiceChain } = loadHolidays();
     let captured = null;
     // HolidayService's service is a fallback chain in production; a bare adapter is only a
     // fetchYear, so wrap it the way the applet does — the record contract (validate
@@ -1034,7 +1034,7 @@ test("HolidayService retrieveForYear builds params and addData ignores provider 
         callback([holiday("Fetched", params.year, 7, 4)], params, "Sat, 04 Jul 2026 00:00:00 GMT");
     });
     const enrico = new HolidayService();
-    enrico.service = new HolidayServiceFallbackAdapter(primary, []);
+    enrico.service = createHolidayServiceChain(primary, []);
     enrico.country = "usa";
     enrico.region = "ca";
 
@@ -2384,8 +2384,8 @@ test("NagerDateServiceAdapter fuzzes date, county and type translation", () => {
     assert.ok(keepable.length < payload.length, "and drops some");
 });
 
-test("HolidayServiceFallbackAdapter retries HolidayService failures with Nager data", () => {
-    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
+test("the fallback chain retries HolidayService failures with Nager data", () => {
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, createHolidayServiceChain, NagerDateServiceAdapter } = loadHolidays();
     const primary = new EnricoServiceAdapter((_url, params, callback) => {
         callback(null, params, "Enrico failed");
     });
@@ -2407,7 +2407,7 @@ test("HolidayServiceFallbackAdapter retries HolidayService failures with Nager d
             saved = data;
         }
     );
-    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, fallback), cache);
+    const enrico = new HolidayService(createHolidayServiceChain(primary, fallback), cache);
 
     enrico.country = "usa";
     enrico.region = "ca";
@@ -2421,7 +2421,7 @@ test("HolidayServiceFallbackAdapter retries HolidayService failures with Nager d
 });
 
 test("destroying the applet stops the provider chain instead of advancing it", () => {
-    const { HolidayServiceFallbackAdapter } = loadHolidays();
+    const { createHolidayServiceChain } = loadHolidays();
     const tried = [];
     const provider = (name) => ({
         name,
@@ -2432,7 +2432,7 @@ test("destroying the applet stops the provider chain instead of advancing it", (
         },
         validResponse: (data) => Array.isArray(data)
     });
-    const service = new HolidayServiceFallbackAdapter(provider("Enrico"),
+    const service = createHolidayServiceChain(provider("Enrico"),
         [provider("OpenHolidays"), provider("Nager.Date")]);
 
     let alive = true;
@@ -2460,7 +2460,7 @@ test("destroying the applet stops the provider chain instead of advancing it", (
 });
 
 test("an empty answer from the primary does not end the provider chain", () => {
-    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, createHolidayServiceChain, NagerDateServiceAdapter } = loadHolidays();
     // HolidayService answers [] for the country/year pairs it does not cover: a
     // well-formed payload that says "no holidays here"
     const primary = new EnricoServiceAdapter((_url, params, callback) => {
@@ -2472,7 +2472,7 @@ test("an empty answer from the primary does not end the provider chain", () => {
         ], params, NAGER_STAMP);
     });
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
-    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, fallback), cache);
+    const enrico = new HolidayService(createHolidayServiceChain(primary, fallback), cache);
 
     enrico.country = "usa";
     enrico.region = "ca";
@@ -2484,12 +2484,12 @@ test("an empty answer from the primary does not end the provider chain", () => {
 });
 
 test("an empty answer is believed once every provider gives one", () => {
-    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter } = loadHolidays();
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, createHolidayServiceChain, NagerDateServiceAdapter } = loadHolidays();
     const empty = (_url, params, callback) => callback([], params, "Sat, 04 Jul 2026 00:00:00 GMT");
     const primary = new EnricoServiceAdapter(empty);
     const fallback = new NagerDateServiceAdapter(empty);
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
-    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, fallback), cache);
+    const enrico = new HolidayService(createHolidayServiceChain(primary, fallback), cache);
 
     enrico.country = "usa";
     enrico.region = "ca";
@@ -2501,8 +2501,8 @@ test("an empty answer is believed once every provider gives one", () => {
     assert.equal(enrico.staleCache(2026), false, "and the year is recorded, not refetched in a loop");
 });
 
-test("HolidayServiceFallbackAdapter tries OpenHolidays before Nager", () => {
-    const { HolidayService, EnricoServiceAdapter, HolidayCache, HolidayServiceFallbackAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
+test("the fallback chain tries OpenHolidays before Nager", () => {
+    const { HolidayService, EnricoServiceAdapter, HolidayCache, createHolidayServiceChain, NagerDateServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
     const primary = new EnricoServiceAdapter((_url, params, callback) => {
         callback(null, params, "Enrico failed");
     });
@@ -2527,7 +2527,7 @@ test("HolidayServiceFallbackAdapter tries OpenHolidays before Nager", () => {
             saved = data;
         }
     );
-    const enrico = new HolidayService(new HolidayServiceFallbackAdapter(primary, [openHolidays, nager]), cache);
+    const enrico = new HolidayService(createHolidayServiceChain(primary, [openHolidays, nager]), cache);
 
     enrico.country = "che";
     enrico.region = "zh";
@@ -2554,8 +2554,8 @@ function anyRecord(overrides = {}) {
     }, overrides);
 }
 
-test("HolidayServiceFallbackAdapter tries the last successful provider first", () => {
-    const { HolidayServiceFallbackAdapter } = loadHolidays();
+test("the fallback chain tries the last successful provider first", () => {
+    const { createHolidayServiceChain } = loadHolidays();
     const calls = [];
     const primary = {
         name: "Primary",
@@ -2581,7 +2581,7 @@ test("HolidayServiceFallbackAdapter tries the last successful provider first", (
                 { year, region: "global", providerName: "Fallback" }, STAMP);
         }
     };
-    const service = new HolidayServiceFallbackAdapter(primary, fallback, anyRecord());
+    const service = createHolidayServiceChain(primary, fallback, anyRecord());
 
     service.fetchYear("usa", "global", 2026, () => {});
     service.fetchYear("usa", "global", 2027, () => {});
@@ -2632,14 +2632,14 @@ test("both fallback adapters share one default provider order", () => {
         HOLIDAY_PROVIDER_NAMES.NAGER_DATE
     ];
 
-    for (const chain of [new holidays.HolidayServiceFallbackAdapter(),
-        new ServiceAdapters.HolidayServiceFallbackAdapter()]) {
+    for (const chain of [holidays.createHolidayServiceChain(),
+        ServiceAdapters.createHolidayServiceChain()]) {
         assert.deepEqual([chain.primary.name].concat(chain.fallbacks.map((f) => f.name)),
             expected);
     }
 
     // explicit arguments still bypass the default chain
-    const custom = new holidays.HolidayServiceFallbackAdapter(
+    const custom = holidays.createHolidayServiceChain(
         { name: "p", validResponse: () => true }, [{ name: "f" }]);
     assert.equal(custom.primary.name, "p");
     assert.deepEqual(custom.fallbacks.map((f) => f.name), ["f"]);
@@ -2767,7 +2767,7 @@ test("the version shim forwards the shared provider module", () => {
         EnricoServiceAdapter: class {},
         NagerDateServiceAdapter: class {},
         OpenHolidaysServiceAdapter: class {},
-        HolidayServiceFallbackAdapter: class {},
+        HolidayFallbackChain: class {},
         HolidayService: class {},
         HolidayProviderFacade: class {},
         HOLIDAY_ERRORS: {}
@@ -2898,7 +2898,7 @@ test("the chain validates against the record contract, not against the primary",
 // refuses has not answered, so the next provider is tried. That decision is the
 // only thing the chain needs the contract for — it forwards none of it onward.
 test("a provider whose payload the contract refuses falls through to the next", () => {
-    const { HolidayServiceFallbackAdapter } = loadHolidays();
+    const { createHolidayServiceChain } = loadHolidays();
     const primary = {
         name: "primary",
         fetchYear(_country, _region, _year, callback) {
@@ -2911,7 +2911,7 @@ test("a provider whose payload the contract refuses falls through to the next", 
             callback([{ year }], { providerName: "fallback" }, STAMP);
         }
     };
-    const adapter = new HolidayServiceFallbackAdapter(primary, [fallback], anyRecord());
+    const adapter = createHolidayServiceChain(primary, [fallback], anyRecord());
 
     const answers = [];
     adapter.fetchYear("fra", "global", 2026, (data, params) => answers.push([data, params]));
@@ -2926,8 +2926,8 @@ test("a provider whose payload the contract refuses falls through to the next", 
     assert.equal(typeof adapter.expandHoliday, "undefined");
 });
 
-test("HolidayServiceFallbackAdapter reports provider success and failure", () => {
-    const { HolidayServiceFallbackAdapter } = loadHolidays();
+test("the fallback chain reports provider success and failure", () => {
+    const { createHolidayServiceChain } = loadHolidays();
     const good = {
         name: "good",
         fetchYear(_country, _region, year, cb) {
@@ -2941,14 +2941,14 @@ test("HolidayServiceFallbackAdapter reports provider success and failure", () =>
             cb(null, { provider: "bad", year }, null);
         }
     };
-    const adapter = new HolidayServiceFallbackAdapter(bad, [good], anyRecord());
+    const adapter = createHolidayServiceChain(bad, [good], anyRecord());
     const callbacks = [];
     adapter.fetchYear("ita", "global", 2026, (...args) => callbacks.push(args));
     assert.deepEqual(callbacks[0][0], [{ year: 2026 }]);
     assert.equal(callbacks[0][1].provider, "good");
     assert.equal(adapter._last_provider, "good");
 
-    const allBad = new HolidayServiceFallbackAdapter(bad, [], anyRecord());
+    const allBad = createHolidayServiceChain(bad, [], anyRecord());
     const failures = [];
     const exhaustedLogs = [];
     global.log = (message) => exhaustedLogs.push(message);
@@ -2964,7 +2964,7 @@ test("HolidayServiceFallbackAdapter reports provider success and failure", () =>
 // HolidayService anywhere in it, has to work.
 test("the chain works with no HolidayService in it at all", () => {
     const {
-        HolidayServiceFallbackAdapter, HolidayRecordContract,
+        createHolidayServiceChain, HolidayRecordContract,
         OpenHolidaysServiceAdapter, NagerDateServiceAdapter
     } = loadHolidays();
 
@@ -2982,7 +2982,7 @@ test("the chain works with no HolidayService in it at all", () => {
         callback([], params, STAMP);
     });
 
-    const chain = new HolidayServiceFallbackAdapter(
+    const chain = createHolidayServiceChain(
         openHolidays, [nager], new HolidayRecordContract("en"));
 
     const answers = [];

@@ -6,7 +6,7 @@ const Utils = typeof require === "function" ?
     require("./utils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
 
-var HolidayServiceFallbackAdapter = class HolidayServiceFallbackAdapter {
+var HolidayFallbackChain = class HolidayFallbackChain {
     // `validResponse` is what an answer from *any* provider in this chain has to
     // satisfy: the record shape the app owns, not the shape of whichever vendor
     // is primary today. It is required — a chain with no idea what a good answer
@@ -83,5 +83,5 @@ var HolidayServiceFallbackAdapter = class HolidayServiceFallbackAdapter {
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { HolidayServiceFallbackAdapter };
+    module.exports = { HolidayFallbackChain };
 }
