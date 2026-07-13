@@ -31,6 +31,7 @@ var registerLocaleConsumer = LocaleUtils.registerLocaleConsumer;
 var readJsonFileAsync = IoUtils.readJsonFileAsync;
 var writeJsonFileAsync = IoUtils.writeJsonFileAsync;
 var createHttpSession = IoUtils.createHttpSession;
+var LazyHttpSession = IoUtils.LazyHttpSession;
 var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS;
 var httpGetJson = IoUtils.httpGetJson;
 var safeCssColor = StyleUtils.safeCssColor;
@@ -53,6 +54,7 @@ if (typeof module !== "undefined") {
         readJsonFileAsync,
         writeJsonFileAsync,
         createHttpSession,
+        LazyHttpSession,
         HTTP_TIMEOUT_SECONDS,
         safeCssColor,
         lazyLocaleValue,

@@ -120,18 +120,14 @@ var WeatherProvider = class WeatherProvider {
         // opt-in and off by default, so a Soup session per applet at startup is
         // paid by every user who never turns it on; the holiday provider makes
         // the same argument for the same reason.
-        this._httpSession = params.httpSession || null;
+        // the same lazy session, the same guarded abort, as the city provider and
+        // the holiday chain: one lifecycle, in ioUtils
+        this._session = new Utils.LazyHttpSession(
+            params.httpSession ? () => params.httpSession : undefined);
     }
 
     _getHttpSession() {
-        if (!this._httpSession) {
-            this._httpSession = Utils.createHttpSession({
-                timeout: WeatherFormat.HTTP_TIMEOUT_SECONDS,
-                idleTimeout: WeatherFormat.HTTP_TIMEOUT_SECONDS
-            });
-        }
-
-        return this._httpSession;
+        return this._session.get();
     }
 
     stop() {
@@ -144,9 +140,7 @@ var WeatherProvider = class WeatherProvider {
         this.stop();
 
         // nothing to abort if nothing ever asked for a session
-        if (this._httpSession && this._httpSession.abort) {
-            this._httpSession.abort();
-        }
+        this._session.abort();
     }
 
     schedule(settings, callback) {

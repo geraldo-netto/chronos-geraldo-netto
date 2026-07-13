@@ -319,6 +319,23 @@ test("the constructor falls back to GLib timers and a Utils HTTP session", () =>
     assert.deepEqual(removed, [77], "the default remover is GLib.source_remove");
 });
 
+// The city provider takes an httpSession the same way the panel provider does —
+// both hold the one lazy-session lifecycle now — and nothing exercised that
+// parameter here: a session handed to this provider was never proven to be the
+// session it used, or the one it aborted.
+test("a session it is given is the one it uses and the one it aborts", () => {
+    const CityWeather = loadCityWeather();
+    const session = { abort() { this.aborted = true; } };
+    const provider = new CityWeather.CityWeatherProvider({ httpSession: session });
+
+    assert.equal(provider._session.created, null, "and it is still lazy");
+    assert.equal(provider._getHttpSession(), session);
+    assert.equal(provider._getHttpSession(), session, "asked twice, built once");
+
+    provider.destroy();
+    assert.equal(session.aborted, true);
+});
+
 test("destroy aborts the session and turns schedule and refresh into no-ops", () => {
     const aborts = [];
     const CityWeather = loadCityWeather({
@@ -343,7 +360,7 @@ test("destroy aborts the session and turns schedule and refresh into no-ops", ()
     // the resolvers are stubbed, so nothing asks for the session on its own;
     // build it so there is a live one for destroy to abort (the session is lazy
     // now — a provider whose feature is never used never allocates one)
-    assert.equal(provider._httpSession, null, "the session is not built at construction");
+    assert.equal(provider._session.created, null, "the session is not built at construction");
     provider._getHttpSession();
 
     provider.refresh(settings, () => updates++);

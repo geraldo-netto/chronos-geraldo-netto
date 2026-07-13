@@ -355,9 +355,52 @@ function _downgraded(message, url) {
     return Boolean(scheme) && scheme !== "https";
 }
 
+// One HTTP session per owner, built on the first request: weather and holidays
+// are both off by default, and a session at construction costs applet startup for
+// every user who never turns them on. The session is per *instance*, not per
+// module — a second applet on the panel must not have its requests aborted when
+// the first one is removed.
+//
+// This lifecycle was written three times over: once in each weather provider and
+// once in holidays.js, with the same lazy create, the same two timeouts and the
+// same guarded abort. A cancellable, a connection cap or a proxy setting was
+// three edits, two of them in the providers that fan out to eight cities.
+var LazyHttpSession = class LazyHttpSession {
+    constructor(create) {
+        this._create = create || (() => createHttpSession({
+            timeout: HTTP_TIMEOUT_SECONDS,
+            idleTimeout: HTTP_TIMEOUT_SECONDS
+        }));
+        this._session = null;
+    }
+
+    // null until something has asked: "no session yet" and "a session that was
+    // never used" are different states, and only the first costs nothing
+    get created() {
+        return this._session;
+    }
+
+    get() {
+        if (!this._session) {
+            this._session = this._create();
+        }
+
+        return this._session;
+    }
+
+    // pending requests keep their response buffers and their callbacks alive for
+    // up to the timeout after the applet is gone
+    abort() {
+        if (this._session && this._session.abort) {
+            this._session.abort();
+        }
+    }
+};
+
 if (typeof module !== "undefined") {
     module.exports = {
         createHttpSession,
+        LazyHttpSession,
         decodeUtf8,
         HTTP_TIMEOUT_SECONDS,
         MAX_RESPONSE_BYTES,

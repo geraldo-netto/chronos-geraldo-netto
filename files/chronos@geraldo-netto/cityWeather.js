@@ -86,7 +86,10 @@ var CityWeatherProvider = class CityWeatherProvider {
         // these for every applet whether or not weather or world clocks are on,
         // and an idle Soup.Session is a cost paid for a feature nobody enabled.
         // WeatherProvider defers the same way for the same reason.
-        this._httpSession = params.httpSession || null;
+        // one lazy session, guarded abort and all, shared with the panel provider
+        // and the holiday chain: the lifecycle lives in ioUtils
+        this._session = new Utils.LazyHttpSession(
+            params.httpSession ? () => params.httpSession : undefined);
         this._httpGetJson = params.httpGetJson || ((url, callback, options = {}) => {
             Utils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
         });
@@ -100,14 +103,7 @@ var CityWeatherProvider = class CityWeatherProvider {
     }
 
     _getHttpSession() {
-        if (!this._httpSession) {
-            this._httpSession = Utils.createHttpSession({
-                timeout: Weather.HTTP_TIMEOUT_SECONDS,
-                idleTimeout: Weather.HTTP_TIMEOUT_SECONDS
-            });
-        }
-
-        return this._httpSession;
+        return this._session.get();
     }
 
     get lastProvider() {
@@ -171,9 +167,7 @@ var CityWeatherProvider = class CityWeatherProvider {
         this.stop();
         this._readings.clear();
 
-        if (this._httpSession && this._httpSession.abort) {
-            this._httpSession.abort();
-        }
+        this._session.abort();
     }
 
     // What the cities are read from: the clock list, and whether weather is on at

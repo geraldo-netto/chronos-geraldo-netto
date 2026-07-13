@@ -741,7 +741,7 @@ test("provider sessions carry an explicit HTTP timeout", () => {
     // weather is off by default, so the session is built when something first
     // asks for it — not once per applet at startup for every user who never
     // turns weather on
-    assert.equal(provider._httpSession, null);
+    assert.equal(provider._session.created, null);
 
     const session = provider._getHttpSession();
     assert.equal(session.timeout, Weather.HTTP_TIMEOUT_SECONDS);
@@ -756,7 +756,7 @@ test("provider sessions carry an explicit HTTP timeout", () => {
 test("a provider given its HTTP is not handed a session it cannot use", () => {
     const Weather = loadWeather();
     const injected = new Weather.WeatherProvider({ httpGetJson() {} });
-    assert.equal(injected._httpSession, null);
+    assert.equal(injected._session.created, null);
 
     const session = { abort() { this.aborted = true; } };
     const given = new Weather.WeatherProvider({ httpSession: session });
@@ -1759,7 +1759,7 @@ test("destroy aborts the session and suppresses pending weather callbacks", () =
 
     // nothing asked for a session — httpGetJson is injected — so there is none
     // to abort, and destroy() must not trip over that
-    assert.equal(provider._httpSession, null);
+    assert.equal(provider._session.created, null);
     assert.deepEqual(values, []);
     assert.equal(pending.length, 1);
 

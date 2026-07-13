@@ -21,13 +21,6 @@ const _lcLang = Utils.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
 var HTTP_TIMEOUT_SECONDS = Utils.HTTP_TIMEOUT_SECONDS;
 
-function _newHttpSession() {
-    return Utils.createHttpSession({
-        timeout: HTTP_TIMEOUT_SECONDS,
-        idleTimeout: HTTP_TIMEOUT_SECONDS
-    });
-}
-
 function logHolidayDataError(provider, year, reason) {
     if (global.logError) {
         global.logError(`holiday provider ${provider || "unknown"} returned invalid data for ${year || "unknown year"}: ${reason}`);
@@ -64,35 +57,6 @@ var createHolidayServiceChain = HolidayServiceAdapters.createHolidayServiceChain
 var HolidayRecordContract = HolidayServiceAdapters.HolidayRecordContract;
 var MAX_HOLIDAYS_PER_YEAR = HolidayServiceAdapters.MAX_HOLIDAYS_PER_YEAR;
 var MAX_EXPANDED_HOLIDAY_ROWS = HolidayServiceAdapters.MAX_EXPANDED_HOLIDAY_ROWS;
-
-// One HTTP session per provider, built on first fetch: holidays may never be
-// shown, and a session at construction costs applet startup. The session is per
-// provider *instance*, not per module — a second applet on the panel must not
-// have its requests aborted when the first one is removed.
-//
-// HolidayService used to own this lifecycle itself, along with eight other things.
-var HolidaySession = class HolidaySession {
-    constructor(create = _newHttpSession) {
-        this._create = create;
-        this._session = null;
-    }
-
-    get() {
-        if (!this._session) {
-            this._session = this._create();
-        }
-
-        return this._session;
-    }
-
-    // pending requests keep their response buffers and callbacks alive for up to
-    // the timeout after the applet is gone
-    abort() {
-        if (this._session && this._session.abort) {
-            this._session.abort();
-        }
-    }
-};
 
 // the adapters are loader-agnostic; this is the single place that hands
 // them an HTTP session, keeping the provider order intact
@@ -218,7 +182,7 @@ var HolidayInflight = class HolidayInflight {
 
 var HolidayService = class HolidayService {
     constructor (service, cache, params = {}) {
-        this._session = params.httpSession || new HolidaySession();
+        this._session = params.httpSession || new Utils.LazyHttpSession();
         this.service = service || httpBackedService(() => this._getHttpSession());
         // What a payload has to look like, and what a holiday expands to, is one
         // rule for all three providers — so it is held here, not asked of the
@@ -543,7 +507,7 @@ HolidayService.fn = "/holidays.json";
 function createHolidayProvider(params = {}) {
     const lang = params.lang || _lcLang();
     const record = params.record || new HolidayRecordContract(lang);
-    const session = params.httpSession || new HolidaySession();
+    const session = params.httpSession || new Utils.LazyHttpSession();
 
     const service = params.service ||
         httpBackedService(() => session.get(), { lang, record, load: params.load });
@@ -587,5 +551,5 @@ var HolidayProviderFacade = class HolidayProviderFacade {
 
 if (typeof module !== "undefined") {
     module.exports = {
-        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, HolidaySession, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
+        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
 }
