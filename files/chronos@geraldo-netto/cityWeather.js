@@ -5,9 +5,18 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 const Utils = typeof require === "function" ?
     require("./utils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+// the parts, not the barrel: requiring ./weather pulled in WeatherProvider — the
+// panel provider this module is the twin of — and its Soup session, for a handful
+// of constants, two resolvers and the refresh clock
 const Weather = typeof require === "function" ?
-    require("./weather") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weather;
+    require("./weatherFormat") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
+const WeatherProviders = typeof require === "function" ?
+    require("./weatherProviders") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherProviders;
+const WeatherScheduler = typeof require === "function" ?
+    require("./weatherScheduler") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
 const WorldclockData = typeof require === "function" ?
     require("./worldclockData") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
@@ -65,7 +74,7 @@ var CityWeatherProvider = class CityWeatherProvider {
         // here — and the copy had drifted, losing the jitter and the attempt
         // cap. It differs from the panel's only in what counts as "something to
         // refresh", which is now a parameter.
-        this._scheduler = params.scheduler || new Weather.WeatherRefreshScheduler(
+        this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(
             Object.assign({
                 refreshSeconds: this._refresh_seconds,
                 retrySeconds: CITY_RETRY_SECONDS,
@@ -82,10 +91,10 @@ var CityWeatherProvider = class CityWeatherProvider {
             Utils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
         });
 
-        this._location_resolver = params.locationResolver || new Weather.WeatherLocationResolver({
+        this._location_resolver = params.locationResolver || new WeatherProviders.WeatherLocationResolver({
             httpGetJson: this._httpGetJson
         });
-        this._forecast_resolver = params.forecastResolver || new Weather.WeatherForecastResolver({
+        this._forecast_resolver = params.forecastResolver || new WeatherProviders.WeatherForecastResolver({
             httpGetJson: this._httpGetJson
         });
     }

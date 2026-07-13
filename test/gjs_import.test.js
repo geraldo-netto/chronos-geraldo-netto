@@ -260,12 +260,10 @@ const EXPORTS = {
     weatherScheduler: ["WeatherRefreshScheduler"],
     weatherProviders: ["GEOCODE_PROVIDERS", "FORECAST_PROVIDERS",
         "WeatherLocationResolver", "WeatherForecastResolver"],
-    weather: ["WeatherProvider", "WEATHER_ERROR_MARKER", "WEATHER_ERRORS", "MAX_RETRY_ATTEMPTS",
-        "WEATHER_USER_AGENT", "WEATHER_PROVIDER_NAMES", "geocodeUrl",
-        "nominatimGeocodeUrl", "forecastUrl", "metNoForecastUrl",
-        "locationCacheKey", "normalizeUnits", "weatherIcon",
-        "metNoIcon", "openMeteoGeocodePlace",
-        "nominatimGeocodePlace", "WEATHER_DEBOUNCE_MS"],
+    // WeatherProvider is the only name production reads off the barrel through the
+    // GJS importer — cityWeather and the panel presenter require the part that
+    // declares the symbol they want, and each part's own row above pins those.
+    weather: ["WeatherProvider"],
     holidays: ["Provider", "HolidayCacheRepository", "HolidayCache", "EnricoServiceAdapter",
         "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
         "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
@@ -308,29 +306,43 @@ for (const [moduleName, symbols] of Object.entries(EXPORTS)) {
 // how a live NaN got into the city-weather backoff. A fourth list would drift
 // too, so this derives the answer from the source instead: whatever weather.js
 // pulls off WeatherFormat, it must hand on to both hosts.
-test("weather.js hands on every name it takes from weatherFormat", () => {
-    const source = fs.readFileSync(path.join(APPLET_DIR, "weather.js"), "utf8");
-    const reexported = Array.from(source.matchAll(/^var (\w+) = WeatherFormat\.\w+;$/gm))
-        .map(([, name]) => name);
-    assert.ok(reexported.length > 20, "the re-export block was not found");
-
-    // the Node side reads the same collaborators through globalThis.imports
+// The barrel used to re-export its three parts by hand — one `var X = Part.X;`
+// line per symbol, then the same name again in module.exports — so adding a
+// constant to a part was three edits in two files. It composes module.exports
+// from the parts now, which GJS could not see: a GJS consumer reading a part's
+// symbol off the barrel would get undefined. That is safe only as long as none
+// does, so this asserts both halves — Node sees every part symbol through the
+// barrel, and the only name GJS takes from it is the one the barrel declares.
+test("the barrel carries its parts to Node, and nothing reads a part off it in GJS", () => {
+    // the root modules read their collaborators through globalThis.imports at
+    // load time, so the mock has to be in place while they are required
     const originalImports = global.imports;
     global.imports = gjsImportsMock();
     for (const file of ["weather.js", "weatherScheduler.js", "weatherProviders.js", "weatherFormat.js",
         "utils.js", "localeUtils.js", "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
         delete require.cache[require.resolve(path.join(APPLET_DIR, file))];
     }
-    const node = require(path.join(APPLET_DIR, "weather.js"));
+    const parts = ["weatherFormat", "weatherScheduler", "weatherProviders"]
+        .map((part) => require(path.join(APPLET_DIR, part + ".js")));
+    const barrel = require(path.join(APPLET_DIR, "weather.js"));
     global.imports = originalImports;
 
-    const gjs = nativeImport("weather");
+    for (const part of parts) {
+        for (const name of Object.keys(part)) {
+            assert.notEqual(barrel[name], undefined,
+                `weather.js must carry ${name} on to its Node consumers`);
+        }
+    }
 
-    for (const name of reexported) {
-        assert.notEqual(gjs[name], undefined,
-            `weather.js re-exports ${name}, so it must be a top-level var for GJS`);
-        assert.notEqual(node[name], undefined,
-            `weather.js re-exports ${name}, so module.exports must carry it for Node`);
+    // every module that requires the barrel, and every name it reads off it
+    for (const file of ["cityWeather.js", "5.4/appletLifecycle.js", "5.4/appletPanelStatus.js"]) {
+        const source = fs.readFileSync(path.join(APPLET_DIR, file), "utf8");
+        if (!/require\("\.\/weather"\)/.test(source)) {
+            continue;
+        }
+        const read = Array.from(source.matchAll(/\bWeather\.(\w+)/g)).map(([, name]) => name);
+        assert.deepEqual([...new Set(read)], ["WeatherProvider"],
+            `${file} reads a part's symbol off the barrel, which GJS cannot see`);
     }
 });
 

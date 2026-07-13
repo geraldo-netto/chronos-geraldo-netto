@@ -16,52 +16,12 @@ const WeatherFormat = typeof require === "function" ?
 const WeatherScheduler = typeof require === "function" ?
     require("./weatherScheduler") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
-var WeatherRefreshScheduler = WeatherScheduler.WeatherRefreshScheduler;
 // The geocode/forecast chains and their resolvers live in their own module now;
 // weather.js is the barrel that requires them and hands them on unchanged.
 const WeatherProviders = typeof require === "function" ?
     require("./weatherProviders") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherProviders;
-var GEOCODE_PROVIDERS = WeatherProviders.GEOCODE_PROVIDERS;
-var FORECAST_PROVIDERS = WeatherProviders.FORECAST_PROVIDERS;
-var WeatherLocationResolver = WeatherProviders.WeatherLocationResolver;
-var WeatherForecastResolver = WeatherProviders.WeatherForecastResolver;
 
-// re-exported so the applet, the tests and the 5.4 shim keep one import for the
-// whole weather feature; GJS only exports var bindings
-var REFRESH_SECONDS = WeatherFormat.REFRESH_SECONDS;
-var RETRY_SECONDS = WeatherFormat.RETRY_SECONDS;
-var STALE_PERIODS = WeatherFormat.STALE_PERIODS;
-var staleAfterSeconds = WeatherFormat.staleAfterSeconds;
-var readingIsStale = WeatherFormat.readingIsStale;
-var MAX_RETRY_ATTEMPTS = WeatherFormat.MAX_RETRY_ATTEMPTS;
-var MAX_GEOCODE_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES;
-var HTTP_TIMEOUT_SECONDS = WeatherFormat.HTTP_TIMEOUT_SECONDS;
-var WEATHER_DEBOUNCE_MS = WeatherFormat.WEATHER_DEBOUNCE_MS;
-var WEATHER_ERROR_MARKER = WeatherFormat.WEATHER_ERROR_MARKER;
-var WEATHER_PENDING_TEXT = WeatherFormat.WEATHER_PENDING_TEXT;
-var WEATHER_ERRORS = WeatherFormat.WEATHER_ERRORS;
-var WEATHER_USER_AGENT = WeatherFormat.WEATHER_USER_AGENT;
-var WEATHER_PROVIDER_NAMES = WeatherFormat.WEATHER_PROVIDER_NAMES;
-var WEATHER_CONDITIONS = WeatherFormat.WEATHER_CONDITIONS;
-var normalizeUnits = WeatherFormat.normalizeUnits;
-var formatTemperature = WeatherFormat.formatTemperature;
-var weatherIcon = WeatherFormat.weatherIcon;
-var geocodeUrl = WeatherFormat.geocodeUrl;
-var nominatimGeocodeUrl = WeatherFormat.nominatimGeocodeUrl;
-var locationCacheKey = WeatherFormat.locationCacheKey;
-var forecastUrl = WeatherFormat.forecastUrl;
-var metNoForecastUrl = WeatherFormat.metNoForecastUrl;
-var aviationWeatherUrl = WeatherFormat.aviationWeatherUrl;
-var aviationWeatherIcon = WeatherFormat.aviationWeatherIcon;
-var metarNumber = WeatherFormat.metarNumber;
-var aviationWeatherStation = WeatherFormat.aviationWeatherStation;
-var aviationWeatherReading = WeatherFormat.aviationWeatherReading;
-var weatherReading = WeatherFormat.weatherReading;
-var metNoIcon = WeatherFormat.metNoIcon;
-var metNoWeatherReading = WeatherFormat.metNoWeatherReading;
-var openMeteoGeocodePlace = WeatherFormat.openMeteoGeocodePlace;
-var nominatimGeocodePlace = WeatherFormat.nominatimGeocodePlace;
 
 class WeatherDisplayState {
     constructor(params = {}) {
@@ -78,7 +38,7 @@ class WeatherDisplayState {
         // are weatherFormat's — the city rows of the same feature use the same
         // ones.
         this._stale_after_seconds = params.staleAfterSeconds ||
-            staleAfterSeconds(params.refreshSeconds);
+            WeatherFormat.staleAfterSeconds(params.refreshSeconds);
     }
 
     hasReading() {
@@ -113,7 +73,7 @@ class WeatherDisplayState {
             return false;
         }
 
-        return readingIsStale(this._last_good_at, now, this._stale_after_seconds);
+        return WeatherFormat.readingIsStale(this._last_good_at, now, this._stale_after_seconds);
     }
 
     // The forecast resolver reports the unit-free reading record, and nothing
@@ -142,12 +102,12 @@ var WeatherProvider = class WeatherProvider {
         this._destroyed = false;
         this._display_state = params.displayState || new WeatherDisplayState(params);
         this._httpGetJson = params.httpGetJson || this._httpGetJson.bind(this);
-        this._scheduler = params.scheduler || new WeatherRefreshScheduler(params);
-        this._location_resolver = params.locationResolver || new WeatherLocationResolver({
+        this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(params);
+        this._location_resolver = params.locationResolver || new WeatherProviders.WeatherLocationResolver({
             cache: params.geocodeCache,
             httpGetJson: this._httpGetJson
         });
-        this._forecast_resolver = params.forecastResolver || new WeatherForecastResolver({
+        this._forecast_resolver = params.forecastResolver || new WeatherProviders.WeatherForecastResolver({
             httpGetJson: this._httpGetJson
         });
 
@@ -166,8 +126,8 @@ var WeatherProvider = class WeatherProvider {
     _getHttpSession() {
         if (!this._httpSession) {
             this._httpSession = Utils.createHttpSession({
-                timeout: HTTP_TIMEOUT_SECONDS,
-                idleTimeout: HTTP_TIMEOUT_SECONDS
+                timeout: WeatherFormat.HTTP_TIMEOUT_SECONDS,
+                idleTimeout: WeatherFormat.HTTP_TIMEOUT_SECONDS
             });
         }
 
@@ -240,7 +200,7 @@ var WeatherProvider = class WeatherProvider {
         if (!location) {
             // weather is on but unconfigured: surface a hint instead of
             // silently showing nothing
-            callback(null, WEATHER_ERRORS.NO_LOCATION, "");
+            callback(null, WeatherFormat.WEATHER_ERRORS.NO_LOCATION, "");
             return;
         }
 
@@ -277,7 +237,7 @@ var WeatherProvider = class WeatherProvider {
     // and only a change of place invalidates it.
     _staleKey(settings) {
         const location = settings.location ? settings.location.trim() : "";
-        return locationCacheKey(location);
+        return WeatherFormat.locationCacheKey(location);
     }
 
     _refreshForecast(place, generation, callback) {
@@ -292,5 +252,11 @@ var WeatherProvider = class WeatherProvider {
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { WeatherProvider, FORECAST_PROVIDERS, GEOCODE_PROVIDERS, WeatherDisplayState, WeatherRefreshScheduler, WeatherLocationResolver, WeatherForecastResolver, STALE_PERIODS, staleAfterSeconds, readingIsStale, HTTP_TIMEOUT_SECONDS, MAX_GEOCODE_CACHE_ENTRIES, MAX_RETRY_ATTEMPTS, WEATHER_DEBOUNCE_MS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, WEATHER_CONDITIONS, REFRESH_SECONDS, RETRY_SECONDS, geocodeUrl, nominatimGeocodeUrl, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, aviationWeatherStation, aviationWeatherReading, metarNumber, locationCacheKey, normalizeUnits, formatTemperature, weatherIcon, weatherReading, metNoIcon, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
+    // Programmatic, because the alternative was one `var X = Part.X;` line per
+    // symbol and the same name again here: adding a constant to any of the three
+    // parts was three edits in two files. Nothing in the applet reads a part's
+    // symbol off this barrel any more — the consumers require the part — so the
+    // var bindings GJS needs live in the module that declares each name.
+    module.exports = Object.assign({}, WeatherFormat, WeatherScheduler, WeatherProviders,
+        { WeatherProvider, WeatherDisplayState });
 }

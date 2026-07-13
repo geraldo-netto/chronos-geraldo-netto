@@ -515,17 +515,25 @@ test("MET.no forecast parser fuzzes truncated payloads without throwing", () => 
     }
 });
 
-// Regression: the module used to export these as `class` / `const`. GJS's
-// importer only exposes top-level var and function declarations, so the panel
-// module read them as undefined and the applet died with
-// "Weather.WeatherForecastResolver is not a constructor".
-test("regression: the exported resolvers and refresh period are var bindings", () => {
-    const source = fs.readFileSync(modulePath, "utf8");
+// Regression: these were exported as `class` / `const`. GJS's importer only
+// exposes top-level var and function declarations, so the module that read them
+// got undefined and the applet died with "WeatherForecastResolver is not a
+// constructor". They are asserted in the module that declares each one — which is
+// the module GJS consumers import, now that the barrel no longer aliases them.
+test("regression: the resolvers and the refresh period are var bindings", () => {
+    const declared = {
+        weatherProviders: ["WeatherLocationResolver", "WeatherForecastResolver"],
+        weatherFormat: ["REFRESH_SECONDS"]
+    };
 
-    for (const name of ["WeatherLocationResolver", "WeatherForecastResolver", "REFRESH_SECONDS"]) {
-        assert.match(source, new RegExp("^var " + name + "\\b", "m"),
-            name + " must be declared with var to survive the GJS importer");
-        assert.doesNotMatch(source, new RegExp("^(?:const|let|class)\\s+" + name + "\\b", "m"));
+    for (const [moduleName, names] of Object.entries(declared)) {
+        const source = fs.readFileSync(path.join(
+            __dirname, "..", "files", "chronos@geraldo-netto", moduleName + ".js"), "utf8");
+        for (const name of names) {
+            assert.match(source, new RegExp("^var " + name + "\\b", "m"),
+                name + " must be declared with var to survive the GJS importer");
+            assert.doesNotMatch(source, new RegExp("^(?:const|let|class)\\s+" + name + "\\b", "m"));
+        }
     }
 });
 
