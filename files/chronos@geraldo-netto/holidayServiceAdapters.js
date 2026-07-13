@@ -1,6 +1,18 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
+// The holiday provider port, and the three adapters that implement it.
+//
+//     fetchYear(country, region, year, callback)
+//         callback(data, params, retrieved) — data is the provider's raw payload,
+//         params carries at least providerName and year, retrieved is the Date
+//         response header or null.
+//
+// That is the whole port. What a payload has to look like, how a holiday is
+// localized and what it expands to is the record contract (HolidayRecordContract),
+// which the *domain* owns — an adapter neither implements it nor is asked for it.
+// The chain consults the contract for one decision only: whether a provider's
+// answer counts, or whether the next provider should be tried.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const Utils = typeof require === "function" ?
     require("./utils") :
@@ -462,6 +474,13 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
 // The one place that fixes the default provider order: Enrico primary,
 // then OpenHolidays, then Nager.Date. A caller that wants a live HTTP
 // loader injects the adapters; the defaults here stay loader-less.
+//
+// The chain uses the record contract for one thing — deciding whether a
+// provider's answer counts, so a bad one falls through to the next provider. It
+// used to also forward validResponse/expandHoliday to it on the domain's behalf,
+// which put the contract's whole surface on the port: a fourth provider's author
+// could not tell which of the six methods an adapter owed. The domain holds the
+// contract itself now, so the port is fetchYear and nothing else.
 var HolidayServiceFallbackAdapter = class HolidayServiceFallbackAdapter extends HolidayAdapters.HolidayServiceFallbackAdapter {
     constructor(primary = new EnricoServiceAdapter(),
         fallbacks = [new OpenHolidaysServiceAdapter(), new NagerDateServiceAdapter()],
@@ -469,15 +488,6 @@ var HolidayServiceFallbackAdapter = class HolidayServiceFallbackAdapter extends 
         super(primary, fallbacks, (data) => record.validResponse(data));
         this.record = record;
     }
-
-    validResponse(data) {
-        return this.record.validResponse(data);
-    }
-
-    expandHoliday(holiday, region) {
-        return this.record.expandHoliday(holiday, region);
-    }
-
 };
 
 if (typeof module !== "undefined") {

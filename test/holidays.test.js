@@ -290,7 +290,7 @@ test("an inflight fetch landing after clearPlace does not persist", () => {
         validResponse: () => true,
         expandHoliday: (holiday) => [holiday]
     };
-    const enrico = new HolidayService(service);
+    const enrico = new HolidayService(service, undefined, { record: service });
     const saves = [];
     enrico.cache._save = (country, data) => saves.push([country, data]);
 
@@ -341,7 +341,7 @@ test("HolidayService expands provider rows before recording cache fetches", () =
             this.country = null;
         }
     };
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
 
     assert.deepEqual(enrico.expandData([{ name: "Fetched" }]), [
         { year: 2026, month: 1, day: 1, region: "global", name: "Fetched", flags: [] }
@@ -461,7 +461,7 @@ test("HolidayService.destroy aborts its own session and silences late callbacks"
         setPlace() {}, stale: () => true, matchMonth: () => new Map(),
         setData() {}
     };
-    const enrico = new Holidays.HolidayService(service, cache);
+    const enrico = new Holidays.HolidayService(service, cache, { record: service });
     enrico.cache.country = "ita";
 
     let called = 0;
@@ -791,10 +791,8 @@ test("a cache directory that cannot be created degrades instead of throwing", ()
         fetchYear(_country, region, year, callback) {
             callback([{ year, month: 1, day: 1, region, name: "New Year", flags: [] }],
                 { year, region, providerName: "Enrico" }, new Date().toUTCString());
-        },
-        validResponse: () => true,
-        expandHoliday: (single) => [single]
-    }, cache);
+        }
+    }, cache, { record: anyRecord({ expandHoliday: (single) => [single] }) });
 
     assert.doesNotThrow(() => enrico.setPlace("usa", "global"));
     assert.deepEqual(enrico.matchMonth(new Date().getFullYear(), 1).get("1/1"), ["New Year", []]);
@@ -1119,7 +1117,7 @@ test("HolidayService surfaces provider errors to getHolidays callbacks", () => {
             callback({ error: "Enrico unavailable" }, { year, region: "global", providerName: "Test Provider" }, null);
         }
     };
-    const enrico = new HolidayService(service);
+    const enrico = new HolidayService(service, undefined, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
     let result = null;
@@ -1151,7 +1149,7 @@ test("a failure under one country is not reported under the next", () => {
         }
     };
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
 
     // France fails
     enrico.setPlace("fra", "global");
@@ -1306,7 +1304,7 @@ test("a fetch that lands after the country changed does not write to the new cou
         expandHoliday: (single) => [single]
     };
 
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
     const year = new Date().getFullYear();
 
     enrico.setPlace("fra", "global");          // France asks...
@@ -1334,7 +1332,7 @@ test("the per-year status record does not outlive the years the grid can reach",
         validResponse: () => true,
         expandHoliday: () => []
     };
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
     enrico.setPlace("usa", "global");
 
     const current = new Date().getFullYear();
@@ -1661,7 +1659,7 @@ test("holiday status is reported per year, not shared across months", () => {
             name: single.name[0].text, flags: single.flags
         }]
     };
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -1696,7 +1694,7 @@ test("a throw while storing a fetch never wedges the year", () => {
             throw new Error("bad payload");
         }
     };
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
     global.logError = () => {};
@@ -1728,7 +1726,7 @@ test("a fresh year answers from the cache without a fetch", () => {
             name: single.name[0].text, flags: single.flags
         }]
     };
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -1759,7 +1757,7 @@ test("setPlace repaints when the fetch for the new place lands", () => {
         },
         validResponse: () => false
     };
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
     let repaints = 0;
 
     enrico.setPlace("usa", "global", () => repaints++);
@@ -1788,7 +1786,7 @@ test("a second month of the same grid joins the in-flight year fetch", () => {
             name: single.name[0].text, flags: single.flags
         })]
     };
-    const enrico = new HolidayService(service, cache);
+    const enrico = new HolidayService(service, cache, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
 
@@ -2497,11 +2495,15 @@ test("HolidayServiceFallbackAdapter tries OpenHolidays before Nager", () => {
 // The chain validates every provider's answer against the record contract — the
 // shape the app owns. These tests are about ordering and failure reporting, so
 // they hand it a record that accepts anything.
-function anyRecord() {
-    return {
+// The record contract is the domain's, not the port's: an adapter owes fetchYear
+// and nothing else, and both the chain (to decide whether a provider's answer
+// counts) and HolidayService (to validate and expand what it stores) are handed
+// the contract. This is the stand-in for it.
+function anyRecord(overrides = {}) {
+    return Object.assign({
         validResponse: (data) => Array.isArray(data),
         expandHoliday: (holiday, region) => [{ holiday, region }]
-    };
+    }, overrides);
 }
 
 test("HolidayServiceFallbackAdapter tries the last successful provider first", () => {
@@ -2780,12 +2782,55 @@ test("HolidayProviderFacade exposes only place and holiday retrieval", () => {
 // the two ISO adapters had to reshape their answers into HolidayService's wire format to
 // get past a check that belonged to HolidayService. A provider that did not was rejected
 // as INVALID_RESPONSE with nothing to say the validator was the wrong one.
+// What a provider author has to implement had three different answers: the
+// primary carried fetchYear plus five forwards to a contract it privately owned,
+// the two ISO adapters carried none of them, and the chain forwarded two more on
+// the domain's behalf. This is the port, and it is one method wide.
+test("an adapter is a fetchYear and nothing else", () => {
+    const {
+        EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter
+    } = loadHolidays();
+
+    const adapters = [
+        new EnricoServiceAdapter(), new NagerDateServiceAdapter(), new OpenHolidaysServiceAdapter()
+    ];
+
+    for (const adapter of adapters) {
+        assert.equal(typeof adapter.fetchYear, "function", `${adapter.name} cannot fetch a year`);
+        for (const owed of ["validResponse", "expandHoliday", "localizeName", "validHoliday"]) {
+            assert.equal(typeof adapter[owed], "undefined",
+                `${adapter.name} still carries ${owed}, which belongs to the record contract`);
+        }
+    }
+});
+
+// and the port is enough on its own: a fourth provider that implements fetchYear
+// and knows nothing about the record contract reaches the grid.
+test("a fourth provider that only fetches years works in the shipped graph", () => {
+    const { createHolidayProvider, HolidayCache } = loadHolidays();
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: []}), () => {});
+    const newcomer = {
+        name: "Newcomer",
+        fetchYear(_country, _region, year, callback) {
+            callback([holiday("Founding Day", year, 7, 14)],
+                { year, region: "global", providerName: "Newcomer" }, STAMP);
+        }
+    };
+
+    const provider = createHolidayProvider({ service: newcomer, cache });
+    provider.setPlace("fra", "global");
+
+    let matched = null;
+    provider.getHolidays(2026, 7, (holidays) => { matched = holidays; });
+
+    assert.deepEqual(matched.get("7/14"), ["Founding Day", ["public_holiday"]]);
+});
+
 test("the chain validates against the record contract, not against the primary", () => {
-    const { HolidayServiceFallbackAdapter, HolidayRecordContract } = loadHolidays();
-    // a primary with no validator of its own at all — which is what Nager.Date
-    // and OpenHolidays are
-    const primary = { name: "primary", fetchYear() {} };
-    const adapter = new HolidayServiceFallbackAdapter(primary, [], new HolidayRecordContract("en"));
+    const { HolidayRecordContract } = loadHolidays();
+    // the contract is a thing of its own: no adapter, primary or otherwise, is
+    // asked what a valid answer looks like
+    const contract = new HolidayRecordContract("en");
 
     const record = {
         date: { year: 2026, month: 7, day: 14 },
@@ -2793,22 +2838,44 @@ test("the chain validates against the record contract, not against the primary",
         flags: []
     };
 
-    assert.equal(adapter.validResponse([record]), true);
-    assert.equal(adapter.validResponse([{ nope: true }]), false,
+    assert.equal(contract.validResponse([record]), true);
+    assert.equal(contract.validResponse([{ nope: true }]), false,
         "a payload that is not a holiday record is refused whoever sent it");
-    assert.deepEqual(adapter.expandHoliday(record, "global"), [
+    assert.deepEqual(contract.expandHoliday(record, "global"), [
         { year: 2026, month: 7, day: 14, name: "Bastille Day", flags: [], region: "global" }
     ]);
 });
 
-// and the contract can be handed in: a chain is free to speak a shape of its own
-test("a chain can be given the record shape it speaks", () => {
+// The chain's one use of the contract: a provider whose answer the contract
+// refuses has not answered, so the next provider is tried. That decision is the
+// only thing the chain needs the contract for — it forwards none of it onward.
+test("a provider whose payload the contract refuses falls through to the next", () => {
     const { HolidayServiceFallbackAdapter } = loadHolidays();
-    const adapter = new HolidayServiceFallbackAdapter(
-        { name: "primary", fetchYear() {} }, [], anyRecord());
+    const primary = {
+        name: "primary",
+        fetchYear(_country, _region, _year, callback) {
+            callback({ not: "a list" }, { providerName: "primary" }, STAMP);
+        }
+    };
+    const fallback = {
+        name: "fallback",
+        fetchYear(_country, _region, year, callback) {
+            callback([{ year }], { providerName: "fallback" }, STAMP);
+        }
+    };
+    const adapter = new HolidayServiceFallbackAdapter(primary, [fallback], anyRecord());
 
-    assert.equal(adapter.validResponse([]), true);
-    assert.deepEqual(adapter.expandHoliday("h", "global"), [{ holiday: "h", region: "global" }]);
+    const answers = [];
+    adapter.fetchYear("fra", "global", 2026, (data, params) => answers.push([data, params]));
+
+    assert.equal(answers.length, 1);
+    assert.deepEqual(answers[0][0], [{ year: 2026 }]);
+    assert.equal(answers[0][1].providerName, "fallback",
+        "the primary's non-record answer is not an answer");
+
+    // and the chain exposes no contract of its own: an adapter owes fetchYear
+    assert.equal(typeof adapter.validResponse, "undefined");
+    assert.equal(typeof adapter.expandHoliday, "undefined");
 });
 
 test("HolidayServiceFallbackAdapter reports provider success and failure", () => {
@@ -2873,11 +2940,12 @@ test("the chain works with no HolidayService in it at all", () => {
     const answers = [];
     chain.fetchYear("fra", "global", 2026, (data, params) => answers.push([data, params]));
 
+    const contract = new HolidayRecordContract("en");
     const [data, params] = answers[0];
     assert.equal(params.providerName, "OpenHolidays");
-    assert.equal(chain.validResponse(data), true,
+    assert.equal(contract.validResponse(data), true,
         "the ISO provider's answer is a record, and the record contract says so");
-    assert.deepEqual(chain.expandHoliday(data[0], "global"), [{
+    assert.deepEqual(contract.expandHoliday(data[0], "global"), [{
         year: 2026, month: 7, day: 14, name: "Bastille Day",
         flags: ["public_holiday"], region: "global"
     }]);
@@ -3113,14 +3181,15 @@ test("the rows a payload expands to are bounded too", () => {
     const logged = [];
     global.logError = (message) => logged.push(String(message));
 
-    const enrico = new HolidayService({
-        fetchYear() {},
-        // a hundred holidays, each spanning a year: a valid payload, and 36,600
-        // rows on the compositor thread
-        expandHoliday: () => Array.from({ length: 366 }, (_u, day) => ({
-            year: 2026, month: 1, day: (day % 28) + 1, name: "H", flags: [], region: "global"
-        }))
-    }, makeMemoryCache());
+    const enrico = new HolidayService({ fetchYear() {} }, makeMemoryCache(), {
+        record: anyRecord({
+            // a hundred holidays, each spanning a year: a valid payload, and
+            // 36,600 rows on the compositor thread
+            expandHoliday: () => Array.from({ length: 366 }, (_u, day) => ({
+                year: 2026, month: 1, day: (day % 28) + 1, name: "H", flags: [], region: "global"
+            }))
+        })
+    });
 
     const expanded = enrico.expandData(Array.from({ length: 100 }, () => ({})), "global");
 

@@ -220,6 +220,12 @@ var HolidayService = class HolidayService {
     constructor (service, cache, params = {}) {
         this._session = params.httpSession || new HolidaySession();
         this.service = service || httpBackedService(() => this._getHttpSession());
+        // What a payload has to look like, and what a holiday expands to, is one
+        // rule for all three providers — so it is held here, not asked of the
+        // chain. The chain used to forward validResponse/expandHoliday to a
+        // record it privately owned, which made "what an adapter must implement"
+        // a different answer for every adapter in the tree.
+        this.record = params.record || new HolidayRecordContract(_lcLang());
         // destroy() aborts the session; without this the abort reads as a
         // provider failure and the chain issues its next request on it
         if (this.service.setLivenessCheck) {
@@ -312,7 +318,7 @@ var HolidayService = class HolidayService {
     expandData(data, region = this.region) {
         const expanded = [];
         for (const holiday of data) {
-            for (const single of this.service.expandHoliday(holiday, region)) {
+            for (const single of this.record.expandHoliday(holiday, region)) {
                 if (expanded.length >= MAX_EXPANDED_HOLIDAY_ROWS) {
                     if (global.logError) {
                         global.logError("holiday payload expands past " +
@@ -353,7 +359,7 @@ var HolidayService = class HolidayService {
             return;
         }
 
-        if (!this.service.validResponse(data)) {
+        if (!this.record.validResponse(data)) {
             this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
             logHolidayDataError(this.last_provider, params && params.year, this.last_error);
             return;
@@ -544,6 +550,7 @@ function createHolidayProvider(params = {}) {
 
     const provider = params.provider || new HolidayService(service, params.cache, {
         httpSession: session,
+        record,
         cacheRepository: params.cacheRepository,
         status: params.status,
         inflight: params.inflight
