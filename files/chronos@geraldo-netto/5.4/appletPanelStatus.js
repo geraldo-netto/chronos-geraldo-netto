@@ -565,7 +565,6 @@ class AppletPanelStatusPresenter {
             dateFormattedTooltip,
             view.showWeather ? this.panelReadingText() : "",
             view.showWeather ? view.weatherError : "",
-            this.weatherPlaceLine(),
             clockEntries.map((entry) => [
                 entry.label,
                 this.tooltipClockStamp(entry),
@@ -645,27 +644,10 @@ class AppletPanelStatusPresenter {
             }
         }
 
-        const place = this.weatherPlaceLine();
-        if (place) {
-            lines.push(place);
-        }
-
         // The provider used to be credited here, under a blank line. It is still
         // credited in the world-clock popup's accessible name and in the README —
         // the tooltip is a table of times, and a footer is not part of the table.
         return lines.join("\n");
-    }
-
-    // Which city the panel temperature is actually of, country and all. A typed
-    // name is not a place — "Genova" names cities in Italy, Guatemala, Colombia
-    // and Mexico — and the geocoder's pick used to be invisible, so a wrong one
-    // read as a wrong temperature. It is named here, so the user can see it.
-    weatherPlaceLine() {
-        const view = this.view;
-        const record = view.showWeather ? view.weatherReading : null;
-        const place = record && record.place ? record.place : "";
-
-        return place ? _("Weather: %s").replace("%s", place) : "";
     }
 
     // what the panel's weather is doing, in words, for a tooltip with no clock

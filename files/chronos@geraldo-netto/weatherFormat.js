@@ -479,22 +479,6 @@ function openMeteoGeocodePlace(data, query) {
     }, null);
 }
 
-// The place a reading is *of*, in words, so that the user can see which Genova
-// they got. Open-Meteo names the region and the country in their own fields;
-// Nominatim's display_name already carries both. The region is in here because
-// the country alone does not always settle it: Italy has the city of Genova in
-// Liguria and a thirty-person Genova in Veneto, and "Genova, Italy" is the name
-// of both.
-function placeLabel(place) {
-    if (!place || !place.name) {
-        return "";
-    }
-
-    return [place.name, place.admin1, place.country]
-        .filter((part) => typeof part === "string" && part.trim())
-        .join(", ");
-}
-
 function nominatimGeocodePlace(data) {
     if (!Array.isArray(data) || !data.length) {
         return null;
@@ -520,5 +504,5 @@ function nominatimGeocodePlace(data) {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, GEOCODE_CANDIDATE_COUNT, GEOCODE_LANGUAGE_FALLBACK, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, geocodeLanguage, placeLabel, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon, metNoSummary, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
+    module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS, staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS, MAX_GEOCODE_CACHE_ENTRIES, GEOCODE_CANDIDATE_COUNT, GEOCODE_LANGUAGE_FALLBACK, HTTP_TIMEOUT_SECONDS, WEATHER_DEBOUNCE_MS, WEATHER_UNITS, WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS, WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES, WEATHER_CONDITIONS, normalizeUnits, weatherIcon, formatTemperature, formatReading, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, locationCacheKey, forecastUrl, metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber, aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon, metNoSummary, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
 }

@@ -292,23 +292,6 @@ test("the geocode hit is the one the user typed, not the one the API ranked firs
     );
 });
 
-test("the resolved place is named, country and all", () => {
-    const Weather = loadWeather();
-
-    assert.equal(Weather.placeLabel({ name: "Genova", country: "Italy" }), "Genova, Italy");
-    // the country alone does not settle it: Italy has two Genovas, and only the
-    // region says which one this is
-    assert.equal(
-        Weather.placeLabel({ name: "Genova", admin1: "Liguria", country: "Italy" }),
-        "Genova, Liguria, Italy"
-    );
-    assert.equal(Weather.placeLabel({ name: "Genova", admin1: "  ", country: "Italy" }), "Genova, Italy");
-    // Nominatim names the country inside display_name and has no country field
-    assert.equal(Weather.placeLabel({ name: "Genova, Liguria, Italia" }), "Genova, Liguria, Italia");
-    assert.equal(Weather.placeLabel({ latitude: 44.4, longitude: 8.9 }), "");
-    assert.equal(Weather.placeLabel(null), "");
-});
-
 const LOCALE_VARIABLES = ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"];
 
 function withLocaleEnvironment(locale, assertions) {
