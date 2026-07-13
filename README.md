@@ -20,6 +20,8 @@ calendar fork.
   type. Without it, Python's built-in `zoneinfo` database serves the same
   suggestions when available; if neither timezone database is available, the
   dialog falls back to plain typed timezone entry.
+- `gettext`, for its `msgfmt` — only to compile the translations at install time
+  (step 2 below). Mint ships `gettext-base`, which does not carry `msgfmt`.
 
 There is no build step for the code. Cinnamon loads the JavaScript from `files/`
 as it is written — nothing is compiled, bundled, or transpiled. The one thing
@@ -28,10 +30,6 @@ only `po/*.po` sources are in the repository. Nothing compiles them for you —
 not Cinnamon, not the applet — so a copy-and-reload install is English-only until
 you run the one command in step 2 below, which is why it is a step and not a
 footnote.
-
-- `gettext`, for its `msgfmt` — only to compile the catalogs at install time
-  (step 2 of the installation). Mint ships `gettext-base`, which does not carry
-  `msgfmt`.
 
 On Linux Mint everything above is already installed except `pytz` and `gettext`:
 
@@ -49,7 +47,7 @@ with the applet:
 | Node.js | **≥ 20** | the JS suite and its coverage gate | `sudo apt install nodejs npm` |
 | Python 3 | ≥ 3.8 | the settings-widget suite | already present |
 | eslint | `^9` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
-| pyflakes | any | `npm run lint:py` (skipped when absent) | `python3 -m pip install pyflakes` |
+| pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
 | gettext | any | compiling `po/*.po` to `.mo` at install time (`msgfmt`) | `sudo apt install gettext` |
 
@@ -168,8 +166,9 @@ npm run test:py   # Python settings widgets only
 ```
 
 The linters do need the two tools listed under
-[Requirements](#to-work-on-the-applet). `pyflakes` is optional — the Python lint
-step skips itself when it is missing:
+[Requirements](#to-work-on-the-applet). Neither is optional: `lint:py` fails when
+pyflakes is missing rather than skipping itself, because a lint step that passes
+by not running is worse than no lint step at all.
 
 ```sh
 npm install                      # once: installs eslint into node_modules/
