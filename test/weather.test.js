@@ -594,90 +594,103 @@ test("a METAR station with no temperature never wins the nearest-station race", 
     assert.equal(Weather.metarNumber(0), 0);
 });
 
+// null, "" and [] belong in here: Number() coerces all three to 0, and a station
+// with "temp": null used to be read as a real 0 °C reading at Null Island, where
+// it could win the nearest-station race.
+const JUNK_TEMPS = [undefined, null, "", [], false, "warm", "12abc", NaN, {}, true];
+const JUNK_COORDS = [undefined, null, "", [], "north", NaN, Infinity, {}];
+const FUZZ_PLACE = { latitude: 48.85, longitude: 2.35 };
+
+function pickFrom(rand, list) {
+    return list[Math.floor(rand() * list.length)];
+}
+
+// One METAR station as the service might send it: usually usable, sometimes junk,
+// sometimes not an object at all.
+function fuzzStation(rand) {
+    if (rand() < 0.12) {
+        return pickFrom(rand, [null, undefined, "SBSP", 42, []]);
+    }
+
+    const station = {
+        lat: rand() < 0.75 ? FUZZ_PLACE.latitude + (rand() * 2 - 1) : pickFrom(rand, JUNK_COORDS),
+        lon: rand() < 0.75 ? FUZZ_PLACE.longitude + (rand() * 2 - 1) : pickFrom(rand, JUNK_COORDS),
+        cover: pickFrom(rand, ["CLR", "FEW", "SCT", "BKN", "OVC", "", 7, undefined]),
+        wxString: pickFrom(rand, ["RA", "TSRA", "SN", "BR", "", 3, undefined])
+    };
+
+    if (rand() < 0.7) {
+        station.temp = rand() < 0.85 ?
+            Math.round(rand() * 80 - 40) : String(Math.round(rand() * 40 - 10));
+    } else if (rand() < 0.8) {
+        station.temp = pickFrom(rand, JUNK_TEMPS);
+    }
+
+    return station;
+}
+
+// a station is usable when all three fields it is read for are readable numbers
+function stationIsUsable(candidate) {
+    return Boolean(candidate) && typeof candidate === "object" &&
+        usableNumber(candidate.temp) !== null &&
+        usableNumber(candidate.lat) !== null &&
+        usableNumber(candidate.lon) !== null;
+}
+
+// What the readout must say for a chosen station. METAR temperatures are Celsius
+// by definition, so only imperial converts.
+function expectedStationText(Weather, station, units) {
+    if (!station) {
+        return "";
+    }
+
+    const celsius = usableNumber(station.temp);
+    const value = units === "imperial" ? Math.round(celsius * 9 / 5 + 32) : Math.round(celsius);
+    return `${Weather.aviationWeatherIcon(station)} ${value}${units === "imperial" ? "°F" : "°C"}`;
+}
+
+// Properties, not a second implementation. The oracle here used to reimplement
+// aviationWeatherStation's selection loop line for line, so a shared
+// misunderstanding — both treating lat: "0" as usable when it should be rejected —
+// agreed with itself and passed.
+function assertStationRound(Weather, stations, units) {
+    let station;
+    let text;
+
+    assert.doesNotThrow(() => {
+        station = Weather.aviationWeatherStation(stations, FUZZ_PLACE);
+        text = shown(Weather.aviationWeatherReading(stations, FUZZ_PLACE), units);
+    });
+
+    // it never invents a station, and never picks one it cannot read...
+    assert.equal(station === null || stationIsUsable(station), true,
+        "the chosen station must be readable");
+    assert.equal(station === null || stations.includes(station), true,
+        "and it must be one it was given");
+
+    // ...and it finds one whenever one exists: the filter, checked without
+    // reference to how the nearest is chosen
+    assert.equal(station !== null, stations.some(stationIsUsable),
+        "a usable station exists exactly when one is returned");
+
+    // the readout says what the chosen station says, or says nothing
+    assert.equal(text, expectedStationText(Weather, station, units));
+
+    // asking twice answers the same
+    assert.equal(Weather.aviationWeatherStation(stations, FUZZ_PLACE), station);
+}
+
 test("aviation weather fuzzes malformed station payloads without throwing", () => {
     const Weather = loadWeather();
     const rand = makeRandom(0xa71a7104);
-    const place = { latitude: 48.85, longitude: 2.35 };
-    // null, "" and [] belong in here: Number() coerces all three to 0, and a
-    // station with "temp": null used to be read as a real 0°C reading at Null
-    // Island and could win the nearest-station race
-    const junkTemps = [undefined, null, "", [], false, "warm", "12abc", NaN, {}, true];
-    const junkCoords = [undefined, null, "", [], "north", NaN, Infinity, {}];
+    const place = FUZZ_PLACE;
 
-    function pick(list) {
-        return list[Math.floor(rand() * list.length)];
-    }
-
-    function makeStation() {
-        const roll = rand();
-        if (roll < 0.12) {
-            return pick([null, undefined, "SBSP", 42, []]);
-        }
-
-        const station = {
-            lat: rand() < 0.75 ? place.latitude + (rand() * 2 - 1) : pick(junkCoords),
-            lon: rand() < 0.75 ? place.longitude + (rand() * 2 - 1) : pick(junkCoords),
-            cover: pick(["CLR", "FEW", "SCT", "BKN", "OVC", "", 7, undefined]),
-            wxString: pick(["RA", "TSRA", "SN", "BR", "", 3, undefined])
-        };
-
-        if (rand() < 0.7) {
-            station.temp = rand() < 0.85 ? Math.round(rand() * 80 - 40) : String(Math.round(rand() * 40 - 10));
-        } else if (rand() < 0.8) {
-            station.temp = pick(junkTemps);
-        }
-
-        return station;
-    }
-
-    // Properties, not a second implementation. The oracle here used to
-    // reimplement aviationWeatherStation's selection loop line for line, so a
-    // shared misunderstanding — both treating lat: "0" as usable when it should
-    // be rejected — agreed with itself and passed.
     for (let i = 0; i < 400; i++) {
-        const stations = Array.from({ length: Math.floor(rand() * 6) }, makeStation);
-        const units = rand() < 0.5 ? "imperial" : pick(["si", "metric", undefined, null]);
-        let station;
-        let text;
+        const stations = Array.from({ length: Math.floor(rand() * 6) }, () => fuzzStation(rand));
+        const units = rand() < 0.5 ?
+            "imperial" : pickFrom(rand, ["si", "metric", undefined, null]);
 
-        assert.doesNotThrow(() => {
-            station = Weather.aviationWeatherStation(stations, place);
-            text = shown(Weather.aviationWeatherReading(stations, place), units);
-        });
-
-        // it never invents a station, and never picks one it cannot read
-        if (station !== null) {
-            assert.ok(stations.includes(station), "the station must be one it was given");
-            assert.notEqual(usableNumber(station.temp), null,
-                "a station with no readable temperature is no use");
-            assert.notEqual(usableNumber(station.lat), null);
-            assert.notEqual(usableNumber(station.lon), null);
-        }
-
-        // and it finds one whenever one exists — this is the filter, checked
-        // without reference to how the nearest is chosen
-        const anyUsable = stations.some((candidate) => candidate &&
-            typeof candidate === "object" &&
-            usableNumber(candidate.temp) !== null &&
-            usableNumber(candidate.lat) !== null &&
-            usableNumber(candidate.lon) !== null);
-        assert.equal(station !== null, anyUsable,
-            "a usable station exists exactly when one is returned");
-
-        // the readout says what the chosen station says, or says nothing
-        if (station === null) {
-            assert.equal(text, "", "no usable station means no readout, not a broken one");
-            continue;
-        }
-
-        // METAR temperatures are Celsius by definition: only imperial converts
-        const celsius = usableNumber(station.temp);
-        const value = units === "imperial" ? Math.round(celsius * 9 / 5 + 32) : Math.round(celsius);
-        assert.equal(text, Weather.aviationWeatherIcon(station) + " " + value +
-            (units === "imperial" ? "°F" : "°C"));
-
-        // asking twice answers the same
-        assert.equal(Weather.aviationWeatherStation(stations, place), station);
+        assertStationRound(Weather, stations, units);
     }
 
     // A station standing exactly where the user is must win, whatever else is in

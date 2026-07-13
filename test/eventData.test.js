@@ -352,31 +352,45 @@ test("a huge event summary is clamped, not laid out", () => {
     assert.equal(new EventData(makeVariant(Object.assign({ summary: null }, times)), 1).summary, "");
 });
 
+// A day's worth of events as the calendar server might deliver them. All-day
+// events always start at midnight — that is the server's shape, and the
+// today-ordering early-break depends on it.
+function fuzzDayOfEvents(rand, list, dayBase, count) {
+    for (let n = 0; n < count; n++) {
+        const allDay = rand() < 0.3;
+        const start = allDay ? dayBase * DAY_S :
+            dayBase * DAY_S + 60 + Math.floor(rand() * (DAY_S - 7300));
+        const end = allDay ? (dayBase + 1) * DAY_S : start + 60 + Math.floor(rand() * 7200);
+
+        list.add_or_update(listEvent(`e${n}`, start, end, allDay), 1);
+    }
+}
+
+function assertChronological(events) {
+    for (let i = 1; i < events.length; i++) {
+        assert.ok(events[i - 1].start.to_unix() <= events[i].start.to_unix(),
+            "chronological for non-current days");
+    }
+}
+
 test("fuzz: get_event_list is always a chronologically-consistent permutation", () => {
     const rand = makeRandom(12345);
+
     for (let round = 0; round < 100; round++) {
         // half the rounds target today (day 50 in the fake clock), half another day
         const dayBase = round % 2 === 0 ? 50 : 20;
         const list = new EventDataList(new FakeDateTime(dayBase * DAY_US));
         const count = 1 + Math.floor(rand() * 8);
-        for (let n = 0; n < count; n++) {
-            // all-day events always start at midnight (calendar-server shape);
-            // the today-ordering early-break relies on that invariant
-            const allDay = rand() < 0.3;
-            const start = allDay ? dayBase * DAY_S :
-                dayBase * DAY_S + 60 + Math.floor(rand() * (DAY_S - 7300));
-            list.add_or_update(listEvent(`e${n}`, start,
-                allDay ? (dayBase + 1) * DAY_S : start + 60 + Math.floor(rand() * 7200),
-                allDay), 1);
-        }
+        fuzzDayOfEvents(rand, list, dayBase, count);
+
         const result = list.get_event_list();
         assert.equal(result.length, count, "permutation: nothing lost");
-        assert.equal(new Set(result.map((e) => e.id)).size, count);
+        assert.equal(new Set(result.map((event) => event.id)).size, count);
+
+        // today's list leads with what is on now, so only the other days are
+        // plainly chronological
         if (dayBase !== 50) {
-            for (let i = 1; i < result.length; i++) {
-                assert.ok(result[i - 1].start.to_unix() <= result[i].start.to_unix(),
-                    "chronological for non-current days");
-            }
+            assertChronological(result);
         }
     }
 });

@@ -2087,6 +2087,72 @@ test("OpenHolidaysServiceAdapter translates dates and subdivisions", () => {
 // rows and asserted translated.length === 40 — that *nothing* was rejected — so
 // it exercised no rejection path at all. OpenHolidays is the second provider in
 // the chain and its body is untrusted, so what matters is what it refuses.
+// The OpenHolidays wire shape, as the service might send it: usually usable,
+// often not. The tables live out here so the body below is a loop and an assert.
+const OPEN_HOLIDAYS_JUNK_DATES = [
+    "2030-13-01", "2030-00-10", "2030-02-30", "not-a-date", "", null, 42,
+    "2030-1-1", "20300101", "2030-01-01T00:00:00Z", undefined, {}
+];
+const OPEN_HOLIDAYS_JUNK_NAMES = [
+    [], null, undefined, "a string", [{}], [{ language: "EN" }],
+    [{ text: "no language" }], 42
+];
+
+function pickFrom(rand, list) {
+    return list[Math.floor(rand() * list.length)];
+}
+
+function fuzzOpenHolidaysRow(rand, index) {
+    const wellFormed = rand() < 0.5;
+    const month = 1 + Math.floor(rand() * 12);
+    const day = 1 + Math.floor(rand() * 28);
+
+    return {
+        startDate: wellFormed ?
+            `2030-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` :
+            pickFrom(rand, OPEN_HOLIDAYS_JUNK_DATES),
+        type: rand() < 0.5 ? "Public" : pickFrom(rand, ["Optional", "Bank", "", null]),
+        name: wellFormed && rand() < 0.8 ?
+            [{ language: "EN", text: `Holiday ${index}` }] :
+            pickFrom(rand, OPEN_HOLIDAYS_JUNK_NAMES),
+        nationwide: rand() < 0.3,
+        subdivisions: rand() < 0.7 ?
+            [{ code: "CH-FR", shortName: "FR" }] : [{ code: "CH-TI", shortName: "TI" }]
+    };
+}
+
+// Every row the adapter kept must be one the calendar can actually place: a real
+// date in the requested year, a name to show, and flags the annotator understands.
+// This is a property of the row, not a second copy of the adapter's rules — an
+// oracle that mirrors the code under test agrees with it even when both are wrong.
+// what a translated Nager row has to be: a real date, lowercase flags (the
+// annotator matches on them), and a name in English to fall back on
+function assertPlaceableNagerHoliday(holiday) {
+    const { year, month, day } = holiday.date;
+    const probe = new Date(year, month - 1, day, 12);
+    assert.equal(probe.getFullYear(), year);
+    assert.equal(probe.getMonth(), month - 1);
+    assert.equal(probe.getDate(), day);
+
+    holiday.flags.forEach((flag) => assert.equal(flag, flag.toLowerCase()));
+    assert.ok(holiday.flags.length > 0, "empty types default to public");
+    assert.ok(holiday.name.length >= 1);
+    assert.equal(holiday.name.at(-1).lang, "en");
+}
+
+function assertPlaceableHoliday(holiday) {
+    assert.equal(holiday.date.year, 2030);
+    assert.ok(holiday.date.month >= 1 && holiday.date.month <= 12,
+        `month out of range: ${holiday.date.month}`);
+    assert.ok(holiday.date.day >= 1 && holiday.date.day <= 31,
+        `day out of range: ${holiday.date.day}`);
+    assert.ok(Array.isArray(holiday.name) && holiday.name.length > 0);
+    assert.ok(holiday.name.every((entry) => typeof entry.text === "string" && entry.text),
+        "a holiday with no name cannot be shown");
+    assert.ok(Array.isArray(holiday.flags) && holiday.flags.length > 0);
+    assert.ok(holiday.flags.every((flag) => typeof flag === "string"));
+}
+
 test("fuzz: OpenHolidays translation keeps only rows it can actually place", () => {
     const { OpenHolidaysServiceAdapter } = loadHolidays();
     const adapter = new OpenHolidaysServiceAdapter(() => {}, "en");
@@ -2095,39 +2161,9 @@ test("fuzz: OpenHolidays translation keeps only rows it can actually place", () 
     let kept = 0;
     let dropped = 0;
 
-    const junkDates = [
-        "2030-13-01", "2030-00-10", "2030-02-30", "not-a-date", "", null, 42,
-        "2030-1-1", "20300101", "2030-01-01T00:00:00Z", undefined, {}
-    ];
-    const junkNames = [
-        [], null, undefined, "a string", [{}], [{ language: "EN" }],
-        [{ text: "no language" }], 42
-    ];
-
     for (let round = 0; round < 300; round++) {
-        const payload = [];
-
-        for (let i = 0; i < 1 + Math.floor(rand() * 8); i++) {
-            const wellFormed = rand() < 0.5;
-            const month = 1 + Math.floor(rand() * 12);
-            const day = 1 + Math.floor(rand() * 28);
-
-            const row = {
-                startDate: wellFormed ?
-                    `2030-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` :
-                    junkDates[Math.floor(rand() * junkDates.length)],
-                type: rand() < 0.5 ? "Public" : ["Optional", "Bank", "", null][Math.floor(rand() * 4)],
-                name: wellFormed && rand() < 0.8 ?
-                    [{ language: "EN", text: `Holiday ${i}` }] :
-                    junkNames[Math.floor(rand() * junkNames.length)],
-                nationwide: rand() < 0.3,
-                subdivisions: rand() < 0.7 ?
-                    [{ code: "CH-FR", shortName: "FR" }] :
-                    [{ code: "CH-TI", shortName: "TI" }]
-            };
-
-            payload.push(row);
-        }
+        const payload = Array.from({ length: 1 + Math.floor(rand() * 8) },
+            (_unused, index) => fuzzOpenHolidaysRow(rand, index));
 
         let translated = null;
         assert.doesNotThrow(() => {
@@ -2141,18 +2177,7 @@ test("fuzz: OpenHolidays translation keeps only rows it can actually place", () 
         // Every row it kept must be one the calendar can actually place — a real
         // date in the requested year, a name to show, and flags the annotator
         // understands — and it must never keep more rows than it was given.
-        for (const holiday of translated) {
-            assert.equal(holiday.date.year, 2030);
-            assert.ok(holiday.date.month >= 1 && holiday.date.month <= 12,
-                `month out of range: ${holiday.date.month}`);
-            assert.ok(holiday.date.day >= 1 && holiday.date.day <= 31,
-                `day out of range: ${holiday.date.day}`);
-            assert.ok(Array.isArray(holiday.name) && holiday.name.length > 0);
-            assert.ok(holiday.name.every((entry) => typeof entry.text === "string" && entry.text),
-                "a holiday with no name cannot be shown");
-            assert.ok(Array.isArray(holiday.flags) && holiday.flags.length > 0);
-            assert.ok(holiday.flags.every((flag) => typeof flag === "string"));
-        }
+        translated.forEach(assertPlaceableHoliday);
 
         assert.ok(translated.length <= payload.length, "it cannot invent rows");
         kept += translated.length;
@@ -2169,6 +2194,86 @@ test("fuzz: OpenHolidays translation keeps only rows it can actually place", () 
     assert.ok(dropped > 0, "and some must be rejected");
 });
 
+// The primary provider's wire shape, junk and all. The date tables carry every way
+// a date can be wrong — out-of-range months, a February 30th, strings where numbers
+// belong — and the spans carry one that would run the expansion loop for a
+// thousand years.
+const RECORD_JUNK_DATES = [
+    null, undefined, 42, "2030-01-01", {}, { year: 2030 },
+    { year: 2030, month: 13, day: 1 }, { year: 2030, month: 1, day: 40 },
+    { year: 2030, month: 0, day: 0 }, { year: "2030", month: "1", day: "1" },
+    { year: 9999, month: 12, day: 31 }, { year: -1, month: 1, day: 1 },
+    { year: 2030, month: 2, day: 30 }
+];
+const RECORD_JUNK_NAMES = [
+    null, undefined, [], "text", 42, [{}], [{ lang: "de" }], [{ text: "no lang" }],
+    [{ lang: 42, text: "wrong type" }], [{ lang: "de", text: "Tag der Arbeit" }]
+];
+const RECORD_JUNK_FLAGS = [null, "text", 42, {}];
+
+function fuzzHolidayRecord(rand) {
+    const wellFormed = rand() < 0.5;
+    const month = 1 + Math.floor(rand() * 12);
+    const day = 1 + Math.floor(rand() * 28);
+
+    const holiday = {
+        date: wellFormed ?
+            { year: 2030, month, day } : pickFrom(rand, RECORD_JUNK_DATES),
+        name: wellFormed && rand() < 0.85 ?
+            [{ lang: "de", text: "Feiertag" }, { lang: "en", text: "Holiday" }] :
+            pickFrom(rand, RECORD_JUNK_NAMES),
+        flags: rand() < 0.85 ? ["public_holiday"] : pickFrom(rand, RECORD_JUNK_FLAGS)
+    };
+
+    if (rand() < 0.4) {
+        holiday.dateTo = rand() < 0.5 ?
+            { year: 2030, month, day: Math.min(28, day + Math.floor(rand() * 5)) } :
+            pickFrom(rand, [
+                { year: 3030, month: 12, day: 31 },
+                { year: 2029, month: 1, day: 1 },
+                { year: 2030, month, day }
+            ]);
+    }
+
+    return holiday;
+}
+
+// The interlock: whatever validHoliday let through, expandHoliday has to expand
+// without running away — its `while (iter < limit)` is bounded only because
+// validHoliday is supposed to have rejected the oversized spans first. Returns the
+// rows it expanded to, so the caller can insist that some payloads really did span.
+function assertExpandsSafely(record, holiday, maxSpanDays) {
+    let days = null;
+    assert.doesNotThrow(() => {
+        days = record.expandHoliday(holiday, "global");
+    }, JSON.stringify(holiday));
+
+    assert.ok(days.length >= 1, "a holiday is at least one day");
+    assert.ok(days.length <= maxSpanDays + 1,
+        `the expansion is bounded: ${days.length} days from ${JSON.stringify(holiday)}`);
+
+    days.forEach((single) => {
+        assert.ok(Number.isInteger(single.year));
+        assert.ok(single.month >= 1 && single.month <= 12);
+        assert.ok(single.day >= 1 && single.day <= 31);
+        assert.equal(typeof single.name, "string");
+        assert.ok(single.name.length > 0, "a holiday with no name cannot be shown");
+        assert.equal(single.region, "global");
+    });
+
+    // the localized name is one the payload actually carried, and it prefers the
+    // user's language (de) over English
+    const localized = record.localizeName(holiday);
+    assert.ok(holiday.name.map((entry) => entry.text).includes(localized),
+        "the name shown must be a name that was sent");
+
+    const german = holiday.name.find((entry) => entry.lang === "de");
+    assert.equal(german ? localized : german, german ? german.text : german,
+        "a German user gets the German name");
+
+    return days.length;
+}
+
 // HolidayService is the *primary* provider: it parses first for every user with holidays
 // on, and it was the one untrusted-JSON parser with no fuzz harness at all. The
 // interlock that matters here is between validHoliday and expandHoliday —
@@ -2183,86 +2288,20 @@ test("fuzz: HolidayService's parser cannot be made to run away or return junk", 
     const record = new HolidayRecordContract("de");
     const rand = makeRandom(0xe27100);
 
-    const junkDates = [
-        null, undefined, 42, "2030-01-01", {}, { year: 2030 },
-        { year: 2030, month: 13, day: 1 }, { year: 2030, month: 1, day: 40 },
-        { year: 2030, month: 0, day: 0 }, { year: "2030", month: "1", day: "1" },
-        { year: 9999, month: 12, day: 31 }, { year: -1, month: 1, day: 1 },
-        { year: 2030, month: 2, day: 30 }
-    ];
-    const junkNames = [
-        null, undefined, [], "text", 42, [{}], [{ lang: "de" }], [{ text: "no lang" }],
-        [{ lang: 42, text: "wrong type" }], [{ lang: "de", text: "Tag der Arbeit" }]
-    ];
-
     let accepted = 0;
     let rejected = 0;
     let expandedRows = 0;
 
     for (let round = 0; round < 400; round++) {
-        const wellFormed = rand() < 0.5;
-        const month = 1 + Math.floor(rand() * 12);
-        const day = 1 + Math.floor(rand() * 28);
+        const holiday = fuzzHolidayRecord(rand);
 
-        const holiday = {
-            date: wellFormed ?
-                { year: 2030, month, day } :
-                junkDates[Math.floor(rand() * junkDates.length)],
-            name: wellFormed && rand() < 0.85 ?
-                [{ lang: "de", text: "Feiertag" }, { lang: "en", text: "Holiday" }] :
-                junkNames[Math.floor(rand() * junkNames.length)],
-            flags: rand() < 0.85 ? ["public_holiday"] : [null, "text", 42, {}][Math.floor(rand() * 4)]
-        };
-
-        // a span, sometimes a sane one, sometimes one that would run the
-        // expansion loop for a thousand years
-        if (rand() < 0.4) {
-            holiday.dateTo = rand() < 0.5 ?
-                { year: 2030, month, day: Math.min(28, day + Math.floor(rand() * 5)) } :
-                [{ year: 3030, month: 12, day: 31 },
-                    { year: 2029, month: 1, day: 1 },
-                    { year: 2030, month, day }][Math.floor(rand() * 3)];
-        }
-
-        const valid = record.validHoliday(holiday);
-        if (valid) {
-            accepted++;
-        } else {
+        if (!record.validHoliday(holiday)) {
             rejected++;
             continue;
         }
 
-        // the interlock: whatever validHoliday let through, expandHoliday must
-        // be able to expand without running away
-        let days = null;
-        assert.doesNotThrow(() => {
-            days = record.expandHoliday(holiday, "global");
-        }, JSON.stringify(holiday));
-
-        assert.ok(days.length >= 1, "a holiday is at least one day");
-        assert.ok(days.length <= MAX_HOLIDAY_SPAN_DAYS + 1,
-            `the expansion is bounded: ${days.length} days from ${JSON.stringify(holiday)}`);
-        expandedRows += days.length;
-
-        for (const single of days) {
-            assert.ok(Number.isInteger(single.year));
-            assert.ok(single.month >= 1 && single.month <= 12);
-            assert.ok(single.day >= 1 && single.day <= 31);
-            assert.equal(typeof single.name, "string");
-            assert.ok(single.name.length > 0, "a holiday with no name cannot be shown");
-            assert.equal(single.region, "global");
-        }
-
-        // the localized name is one the payload actually carried, and it prefers
-        // the user's language (de) over English
-        const localized = record.localizeName(holiday);
-        const texts = holiday.name.map((entry) => entry.text);
-        assert.ok(texts.includes(localized), "the name shown must be a name that was sent");
-
-        const german = holiday.name.find((entry) => entry.lang === "de");
-        if (german) {
-            assert.equal(localized, german.text, "a German user gets the German name");
-        }
+        accepted++;
+        expandedRows += assertExpandsSafely(record, holiday, MAX_HOLIDAY_SPAN_DAYS);
     }
 
     // validResponse is the gate the whole chain leans on: one bad row must
@@ -2282,6 +2321,40 @@ test("fuzz: HolidayService's parser cannot be made to run away or return junk", 
 // T78: seeded fuzz over the Nager payload shape — translation must drop
 // malformed dates, respect county matching and normalize flags, and the
 // second pass over identical input must agree with the first
+// Nager's wire shape. Months run to 14 and days to 33, so the corpus carries every
+// kind of impossible date, and a slice of the rows use slashes instead of dashes.
+function fuzzNagerRow(rand, index) {
+    const month = 1 + Math.floor(rand() * 14);      // 13/14 are invalid
+    const day = 1 + Math.floor(rand() * 33);        // up to 33: overflow days
+    const countyRoll = rand();
+
+    return {
+        date: rand() < 0.15 ?
+            `2030/${month}/${day}` :
+            `2030-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+        name: `Holiday ${index}`,
+        localName: rand() < 0.5 ? `Feriado ${index}` : `Holiday ${index}`,
+        global: rand() < 0.2,
+        counties: countyRoll < 0.4 ? ["US-CA"] :
+            countyRoll < 0.6 ? ["US-TX"] :
+                countyRoll < 0.8 ? [] : ["US-TX", "US-CA"],
+        types: rand() < 0.5 ? ["Public"] : (rand() < 0.5 ? ["Optional"] : [])
+    };
+}
+
+// "2030-02-30" parses and then rolls over into March: a date is real only when the
+// calendar gives back the day and month it was handed.
+function isRealCalendarDate(date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return false;
+    }
+
+    const [year, month, day] = date.split("-").map(Number);
+    const probe = new Date(year, month - 1, day, 12);
+    return probe.getFullYear() === year && probe.getMonth() === month - 1 &&
+        probe.getDate() === day;
+}
+
 test("NagerDateServiceAdapter fuzzes date, county and type translation", () => {
     const { NagerDateServiceAdapter } = loadHolidays();
     const adapter = new NagerDateServiceAdapter(() => {});
@@ -2290,58 +2363,25 @@ test("NagerDateServiceAdapter fuzzes date, county and type translation", () => {
     assert.equal(params.countyCode, "US-CA");
 
     const rand = makeRandom(13579);
-
-    const payload = [];
-    for (let i = 0; i < 300; i++) {
-        const month = 1 + Math.floor(rand() * 14);      // 13/14 are invalid
-        const day = 1 + Math.floor(rand() * 33);        // up to 33: overflow days
-        const badFormat = rand() < 0.15;
-        const date = badFormat ?
-            `2030/${month}/${day}` :
-            `2030-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-        const countyRoll = rand();
-        const counties = countyRoll < 0.4 ? ["US-CA"] :
-            countyRoll < 0.6 ? ["US-TX"] :
-                countyRoll < 0.8 ? [] : ["US-TX", "US-CA"];
-        const types = rand() < 0.5 ? ["Public"] : (rand() < 0.5 ? ["Optional"] : []);
-        payload.push({
-            date,
-            name: `Holiday ${i}`,
-            localName: rand() < 0.5 ? `Feriado ${i}` : `Holiday ${i}`,
-            global: rand() < 0.2,
-            counties,
-            types
-        });
-    }
+    const payload = Array.from({ length: 300 },
+        (_unused, index) => fuzzNagerRow(rand, index));
 
     const translated = adapter.translateResponse(payload, params);
-    const again = adapter.translateResponse(payload, params);
-    assert.deepEqual(again, translated, "translation is deterministic");
+    assert.deepEqual(adapter.translateResponse(payload, params), translated,
+        "translation is deterministic");
 
-    for (const holiday of translated) {
-        // only real calendar dates survive
-        const probe = new Date(holiday.date.year, holiday.date.month - 1, holiday.date.day, 12);
-        assert.equal(probe.getFullYear(), holiday.date.year);
-        assert.equal(probe.getMonth(), holiday.date.month - 1);
-        assert.equal(probe.getDate(), holiday.date.day);
+    translated.forEach(assertPlaceableNagerHoliday);
 
-        for (const flag of holiday.flags) {
-            assert.equal(flag, flag.toLowerCase());
-        }
-        assert.ok(holiday.flags.length > 0, "empty types default to public");
-        assert.ok(holiday.name.length >= 1);
-        assert.equal(holiday.name.at(-1).lang, "en");
-    }
+    // Which rows survive, stated as a property of the row rather than as a second
+    // copy of the adapter's filter: a row is keepable when its date is a real
+    // calendar date and it is not another county's holiday. The count has to agree
+    // both ways — nothing keepable is dropped, and nothing else is kept.
+    const keepable = payload.filter((row) => isRealCalendarDate(row.date) &&
+        (row.counties.length === 0 || row.counties.includes("US-CA")));
 
-    // the excluded rows are exactly the malformed dates and foreign counties
-    const expected = payload.filter((row) =>
-        /^2030-\d{2}-\d{2}$/.test(row.date) &&
-        !Number.isNaN(new Date(row.date + "T12:00:00").getTime()) &&
-        new Date(row.date + "T12:00:00").getDate() === Number(row.date.slice(8)) &&
-        new Date(row.date + "T12:00:00").getMonth() + 1 === Number(row.date.slice(5, 7)) &&
-        (row.counties.length === 0 || row.counties.indexOf("US-CA") !== -1)).length;
-    assert.equal(translated.length, expected);
-    assert.ok(translated.length > 0, "fuzz corpus keeps some valid rows");
+    assert.equal(translated.length, keepable.length);
+    assert.ok(keepable.length > 0, "fuzz corpus keeps some valid rows");
+    assert.ok(keepable.length < payload.length, "and drops some");
 });
 
 test("HolidayServiceFallbackAdapter retries HolidayService failures with Nager data", () => {
