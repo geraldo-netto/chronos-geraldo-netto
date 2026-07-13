@@ -1013,6 +1013,33 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertIsNone(resolver.normalize("local"))
         self.assertIsNone(resolver.normalize(None))
 
+    def test_a_zone_shaped_sentence_is_not_a_zone_with_no_database(self):
+        """With neither pytz nor zoneinfo, looks_like_iana is the *only* check a
+        typed timezone gets before it is saved — and its character rule (letters,
+        digits, _ + -) was never exercised: every no-db input in this file either
+        passed both rules or was rejected by the segment-count rule first. Mutating
+        the character rule to `return True` left the Python suite green, so a
+        settings dialog with no tz database would have accepted "Area/City baz" and
+        written it to the config, where the applet renders it as an italic
+        "Invalid timezone" row with nothing connecting the two.
+        """
+        resolver = self.module.TimezoneResolver(None, None)
+
+        # right shape, wrong characters: a space, and then the punctuation an
+        # identifier never carries
+        self.assertIsNone(resolver.normalize("Area/City baz"))
+        self.assertIsNone(resolver.normalize("Europe/Rome; rm -rf"))
+        self.assertIsNone(resolver.normalize("Europe/Ro me"))
+        self.assertIsNone(resolver.normalize("Europe/Rome!"))
+        self.assertIsNone(resolver.normalize("Europe//Rome"), "an empty segment is not a city")
+
+        # and the shape that is an identifier still gets through, punctuation and
+        # all: GMT+3 and Port-au-Prince are real
+        self.assertEqual(resolver.normalize("Etc/GMT+3"), "Etc/GMT+3")
+        self.assertEqual(resolver.normalize("America/Port-au-Prince"), "America/Port-au-Prince")
+        self.assertEqual(resolver.normalize("America/Argentina/Buenos_Aires"),
+                         "America/Argentina/Buenos_Aires")
+
     @requires_pytz
     def test_normalize_timezone_accepts_identifier_or_city(self):
         clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
