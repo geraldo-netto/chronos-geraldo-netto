@@ -1447,7 +1447,7 @@ test("_updateFormatString covers custom, invalid, 12h, 24h, and vertical panel b
     });
 
     Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%d %b %H:%M");
+    assert.equal(stub.clock.formats.at(-1), "%b %-e %H:%M");
     assert.equal(stub.worldclock_format, "%H:%M (%a)");
 
     stub.orientation = St.Side.LEFT;
@@ -1457,14 +1457,14 @@ test("_updateFormatString covers custom, invalid, 12h, 24h, and vertical panel b
     stub.orientation = St.Side.TOP;
     stub.desktop_settings.value = false;
     Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%d %b %-l:%M %p");
+    assert.equal(stub.clock.formats.at(-1), "%b %-e %-l:%M %p");
     assert.equal(stub.worldclock_format, "%-l:%M (%a)");
 
     // seconds on: the compact panel readout and the world format both grow %S
     stub.desktop_settings.value = true;
     stub.desktop_settings.showSeconds = true;
     Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%d %b %H:%M:%S");
+    assert.equal(stub.clock.formats.at(-1), "%b %-e %H:%M:%S");
     assert.equal(stub.worldclock_format, "%H:%M:%S (%a)");
 
     stub.use_custom_format = true;
@@ -2375,10 +2375,10 @@ test("ellipsizeLabelSuffix leaves an astral suffix that fits in code points alon
 // short month, time - in the user's 12h/24h and seconds preference.
 test("a horizontal panel label is applet-formatted, never the desktop clock format", () => {
     const cases = [
-        { use24h: true, seconds: false, expected: "%d %b %H:%M" },
-        { use24h: true, seconds: true, expected: "%d %b %H:%M:%S" },
-        { use24h: false, seconds: false, expected: "%d %b %-l:%M %p" },
-        { use24h: false, seconds: true, expected: "%d %b %-l:%M:%S %p" }
+        { use24h: true, seconds: false, expected: "%b %-e %H:%M" },
+        { use24h: true, seconds: true, expected: "%b %-e %H:%M:%S" },
+        { use24h: false, seconds: false, expected: "%b %-e %-l:%M %p" },
+        { use24h: false, seconds: true, expected: "%b %-e %-l:%M:%S %p" }
     ];
 
     for (const side of [St.Side.TOP, St.Side.BOTTOM]) {

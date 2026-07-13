@@ -343,10 +343,19 @@ test("every catalog orders the date the way its language does", () => {
     const catalogs = fs.readdirSync(poDir).filter((name) => name.endsWith(".po"));
     assert.ok(catalogs.length >= 15);
 
-    // the msgids, as localeUtils declares them
+    // the msgids: the two long forms dateFormats declares, and the short one the
+    // panel label and the tooltip put in front of the time — that one was not
+    // translatable at all, so every locale read the panel in day-before-month order
     const dateFormats = fs.readFileSync(path.join(appletDir, "dateFormats.js"), "utf8");
-    const msgids = Array.from(dateFormats.matchAll(/_\("([^"]*%B[^"]*)"\)/g)).map(([, id]) => id);
-    assert.deepEqual(msgids, ["%B %-e, %Y", "%A, %B %-e, %Y"]);
+    const panel = fs.readFileSync(path.join(appletDir, "5.4", "appletPanelStatus.js"), "utf8");
+    const msgids = Array.from(dateFormats.matchAll(/_\("([^"]*%B[^"]*)"\)/g)).map(([, id]) => id)
+        .concat(Array.from(panel.matchAll(/_\("([^"]*%b[^"]*)"\)/g)).map(([, id]) => id));
+    assert.deepEqual(msgids, ["%B %-e, %Y", "%A, %B %-e, %Y", "%b %-e"]);
+
+    // and no clock format in the panel hardcodes the order any more (the comment
+    // that explains why still names the order it replaced)
+    assert.doesNotMatch(panel, /(?:const|plain|seconds)[^\n]*"%d %b/,
+        "the panel date is a msgid, not a literal");
 
     for (const catalog of catalogs) {
         const source = fs.readFileSync(path.join(poDir, catalog), "utf8");

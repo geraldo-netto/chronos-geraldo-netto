@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
 "issues\n"
-"POT-Creation-Date: 2026-07-13 12:24+0200\n"
+"POT-Creation-Date: 2026-07-13 12:28+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -60,69 +60,73 @@ msgstr "跳到今天"
 msgid "Date and Time Settings"
 msgstr "日期與時間設定"
 
-#: 5.4/appletPanelStatus.js:64
+#: 5.4/appletPanelStatus.js:48
+msgid "%b %-e"
+msgstr "%-m月%-e日"
+
+#: 5.4/appletPanelStatus.js:80
 msgid "Location not found"
 msgstr "找不到位置"
 
-#: 5.4/appletPanelStatus.js:65
+#: 5.4/appletPanelStatus.js:81
 msgid "Weather service unavailable"
 msgstr "天氣服務無法使用"
 
-#: 5.4/appletPanelStatus.js:66
+#: 5.4/appletPanelStatus.js:82
 msgid "Set a weather location"
 msgstr "設定天氣位置"
 
-#: 5.4/appletPanelStatus.js:75
+#: 5.4/appletPanelStatus.js:91
 msgid "Clear"
 msgstr "晴朗"
 
-#: 5.4/appletPanelStatus.js:76
+#: 5.4/appletPanelStatus.js:92
 msgid "Partly cloudy"
 msgstr "多雲時晴"
 
-#: 5.4/appletPanelStatus.js:77
+#: 5.4/appletPanelStatus.js:93
 msgid "Cloudy"
 msgstr "陰天"
 
-#: 5.4/appletPanelStatus.js:78
+#: 5.4/appletPanelStatus.js:94
 msgid "Rain"
 msgstr "雨"
 
-#: 5.4/appletPanelStatus.js:79
+#: 5.4/appletPanelStatus.js:95
 msgid "Snow"
 msgstr "雪"
 
-#: 5.4/appletPanelStatus.js:80
+#: 5.4/appletPanelStatus.js:96
 msgid "Showers"
 msgstr "陣雨"
 
-#: 5.4/appletPanelStatus.js:81
+#: 5.4/appletPanelStatus.js:97
 msgid "Thunderstorm"
 msgstr "雷雨"
 
-#: 5.4/appletPanelStatus.js:82
+#: 5.4/appletPanelStatus.js:98
 msgid "Fair"
 msgstr "晴時多雲"
 
-#: 5.4/appletPanelStatus.js:92 5.4/appletPanelStatus.js:483
-#: 5.4/appletPanelStatus.js:642
+#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:499
+#: 5.4/appletPanelStatus.js:658
 msgid "Weather: loading…"
 msgstr "天氣：載入中…"
 
-#: 5.4/appletPanelStatus.js:343
+#: 5.4/appletPanelStatus.js:359
 msgid "Invalid time format; edit it in Settings"
 msgstr "時間格式無效；請在設定中編輯"
 
-#: 5.4/appletPanelStatus.js:507
+#: 5.4/appletPanelStatus.js:523
 msgid "No weather for this timezone"
 msgstr "此時區沒有天氣資訊"
 
-#: 5.4/appletPanelStatus.js:519
+#: 5.4/appletPanelStatus.js:535
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s 最後已知的讀數"
 
-#: 5.4/appletPanelStatus.js:727
+#: 5.4/appletPanelStatus.js:743
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "工具提示格式無效；請在設定中編輯"
 

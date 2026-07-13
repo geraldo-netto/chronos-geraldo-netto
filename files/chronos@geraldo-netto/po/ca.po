@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
 "issues\n"
-"POT-Creation-Date: 2026-07-13 12:24+0200\n"
+"POT-Creation-Date: 2026-07-13 12:28+0200\n"
 "PO-Revision-Date: 2025-02-13 20:56+0100\n"
 "Last-Translator: Odyssey <odysseyhyd@gmail.com>\n"
 "Language-Team: \n"
@@ -62,69 +62,73 @@ msgstr "Vés a avui"
 msgid "Date and Time Settings"
 msgstr "Configuració de data i hora"
 
-#: 5.4/appletPanelStatus.js:64
+#: 5.4/appletPanelStatus.js:48
+msgid "%b %-e"
+msgstr "%-e %b"
+
+#: 5.4/appletPanelStatus.js:80
 msgid "Location not found"
 msgstr "No s'ha trobat la ubicació"
 
-#: 5.4/appletPanelStatus.js:65
+#: 5.4/appletPanelStatus.js:81
 msgid "Weather service unavailable"
 msgstr "El servei meteorològic no està disponible"
 
-#: 5.4/appletPanelStatus.js:66
+#: 5.4/appletPanelStatus.js:82
 msgid "Set a weather location"
 msgstr "Definiu una ubicació del temps"
 
-#: 5.4/appletPanelStatus.js:75
+#: 5.4/appletPanelStatus.js:91
 msgid "Clear"
 msgstr "Serè"
 
-#: 5.4/appletPanelStatus.js:76
+#: 5.4/appletPanelStatus.js:92
 msgid "Partly cloudy"
 msgstr "Parcialment ennuvolat"
 
-#: 5.4/appletPanelStatus.js:77
+#: 5.4/appletPanelStatus.js:93
 msgid "Cloudy"
 msgstr "Ennuvolat"
 
-#: 5.4/appletPanelStatus.js:78
+#: 5.4/appletPanelStatus.js:94
 msgid "Rain"
 msgstr "Pluja"
 
-#: 5.4/appletPanelStatus.js:79
+#: 5.4/appletPanelStatus.js:95
 msgid "Snow"
 msgstr "Neu"
 
-#: 5.4/appletPanelStatus.js:80
+#: 5.4/appletPanelStatus.js:96
 msgid "Showers"
 msgstr "Ruixats"
 
-#: 5.4/appletPanelStatus.js:81
+#: 5.4/appletPanelStatus.js:97
 msgid "Thunderstorm"
 msgstr "Tempesta"
 
-#: 5.4/appletPanelStatus.js:82
+#: 5.4/appletPanelStatus.js:98
 msgid "Fair"
 msgstr "Bon temps"
 
-#: 5.4/appletPanelStatus.js:92 5.4/appletPanelStatus.js:483
-#: 5.4/appletPanelStatus.js:642
+#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:499
+#: 5.4/appletPanelStatus.js:658
 msgid "Weather: loading…"
 msgstr "Temps: s’està carregant…"
 
-#: 5.4/appletPanelStatus.js:343
+#: 5.4/appletPanelStatus.js:359
 msgid "Invalid time format; edit it in Settings"
 msgstr "Format d'hora no vàlid; editeu-lo a Configuració"
 
-#: 5.4/appletPanelStatus.js:507
+#: 5.4/appletPanelStatus.js:523
 msgid "No weather for this timezone"
 msgstr "Sense meteorologia per a aquesta zona horària"
 
-#: 5.4/appletPanelStatus.js:519
+#: 5.4/appletPanelStatus.js:535
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última lectura coneguda"
 
-#: 5.4/appletPanelStatus.js:727
+#: 5.4/appletPanelStatus.js:743
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "Format d'indicador de funció no vàlid; editeu-lo a Configuració"
 

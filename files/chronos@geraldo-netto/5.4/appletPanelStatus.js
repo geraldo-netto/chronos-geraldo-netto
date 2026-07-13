@@ -36,8 +36,18 @@ const LABEL_ELLIPSIS = Utils.TEXT_ELLIPSIS;
 // ten with a leading space, so a horizontal panel showed a double space before the
 // time and the vertical layout's stacked hour sat visibly off centre. The
 // world-clock rows escaped it only because worldclocks.js trims what it formats.
-const TOOLTIP_CLOCK_FORMAT_24H = "%d %b %H:%M";
-const TOOLTIP_CLOCK_FORMAT_12H = "%d %b %-l:%M %p";
+// The date the panel and the tooltip put in front of the time, and the one part of
+// these formats that is not a number: a month abbreviation and a day.
+//
+// It was "%d %b" — day before month — hardcoded, in every locale. An en_US user
+// with the default settings read "13 Jul" on the panel while Cinnamon's own clock
+// beside it said "Jul 13", and a Japanese or Hungarian user got an order that is
+// wrong in the other direction. The msgid is the US order, as gettext expects, and
+// each catalog reorders it: %b and %-e are strftime's, so the month name itself is
+// already localized — what a translator supplies is the order and the punctuation.
+const PANEL_DATE_FORMAT = _("%b %-e");
+const TOOLTIP_CLOCK_FORMAT_24H = PANEL_DATE_FORMAT + " %H:%M";
+const TOOLTIP_CLOCK_FORMAT_12H = PANEL_DATE_FORMAT + " %-l:%M %p";
 // label, date and time, temperature, condition: only the numbers are right-aligned
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
 
@@ -51,8 +61,14 @@ const PANEL_CLOCK_FORMATS = {
         h12: { seconds: "%-l%n%M%n%S", plain: "%-l%n%M" }
     },
     horizontal: {
-        h24: { seconds: "%d %b %H:%M:%S", plain: "%d %b %H:%M" },
-        h12: { seconds: "%d %b %-l:%M:%S %p", plain: "%d %b %-l:%M %p" }
+        h24: {
+            seconds: PANEL_DATE_FORMAT + " %H:%M:%S",
+            plain: PANEL_DATE_FORMAT + " %H:%M"
+        },
+        h12: {
+            seconds: PANEL_DATE_FORMAT + " %-l:%M:%S %p",
+            plain: PANEL_DATE_FORMAT + " %-l:%M %p"
+        }
     }
 };
 const WORLD_CLOCK_FORMATS = {

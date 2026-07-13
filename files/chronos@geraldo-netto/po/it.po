@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
 "issues\n"
-"POT-Creation-Date: 2026-07-13 12:24+0200\n"
+"POT-Creation-Date: 2026-07-13 12:28+0200\n"
 "PO-Revision-Date: 2025-01-03 15:08+0100\n"
 "Last-Translator: Dragone2 <dragone2@risposteinformatiche.it>\n"
 "Language-Team: \n"
@@ -62,69 +62,73 @@ msgstr "Vai a oggi"
 msgid "Date and Time Settings"
 msgstr "Impostazioni Data e Ora"
 
-#: 5.4/appletPanelStatus.js:64
+#: 5.4/appletPanelStatus.js:48
+msgid "%b %-e"
+msgstr "%-e %b"
+
+#: 5.4/appletPanelStatus.js:80
 msgid "Location not found"
 msgstr "Località non trovata"
 
-#: 5.4/appletPanelStatus.js:65
+#: 5.4/appletPanelStatus.js:81
 msgid "Weather service unavailable"
 msgstr "Servizio meteo non disponibile"
 
-#: 5.4/appletPanelStatus.js:66
+#: 5.4/appletPanelStatus.js:82
 msgid "Set a weather location"
 msgstr "Imposta una località meteo"
 
-#: 5.4/appletPanelStatus.js:75
+#: 5.4/appletPanelStatus.js:91
 msgid "Clear"
 msgstr "Sereno"
 
-#: 5.4/appletPanelStatus.js:76
+#: 5.4/appletPanelStatus.js:92
 msgid "Partly cloudy"
 msgstr "Parzialmente nuvoloso"
 
-#: 5.4/appletPanelStatus.js:77
+#: 5.4/appletPanelStatus.js:93
 msgid "Cloudy"
 msgstr "Nuvoloso"
 
-#: 5.4/appletPanelStatus.js:78
+#: 5.4/appletPanelStatus.js:94
 msgid "Rain"
 msgstr "Pioggia"
 
-#: 5.4/appletPanelStatus.js:79
+#: 5.4/appletPanelStatus.js:95
 msgid "Snow"
 msgstr "Neve"
 
-#: 5.4/appletPanelStatus.js:80
+#: 5.4/appletPanelStatus.js:96
 msgid "Showers"
 msgstr "Rovesci"
 
-#: 5.4/appletPanelStatus.js:81
+#: 5.4/appletPanelStatus.js:97
 msgid "Thunderstorm"
 msgstr "Temporale"
 
-#: 5.4/appletPanelStatus.js:82
+#: 5.4/appletPanelStatus.js:98
 msgid "Fair"
 msgstr "Poco nuvoloso"
 
-#: 5.4/appletPanelStatus.js:92 5.4/appletPanelStatus.js:483
-#: 5.4/appletPanelStatus.js:642
+#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:499
+#: 5.4/appletPanelStatus.js:658
 msgid "Weather: loading…"
 msgstr "Meteo: caricamento…"
 
-#: 5.4/appletPanelStatus.js:343
+#: 5.4/appletPanelStatus.js:359
 msgid "Invalid time format; edit it in Settings"
 msgstr "Formato ora non valido; modificarlo nelle impostazioni"
 
-#: 5.4/appletPanelStatus.js:507
+#: 5.4/appletPanelStatus.js:523
 msgid "No weather for this timezone"
 msgstr "Nessun meteo per questo fuso orario"
 
-#: 5.4/appletPanelStatus.js:519
+#: 5.4/appletPanelStatus.js:535
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Ultima misurazione nota"
 
-#: 5.4/appletPanelStatus.js:727
+#: 5.4/appletPanelStatus.js:743
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "Formato suggerimento non valido; modificarlo nelle impostazioni"
 
