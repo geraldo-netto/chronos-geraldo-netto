@@ -1210,6 +1210,54 @@ test("settings binding wires schema keys and creates settings facades", () => {
         "the location reaches the applet through the mirror, not through bind()");
 });
 
+// REGRESSION: the handlers went to the binder as bare methods, and the receiver
+// they got depended on which of Cinnamon's two paths the key took. The bound keys
+// worked — settings.bind() wraps the callback in Lang.bind(applet, …). The
+// mirrored one did not: the facade calls it through settings.connect(), with no
+// receiver, so `this` was undefined in a class-body method and `this._guarded`
+// threw TypeError. GJS's signal emission swallows the throw, so the only symptom
+// was that the city the user typed never took effect — the panel kept the old one
+// for the rest of the session.
+//
+// The stub is Object.create(Proto): the handler under test is the real method, and
+// FakeSettings is Cinnamon's two call paths, one calling with a receiver and one
+// without. A test that passes an arrow or an explicit .call() cannot see this.
+test("a changed weather location refetches the weather", () => {
+    const calls = [];
+    const listeners = {};
+    const values = { "weather-location": "Genoa" };
+    const original = global.imports.ui.settings.AppletSettings;
+
+    global.imports.ui.settings.AppletSettings = class {
+        constructor(owner) { this._owner = owner; }
+        // settings.js:322 — the callback is Lang.bind()ed to the owning applet
+        bind(key, property, callback) { this[`_cb_${key}`] = callback.bind(this._owner); }
+        // GJS signals.js — the callback is applied with no receiver at all
+        connect(signal, callback) { listeners[signal] = callback; }
+        getValue(key) { return values[key]; }
+        setValue(key, value) { values[key] = value; }
+    };
+
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 1,
+        _setKeybinding: () => {},
+        _updateClockAndDate: () => calls.push("clock"),
+        _queueWeatherRefresh: () => calls.push("weather")
+    });
+
+    try {
+        Proto._bindSettings.call(stub);
+        values["weather-location"] = "Lisbon";
+        listeners["changed::weather-location"]();
+    } finally {
+        global.imports.ui.settings.AppletSettings = original;
+    }
+
+    assert.equal(stub.weather_location, "Lisbon");
+    assert.deepEqual(calls, ["clock", "weather"],
+        "the handler runs with the applet as its receiver, whichever path calls it");
+});
+
 test("the provider lifecycle binds regions, defaults country, and refreshes the calendar", () => {
     const calls = [];
     const holidayProvider = {

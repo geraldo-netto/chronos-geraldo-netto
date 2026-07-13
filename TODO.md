@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-13 against every `ag
 
 Baseline: `npm test` green (670 JS tests, JS coverage per-file 98/90/100; Python 111 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 68 (Critical 0, High 12, Medium 29, Low 27).
+Open items: 67 (Critical 0, High 11, Medium 29, Low 27).
 
 ## Findings
 
@@ -14,7 +14,6 @@ Open items: 68 (Critical 0, High 12, Medium 29, Low 27).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T462 | correctness / settings | High | open | S | **[verified]** Changing the weather location silently does nothing. `5.4/applet.js:136` passes `onWeatherSettingsChanged: this._onWeatherSettingsChanged` **unbound**; `weather-location` is a `custom`-typed key, so `settingsFacade.js:206` reaches it through `settings.connect(...)` and calls `callback()` bare, with no receiver — and the method is a class-body method (strict), so `this` is `undefined` and `this._guarded` throws `TypeError`. The bound keys (`show-weather`, `weather-units`) work, because Cinnamon's `settings.bind()` wraps the callback in `Lang.bind(bindObject, …)`. | Verified: reproduced in Node against the real `settingsFacade.js` with a `FakeSettings` mirroring Cinnamon's two call paths (`settings.js:322` for bind, GJS `signals.js` for connect). The user types a new city; `applet.weather_location` updates, the callback throws, `_queueWeatherRefresh()` never runs, and the 30-minute timer keeps re-fetching the **old** city forever. GJS's `Signals._emit` swallows the throw, so nothing is visible but the stale temperature. Also throws once on a fresh install, when `fillEmptyWeatherLocation` writes the key. The suite cannot see it: `settingsFacade.test.js:191` passes an arrow, `applet.test.js:1381` calls the method with an explicit `.call(stub)`. Fix: `.bind(this)` at `5.4/applet.js:136` (and the two sibling handlers), and a test that drives the real facade with a class-body method. |
 | T463 | performance / memory | High | open | S | **[verified]** The applet is never released. Cinnamon's `Applet` base class has no `destroy()` (`grep -c destroy /usr/share/cinnamon/js/ui/applet.js` → `0`), so the chain `Main.uiGroup → AppletContextMenu → sourceActor (applet.actor) → _delegate → applet` outlives removal — plus this applet's own context-menu item (`appletMenuBuilder.js:255`), whose `activate` closure captures the builder. `_destroy()` releases timers, signals and the menu but keeps every heavy structure: the event index (a month of `EventData`, 4 `GLib.DateTime` each), `HolidayCache.data` + `_holidayIndex` + `_monthIndex`, the 42 `_day_cells`, both geocode caches. `CityWeatherProvider.destroy()` already clears `_readings`; the other three owners do not. | Verified: WeakRef + `--expose-gc` against the real `AppletMenuBuilder` — the applet stays reachable after `_destroy()`; 10 add/remove cycles retained **+38.2 MiB**. Every panel-edit drag, every enable/disable in the Applets dialog and every `on_applet_reloaded` strands another full copy for the rest of the login session. Fix: clear the owned state in `_destroy()` (`EventsManager` → `_event_index.clear()`; `HolidayService` → clear cache/indexes; `Calendar` → `_day_cells = []`) and remove the context-menu item the builder added. |
 | T464 | legacy / forward-compat | High | open | M | **[verified]** The dual-loader preamble inverts on the next Cinnamon and the applet will not load. `utils.js:5-15` (and ~14 other root modules) branch on `typeof require === "function" ? require("./localeUtils") : imports.ui.appletManager.applets[uuid].localeUtils`, asserting in a comment that Cinnamon provides "neither `require()` nor `module`". True for 5.4–6.4. But Cinnamon **master** now sets `globalThis.require = xletRequire` (`js/ui/extension.js:366`), and `_requireLocal` resolves `./x` against `extension.meta.path`, which `findExtensionSubdirectory` has already repointed at the **`5.4/` dir** — so the root modules would look for `5.4/localeUtils.js`, `5.4/ioUtils.js`, `5.4/holidayCache.js`, none of which exist. | Verified: fetched `extension.js` at tags 5.4.0/5.6.0/5.8.0/6.0.0/6.2.0/6.4.0/6.4.5 (no `globalThis.require` in any) and at master (present), and read `_requireLocal`/`installXletImporter`/`findExtensionSubdirectory`. Not broken today; breaks on the Cinnamon after 6.4, and `test/gjs_import.test.js` pins the *current* assumption, so nothing will warn. Fix: make the guard test for the xlet importer rather than for `require`, or ship the root modules where `_requireLocal` will look. |
 | T465 | i18n | High | open | S | **[verified]** Every locale renders the US month-day-year order. `localeUtils.js:203-204` wraps `DATE_FORMAT_SHORT = _("%B %-e, %Y")` and `DATE_FORMAT_FULL = _("%A, %B %-e, %Y")` in `_()` precisely so translators can reorder them — and **not one of the 15 catalogs translates either**. | Verified: extracted every msgid from every `.po`; these two are untranslated in all of ca/da/de/es/fi/fr/hu/it/nl/pt_BR/ru/sv/tr/vi/zh_TW, so gettext returns the msgid. A German user's event-list heading reads "Samstag, Juli 12, 2026" instead of "Samstag, 12. Juli 2026"; the same string is `ACCESSIBLE_DATE_FORMAT` (`5.4/calendar.js:39`), so her screen reader announces all 42 day cells that way too, and it is the tooltip's date line. The machinery is right; the data was never filled in. Fix: populate the 15 msgstrs. |
@@ -95,13 +94,12 @@ Open items: 68 (Critical 0, High 12, Medium 29, Low 27).
 
 ## Suggested order
 
-1. **T462** — the only finding that is a live, user-visible product bug: the weather location setting does nothing. One line.
-2. **T434 + T439 + T467** — the three that make everything else unverifiable or unshippable: CI does not run 16 of the tests, the icon does not survive delivery, and the translations never compile. All Small.
-3. **T463, T473, T474** — the memory and network waste, in that order (the leak compounds the cache growth).
-4. **T468–T471, T481–T485** — the mutation survivors. Each is a test that cannot fail, and one of them (T470) is also a real validation hole.
-5. **T465, T466** — the i18n data and the hardcoded date order: every locale is affected, and both are Small.
-6. **T464** — the forward-compat landmine, before the Cinnamon after 6.4 ships.
-7. Everything else, severity order. The dead-code cluster (T492–T494, T512–T519) is one sitting.
+1. **T434 + T439 + T467** — the three that make everything else unverifiable or unshippable: CI does not run 16 of the tests, the icon does not survive delivery, and the translations never compile. All Small.
+2. **T463, T473, T474** — the memory and network waste, in that order (the leak compounds the cache growth).
+3. **T468–T471, T481–T485** — the mutation survivors. Each is a test that cannot fail, and one of them (T470) is also a real validation hole.
+4. **T465, T466** — the i18n data and the hardcoded date order: every locale is affected, and both are Small.
+5. **T464** — the forward-compat landmine, before the Cinnamon after 6.4 ships.
+6. Everything else, severity order. The dead-code cluster (T492–T494, T512–T519) is one sitting.
 
 ## Clean categories
 

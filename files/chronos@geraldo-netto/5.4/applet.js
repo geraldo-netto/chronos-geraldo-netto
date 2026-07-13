@@ -130,11 +130,20 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._date = ui.dateLabel;
     }
 
+    // Bound, because the receiver depends on which of Cinnamon's two paths the key
+    // takes and the handler cannot see which one it is. settings.bind() binds the
+    // callback to the applet for us, so a bare method works there — but
+    // weather-location is a "custom"-typed key, which bind() refuses, so the facade
+    // mirrors it through settings.connect(), which calls the callback with no
+    // receiver at all. `this` was then undefined in a class-body method,
+    // `this._guarded` threw TypeError into a GJS signal emission, which swallows
+    // it, and the location the user typed never reached the geocoder: the panel
+    // went on fetching the old city for the rest of the session, silently.
     _bindSettings() {
         this._settingsBinder = new AppletSettingsBinder(this, {
-            onSettingsChanged: this._onSettingsChanged,
-            onWeatherSettingsChanged: this._onWeatherSettingsChanged,
-            onKeybindingChanged: this._setKeybinding
+            onSettingsChanged: this._onSettingsChanged.bind(this),
+            onWeatherSettingsChanged: this._onWeatherSettingsChanged.bind(this),
+            onKeybindingChanged: this._setKeybinding.bind(this)
         });
 
         const bound = this._settingsBinder.bind();
