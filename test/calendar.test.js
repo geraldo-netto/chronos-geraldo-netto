@@ -27,7 +27,12 @@ function makeFakeDateTimeFromDate(date) {
 global.imports = {
     gi: {
         Clutter: { ActorAlign: { CENTER: 0 },
-            ScrollDirection: { UP: 0, LEFT: 1, DOWN: 2, RIGHT: 3 },
+            // Clutter's own ordering, and all five values: UP, DOWN, LEFT, RIGHT,
+            // SMOOTH. The double used to be {UP:0, LEFT:1, DOWN:2, RIGHT:3} — its
+            // own invention — and it left out SMOOTH, which is what a touchpad
+            // sends, so the one direction a real device emits most was the one
+            // value no test could pass in.
+            ScrollDirection: { UP: 0, DOWN: 1, LEFT: 2, RIGHT: 3, SMOOTH: 4 },
             EVENT_STOP: true,
             EVENT_PROPAGATE: false,
             KEY_Left: 65361, KEY_Up: 65362, KEY_Right: 65363, KEY_Down: 65364,
@@ -1689,6 +1694,50 @@ test("the month and year nav buttons reach their handlers through the clicked si
 
     assert.deepEqual(actions, [[0, -1], [0, 1], [-1, 0], [1, 0]],
         "previous month, next month, previous year, next year");
+});
+
+// SMOOTH is what a touchpad sends — and it was the one ScrollDirection value the
+// test double left out, so the one device most users scroll with was the one the
+// suite could not express. The switch had no case for it either: scrolling the
+// month grid on a laptop did nothing at all.
+test("a touchpad's smooth scroll walks the months, a notch at a time", () => {
+    const cal = makeCalendar();
+    const actions = [];
+    cal._applyDateBrowseAction = (year, month) => actions.push([year, month]);
+
+    const SMOOTH = global.imports.gi.Clutter.ScrollDirection.SMOOTH;
+    const scroll = (dx, dy) => cal._onScroll(null, {
+        get_scroll_direction: () => SMOOTH,
+        get_scroll_delta: () => [dx, dy]
+    });
+
+    // a touchpad reports fractions of a notch per frame: four of these are one
+    // month, not four months
+    scroll(0, 0.3);
+    scroll(0, 0.3);
+    scroll(0, 0.3);
+    assert.deepEqual(actions, [], "a nudge is not a month");
+    scroll(0, 0.3);
+    assert.deepEqual(actions, [[0, 1]], "and the notch that completes it is");
+
+    // the other way, and the leftover from the scroll down does not carry into it
+    actions.length = 0;
+    scroll(0, -0.5);
+    assert.deepEqual(actions, [], "the accumulator resets when the direction does");
+    scroll(0, -0.5);
+    assert.deepEqual(actions, [[0, -1]]);
+
+    // a flick: several notches in one event, and every one of them counts
+    actions.length = 0;
+    scroll(0, 3);
+    assert.deepEqual(actions, [[0, 1], [0, 1], [0, 1]]);
+
+    // a horizontal touchpad scroll walks the months too, and a 0 delta is not a
+    // scroll at all — Clutter sends those to end a gesture
+    actions.length = 0;
+    scroll(-1, 0);
+    scroll(0, 0);
+    assert.deepEqual(actions, [[0, -1]]);
 });
 
 test("fuzz: navigation wrappers preserve valid queued dates", () => {

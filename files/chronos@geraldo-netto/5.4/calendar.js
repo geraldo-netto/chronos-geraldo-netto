@@ -23,6 +23,9 @@ const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 
 const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
 const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
+// how much smooth-scroll delta makes one month. Clutter reports a touchpad's
+// scroll in fractions of a notch, and one notch is what a mouse wheel sends.
+const SMOOTH_SCROLL_NOTCH = 1;
 // the key name itself lives in the settings boundary, with the schema
 const FIRST_WEEKDAY_KEY = SettingsFacade.FIRST_DAY_OF_WEEK_KEY;
 const PART_DAY_HOLIDAY = 'PART_DAY_HOLIDAY';
@@ -754,6 +757,8 @@ class Calendar {
         this._update_id = 0;
         this._set_date_idle_id = 0;
         this._queued_set_date = null;
+        // fractions of a scroll notch a touchpad has sent so far; see _onSmoothScroll
+        this._scroll_accumulator = 0;
 
         // day cells live at fixed grid slots; they are built once and
         // mutated on every update (rebuilt only when the header rebuilds)
@@ -1191,6 +1196,42 @@ class Calendar {
         case Clutter.ScrollDirection.RIGHT:
             this._onNextMonthButtonClicked();
             break;
+        case Clutter.ScrollDirection.SMOOTH:
+            this._onSmoothScroll(event);
+            break;
+        }
+    }
+
+    // A touchpad does not send UP or DOWN. It sends SMOOTH, with a fractional
+    // delta per frame — and the switch above had no case for it, so scrolling the
+    // month grid on a laptop did nothing at all. (The suite could not have caught
+    // it: its ScrollDirection double left SMOOTH out entirely.)
+    //
+    // The deltas are fractions of a notch, so they accumulate: a flick is one
+    // month, not twelve. Whatever is left over stays for the next frame, and the
+    // remainder is dropped when the direction reverses so a scroll back does not
+    // start out owing a month to the scroll that came before it.
+    _onSmoothScroll(event) {
+        const [dx, dy] = event.get_scroll_delta();
+        const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+        if (!Number.isFinite(delta) || delta === 0) {
+            return;
+        }
+
+        if (Math.sign(delta) !== Math.sign(this._scroll_accumulator)) {
+            this._scroll_accumulator = 0;
+        }
+
+        this._scroll_accumulator += delta;
+
+        while (this._scroll_accumulator <= -SMOOTH_SCROLL_NOTCH) {
+            this._scroll_accumulator += SMOOTH_SCROLL_NOTCH;
+            this._onPrevMonthButtonClicked();
+        }
+
+        while (this._scroll_accumulator >= SMOOTH_SCROLL_NOTCH) {
+            this._scroll_accumulator -= SMOOTH_SCROLL_NOTCH;
+            this._onNextMonthButtonClicked();
         }
     }
 
