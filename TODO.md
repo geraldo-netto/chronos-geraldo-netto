@@ -20,7 +20,7 @@ Open items: 23 (Critical 0, High 3, Medium 10, Low 10).
 |----|----------|----------|--------|--------|-------------|-------|
 | T422 | packaging / legal | High | done | S | **[verified]** No `LICENSE`/`COPYING` anywhere, though `package.json:5` and README both declare `GPL-2.0-or-later` and the applet redistributes two GPL works (`calendar@ccprog`, `calendar@simonwiles.net`). `metadata.json` carries no license field at all. | Verified: `git ls-files` lists no LICENSE/COPYING. Fix: add top-level `LICENSE` with the GPL-2.0 text and the "or later" notice; add `"license"` to `metadata.json`. |
 | T428 | testing / lint | High | done | S | **[verified]** `eslint.config.mjs` extends **no** ruleset — `js.configs.recommended` is absent; only `no-unused-vars`/`no-undef`/`no-shadow` are on. So the one static gate is a near no-op for correctness bugs. | Verified now: a file with unreachable code after `return`, a duplicate object key, and `if (o = 3)` lints **clean, exit 0** — only the unused-var fired. (Supersedes the old T360, which cited a CI step that does not exist.) Fix: `import js from "@eslint/js"` and extend `js.configs.recommended`, then fix the fallout. |
-| T359 | testing | High | open | M | **[verified]** `calendar.js:989,1023,1030` wire the month/year nav buttons with `.connect('clicked', …)`, but `test/calendar.test.js` calls `_onPrevMonthButtonClicked()` / `_onNextYearButtonClicked()` **directly**, so the wiring is untested. | Re-verified this pass: renamed the prev-month button's signal `'clicked'` → `'clicked-nope'` → **72 pass / 0 fail, exit 0**. The same mutation on the day-cell `'clicked'`, `'scroll-event'`, `'style-changed'` and `changed::` signals *does* fail, so it is specifically the nav wiring. Fix: dispatch through the emitted signal in the test, or assert the connect list. |
+| T359 | testing | High | done | M | **[verified]** `calendar.js:989,1023,1030` wire the month/year nav buttons with `.connect('clicked', …)`, but `test/calendar.test.js` calls `_onPrevMonthButtonClicked()` / `_onNextYearButtonClicked()` **directly**, so the wiring is untested. | Re-verified this pass: renamed the prev-month button's signal `'clicked'` → `'clicked-nope'` → **72 pass / 0 fail, exit 0**. The same mutation on the day-cell `'clicked'`, `'scroll-event'`, `'style-changed'` and `changed::` signals *does* fail, so it is specifically the nav wiring. Fix: dispatch through the emitted signal in the test, or assert the connect list. |
 
 ### Medium
 
@@ -58,7 +58,7 @@ The 2026-07-12 batch closed the live defects, the i18n regressions and the docs/
 
 1. **T440, T373** — make the gates real (add CI, close the Python coverage-glob hole). The eslint ruleset (T428) is done. The JS coverage-honesty hole (T424) is done; these three finish the net.
 2. **T437, T438, T439** — the packaging blockers to a first release or Spices submission (LICENSE, `uuid`, `cinnamon-version`, the icon symlink).
-3. **T359, T374, T434, T449** — the tests that lie; each is a bug free to come back.
+3. **T374, T434, T449** — the tests that lie; each is a bug free to come back.
 4. **The parked reorganizations** (T442, T448, T444) — schedule when next touching those files, not as standalone churn; see "Open - parked".
 5. Everything else, severity order.
 
@@ -74,7 +74,7 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 - **Backoff and retry.** A 6-hour virtual-clock simulation under permanent failure did 30→60→…→1800 s capped backoff then settled to the refresh period (18 calls in 6 h, no runaway). Jitter is present for lockstep on the backoff path (the initial geocode fan-out is the one gap — T454). Every HTTP path sets `timeout`+`idle_timeout`=30 s.
 - **DST and date math.** `_buildDays`, `expandHoliday`, `_formatJsDate` all anchor at 12:00 before day arithmetic; staleness uses wall-clock `Date.now()` so it survives suspend and marks post-sleep readings ⚠. (Nothing *tests* a DST transition — T374.)
 - **Settings-schema → runtime.** Every current schema key is read and acted on; `format-button` resolves to `on_custom_format_button_pressed`; `has_region`'s default matches `ENRICO_REGION_TO_COUNTY` and the country combobox matches `SUPPORTED_COUNTRIES`; `region_*`/`has_region` are reached at runtime via `REGION_KEY_PREFIX + country` concatenation (grep-false-positives, not gaps). The ten `5.4/*.js` shims are whole-module pass-throughs, so no per-symbol drift is possible.
-- **Signal wiring (except the calendar nav buttons, T359).** Renaming/breaking nine signals — `enter-event`, `start-pass-events`, day-cell `clicked`, country `changed::`, `open-state-changed`, `view-event`, calendar-server `connect`, Soup `restarted`, the label clamp — each failed the suite. Only the month/year nav buttons and scroll are tested by direct call.
+- **Signal wiring, including the calendar nav buttons (T359).** Renaming/breaking the signals — `enter-event`, `start-pass-events`, day-cell `clicked`, country `changed::`, `open-state-changed`, `view-event`, calendar-server `connect`, Soup `restarted`, the label clamp — each failed the suite. The month/year nav buttons now fail it too; scroll is still tested by direct call.
 - **Not applicable**: database / migrations, multi-tenancy, Electron, Rust, ML / retrieval / RAG, vectorization, CLI surface, SQL injection, CORS/CSRF, prompt injection.
 
 ## Open - parked

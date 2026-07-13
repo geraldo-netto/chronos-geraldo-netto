@@ -1665,6 +1665,32 @@ test("calendar wrappers cover scroll, style, holiday refresh, and selected-date 
     assert.deepEqual(widthCalls, [6]);
 });
 
+// The test above calls the four handlers directly, which says nothing about the
+// buttons: _buildHeader wires them with connect('clicked', …), and renaming that
+// signal left the whole suite green. Every other signal in the applet — the day
+// cells, the country combo, the scroll — is tested through the emit. These are
+// the four buttons the calendar is navigated with; nothing else was watching the
+// wiring at all.
+test("the month and year nav buttons reach their handlers through the clicked signal", () => {
+    const cal = makeCalendar();
+    const actions = [];
+    cal._applyDateBrowseAction = (year, month) => actions.push([year, month]);
+
+    const navButton = (box, styleClass) => {
+        const button = box.children.find((child) => child.style_class === styleClass);
+        assert.ok(button, `no ${styleClass} button in the header`);
+        return button;
+    };
+
+    navButton(cal._topBoxMonth, "calendar-change-month-back").fire("clicked");
+    navButton(cal._topBoxMonth, "calendar-change-month-forward").fire("clicked");
+    navButton(cal._topBoxYear, "calendar-change-month-back").fire("clicked");
+    navButton(cal._topBoxYear, "calendar-change-month-forward").fire("clicked");
+
+    assert.deepEqual(actions, [[0, -1], [0, 1], [-1, 0], [1, 0]],
+        "previous month, next month, previous year, next year");
+});
+
 test("fuzz: navigation wrappers preserve valid queued dates", () => {
     const rand = makeRandom(24680);
     const cal = makeCalendar();
