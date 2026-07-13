@@ -374,6 +374,40 @@ test("every catalog orders the date the way its language does", () => {
     }
 });
 
+// The applet declares GPL-2.0-or-later, redistributes two GPL works, and shipped
+// neither the licence text nor a single per-file notice: Cinnamon installs only
+// files/chronos@geraldo-netto/, and 0 of the 45 sources in it carried a copyright
+// or an SPDX tag. A GPL derived work of three authors was shipping with nothing
+// to say so.
+test("what ships carries its licence", () => {
+    const shipped = fs.readFileSync(path.join(appletDir, "LICENSE"), "utf8");
+    assert.match(shipped, /GNU GENERAL PUBLIC LICENSE\n\s+Version 2, June 1991/);
+    assert.equal(shipped, fs.readFileSync(path.join(__dirname, "..", "LICENSE"), "utf8"),
+        "the copy that ships and the one at the root must not drift");
+
+    const sources = [];
+    const walk = (dir) => {
+        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
+            if (entry.isDirectory() && entry.name !== "po" && entry.name !== "__pycache__") {
+                walk(full);
+            } else if (entry.isFile() && /\.(js|py)$/.test(entry.name)) {
+                sources.push(full);
+            }
+        }
+    };
+    walk(appletDir);
+    assert.ok(sources.length >= 40, `${sources.length} shipped sources`);
+
+    for (const file of sources) {
+        const head = fs.readFileSync(file, "utf8").split("\n").slice(0, 12).join("\n");
+        assert.match(head, /SPDX-License-Identifier: GPL-2\.0-or-later/,
+            `${path.relative(appletDir, file)} ships with no licence notice`);
+        assert.match(head, /calendar@ccprog[\s\S]*calendar@simonwiles\.net/,
+            `${path.relative(appletDir, file)} does not credit the works it derives from`);
+    }
+});
+
 // Cinnamon matches the running series against this list literally: a manifest
 // that names only 5.4 is "incompatible" on Mint's current 6.x, even though the
 // multiversion 5.4/ tree loads there fine — and the README promises 5.4 or newer.

@@ -1,3 +1,12 @@
+// Chronos Calendar — a Cinnamon calendar applet.
+// Copyright (C) Geraldo Netto <geraldonetto@gmail.com> and contributors.
+// Derived from calendar@ccprog (Claus Colloseus) and
+// calendar@simonwiles.net (Simon Wiles).
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+// This program comes with ABSOLUTELY NO WARRANTY. See the LICENSE file beside
+// this one, or <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
+
 // One truncation rule, for every string this applet shows that a third party
 // wrote: a world clock's label, the panel's weather suffix, an event summary off
 // a subscribed feed, a holiday name off a provider.

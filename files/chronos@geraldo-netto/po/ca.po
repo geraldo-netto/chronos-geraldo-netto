@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/"
 "issues\n"
-"POT-Creation-Date: 2026-07-13 12:28+0200\n"
+"POT-Creation-Date: 2026-07-13 12:35+0200\n"
 "PO-Revision-Date: 2025-02-13 20:56+0100\n"
 "Last-Translator: Odyssey <odysseyhyd@gmail.com>\n"
 "Language-Team: \n"
@@ -19,220 +19,220 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Poedit 3.4.2\n"
 
-#: dateFormats.js:23
+#: dateFormats.js:46
 msgid "%B %-e, %Y"
 msgstr "%-e de %B de %Y"
 
-#: dateFormats.js:24
+#: dateFormats.js:47
 msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e de %B de %Y"
 
-#: eventFormat.js:67 eventFormat.js:94 eventFormat.js:125 eventFormat.js:139
-#: 5.4/calendar.js:360
+#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:134 eventFormat.js:148
+#: 5.4/calendar.js:369
 msgid "Today"
 msgstr "Avui"
 
-#: eventFormat.js:100 eventFormat.js:141
+#: eventFormat.js:109 eventFormat.js:150
 #, javascript-format
 msgid "%s Today"
 msgstr "%s avui"
 
-#: eventFormat.js:169
+#: eventFormat.js:178
 msgid "All day"
 msgstr "Tot el dia"
 
-#: localeText.js:77
+#: localeText.js:86
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
 
-#: worldclockData.js:29 settings_widgets_common.py:60
+#: worldclockData.js:52 settings_widgets_common.py:69
 msgid "Invalid timezone"
 msgstr "Zona horària no vàlida"
 
-#: worldclockData.js:30
+#: worldclockData.js:53
 msgid "Local time"
 msgstr "Hora local"
 
-#: 5.4/appletMenuBuilder.js:176 5.4/appletMenuBuilder.js:182
+#: 5.4/appletMenuBuilder.js:185 5.4/appletMenuBuilder.js:191
 msgid "Go to today"
 msgstr "Vés a avui"
 
-#: 5.4/appletMenuBuilder.js:265
+#: 5.4/appletMenuBuilder.js:274
 msgid "Date and Time Settings"
 msgstr "Configuració de data i hora"
 
-#: 5.4/appletPanelStatus.js:48
+#: 5.4/appletPanelStatus.js:57
 msgid "%b %-e"
 msgstr "%-e %b"
 
-#: 5.4/appletPanelStatus.js:80
+#: 5.4/appletPanelStatus.js:89
 msgid "Location not found"
 msgstr "No s'ha trobat la ubicació"
 
-#: 5.4/appletPanelStatus.js:81
+#: 5.4/appletPanelStatus.js:90
 msgid "Weather service unavailable"
 msgstr "El servei meteorològic no està disponible"
 
-#: 5.4/appletPanelStatus.js:82
+#: 5.4/appletPanelStatus.js:91
 msgid "Set a weather location"
 msgstr "Definiu una ubicació del temps"
 
-#: 5.4/appletPanelStatus.js:91
+#: 5.4/appletPanelStatus.js:100
 msgid "Clear"
 msgstr "Serè"
 
-#: 5.4/appletPanelStatus.js:92
+#: 5.4/appletPanelStatus.js:101
 msgid "Partly cloudy"
 msgstr "Parcialment ennuvolat"
 
-#: 5.4/appletPanelStatus.js:93
+#: 5.4/appletPanelStatus.js:102
 msgid "Cloudy"
 msgstr "Ennuvolat"
 
-#: 5.4/appletPanelStatus.js:94
+#: 5.4/appletPanelStatus.js:103
 msgid "Rain"
 msgstr "Pluja"
 
-#: 5.4/appletPanelStatus.js:95
+#: 5.4/appletPanelStatus.js:104
 msgid "Snow"
 msgstr "Neu"
 
-#: 5.4/appletPanelStatus.js:96
+#: 5.4/appletPanelStatus.js:105
 msgid "Showers"
 msgstr "Ruixats"
 
-#: 5.4/appletPanelStatus.js:97
+#: 5.4/appletPanelStatus.js:106
 msgid "Thunderstorm"
 msgstr "Tempesta"
 
-#: 5.4/appletPanelStatus.js:98
+#: 5.4/appletPanelStatus.js:107
 msgid "Fair"
 msgstr "Bon temps"
 
-#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:499
-#: 5.4/appletPanelStatus.js:658
+#: 5.4/appletPanelStatus.js:117 5.4/appletPanelStatus.js:508
+#: 5.4/appletPanelStatus.js:667
 msgid "Weather: loading…"
 msgstr "Temps: s’està carregant…"
 
-#: 5.4/appletPanelStatus.js:359
+#: 5.4/appletPanelStatus.js:368
 msgid "Invalid time format; edit it in Settings"
 msgstr "Format d'hora no vàlid; editeu-lo a Configuració"
 
-#: 5.4/appletPanelStatus.js:523
+#: 5.4/appletPanelStatus.js:532
 msgid "No weather for this timezone"
 msgstr "Sense meteorologia per a aquesta zona horària"
 
-#: 5.4/appletPanelStatus.js:535
+#: 5.4/appletPanelStatus.js:544
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última lectura coneguda"
 
-#: 5.4/appletPanelStatus.js:743
+#: 5.4/appletPanelStatus.js:752
 msgid "Invalid tooltip format; edit it in Settings"
 msgstr "Format d'indicador de funció no vàlid; editeu-lo a Configuració"
 
-#: 5.4/calendar.js:111
+#: 5.4/calendar.js:120
 msgid "Holiday service unavailable"
 msgstr "El servei de festius no està disponible"
 
-#: 5.4/calendar.js:112
+#: 5.4/calendar.js:121
 msgid "Holiday data unavailable"
 msgstr "Les dades de festius no estan disponibles"
 
-#: 5.4/calendar.js:363
+#: 5.4/calendar.js:372
 msgid "Selected"
 msgstr "Seleccionat"
 
-#: 5.4/calendar.js:367
+#: 5.4/calendar.js:376
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d esdeveniment"
 msgstr[1] "%d esdeveniments"
 
-#: 5.4/calendar.js:638
+#: 5.4/calendar.js:647
 msgid "Holiday data: loading…"
 msgstr "Dades de festius: s’està carregant…"
 
-#: 5.4/calendar.js:678
+#: 5.4/calendar.js:687
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dades de festius: %s"
 
-#: 5.4/calendar.js:1045
+#: 5.4/calendar.js:1054
 msgid "Previous month"
 msgstr "Mes anterior"
 
-#: 5.4/calendar.js:1075
+#: 5.4/calendar.js:1084
 msgid "Next month"
 msgstr "Mes següent"
 
-#: 5.4/calendar.js:1079
+#: 5.4/calendar.js:1088
 msgid "Previous year"
 msgstr "Any anterior"
 
-#: 5.4/calendar.js:1086
+#: 5.4/calendar.js:1095
 msgid "Next year"
 msgstr "Any següent"
 
-#: 5.4/calendar.js:1099
+#: 5.4/calendar.js:1108
 msgid "Week"
 msgstr "Setmana"
 
-#: 5.4/calendar.js:1400
+#: 5.4/calendar.js:1409
 #, javascript-format
 msgid "Week %s"
 msgstr "Setmana %s"
 
-#: 5.4/eventView.js:39
+#: 5.4/eventView.js:48
 msgid "Starting in a few minutes"
 msgstr "Començant d'aquí a uns minuts"
 
-#: 5.4/eventView.js:46
+#: 5.4/eventView.js:55
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Comença d’aquí a %d minut"
 msgstr[1] "Comença d’aquí a %d minuts"
 
-#: 5.4/eventView.js:56
+#: 5.4/eventView.js:65
 msgid "This evening"
 msgstr "Aquesta tarda"
 
-#: 5.4/eventView.js:59
+#: 5.4/eventView.js:68
 msgid "Starting later today"
 msgstr "Començant avui"
 
-#: 5.4/eventView.js:62
+#: 5.4/eventView.js:71
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "En %d hora"
 msgstr[1] "En %d hores"
 
-#: 5.4/eventView.js:184
+#: 5.4/eventView.js:193
 msgid "Loading…"
 msgstr "S’està carregant…"
 
-#: 5.4/eventView.js:188 5.4/eventView.js:198 5.4/eventView.js:430
-#: 5.4/eventView.js:611
+#: 5.4/eventView.js:197 5.4/eventView.js:207 5.4/eventView.js:439
+#: 5.4/eventView.js:620
 msgid "No Events"
 msgstr "No hi ha events"
 
-#: 5.4/eventView.js:344 5.4/eventView.js:511
+#: 5.4/eventView.js:353 5.4/eventView.js:520
 msgid "Open the calendar app"
 msgstr "Obre l’aplicació de calendari"
 
-#: 5.4/eventView.js:442
+#: 5.4/eventView.js:451
 msgid "Events for the selected day"
 msgstr "Esdeveniments del dia seleccionat"
 
-#: 5.4/eventView.js:495
+#: 5.4/eventView.js:504
 msgid "Add an event"
 msgstr "Afegeix un esdeveniment"
 
-#: 5.4/eventView.js:619
+#: 5.4/eventView.js:628
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -240,46 +240,46 @@ msgstr ""
 "Els esdeveniments del calendari no estan disponibles: no hi ha cap servei de "
 "calendari en execució. Instal·leu o activeu l’Evolution Data Server."
 
-#: 5.4/eventView.js:733
+#: 5.4/eventView.js:742
 msgid "In progress"
 msgstr "En procés"
 
-#: 5.4/worldclocks.js:224 5.4/worldclocks.js:225
+#: 5.4/worldclocks.js:253 5.4/worldclocks.js:254
 msgid "World clocks"
 msgstr "Rellotges mundials"
 
-#: 5.4/worldclocks.js:224
+#: 5.4/worldclocks.js:253
 #, javascript-format
 msgid "Source: %s"
 msgstr "Font: %s"
 
-#: settings_widgets_common.py:58
+#: settings_widgets_common.py:67
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Ciutat o zona horària (p. ex. Buenos Aires)"
 
-#: settings_widgets_common.py:59
+#: settings_widgets_common.py:68
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Zona horària a desar: %s"
 
-#: settings_widgets_common.py:61
+#: settings_widgets_common.py:70
 msgid "No timezone selected"
 msgstr "No s'ha seleccionat cap zona horària"
 
-#: settings_widgets_common.py:62
+#: settings_widgets_common.py:71
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC i l’hora local ja es mostren com a rellotges integrats"
 
-#: settings_widgets_common.py:63
+#: settings_widgets_common.py:72
 msgid "Enter a display name for this clock"
 msgstr "Introduïu un nom per a aquest rellotge"
 
-#: settings_widgets_common.py:67
+#: settings_widgets_common.py:76
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "No es poden afegir més de %d rellotges."
 
-#: settings_widgets_common.py:70
+#: settings_widgets_common.py:79
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -288,21 +288,21 @@ msgstr ""
 "per escriure el nom d’una ciutat; sense aquesta, només s’accepta un "
 "identificador complet com ara America/Sao_Paulo."
 
-#: settings_widgets_common.py:74
+#: settings_widgets_common.py:83
 #, fuzzy
 msgid "City or town (e.g. Lisbon)"
 msgstr "Ciutat o zona horària (p. ex. Buenos Aires)"
 
-#: settings_widgets_common.py:75
+#: settings_widgets_common.py:84
 #, fuzzy
 msgid "Type a country name"
 msgstr "Zona horària o nom de ciutat"
 
-#: settings_widgets_common.py:566
+#: settings_widgets_common.py:575
 msgid "Add new entry"
 msgstr "Afegir una nova entrada"
 
-#: settings_widgets_common.py:568
+#: settings_widgets_common.py:577
 msgid "Edit entry"
 msgstr "Editar entrada"
 
