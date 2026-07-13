@@ -3,6 +3,28 @@ const { test } = require("node:test");
 const fs = require("node:fs");
 const path = require("node:path");
 
+// Source-level invariants: the rules that have no runtime surface to drive.
+//
+// Most of this file used to be `assert.match(sourceText, /regex/)` over behaviour
+// that the applet, calendar, event and weather suites already exercise — locking
+// the shape of a line rather than what it does, and sitting outside the coverage
+// gate while doing it. A regex that matches `if (pending.events_changed)` passes
+// whether or not that flag is ever false. Those are gone: what they were guarding
+// is asserted by driving the code (T414), and each one was removed only after
+// mutating the line it watched and confirming a behavioural test failed.
+//
+// What is left is what genuinely cannot be a behavioural test:
+//
+//   - the GJS export rule. Cinnamon's importer exposes a module's top-level `var`
+//     and function declarations and nothing else; Node's require() exposes a
+//     `const` just as happily, so no test running under Node can see the
+//     difference. The declarations themselves are the only evidence.
+//   - what the applet must never *do*: no synchronous spawn or socket on the
+//     compositor thread, no raw request URL in the log, no deprecated Lang.bind,
+//     no plain-HTTP link. An absence has no behaviour to drive.
+//   - the stylesheet: St parses a fixed set of values, and a sheet is not code.
+//   - the gettext domain each translating file declares.
+
 function appletSource(version) {
     return fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", version, "applet.js"), "utf8");
 }
@@ -115,89 +137,6 @@ test("5.4 strftime help opens over HTTPS", () => {
     assert.doesNotMatch(source, /xdg-open http:\/\//);
 });
 
-test("event data culling reports removals and empty event lists", () => {
-    const code = source("5.4/eventView.js");
-    const dataCode = source("eventData.js");
-    assert.match(dataCode, /to_remove\.forEach\(\(id\) => \{[\s\S]*?this\.delete\(id\);[\s\S]*?\}\);\n\s+return true;/);
-    assert.match(code, /event_data_list != null &&[\s\S]*?event_data_list\.timestamp/);
-    assert.match(code, /event_data_list == null/);
-});
-
-test("event rows detect current events from their start date", () => {
-    const code = source("5.4/eventView.js");
-    assert.doesNotMatch(code, /event\.is_today/);
-    assert.match(code, /const selectedDateOnly = date_only\(this\.row\.selected_date\);/);
-    assert.match(code, /EventFormat\.classifyEventDisplayState\(this\.row\.event, now, today\)/);
-    assert.match(code, /EventFormat\.formatEventTimeRange\(\s*this\.row\.event, selectedDateOnly, today,/);
-    assert.match(code, /this\.row\.is_current_or_next = state\.is_current_or_next;/);
-    const helper = fs.readFileSync(
-        path.join(__dirname, "..", "files", "chronos@geraldo-netto", "eventFormat.js"), "utf8");
-    assert.match(helper, /event\.starts_on_date_only\(today\) && !event\.all_day/);
-});
-
-test("event managers emit grid updates only on changed event data", () => {
-    const code = source("eventsManager.js");
-    assert.match(code, /this\._event_index = new EventIndex\(\);/);
-    assert.match(code, /const result = this\._event_index\.addOrUpdate\(/);
-    assert.match(code, /if \(pending\.events_changed\) \{[\s\S]*?this\.emit\("events-updated"\);/);
-    assert.doesNotMatch(code, /this\._start_gc_timer\(\);\n\s+this\.emit\("events-updated"\);/);
-});
-
-test("event data lists cache colors by timestamp", () => {
-    const code = source("eventData.js");
-    assert.match(code, /this\._cachedColors = null;/);
-    assert.match(code, /this\._cachedColorsTimestamp = 0;/);
-    assert.match(code, /_mark_changed\(\) \{[\s\S]*?this\.timestamp = GLib\.get_monotonic_time\(\);[\s\S]*?this\._cachedColors = null;/);
-    assert.match(code, /if \(existing\.color !== event_data\.color\) \{[\s\S]*?this\._mark_changed\(\);[\s\S]*?return true;/);
-    assert.match(code, /if \(this\._cachedColors && this\._cachedColorsTimestamp === this\.timestamp\) \{[\s\S]*?return this\._cachedColors;/);
-    assert.match(code, /this\._cachedColors = this\.get_event_list\(\)\.map\(\(event\) => event\.color\);/);
-});
-
-test("5.4 event manager ignores server callbacks after destroy", () => {
-    const code = source("eventsManager.js");
-
-    assert.match(code, /this\._destroyed = false;/);
-    assert.match(code, /destroy\(\) \{[\s\S]*?this\._destroyed = true;\n {4}\}/);
-    // the proxy-ready callback and the retry queue must both bail out once
-    // destroyed, or the 4 proxy signals leak and retries resurrect the manager
-    assert.match(code, /_calendar_server_ready\(obj, res\) \{[\s\S]{0,250}?if \(this\._destroyed\) \{\n\s+return;\n\s+\}[\s\S]*?try \{/);
-    assert.match(code, /queueRetry\(\) \{\n\s+if \(this\._destroyed\) \{\n\s+return;\n\s+\}/);
-});
-
-test("5.4 event manager retries calendar server construction failures", () => {
-    const code = source("eventsManager.js");
-
-    assert.match(code, /var SERVER_RETRY_SECONDS = 5;/);
-    assert.match(code, /this\._server_retry_id = 0;/);
-    assert.match(code, /this\.queueRetry\(\);/);
-    assert.match(code, /Mainloop\.timeout_add_seconds\(\n\s+delay,/);
-    assert.match(code, /SERVER_RETRY_MAX_SECONDS/);
-    assert.match(code, /this\.start\(\);/);
-});
-
-test("5.4 event manager initializes the EDS bus watch id", () => {
-    const code = source("eventsManager.js");
-
-    assert.match(code, /this\._bus_watch_id = 0;/);
-    assert.doesNotMatch(code, /this\._bus_watch_id\n/);
-});
-
-test("5.4 calendar keeps the newest queued date", () => {
-    const code = source("5.4/calendar.js");
-
-    assert.match(code, /this\._queued_set_date = null;/);
-    assert.match(code, /const date = this\._queued_set_date;/);
-    assert.match(code, /this\._queued_set_date = date;\n\n\s+if \(this\._set_date_idle_id > 0\)/);
-    assert.match(code, /Mainloop\.timeout_add\(25, this\._queue_set_date_idle\.bind\(this\)\)/);
-    assert.doesNotMatch(code, /_queue_set_date_idle\.bind\(this, date\)/);
-});
-
-test("calendar weekday headers honor weekend length", () => {
-    const code = source("5.4/calendar.js");
-    assert.match(code, /if \(_isWorkDay\(iter, this\.weekend_length\)\)/);
-    assert.doesNotMatch(code, /if \(_isWorkDay\(iter\)\)/);
-});
-
 test("event managers expose teardown and applets call it", () => {
     const code = source("eventsManager.js");
     assert.match(code, /this\._calendar_server_signal_ids = \[\];/);
@@ -209,16 +148,6 @@ test("event managers expose teardown and applets call it", () => {
     assert.match(code, /this\.cancelRetry\(\);/);
 
     assert.match(appletSource("5.4"), /this\._providerLifecycle && this\._providerLifecycle\.destroy\(\)/);
-});
-
-test("applets destroy the holiday provider on removal", () => {
-    const holidays = source("holidays.js");
-    assert.match(holidays, /destroy\(\) \{[\s\S]*?this\._destroyed = true;[\s\S]*?this\._inflight\.clear\(\);/);
-    // the session belongs to this provider instance, so aborting it on destroy
-    // cannot cancel a second applet instance's in-flight requests
-    // the session is a collaborator now, and aborting it is its own job
-    assert.match(holidays, /destroy\(\) \{[\s\S]*?this\._session\.abort\(\);/);
-    assert.match(holidays, /abort\(\) \{[\s\S]*?this\._session\.abort\(\);/);
 });
 
 test("calendar and event list destroy pending timers", () => {
@@ -272,15 +201,6 @@ test("date settings menu items are not shared between menus", () => {
     assert.match(code, /for \(let menu of \[context\.contextMenu, context\.menu\]\) \{[\s\S]*?let item = new PopupMenu\.PopupMenuItem\(_\("Date and Time Settings"\)\);[\s\S]*?menu\.addMenuItem\(item\);/);
     const sharedAdds = code.match(/this\.menu\.addMenuItem\(item\)/g) || [];
     assert.equal(sharedAdds.length, 0);
-});
-
-test("calendar style-change handler is connected once", () => {
-    const code = source("5.4/calendar.js");
-    // count the connections, not the mentions: a comment naming the signal is
-    // not a second handler
-    const matches = code.match(/\.connect\('style-changed'/g) || [];
-    assert.equal(matches.length, 1);
-    assert.match(code, /this\.actor\.connect\('style-changed', this\._onStyleChange\.bind\(this\)\);/);
 });
 
 test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
@@ -365,13 +285,6 @@ test("translating files use the applet's own gettext domain", () => {
     const eventView = source("5.4/eventView.js");
     assert.match(eventView, /const ngettext = Utils\.translatePlural;/);
     assert.doesNotMatch(eventView, /function ngettext\(singular, plural, n\)/);
-});
-
-test("worldclocks changed-signal handler consumes the new value", () => {
-    const code = appletSource("5.4");
-    // settings emit (emitter, key, oldValue, newValue); a 3-parameter
-    // handler would rebuild the display from the previous list
-    assert.match(code, /_onWorldclocksChanged\(setting_provider, key, oldval, newval\) \{[\s\S]*?this\.worldclocks = newval;/);
 });
 
 test("weather failures keep showing the stale reading with the marker", () => {

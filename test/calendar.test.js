@@ -1703,6 +1703,31 @@ test("the month and year nav buttons reach their handlers through the clicked si
         "previous month, next month, previous year, next year");
 });
 
+// The week-number column reserves its width from the theme's digit width, and the
+// only thing that recomputes it is the style-changed signal — so a theme switch
+// that changes the font leaves the column at the old font's width. The suite used
+// to call _onStyleChange() directly and match `.connect('style-changed'` in the
+// source, which says the line exists, not that the signal reaches it: renaming the
+// signal left every test green.
+test("a theme change reaches the calendar through the style-changed signal", () => {
+    const cal = makeCalendar();
+    const widths = [];
+    cal.show_week_numbers = true;
+    cal._weekdateHeader = { set_width: (width) => widths.push(width) };
+    cal.actor.get_pango_context = () => ({
+        get_language: () => "en",
+        get_metrics: () => ({ get_approximate_digit_width: () => 30 })
+    });
+    cal.actor.get_theme_node = () => ({ get_font: () => "font" });
+    global.imports.gi.Pango.SCALE = 10;
+
+    cal.actor.fire("style-changed");
+
+    assert.deepEqual(widths, [9], "3 digits at 30/10 units each");
+    assert.equal((cal.actor.handlers["style-changed"] || []).length, 1,
+        "and it is connected once: a second handler is a second relayout per theme change");
+});
+
 // SMOOTH is what a touchpad sends — and it was the one ScrollDirection value the
 // test double left out, so the one device most users scroll with was the one the
 // suite could not express. The switch had no case for it either: scrolling the

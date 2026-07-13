@@ -412,6 +412,40 @@ test("destroy cancels watch, retry and timers and disconnects proxy signals", ()
     assert.ok(manager._destroyed);
 });
 
+// The grid rebuild is not free: "events-updated" tears the 42 day cells' dots down
+// and rebuilds them, and calendar-server re-sends the whole window on every change
+// to any calendar in it. Re-delivering the same events must not repaint. This was
+// asserted by matching `if (pending.events_changed)` in the source — a regex that
+// passes whether or not the flag is ever false, and the shipped behaviour with the
+// condition forced true was indistinguishable to the suite.
+test("re-delivering the same events does not repaint the grid", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(11 * DAY_US);
+    const events = [eventVariant({
+        id: "standup", startUnix: 11 * DAY_S + 3600, endUnix: 11 * DAY_S + 5400
+    })];
+
+    proxy.instance.signal("events-added-or-updated", { unpack: () => events });
+    assert.equal(emitted(manager, "events-updated").length, 1, "the first delivery paints");
+
+    // the same event, again — the server re-sends its whole window whenever
+    // anything in it changes, and nothing in this one did
+    proxy.instance.signal("events-added-or-updated", { unpack: () => events });
+    assert.equal(emitted(manager, "events-updated").length, 1,
+        "an unchanged redelivery must not rebuild the grid");
+
+    // and a real change still gets through. The server stamps an edited event with
+    // a new modification time, and that stamp — not the fields — is what says the
+    // event is not the one already held.
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "standup", startUnix: 11 * DAY_S + 7200, endUnix: 11 * DAY_S + 9000,
+            modTime: 2
+        })]
+    });
+    assert.equal(emitted(manager, "events-updated").length, 2, "a moved event repaints");
+});
+
 test("added events spread across days and emit updates", () => {
     const manager = readyManager();
     manager._window_coordinator.current_selected_date = new FakeDateTime(11 * DAY_US);

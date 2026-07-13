@@ -10,7 +10,7 @@ Baseline: `npm test` green (JS coverage per-file 98/90/100, Python 98 %+), `npm 
 
 A batch on 2026-07-12 closed 27 of the findings (see `git log`): the six README fixes, the makepot `cd`, the single-sourced constants, the i18n trio, the dead `_urlForLog`, the lazy city Soup session, the tooltip-key seconds, the locale-subprocess reap, the chunked-response cap, the geocode fan-out pool, the JS/Python timezone-city parity, the logind resume, the holiday refetch-storm, the C→F unification, the five complexity splits, the `updateFormatString` table, the calendar-server proxy encapsulation, the EventList seam, the coverage-gate honesty fix, and the ATK-description fix. Five of that batch's targets were **parked** rather than done — the heavy reorganizations, all Medium and none a live bug. All five have since landed (T442, T444, T445, T446, T448).
 
-Open items: 5 (Critical 0, High 0, Medium 2, Low 3).
+Open items: 4 (Critical 0, High 0, Medium 2, Low 2).
 
 ## Findings
 
@@ -31,7 +31,6 @@ None open.
 |----|----------|----------|--------|--------|-------------|-------|
 | T455 | dead code | Low | open | S | **[verified]** `cityWeather.js:34` `CITY_STALE_AFTER_SECONDS` is computed at load and exported, but production reads none of it — `CityWeatherProvider` computes its own threshold at `:54`. Only `cityWeather.test.js` reads it. | Verified by grep. Fix: delete the constant and its `module.exports` entry. |
 | T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete, or promote to the root `icon.png` T439 needs. |
-| T414 | testing | Low | open | M | `test/applet_static.test.js` and `test/schema_static.test.js`: a large share are `assert.match(sourceText, /regex/)` over the source file — they lock text, not behaviour, and sit outside the coverage gate. | They do catch the GJS `var`-export rule (a real, otherwise-untestable constraint); the rest should be behavioural. |
 
 ## Suggested order
 
