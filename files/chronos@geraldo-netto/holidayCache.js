@@ -180,9 +180,56 @@ var HolidayCacheRepository = class HolidayCacheRepository {
         }
 
         Utils.readJsonFileAsync(file, (all) => {
-            this._all = all;
-            callback(this._country(all, country));
+            if (all && Object.keys(all).length > 0) {
+                this._all = all;
+                callback(this._country(all, country));
+                return;
+            }
+
+            // the new cache file is absent or empty: one-shot fallback to the
+            // pre-rename enrico.json so upgrading does not throw a user's cached
+            // holidays away. Once anything is saved the new file is no longer
+            // empty and this never runs again.
+            this._loadLegacy((legacy) => {
+                this._all = legacy || {};
+                this._migrate(file);
+                callback(this._country(this._all, country));
+            });
         });
+    }
+
+    // Copy what the old file held into the new one, through the same pending/
+    // flush path a save takes. It cannot just be left in `this._all`: _flush
+    // merges the pending countries into what is *on disk*, and on disk the new
+    // file is still empty — so the next save would write its own country and
+    // drop every migrated one, which is the loss the migration exists to avoid.
+    _migrate(file) {
+        const countries = Object.keys(this._all);
+        if (countries.length === 0) {
+            return;
+        }
+
+        countries.forEach((country) => {
+            this._pending[country] = this._all[country];
+        });
+        this._scheduleFlush(file);
+    }
+
+    // reads the old cache path when the new one has nothing; a repository pointed
+    // straight at the legacy file has nothing older to fall back to
+    _loadLegacy(callback) {
+        if (this.fn === HolidayCacheRepository.LEGACY_FN) {
+            callback(null);
+            return;
+        }
+
+        const legacyFile = HolidayCacheRepository.loadFile(HolidayCacheRepository.LEGACY_FN);
+        if (!legacyFile) {
+            callback(null);
+            return;
+        }
+
+        Utils.readJsonFileAsync(legacyFile, (all) => callback(all));
     }
 
     static loadFile (fn) {
@@ -246,6 +293,17 @@ var HolidayCacheRepository = class HolidayCacheRepository {
         });
     }
 
+    // one write settles at a time; a save that lands during one is folded into
+    // the next round rather than racing it
+    _scheduleFlush(file) {
+        if (this._writing) {
+            this._dirty = true;
+            return;
+        }
+
+        this._flush(file);
+    }
+
     save(country, data) {
         const file = this._file();
         if (!file) {
@@ -256,16 +314,13 @@ var HolidayCacheRepository = class HolidayCacheRepository {
         // eviction sorts on this, and a pending entry that waits out a write in
         // flight must not look newer than one saved after it
         this._pending[country] = Object.assign({}, data, { savedAt: this._now() });
-
-        if (this._writing) {
-            this._dirty = true;
-            return;
-        }
-
-        this._flush(file);
+        this._scheduleFlush(file);
     }
 };
 HolidayCacheRepository.path = GLib.build_filenamev([GLib.get_user_cache_dir(), "chronos@geraldo-netto"]);
+// the cache filename before it was renamed off the primary provider; loadAsync
+// reads it once when the current file has nothing, so an upgrade keeps its cache
+HolidayCacheRepository.LEGACY_FN = "/enrico.json";
 
 var HolidayCache = class HolidayCache {
     constructor(load, save) {

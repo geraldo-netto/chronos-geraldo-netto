@@ -12,7 +12,7 @@ var HTTP_TIMEOUT_SECONDS = 30;
 var MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
 // The same argument, for the same parse, on the same thread — the only
 // difference is that this payload comes off the disk rather than the network.
-// ~/.cache/chronos@geraldo-netto/enrico.json is writable by anything running
+// ~/.cache/chronos@geraldo-netto/holidays.json is writable by anything running
 // as the user, and it was read with no bound at all while the network body it
 // was built from was capped. A real cache file is tens of kilobytes.
 var MAX_CACHE_FILE_BYTES = 4 * 1024 * 1024;

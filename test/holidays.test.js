@@ -522,10 +522,10 @@ test("holiday HTTP session carries an explicit timeout", () => {
 
 test("HolidayCacheRepository reads and writes the per-country cache file", () => {
     const { HolidayCacheRepository } = loadHolidays();
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
 
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: {
             years: { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } },
             holidays: [{ year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: [] }]
@@ -537,12 +537,88 @@ test("HolidayCacheRepository reads and writes the per-country cache file", () =>
     repository.save("usa", { years: {}, holidays: [] });
 
     assert.equal(HolidayCacheRepository.path, cachePath());
-    const written = JSON.parse(fs.readFileSync(cachePath("enrico.json"), "utf8"));
+    const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
     assert.deepEqual(Object.keys(written), ["usa"]);
     assert.deepEqual(written.usa.years, {});
     assert.deepEqual(written.usa.holidays, []);
     // when the blob was last written: what the country eviction sorts on
     assert.ok(Number.isFinite(written.usa.savedAt));
+});
+
+// The cache file was named after one of the three providers; renaming it to
+// holidays.json would orphan every installed user's cache — a year of holidays
+// per country, refetched over the network — unless the old path is read once.
+const LEGACY_CACHE = {
+    usa: {
+        years: { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } },
+        holidays: [{ year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: [] }]
+    }
+};
+
+test("the service reads the renamed cache file, and knows the name it had before", () => {
+    const { HolidayService, HolidayCacheRepository } = loadHolidays();
+
+    assert.equal(HolidayService.fn, "/holidays.json");
+    assert.equal(HolidayCacheRepository.LEGACY_FN, "/enrico.json");
+});
+
+test("an upgrade with no new cache file yet reads the pre-rename one", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify(LEGACY_CACHE));
+
+    const loaded = loadCountry(repository, "usa");
+    assert.deepEqual(loaded.years, { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } });
+    assert.equal(loaded.holidays.length, 1, "the cached holidays survive the rename");
+});
+
+test("the migrated cache is written to the new file, and the old one is left alone", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify(LEGACY_CACHE));
+
+    loadCountry(repository, "usa");
+    repository.save("ita", { years: {}, holidays: [] });
+
+    const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
+    assert.deepEqual(Object.keys(written).sort(), ["ita", "usa"],
+        "the migrated country is merged with the new save");
+
+    // the old file is not rewritten and not deleted: a user who downgrades still
+    // has it, and this applet never reads it again once the new one has content
+    assert.deepEqual(JSON.parse(fs.readFileSync(cachePath("enrico.json"), "utf8")), LEGACY_CACHE);
+});
+
+test("a new cache file with content wins over the pre-rename one", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify(LEGACY_CACHE));
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
+        usa: {
+            years: { 2026: { global: "Fri, 10 Jul 2026 10:00:00 GMT" } },
+            holidays: []
+        }
+    }));
+
+    // the migration is one-shot: once the new file has anything, the old one is
+    // stale by definition and reading it back would resurrect evicted countries
+    assert.deepEqual(loadCountry(repository, "usa").years,
+        { 2026: { global: "Fri, 10 Jul 2026 10:00:00 GMT" } });
+});
+
+test("a repository pointed at the pre-rename file does not fall back to itself", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository(HolidayCacheRepository.LEGACY_FN);
+
+    fs.mkdirSync(cachePath(), { recursive: true });
+
+    assert.deepEqual(loadCountry(repository, "usa"), { years: {}, holidays: [] });
 });
 
 // prune() trims the years of the country in use; the per-country blobs of every
@@ -552,17 +628,17 @@ test("the cache file keeps a handful of countries, not every one ever tried", ()
     const { HolidayCacheRepository } = loadHolidays();
     const { MAX_CACHED_COUNTRIES } = require(holidayCachePath);
     let clock = 1000;
-    const repository = new HolidayCacheRepository("/enrico.json", { now: () => clock++ });
+    const repository = new HolidayCacheRepository("/holidays.json", { now: () => clock++ });
 
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), "{}");
+    fs.writeFileSync(cachePath("holidays.json"), "{}");
 
     const tried = ["usa", "ita", "fra", "deu", "jpn", "bra", "can"];
     for (const country of tried) {
         repository.save(country, { years: {}, holidays: [] });
     }
 
-    const written = JSON.parse(fs.readFileSync(cachePath("enrico.json"), "utf8"));
+    const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
     assert.equal(Object.keys(written).length, MAX_CACHED_COUNTRIES);
 
     // the ones kept are the ones most recently looked at
@@ -627,7 +703,7 @@ test("a second write waits for the one in flight instead of racing it", () => {
         replace_contents_finish: (result) => result.ok
     });
 
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
     repository.save("usa", { years: {}, holidays: [{ name: "first" }] });
     repository.save("usa", { years: {}, holidays: [{ name: "second" }] });
     repository.save("ita", { years: {}, holidays: [{ name: "third" }] });
@@ -689,7 +765,7 @@ test("a cache directory that cannot be created degrades instead of throwing", ()
         throw new Error("read-only home");
     };
 
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
 
     // load() and loadAsync() both answer with an empty struct rather than
     // undefined, and save() is a no-op: a full disk or a read-only $HOME
@@ -703,7 +779,7 @@ test("a cache directory that cannot be created degrades instead of throwing", ()
     assert.deepEqual(loaded, { years: {}, holidays: [] });
 
     assert.doesNotThrow(() => repository.save("usa", { years: {}, holidays: [] }));
-    assert.equal(fs.existsSync(cachePath("enrico.json")), false, "nothing is written");
+    assert.equal(fs.existsSync(cachePath("holidays.json")), false, "nothing is written");
     assert.ok(logged.length > 0, "and the failure is reported, not swallowed");
 
     // the whole applet still works, it just cannot remember anything
@@ -727,7 +803,7 @@ test("a cache directory that cannot be created degrades instead of throwing", ()
 test("a cached freshness stamp in the future is not believed", () => {
     const { HolidayCacheRepository } = loadHolidays();
     const { validCachedStamp, validCachedYears } = require(holidayCachePath);
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
     const now = Date.parse("2026-07-12T00:00:00Z");
 
     assert.equal(validCachedStamp("Sun, 05 Jul 2026 00:00:00 GMT", now), true);
@@ -743,7 +819,7 @@ test("a cached freshness stamp in the future is not believed", () => {
 
     // the whole point: a planted stamp must not pin the rows beside it
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: {
             years: { 2026: { global: "Sat, 01 Jan 3000 00:00:00 GMT" } },
             holidays: [{ year: 2026, month: 1, day: 1, region: "global", name: "Planted", flags: [] }]
@@ -826,7 +902,7 @@ test("HolidayService localizes, deduplicates, caches, and matches holidays by mo
 test("HolidayService setPlace treats a null region as the global region", () => {
     const { HolidayService } = loadHolidays();
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: {
             years: { 2026: { global: new Date().toUTCString() } },
             holidays: [{ year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: [] }]
@@ -889,7 +965,7 @@ test("a corrupt cache file is ignored instead of breaking holidays", () => {
     ];
 
     for (const payload of payloads) {
-        fs.writeFileSync(cachePath("enrico.json"), payload);
+        fs.writeFileSync(cachePath("holidays.json"), payload);
 
         const enrico = new HolidayService();
         let retrievedYear = null;
@@ -908,7 +984,7 @@ test("a corrupt cache file is ignored instead of breaking holidays", () => {
 test("HolidayService setPlace loads cache and getHolidays retrieves stale years", () => {
     const { HolidayService } = loadHolidays();
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: {
             years: { 2026: { global: "Fri, 01 Jan 2026 00:00:00 GMT" } },
             holidays: [{ year: 2026, month: 1, day: 1, region: "global", name: "Cached", flags: [] }]
@@ -1336,16 +1412,16 @@ test("a fetched out-of-window year stays in memory and is not refetched", () => 
 
 test("the cache file is read once for loading and written asynchronously", () => {
     const { HolidayCacheRepository } = loadHolidays();
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: { years: {}, holidays: [] }
     }));
 
     // the async reader is the only reader now: the synchronous load() it
     // replaced had no production caller left
     let reads = 0;
-    const file = global.imports.gi.Gio.file_new_for_path(cachePath("enrico.json"));
+    const file = global.imports.gi.Gio.file_new_for_path(cachePath("holidays.json"));
     const finish = file.load_contents_finish.bind(file);
     global.imports.gi.Gio.file_new_for_path = () => Object.assign(Object.create(file), {
         load_contents_finish(result) {
@@ -1369,7 +1445,7 @@ test("the cache file is read once for loading and written asynchronously", () =>
     repository.save("ita", { years: {}, holidays: [] });
 
     // the write goes through the async Gio path, so it never blocks the shell
-    const written = JSON.parse(fs.readFileSync(cachePath("enrico.json"), "utf8"));
+    const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
     assert.deepEqual(Object.keys(written).sort(), ["ita", "usa"]);
     assert.deepEqual(written.usa.years, { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } });
 });
@@ -1422,7 +1498,7 @@ test("a write that lost a race is merged again, not lost", () => {
         }
     });
 
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
     repository.save("usa", { years: {}, holidays: [{ name: "Independence Day" }] });
 
     const written = JSON.parse(contents);
@@ -1434,9 +1510,9 @@ test("a write that lost a race is merged again, not lost", () => {
 
 test("a save merges with the file instead of overwriting another writer's country", () => {
     const { HolidayCacheRepository } = loadHolidays();
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: { years: {}, holidays: [] }
     }));
 
@@ -1445,12 +1521,12 @@ test("a save merges with the file instead of overwriting another writer's countr
 
     // ...and a second applet instance, with its own repository, saves Italy
     // in the meantime
-    const other = new HolidayCacheRepository("/enrico.json");
+    const other = new HolidayCacheRepository("/holidays.json");
     other.save("ita", { years: {}, holidays: [{ year: 2026, month: 1, day: 6, region: "global", name: "Epifania", flags: [] }] });
 
     repository.save("usa", { years: {}, holidays: [{ year: 2026, month: 7, day: 4, region: "global", name: "Independence Day", flags: [] }] });
 
-    const written = JSON.parse(fs.readFileSync(cachePath("enrico.json"), "utf8"));
+    const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
     assert.deepEqual(Object.keys(written).sort(), ["ita", "usa"],
         "the stale snapshot no longer drops the other instance's country");
     assert.equal(written.ita.holidays[0].name, "Epifania");
@@ -1501,9 +1577,9 @@ test("fuzz: only well-formed rows survive the cache's own validator", () => {
 
 test("a cache file with some bad rows keeps the good ones", () => {
     const { HolidayCacheRepository } = loadHolidays();
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: {
             years: { 2026: { global: "Thu, 01 Jan 2026 00:00:00 GMT" } },
             holidays: [
@@ -1523,9 +1599,9 @@ test("a cache file with some bad rows keeps the good ones", () => {
 
 test("a tampered cache file cannot inject malformed holidays", () => {
     const { HolidayCacheRepository } = loadHolidays();
-    const repository = new HolidayCacheRepository("/enrico.json");
+    const repository = new HolidayCacheRepository("/holidays.json");
     fs.mkdirSync(cachePath(), { recursive: true });
-    fs.writeFileSync(cachePath("enrico.json"), JSON.stringify({
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
         usa: {
             years: { 2026: { global: "Thu, 01 Jan 2026 00:00:00 GMT" } },
             holidays: [
