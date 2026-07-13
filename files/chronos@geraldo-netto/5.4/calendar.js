@@ -798,8 +798,7 @@ class Calendar {
 
         // Find the ordering for month/year in the calendar heading
 
-        let var_name = 'calendar:MY';
-        switch (Gettext_gtk30.gettext(var_name)) {
+        switch (Gettext_gtk30.gettext('calendar:MY')) {
         case 'calendar:MY':
             this._headerMonthFirst = true;
             break;
@@ -915,7 +914,7 @@ class Calendar {
         return this._weekStart + "|" + this.show_week_numbers;
     }
 
-    _onSettingsChange(object, key, old_val, new_val) {
+    _onSettingsChange(object, key) {
         if (key == FIRST_WEEKDAY_KEY) this._weekStart = Cinnamon.util_get_week_start();
         // destroying and rebuilding the header on unrelated settings churn
         // is wasted allocation; only grid geometry affects it
@@ -1074,7 +1073,7 @@ class Calendar {
         this._header_signature = this._headerSignature();
     }
 
-    _onStyleChange(actor, event) {
+    _onStyleChange() {
         // width of a digit in pango units
         this._digitWidth = _getDigitWidth(this.actor) / Pango.SCALE;
         this._setWeekdateHeaderWidth();

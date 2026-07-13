@@ -183,7 +183,7 @@ var CalendarServerConnection = class CalendarServerConnection {
         );
     }
 
-    _handle_status_notify(server, pspec) {
+    _handle_status_notify() {
         if (this._calendar_server.status === this._cached_state) {
             return;
         }

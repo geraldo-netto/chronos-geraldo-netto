@@ -196,7 +196,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     // the hottest path in the applet: WallClock's notify::clock
-    _clockNotify(obj, pspec, data) {
+    _clockNotify() {
         this._guarded(() => this._updateClockAndDate());
     }
 
@@ -212,7 +212,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         });
     }
 
-    on_applet_clicked(event) {
+    on_applet_clicked() {
         this._openMenu();
     }
     
@@ -378,14 +378,14 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     // both are EventsManager signals, raised from a DBus callback
-    _events_manager_ready(em) {
+    _events_manager_ready() {
         this._guarded(() => {
             this._updateEventListState();
             this.events_manager.select_date(this._calendar.getSelectedDate(), true);
         });
     }
 
-    _has_calendars_changed(em) {
+    _has_calendars_changed() {
         this._guarded(() => this._updateEventListState());
     }
 

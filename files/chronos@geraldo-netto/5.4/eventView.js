@@ -341,8 +341,7 @@ class EventList {
                 this.selected_date_label.accessible_role = Atk.Role.PUSH_BUTTON;
             }
 
-            this.selected_date_label_tooltip =
-                new Tooltips.Tooltip(this.selected_date_label, _("Open the calendar app"));
+            new Tooltips.Tooltip(this.selected_date_label, _("Open the calendar app"));
 
             this.selected_date_label.connect("button-press-event", (actor, event) => {
                 if (event.get_button() == Clutter.BUTTON_PRIMARY) {
@@ -422,9 +421,8 @@ class EventList {
         this.no_events_label.get_clutter_text().line_wrap = true;
         this.no_events_label.get_clutter_text().ellipsize = Pango.EllipsizeMode.NONE;
 
-        const no_events_label = this.no_events_label;
         button_inner_box.add_actor(no_events_icon);
-        button_inner_box.add_actor(no_events_label);
+        button_inner_box.add_actor(this.no_events_label);
         this.no_events_button.add_actor(button_inner_box);
         this.no_events_box.add_actor(this.no_events_button);
         this.actor.add_actor(this.no_events_box);

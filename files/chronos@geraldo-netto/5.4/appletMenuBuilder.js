@@ -169,7 +169,7 @@ class AppletMenuBuilder {
             button.accessible_role = Atk.Role.PUSH_BUTTON;
         }
 
-        this.homeButtonTooltip = new Tooltips.Tooltip(button, _("Go to today"));
+        new Tooltips.Tooltip(button, _("Go to today"));
 
         button.connect("enter-event", (actor, event) => {
             actor.add_style_pseudo_class("hover");

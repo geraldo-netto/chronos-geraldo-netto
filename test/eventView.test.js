@@ -6,6 +6,26 @@ const { makeRandom } = require("./helpers/prng");
 
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 
+// The view no longer keeps a field pointing at each Tooltip it constructs: the
+// fields were written and never read, and a test asserting through one was the
+// only thing that made them look load-bearing. The double records what was
+// constructed against which actor, which is what the assertions actually want.
+class TooltipDouble {
+    static instances = [];
+
+    constructor(actor, text) {
+        this.actor = actor;
+        this.text = text;
+        TooltipDouble.instances.push(this);
+    }
+
+    set_text(text) { this.text = text; }
+
+    static forActor(actor) {
+        return TooltipDouble.instances.find((tooltip) => tooltip.actor === actor);
+    }
+}
+
 const DAY_US = 24 * 3600 * 1000 * 1000;
 const DAY_S = 24 * 3600;
 
@@ -231,7 +251,7 @@ global.imports = {
     },
     ui: {
         separator: { Separator: class { constructor() { this.actor = new MockActor(); } } },
-        tooltips: { Tooltip: class { constructor(actor, text) { this.actor = actor; this.text = text; } set_text(text) { this.text = text; } } },
+        tooltips: { Tooltip: TooltipDouble },
         appletManager: { applets: { "chronos@geraldo-netto": {} } }
     },
     misc: { util: {} }
@@ -474,7 +494,7 @@ test("the selected-date label is reachable from the keyboard and explains itself
     list.launch_calendar = (date) => launched.push(date);
 
     assert.equal(list.selected_date_label.options.can_focus, true);
-    assert.equal(list.selected_date_label_tooltip.text, "Open the calendar app");
+    assert.equal(TooltipDouble.forActor(list.selected_date_label).text, "Open the calendar app");
 
     // An explicit ATK name replaces the label's own text, so naming this only
     // "Open the calendar app" made the selected date - which this heading is

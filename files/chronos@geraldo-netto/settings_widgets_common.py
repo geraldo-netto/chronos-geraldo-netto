@@ -21,18 +21,10 @@ from pathlib import Path
 # sibling with no Gtk/Atk/GLib. Re-exported here so the dialog code below and the
 # tests keep reaching the whole feature through this one module.
 from timezone_data import (
-    RESERVED_TIMEZONES,
-    local_timezone_name,
     completion_key,
     local_city_name,
     TimezoneResolver,
 )
-# RESERVED_TIMEZONES and local_timezone_name are re-exported for the tests
-# (self.module.X) and for the harness's local_timezone_name patch; nothing in
-# this file reads them directly, so name them here to keep them off the linter's
-# unused-import list. looks_like_iana and TZ_NO_REGION stay private to
-# timezone_data — no consumer here or in the tests reaches for them.
-_TIMEZONE_DATA_REEXPORTS = (RESERVED_TIMEZONES, local_timezone_name)
 
 # i18n: bind the domain to a module-level name. Installing the translator
 # globally would inject _ into builtins for the whole cinnamon-settings
