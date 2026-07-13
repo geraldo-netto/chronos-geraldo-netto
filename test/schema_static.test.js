@@ -322,8 +322,8 @@ test("the documented install compiles the catalogs the applet reads", () => {
     // it must land where the applet looks: localeUtils binds the textdomain to
     // ~/.local/share/locale for a per-user install, and that is where
     // cinnamon-xlet-makepot -i writes
-    const localeUtils = fs.readFileSync(path.join(appletDir, "localeUtils.js"), "utf8");
-    assert.match(localeUtils, /home \+ "\/\.local\/share\/locale"/);
+    const localeText = fs.readFileSync(path.join(appletDir, "localeText.js"), "utf8");
+    assert.match(localeText, /home \+ "\/\.local\/share\/locale"/);
 
     // and the catalogs it compiles are the ones in the tree
     const catalogs = fs.readdirSync(path.join(appletDir, "po")).filter((f) => f.endsWith(".po"));

@@ -8,6 +8,12 @@ const { makeSoup3 } = require("./helpers/soup");
 
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "utils.js");
 const localeModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
+// localeUtils is a barrel over these three: the gettext runtime, the `locale -k`
+// state machine and the strftime constants. The state machine's caches, timers
+// and consumer count are module-global by design, so a reload has to drop all of
+// them or a test inherits the last one's locale.
+const localePartPaths = ["localeText.js", "localeQuery.js", "dateFormats.js"].map(
+    (part) => path.join(__dirname, "..", "files", "chronos@geraldo-netto", part));
 const ioModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const styleModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "styleUtils.js");
 const providerModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "providerUtils.js");
@@ -21,6 +27,9 @@ let originalLogError;
 function loadUtils(options = "") {
     delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(localeModulePath)];
+    for (const part of localePartPaths) {
+        delete require.cache[require.resolve(part)];
+    }
     delete require.cache[require.resolve(ioModulePath)];
     delete require.cache[require.resolve(styleModulePath)];
     delete require.cache[require.resolve(providerModulePath)];
@@ -298,6 +307,9 @@ test("a locale query that never answers is abandoned instead of hanging", () => 
     };
 
     delete require.cache[require.resolve(localeModulePath)];
+    for (const part of localePartPaths) {
+        delete require.cache[require.resolve(part)];
+    }
     const localeUtils = require(localeModulePath);
 
     const heard = [];
@@ -1246,6 +1258,9 @@ test("the translations are looked for where the applet is installed", () => {
         };
         delete require.cache[require.resolve(modulePath)];
         delete require.cache[require.resolve(localeModulePath)];
+        for (const part of localePartPaths) {
+            delete require.cache[require.resolve(part)];
+        }
         require(localeModulePath);
         return domains[0];
     };
@@ -1273,6 +1288,9 @@ test("date formats prefer the applet's own gettext domain", () => {
     global.imports.gi.GLib.get_home_dir = () => "/home/test";
     delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(localeModulePath)];
+    for (const part of localePartPaths) {
+        delete require.cache[require.resolve(part)];
+    }
 
     const utils = require(modulePath);
     const localeUtils = require(localeModulePath);
@@ -1640,8 +1658,10 @@ function runInBothHosts(file) {
         require: (request) => require(path.join(path.dirname(file), request)),
         module: { exports: {} }
     };
-    // Node's module scope has no `imports` binding at all
-    nodeContext.globalThis = nodeContext;
+    // Node's module scope has no `imports` binding — the GJS globals are reached
+    // through globalThis, which is how a module under Node still gets at gi
+    nodeContext.globalThis = { imports: gjsImportsMock() };
+    nodeContext.globalThis.globalThis = nodeContext.globalThis;
     script.runInNewContext(nodeContext);
 
     return { gjs: gjsContext, node: nodeContext.module.exports };
@@ -1672,18 +1692,32 @@ function gjsImportsMock() {
         clampText() {},
         TEXT_ELLIPSIS: "…",
         joinPhrases(...parts) { return parts.join(" — "); },
+        getInfo() { return {}; },
+        localeDirectory() { return "/tmp"; },
         backoffDelay() {},
         orderProvidersByLastSuccess() {},
         tryProvidersInOrder() {}
     };
 
     return {
-        gi: { GLib: {}, Gio: {}, Cinnamon: {}, Soup: {} },
+        gi: {
+            GLib: {},
+            Gio: {},
+            Cinnamon: {},
+            Soup: {},
+            // dateFormats builds its strftime constants through the WallClock
+            CinnamonDesktop: {
+                WallClock: { lctime_format: (_domain, format) => format }
+            }
+        },
         ui: {
             appletManager: {
                 applets: {
                     "chronos@geraldo-netto": {
                         localeUtils: stub,
+                        localeText: stub,
+                        localeQuery: stub,
+                        dateFormats: stub,
                         ioUtils: stub,
                         styleUtils: stub,
                         providerUtils: stub,
@@ -1694,6 +1728,35 @@ function gjsImportsMock() {
         }
     };
 }
+
+// localeUtils is a barrel now — the gettext runtime, the `locale -k` state
+// machine and the strftime constants each have their own module — and a barrel is
+// nothing but its two loaders. Under Cinnamon it takes the GJS arm of every one
+// of them, which Node never runs: without this, half the file is a branch no test
+// has ever taken, in the module every other module reads its translator from.
+test("localeUtils re-exports its three parts under the GJS importer and under Node", () => {
+    loadUtils();
+    const hosts = runInBothHosts(localeModulePath);
+
+    for (const symbol of Object.keys(hosts.node)) {
+        assert.notEqual(hosts.gjs[symbol], undefined,
+            `localeUtils.${symbol} is missing when loaded through imports.ui.appletManager`);
+    }
+
+    // one name from each part, so a dropped require cannot pass
+    assert.equal(typeof hosts.gjs.translate, "function", "from localeText");
+    assert.equal(typeof hosts.gjs.lazyLocaleValue, "function", "from localeQuery");
+    assert.equal(typeof hosts.gjs.monthWindowStartOffset, "function", "from dateFormats");
+
+    // and the parts themselves load under both hosts: dateFormats reaches the
+    // translator through the importer under Cinnamon and through require() here,
+    // and the formats it builds are what every date in the applet is rendered with
+    const dates = runInBothHosts(path.join(
+        __dirname, "..", "files", "chronos@geraldo-netto", "dateFormats.js"));
+    assert.equal(dates.gjs.MSECS_IN_DAY, 86400000);
+    assert.equal(dates.gjs.monthWindowStartOffset(7, 0), 0, "Sunday, week starting Sunday");
+    assert.equal(dates.node.monthWindowStartOffset(1, 0), 1, "Monday, week starting Sunday");
+});
 
 test("utils.js re-exports the same API under the GJS importer and under Node", () => {
     loadUtils();

@@ -69,6 +69,26 @@ function gjsImportsMock() {
                             clampText(text, max) { return String(text).slice(0, max); },
                             TEXT_ELLIPSIS: "…"
                         },
+                        localeText: {
+                            translate(str) { return str; },
+                            translatePlural(s, p, n) { return n === 1 ? s : p; },
+                            joinPhrases(...parts) { return parts.join(" — "); },
+                            localeDirectory() { return "/tmp"; }
+                        },
+                        localeQuery: {
+                            registerLocaleConsumer() {},
+                            cancelPendingLocaleQueries() {},
+                            onLocaleInfoChanged() {},
+                            lazyLocaleValue() { return () => ""; },
+                            getInfo() { return {}; }
+                        },
+                        dateFormats: {
+                            MSECS_IN_DAY: 86400000,
+                            DAY_FORMAT: "%A",
+                            DATE_FORMAT_SHORT: "%B %-e, %Y",
+                            DATE_FORMAT_FULL: "%A, %B %-e, %Y",
+                            monthWindowStartOffset() {}
+                        },
                         utils: {
                             clampText(text, max) { return String(text).slice(0, max); },
                             TEXT_ELLIPSIS: "…",
@@ -251,6 +271,11 @@ const EXPORTS = {
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
     textUtils: ["clampText", "TEXT_ELLIPSIS"],
+    localeText: ["translate", "translatePlural", "joinPhrases", "localeDirectory"],
+    localeQuery: ["registerLocaleConsumer", "cancelPendingLocaleQueries",
+        "onLocaleInfoChanged", "lazyLocaleValue", "getInfo"],
+    dateFormats: ["MSECS_IN_DAY", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
+        "monthWindowStartOffset"],
     providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     utils: ["clampText", "TEXT_ELLIPSIS", "MSECS_IN_DAY", "UI_ERROR_MARKER", "onLocaleInfoChanged", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "translate", "translatePlural", "createHttpSession", "HTTP_TIMEOUT_SECONDS", "httpGetJson", "monthWindowStartOffset", "readJsonFileAsync",
@@ -361,7 +386,10 @@ test("root modules never call require() outside the Node guard", () => {
             if (line.startsWith("//") || line.startsWith("*")) {
                 continue;
             }
-            assert.match(line, /typeof require|^require\("\.\/utils"\) :$|^require\("\.\/localeUtils"\) :$|^require\("\.\/ioUtils"\) :$|^require\("\.\/styleUtils"\) :$|^require\("\.\/providerUtils"\) :$|^require\("\.\/holidayAdapters"\) :$|^require\("\.\/holidayConstants"\) :$|^require\("\.\/holidayCache"\) :$|^require\("\.\/holidayServiceAdapters"\) :$|^require\("\.\/worldclockData"\) :$|^require\("\.\/textUtils"\) :$|^require\("\.\/weatherFormat"\) :$|^require\("\.\/weatherScheduler"\) :$|^require\("\.\/weatherProviders"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$/,
+            // the guarded shape is `typeof require === "function" ? require("./x") : …`,
+            // so the require sits either on the typeof line or on the true branch's own
+            // line — naming every module here made the pattern a list to maintain
+            assert.match(line, /typeof require|^require\("\.\/\w+"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$/,
                 `${moduleName}.js: unguarded require: ${line}`);
         }
     }

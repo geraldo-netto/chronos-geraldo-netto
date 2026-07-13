@@ -120,7 +120,7 @@ test("nothing in the applet blocks the compositor on a subprocess or a socket", 
     }
 
     // and the one place that does need a subprocess uses the async API
-    assert.match(source("localeUtils.js"), /communicate_utf8_async/);
+    assert.match(source("localeQuery.js"), /communicate_utf8_async/);
 });
 
 // The weather and holiday features were each split into a pure half and a
@@ -289,7 +289,7 @@ test("translating files use the applet's own gettext domain", () => {
     }
 
     for (const relativePath of [
-        "localeUtils.js"
+        "localeText.js"
     ]) {
         const code = source(relativePath);
         assert.match(code, /Gettext\.bindtextdomain\(UUID/,
