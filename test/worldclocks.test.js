@@ -84,19 +84,103 @@ function fakeTimeZone(identifier) {
     return { get_identifier: () => identifier };
 }
 
-function makeZonedTime(tz, format) {
+// The instant every clock in a test is read at. GLib.DateTime.new_now_utc() is
+// the only clock production reads, so pinning it here pins the whole table — and
+// no test depends on the machine's own zone or on the wall clock at run time.
+// 2026-07-09T11:45:00Z: mid-July, so the northern zones are on summer time.
+let NOW_MS = Date.UTC(2026, 6, 9, 11, 45, 0);
+
+// The double used to answer `${zone}:${format}` — it echoed its own input, so
+// every clock assertion in this file checked the mock and not the time. A clock
+// an hour off, a zone resolved to the wrong offset, a DST transition read
+// backwards: none of it could fail a test. This is a real conversion:
+// Intl.DateTimeFormat does the zone arithmetic, and the strftime tokens the
+// applet's formats use are rendered from its parts.
+const STRFTIME_FIELDS = {
+    "%H": { hour: "2-digit", hour12: false },
+    "%M": { minute: "2-digit" },
+    "%S": { second: "2-digit" },
+    "%I": { hour: "2-digit", hour12: true },
+    "%l": { hour: "numeric", hour12: true },
+    "%p": { hour: "numeric", hour12: true },
+    "%d": { day: "2-digit" },
+    "%m": { month: "2-digit" },
+    "%Y": { year: "numeric" },
+    "%Z": { timeZoneName: "short" }
+};
+
+const STRFTIME_PART = {
+    "%H": "hour", "%M": "minute", "%S": "second", "%I": "hour", "%l": "hour",
+    "%p": "dayPeriod", "%d": "day", "%m": "month", "%Y": "year", "%Z": "timeZoneName"
+};
+// strftime pads to two digits; Intl asked for a single field does not — a lone
+// `minute: "2-digit"` renders 0, not 00
+const STRFTIME_PADDED = new Set(["%H", "%M", "%S", "%I", "%d", "%m"]);
+
+function timePart(timezone, token) {
+    const options = Object.assign({ timeZone: timezone }, STRFTIME_FIELDS[token]);
+    const parts = new Intl.DateTimeFormat("en-GB", options).formatToParts(new Date(NOW_MS));
+    const found = parts.find((part) => part.type === STRFTIME_PART[token]);
+    if (!found) {
+        return "";
+    }
+
+    return STRFTIME_PADDED.has(token) ? found.value.padStart(2, "0") : found.value;
+}
+
+function makeZonedTime(tz) {
+    const timezone = tz.get_identifier();
+    const numeric = (options) => new Intl.DateTimeFormat("en-GB",
+        Object.assign({ timeZone: timezone }, options)).format(new Date(NOW_MS));
+
     return {
+        // GLib.DateTime.format takes a strftime string; the applet's are built
+        // from %H %M %S %I %l %p %d %m %Y %Z, and anything else passes through
         format(fmt) {
-            void format;
-            return `${tz.get_identifier()}:${fmt} `;
+            return String(fmt).replace(/%[A-Za-z%]/g, (token) =>
+                (token === "%%" ? "%" :
+                    (STRFTIME_FIELDS[token] ? timePart(timezone, token) : token)));
         },
         get_hour() {
-            return 13;
+            return Number(numeric({ hour: "2-digit", hour12: false }));
         },
         get_minute() {
-            return 45;
+            return Number(numeric({ minute: "2-digit" }));
         }
     };
+}
+
+// The machine's own zone is whatever it is; the tests need one that is neither
+// UTC nor any zone they configure, so the local row is distinguishable from the
+// rest. São Paulo is UTC-3 all year — no DST of its own to reason about.
+const LOCAL_TIMEZONE = "America/Sao_Paulo";
+
+// Real zones for the tests that need a list of them (the cap, the fuzz). They
+// used to be "Zone/0"…"Zone/11", which the old echoing double was happy to
+// "convert" — no zone database was ever consulted. A double that does the
+// arithmetic cannot pretend a made-up name is a place.
+const ZONE_POOL = [
+    "Asia/Tokyo", "Europe/Rome", "America/New_York", "Australia/Sydney",
+    "Africa/Cairo", "Asia/Kolkata", "America/Los_Angeles", "Europe/Lisbon",
+    "Pacific/Auckland", "America/Mexico_City", "Asia/Shanghai", "Europe/Berlin"
+];
+const zoneAt = (index) => ZONE_POOL[index % ZONE_POOL.length];
+
+// GLib.TimeZone.new_identifier answers null for a zone it does not know, and so
+// does this: Intl is the zone database, and a name it rejects is not a zone.
+function knownTimeZone(timezone) {
+    try {
+        new Intl.DateTimeFormat("en-GB", { timeZone: timezone });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// what the table should read for a zone at NOW_MS, derived the same way the
+// double is — an assertion that hard-codes "20:45" is a second clock to get wrong
+function timeIn(timezone, fmt = "%H:%M") {
+    return makeZonedTime(fakeTimeZone(timezone)).format(fmt);
 }
 
 function loadWorldclocks(options = {}) {
@@ -129,10 +213,10 @@ function loadWorldclocks(options = {}) {
                 // TimeZone.new() path the applet used to carry is gone.
                 TimeZone: {
                     new_identifier(timezone) {
-                        return timezone.startsWith("Invalid/") ? null : fakeTimeZone(timezone);
+                        return knownTimeZone(timezone) ? fakeTimeZone(timezone) : null;
                     },
                     new_local() {
-                        return fakeTimeZone("Local/Here");
+                        return fakeTimeZone(LOCAL_TIMEZONE);
                     }
                 },
                 DateTime: {
@@ -226,15 +310,15 @@ test("built-in UTC and local rows are shown even with no configured clocks", () 
     assert.equal(worldclocks.clocks.length, BUILTIN_ROWS);
     assert.deepEqual(worldclocks.clocks.map((clock) => clock.label), ["UTC", "Local time"]);
     assert.deepEqual(worldclocks.clocks.map((clock) => clock.builtin), [true, true]);
-    assert.equal(worldclocks.clocks[0].display.text, "UTC:%H:%M");
-    assert.equal(worldclocks.clocks[1].display.text, "Local/Here:%H:%M");
+    assert.equal(worldclocks.clocks[0].display.text, timeIn("UTC"));
+    assert.equal(worldclocks.clocks[1].display.text, timeIn(LOCAL_TIMEZONE));
 
     assert.equal(worldclocks.getClockEntries().filter((entry) => !entry.builtin).length, 0);
 
     // the city label beside the time is read from its own text, so repeating it
     // here made a screen reader say "UTC", then "UTC UTC:%H:%M"
-    assert.equal(worldclocks.clocks[0].display.accessible_name, "UTC:%H:%M");
-    assert.equal(worldclocks.clocks[1].display.accessible_name, "Local/Here:%H:%M");
+    assert.equal(worldclocks.clocks[0].display.accessible_name, timeIn("UTC"));
+    assert.equal(worldclocks.clocks[1].display.accessible_name, timeIn(LOCAL_TIMEZONE));
 });
 
 // the local row pinned whatever /etc/localtime said when the clocks were built,
@@ -260,7 +344,7 @@ test("the local row follows the system timezone when it changes", () => {
     const worldclocks = new Worldclocks({ add_actor() {} });
     worldclocks.buildClocks([], "%H:%M");
     worldclocks.updateClocks();
-    assert.equal(worldclocks.clocks[1].display.text, "Europe/Rome:%H:%M");
+    assert.equal(worldclocks.clocks[1].display.text, timeIn("Europe/Rome"));
 
     // the user lands in Tokyo and the system timezone changes under the applet
     systemZone = "Asia/Tokyo";
@@ -269,11 +353,11 @@ test("the local row follows the system timezone when it changes", () => {
     // a second, and the popup only shows minutes
     now += 5;
     worldclocks.updateClocks();
-    assert.equal(worldclocks.clocks[1].display.text, "Europe/Rome:%H:%M");
+    assert.equal(worldclocks.clocks[1].display.text, timeIn("Europe/Rome"));
 
     now += 60;
     worldclocks.updateClocks();
-    assert.equal(worldclocks.clocks[1].display.text, "Asia/Tokyo:%H:%M",
+    assert.equal(worldclocks.clocks[1].display.text, timeIn("Asia/Tokyo"),
         "and within the minute the popup agrees with the panel again");
 });
 
@@ -285,7 +369,7 @@ test("buildClocks caps configured clocks at 8 on top of the built-ins", () => {
 
     const clocks = Array.from({ length: 12 }, (_, index) => ({
         label: `Clock ${index}`,
-        timezone: `Zone/${index}`
+        timezone: zoneAt(index)
     }));
 
     worldclocks.buildClocks(clocks, "%H:%M");
@@ -298,9 +382,9 @@ test("buildClocks caps configured clocks at 8 on top of the built-ins", () => {
     const firstUserLabel = worldclocks.layout.children
         .find((cell) => cell.column === 0 && cell.row === BUILTIN_ROWS);
     assert.equal(firstUserLabel.child.text, "Clock 0");
-    assert.equal(worldclocks.clocks[BUILTIN_ROWS + 7].tz.get_identifier(), "Zone/7");
+    assert.equal(worldclocks.clocks[BUILTIN_ROWS + 7].tz.get_identifier(), zoneAt(7));
     assert.equal(worldclocks.clocks.some((clock) =>
-        clock.tz && clock.tz.get_identifier() === "Zone/8"), false);
+        clock.tz && clock.tz.get_identifier() === zoneAt(8)), false);
 });
 
 test("buildClocks skips configured rows already covered by built-ins", () => {
@@ -433,6 +517,69 @@ test("the clock list names the weather service that answered", () => {
     assert.equal(worldclocks.actor.accessible_name, "World clocks");
 });
 
+// The point of a world clock is that Tokyo is not London. Nothing in this file
+// could tell a correct clock from one an hour off, because the double answered
+// with the format string it was handed. These are the assertions that need the
+// arithmetic to be real: the offsets are spelled out, not derived.
+test("each row reads its own zone's wall clock, not the applet's", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+
+    // 11:45 UTC on 9 July 2026
+    worldclocks.buildClocks([
+        { label: "Tokyo", timezone: "Asia/Tokyo" },          // UTC+9, no DST
+        { label: "Rome", timezone: "Europe/Rome" },          // UTC+2 in July (CEST)
+        { label: "New York", timezone: "America/New_York" }, // UTC-4 in July (EDT)
+        { label: "Kolkata", timezone: "Asia/Kolkata" }       // UTC+5:30 — the half hour
+    ], "%H:%M");
+    worldclocks.updateClocks();
+
+    const shown = worldclocks.getClockEntries().map((entry) => [entry.label, entry.time]);
+    assert.deepEqual(shown, [
+        ["UTC", "11:45"],
+        ["Local time", "08:45"],
+        ["Tokyo", "20:45"],
+        ["Rome", "13:45"],
+        ["New York", "07:45"],
+        ["Kolkata", "17:15"]
+    ]);
+});
+
+// The applet anchors its date arithmetic at noon precisely so a transition day
+// cannot shift it, and nothing tested a transition. Europe/Rome springs forward
+// at 01:00 UTC on the last Sunday in March: the same instant is 01:59 CET one
+// minute and 03:00 CEST the next, and a clock that read the offset once and kept
+// it would still say 02:00.
+test("a clock crossing a DST transition reads the new offset, not the old one", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    const saved = NOW_MS;
+
+    try {
+        // 2026-03-29T00:59:00Z — one minute before Rome springs forward
+        NOW_MS = Date.UTC(2026, 2, 29, 0, 59, 0);
+        worldclocks.buildClocks([{ label: "Rome", timezone: "Europe/Rome" }], "%H:%M");
+        worldclocks.updateClocks();
+        assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "01:59", "CET, UTC+1");
+
+        // 01:00 UTC: 02:00 never happens in Rome that morning
+        NOW_MS = Date.UTC(2026, 2, 29, 1, 0, 0);
+        worldclocks.updateClocks();
+        assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "03:00", "CEST, UTC+2");
+
+        // and back the other way, in October: 02:59 CEST, then 02:00 CET again
+        NOW_MS = Date.UTC(2026, 9, 25, 0, 59, 0);
+        worldclocks.updateClocks();
+        assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "02:59");
+        NOW_MS = Date.UTC(2026, 9, 25, 1, 0, 0);
+        worldclocks.updateClocks();
+        assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "02:00",
+            "the hour repeats, and the clock repeats with it");
+    } finally {
+        NOW_MS = saved;
+    }
+});
+
 test("updateClocks formats every configured timezone", () => {
     const { Worldclocks } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });
@@ -443,16 +590,16 @@ test("updateClocks formats every configured timezone", () => {
     ], "%H:%M");
     worldclocks.updateClocks();
 
-    assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "Asia/Tokyo:%H:%M");
-    assert.equal(worldclocks.clocks[BUILTIN_ROWS + 1].display.text, "Europe/Rome:%H:%M");
+    assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, timeIn("Asia/Tokyo"));
+    assert.equal(worldclocks.clocks[BUILTIN_ROWS + 1].display.text, timeIn("Europe/Rome"));
     const entries = worldclocks.getClockEntries(1);
     assert.deepEqual(entries.map((entry) => [entry.label, entry.time, entry.builtin]), [
-        ["UTC", "UTC:%H:%M", true],
-        ["Local time", "Local/Here:%H:%M", true],
-        ["Tokyo", "Asia/Tokyo:%H:%M", false]
+        ["UTC", timeIn("UTC"), true],
+        ["Local time", timeIn(LOCAL_TIMEZONE), true],
+        ["Tokyo", timeIn("Asia/Tokyo"), false]
     ]);
     assert.deepEqual(worldclocks.getClockEntries(1, false).map((entry) => [entry.label, entry.time, entry.builtin]), [
-        ["Tokyo", "Asia/Tokyo:%H:%M", false]
+        ["Tokyo", timeIn("Asia/Tokyo"), false]
     ]);
     entries[BUILTIN_ROWS].time = "cached";
     worldclocks.updateClocks(entries);
@@ -484,7 +631,7 @@ test("updateClocks skips label writes when the time text is unchanged", () => {
     worldclocks.clocks[BUILTIN_ROWS].tz = fakeTimeZone("Etc/GMT+1");
     worldclocks.updateClocks();
     assert.deepEqual(writes, [1, 1, 2, 1]);
-    assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "Etc/GMT+1:%H:%M");
+    assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, timeIn("Etc/GMT+1"));
 });
 
 test("invalid timezones are marked instead of silently using UTC", () => {
@@ -524,7 +671,7 @@ test("buildClocks defaults the format when none is provided", () => {
     worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
     worldclocks.updateClocks();
 
-    assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "Asia/Tokyo:%H:%M");
+    assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, timeIn("Asia/Tokyo"));
 });
 
 function randomLabel(random, alphabet) {
@@ -542,7 +689,7 @@ function randomClockEntries(random, alphabet) {
         const invalid = random() < 0.4;
         return {
             label: randomLabel(random, alphabet),
-            timezone: invalid ? `Invalid/Fuzz${index}` : `Zone/Fuzz${index}`,
+            timezone: invalid ? `Invalid/Fuzz${index}` : zoneAt(index),
             invalid
         };
     });
@@ -555,7 +702,7 @@ function assertClockMatchesEntry(clock, entry, index) {
         assert.equal(clock.display.options.style_class,
             "calendar-world-time calendar-world-time-invalid");
     } else {
-        assert.equal(clock.display.text, `Zone/Fuzz${index}:%H:%M`);
+        assert.equal(clock.display.text, timeIn(zoneAt(index)));
         assert.equal(clock.display.options.style_class, "calendar-world-time");
     }
 }
