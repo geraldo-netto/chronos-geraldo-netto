@@ -274,7 +274,7 @@ const EXPORTS = {
     holidayCache: ["HolidayCacheRepository", "HolidayCache", "validCachedHoliday",
         "validCachedStamp", "validCachedYears", "clampHolidayName", "MAX_HOLIDAY_NAME_LENGTH", "MAX_MEMOIZED_MONTHS",
         "UPDATE_PERIOD", "RETRY_PERIOD", "YEAR_WINDOW", "GLOBAL_REGION"],
-    holidayServiceAdapters: ["validDateParts", "enricoRegionCode", "isoDateParts",
+    holidayServiceAdapters: ["validDateParts", "regionSubdivisionCode", "isoDateParts",
         "IsoHolidayServiceAdapter", "EnricoServiceAdapter", "NagerDateServiceAdapter",
         "OpenHolidaysServiceAdapter", "HolidayServiceFallbackAdapter"],
     holidayConstants: ["HOLIDAY_ERRORS", "HOLIDAY_PROVIDER_NAMES", "GLOBAL_REGION",

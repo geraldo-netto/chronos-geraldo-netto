@@ -211,7 +211,7 @@ var EnricoServiceAdapter = class EnricoServiceAdapter {
 
 // both ISO-based fallback providers key their regions off the same
 // region-to-subdivision table and parse the same YYYY-MM-DD date strings
-function enricoRegionCode(country, region) {
+function regionSubdivisionCode(country, region) {
     const regions = REGION_TO_SUBDIVISION[country];
     if (!regions || !region || region === GLOBAL_REGION) {
         return null;
@@ -314,7 +314,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     }
 
     countyCode(country, region) {
-        return enricoRegionCode(country, region);
+        return regionSubdivisionCode(country, region);
     }
 
     params(country, region, year) {
@@ -384,7 +384,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     }
 
     subdivisionCode(country, region) {
-        return enricoRegionCode(country, region);
+        return regionSubdivisionCode(country, region);
     }
 
     params(country, region, year) {
@@ -494,7 +494,7 @@ if (typeof module !== "undefined") {
     module.exports = {
         validDateParts, validHolidaySpan, holidaySpanDays, MAX_HOLIDAY_SPAN_DAYS,
         MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
-        enricoRegionCode, isoDateParts, IsoHolidayServiceAdapter, HolidayRecordContract,
+        regionSubdivisionCode, isoDateParts, IsoHolidayServiceAdapter, HolidayRecordContract,
         EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter,
         HolidayServiceFallbackAdapter
     };

@@ -101,7 +101,7 @@ test("the country combobox and the supported-country list agree", () => {
 
 // The country combobox is gated against SUPPORTED_COUNTRIES; the region
 // comboboxes were gated against nothing. Add a region to region_usa without
-// adding it to REGION_TO_SUBDIVISION.usa and enricoRegionCode() answers null,
+// adding it to REGION_TO_SUBDIVISION.usa and regionSubdivisionCode() answers null,
 // so both ISO fallback providers quietly serve nationwide-only holidays: no
 // error, no log, wrong calendar.
 test("every region the dialog offers is a region the providers understand", () => {
