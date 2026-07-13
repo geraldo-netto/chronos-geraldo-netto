@@ -43,16 +43,16 @@ For a React/Supabase app:
 
 ```sh
 cat \
-  domains/general-agent-behavior.md \
-  domains/agent-workflow-context.md \
-  domains/architecture-and-boundaries.md \
-  domains/testing-and-fuzzing.md \
-  domains/review-and-todo.md \
-  domains/git-workflow.md \
-  domains/typescript-react-supabase.md \
-  domains/database-api-migrations.md \
-  domains/ui-ux.md \
-  domains/security.md \
+  agent-instructions/general-agent-behavior.md \
+  agent-instructions/agent-workflow-context.md \
+  agent-instructions/architecture-and-boundaries.md \
+  agent-instructions/testing-and-fuzzing.md \
+  agent-instructions/review-and-todo.md \
+  agent-instructions/git-workflow.md \
+  agent-instructions/typescript-react-supabase.md \
+  agent-instructions/database-api-migrations.md \
+  agent-instructions/ui-ux.md \
+  agent-instructions/security.md \
   > AGENTS.md
 ```
 
@@ -60,17 +60,17 @@ For a Python RAG project:
 
 ```sh
 cat \
-  domains/general-agent-behavior.md \
-  domains/agent-workflow-context.md \
-  domains/architecture-and-boundaries.md \
-  domains/testing-and-fuzzing.md \
-  domains/review-and-todo.md \
-  domains/git-workflow.md \
-  domains/python-ai-data.md \
-  domains/performance.md \
-  domains/security.md \
-  domains/reliability-observability.md \
-  domains/cli-config-docs.md \
+  agent-instructions/general-agent-behavior.md \
+  agent-instructions/agent-workflow-context.md \
+  agent-instructions/architecture-and-boundaries.md \
+  agent-instructions/testing-and-fuzzing.md \
+  agent-instructions/review-and-todo.md \
+  agent-instructions/git-workflow.md \
+  agent-instructions/python-ai-data.md \
+  agent-instructions/performance.md \
+  agent-instructions/security.md \
+  agent-instructions/reliability-observability.md \
+  agent-instructions/cli-config-docs.md \
   > AGENTS.md
 ```
 
@@ -78,18 +78,18 @@ For an Electron local-first app:
 
 ```sh
 cat \
-  domains/general-agent-behavior.md \
-  domains/agent-workflow-context.md \
-  domains/architecture-and-boundaries.md \
-  domains/testing-and-fuzzing.md \
-  domains/git-workflow.md \
-  domains/typescript-react-supabase.md \
-  domains/ui-ux.md \
-  domains/electron-local-first.md \
-  domains/database-api-migrations.md \
-  domains/security.md \
-  domains/reliability-observability.md \
-  domains/release-deploy-backup.md \
+  agent-instructions/general-agent-behavior.md \
+  agent-instructions/agent-workflow-context.md \
+  agent-instructions/architecture-and-boundaries.md \
+  agent-instructions/testing-and-fuzzing.md \
+  agent-instructions/git-workflow.md \
+  agent-instructions/typescript-react-supabase.md \
+  agent-instructions/ui-ux.md \
+  agent-instructions/electron-local-first.md \
+  agent-instructions/database-api-migrations.md \
+  agent-instructions/security.md \
+  agent-instructions/reliability-observability.md \
+  agent-instructions/release-deploy-backup.md \
   > AGENTS.md
 ```
 
@@ -97,18 +97,18 @@ For a multi-tenant SPA/API product:
 
 ```sh
 cat \
-  domains/general-agent-behavior.md \
-  domains/agent-workflow-context.md \
-  domains/architecture-and-boundaries.md \
-  domains/testing-and-fuzzing.md \
-  domains/review-and-todo.md \
-  domains/git-workflow.md \
-  domains/database-api-migrations.md \
-  domains/multi-tenancy-data-governance.md \
-  domains/ui-ux.md \
-  domains/security.md \
-  domains/reliability-observability.md \
-  domains/product-strategy-discovery.md \
-  domains/release-deploy-backup.md \
+  agent-instructions/general-agent-behavior.md \
+  agent-instructions/agent-workflow-context.md \
+  agent-instructions/architecture-and-boundaries.md \
+  agent-instructions/testing-and-fuzzing.md \
+  agent-instructions/review-and-todo.md \
+  agent-instructions/git-workflow.md \
+  agent-instructions/database-api-migrations.md \
+  agent-instructions/multi-tenancy-data-governance.md \
+  agent-instructions/ui-ux.md \
+  agent-instructions/security.md \
+  agent-instructions/reliability-observability.md \
+  agent-instructions/product-strategy-discovery.md \
+  agent-instructions/release-deploy-backup.md \
   > AGENTS.md
 ```
