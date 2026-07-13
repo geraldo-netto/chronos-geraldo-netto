@@ -24,6 +24,13 @@ const ngettext = Utils.translatePlural;
 const date_only = EventDataModule.date_only;
 const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 
+// GTK's own msgid, asked of GTK's own domain: it answers "calendar:MY" or
+// "calendar:YM" to say which way round the month and year go. Not a literal at the
+// call site, because our .pot extractor scans gettext() calls and would harvest
+// GTK's msgid into our catalog, where nobody could translate it into anything
+// meaningful.
+const GTK_CALENDAR_ORDER_MSGID = 'calendar:MY';
+
 const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
 const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
 // how much smooth-scroll delta makes one month. Clutter reports a touchpad's
@@ -628,7 +635,7 @@ class CalendarHolidayAnnotator {
         this.monthLabel.setText(this._monthName() + " " + HOLIDAY_PENDING_MARKER);
         // a lookup in flight is not a failure: the ellipsis on the label says it,
         // and a line of text that appears and vanishes a second later says less
-        this._report(_("Holiday data: %s").format(_("loading…")));
+        this._report(_("Holiday data: loading…"));
     }
 
     setStatus(error, providerName = "") {
@@ -642,15 +649,33 @@ class CalendarHolidayAnnotator {
         this.monthLabel.setText(this._monthName() +
             (this.error ? " " + HOLIDAY_ERROR_MARKER : ""));
 
-        const status = this.error ?
-            translateHolidayError(this.error) +
-                (this.provider ? " (" + this.provider + ")" : "") :
-            this.provider;
+        // Whole sentences, not fragments glued together. "Holiday data: %s" with a
+        // standalone "loading…" dropped into it asks a translator to build a
+        // sentence out of two msgids they see separately and cannot reorder, and
+        // the parentheses around the provider name never reached a translator at
+        // all. joinPhrases and "%s Last known reading" are single msgids for this
+        // exact reason.
+        const status = this._statusText();
         // the reason is shown as text only when something is wrong; the provider
         // credit on a good month belongs in the tooltip and the accessible name,
         // not as a permanent line under the month
-        this._report(status ? _("Holiday data: %s").format(status) : "",
-            this.error ? status : "");
+        this._report(status, this.error ? status : "");
+    }
+
+    // The failure text is already a whole sentence — "Holiday service unavailable"
+    // — so the provider's name is joined to it with joinPhrases, whose separator is
+    // itself a msgid. It used to be glued on with literal ASCII parentheses, which
+    // no translator ever saw.
+    //
+    // The provider's name is a proper noun (Enrico, Nager.Date), so the carrier
+    // sentence around it is the only translatable part of the good-month line.
+    _statusText() {
+        if (this.error) {
+            const reason = translateHolidayError(this.error);
+            return this.provider ? joinPhrases(reason, this.provider) : reason;
+        }
+
+        return this.provider ? _("Holiday data: %s").replace("%s", this.provider) : "";
     }
 
     // the warning glyph is decorative: on its own it reads as an unnamed
@@ -821,7 +846,7 @@ class Calendar {
 
         // Find the ordering for month/year in the calendar heading
 
-        switch (Gettext_gtk30.gettext('calendar:MY')) {
+        switch (Gettext_gtk30.gettext(GTK_CALENDAR_ORDER_MSGID)) {
         case 'calendar:MY':
             this._headerMonthFirst = true;
             break;
