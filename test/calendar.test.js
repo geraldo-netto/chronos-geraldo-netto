@@ -3,6 +3,13 @@ const { test } = require("node:test");
 const fs = require("node:fs");
 const path = require("node:path");
 const { makeRandom } = require("./helpers/prng");
+const { freezeClock } = require("./helpers/clock");
+
+// The grid marks "today" and Home returns to it, both read off the wall clock, and
+// the month window is built around it. A run that crosses local midnight moved the
+// day underneath the assertions. Each test file runs in its own process, so this
+// stands for the file: every explicit new Date(2026, …) is untouched.
+freezeClock();
 
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 

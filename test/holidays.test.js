@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { makeRandom } = require("./helpers/prng");
 const { makeSoup3 } = require("./helpers/soup");
+const { FIXED_YEAR, freezeClock } = require("./helpers/clock");
 
 // A real Date response header. The cache refuses a stamp it cannot parse — and
 // one planted in the future — so a placeholder like "today" is not a stand-in
@@ -175,6 +176,8 @@ function holiday(name, year, month, day, flags = ["public_holiday"]) {
     };
 }
 
+let unfreezeClock;
+
 beforeEach(() => {
     tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "calendar-holidays-"));
     originalImports = global.imports;
@@ -182,9 +185,14 @@ beforeEach(() => {
     originalLogError = global.logError;
     global.log = function() {};
     global.logError = function() {};
+    // the cache windows its years around the current one and its staleness rule
+    // reads Date.now(): a run that straddles New Year's Eve would compare one
+    // year against the other
+    unfreezeClock = freezeClock();
 });
 
 afterEach(() => {
+    unfreezeClock();
     global.imports = originalImports;
     global.log = originalLog;
     global.logError = originalLogError;
@@ -795,7 +803,7 @@ test("a cache directory that cannot be created degrades instead of throwing", ()
     }, cache, { record: anyRecord({ expandHoliday: (single) => [single] }) });
 
     assert.doesNotThrow(() => enrico.setPlace("usa", "global"));
-    assert.deepEqual(enrico.matchMonth(new Date().getFullYear(), 1).get("1/1"), ["New Year", []]);
+    assert.deepEqual(enrico.matchMonth(FIXED_YEAR, 1).get("1/1"), ["New Year", []]);
 });
 
 test("a cached freshness stamp in the future is not believed", () => {
@@ -925,7 +933,7 @@ test("HolidayService setPlace treats a null region as the global region", () => 
 
 test("HolidayService setPlace honors the retry backoff after a failed fetch", () => {
     const { HolidayService } = loadHolidays();
-    const year = new Date().getFullYear();
+    const year = FIXED_YEAR;
 
     const enrico = new HolidayService();
     let retrieved = 0;
@@ -974,7 +982,7 @@ test("a corrupt cache file is ignored instead of breaking holidays", () => {
         enrico.setPlace("usa", "global");
 
         assert.deepEqual(enrico.cache.years, {}, `years for ${payload}`);
-        assert.equal(retrievedYear, new Date().getFullYear(), `retrieve for ${payload}`);
+        assert.equal(retrievedYear, FIXED_YEAR, `retrieve for ${payload}`);
         assert.equal(enrico.matchMonth(2026, 1).size, 0);
     }
 });
@@ -1136,7 +1144,7 @@ test("HolidayService surfaces provider errors to getHolidays callbacks", () => {
 // "global" — whose data was cached and fresh, so nothing ever overwrote it.
 test("a failure under one country is not reported under the next", () => {
     const { HolidayService, HolidayCache } = loadHolidays();
-    const year = new Date().getFullYear();
+    const year = FIXED_YEAR;
     let fail = true;
 
     const service = {
@@ -1268,7 +1276,7 @@ test("HolidayService records the attempt when the fetch lands, not when it start
     const service = {
         fetchYear(_country, _region, _year, callback) {
             fetched = true;
-            callback({ error: "offline" }, { year: new Date().getFullYear() }, null);
+            callback({ error: "offline" }, { year: FIXED_YEAR }, null);
         }
     };
     const enrico = new HolidayService(service, cache);
@@ -1276,7 +1284,7 @@ test("HolidayService records the attempt when the fetch lands, not when it start
 
     assert.equal(fetched, true);
     // the failed attempt is recorded on completion, so RETRY_PERIOD applies
-    assert.equal(enrico.staleCache(new Date().getFullYear()), false);
+    assert.equal(enrico.staleCache(FIXED_YEAR), false);
 });
 
 test("a fetch that lands after the country changed does not write to the new country", () => {
@@ -1305,7 +1313,7 @@ test("a fetch that lands after the country changed does not write to the new cou
     };
 
     const enrico = new HolidayService(service, cache, { record: service });
-    const year = new Date().getFullYear();
+    const year = FIXED_YEAR;
 
     enrico.setPlace("fra", "global");          // France asks...
     enrico.setPlace("jpn", "global");          // ...the user picks Japan...
@@ -1335,7 +1343,7 @@ test("the per-year status record does not outlive the years the grid can reach",
     const enrico = new HolidayService(service, cache, { record: service });
     enrico.setPlace("usa", "global");
 
-    const current = new Date().getFullYear();
+    const current = FIXED_YEAR;
     for (const year of [current - 6, current - 1, current, current + 1, current + 7]) {
         enrico.retrieveForYear(year);
     }
@@ -1355,7 +1363,7 @@ test("the cache persists only the reachable window but keeps the session's data"
     );
     cache.setPlace("usa", "global");
 
-    const current = new Date().getFullYear();
+    const current = FIXED_YEAR;
     const old = current - 5;
     cache.years[old] = { global: "Thu, 01 Jan 2020 00:00:00 GMT" };
     cache.attempts[old] = { global: "Thu, 01 Jan 2020 00:00:00 GMT" };
@@ -1730,7 +1738,7 @@ test("a fresh year answers from the cache without a fetch", () => {
     enrico.country = "usa";
     enrico.region = "global";
 
-    const year = new Date().getFullYear();
+    const year = FIXED_YEAR;
     cache.recordYear(year, "global", new Date().toUTCString());
     cache.setData([{ year, month: 7, day: 4, region: "global", name: "Cached", flags: [] }]);
 
@@ -1763,7 +1771,7 @@ test("setPlace repaints when the fetch for the new place lands", () => {
     enrico.setPlace("usa", "global", () => repaints++);
     assert.equal(repaints, 0, "the data has not arrived yet");
 
-    pending({ error: "offline" }, { year: new Date().getFullYear(), region: "global" }, null);
+    pending({ error: "offline" }, { year: FIXED_YEAR, region: "global" }, null);
     assert.equal(repaints, 1);
 });
 
@@ -3128,18 +3136,18 @@ test("a response from the country the user just left does not silence the new on
 
     // Brazil's answer lands late. It belongs to a place that is gone.
     brazil.callback([{
-        date: { year: new Date().getFullYear(), month: 9, day: 7 },
+        date: { year: FIXED_YEAR, month: 9, day: 7 },
         name: [{ lang: "en", text: "Independência do Brasil" }],
         flags: []
     }], brazil.params, STAMP);
 
     assert.deepEqual(repaints, [], "the abandoned country repaints nothing");
-    assert.equal(enrico.fetching(new Date().getFullYear()), true,
+    assert.equal(enrico.fetching(FIXED_YEAR), true,
         "and France's request is still live, so nothing refetches it");
 
     // ...and France's answer still reaches the calendar
     france.callback([{
-        date: { year: new Date().getFullYear(), month: 7, day: 14 },
+        date: { year: FIXED_YEAR, month: 7, day: 14 },
         name: [{ lang: "en", text: "Bastille Day" }],
         flags: []
     }], france.params, STAMP);
@@ -3148,7 +3156,7 @@ test("a response from the country the user just left does not silence the new on
     assert.equal(enrico.country, "fra");
 
     const months = [];
-    provider.getHolidays(new Date().getFullYear(), 7, (dates) => months.push(dates));
+    provider.getHolidays(FIXED_YEAR, 7, (dates) => months.push(dates));
     assert.deepEqual(months[0].get("7/14"), ["Bastille Day", []]);
 });
 
