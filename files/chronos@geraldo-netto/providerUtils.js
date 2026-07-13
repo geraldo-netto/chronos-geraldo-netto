@@ -6,7 +6,7 @@ const IoUtils = typeof require === "function" ?
     require("./ioUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 
-const urlForLog = IoUtils._urlForLog;
+const urlForLog = IoUtils.urlForLog;
 
 // Exponential backoff with a ceiling and jitter — the one copy.
 //
@@ -58,7 +58,7 @@ function orderProvidersByLastSuccess(providers, lastName) {
 // A provider with no name used to be logged by its raw URL, and a geocode URL
 // carries the location the user typed — so a failing geocode wrote their city,
 // or their world clock's name, into the Cinnamon log in cleartext. The query
-// string is exactly what _urlForLog exists to strip.
+// string is exactly what urlForLog exists to strip.
 function providerName(provider) {
     if (!provider) {
         return "unknown provider";

@@ -1138,7 +1138,7 @@ test("an oversized cache file is refused, not parsed", () => {
         "and it says so, rather than silently reading as empty");
 });
 
-// _urlForLog is the applet's only privacy control on the logging path: the
+// urlForLog is the applet's only privacy control on the logging path: the
 // user's city and country ride in the query string of every geocode and holiday
 // request. Four examples are not a property.
 test("fuzz: the log sanitizer never lets a query or fragment through", () => {
@@ -1159,7 +1159,7 @@ test("fuzz: the log sanitizer never lets a query or fragment through", () => {
         const fragment = rand() < 0.3 ? `#${encoded}` : "";
         const url = `${pick(schemes)}://${pick(hosts)}${pick(paths)}${query}${fragment}`;
 
-        const logged = utils._urlForLog(url);
+        const logged = utils.urlForLog(url);
 
         assert.equal(typeof logged, "string");
         assert.doesNotMatch(logged, /[?#]/, "no query and no fragment survive");
@@ -1172,7 +1172,7 @@ test("fuzz: the log sanitizer never lets a query or fragment through", () => {
 
     // and anything that is not a URL at all is still answered with a string
     for (const junk of [null, undefined, 42, {}, [], "", "not a url", "//protocol-relative/x?y=1"]) {
-        const logged = utils._urlForLog(junk);
+        const logged = utils.urlForLog(junk);
         assert.equal(typeof logged, "string");
         assert.doesNotMatch(logged, /[?#]/);
     }
@@ -1419,7 +1419,7 @@ test("backoffDelay doubles, caps, and spreads", () => {
 });
 
 // a nameless provider is logged by its URL, and a geocode URL carries the place
-// the user typed — which is what _urlForLog exists to strip
+// the user typed — which is what urlForLog exists to strip
 test("a provider with no name is logged by a stripped URL, or not at all", () => {
     const providerUtils = loadProviderUtils();
     const logged = [];
@@ -1592,11 +1592,11 @@ test("httpGetJson logs sanitized non-200 responses before reporting null", () =>
     assert.doesNotMatch(message, /name=/);
 });
 
-test("_urlForLog strips query strings and fragments", () => {
+test("urlForLog strips query strings and fragments", () => {
     const utils = loadIoUtils();
-    assert.equal(utils._urlForLog("https://x.test/y?name=Private%20Place#top"), "https://x.test/y");
-    assert.equal(utils._urlForLog("/relative/path?token=secret"), "/relative/path");
-    assert.equal(utils._urlForLog(null), "");
+    assert.equal(utils.urlForLog("https://x.test/y?name=Private%20Place#top"), "https://x.test/y");
+    assert.equal(utils.urlForLog("/relative/path?token=secret"), "/relative/path");
+    assert.equal(utils.urlForLog(null), "");
 });
 
 test("httpGetJson reports Soup 3 read failures through the callback", () => {
@@ -1665,7 +1665,7 @@ function gjsImportsMock() {
         createHttpSession() {},
         HTTP_TIMEOUT_SECONDS: 30,
         httpGetJson() {},
-        _urlForLog() {},
+        urlForLog() {},
         safeCssColor() {},
         joinPhrases(...parts) { return parts.join(" — "); },
         backoffDelay() {},
@@ -1728,11 +1728,11 @@ test("httpGetJson tolerates a Soup message that exposes no request headers", () 
     assert.deepEqual(parsed, { ok: true });
 });
 
-test("_urlForLog keeps a bare origin with no path", () => {
+test("urlForLog keeps a bare origin with no path", () => {
     const utils = loadIoUtils();
     // the geocoder is reached at the origin itself; there is no path to keep
-    assert.equal(utils._urlForLog("https://api.test"), "https://api.test");
-    assert.equal(utils._urlForLog("https://api.test?q=Private"), "https://api.test");
+    assert.equal(utils.urlForLog("https://api.test"), "https://api.test");
+    assert.equal(utils.urlForLog("https://api.test?q=Private"), "https://api.test");
 });
 
 test("writeJsonFileAsync logs async failures on both the call and the completion", () => {

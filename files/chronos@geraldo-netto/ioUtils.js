@@ -154,7 +154,7 @@ function _setRequestHeaders(message, headers) {
     }
 }
 
-function _urlForLog(url) {
+function urlForLog(url) {
     if (typeof url !== "string") {
         return "";
     }
@@ -226,7 +226,7 @@ function _readCapped(stream, cancellable, url, deliver) {
                 }
                 total += chunk.length;
                 if (total > MAX_RESPONSE_BYTES) {
-                    throw new Error("response from " + _urlForLog(url) + " exceeds " +
+                    throw new Error("response from " + urlForLog(url) + " exceeds " +
                         MAX_RESPONSE_BYTES + " bytes");
                 }
                 chunks.push(chunk);
@@ -272,14 +272,14 @@ function httpGetJson(session, url, callback, options = {}) {
         let data = null;
         try {
             if (_downgraded(message, url)) {
-                throw new Error("refusing a response from " + _urlForLog(url) + " redirected to plain http");
+                throw new Error("refusing a response from " + urlForLog(url) + " redirected to plain http");
             }
 
             if (message.get_status() === 200) {
                 // the declared length can lie, or be absent entirely; the
                 // capped read already enforced this on the streaming path
                 if (body && body.length > MAX_RESPONSE_BYTES) {
-                    throw new Error("response from " + _urlForLog(url) + " exceeds " +
+                    throw new Error("response from " + urlForLog(url) + " exceeds " +
                         MAX_RESPONSE_BYTES + " bytes");
                 }
                 const parsed = JSON.parse(decodeUtf8(body));
@@ -292,7 +292,7 @@ function httpGetJson(session, url, callback, options = {}) {
                 // not.
                 data = parsed && typeof parsed === "object" ? parsed : null;
             } else if (global.logError) {
-                global.logError("HTTP " + message.get_status() + " fetching " + _urlForLog(url));
+                global.logError("HTTP " + message.get_status() + " fetching " + urlForLog(url));
             }
         } catch (e) {
             if (global.logError) {
@@ -311,7 +311,7 @@ function httpGetJson(session, url, callback, options = {}) {
             let stream = null;
             try {
                 if (_declaredTooLarge(message)) {
-                    throw new Error("response from " + _urlForLog(url) + " declares more than " +
+                    throw new Error("response from " + urlForLog(url) + " declares more than " +
                         MAX_RESPONSE_BYTES + " bytes");
                 }
                 stream = source.send_finish(result);
@@ -329,7 +329,7 @@ function httpGetJson(session, url, callback, options = {}) {
         let body = null;
         try {
             if (_declaredTooLarge(message)) {
-                throw new Error("response from " + _urlForLog(url) + " declares more than " +
+                throw new Error("response from " + urlForLog(url) + " declares more than " +
                     MAX_RESPONSE_BYTES + " bytes");
             }
             body = source.send_and_read_finish(result).get_data();
@@ -363,7 +363,7 @@ if (typeof module !== "undefined") {
         MAX_RESPONSE_BYTES,
         MAX_CACHE_FILE_BYTES,
         httpGetJson,
-        _urlForLog,
+        urlForLog,
         readJsonFileAsync,
         writeJsonFileAsync
     };
