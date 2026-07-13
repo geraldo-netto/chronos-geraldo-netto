@@ -21,15 +21,22 @@ calendar fork.
   suggestions when available; if neither timezone database is available, the
   dialog falls back to plain typed timezone entry.
 
-There is no build step. Cinnamon loads the JavaScript from `files/` as it is
-written — nothing is compiled, bundled, or transpiled. The one generated
-artifact is the `po/*.mo` catalogs, which Cinnamon builds from `po/*.po` when
-the applet is installed (`gettext`, i.e. `msgfmt`, does that).
+There is no build step for the code. Cinnamon loads the JavaScript from `files/`
+as it is written — nothing is compiled, bundled, or transpiled. The one thing
+that *is* compiled is the translations: the applet reads `po/*.mo` catalogs, and
+only `po/*.po` sources are in the repository. Nothing compiles them for you —
+not Cinnamon, not the applet — so a copy-and-reload install is English-only until
+you run the one command in step 2 below, which is why it is a step and not a
+footnote.
 
-On Linux Mint everything above is already installed except `pytz`:
+- `gettext`, for its `msgfmt` — only to compile the catalogs at install time
+  (step 2 of the installation). Mint ships `gettext-base`, which does not carry
+  `msgfmt`.
+
+On Linux Mint everything above is already installed except `pytz` and `gettext`:
 
 ```sh
-sudo apt install python3-pytz
+sudo apt install python3-pytz gettext
 ```
 
 ### To work on the applet
@@ -67,9 +74,21 @@ test runner and Python's `unittest`.
          ~/.local/share/cinnamon/applets/
    ```
 
-2. Reload Cinnamon (press `Ctrl`+`Alt`+`Esc`, or log out and back in — on
+2. Compile the translations. Copying the applet does not do this, and neither
+   does Cinnamon: without it every string is English, whatever your locale.
+
+   ```sh
+   # msgfmt each po/*.po into ~/.local/share/locale/<lang>/LC_MESSAGES/,
+   # which is where the applet looks the catalogs up
+   cinnamon-xlet-makepot -i ~/.local/share/cinnamon/applets/chronos@geraldo-netto
+   ```
+
+   Re-run it after every update — a `.po` that changed upstream is a `.mo` that
+   is stale here.
+
+3. Reload Cinnamon (press `Ctrl`+`Alt`+`Esc`, or log out and back in — on
    Wayland only the latter works).
-3. Right-click a panel → **Applets** → **Manage**, select **Chronos Calendar**
+4. Right-click a panel → **Applets** → **Manage**, select **Chronos Calendar**
    and click **+** to add it to the panel.
 
 Since it replaces the stock clock, you may want to right-click the stock

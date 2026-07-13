@@ -298,6 +298,36 @@ test("CI runs the gates the README promises", () => {
     // `if import pyflakes; then …; else echo skipping; fi` — exit 0 either way
     assert.doesNotMatch(pkg.scripts["lint:py"], /skipping/);
     assert.match(pkg.scripts["lint:py"], /exit 1/);
+
+    // sixteen timezone tests skipped themselves in CI because pytz was never
+    // installed there, and neither the suite count nor a coverage number moved
+    assert.match(workflow, /pip install .*pytz/);
+    assert.match(workflow, /CHRONOS_REQUIRE_PYTZ: "1"/, "and the skip is a failure there");
+});
+
+// The README said Cinnamon compiled the catalogs "when the applet is installed".
+// Nothing does: the documented install is a clone and an rsync, Cinnamon does not
+// run msgfmt at applet load, and the applet reads .mo files that were never
+// written — so all fifteen translations were dead on every install, at ~98 %
+// translated. The install has a step that compiles them now, and the step is what
+// this pins: a README that drops it ships an English-only applet again.
+test("the documented install compiles the catalogs the applet reads", () => {
+    const readme = fs.readFileSync(readmePath, "utf8");
+
+    assert.match(readme, /cinnamon-xlet-makepot -i /,
+        "the install must msgfmt po/*.po; nothing else in the pipeline does");
+    assert.doesNotMatch(readme, /which Cinnamon builds from `po\/\*\.po`/,
+        "Cinnamon does not build them, and saying so is what hid this");
+
+    // it must land where the applet looks: localeUtils binds the textdomain to
+    // ~/.local/share/locale for a per-user install, and that is where
+    // cinnamon-xlet-makepot -i writes
+    const localeUtils = fs.readFileSync(path.join(appletDir, "localeUtils.js"), "utf8");
+    assert.match(localeUtils, /home \+ "\/\.local\/share\/locale"/);
+
+    // and the catalogs it compiles are the ones in the tree
+    const catalogs = fs.readdirSync(path.join(appletDir, "po")).filter((f) => f.endsWith(".po"));
+    assert.ok(catalogs.length >= 15, `${catalogs.length} catalogs`);
 });
 
 // Cinnamon matches the running series against this list literally: a manifest
