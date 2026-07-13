@@ -498,6 +498,15 @@ class AppletPanelStatusPresenter {
         // geocoded; the label is the user's name for the row and two rows may
         // share one
         const city = WorldclockData.timezoneCityName(entry.timezone);
+
+        // An offset-only zone (Etc/GMT+3) names no city, so there is nothing to
+        // forecast and there never will be. Blank cells said exactly what a fetch
+        // still in flight and a fetch that failed said, so the row looked broken
+        // rather than inapplicable.
+        if (!city) {
+            return ["", _("No weather for this timezone")];
+        }
+
         const record = view.cityWeatherReading(city);
         if (!record) {
             return ["", ""];

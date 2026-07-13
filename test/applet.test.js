@@ -2282,11 +2282,13 @@ test("a clock row with no zoned time falls back to the preformatted time", () =>
     });
     const presenter = panelStatus(stub);
 
-    // an invalid timezone has no GLib.DateTime to format
+    // an invalid timezone has no GLib.DateTime to format — and names no city, so
+    // it has no weather either, and the row says so rather than leaving a blank
+    // that reads as a fetch still in flight
     assert.deepEqual(presenter.tooltipClockRow({ label: "Rome", time: "Invalid timezone", builtin: false }),
-        ["Rome", "Invalid timezone", "", ""]);
+        ["Rome", "Invalid timezone", "", "No weather for this timezone"]);
     assert.deepEqual(presenter.tooltipClockRow({ label: "UTC", timezone: "UTC", time: "01:52", builtin: true }),
-        ["UTC", "01:52", "", ""]);
+        ["UTC", "01:52", "", ""], "UTC is a scale, not a place: it never had weather");
 
     // a zone that formats to nothing still shows the time the row came with
     assert.deepEqual(presenter.tooltipClockRow({
@@ -2294,7 +2296,18 @@ test("a clock row with no zoned time falls back to the preformatted time", () =>
         time: "18:52",
         builtin: false,
         localTime: { format: () => "" }
-    }), ["Rome", "18:52", "", ""]);
+    }), ["Rome", "18:52", "", "No weather for this timezone"]);
+
+    // ...and an offset-only zone is the case this is really about: Etc/GMT+3 is a
+    // real, valid timezone that names no city, so nothing can ever be forecast for
+    // it. A blank cell was indistinguishable from a pending or a failed fetch.
+    assert.deepEqual(presenter.tooltipClockRow({
+        label: "GMT-3",
+        timezone: "Etc/GMT+3",
+        time: "15:52",
+        builtin: false,
+        localTime: { format: () => "15:52" }
+    }), ["GMT-3", "15:52", "", "No weather for this timezone"]);
 });
 
 test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", () => {
