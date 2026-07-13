@@ -10,17 +10,13 @@ Baseline at scan time: `npm test` green **on this machine** (JS coverage per-fil
 
 A batch on 2026-07-12 closed 27 of the findings (see `git log`): the six README fixes, the makepot `cd`, the single-sourced constants, the i18n trio, the dead `_urlForLog`, the lazy city Soup session, the tooltip-key seconds, the locale-subprocess reap, the chunked-response cap, the geocode fan-out pool, the JS/Python timezone-city parity, the logind resume, the holiday refetch-storm, the C→F unification, the five complexity splits, the `updateFormatString` table, the calendar-server proxy encapsulation, the EventList seam, the coverage-gate honesty fix, and the ATK-description fix. Five of that batch's targets were **parked** rather than done — the heavy reorganizations, all Medium and none a live bug; see "Open - parked" for the rationale.
 
-Open items: 23 (Critical 0, High 3, Medium 10, Low 10).
+Open items: 18 (Critical 0, High 0, Medium 10, Low 8).
 
 ## Findings
 
 ### High
 
-| ID | Category | Severity | Status | Effort | Description | Notes |
-|----|----------|----------|--------|--------|-------------|-------|
-| T422 | packaging / legal | High | done | S | **[verified]** No `LICENSE`/`COPYING` anywhere, though `package.json:5` and README both declare `GPL-2.0-or-later` and the applet redistributes two GPL works (`calendar@ccprog`, `calendar@simonwiles.net`). `metadata.json` carries no license field at all. | Verified: `git ls-files` lists no LICENSE/COPYING. Fix: add top-level `LICENSE` with the GPL-2.0 text and the "or later" notice; add `"license"` to `metadata.json`. |
-| T428 | testing / lint | High | done | S | **[verified]** `eslint.config.mjs` extends **no** ruleset — `js.configs.recommended` is absent; only `no-unused-vars`/`no-undef`/`no-shadow` are on. So the one static gate is a near no-op for correctness bugs. | Verified now: a file with unreachable code after `return`, a duplicate object key, and `if (o = 3)` lints **clean, exit 0** — only the unused-var fired. (Supersedes the old T360, which cited a CI step that does not exist.) Fix: `import js from "@eslint/js"` and extend `js.configs.recommended`, then fix the fallout. |
-| T359 | testing | High | done | M | **[verified]** `calendar.js:989,1023,1030` wire the month/year nav buttons with `.connect('clicked', …)`, but `test/calendar.test.js` calls `_onPrevMonthButtonClicked()` / `_onNextYearButtonClicked()` **directly**, so the wiring is untested. | Re-verified this pass: renamed the prev-month button's signal `'clicked'` → `'clicked-nope'` → **72 pass / 0 fail, exit 0**. The same mutation on the day-cell `'clicked'`, `'scroll-event'`, `'style-changed'` and `changed::` signals *does* fail, so it is specifically the nav wiring. Fix: dispatch through the emitted signal in the test, or assert the connect list. |
+None open.
 
 ### Medium
 
@@ -42,8 +38,6 @@ Open items: 23 (Critical 0, High 3, Medium 10, Low 10).
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
 | T444 | architecture | Low | open | L | **[verified]** `settings_widgets_common.py` is a 1195-line module with ~9 responsibilities (gettext bootstrap, X11 window centering, IANA timezone domain logic, GTK completion plumbing, three custom widgets, a list-edit factory, ATK helpers, a dialog presenter, a dialog builder). The pure timezone half (`TimezoneResolver`, `local_city_name`, `looks_like_iana`, `completion_key`) has no `gi` dependency yet forces `test_settings_widgets.py` to stand up a GTK stack to test string functions. | Fix: split at the GTK line into `timezone_data.py` (no `gi`) + the widgets. The `5.4/` shim re-exports only the three widget names, so the split is invisible to Cinnamon. |
-| T445 | architecture | Low | open | M | **[verified]** `weather.js` is a 599-line mixed-layer file (domain `WeatherDisplayState`, timer `WeatherRefreshScheduler`, the two port resolvers, the two adapter registries, the `WeatherProvider` composition root) plus 33 `var` re-exports of `weatherFormat` symbols. Every other feature was split for this reason. The barrel already drifts: `weatherFormat` exports `WEATHER_UNITS`, `metNoSummary`, `AVIATION_WEATHER_BBOX_DEGREES`, none re-exported — a consumer reaching `Weather.WEATHER_UNITS` gets `undefined` (falsy), so `x === Weather.WEATHER_UNITS.IMPERIAL` throws only at the deepest branch. | Fix: `weatherScheduler.js` + `weatherProviders.js`; leave `weather.js` as provider+state; let consumers import `weatherFormat` directly instead of re-exporting 33 names. |
-| T446 | architecture / naming | Low | done | M | **[verified]** The holiday **domain service** (coordinates cache, inflight map, status ledger, generation counter across all three providers) is named `Enrico` after one provider, its cache is `enrico.json` (`holidays.js:523`) — so Nager.Date and OpenHolidays results persist to a file named after a third vendor — and `ENRICO_COUNTRY_TO_ISO2`/`ENRICO_REGION_TO_COUNTY` (the app's own vocabulary) drive the two non-Enrico adapters. Dropping Enrico (the flakiest provider) means renaming the class, orphaning every user's cache, and three constants. | Fix: `Enrico`→`HolidayService`, `enrico.json`→`holidays.json` with a one-shot migration, `ENRICO_*`→`COUNTRY_TO_ISO2`/`REGION_TO_SUBDIVISION`. Mechanical; tests already cross-check the tables. |
 | T455 | dead code | Low | open | S | **[verified]** `cityWeather.js:34` `CITY_STALE_AFTER_SECONDS` is computed at load and exported, but production reads none of it — `CityWeatherProvider` computes its own threshold at `:54`. Only `cityWeather.test.js` reads it. | Verified by grep. Fix: delete the constant and its `module.exports` entry. |
 | T461 | testing / validation | Low | open | S | **[verified]** `settings_widgets_common.py:818` `looks_like_iana`'s character-class check (`ch.isalnum() or ch in "_+-"`) is never exercised — it is the only validation of a typed timezone when no tz database is present, and every no-db test input passes both checks or is rejected by the length check first. A garbage value shaped `Area/City baz` would be accepted and saved as a timezone. | Verified: mutating the return to `True` left all Python tests passing; mutating the length guard was killed. Fix: add a no-db `normalize()` case with a 2–3 segment value containing spaces/punctuation, assert `None`. |
 | T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete, or promote to the root `icon.png` T439 needs. |
@@ -56,8 +50,8 @@ Open items: 23 (Critical 0, High 3, Medium 10, Low 10).
 
 The 2026-07-12 batch closed the live defects, the i18n regressions and the docs/packaging quick wins. What remains:
 
-1. **T440, T373** — make the gates real (add CI, close the Python coverage-glob hole). The eslint ruleset (T428) is done. The JS coverage-honesty hole (T424) is done; these three finish the net.
-2. **T437, T438, T439** — the packaging blockers to a first release or Spices submission (LICENSE, `uuid`, `cinnamon-version`, the icon symlink).
+1. **T440, T373** — make the gates real (add CI, close the Python coverage-glob hole). The eslint ruleset (T428) and the JS coverage-honesty hole (T424) are done; these two finish the net.
+2. **T437, T438, T439** — the packaging blockers to a first release or Spices submission (`uuid`, `cinnamon-version`, the icon symlink).
 3. **T374, T434, T449** — the tests that lie; each is a bug free to come back.
 4. **The parked reorganizations** (T442, T448, T444) — schedule when next touching those files, not as standalone churn; see "Open - parked".
 5. Everything else, severity order.
@@ -79,7 +73,7 @@ Verified with no findings on the 2026-07-12 fresh rescan:
 
 ## Open - parked
 
-The five heaviest reorganizations from the 2026-07-12 batch were parked rather than rushed. Each is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. Each is unpacked below into ordered sub-steps that each land on their own with the suite green — do them in order, one commit per step.
+Three of the five heaviest reorganizations from the 2026-07-12 batch are still parked (T442, T448, T444); the weather split (T445) and the Enrico rename (T446) have since landed. Each of the three is Medium, none is a live bug, and each carries substantial test-infrastructure ripple that is error-prone to do at speed. Unpack each into ordered sub-steps that land on their own with the suite green — one commit per step.
 
 ## Rejected
 
