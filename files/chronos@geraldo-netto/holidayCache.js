@@ -27,6 +27,20 @@ var MAX_HOLIDAY_NAME_LENGTH = 300;
 // months of match results kept around: enough that scrolling a year back and
 // forth stays free, small enough that a long session cannot grow on it
 var MAX_MEMOIZED_MONTHS = 32;
+// The years the applet keeps in memory, as opposed to the ±YEAR_WINDOW it
+// persists. The grid straddles two months, so it reads at most two years; this
+// leaves room to page around and come back without refetching, and bounds what a
+// session of scrolling can hold. Held whole, `data`, the two indexes, `years` and
+// `attempts` grew with every year the user ever scrolled to — 60 years of a
+// 15-holiday country is 469 KiB, and MAX_EXPANDED_HOLIDAY_ROWS × years browsed is
+// the ceiling.
+//
+// It is an LRU on use, not a window around today: a hard window is what the
+// comment on _windowedForPersist warns about — it discarded a *just-fetched*
+// out-of-window year together with the freshness stamp that throttles it, so the
+// year was refetched on every calendar update, forever. The year the user is
+// looking at is by definition the most recently used one.
+var MAX_CACHED_YEARS = 8;
 // years kept on either side of the current one; the 42-day grid can reach at
 // most one month into a neighbouring year
 var YEAR_WINDOW = 1;
@@ -333,6 +347,35 @@ var HolidayCache = class HolidayCache {
         this._monthIndex = new Map();
         this._matchedMonthCache = new Map();
         this._indexedDataLength = 0;
+        // insertion order is recency: re-touching deletes and re-adds
+        this._yearUse = new Map();
+    }
+
+    _touchYear(year) {
+        const key = Number(year);
+        if (!Number.isFinite(key)) {
+            return;
+        }
+
+        this._yearUse.delete(key);
+        this._yearUse.set(key, true);
+    }
+
+    // A year and its freshness stamp go together: dropping the rows but keeping
+    // the stamp would leave the year looking fetched and rendering nothing.
+    _evictYear(year) {
+        this._yearUse.delete(year);
+        delete this.years[year];
+        delete this.attempts[year];
+        this.data = this.data.filter((single) => Number(single.year) !== year);
+        this._rebuildIndex();
+    }
+
+    _pruneYears() {
+        while (this._yearUse.size > MAX_CACHED_YEARS) {
+            const oldest = this._yearUse.keys().next().value;
+            this._evictYear(oldest);
+        }
     }
 
     // `onReady` runs once the country's cached data is in place — the load is
@@ -462,6 +505,8 @@ var HolidayCache = class HolidayCache {
             this._matchedMonthCache.clear();
             this._indexedDataLength = this.data.length;
         }
+
+        this._touchYear(single.year);
     }
 
     recordYear(year, region, retrieved) {
@@ -470,6 +515,8 @@ var HolidayCache = class HolidayCache {
         } else {
             this.years[year] = {[region]: retrieved};
         }
+
+        this._touchYear(year);
     }
 
     // `received` is injectable like recordAttempt's clock; a response
@@ -494,6 +541,9 @@ var HolidayCache = class HolidayCache {
         const stamp = validCachedStamp(retrieved) ? retrieved : received;
         this.recordYear(year, region, stamp);
         holidays.forEach((single) => this.addUnique(single));
+        // the year that just landed is the most recently used one, so the prune
+        // can never drop it
+        this._pruneYears();
     }
 
     clearPlace() {
@@ -507,6 +557,7 @@ var HolidayCache = class HolidayCache {
     // AppletContextMenu's sourceActor), so nothing else drops them.
     release() {
         this.data = [];
+        this._yearUse.clear();
         this._holidayIndex.clear();
         this._monthIndex.clear();
         this._matchedMonthCache.clear();
@@ -544,6 +595,8 @@ var HolidayCache = class HolidayCache {
 
     matchMonth(year, month, region = this.region) {
         this._syncIndex();
+        // the grid is reading this year: that is what keeps it out of the prune
+        this._touchYear(year);
         const monthKey = this._monthKey(year, month, region);
         const cached = this._matchedMonthCache.get(monthKey);
         if (cached) {
@@ -573,5 +626,5 @@ var HolidayCache = class HolidayCache {
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HolidayCacheRepository, HolidayCache, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_COUNTRIES, UPDATE_PERIOD_DAYS, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
+    module.exports = { HolidayCacheRepository, HolidayCache, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_YEARS, MAX_CACHED_COUNTRIES, UPDATE_PERIOD_DAYS, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
 }

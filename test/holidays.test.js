@@ -453,6 +453,46 @@ test("holiday validation rejects out-of-range months and days", () => {
 // _delegate — so the applet object survives its removal from the panel, and with
 // it a year of holidays for every year the user ever scrolled to. Ten add/remove
 // cycles retained 38 MiB.
+// The persisted copy was windowed to ±1 year; the live structures were not, so
+// `data`, both indexes, `years` and `attempts` grew with every year the user
+// scrolled to and kept growing for the session — 60 years of a 15-holiday country
+// measured 469 KiB, and the ceiling is MAX_EXPANDED_HOLIDAY_ROWS × years browsed.
+//
+// The prune is an LRU on use rather than a window around today, because a window
+// is what _windowedForPersist's comment warns about: it dropped a just-fetched
+// out-of-window year and the stamp that throttles it, and the year was then
+// refetched on every calendar update, forever.
+test("the years the user scrolled past are not kept for the session", () => {
+    const { HolidayCache } = loadHolidays();
+    const { MAX_CACHED_YEARS } = require(holidayCachePath);
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    cache.setPlace("ita", "global");
+
+    const fetchYear = (year) => cache.recordFetch(year, "global", new Date().toUTCString(),
+        [{ year, month: 1, day: 1, region: "global", name: "New Year", flags: [] }]);
+
+    for (let year = 2000; year < 2060; year++) {
+        fetchYear(year);
+    }
+
+    assert.equal(cache._yearUse.size, MAX_CACHED_YEARS, "the browsing is bounded");
+    assert.equal(cache.data.length, MAX_CACHED_YEARS);
+    assert.deepEqual(Object.keys(cache.years).map(Number).sort((a, b) => a - b),
+        Array.from({ length: MAX_CACHED_YEARS }, (_, i) => 2059 - MAX_CACHED_YEARS + 1 + i),
+        "the years kept are the ones last used");
+
+    // an evicted year keeps neither its rows nor its freshness stamp: it is stale
+    // again, which is the only state that is not a lie
+    assert.equal(cache.matchMonth(2000, 1).size, 0);
+    assert.equal(cache.stale(2000, "global"), true);
+
+    // and the year the user is looking at survives a fetch of another year — the
+    // read touches it, so it is never the least recently used one
+    cache.matchMonth(2055, 1);
+    fetchYear(2060);
+    assert.equal(cache.matchMonth(2055, 1).size, 1, "the year on screen is still there");
+});
+
 test("destroying the provider drops the holidays it was holding", () => {
     const { HolidayCache } = loadHolidays();
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
@@ -680,6 +720,7 @@ test("the cache file keeps a handful of countries, not every one ever tried", ()
     // the ones kept are the ones most recently looked at
     assert.deepEqual(Object.keys(written).sort(),
         tried.slice(-MAX_CACHED_COUNTRIES).sort());
+
 });
 
 test("the month-match memo is bounded, and scrolling back is still free", () => {
