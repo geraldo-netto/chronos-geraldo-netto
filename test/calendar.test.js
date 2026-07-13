@@ -109,7 +109,10 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].eventData =
     require(path.join(APPLET_DIR, "eventData.js"));
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].settingsFacade =
     require(path.join(APPLET_DIR, "settingsFacade.js"));
-global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidays = {
+// the grid reads the error identifiers and nothing else out of the holiday
+// feature, so it requires the constants, not the barrel that carries the HTTP
+// stack behind them
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants = {
     HOLIDAY_ERRORS: {
         SERVICE_UNAVAILABLE: "Holiday service unavailable",
         INVALID_RESPONSE: "Holiday data unavailable"

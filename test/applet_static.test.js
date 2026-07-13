@@ -123,6 +123,24 @@ test("nothing in the applet blocks the compositor on a subprocess or a socket", 
     assert.match(source("localeUtils.js"), /communicate_utf8_async/);
 });
 
+// The weather and holiday features were each split into a pure half and a
+// networked half; the UI kept requiring the barrels, so the day grid linked the
+// cache repository, the three vendor adapters and a Soup session in order to read
+// two error identifiers, and the panel presenter linked the provider chains and
+// the refresh scheduler to read six constants and a formatter. The split is only
+// real if the import graph honours it, and only the imports say whether it does.
+test("the presentation modules do not import the network stack", () => {
+    const grid = source("5.4/calendar.js");
+    assert.doesNotMatch(grid, /require\("\.\/holidays"\)/,
+        "the grid reads HOLIDAY_ERRORS, which holidayConstants declares");
+    assert.match(grid, /require\("\.\/holidayConstants"\)/);
+
+    const panel = source("5.4/appletPanelStatus.js");
+    assert.doesNotMatch(panel, /require\("\.\/weather"\)/,
+        "the presenter reads constants and formatters, which weatherFormat declares");
+    assert.match(panel, /require\("\.\/weatherFormat"\)/);
+});
+
 test("5.4 sources avoid deprecated Lang.bind callbacks", () => {
     for (const relativePath of jsSources("5.4")) {
         assert.doesNotMatch(source(relativePath), /Lang\.bind/,

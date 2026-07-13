@@ -150,6 +150,7 @@ rootModules.eventData = require(path.join(APPLET_DIR, "eventData.js"));
 rootModules.eventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
 rootModules.weather = require(path.join(APPLET_DIR, "weather.js"));
+rootModules.weatherFormat = require(path.join(APPLET_DIR, "weatherFormat.js"));
 rootModules.cityWeather = require(path.join(APPLET_DIR, "cityWeather.js"));
 rootModules.holidays = require(path.join(APPLET_DIR, "holidays.js"));
 rootModules.holidayConstants = require(path.join(APPLET_DIR, "holidayConstants.js"));
@@ -2170,10 +2171,14 @@ test("the panel's spoken name is the one describeWeather builds", () => {
 });
 
 test("a condition with no translation of its own is still spoken", () => {
-    const original = Weather.WEATHER_CONDITIONS;
-    // a glyph added to weather.js without a word here must not silence the
+    // patched on weatherFormat, which is where the glyph table lives and what the
+    // presenter now reads: the barrel copies the binding, so patching the barrel
+    // would leave the presenter looking at the original table
+    const WeatherFormat = rootModules.weatherFormat;
+    const original = WeatherFormat.WEATHER_CONDITIONS;
+    // a glyph added to the table without a word here must not silence the
     // readout: the raw condition is better than nothing
-    Weather.WEATHER_CONDITIONS = Object.assign({}, original, { "🧊": "Hail" });
+    WeatherFormat.WEATHER_CONDITIONS = Object.assign({}, original, { "🧊": "Hail" });
     try {
         assert.equal(PanelStatusModule.describeWeather("0°C", "🧊"), "0°C — Hail");
 
@@ -2195,7 +2200,7 @@ test("a condition with no translation of its own is still spoken", () => {
         delete stub.actor.set_accessible_name;
         assert.doesNotThrow(() => presenter._announce("11:00 0°C"));
     } finally {
-        Weather.WEATHER_CONDITIONS = original;
+        WeatherFormat.WEATHER_CONDITIONS = original;
     }
 });
 

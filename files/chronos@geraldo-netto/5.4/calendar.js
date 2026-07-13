@@ -12,7 +12,10 @@ const Cinnamon = imports.gi.Cinnamon;
 const Mainloop = imports.mainloop;
 const Utils = require("./utils");
 const SettingsFacade = require("./settingsFacade");
-const Holidays = require("./holidays");
+// only HOLIDAY_ERRORS is read here, and it is declared in holidayConstants;
+// requiring the holidays barrel linked the cache repository, the three vendor
+// adapters and the HTTP session into the day grid
+const Holidays = require("./holidayConstants");
 const EventDataModule = require("./eventData");
 
 const _ = Utils.translate;

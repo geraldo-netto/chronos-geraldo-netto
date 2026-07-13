@@ -4,7 +4,10 @@
 const St = imports.gi.St;
 const Atk = imports.gi.Atk;
 const Utils = require("./utils");
-const Weather = require("./weather");
+// the pure half of the weather module: the constants and the formatters. The
+// panel presenter renders — it must not link the Soup session, the provider
+// chains and the refresh scheduler that the weather.js barrel drags in.
+const Weather = require("./weatherFormat");
 const WorldclockData = require("./worldclockData");
 
 const _ = Utils.translate;
