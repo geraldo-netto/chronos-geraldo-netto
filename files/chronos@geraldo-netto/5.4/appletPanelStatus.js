@@ -18,6 +18,13 @@ const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
 // and squeezed every other applet off a 1366px panel. The panel is shared: the
 // suffix is an extra, and the date and time are the point.
 const LABEL_SUFFIX_MAX_LENGTH = 48;
+// ...and the same argument bounds the whole label. Only the weather suffix was
+// capped; the date and time come from the user's own custom-format string, which
+// nothing limits. "%A, %-d %B %Y — %H:%M:%S %Z" renders about 40 characters, takes
+// two-fifths of a 1366px panel and pushes the window list off it, with nothing to
+// say the applet did it: the stylesheet sets no max-width and St does not
+// ellipsize a panel label on its own.
+const LABEL_MAX_LENGTH = 64;
 // the ellipsis everything else in this applet uses, rather than three dots — it
 // is the one clampText appends, and the tests read it from here
 const LABEL_ELLIPSIS = Utils.TEXT_ELLIPSIS;
@@ -737,9 +744,10 @@ class AppletPanelStatusPresenter {
             label_string += " " + this.ellipsizeLabelSuffix(label_suffix);
         }
 
-        this.view.setLabel(label_string);
-        // the panel label carries the weather failure as a bare glyph; a
-        // screen reader needs the words
+        this.view.setLabel(Utils.clampText(label_string, LABEL_MAX_LENGTH));
+        // the panel label carries the weather failure as a bare glyph; a screen
+        // reader needs the words — and it gets them in full: the cap is about the
+        // width of a shared panel, and a screen reader has no width
         this._announce(label_string);
 
         if (!refreshMenu) {
@@ -774,5 +782,5 @@ class AppletPanelStatusPresenter {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_ELLIPSIS };
+    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_MAX_LENGTH, LABEL_ELLIPSIS };
 }

@@ -467,6 +467,37 @@ function updateStub({ menuOpen = false } = {}) {
     return { stub, calls };
 }
 
+// The weather suffix was capped and the rest of the label was not — and the rest
+// is the user's own custom format. "%A, %-d %B %Y — %H:%M:%S %Z" is about 40
+// characters before the weather is added; on a 1366px panel that is two-fifths of
+// the width, and it pushes the window list off the panel with nothing to say the
+// applet did it.
+test("a long custom format cannot push the panel's other applets off it", () => {
+    const MAX = PanelStatusModule.LABEL_MAX_LENGTH;
+    const { stub, calls } = updateStub();
+    Object.assign(stub, {
+        show_weather: false,
+        use_custom_format: true,
+        custom_format: "ignored — the clock double answers with the string below",
+        // the label is whatever WallClock renders the user's format into
+        clock: Object.assign(clockStub(), {
+            get_clock: () => "Wednesday, 15 October 2025 — 14:52:07 Central European Summer Time"
+        }),
+        actor: { names: [], set_accessible_name(name) { this.names.push(name); } }
+    });
+
+    Proto._updateClockAndDate.call(stub);
+
+    const label = calls.label.at(-1);
+    assert.equal(Array.from(label).length, MAX, "the label is bounded");
+    assert.ok(label.endsWith(ELLIPSIS), "and it says it was cut");
+
+    // the screen reader still hears the whole thing: the cap is about the width of
+    // a shared panel, and a name has no width
+    assert.ok(stub.actor.names.at(-1).startsWith("Wednesday, 15 October 2025"));
+    assert.ok(stub.actor.names.at(-1).length > MAX);
+});
+
 test("the panel readout is announced with its condition", () => {
     const { stub } = updateStub({ menuOpen: false });
     stub.actor = { names: [], set_accessible_name(name) { this.names.push(name); } };
