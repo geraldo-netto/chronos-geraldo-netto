@@ -90,6 +90,24 @@ test("schema groups panel label controls together", () => {
     assert.deepEqual(layout.section4.keys, ["show-worldclocks", "worldclocks"]);
 });
 
+test("date format controls are always visible", () => {
+    const data = schema("5.4");
+
+    assert.equal(data["use-custom-format"], undefined);
+    assert.equal(data.layout.section1.keys.includes("use-custom-format"), false);
+    assert.equal(data["custom-format"].default, "%d %b %H:%M");
+    assert.equal(data["custom-tooltip-format"].default, "%d %b %H:%M");
+    assert.deepEqual(data["date-format-defaults-migrated"], {
+        type: "generic",
+        default: false
+    });
+    for (const key of ["custom-format", "custom-tooltip-format", "format-button"]) {
+        assert.ok(data.layout.section1.keys.includes(key), `${key} is missing from the Calendar page`);
+        assert.equal(data[key].dependency, undefined, `${key} is still hidden behind a dependency`);
+        assert.equal(data[key].indent, undefined, `${key} is still nested under a removed switch`);
+    }
+});
+
 test("the country combobox and the supported-country list agree", () => {
     const data = schema("5.4");
     const constants = require(path.join(appletDir, "holidayConstants.js"));
@@ -175,7 +193,7 @@ test("every settings key the facade binds exists in the schema", () => {
     // ...and the key->property tables, which are the other half of the binding
     const bound = Array.from(facade.matchAll(/^\s+\["([a-z][\w-]*)", "\w+"\],?$/gm))
         .map(([, key]) => key);
-    assert.ok(bound.length >= 5, "the key/property tables were not found");
+    assert.ok(bound.length >= 4, "the key/property tables were not found");
 
     for (const key of bound) {
         assert.ok(Object.prototype.hasOwnProperty.call(data, key),
@@ -330,7 +348,7 @@ test("the documented install compiles the catalogs the applet reads", () => {
     assert.ok(catalogs.length >= 15, `${catalogs.length} catalogs`);
 });
 
-// REGRESSION: localeUtils wraps the two date formats in _() precisely so a
+// REGRESSION: dateFormats wraps the two calendar formats in _() precisely so a
 // translator can reorder them — and not one of the fifteen catalogs translated
 // either, so gettext returned the msgid and every locale rendered the US
 // month-day-year order. A German user's event-list heading read "Samstag, Juli 12,
@@ -338,24 +356,22 @@ test("the documented install compiles the catalogs the applet reads", () => {
 // reader announced all 42 day cells that way too.
 //
 // The machinery was right; the data was never filled in. This is the data.
-test("every catalog orders the date the way its language does", () => {
+test("catalogs localize calendar dates while panel formats keep their fixed order", () => {
     const poDir = path.join(appletDir, "po");
     const catalogs = fs.readdirSync(poDir).filter((name) => name.endsWith(".po"));
     assert.ok(catalogs.length >= 15);
 
-    // the msgids: the two long forms dateFormats declares, and the short one the
-    // panel label and the tooltip put in front of the time — that one was not
-    // translatable at all, so every locale read the panel in day-before-month order
+    // The calendar's two long forms remain locale-controlled.
     const dateFormats = fs.readFileSync(path.join(appletDir, "dateFormats.js"), "utf8");
     const panel = fs.readFileSync(path.join(appletDir, "5.4", "appletPanelStatus.js"), "utf8");
-    const msgids = Array.from(dateFormats.matchAll(/_\("([^"]*%B[^"]*)"\)/g)).map(([, id]) => id)
-        .concat(Array.from(panel.matchAll(/_\("([^"]*%b[^"]*)"\)/g)).map(([, id]) => id));
-    assert.deepEqual(msgids, ["%B %-e, %Y", "%A, %B %-e, %Y", "%b %-e"]);
+    const msgids = Array.from(dateFormats.matchAll(/_\("([^"]*%B[^"]*)"\)/g)).map(([, id]) => id);
+    assert.deepEqual(msgids, ["%B %-e, %Y", "%A, %B %-e, %Y"]);
 
-    // and no clock format in the panel hardcodes the order any more (the comment
-    // that explains why still names the order it replaced)
-    assert.doesNotMatch(panel, /(?:const|plain|seconds)[^\n]*"%d %b/,
-        "the panel date is a msgid, not a literal");
+    // The panel and tooltip defaults are deliberately invariant: DD MMM and
+    // 24-hour time, regardless of the desktop locale or clock preference.
+    assert.match(panel, /DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M"/);
+    assert.doesNotMatch(panel, /_\("%d %b %H:%M"\)/,
+        "the fixed display order must not be translated or rearranged");
 
     for (const catalog of catalogs) {
         const source = fs.readFileSync(path.join(poDir, catalog), "utf8");

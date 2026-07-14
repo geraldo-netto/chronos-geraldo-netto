@@ -111,15 +111,14 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Show calendar events | on | Shows the event column beside the grid, from your Evolution/GNOME calendars. |
 | Show week numbers in calendar | off | Adds the week-number gutter. |
 | Mark as weekend days | two days | How many days a week are styled as non-working; which days come from your locale. |
-| Use a custom date format | off | Replaces the panel label and its tooltip with your own `strftime` formats (**Date format**, **Date format for tooltip**); the **Show information on date format syntax** button opens the reference. |
+| Date formats | `%d %b %H:%M` | The always-visible **Date format** and **Date format for tooltip** fields control the panel label and each tooltip row; the **Show information on date format syntax** button opens the reference. |
 | Country / Region | None | Marks that country's public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; only a country you actually pick is saved. |
 | Show calendar (under **Keyboard shortcuts**) | `<Super>c` | Opens the calendar menu. |
 
-On a horizontal panel the label stays compact: day, short month and the local
-time (`11 Jul 22:52`), plus the weather readout if it is on. The weekday, the
-year and the other time zones are in the tooltip and the popup. A vertical panel
-stacks the hour over the minutes as before, and a custom date format overrides
-both.
+The panel label and world-clock rows use **Date format**. Every tooltip location
+row uses **Date format for tooltip**, followed by its temperature and weather
+description when available. The weather readout, when enabled, follows the panel
+label.
 
 **World Clocks page**
 
@@ -132,7 +131,7 @@ both.
 
 | Setting | Default | What it does |
 |---|---|---|
-| Show weather on the panel | off | A small weather readout in the applet label (see below), next to the local time. A vertical panel has no room for it, so there it shows only in the tooltip and the popup. |
+| Show weather on the panel | off | A small weather readout in the applet label (see below), next to the local time on every panel orientation. |
 | Weather location / units | your timezone's city / SI | The place to forecast and the temperature scale. The location field suggests city names as you type. The suggestions come from the timezone database already on the machine (the few hundred cities it names, the same list the world clocks complete against), so nothing is sent anywhere while you type — and because that is not a full gazetteer, a smaller town will not be suggested. The field stays free text: any name you type is still saved and sent to the geocoder when the applet next refreshes. |
 
 **The location fills itself in.** An empty location is filled with the city your
@@ -253,13 +252,14 @@ looked up and the tooltip shows times only.
 Hovering the panel gives the whole table — UTC first, then local time, then
 each configured city — as `city  date time  temperature  condition`. The
 service that answered is named in the world-clock popup rather than under the
-table, which is a table of times. The times follow your desktop's 12- or
-24-hour setting, the same as the panel. The columns are as wide as their longest
-cell, so any city name lines up, and the condition is spelled out rather than
-drawn: the weather emoji are taller than the text font and would space the rows
-unevenly. UTC is a time scale, not a place, so it carries no temperature; a
-reading nobody has managed to refresh for an hour is marked as the last known
-one rather than shown as current.
+table, which is a table of times. Each row uses **Date format for tooltip**, whose
+default is the fixed day-month, 24-hour order `11 Jul 22:52`, independent of the
+desktop clock preference. The columns are as wide as their longest cell, so any
+city name lines up, and the condition is spelled out rather than drawn: the
+weather emoji are taller than the text font and would space the rows unevenly.
+UTC is a time scale, not a place, so it carries no temperature; a reading nobody
+has managed to refresh for an hour is marked as the last known one rather than
+shown as current.
 
 The city a world clock's weather is looked up for comes from its **timezone**,
 not from the name you gave the clock: a clock called "Mom's place" is looked up

@@ -231,7 +231,6 @@ test("turning world clocks off stops the city weather that was fetched for them"
         show_events: false,
         _applied_show_events: false,
         orientation: St.Side.TOP,
-        use_custom_format: false,
         custom_format: "",
         desktop_settings: { use24h: true, showSeconds: false },
         _cityWeatherProvider: { schedule: (settings) => scheduled.push(settings) },
@@ -368,12 +367,15 @@ function suffixStub(overrides = {}) {
     }, overrides);
 }
 
-test("buildLabelSuffix is the weather and nothing else; vertical panels get none", () => {
-    assert.equal(panelStatus(suffixStub({ orientation: St.Side.LEFT })).buildLabelSuffix(), "");
-
+test("buildLabelSuffix is the temperature on every panel orientation", () => {
     // the panel shows the temperature; the sky glyph is in the tooltip and in
     // the accessible name, both of which say it in words anyway
-    assert.equal(panelStatus(suffixStub({ _weather_reading: readingFrom("☀ 20°C") })).buildLabelSuffix(), "20°C");
+    for (const orientation of [St.Side.TOP, St.Side.BOTTOM, St.Side.LEFT, St.Side.RIGHT]) {
+        assert.equal(panelStatus(suffixStub({
+            orientation,
+            _weather_reading: readingFrom("☀ 20°C")
+        })).buildLabelSuffix(), "20°C");
+    }
 
     // world clocks never reach the panel, however many are configured: they are
     // a table, and the panel is one line the date and the weather already share
@@ -428,8 +430,7 @@ function updateStub({ menuOpen = false } = {}) {
     ];
     const stub = Object.assign(Object.create(Proto), {
         clock: clockStub(),
-        use_custom_format: false,
-        custom_tooltip_format: "",
+        custom_tooltip_format: "%d %b %H:%M",
         _todayFormatCache: null,
         show_weather: false,
         weather_units: "si",
@@ -477,7 +478,6 @@ test("a long custom format cannot push the panel's other applets off it", () => 
     const { stub, calls } = updateStub();
     Object.assign(stub, {
         show_weather: false,
-        use_custom_format: true,
         custom_format: "ignored — the clock double answers with the string below",
         // the label is whatever WallClock renders the user's format into
         clock: Object.assign(clockStub(), {
@@ -574,19 +574,16 @@ test("the day and date labels are not rewritten every tick", () => {
         "the day changes once a day; the tick is once a second");
 });
 
-test("_updateClockAndDate skips custom tooltip formatting while hidden", () => {
+test("_updateClockAndDate skips tooltip row formatting while hidden", () => {
     let tooltipFormats = 0;
     const { stub } = updateStub({ menuOpen: false });
-    Object.assign(stub, {
-        use_custom_format: true,
-        custom_tooltip_format: "tooltip",
-        clock: clockStub({
-            get_clock_for_format: () => {
-                tooltipFormats++;
-                return "hidden";
-            }
-        })
-    });
+    stub._worldclocks.getClockEntries = () => [{
+        label: "UTC",
+        timezone: "UTC",
+        builtin: true,
+        time: "04 Jul 09:05",
+        localTime: { format: () => { tooltipFormats++; return "04 Jul 09:05"; } }
+    }];
 
     Proto._updateClockAndDate.call(stub);
 
@@ -604,24 +601,34 @@ test("_updateClockAndDate with the menu open refreshes the full view", () => {
     assert.equal(calls.dayText.length, 1);
 });
 
-test("_updateClockAndDate covers custom tooltip fallback and non-today state", () => {
+test("_updateClockAndDate keeps an invalid tooltip format inside the clock table", () => {
     const errors = [];
+    const formats = [];
     const originalLogError = global.logError;
     global.logError = (message) => errors.push(message);
     const { stub, calls } = updateStub({ menuOpen: true });
     Object.assign(stub, {
-        use_custom_format: true,
         custom_tooltip_format: "bad",
-        clock: clockStub({
-            get_clock_for_format: (fmt) => fmt === "bad" ? "" : "fallback tooltip"
-        }),
         _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
     });
+    stub._worldclocks.getClockEntries = () => [{
+        label: "UTC",
+        timezone: "UTC",
+        builtin: true,
+        time: "09:05",
+        localTime: {
+            format: (format) => {
+                formats.push(format);
+                return format === "bad" ? "" : "04 Jul 09:05";
+            }
+        }
+    }];
     Proto._updateClockAndDate.call(stub);
     global.logError = originalLogError;
 
     assert.equal(stub.go_home_button.reactive, true);
-    assert.ok(calls.tooltip.some((tooltip) => tooltip.includes("fallback tooltip")));
+    assert.equal(calls.tooltip.at(-1), "UTC  04 Jul 09:05");
+    assert.deepEqual(formats, ["bad", "%d %b %H:%M", "bad", "%d %b %H:%M"]);
     assert.ok(errors.length > 0);
 });
 
@@ -629,13 +636,14 @@ test("_updateClockAndDate appends the weather reading to the clock", () => {
     const { stub, calls } = updateStub({ menuOpen: false });
     Object.assign(stub, {
         show_weather: true,
-        _weather_reading: { condition: "☀", temperatureC: 20 }
+        _weather_reading: { condition: "☀", temperatureC: 20 },
+        clock: clockStub({ get_clock: () => "04 Jul 09:05" })
     });
     Proto._updateClockAndDate.call(stub);
     // the clock and the reading run together; the panel suffix is the
     // temperature and nothing else — the sky glyph and the world clocks are not
     // on the panel. (ellipsizeLabelSuffix is exercised directly elsewhere.)
-    assert.equal(calls.label[0], "10:00 20°C");
+    assert.equal(calls.label[0], "04 Jul 09:05 20°C");
 });
 
 test("_updateClockAndDate forces the full view when asked", () => {
@@ -668,7 +676,6 @@ test("the panel presenter reads and writes through a view it is given", () => {
         orientation: 0,
         showWeather: false,
         worldclocksEnabled: true,
-        useCustomFormat: false,
         customFormat: "",
         customTooltipFormat: "",
         panelClocks: 0,
@@ -726,26 +733,56 @@ test("a translation containing a percent sign cannot corrupt the panel label", (
         /^Bad %%d format .*%-l:%M %p$/, "a stray directive cannot survive either");
 });
 
-test("the tooltip clock follows the 12-hour setting the panel follows", () => {
+test("the tooltip clock uses its configured day-month 24-hour format", () => {
     const twelveHour = Object.assign(Object.create(Proto), {
         show_weather: false,
+        custom_tooltip_format: "%d %b %H:%M",
         desktop_settings: { use24h: false, showSeconds: false }
     });
     const twentyFour = Object.assign(Object.create(Proto), {
         show_weather: false,
+        custom_tooltip_format: "%d %b %H:%M",
         desktop_settings: { use24h: true, showSeconds: false }
     });
 
-    // a US user reading "2:52 PM" on the panel should not find "14:52" in that
-    // same applet's tooltip
-    assert.match(panelStatus(twelveHour).tooltipClockFormat(), /%-l:%M %p$/);
-    assert.match(panelStatus(twentyFour).tooltipClockFormat(), /%H:%M$/);
+    assert.equal(panelStatus(twelveHour).tooltipClockFormat(), "%d %b %H:%M");
+    assert.equal(panelStatus(twentyFour).tooltipClockFormat(), "%d %b %H:%M");
+});
+
+test("a tooltip row is location, fixed-order timestamp, temperature, and weather", () => {
+    const formats = [];
+    const stub = {
+        custom_tooltip_format: "%d %b %H:%M",
+        show_weather: true,
+        weather_units: "si",
+        _weather_reading: { condition: "☀", temperatureC: 20 },
+        _weather_pending: false,
+        _weather_error: ""
+    };
+    const entry = {
+        label: "Local time",
+        timezone: "Europe/Rome",
+        builtin: true,
+        time: "fallback",
+        localTime: {
+            format(format) {
+                formats.push(format);
+                return "04 Jul 09:05";
+            }
+        }
+    };
+    const presenter = panelStatus(stub);
+
+    assert.deepEqual(presenter.tooltipClockRow(entry),
+        ["Local time", "04 Jul 09:05", "20°C", "Clear"]);
+    assert.equal(presenter.buildTooltipText([entry]),
+        "Local time  04 Jul 09:05  20°C  Clear");
+    assert.ok(formats.every((format) => format === "%d %b %H:%M"));
 });
 
 test("buildTooltipText tabulates every clock with its own weather", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        use_custom_format: false,
         weather_units: "si",
         _weather_reading: { condition: "☀", temperatureC: 20 },
         _weather_error: "",
@@ -761,22 +798,16 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
         tooltipEntry("New York", "America/New_York", "11 Jul 18:52", false)
     ];
 
-    const lines = panelStatus(stub).buildTooltipText("date-line", entries).split("\n");
+    const lines = panelStatus(stub).buildTooltipText(entries).split("\n");
 
     // UTC is a scale, not a place: no temperature on that row
     assert.equal(lines[0], "UTC         11 Jul 01:52");
     assert.ok(lines[1].includes("Local time") && lines[1].endsWith("20°C  Clear"));
     assert.ok(lines[2].includes("New York") && lines[2].endsWith("12°C  Rain"));
-    // the table is all of it: the provider credit was a footer under a blank line
-    assert.equal(lines.length, 3);
-    // the custom-format header is the only thing that may precede the table
-    assert.ok(!lines[0].includes("date-line"));
-
-    stub.use_custom_format = true;
-    assert.ok(panelStatus(stub).buildTooltipText("date-line", entries).startsWith("date-line"));
+    assert.equal(lines.length, 3, "one line per location and no standalone header");
 
     stub._weather_error = "boom";
-    const errText = panelStatus(stub).buildTooltipText("date-line", entries);
+    const errText = panelStatus(stub).buildTooltipText(entries);
     assert.ok(errText.includes("⚠ Weather service unavailable") || errText.includes("⚠ boom"));
     // a failed refresh keeps the last reading: the marker takes the condition's
     // place in the row, it does not take the temperature away
@@ -784,15 +815,14 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
         /20°C.*⚠ boom/);
 });
 
-test("the tooltip falls back to the date line when there are no clocks", () => {
+test("the tooltip is empty when there are no clocks or weather status", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: false,
-        use_custom_format: false,
         worldclocks: [],
         panel_clocks: 0
     });
 
-    assert.equal(panelStatus(stub).buildTooltipText("date-line", []), "date-line");
+    assert.equal(panelStatus(stub).buildTooltipText([]), "");
 });
 
 test("_setWeatherStatus stores state and refreshes the clock line", () => {
@@ -1264,6 +1294,9 @@ test("settings binding wires schema keys and creates settings facades", () => {
     assert.ok(stub.events_settings);
     assert.deepEqual(binds[0], ["ctor", "chronos@geraldo-netto", 42]);
     assert.ok(binds.some((row) => row[1] === "show-events"));
+    assert.ok(binds.some((row) => row[1] === "custom-format"));
+    assert.ok(binds.some((row) => row[1] === "custom-tooltip-format"));
+    assert.ok(!binds.some((row) => row[1] === "use-custom-format"));
     assert.ok(binds.some((row) => row[0] === "hotkey"));
 
     // REGRESSION: weather-location is drawn by a custom widget, and Cinnamon
@@ -1417,7 +1450,7 @@ test("applet wrappers open menus, launch settings, and refresh on resume", () =>
     assert.ok(calls.some((row) => row[0] === "orientation" && row[1] === St.Side.BOTTOM));
 });
 
-test("_updateFormatString covers custom, invalid, 12h, 24h, and vertical panel branches", () => {
+test("_updateFormatString always applies the configured format and handles invalid input", () => {
     const builds = [];
     const errors = [];
     const originalLogError = global.logError;
@@ -1425,7 +1458,6 @@ test("_updateFormatString covers custom, invalid, 12h, 24h, and vertical panel b
     const stub = Object.assign(Object.create(Proto), {
         orientation: St.Side.TOP,
         custom_format: "%H:%M",
-        use_custom_format: false,
         worldclocks: [{ label: "Rome", timezone: "Europe/Rome" }],
         clock: {
             formats: [],
@@ -1447,27 +1479,9 @@ test("_updateFormatString covers custom, invalid, 12h, 24h, and vertical panel b
     });
 
     Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%b %-e %H:%M");
-    assert.equal(stub.worldclock_format, "%H:%M (%a)");
+    assert.equal(stub.clock.formats.at(-1), "%H:%M");
+    assert.equal(stub.worldclock_format, "%H:%M");
 
-    stub.orientation = St.Side.LEFT;
-    Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%H%n%M");
-
-    stub.orientation = St.Side.TOP;
-    stub.desktop_settings.value = false;
-    Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%b %-e %-l:%M %p");
-    assert.equal(stub.worldclock_format, "%-l:%M (%a)");
-
-    // seconds on: the compact panel readout and the world format both grow %S
-    stub.desktop_settings.value = true;
-    stub.desktop_settings.showSeconds = true;
-    Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%b %-e %H:%M:%S");
-    assert.equal(stub.worldclock_format, "%H:%M:%S (%a)");
-
-    stub.use_custom_format = true;
     stub.custom_format = "bad";
     Proto._updateFormatString.call(stub);
     assert.ok(errors.length > 0);
@@ -1480,7 +1494,6 @@ test("settings and weather changes update dependent views", () => {
     const calls = [];
     const stub = Object.assign(Object.create(Proto), {
         orientation: St.Side.TOP,
-        use_custom_format: false,
         custom_format: "%H:%M",
         show_events: true,
         desktop_settings: { use24h: false, showSeconds: false },
@@ -1505,7 +1518,6 @@ test("an unrelated settings keystroke costs no refetch and no clock rebuild", ()
     const calls = [];
     const stub = Object.assign(Object.create(Proto), {
         orientation: St.Side.TOP,
-        use_custom_format: false,
         custom_format: "%H:%M",
         custom_tooltip_format: "%A",
         show_events: true,
@@ -1536,7 +1548,6 @@ test("an unrelated settings keystroke costs no refetch and no clock rebuild", ()
 
     // a real format change still rebuilds
     stub.custom_format = "%H:%M:%S";
-    stub.use_custom_format = true;
     Proto._onSettingsChanged.call(stub);
     assert.ok(calls.slice(-2).some((row) => row[0] === "format"));
 });
@@ -2316,7 +2327,6 @@ test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", (
     // second for a byte-identical string
     const stub = {
         show_weather: false,
-        use_custom_format: false,
         _weather_reading: null,
         _weather_error: "",
         worldclocks: []
@@ -2329,7 +2339,7 @@ test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", (
         localTime: { format: () => "18 Jul 18:52" }
     });
 
-    assert.equal(presenter._tooltipKey("Fri", [at("00")]), presenter._tooltipKey("Fri", [at("59")]),
+    assert.equal(presenter._tooltipKey([at("00")]), presenter._tooltipKey([at("59")]),
         "the second must not change the key when the rendered tooltip is the same");
 });
 
@@ -2338,7 +2348,6 @@ test("the tooltip names no source when neither provider has answered", () => {
     // methods at all
     const stub = {
         show_weather: true,
-        use_custom_format: false,
         _weather_reading: null,
         _weather_error: "",
         _weather_provider: "",
@@ -2347,7 +2356,7 @@ test("the tooltip names no source when neither provider has answered", () => {
     // a half-built applet has no city provider to ask, and the panel provider
     // has not landed a reading yet: the tooltip simply has no Source line
     assert.equal(panelStatus(stub).weatherSourceName(), "");
-    assert.equal(panelStatus(stub).buildTooltipText("date-line", []), "date-line");
+    assert.equal(panelStatus(stub).buildTooltipText([]), "");
 
     stub.cityWeatherProviderName = () => "";
     assert.equal(panelStatus(stub).weatherSourceName(), "");
@@ -2369,44 +2378,30 @@ test("ellipsizeLabelSuffix leaves an astral suffix that fits in code points alon
     assert.equal(panelStatus({}).ellipsizeLabelSuffix(astral), astral);
 });
 
-// REGRESSION: the horizontal panel label fell back to the desktop clock's own
-// format (the vertical %H%n%M stack), which stacked hour over minute on a
-// horizontal panel and dropped the date. The applet owns the panel format: day,
-// short month, time - in the user's 12h/24h and seconds preference.
-test("a horizontal panel label is applet-formatted, never the desktop clock format", () => {
-    const cases = [
-        { use24h: true, seconds: false, expected: "%b %-e %H:%M" },
-        { use24h: true, seconds: true, expected: "%b %-e %H:%M:%S" },
-        { use24h: false, seconds: false, expected: "%b %-e %-l:%M %p" },
-        { use24h: false, seconds: true, expected: "%b %-e %-l:%M:%S %p" }
-    ];
+// With no mode switch, orientation and desktop clock preferences must never
+// replace the format stored in custom-format.
+test("the configured panel format applies on every panel orientation", () => {
+    const configured = "%Y-%m-%d %H:%M";
+    for (const side of [St.Side.TOP, St.Side.BOTTOM, St.Side.LEFT, St.Side.RIGHT]) {
+        const stub = Object.assign(Object.create(Proto), {
+            orientation: side,
+            custom_format: configured,
+            worldclocks: [],
+            clock: {
+                formats: [],
+                set_format_string(fmt) {
+                    this.formats.push(fmt);
+                    return true;
+                }
+            },
+            desktop_settings: { use24h: true, showSeconds: false },
+            _worldclocks: { buildClocks() {}, setFormat() {}, setVisible() {} }
+        });
 
-    for (const side of [St.Side.TOP, St.Side.BOTTOM]) {
-        for (const { use24h, seconds, expected } of cases) {
-            const stub = Object.assign(Object.create(Proto), {
-                orientation: side,
-                use_custom_format: false,
-                custom_format: "%H:%M",
-                worldclocks: [],
-                clock: {
-                    formats: [],
-                    set_format_string(fmt) {
-                        this.formats.push(fmt);
-                        return true;
-                    }
-                },
-                desktop_settings: { use24h, showSeconds: seconds },
-                _worldclocks: { buildClocks() {}, setFormat() {}, setVisible() {} }
-            });
+        Proto._updateFormatString.call(stub);
 
-            Proto._updateFormatString.call(stub);
-
-            assert.equal(stub.clock.formats.at(-1), expected,
-                `side ${side}, 24h=${use24h}, seconds=${seconds}`);
-            // the desktop clock's stacked format belongs to a vertical panel only
-            assert.ok(!stub.clock.formats.some((fmt) => fmt.includes("%n")),
-                "no stacked hour/minute readout on a horizontal panel");
-        }
+        assert.equal(stub.clock.formats.at(-1), configured, `side ${side}`);
+        assert.equal(stub.worldclock_format, configured, `world clocks on side ${side}`);
     }
 });
 
@@ -2443,12 +2438,11 @@ test("the panel suffix carries the temperature alone, and the failure marker whe
 
 // REGRESSION: the tooltip used to be a run-on line per clock, and the UTC row
 // was given the panel's temperature. UTC is a scale, not a place: it has no
-// weather. The tooltip is a table - UTC, local time, then each configured city -
-// and its last line names the provider the readings came from.
-test("the tooltip is a UTC/local/city table and nothing else", () => {
+// weather. The tooltip is the table itself - UTC, local time, then each
+// configured city - with no unrelated date/time header above it.
+test("the tooltip is exactly the UTC/local/city table", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        use_custom_format: false,
         weather_units: "si",
         _weather_reading: { condition: "☀", temperatureC: 20 },
         _weather_error: "",
@@ -2465,27 +2459,27 @@ test("the tooltip is a UTC/local/city table and nothing else", () => {
         tooltipEntry("Tokyo", "Asia/Tokyo", "12 Jul 07:52", false)
     ];
 
-    const lines = panelStatus(stub).buildTooltipText("date-line", entries).split("\n");
+    const lines = panelStatus(stub).buildTooltipText(entries).split("\n");
 
-    assert.ok(lines[0].startsWith("UTC"), "UTC is the first row");
+    assert.ok(lines[0].startsWith("UTC"), "UTC is the first row, not a date header");
     assert.equal(lines[0], "UTC         11 Jul 01:52", "and it carries no temperature");
     assert.ok(lines[1].startsWith("Local time"), "local time is the second row");
     assert.ok(lines[1].endsWith("20°C  Clear"), "the local row takes the panel reading");
     assert.ok(lines[2].startsWith("New York") && lines[2].endsWith("12°C  Rain"));
     assert.ok(lines[3].startsWith("Tokyo") && lines[3].endsWith("-1°C  Snow"));
 
-    // the table is the whole tooltip: the provider credit that used to sit under
-    // a blank line is gone, and it is still in the popup's accessible name
-    assert.equal(lines.length, 4, "no footer, no blank line");
+    // There is no header, provider footer or blank line; the provider remains
+    // in the popup's accessible name.
+    assert.equal(lines.length, entries.length, "one line per location and nothing else");
     lines.forEach((line) => assert.doesNotMatch(line, /Source:/));
 
     // the columns line up: every row starts its time cell at the same offset
-    const timeColumn = lines.slice(0, 4).map((line) => Array.from(line).indexOf("1"));
+    const timeColumn = lines.map((line) => Array.from(line).indexOf("1"));
     assert.deepEqual(timeColumn, [timeColumn[0], timeColumn[0], timeColumn[0], timeColumn[0]]);
 
     // and the temperatures hang off the right of their column: the degree signs
     // stack even when one reading is a digit shorter than the others
-    const degrees = lines.slice(1, 4).map((line) => Array.from(line).indexOf("°"));
+    const degrees = lines.slice(1).map((line) => Array.from(line).indexOf("°"));
     assert.deepEqual(degrees, [degrees[0], degrees[0], degrees[0]]);
 
     // no row carries a weather glyph: they are colour emoji from another font,
@@ -2493,14 +2487,12 @@ test("the tooltip is a UTC/local/city table and nothing else", () => {
     lines.forEach((line) => assert.doesNotMatch(line, /[☀🌧🌨⛅☁🌦⛈🌤]/u));
 });
 
-// The tooltip is a table, and a table is all it is. The provider credit used to
-// hang under it past a blank line: two lines that belong to no column, in a
-// widget whose whole job is columns. Attribution lives in the world-clock popup's
-// accessible name and in the README, where it costs the table nothing.
+// The tooltip contains only the table. The provider credit used to hang under it
+// past a blank line: two lines that belong to no column. Attribution lives in
+// the world-clock popup's accessible name and in the README.
 test("nothing hangs off the bottom of the tooltip table", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        use_custom_format: false,
         _weather_reading: { condition: "☀", temperatureC: 20 },
         _weather_error: "",
         _weather_provider: "Open-Meteo",
@@ -2515,9 +2507,9 @@ test("nothing hangs off the bottom of the tooltip table", () => {
         tooltipEntry("New York", "America/New_York", "11 Jul 18:52", false)
     ];
 
-    const lines = panelStatus(stub).buildTooltipText("date-line", entries).split("\n");
+    const lines = panelStatus(stub).buildTooltipText(entries).split("\n");
 
-    assert.equal(lines.length, entries.length, "one line per clock, and no more");
+    assert.equal(lines.length, entries.length, "one table line per clock, and no header or footer");
     lines.forEach((line) => {
         assert.notEqual(line.trim(), "", "no blank line anywhere in a table");
         assert.doesNotMatch(line, /Source:|Open-Meteo|Aviation Weather/,
@@ -2526,7 +2518,7 @@ test("nothing hangs off the bottom of the tooltip table", () => {
 
     // ...and it stays a table when the provider is the only thing that changed
     stub._weather_provider = "MET Norway";
-    const relabelled = panelStatus(stub).buildTooltipText("date-line", entries).split("\n");
+    const relabelled = panelStatus(stub).buildTooltipText(entries).split("\n");
     assert.deepEqual(relabelled, lines, "the tooltip does not depend on who answered");
 });
 
@@ -2546,7 +2538,6 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
     const readings = Object.fromEntries(rows.map((row) => [row.city, row.reading]));
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        use_custom_format: false,
         weather_units: "si",
         _weather_reading: null,
         _weather_error: "",
@@ -2558,7 +2549,7 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
     const entries = rows.map((row) =>
         tooltipEntry(row.label, row.timezone, "11 Jul 18:52", false));
 
-    const lines = panelStatus(stub).buildTooltipText("", entries).split("\n");
+    const lines = panelStatus(stub).buildTooltipText(entries).split("\n");
     const longest = "Sault Ste. Marie, Ontario".length;
 
     // every time cell starts one gap past the longest label, whatever the row
@@ -2690,12 +2681,7 @@ test("fuzz: the panel label builder never throws on any weather state", () => {
         assert.doesNotThrow(() => { suffix = presenter.buildLabelSuffix(clockTexts); });
         assert.equal(typeof suffix, "string");
 
-        const vertical = orientation === St.Side.LEFT || orientation === St.Side.RIGHT;
-        if (vertical) {
-            assert.equal(suffix, "", "a vertical panel is too narrow for any suffix");
-        }
-
-        if (!vertical && stub.show_weather && stub._weather_error) {
+        if (stub.show_weather && stub._weather_error) {
             assert.ok(suffix.startsWith(Weather.WEATHER_ERROR_MARKER),
                 "a stale reading always says so first");
         }
@@ -2714,7 +2700,6 @@ test("the world-clock block hides only when the setting says so", () => {
     const shown = [];
     const stub = Object.assign(Object.create(Proto), {
         orientation: St.Side.TOP,
-        use_custom_format: false,
         custom_format: "",
         clock: clockStub({ set_format_string: () => true }),
         desktop_settings: { use24h: true, showSeconds: true },
@@ -2761,7 +2746,7 @@ test("a suffix exactly at the length cap is kept whole, one past it is cut", () 
     assert.equal(Array.from(presenter.ellipsizeLabelSuffix("🌧".repeat(MAX_SUFFIX + 1))).length, MAX_SUFFIX);
 });
 
-test("the tooltip repeats the date line only when the format is not custom", () => {
+test("the tooltip never adds a standalone date/time header", () => {
     const base = {
         show_weather: false,
         _weather_reading: null,
@@ -2772,16 +2757,15 @@ test("the tooltip repeats the date line only when the format is not custom", () 
         cityWeatherProviderName: () => ""
     };
 
-    // no clock rows and a stock format: the date line is all the tooltip has
-    const plain = panelStatus(Object.assign({}, base, { use_custom_format: false }));
-    assert.equal(plain.buildTooltipText("date-line", []), "date-line");
+    const presenter = panelStatus(base);
+    assert.equal(presenter.buildTooltipText([]), "");
+    const lines = presenter.buildTooltipText([
+        tooltipEntry("UTC", "UTC", "04 Jul 09:05", true)
+    ]).split("\n");
 
-    // a custom panel format is a header the user asked for: it keeps its place
-    const custom = panelStatus(Object.assign({}, base, { use_custom_format: true }));
-    assert.equal(custom.buildTooltipText("date-line", []), "date-line");
-
-    // and an empty date line adds nothing either way
-    assert.equal(plain.buildTooltipText("", []), "");
+    assert.equal(lines.length, 1);
+    assert.ok(lines[0].startsWith("UTC"));
+    assert.doesNotMatch(lines[0], /^date-line$/);
 });
 
 test("the accessible name speaks the error, or the condition, or neither", () => {
@@ -2901,7 +2885,6 @@ test("a panel view can be substituted whole", () => {
         orientation: St.Side.TOP,
         showWeather: true,
         worldclocksEnabled: false,
-        useCustomFormat: false,
         panelClocks: 0,
         worldclocks: [],
         panelHovered: false,
@@ -2941,7 +2924,6 @@ test("a weather failure explains itself even with no world clocks", () => {
     const base = {
         showWeather: true,
         worldclocksEnabled: false,
-        useCustomFormat: false,
         panelClocks: 0,
         worldclocks: [],
         desktopSettings: { use24h: true },
@@ -2956,10 +2938,10 @@ test("a weather failure explains itself even with no world clocks", () => {
         weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE
     }));
-    const tooltip = failed.buildTooltipText("Sunday, 12 July 2026", []);
+    const tooltip = failed.buildTooltipText([]);
     assert.match(tooltip, /Weather service unavailable/,
         "hovering a bare ⚠ has to say what went wrong");
-    assert.match(tooltip, /Sunday, 12 July 2026/, "and the date line is still there");
+    assert.doesNotMatch(tooltip, /Sunday, 12 July 2026/, "there is no standalone date line");
 
     // the configured-nothing case: a lone ⚠ that never said what to do about it
     const unset = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
@@ -2967,7 +2949,7 @@ test("a weather failure explains itself even with no world clocks", () => {
         weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.NO_LOCATION
     }));
-    assert.match(unset.buildTooltipText("Sunday, 12 July 2026", []), /Set a weather location/);
+    assert.match(unset.buildTooltipText([]), /Set a weather location/);
 
     // ...and the first refresh, which is an ellipsis on the panel and nothing at all aloud
     const pending = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
@@ -2976,7 +2958,7 @@ test("a weather failure explains itself even with no world clocks", () => {
         weatherUnits: "metric",
         weatherError: ""
     }));
-    assert.match(pending.buildTooltipText("Sunday, 12 July 2026", []), /loading/);
+    assert.match(pending.buildTooltipText([]), /loading/);
 
     // a working reading says nothing extra: the temperature is on the panel
     const fine = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
@@ -2984,7 +2966,7 @@ test("a weather failure explains itself even with no world clocks", () => {
         weatherUnits: "metric",
         weatherError: ""
     }));
-    assert.equal(fine.buildTooltipText("Sunday, 12 July 2026", []), "Sunday, 12 July 2026");
+    assert.equal(fine.buildTooltipText([]), "");
 });
 
 // The applet's resume path drives both readouts. The city half needs to be forced
@@ -3151,7 +3133,6 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
         orientation: St.Side.TOP,
         showWeather: false,
         worldclocksEnabled: true,
-        useCustomFormat: false,
         panelClocks: 1,
         worldclocks: [{ label: "Tokyo" }],
         panelHovered: true,

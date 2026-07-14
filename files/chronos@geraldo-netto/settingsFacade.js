@@ -28,11 +28,15 @@ var WORLDCLOCKS_KEY = "worldclocks";
 var SHOW_WORLDCLOCKS_KEY = "show-worldclocks";
 var KEY_OPEN_KEY = "keyOpen";
 var WEATHER_LOCATION_KEY = "weather-location";
+var CUSTOM_FORMAT_KEY = "custom-format";
+var CUSTOM_TOOLTIP_FORMAT_KEY = "custom-tooltip-format";
+var DATE_FORMAT_DEFAULTS_MIGRATED_KEY = "date-format-defaults-migrated";
+var LEGACY_DATE_TIME_FORMAT = "%A, %B %e, %H:%M";
+var DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
 
 // key -> applet property, grouped by the handler each one triggers
 var PANEL_KEYS = [
     [SHOW_EVENTS_KEY, "show_events"],
-    ["use-custom-format", "use_custom_format"],
     ["custom-format", "custom_format"],
     ["custom-tooltip-format", "custom_tooltip_format"],
     [SHOW_WORLDCLOCKS_KEY, "show_worldclocks"]
@@ -203,6 +207,23 @@ var PanelSettings = class PanelSettings {
         for (let [key, property] of PANEL_KEYS) {
             this._settings.bind(key, property, callback);
         }
+    }
+
+    // Cinnamon preserves stored values when a schema default changes. Migrate
+    // only the exact formats the applet used to ship, once; every other value is
+    // a user choice and must survive the upgrade.
+    migrateDateFormatDefaults() {
+        if (this._settings.getValue(DATE_FORMAT_DEFAULTS_MIGRATED_KEY)) {
+            return;
+        }
+
+        for (const key of [CUSTOM_FORMAT_KEY, CUSTOM_TOOLTIP_FORMAT_KEY]) {
+            if (this._settings.getValue(key) === LEGACY_DATE_TIME_FORMAT) {
+                this._settings.setValue(key, DEFAULT_DATE_TIME_FORMAT);
+            }
+        }
+
+        this._settings.setValue(DATE_FORMAT_DEFAULTS_MIGRATED_KEY, true);
     }
 
     bindWeatherKeys(target, callback) {

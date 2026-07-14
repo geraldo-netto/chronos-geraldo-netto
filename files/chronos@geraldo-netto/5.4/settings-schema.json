@@ -29,7 +29,6 @@
                 "show-events",
                 "show-week-numbers",
                 "weekend-length",
-                "use-custom-format",
                 "custom-format",
                 "custom-tooltip-format",
                 "format-button"
@@ -99,41 +98,33 @@
             "Two days": 2
         }
     },
-    "use-custom-format": {
-        "type": "switch",
-        "default": false,
-        "description": "Use a custom date format",
-        "tooltip": "Check this to define a custom format for the date in the calendar applet."
-    },
     "custom-format": {
         "type": "entry",
-        "default": "%A, %B %e, %H:%M",
+        "default": "%d %b %H:%M",
         "description": "Date format",
-        "indent": true,
-        "dependency": "use-custom-format",
         "tooltip": "Set your custom format here."
     },
     "custom-tooltip-format": {
         "type": "entry",
-        "default": "%A, %B %e, %H:%M",
+        "default": "%d %b %H:%M",
         "description": "Date format for tooltip",
-        "indent": true,
-        "dependency": "use-custom-format",
         "tooltip": "Set your custom tooltip format here."
     },
     "format-button": {
         "type": "button",
         "description": "Show information on date format syntax",
-        "indent": true,
-        "dependency": "use-custom-format",
         "callback": "on_custom_format_button_pressed",
         "tooltip": "Click this button to know more about the syntax for date formats."
+    },
+    "date-format-defaults-migrated": {
+        "type": "generic",
+        "default": false
     },
     "show-weather": {
         "type": "switch",
         "default": false,
         "description": "Show weather on the panel",
-        "tooltip": "Enable a small weather readout in the applet label. The reading is fetched from a third-party weather service, and the location below is sent to it. A vertical panel has no room for the readout, so it shows only in the tooltip and the popup."
+        "tooltip": "Enable a small weather readout in the applet label. The reading is fetched from a third-party weather service, and the location below is sent to it."
     },
     "weather-location": {
         "type": "custom",

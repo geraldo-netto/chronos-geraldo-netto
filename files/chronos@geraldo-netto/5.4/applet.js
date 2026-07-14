@@ -236,7 +236,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     _formatSignature() {
         return [
             this.orientation,
-            this.use_custom_format,
             this.custom_format,
             this.show_worldclocks,
             this.desktop_settings.use24h,

@@ -2056,18 +2056,6 @@ test("applets refresh weather when the system resumes", () => {
     assert.match(onResume[1], /this\._scheduleWeatherRefresh\(\{ force: true \}\);/);
 });
 
-test("applets use valid vertical panel clock formats", () => {
-    const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "appletPanelStatus.js"), "utf8");
-    assert.doesNotMatch(source, /"%[Hl]%n%M%"/);
-    assert.match(source, /"%H%n%M"/);
-    // %-l, not %l: the space-padded hour left a leading space on a vertical panel,
-    // which visibly pushed the digits off centre
-    assert.match(source, /"%-l%n%M"/);
-    // in the format strings; the comment above them names the field it replaced
-    assert.doesNotMatch(source, /"[^"]*(?<!-)%l[^"]*"/,
-        "the padded 12-hour field is gone from every format");
-});
-
 test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
     const messages = [];
     const Weather = loadWeather({

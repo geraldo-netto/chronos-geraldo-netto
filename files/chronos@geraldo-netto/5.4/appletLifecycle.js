@@ -39,6 +39,7 @@ class AppletSettingsBinder {
         const settings = new Settings.AppletSettings(applet, "chronos@geraldo-netto", applet.instance_id);
         const panel = new SettingsFacade.PanelSettings(settings);
 
+        panel.migrateDateFormatDefaults();
         panel.bindPanelKeys(this.handlers.onSettingsChanged);
         panel.bindWeatherKeys(applet, this.handlers.onWeatherSettingsChanged);
         // a user who never opens the settings dialog still gets a weather
@@ -184,8 +185,8 @@ class AppletProviderLifecycle {
     // notifies when the string *it* renders changes, not once a second — measured,
     // because four comments in this applet used to claim otherwise: with "%H:%M"
     // it emitted 0 times in ten seconds, with "%H:%M:%S" it emitted 11. So the
-    // format string is the tick rate, and _updateFormatString only puts %S in it
-    // when clock-show-seconds is set. Seconds off, a minute; seconds on, a second.
+    // configured format is the tick rate: including %S produces second ticks;
+    // otherwise WallClock waits until the rendered string actually changes.
     connectClockNotify(callback) {
         // destroy() zeroes the id, so guarding on the id alone lets Cinnamon's
         // on_applet_added_to_panel() re-arm a live handler on an applet whose

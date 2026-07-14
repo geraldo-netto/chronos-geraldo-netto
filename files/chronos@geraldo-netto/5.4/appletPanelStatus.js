@@ -10,7 +10,6 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
-const St = imports.gi.St;
 const Atk = imports.gi.Atk;
 const Utils = require("./utils");
 // the pure half of the weather module: the constants and the formatters. The
@@ -37,53 +36,11 @@ const LABEL_MAX_LENGTH = 64;
 // the ellipsis everything else in this applet uses, rather than three dots — it
 // is the one clampText appends, and the tests read it from here
 const LABEL_ELLIPSIS = Utils.TEXT_ELLIPSIS;
-// the panel label follows the desktop's 12/24-hour setting, and the tooltip is
-// the same applet's readout of the same clocks: a 12-hour user reading
-// "2:52 PM" on the panel should not find "14:52" in its tooltip.
-//
-// The hour field is %-l throughout. Its padded sibling renders every hour before
-// ten with a leading space, so a horizontal panel showed a double space before the
-// time and the vertical layout's stacked hour sat visibly off centre. The
-// world-clock rows escaped it only because worldclocks.js trims what it formats.
-// The date the panel and the tooltip put in front of the time, and the one part of
-// these formats that is not a number: a month abbreviation and a day.
-//
-// It was "%d %b" — day before month — hardcoded, in every locale. An en_US user
-// with the default settings read "13 Jul" on the panel while Cinnamon's own clock
-// beside it said "Jul 13", and a Japanese or Hungarian user got an order that is
-// wrong in the other direction. The msgid is the US order, as gettext expects, and
-// each catalog reorders it: %b and %-e are strftime's, so the month name itself is
-// already localized — what a translator supplies is the order and the punctuation.
-const PANEL_DATE_FORMAT = _("%b %-e");
-const TOOLTIP_CLOCK_FORMAT_24H = PANEL_DATE_FORMAT + " %H:%M";
-const TOOLTIP_CLOCK_FORMAT_12H = PANEL_DATE_FORMAT + " %-l:%M %p";
+// The shipped panel and tooltip formats keep the same day-month, 24-hour order
+// in every locale. %b still localizes the abbreviated month name itself.
+const DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
 // label, date and time, temperature, condition: only the numbers are right-aligned
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
-
-// The derived (non-custom) clock formats, chosen by three independent booleans:
-// panel orientation, 12/24-hour, and seconds. A table instead of a four-deep
-// nest — the panel's main label depends on all three, the world-clock format on
-// two. Flat lookup, so no logic to follow.
-const PANEL_CLOCK_FORMATS = {
-    vertical: {
-        h24: { seconds: "%H%n%M%n%S", plain: "%H%n%M" },
-        h12: { seconds: "%-l%n%M%n%S", plain: "%-l%n%M" }
-    },
-    horizontal: {
-        h24: {
-            seconds: PANEL_DATE_FORMAT + " %H:%M:%S",
-            plain: PANEL_DATE_FORMAT + " %H:%M"
-        },
-        h12: {
-            seconds: PANEL_DATE_FORMAT + " %-l:%M:%S %p",
-            plain: PANEL_DATE_FORMAT + " %-l:%M %p"
-        }
-    }
-};
-const WORLD_CLOCK_FORMATS = {
-    h24: { seconds: "%H:%M:%S (%a)", plain: "%H:%M (%a)" },
-    h12: { seconds: "%-l:%M:%S (%a)", plain: "%-l:%M (%a)" }
-};
 
 const WEATHER_ERROR_TEXT = {
     [Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND]: _("Location not found"),
@@ -157,10 +114,6 @@ class PanelView {
 
     // --- what the panel is being asked to show -----------------------------
 
-    get orientation() {
-        return this.applet.orientation;
-    }
-
     get showWeather() {
         return this.applet.show_weather;
     }
@@ -169,10 +122,6 @@ class PanelView {
     // tooltip rows and the per-city weather exist at all
     get worldclocksEnabled() {
         return this.applet.show_worldclocks !== false;
-    }
-
-    get useCustomFormat() {
-        return this.applet.use_custom_format;
     }
 
     get customFormat() {
@@ -355,6 +304,7 @@ class AppletPanelStatusPresenter {
     constructor(applet, view = new PanelView(applet)) {
         this.view = view;
         this._todayFormatCache = null;
+        this._invalidTooltipFormat = null;
     }
 
     updateFormatString() {
@@ -362,20 +312,9 @@ class AppletPanelStatusPresenter {
         let world_string = view.customFormat;
         let main_string = view.customFormat;
 
-        if (view.useCustomFormat) {
-            if (!view.setClockFormatString(world_string)) {
-                global.logError("Calendar applet: bad time format string - check your string.");
-                world_string = main_string = badFormatFallback(view, _("Invalid time format; edit it in Settings"));
-            }
-        } else {
-            // a horizontal panel gets the compact local readout — day, short
-            // month, time; the weekday, year and other zones live in the
-            // tooltip and the popup, so the panel stays narrow
-            const vertical = view.orientation === St.Side.LEFT || view.orientation === St.Side.RIGHT;
-            const hour = view.desktopSettings.use24h ? "h24" : "h12";
-            const slot = view.desktopSettings.showSeconds ? "seconds" : "plain";
-            main_string = PANEL_CLOCK_FORMATS[vertical ? "vertical" : "horizontal"][hour][slot];
-            world_string = WORLD_CLOCK_FORMATS[hour][slot];
+        if (!view.setClockFormatString(world_string)) {
+            global.logError("Calendar applet: bad time format string - check your string.");
+            world_string = main_string = badFormatFallback(view, _("Invalid time format; edit it in Settings"));
         }
 
         view.setClockFormatString(main_string);
@@ -425,10 +364,6 @@ class AppletPanelStatusPresenter {
     // show them: the tooltip and the popup.
     buildLabelSuffix() {
         const view = this.view;
-        if (view.orientation === St.Side.LEFT || view.orientation === St.Side.RIGHT) {
-            return "";
-        }
-
         let parts = [];
 
         if (view.showWeather) {
@@ -452,19 +387,30 @@ class AppletPanelStatusPresenter {
     }
 
     tooltipClockFormat() {
-        const use24h = this.view.desktopSettings && this.view.desktopSettings.use24h;
-
-        return use24h ? TOOLTIP_CLOCK_FORMAT_24H : TOOLTIP_CLOCK_FORMAT_12H;
+        return this.view.customTooltipFormat || DEFAULT_DATE_TIME_FORMAT;
     }
 
-    // the stamp the tooltip actually shows: the no-seconds tooltip format, not
-    // entry.time (which carries seconds when clock-show-seconds is on). The
-    // change-detection key must read this same value or it recomputes the whole
-    // tooltip every second for a string that never changes.
+    // The change-detection key and the rendered row both use this stamp. An
+    // invalid configured format falls back inside the row instead of creating a
+    // separate error/header line that breaks the table shape.
     tooltipClockStamp(entry) {
-        const stamp = entry.localTime && entry.localTime.format ?
-            entry.localTime.format(this.tooltipClockFormat()) : entry.time;
-        return stamp || entry.time;
+        if (!(entry.localTime && entry.localTime.format)) {
+            return entry.time;
+        }
+
+        const format = this.tooltipClockFormat();
+        const stamp = entry.localTime.format(format);
+        if (stamp) {
+            this._invalidTooltipFormat = null;
+            return stamp;
+        }
+
+        if (this._invalidTooltipFormat !== format) {
+            this._invalidTooltipFormat = format;
+            global.logError("Calendar applet: bad tooltip time format string - check your string.");
+        }
+
+        return entry.localTime.format(DEFAULT_DATE_TIME_FORMAT) || entry.time;
     }
 
     // the panel shows one time and one temperature; the tooltip is where the
@@ -551,18 +497,13 @@ class AppletPanelStatusPresenter {
         return entry.builtin ? this._builtinWeatherCells(entry) : this._cityWeatherCells(entry);
     }
 
-    // The tooltip is rebuilt on every tick while the panel is hovered — once a
-    // minute normally, 1 Hz with clock-show-seconds on — and alignTooltipRows
-    // makes two passes over every cell with Array.from()
-    // plus a " ".repeat() each, which is some eighty allocations for ten clocks.
-    // The tooltip format carries no seconds, so 59 of every 60 rebuilds produced
-    // byte-identical text and were thrown away by set_applet_tooltip's own
-    // equality check. The key says whether anything it is built from has changed.
-    _tooltipKey(dateFormattedTooltip, clockEntries) {
+    // The tooltip can be refreshed more often than its configured timestamp
+    // changes. The key uses the rendered row stamps so byte-identical text is not
+    // written and laid out again.
+    _tooltipKey(clockEntries) {
         const view = this.view;
 
         return [
-            dateFormattedTooltip,
             view.showWeather ? this.panelReadingText() : "",
             view.showWeather ? view.weatherError : "",
             clockEntries.map((entry) => [
@@ -574,14 +515,14 @@ class AppletPanelStatusPresenter {
         ].join("\u0004");
     }
 
-    setTooltipText(dateFormattedTooltip, clockEntries) {
-        const key = this._tooltipKey(dateFormattedTooltip, clockEntries);
+    setTooltipText(clockEntries) {
+        const key = this._tooltipKey(clockEntries);
         if (this._rendered_tooltip_key === key) {
             return;
         }
         this._rendered_tooltip_key = key;
 
-        this.view.setTooltip(this.buildTooltipText(dateFormattedTooltip, clockEntries));
+        this.view.setTooltip(this.buildTooltipText(clockEntries));
     }
 
     // a tooltip is plain text, so the columns can only be lined up by padding;
@@ -613,21 +554,12 @@ class AppletPanelStatusPresenter {
         });
     }
 
-    buildTooltipText(dateFormattedTooltip, clockEntries = []) {
-        const view = this.view;
+    buildTooltipText(clockEntries = []) {
         const lines = [];
-
-        // the shipped tooltip is the clock table; a custom tooltip format is a
-        // header the user asked for, so it keeps its place on top
-        if (view.useCustomFormat && dateFormattedTooltip) {
-            lines.push(dateFormattedTooltip);
-        }
 
         const rows = clockEntries.map((entry) => this.tooltipClockRow(entry));
         if (rows.length) {
             lines.push(...this.alignTooltipRows(rows));
-        } else if (dateFormattedTooltip && !view.useCustomFormat) {
-            lines.push(dateFormattedTooltip);
         }
 
         // The weather's failure and its "loading" reached the user only through
@@ -739,28 +671,9 @@ class AppletPanelStatusPresenter {
         return this.view.getClockEntries(limit, includeBuiltin);
     }
 
-    getDateFormattedTooltip(formattedToday) {
-        const view = this.view;
-        if (!view.useCustomFormat) {
-            return formattedToday.full;
-        }
-
-        let dateFormattedTooltip = view.formatClock(view.customTooltipFormat).capitalize();
-        if (!dateFormattedTooltip) {
-            global.logError("Calendar applet: bad tooltip time format string - check your string.");
-            dateFormattedTooltip = view.formatClock(
-                badFormatFallback(view, _("Invalid tooltip format; edit it in Settings")));
-        }
-        return dateFormattedTooltip;
-    }
-
     updateClockAndDate(forceMenuUpdate = false) {
         const view = this.view;
         let label_string = view.formattedClock();
-
-        if (!view.useCustomFormat) {
-            label_string = label_string.capitalize();
-        }
 
         let refreshMenu = forceMenuUpdate || view.menuOpen;
         const clocksOn = this.worldclocksEnabled();
@@ -786,15 +699,12 @@ class AppletPanelStatusPresenter {
 
         if (!refreshMenu) {
             if (view.panelHovered) {
-                let formattedToday = this.getFormattedToday();
-                let dateFormattedTooltip = this.getDateFormattedTooltip(formattedToday);
-                this.setTooltipText(dateFormattedTooltip, clockEntries);
+                this.setTooltipText(clockEntries);
             }
             return;
         }
 
         let formattedToday = this.getFormattedToday();
-        let dateFormattedTooltip = this.getDateFormattedTooltip(formattedToday);
         view.setHomeEnabled(!view.todaySelected());
 
         // St.Label compares by pointer, so writing a byte-identical string still
@@ -802,7 +712,7 @@ class AppletPanelStatusPresenter {
         // or a second, if clock-show-seconds is on
         this._setLabel(view.dayLabel, "_rendered_day", formattedToday.day);
         this._setLabel(view.dateLabel, "_rendered_date", formattedToday.short);
-        this.setTooltipText(dateFormattedTooltip, clockEntries);
+        this.setTooltipText(clockEntries);
 
         view.selectEventsDate();
 

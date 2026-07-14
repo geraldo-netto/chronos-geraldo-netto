@@ -319,11 +319,12 @@ test("weather failures keep showing the stale reading with the marker", () => {
     assert.match(code, /return record \? this\._readingCells\(record, error\) : \["", error\];/);
 });
 
-test("bad custom formats fall back to a translated, actionable message", () => {
+test("bad custom formats fall back without breaking either display", () => {
     const code = source("5.4/appletPanelStatus.js");
     assert.doesNotMatch(code, /~CLOCK FORMAT ERROR~/);
     assert.match(code, /_\("Invalid time format; edit it in Settings"\)/);
-    assert.match(code, /_\("Invalid tooltip format; edit it in Settings"\)/);
+    assert.match(code, /entry\.localTime\.format\(DEFAULT_DATE_TIME_FORMAT\) \|\| entry\.time/,
+        "an invalid tooltip format stays inside the location row with a safe timestamp");
 });
 
 test("go-home button takes focus and activates from the keyboard", () => {
