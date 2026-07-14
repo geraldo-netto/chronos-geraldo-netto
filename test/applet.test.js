@@ -1281,6 +1281,7 @@ test("settings binding wires schema keys and creates settings facades", () => {
         }
         connect() {}
         getValue() { return []; }
+        setValue(key, value) { binds.push(["setValue", key, value]); }
     };
 
     const stub = Object.assign(Object.create(Proto), {
@@ -1310,6 +1311,114 @@ test("settings binding wires schema keys and creates settings facades", () => {
     // double answers [] for every getValue, and that is what lands on it
     assert.deepEqual(stub.weather_location, [],
         "the location reaches the applet through the mirror, not through bind()");
+});
+
+test("settings binding fills the initial holiday country from the operating-system timezone", () => {
+    const originalSettings = global.imports.ui.settings.AppletSettings;
+    const originalCountryCode = rootModules.worldclockData.localCountryCode;
+    const values = {
+        "date-format-defaults-migrated": true,
+        "weather-location": "Rome",
+        country: ""
+    };
+    let timezoneReads = 0;
+
+    global.imports.ui.settings.AppletSettings = class {
+        bind() {}
+        connect() { return 1; }
+        getValue(key) { return values[key]; }
+        setValue(key, value) { values[key] = value; }
+    };
+    rootModules.worldclockData.localCountryCode = () => {
+        timezoneReads++;
+        return timezoneReads === 1 ? "IT" : "FR";
+    };
+
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 42,
+        _setKeybinding() {}
+    });
+
+    try {
+        Proto._bindSettings.call(stub);
+        assert.equal(values.country, "ita");
+
+        values.country = "none";
+        Proto._bindSettings.call(stub);
+    } finally {
+        global.imports.ui.settings.AppletSettings = originalSettings;
+        rootModules.worldclockData.localCountryCode = originalCountryCode;
+    }
+
+    assert.equal(timezoneReads, 1, "tzdata is read only for the initial default");
+    assert.equal(values.country, "none", "a later explicit disable is preserved");
+});
+
+test("settings binding preserves a pre-existing holiday opt-out on upgrade", () => {
+    const originalSettings = global.imports.ui.settings.AppletSettings;
+    const originalCountryCode = rootModules.worldclockData.localCountryCode;
+    const values = {
+        "date-format-defaults-migrated": true,
+        "weather-location": "Rome",
+        country: "none"
+    };
+
+    global.imports.ui.settings.AppletSettings = class {
+        bind() {}
+        connect() { return 1; }
+        getValue(key) { return values[key]; }
+        setValue(key, value) { values[key] = value; }
+    };
+    rootModules.worldclockData.localCountryCode = () => {
+        throw new Error("an upgrade must not reinterpret an old explicit disable");
+    };
+
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 42,
+        _setKeybinding() {}
+    });
+
+    try {
+        Proto._bindSettings.call(stub);
+    } finally {
+        global.imports.ui.settings.AppletSettings = originalSettings;
+        rootModules.worldclockData.localCountryCode = originalCountryCode;
+    }
+
+    assert.equal(values.country, "none");
+});
+
+test("regression: an unsupported OS timezone country leaves holidays disabled", () => {
+    const originalSettings = global.imports.ui.settings.AppletSettings;
+    const originalCountryCode = rootModules.worldclockData.localCountryCode;
+    const values = {
+        "date-format-defaults-migrated": true,
+        "weather-location": "San Marino",
+        country: ""
+    };
+
+    global.imports.ui.settings.AppletSettings = class {
+        bind() {}
+        connect() { return 1; }
+        getValue(key) { return values[key]; }
+        setValue(key, value) { values[key] = value; }
+    };
+    rootModules.worldclockData.localCountryCode = () => "SM";
+
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 42,
+        _setKeybinding() {}
+    });
+
+    try {
+        Proto._bindSettings.call(stub);
+    } finally {
+        global.imports.ui.settings.AppletSettings = originalSettings;
+        rootModules.worldclockData.localCountryCode = originalCountryCode;
+    }
+
+    assert.equal(values.country, "none",
+        "San Marino must not silently inherit Italy from its canonical timezone file");
 });
 
 // REGRESSION: the handlers went to the binder as bare methods, and the receiver
@@ -1395,8 +1504,8 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     assert.deepEqual(calls.filter((row) => row[0] === "connect"),
         [["connect", "changed::country"]]);
     assert.equal(calls.some((row) => row[0] === "bind" && row[1] === "country"), false);
-    // holidays are opt-in: an unset country resolves to "none", never to the
-    // locale's country, so nothing is fetched until the user asks for it
+    // A direct lifecycle with a missing legacy value still resolves to none.
+    // Normal construction resolves the timezone default in the binder first.
     assert.ok(calls.some((row) => row[0] === "setValue" && row[1] === "country" && row[2] === "none"));
     assert.ok(calls.some((row) => row[0] === "clear"));
     assert.ok(!calls.some((row) => row[0] === "place"));

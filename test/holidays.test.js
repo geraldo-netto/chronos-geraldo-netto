@@ -2019,6 +2019,61 @@ test("every country the settings offer can reach the fallback providers", () => 
     assert.deepEqual(unreachable, []);
 });
 
+test("tzdata ISO2 countries map back to holiday country identifiers", () => {
+    const {
+        SUPPORTED_COUNTRIES,
+        COUNTRY_TO_ISO2,
+        ISO2_TO_COUNTRY,
+        countryFromIso2
+    } = require(holidayConstantsPath);
+
+    for (const country of SUPPORTED_COUNTRIES) {
+        const iso2 = COUNTRY_TO_ISO2[country];
+        assert.equal(ISO2_TO_COUNTRY[iso2], country);
+        assert.equal(countryFromIso2(iso2.toLowerCase()), country);
+    }
+
+    assert.equal(countryFromIso2(" IT "), "ita");
+    assert.equal(countryFromIso2("SK"), "svk");
+    assert.equal(countryFromIso2("ME"), "mne");
+    assert.equal(countryFromIso2("SM"), "",
+        "a valid tzdata country with no holiday provider stays unsupported");
+    assert.equal(countryFromIso2("ZZ"), "");
+    assert.equal(countryFromIso2(null), "");
+});
+
+test("fuzz: ISO2 holiday mapping accepts only supported normalized codes", () => {
+    const {
+        SUPPORTED_COUNTRIES,
+        ISO2_TO_COUNTRY,
+        countryFromIso2
+    } = require(holidayConstantsPath);
+    const rand = makeRandom(0x1502);
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz 09_-\0";
+    const supported = new Set(SUPPORTED_COUNTRIES);
+    const knownCodes = Object.keys(ISO2_TO_COUNTRY);
+    let mappedCount = 0;
+
+    for (let round = 0; round < 500; round++) {
+        const length = Math.floor(rand() * 8);
+        const generated = Array.from({ length }, () =>
+            alphabet[Math.floor(rand() * alphabet.length)]).join("");
+        const known = knownCodes[Math.floor(rand() * knownCodes.length)];
+        const decoratedKnown = rand() < 0.5 ? known.toLowerCase() : ` ${known} `;
+        const candidates = [generated, decoratedKnown, null, undefined, 42, {}, [], true];
+        const candidate = candidates[Math.floor(rand() * candidates.length)];
+        const normalized = typeof candidate === "string" ? candidate.trim().toUpperCase() : "";
+        const expected = ISO2_TO_COUNTRY[normalized] || "";
+        const mapped = countryFromIso2(candidate);
+
+        assert.equal(mapped, expected);
+        assert.ok(mapped === "" || supported.has(mapped));
+        mappedCount += Number(Boolean(mapped));
+    }
+
+    assert.ok(mappedCount > 0, "the fuzz corpus exercises accepted codes too");
+});
+
 test("NagerDateServiceAdapter maps HolidayService countries and regions", () => {
     const { NagerDateServiceAdapter } = loadHolidays();
     const { COUNTRY_TO_ISO2, REGION_TO_SUBDIVISION } = require(holidayConstantsPath);

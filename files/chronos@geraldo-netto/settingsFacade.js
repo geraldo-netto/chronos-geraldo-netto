@@ -33,6 +33,7 @@ var CUSTOM_TOOLTIP_FORMAT_KEY = "custom-tooltip-format";
 var DATE_FORMAT_DEFAULTS_MIGRATED_KEY = "date-format-defaults-migrated";
 var LEGACY_DATE_TIME_FORMAT = "%A, %B %e, %H:%M";
 var DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
+var NO_HOLIDAYS = "none";
 
 // key -> applet property, grouped by the handler each one triggers
 var PANEL_KEYS = [
@@ -155,6 +156,22 @@ var HolidaySettings = class HolidaySettings {
 
     set country(value) {
         this._settings.setValue(COUNTRY_KEY, value);
+    }
+
+    // The schema's empty value means a genuinely new setting. Older versions
+    // used "none" as their default, so an existing "none" may be an explicit
+    // opt-out and must survive an upgrade. Resolve only the empty sentinel,
+    // then replace it with either a country or "none": every later value is a
+    // user choice, and an existing choice does not cost a tzdata read.
+    fillInitialCountryFromTimezone(resolveCountry) {
+        const current = this.country;
+        if (current !== "" && current != null) {
+            return "";
+        }
+
+        const inferred = resolveCountry();
+        this.country = inferred || NO_HOLIDAYS;
+        return inferred || "";
     }
 
     // countries whose holidays are region-specific; each has its own key

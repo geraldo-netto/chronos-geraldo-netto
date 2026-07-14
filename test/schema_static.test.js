@@ -477,11 +477,15 @@ test("the manual install does not copy Python bytecode", () => {
     assert.match(readme, /--exclude '__pycache__'/);
 });
 
-test("network lookups are opt-in", () => {
+test("holiday timezone default is one-time and weather remains opt-in", () => {
     const data = schema("5.4");
-    // both third-party lookups must be off until the user turns them on
+
     assert.equal(data["show-weather"].default, false);
-    assert.equal(data.country.default, "none");
+    assert.equal(data.country.default, "",
+        "an empty new-install sentinel lets upgrades preserve an old explicit none");
+    assert.equal(data.country.options["None (disable holidays)"], "none");
+    assert.equal(data["holiday-country-timezone-default-attempted"], undefined);
+    assert.match(data.country.tooltip, /operating-system timezone/);
 });
 
 test("the clock cap is the same in schema, JS, Python, and the README", () => {

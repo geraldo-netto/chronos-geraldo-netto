@@ -112,7 +112,7 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Show week numbers in calendar | off | Adds the week-number gutter. |
 | Mark as weekend days | two days | How many days a week are styled as non-working; which days come from your locale. |
 | Date formats | `%d %b %H:%M` | The always-visible **Date format** and **Date format for tooltip** fields control the panel label and each tooltip row; the **Show information on date format syntax** button opens the reference. |
-| Country / Region | None | Marks that country's public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; only a country you actually pick is saved. |
+| Country / Region | country from the operating-system timezone, or None | Marks that country's nationwide public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; any country you select overrides the inferred default. |
 | Show calendar (under **Keyboard shortcuts**) | `<Super>c` | Opens the calendar menu. |
 
 The panel label and world-clock rows use **Date format**. Every tooltip location
@@ -146,9 +146,15 @@ The world clocks never appear on the panel. The panel is one line, which the dat
 and the weather readout already share; the clocks are a table, and they are shown
 in the two places with room for them — the panel's tooltip and the popup.
 
-Holidays are off until you pick a country: the lookup sends your country to a
-third-party holiday service. Choose **None (disable holidays)** to turn holiday
-marking back off.
+For a new settings profile, the holiday country is filled from the operating-system timezone:
+`Europe/Rome` becomes **Italy**. This uses the local timezone database, not IP
+geolocation. UTC, an unsupported timezone country, or unavailable timezone data
+leaves holidays disabled. The timezone cannot identify a state or province, so
+the inferred region stays **Nationwide only**. Any country or region you choose
+afterwards is preserved; choose **None (disable holidays)** to turn holiday
+marking off. Upgrades also preserve an existing country or **None** instead of
+reinterpreting it as a new default. An enabled holiday lookup sends the selected
+country and region to third-party holiday services.
 
 In the menu the grid is keyboard-navigable: arrows move by day and week,
 PageUp/PageDown by month, Home returns to today.
@@ -220,8 +226,10 @@ days like the weekend; hovering one names it. World clocks show additional time
 zones, and the event view works like the stock Cinnamon calendar.
 
 Choose the Country and region for which to show the public holidays in the applet
-"Calendar" settings page. No holiday lookup happens until you do: the country
-defaults to **None (disable holidays)**. The world-clock list in the calendar menu always
+"Calendar" settings page. For a new settings profile, the country defaults from the machine's
+IANA timezone when that timezone maps to a supported country; otherwise it stays
+**None (disable holidays)**. This is a one-time default, so later user choices are
+never overwritten. The world-clock list in the calendar menu always
 shows UTC, your local time, and the digital readouts for any configured
 timezones; uncheck **Show world clocks in the calendar menu** to hide the whole
 block. Add more timezones in the applet "World Clocks" settings page: up
@@ -268,15 +276,17 @@ as the city its timezone names, and the name you typed never leaves the machine.
 The holiday data are obtained from the webservice [Enrico](http://kayaposoft.com/enrico/)
 by Kayaposoft.com, with [OpenHolidays](https://www.openholidaysapi.org/) and
 [Nager.Date](https://date.nager.at/) as fallback providers (in that order) for
-supported countries. Nothing is sent until you pick a holiday country; from
-then on the selected country and region are sent to those services, at most
+supported countries. When the operating-system timezone supplies the initial
+holiday country, lookup starts automatically; otherwise nothing is sent until
+you pick one. The selected country and region are sent to those services, at most
 once every 50 days per year of data (sooner after a failure), and the response
 is cached under `~/.cache/chronos@geraldo-netto/`.
 
 ### Third-party data
 
 Both the weather and holiday readouts fetch from third-party services over
-HTTPS, and both are off by default. Responses are treated as untrusted: they
+HTTPS. Weather is off by default; holidays start automatically only when the
+operating-system timezone maps to a supported country. Responses are treated as untrusted: they
 are size-capped, shape-checked, and colors or text taken from them are never
 interpolated into markup. No account, API key, or personal data beyond the
 location or country you configure is involved.

@@ -3,6 +3,7 @@ const { test } = require("node:test");
 const vm = require("node:vm");
 const fs = require("node:fs");
 const path = require("node:path");
+const { makeRandom } = require("./helpers/prng");
 
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "settingsFacade.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "settingsFacade.js");
@@ -147,6 +148,114 @@ test("the country is watched for changes, not bound onto the applet", () => {
     assert.equal(id, 7);
     assert.deepEqual(calls, [["connect", "changed::" + SettingsFacade.COUNTRY_KEY]]);
     assert.equal(facade.country, "ita", "and the read still goes through the accessor");
+});
+
+test("the operating-system timezone fills only the initial holiday country", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+    const values = { country: "" };
+    const writes = [];
+    const settings = {
+        getValue: (key) => values[key],
+        setValue(key, value) {
+            values[key] = value;
+            writes.push([key, value]);
+        }
+    };
+    const facade = new SettingsFacade.HolidaySettings(settings);
+    let resolutions = 0;
+
+    assert.equal(facade.fillInitialCountryFromTimezone(() => {
+        resolutions++;
+        return "ita";
+    }), "ita");
+    assert.equal(values.country, "ita");
+    assert.equal(resolutions, 1);
+    assert.deepEqual(writes, [[SettingsFacade.COUNTRY_KEY, "ita"]]);
+
+    values.country = "none";
+    assert.equal(facade.fillInitialCountryFromTimezone(() => {
+        throw new Error("a completed default must never be resolved again");
+    }), "");
+    assert.equal(values.country, "none", "an explicit disable survives restart");
+});
+
+test("holiday country inference preserves existing choices and disables missing zones", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+
+    const existing = { country: "fra" };
+    const existingFacade = new SettingsFacade.HolidaySettings({
+        getValue: (key) => existing[key],
+        setValue: (key, value) => { existing[key] = value; }
+    });
+    assert.equal(existingFacade.fillInitialCountryFromTimezone(() => {
+        throw new Error("an existing user choice must not read tzdata");
+    }), "");
+    assert.equal(existing.country, "fra");
+
+    const optedOut = { country: "none" };
+    const optedOutFacade = new SettingsFacade.HolidaySettings({
+        getValue: (key) => optedOut[key],
+        setValue: (key, value) => { optedOut[key] = value; }
+    });
+    assert.equal(optedOutFacade.fillInitialCountryFromTimezone(() => {
+        throw new Error("an existing opt-out must not be turned into network traffic");
+    }), "");
+    assert.equal(optedOut.country, "none",
+        "the old default is indistinguishable from an explicit opt-out, so upgrades preserve it");
+
+    const missing = { country: null };
+    const missingFacade = new SettingsFacade.HolidaySettings({
+        getValue: (key) => missing[key],
+        setValue: (key, value) => { missing[key] = value; }
+    });
+    assert.equal(missingFacade.fillInitialCountryFromTimezone(() => ""), "");
+    assert.equal(missing.country, "none");
+});
+
+test("fuzz: timezone defaults never overwrite an existing holiday choice", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+    const random = makeRandom(0x7011da);
+    const currentValues = ["", null, undefined, "none", "ita", "fra", "jpn"];
+    const inferredValues = ["", null, "ita", "fra", "jpn"];
+
+    for (let round = 0; round < 500; round++) {
+        const initial = currentValues[Math.floor(random() * currentValues.length)];
+        const inferred = inferredValues[Math.floor(random() * inferredValues.length)];
+        const values = { country: initial };
+        const writes = [];
+        let resolutions = 0;
+        const facade = new SettingsFacade.HolidaySettings({
+            getValue: (key) => values[key],
+            setValue(key, value) {
+                values[key] = value;
+                writes.push([key, value]);
+            }
+        });
+
+        const shouldResolve = initial === null || initial === undefined || initial === "";
+        const result = facade.fillInitialCountryFromTimezone(() => {
+            resolutions += 1;
+            return inferred;
+        });
+        const expectedCountry = shouldResolve ? (inferred || "none") : initial;
+
+        assert.equal(values.country, expectedCountry);
+        assert.equal(result, shouldResolve ? (inferred || "") : "");
+        assert.equal(resolutions, shouldResolve ? 1 : 0);
+        assert.equal(writes.length, shouldResolve ? 1 : 0);
+
+        const writesAfterFirstCall = writes.length;
+        assert.equal(facade.fillInitialCountryFromTimezone(() => {
+            resolutions += 1;
+            return "jpn";
+        }), "");
+        assert.equal(values.country, expectedCountry);
+        assert.equal(resolutions, shouldResolve ? 1 : 0);
+        assert.equal(writes.length, writesAfterFirstCall);
+    }
 });
 
 // Gio.Settings.get_boolean() on a key the schema does not carry answers false —

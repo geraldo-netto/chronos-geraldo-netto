@@ -19,6 +19,10 @@ function makeRandom(seed = FUZZ_SEED) {
     return makeSeededRandom(seed);
 }
 
+function pickRandom(random, values) {
+    return values[Math.floor(random() * values.length)];
+}
+
 let originalImports;
 
 class MockGridLayout {
@@ -974,4 +978,540 @@ test("localCityName reads the city out of the machine's own timezone", () => {
     GLib.TimeZone.new_local = () => null;
     assert.equal(WorldclockData.localCityName(), "",
         "no zone at all is not a place either");
+});
+
+test("regionalTimezoneIdentifier accepts named regions but not offsets", () => {
+    loadWorldclocks();
+    const { regionalTimezoneIdentifier } = require(dataModulePath);
+
+    assert.equal(regionalTimezoneIdentifier("  Europe/Vatican\n"), "Europe/Vatican",
+        "a configured alias is preserved, not resolved to its canonical zone");
+    assert.equal(regionalTimezoneIdentifier("America/Argentina/Buenos_Aires"),
+        "America/Argentina/Buenos_Aires");
+
+    for (const timezone of [
+        "UTC", "Etc/UTC", "Etc/GMT+2", "+02", "GMT-03:00", "local", "",
+        "Europe//Rome", "Europe/../Rome", "Europe/Rome!", "x".repeat(256), null, 42
+    ]) {
+        assert.equal(regionalTimezoneIdentifier(timezone), "",
+            `${JSON.stringify(timezone)} does not identify a geographic region`);
+    }
+});
+
+test("local timezone sources preserve aliases and have deterministic precedence", () => {
+    loadWorldclocks();
+    const { localTimezoneFromSources, timezoneFromLocaltimeLink } = require(dataModulePath);
+
+    assert.equal(timezoneFromLocaltimeLink("/usr/share/zoneinfo/Europe/Vatican"),
+        "Europe/Vatican");
+    assert.equal(timezoneFromLocaltimeLink("../usr/share/zoneinfo/US/Eastern"),
+        "US/Eastern");
+    assert.equal(timezoneFromLocaltimeLink("/usr/share/zoneinfo/Etc/UTC"), "");
+    assert.equal(timezoneFromLocaltimeLink("/etc/alternatives/localtime"), "");
+    assert.equal(timezoneFromLocaltimeLink(null), "");
+
+    assert.equal(localTimezoneFromSources(
+        "Europe/Vatican\n", "/usr/share/zoneinfo/Europe/Rome", "Asia/Tokyo"),
+    "Europe/Rome", "the effective /etc/localtime link wins");
+    assert.equal(localTimezoneFromSources(
+        "Europe/Rome", "/usr/share/zoneinfo/Etc/UTC", "Asia/Tokyo"),
+    "", "an authoritative UTC link does not fall through to stale sources");
+    assert.equal(localTimezoneFromSources(
+        "Europe/Rome", "/etc/alternatives/localtime", "Asia/Tokyo"),
+    "Asia/Tokyo", "GLib's effective identifier is second");
+    assert.equal(localTimezoneFromSources(
+        "Europe/Rome", "/etc/alternatives/localtime", "+02"),
+    "", "an authoritative fixed offset does not use stale plaintext");
+    assert.equal(localTimezoneFromSources(
+        "Europe/Vatican\n", "/etc/alternatives/localtime", null),
+    "Europe/Vatican", "/etc/timezone is the last fallback");
+});
+
+test("timezone symlink targets stay inside zoneinfo", () => {
+    loadWorldclocks();
+    const { timezoneAliasTarget } = require(dataModulePath);
+
+    assert.equal(timezoneAliasTarget("Europe/Bratislava", "Prague"),
+        "Europe/Prague");
+    assert.equal(timezoneAliasTarget("US/Eastern", "../America/New_York"),
+        "America/New_York");
+    assert.equal(timezoneAliasTarget(
+        "Europe/Alias", "/usr/share/zoneinfo/Europe/Rome"), "Europe/Rome");
+    assert.equal(timezoneAliasTarget("Europe/Alias", "./Rome"), "Europe/Rome");
+
+    for (const target of [
+        "/etc/passwd", "../../etc/passwd", "../Europe/Rome!", "../Etc/UTC",
+        `Europe/${"x".repeat(1024)}`, "Europe/Rome\0suffix", "", null
+    ]) {
+        assert.equal(timezoneAliasTarget("Europe/Alias", target), "",
+            `${JSON.stringify(target)} cannot escape or corrupt zoneinfo`);
+    }
+    assert.equal(timezoneAliasTarget("UTC", "Europe/Rome"), "");
+});
+
+test("canonical timezone symlink resolution is bounded and cycle-safe", () => {
+    loadWorldclocks();
+    const { canonicalTimezoneFromSymlinks } = require(dataModulePath);
+    const links = new Map([
+        ["/usr/share/zoneinfo/US/Eastern", "../America/New_York"],
+        ["/usr/share/zoneinfo/Europe/First", "Second"],
+        ["/usr/share/zoneinfo/Europe/Second", "First"]
+    ]);
+    const readLink = (filename) => links.has(filename) ? links.get(filename) : null;
+
+    assert.equal(canonicalTimezoneFromSymlinks("US/Eastern", readLink),
+        "America/New_York");
+    assert.equal(canonicalTimezoneFromSymlinks("Europe/Rome", readLink), "",
+        "a non-alias has no canonical fallback");
+    assert.equal(canonicalTimezoneFromSymlinks("Europe/First", readLink), "",
+        "cycles fail closed");
+    assert.equal(canonicalTimezoneFromSymlinks("UTC", readLink), "");
+    assert.equal(canonicalTimezoneFromSymlinks("Europe/Rome", null), "");
+
+    const endless = (filename) => {
+        const match = filename.match(/Alias(\d+)$/);
+        return `Alias${Number(match[1]) + 1}`;
+    };
+    assert.equal(canonicalTimezoneFromSymlinks("Europe/Alias0", endless), "",
+        "an alias chain cannot exceed the hop cap");
+
+    assert.equal(canonicalTimezoneFromSymlinks("US/Eastern", (filename) => {
+        if (filename.endsWith("US/Eastern")) {
+            return "../America/New_York";
+        }
+        throw new Error("regular zoneinfo file");
+    }), "America/New_York", "a regular canonical endpoint finishes the chain");
+});
+
+test("countryCodeFromZoneTab performs an exact timezone lookup", () => {
+    loadWorldclocks();
+    const { countryCodeFromZoneTab } = require(dataModulePath);
+    const zoneTab = [
+        "# country-code\tcoordinates\tTZ\tcomments",
+        "",
+        "IT\t+4154+01229\tEurope/Rome",
+        "VA\t+415408+0122711\tEurope/Vatican\tVatican City",
+        "US\t+404251-0740023\tUS/Eastern"
+    ].join("\r\n");
+
+    assert.equal(countryCodeFromZoneTab("Europe/Rome", zoneTab), "IT");
+    assert.equal(countryCodeFromZoneTab("Europe/Vatican", zoneTab), "VA",
+        "a backward-link alias remains independently mappable");
+    assert.equal(countryCodeFromZoneTab("US/Eastern", zoneTab), "US");
+    assert.equal(countryCodeFromZoneTab("Europe/Milan", zoneTab), "",
+        "a nearby city is not inferred from the Area prefix");
+    assert.equal(countryCodeFromZoneTab("UTC", zoneTab), "");
+    assert.equal(countryCodeFromZoneTab("Etc/GMT+1", zoneTab), "");
+    assert.equal(countryCodeFromZoneTab("+02", zoneTab), "");
+});
+
+test("countryCodeFromZoneTab rejects malformed, missing, and oversized tables", () => {
+    loadWorldclocks();
+    const { countryCodeFromZoneTab, MAX_ZONE_TAB_BYTES } = require(dataModulePath);
+    const rome = "IT\t+4154+01229\tEurope/Rome";
+    const malformedRows = [
+        "FR\t+4852+00220\tEurope/Paris\textra\tfield",
+        "I\t+4852+00220\tEurope/Paris",
+        "FR\tnowhere\tEurope/Paris",
+        "FR\t+4852+00220\tParis",
+        "FR\t+4852+00220\tEurope/Rome"
+    ];
+
+    for (const malformed of malformedRows) {
+        assert.equal(countryCodeFromZoneTab("Europe/Rome", `${rome}\n${malformed}`), "",
+            `the whole table is untrusted after malformed row ${JSON.stringify(malformed)}`);
+    }
+
+    assert.equal(countryCodeFromZoneTab("Europe/Rome", ""), "");
+    assert.equal(countryCodeFromZoneTab("Europe/Rome", null), "");
+    assert.equal(countryCodeFromZoneTab("Europe/Rome", "# no data rows\n"), "");
+    assert.equal(countryCodeFromZoneTab(
+        "Europe/Rome", "#".repeat(MAX_ZONE_TAB_BYTES + 1)), "");
+});
+
+test("localCountryCode reads fresh OS timezone sources in precedence order", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+    const files = new Map([
+        ["/etc/timezone", Buffer.from("Asia/Tokyo\n")],
+        ["/usr/share/zoneinfo/zone.tab", Buffer.from([
+            "IT\t+4154+01229\tEurope/Rome",
+            "VA\t+415408+0122711\tEurope/Vatican",
+            "JP\t+353916+1394441\tAsia/Tokyo"
+        ].join("\n"))]
+    ]);
+    let localtimeLink = "/usr/share/zoneinfo/Europe/Rome";
+    let fallback = "Asia/Tokyo";
+    let timezoneFileReads = 0;
+
+    GLib.file_get_contents = (filename) => {
+        if (filename === "/etc/timezone") {
+            timezoneFileReads += 1;
+        }
+        return files.has(filename) ? [true, files.get(filename)] : [false, null];
+    };
+    GLib.file_read_link = (filename) => {
+        if (filename === "/etc/localtime") {
+            return localtimeLink;
+        }
+        throw new Error("regular zoneinfo file");
+    };
+    GLib.TimeZone.new_local = () => fakeTimeZone(fallback);
+
+    assert.equal(WorldclockData.localCountryCode(), "IT",
+        "the lexical localtime link beats stale plaintext and GLib sources");
+
+    localtimeLink = "/usr/share/zoneinfo/Etc/UTC";
+    assert.equal(WorldclockData.localCountryCode(), "",
+        "UTC is authoritative and never falls through to a country");
+
+    localtimeLink = "/etc/alternatives/localtime";
+    fallback = "Europe/Vatican";
+    assert.equal(WorldclockData.localCountryCode(), "VA",
+        "a non-zoneinfo symlink falls through to GLib's effective alias");
+
+    fallback = "UTC";
+    assert.equal(WorldclockData.localCountryCode(), "",
+        "GLib UTC does not fall through to /etc/timezone");
+    assert.equal(timezoneFileReads, 0,
+        "stale plaintext is not even read while an effective source exists");
+
+    fallback = null;
+    assert.equal(WorldclockData.localCountryCode(), "JP",
+        "plaintext timezone is used only when effective sources reveal nothing");
+    assert.equal(timezoneFileReads, 1);
+});
+
+test("localCountryCode resolves an unmapped zoneinfo alias after exact lookup", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+    const zoneTab = [
+        "US\t+404251-0740023\tAmerica/New_York",
+        "VA\t+415408+0122711\tEurope/Vatican"
+    ].join("\n");
+    let localtimeLink = "/usr/share/zoneinfo/US/Eastern";
+    let aliasReads = 0;
+
+    GLib.file_get_contents = (filename) => filename === "/usr/share/zoneinfo/zone.tab" ?
+        [true, Buffer.from(zoneTab)] : [false, null];
+    GLib.file_read_link = (filename) => {
+        if (filename === "/etc/localtime") {
+            return localtimeLink;
+        }
+        aliasReads += 1;
+        if (filename === "/usr/share/zoneinfo/US/Eastern") {
+            return "../America/New_York";
+        }
+        throw new Error("regular zoneinfo file");
+    };
+    GLib.TimeZone.new_local = () => fakeTimeZone("Europe/Rome");
+
+    assert.equal(WorldclockData.localCountryCode(), "US");
+    assert.equal(aliasReads, 2, "the alias and its canonical endpoint are inspected");
+
+    localtimeLink = "/usr/share/zoneinfo/Europe/Vatican";
+    aliasReads = 0;
+    assert.equal(WorldclockData.localCountryCode(), "VA");
+    assert.equal(aliasReads, 0,
+        "an exact jurisdiction alias is never replaced by its symlink target");
+});
+
+test("localCountryCode fails closed when local timezone data cannot be read", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+
+    GLib.file_get_contents = () => {
+        throw new Error("unreadable");
+    };
+    GLib.file_read_link = () => {
+        throw new Error("not a symlink");
+    };
+    GLib.TimeZone.new_local = () => {
+        throw new Error("no local timezone");
+    };
+    assert.equal(WorldclockData.localCountryCode(), "");
+
+    GLib.file_get_contents = (filename) => filename === "/etc/timezone" ?
+        [true, "Europe/Rome\n"] : [false, null];
+    GLib.TimeZone.new_local = () => fakeTimeZone("Europe/Rome");
+    assert.equal(WorldclockData.localCountryCode(), "",
+        "a missing zone.tab disables automatic holidays");
+});
+
+test("fuzz: timezone identifiers and OS source priority stay geographic", () => {
+    loadWorldclocks();
+    const {
+        regionalTimezoneIdentifier,
+        timezoneFromLocaltimeLink,
+        localTimezoneFromSources
+    } = require(dataModulePath);
+    const random = makeRandom(FUZZ_SEED + 10);
+    const longestIdentifier = `A/${"x".repeat(253)}`;
+
+    for (let round = 0; round < 500; round++) {
+        const zones = [
+            `Area${round % 17}/City_${round}`,
+            `Region${round % 13}/District/Place_${round}`,
+            "Europe/Rome"
+        ];
+        const identifierCases = [
+            { input: `  ${zones[0]}\n`, expected: zones[0] },
+            { input: longestIdentifier, expected: longestIdentifier },
+            { input: "UTC", expected: "" },
+            { input: `Etc/GMT+${round % 12}`, expected: "" },
+            { input: `Area${round}//Place`, expected: "" },
+            { input: `Area${round}/../Place`, expected: "" },
+            { input: `Area${round}/Place!`, expected: "" },
+            { input: "x".repeat(256), expected: "" },
+            { input: null, expected: "" },
+            { input: round, expected: "" }
+        ];
+        const identifierCase = pickRandom(random, identifierCases);
+        const parsed = regionalTimezoneIdentifier(identifierCase.input);
+        assert.equal(parsed, identifierCase.expected);
+        assert.equal(regionalTimezoneIdentifier(parsed), parsed,
+            "accepted identifiers are idempotent");
+
+        const localtimeCases = [
+            { link: `/usr/share/zoneinfo/${zones[0]}`, state: zones[0] },
+            { link: "/usr/share/zoneinfo/Etc/UTC", state: "" },
+            { link: "/usr/share/zoneinfo/+02", state: "" },
+            { link: "/etc/alternatives/localtime", state: null },
+            { link: null, state: null }
+        ];
+        const glibCases = [
+            { value: zones[1], state: zones[1] },
+            { value: "UTC", state: "" },
+            { value: "+02", state: "" },
+            { value: null, state: null }
+        ];
+        const fileCases = [
+            { value: `${zones[2]}\n`, state: zones[2] },
+            { value: "UTC\n", state: "" },
+            { value: null, state: null }
+        ];
+        const localtime = pickRandom(random, localtimeCases);
+        const glib = pickRandom(random, glibCases);
+        const timezoneFile = pickRandom(random, fileCases);
+        const afterLocaltime = localtime.state !== null ? localtime.state : glib.state;
+        const expected = afterLocaltime !== null ? afterLocaltime : (timezoneFile.state || "");
+
+        assert.equal(timezoneFromLocaltimeLink(localtime.link), localtime.state || "");
+        assert.equal(localTimezoneFromSources(
+            timezoneFile.value, localtime.link, glib.value), expected);
+    }
+});
+
+test("fuzz: zoneinfo alias paths are root-confined, bounded, and cycle-safe", () => {
+    loadWorldclocks();
+    const {
+        regionalTimezoneIdentifier,
+        timezoneAliasTarget,
+        canonicalTimezoneFromSymlinks
+    } = require(dataModulePath);
+    const random = makeRandom(FUZZ_SEED + 11);
+
+    for (let round = 0; round < 300; round++) {
+        const area = `Area${round % 23}`;
+        const base = `${area}/Alias0`;
+        const city = `City_${round}`;
+        const validTargets = [
+            { target: city, expected: `${area}/${city}` },
+            { target: `./${city}`, expected: `${area}/${city}` },
+            { target: `../Other${round % 7}/${city}`, expected: `Other${round % 7}/${city}` },
+            { target: `/usr/share/zoneinfo/${area}/${city}`, expected: `${area}/${city}` }
+        ];
+        const chosen = pickRandom(random, validTargets);
+        const resolved = timezoneAliasTarget(base, chosen.target);
+        assert.equal(resolved, chosen.expected);
+        assert.equal(regionalTimezoneIdentifier(resolved), resolved);
+
+        const hostile = pickRandom(random, [
+            "/etc/passwd", "../../etc/passwd", "../Etc/UTC", "Bad!", "x\0y", "", null
+        ]);
+        assert.equal(timezoneAliasTarget(base, hostile), "");
+
+        const hops = 1 + Math.floor(random() * 16);
+        const links = new Map();
+        for (let hop = 0; hop < hops; hop++) {
+            links.set(`/usr/share/zoneinfo/${area}/Alias${hop}`, `Alias${hop + 1}`);
+        }
+        let reads = 0;
+        const readLink = (filename) => {
+            reads += 1;
+            return links.get(filename);
+        };
+        assert.equal(canonicalTimezoneFromSymlinks(base, readLink), `${area}/Alias${hops}`);
+        assert.ok(reads <= 17);
+
+        links.set(`/usr/share/zoneinfo/${area}/Alias${hops}`, "Alias0");
+        reads = 0;
+        assert.equal(canonicalTimezoneFromSymlinks(base, readLink), "");
+        assert.ok(reads <= 17);
+    }
+});
+
+test("fuzz: zone.tab lookup is exact and rejects any malformed row", () => {
+    loadWorldclocks();
+    const { countryCodeFromZoneTab } = require(dataModulePath);
+    const random = makeRandom(0x20e7ab);
+    const records = [
+        { code: "IT", zone: "Europe/Rome" },
+        { code: "JP", zone: "Asia/Tokyo" },
+        { code: "US", zone: "America/New_York" },
+        { code: "SK", zone: "Europe/Bratislava" },
+        { code: "ME", zone: "Europe/Podgorica" },
+        { code: "SM", zone: "Europe/San_Marino" }
+    ];
+
+    for (let round = 0; round < 300; round++) {
+        const offset = Math.floor(random() * records.length);
+        const ordered = records.slice(offset).concat(records.slice(0, offset));
+        const rows = ordered.map((record, index) =>
+            `${record.code}\t+${String(1000 + index).padStart(4, "0")}+01229\t${record.zone}` +
+            (random() < 0.5 ? `\tcomment-${round}-${index}` : ""));
+        const separator = random() < 0.5 ? "\n" : "\r\n";
+        const table = ["# generated valid table", "", ...rows].join(separator);
+        const selected = pickRandom(random, records);
+
+        assert.equal(countryCodeFromZoneTab(selected.zone, table), selected.code);
+        assert.equal(countryCodeFromZoneTab(`${selected.zone}_Nearby`, table), "");
+
+        const malformed = pickRandom(random, [
+            `${selected.code}\tbad-coordinates\t${selected.zone}`,
+            `X\t+1000+01229\tArea/Bad-${round}`,
+            `IT\t+1000+01229\tNoArea`,
+            rows[0],
+            `IT\t+1000+01229\tArea/Bad!`
+        ]);
+        assert.equal(countryCodeFromZoneTab(selected.zone,
+            `${table}${separator}${malformed}`), "");
+    }
+});
+
+const LOCAL_COUNTRY_FUZZ_ZONE_TAB = [
+    "IT\t+4154+01229\tEurope/Rome",
+    "JP\t+353916+1394441\tAsia/Tokyo",
+    "US\t+404251-0740023\tAmerica/New_York"
+].join("\n");
+const LOCAL_COUNTRY_FUZZ_CODES = new Map([
+    ["Europe/Rome", "IT"],
+    ["Asia/Tokyo", "JP"],
+    ["America/New_York", "US"],
+    ["", ""]
+]);
+const LOCALTIME_FUZZ_CASES = [
+    { link: "/usr/share/zoneinfo/Europe/Rome", state: "Europe/Rome" },
+    { link: "/usr/share/zoneinfo/Etc/UTC", state: "" },
+    { link: "/etc/alternatives/localtime", state: null },
+    { link: null, state: null }
+];
+const GLIB_TIMEZONE_FUZZ_CASES = [
+    { value: "Asia/Tokyo", state: "Asia/Tokyo" },
+    { value: "UTC", state: "" },
+    { value: null, state: null }
+];
+const TIMEZONE_FILE_FUZZ_CASES = [
+    { value: "America/New_York", state: "America/New_York" },
+    { value: "UTC", state: "" },
+    { value: null, state: null }
+];
+
+function installLocalCountryFuzzMocks(GLib, state) {
+    GLib.file_read_link = (filename) => {
+        if (filename !== "/etc/localtime" || state.localtime.link === null) {
+            throw new Error("not a usable link");
+        }
+        return state.localtime.link;
+    };
+    GLib.TimeZone.new_local = () => state.glib.value === null ?
+        null : fakeTimeZone(state.glib.value);
+    GLib.file_get_contents = (filename) => {
+        if (filename === "/usr/share/zoneinfo/zone.tab") {
+            return [true, state.textFiles ?
+                LOCAL_COUNTRY_FUZZ_ZONE_TAB : Buffer.from(LOCAL_COUNTRY_FUZZ_ZONE_TAB)];
+        }
+        if (filename === "/etc/timezone" && state.timezoneFile.value !== null) {
+            const value = `${state.timezoneFile.value}\n`;
+            return [true, state.textFiles ? value : Buffer.from(value)];
+        }
+        return [false, null];
+    };
+}
+
+function nextLocalCountryFuzzState(random) {
+    const localtime = pickRandom(random, LOCALTIME_FUZZ_CASES);
+    const glib = pickRandom(random, GLIB_TIMEZONE_FUZZ_CASES);
+    const timezoneFile = pickRandom(random, TIMEZONE_FILE_FUZZ_CASES);
+    const afterLocaltime = localtime.state !== null ? localtime.state : glib.state;
+    const identifier = afterLocaltime !== null ? afterLocaltime : (timezoneFile.state || "");
+    return {
+        localtime,
+        glib,
+        timezoneFile,
+        textFiles: random() < 0.5,
+        expected: LOCAL_COUNTRY_FUZZ_CODES.get(identifier)
+    };
+}
+
+function assertLocalCountryFuzzRound(WorldclockData, state) {
+    const country = WorldclockData.localCountryCode();
+    assert.equal(country, state.expected);
+    assert.match(country, /^(?:|[A-Z]{2})$/);
+}
+
+test("fuzz: localCountryCode follows fresh authoritative OS sources", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+    const random = makeRandom(0x10ca1);
+    const state = {};
+    installLocalCountryFuzzMocks(GLib, state);
+
+    for (let round = 0; round < 250; round++) {
+        Object.assign(state, nextLocalCountryFuzzState(random));
+        assertLocalCountryFuzzRound(WorldclockData, state);
+    }
+});
+
+test("regression: exact jurisdiction aliases beat their cross-country targets", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+    const cases = [
+        { zone: "Europe/Bratislava", code: "SK", target: "Prague" },
+        { zone: "Europe/Podgorica", code: "ME", target: "Belgrade" },
+        { zone: "Europe/San_Marino", code: "SM", target: "Rome" }
+    ];
+    const zoneTab = [
+        "SK\t+4809+01707\tEurope/Bratislava",
+        "CZ\t+5005+01426\tEurope/Prague",
+        "ME\t+4226+01916\tEurope/Podgorica",
+        "RS\t+4450+02030\tEurope/Belgrade",
+        "SM\t+4355+01228\tEurope/San_Marino",
+        "IT\t+4154+01229\tEurope/Rome"
+    ].join("\n");
+    let current;
+    let aliasReads = 0;
+
+    GLib.file_get_contents = (filename) => filename === "/usr/share/zoneinfo/zone.tab" ?
+        [true, Buffer.from(zoneTab)] : [false, null];
+    GLib.file_read_link = (filename) => {
+        if (filename === "/etc/localtime") {
+            return `/usr/share/zoneinfo/${current.zone}`;
+        }
+        aliasReads += 1;
+        return current.target;
+    };
+    GLib.TimeZone.new_local = () => fakeTimeZone("Europe/Rome");
+
+    for (const testCase of cases) {
+        current = testCase;
+        aliasReads = 0;
+        assert.equal(WorldclockData.localCountryCode(), testCase.code);
+        assert.equal(aliasReads, 0, `${testCase.zone} must be matched before its symlink`);
+    }
 });

@@ -38,6 +38,7 @@ class AppletSettingsBinder {
         const applet = this.applet;
         const settings = new Settings.AppletSettings(applet, "chronos@geraldo-netto", applet.instance_id);
         const panel = new SettingsFacade.PanelSettings(settings);
+        const holiday = new SettingsFacade.HolidaySettings(settings);
 
         panel.migrateDateFormatDefaults();
         panel.bindPanelKeys(this.handlers.onSettingsChanged);
@@ -47,12 +48,15 @@ class AppletSettingsBinder {
         panel.fillEmptyWeatherLocation(applet, WorldclockData.localCityName());
         panel.bindKeybinding(this.handlers.onKeybindingChanged);
 
+        holiday.fillInitialCountryFromTimezone(() =>
+            HolidayConstants.countryFromIso2(WorldclockData.localCountryCode()));
+
         return {
             settings,
             panel,
             calendar: new SettingsFacade.CalendarSettings(settings),
             events: new SettingsFacade.EventsSettings(settings),
-            holiday: new SettingsFacade.HolidaySettings(settings),
+            holiday,
             worldclock: new SettingsFacade.WorldclockSettings(settings)
         };
     }
@@ -147,8 +151,8 @@ class AppletProviderLifecycle {
         // holidayRegions[country] to find the region for the country in use
         holidaySettings.bindRegions(this.holidayRegions, onPlaceChanged);
 
-        // holidays are opt-in, like weather: a country reaches a third-party
-        // service, so the applet never picks one on the user's behalf
+        // A missing legacy value still means disabled. New settings have
+        // already had their one-time timezone default resolved by the binder.
         if (holidaySettings.country == null) {
             holidaySettings.country = NO_HOLIDAYS;
         }

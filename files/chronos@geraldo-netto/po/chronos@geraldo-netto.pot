@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/chronos-geraldo-netto/issues\n"
-"POT-Creation-Date: 2026-07-13 12:35+0200\n"
+"POT-Creation-Date: 2026-07-14 21:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -45,11 +45,11 @@ msgstr ""
 msgid "%s — %s"
 msgstr ""
 
-#: worldclockData.js:52 settings_widgets_common.py:69
+#: worldclockData.js:60 settings_widgets_common.py:69
 msgid "Invalid timezone"
 msgstr ""
 
-#: worldclockData.js:53
+#: worldclockData.js:61
 msgid "Local time"
 msgstr ""
 
@@ -61,74 +61,66 @@ msgstr ""
 msgid "Date and Time Settings"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:57
-msgid "%b %-e"
-msgstr ""
-
-#: 5.4/appletPanelStatus.js:89
+#: 5.4/appletPanelStatus.js:46
 msgid "Location not found"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:90
+#: 5.4/appletPanelStatus.js:47
 msgid "Weather service unavailable"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:91
+#: 5.4/appletPanelStatus.js:48
 msgid "Set a weather location"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:100
+#: 5.4/appletPanelStatus.js:57
 msgid "Clear"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:101
+#: 5.4/appletPanelStatus.js:58
 msgid "Partly cloudy"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:102
+#: 5.4/appletPanelStatus.js:59
 msgid "Cloudy"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:103
+#: 5.4/appletPanelStatus.js:60
 msgid "Rain"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:104
+#: 5.4/appletPanelStatus.js:61
 msgid "Snow"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:105
+#: 5.4/appletPanelStatus.js:62
 msgid "Showers"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:106
+#: 5.4/appletPanelStatus.js:63
 msgid "Thunderstorm"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:107
+#: 5.4/appletPanelStatus.js:64
 msgid "Fair"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:117 5.4/appletPanelStatus.js:508
-#: 5.4/appletPanelStatus.js:667
+#: 5.4/appletPanelStatus.js:74 5.4/appletPanelStatus.js:454
+#: 5.4/appletPanelStatus.js:599
 msgid "Weather: loading…"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:368
+#: 5.4/appletPanelStatus.js:317
 msgid "Invalid time format; edit it in Settings"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:532
+#: 5.4/appletPanelStatus.js:478
 msgid "No weather for this timezone"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:544
+#: 5.4/appletPanelStatus.js:490
 #, javascript-format
 msgid "%s Last known reading"
-msgstr ""
-
-#: 5.4/appletPanelStatus.js:752
-msgid "Invalid tooltip format; edit it in Settings"
 msgstr ""
 
 #: 5.4/calendar.js:120
@@ -367,15 +359,6 @@ msgstr ""
 msgid "Two days"
 msgstr ""
 
-#. 5.4->settings-schema.json->use-custom-format->description
-msgid "Use a custom date format"
-msgstr ""
-
-#. 5.4->settings-schema.json->use-custom-format->tooltip
-msgid ""
-"Check this to define a custom format for the date in the calendar applet."
-msgstr ""
-
 #. 5.4->settings-schema.json->custom-format->description
 msgid "Date format"
 msgstr ""
@@ -447,9 +430,10 @@ msgstr ""
 
 #. 5.4->settings-schema.json->country->tooltip
 msgid ""
-"Country whose public holidays are marked in the calendar. Holidays are off "
-"until you pick a country: the lookup sends your country to a third-party "
-"holiday service."
+"Country whose public holidays are marked in the calendar. For new settings, "
+"the applet fills this from the operating-system timezone when supported; "
+"otherwise holidays stay disabled. You can change or disable it at any time. "
+"The lookup sends the selected country to a third-party holiday service."
 msgstr ""
 
 #. 5.4->settings-schema.json->country->options

@@ -221,6 +221,11 @@ function gjsImportsMock() {
                             builtinClocks() {},
                             timezoneIdentity() {},
                             timezoneCityName() {},
+                            regionalTimezoneIdentifier() {},
+                            timezoneFromLocaltimeLink() {},
+                            localTimezoneFromSources() {},
+                            countryCodeFromZoneTab() {},
+                            localCountryCode() {},
                             builtInTimezoneKeys() {}
                         },
                         holidayAdapters: {
@@ -232,6 +237,8 @@ function gjsImportsMock() {
                             GLOBAL_REGION: "global",
                             OPEN_HOLIDAYS_COUNTRIES: {},
                             COUNTRY_TO_ISO2: {},
+                            ISO2_TO_COUNTRY: {},
+                            countryFromIso2() {},
                             REGION_TO_SUBDIVISION: {}
                         },
                         holidayCache: {
@@ -308,10 +315,13 @@ const EXPORTS = {
         "IsoHolidayServiceAdapter", "EnricoServiceAdapter", "NagerDateServiceAdapter",
         "OpenHolidaysServiceAdapter", "createHolidayServiceChain"],
     holidayConstants: ["HOLIDAY_ERRORS", "HOLIDAY_PROVIDER_NAMES", "GLOBAL_REGION",
-        "OPEN_HOLIDAYS_COUNTRIES", "COUNTRY_TO_ISO2", "REGION_TO_SUBDIVISION"],
+        "OPEN_HOLIDAYS_COUNTRIES", "COUNTRY_TO_ISO2", "ISO2_TO_COUNTRY",
+        "countryFromIso2", "REGION_TO_SUBDIVISION"],
     worldclockData: ["MAX_CLOCKS", "LOCAL_TIMEZONE", "INVALID_TIMEZONE_TEXT",
         "LOCAL_TIME_TEXT", "timezoneFromIdentifier", "builtinClocks",
-        "timezoneIdentity", "timezoneCityName", "builtInTimezoneKeys"],
+        "timezoneIdentity", "timezoneCityName", "regionalTimezoneIdentifier",
+        "timezoneFromLocaltimeLink", "localTimezoneFromSources",
+        "countryCodeFromZoneTab", "localCountryCode", "builtInTimezoneKeys"],
     eventData: ["js_date_to_gdatetime", "date_only", "month_year_only", "dt_equals",
         "EventData", "EventDataList"],
     eventsManager: ["EventsManager", "CalendarServerConnection", "EventIndex", "EventWindowCoordinator", "SERVER_RETRY_SECONDS", "EDS_BUS_NAME"],

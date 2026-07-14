@@ -123,6 +123,19 @@ var COUNTRY_TO_ISO2 = {
     xkx: "XK",
     zaf: "ZA"
 };
+var ISO2_TO_COUNTRY = {};
+for (let country of Object.keys(COUNTRY_TO_ISO2)) {
+    ISO2_TO_COUNTRY[COUNTRY_TO_ISO2[country]] = country;
+}
+
+function countryFromIso2(code) {
+    if (typeof code !== "string") {
+        return "";
+    }
+
+    return ISO2_TO_COUNTRY[code.trim().toUpperCase()] || "";
+}
+
 var REGION_TO_SUBDIVISION = {
     aus: {
         act: "AU-ACT",
@@ -313,5 +326,5 @@ var REGION_TO_SUBDIVISION = {
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, REGION_TO_SUBDIVISION };
+    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION };
 }

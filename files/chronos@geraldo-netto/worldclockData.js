@@ -49,6 +49,14 @@ var UTC_TIMEZONE = "UTC";
 // places. Named to match settings_widgets_common.py's TZ_NO_REGION so the two
 // timezone-to-city implementations filter the same set.
 var TZ_NO_REGION = "Etc";
+var TIMEZONE_FILE = "/etc/timezone";
+var LOCALTIME_FILE = "/etc/localtime";
+var ZONE_TAB_FILE = "/usr/share/zoneinfo/zone.tab";
+var ZONEINFO_DIRECTORY = "/usr/share/zoneinfo/";
+var MAX_TIMEZONE_FILE_BYTES = 1024;
+var MAX_ZONE_TAB_BYTES = 256 * 1024;
+var MAX_TIMEZONE_LINK_BYTES = 1024;
+var MAX_TIMEZONE_ALIAS_HOPS = 16;
 var INVALID_TIMEZONE_TEXT = _("Invalid timezone");
 var LOCAL_TIME_TEXT = _("Local time");
 
@@ -113,6 +121,265 @@ function timezoneCityName(timezone) {
 // An offset-only zone (+02) and a stub /etc/localtime name no city and answer "".
 function localCityName() {
     return timezoneCityName(timezoneIdentity(GLib.TimeZone.new_local()));
+}
+
+// A country can only be inferred from a named region. UTC, POSIX offsets and
+// Etc/GMT offsets say nothing about where their user lives. Keep valid aliases
+// untouched: zone.tab deliberately contains links such as Europe/Vatican, and
+// resolving the symlink would discard exactly that lookup key.
+function regionalTimezoneIdentifier(value) {
+    if (typeof value !== "string") {
+        return "";
+    }
+
+    const identifier = value.trim();
+    if (!identifier || identifier.length > 255) {
+        return "";
+    }
+
+    const segments = identifier.split("/");
+    if (segments.length < 2 || segments[0] === TZ_NO_REGION) {
+        return "";
+    }
+
+    for (const segment of segments) {
+        if (!segment || segment === "." || segment === ".." ||
+            !/^[A-Za-z0-9._+-]+$/.test(segment)) {
+            return "";
+        }
+    }
+
+    return identifier;
+}
+
+function timezoneFromLocaltimeLink(target) {
+    const source = timezoneSourceFromLocaltimeLink(target);
+    return source === null ? "" : source;
+}
+
+// null means this source revealed no timezone, while "" means it explicitly
+// revealed a countryless or invalid timezone. Keeping those states distinct is
+// important: an effective UTC setting must not fall through to a stale
+// /etc/timezone left behind by another configuration tool.
+function timezoneSourceIdentifier(value) {
+    if (typeof value !== "string" || !value.trim()) {
+        return null;
+    }
+
+    return regionalTimezoneIdentifier(value) || "";
+}
+
+function timezoneSourceFromLocaltimeLink(target) {
+    if (typeof target !== "string") {
+        return null;
+    }
+
+    const marker = "/zoneinfo/";
+    const markerAt = target.indexOf(marker);
+    return markerAt === -1 ? null :
+        timezoneSourceIdentifier(target.slice(markerAt + marker.length));
+}
+
+// Pure source selector kept separate from filesystem I/O so precedence and
+// alias preservation can be checked without depending on a test machine.
+function localTimezoneFromSources(timezoneFile, localtimeLink, glibIdentifier) {
+    const localtimeSource = timezoneSourceFromLocaltimeLink(localtimeLink);
+    if (localtimeSource !== null) {
+        return localtimeSource;
+    }
+
+    const glibSource = timezoneSourceIdentifier(glibIdentifier);
+    if (glibSource !== null) {
+        return glibSource;
+    }
+
+    return timezoneSourceIdentifier(timezoneFile) || "";
+}
+
+// Resolve one lexical symlink target as a path below the zoneinfo directory.
+// This is deliberately not a general realpath implementation: paths cannot
+// escape the database root, and only geographic timezone identifiers survive.
+function validTimezoneLinkTarget(target) {
+    if (typeof target !== "string") {
+        return false;
+    }
+    if (!target || target.length > MAX_TIMEZONE_LINK_BYTES) {
+        return false;
+    }
+    return target.indexOf("\0") === -1;
+}
+
+function timezoneLinkSegments(identifier, target) {
+    if (target.indexOf("/") === 0) {
+        return target.indexOf(ZONEINFO_DIRECTORY) === 0 ?
+            target.slice(ZONEINFO_DIRECTORY.length).split("/") : null;
+    }
+
+    const segments = identifier.split("/");
+    segments.pop();
+    segments.push(...target.split("/"));
+    return segments;
+}
+
+function normalizedTimezonePath(segments) {
+    const normalized = [];
+    for (const segment of segments) {
+        if (!segment || segment === ".") {
+            continue;
+        }
+        if (segment === "..") {
+            if (!normalized.length) {
+                return "";
+            }
+            normalized.pop();
+            continue;
+        }
+        if (!/^[A-Za-z0-9._+-]+$/.test(segment)) {
+            return "";
+        }
+        normalized.push(segment);
+    }
+
+    return regionalTimezoneIdentifier(normalized.join("/"));
+}
+
+function timezoneAliasTarget(timezone, target) {
+    const identifier = regionalTimezoneIdentifier(timezone);
+    if (!identifier || !validTimezoneLinkTarget(target)) {
+        return "";
+    }
+
+    const segments = timezoneLinkSegments(identifier, target);
+    return segments ? normalizedTimezonePath(segments) : "";
+}
+
+function readTimezoneLink(current, readLink) {
+    try {
+        const target = readLink(ZONEINFO_DIRECTORY + current);
+        return target === undefined ? null : target;
+    } catch {
+        return null;
+    }
+}
+
+function followTimezoneSymlinks(current, readLink, seen, hop) {
+    const target = readTimezoneLink(current, readLink);
+    if (target === null) {
+        return hop ? current : "";
+    }
+    if (hop === MAX_TIMEZONE_ALIAS_HOPS) {
+        return "";
+    }
+
+    const next = timezoneAliasTarget(current, target);
+    if (!next || seen.has(next)) {
+        return "";
+    }
+    seen.add(next);
+    return followTimezoneSymlinks(next, readLink, seen, hop + 1);
+}
+
+// Follow only lexical zoneinfo links. The callback makes the bounded, cycle-
+// safe algorithm independently testable and keeps filesystem I/O at the edge.
+function canonicalTimezoneFromSymlinks(timezone, readLink) {
+    const current = regionalTimezoneIdentifier(timezone);
+    if (!current || typeof readLink !== "function") {
+        return "";
+    }
+
+    return followTimezoneSymlinks(current, readLink, new Set([current]), 0);
+}
+
+// zone.tab is the OS timezone database's explicit timezone-to-country mapping.
+// Do not guess from the Area part: America/Indiana/Indianapolis and
+// America/Argentina/Buenos_Aires demonstrate why that would not be a country.
+function countryCodeFromZoneTab(timezone, zoneTab) {
+    const identifier = regionalTimezoneIdentifier(timezone);
+    if (!identifier || typeof zoneTab !== "string" ||
+        !zoneTab || zoneTab.length > MAX_ZONE_TAB_BYTES) {
+        return "";
+    }
+
+    let country = "";
+    const seenTimezones = new Set();
+    for (const line of zoneTab.split(/\r?\n/)) {
+        if (!line || line.indexOf("#") === 0) {
+            continue;
+        }
+
+        const fields = line.split("\t");
+        const validFieldCount = fields.length === 3 || fields.length === 4;
+        if (!validFieldCount || !/^[A-Z]{2}$/.test(fields[0]) ||
+            !/^[+-]\d{4}(?:\d{2})?[+-]\d{5}(?:\d{2})?$/.test(fields[1]) ||
+            regionalTimezoneIdentifier(fields[2]) !== fields[2] ||
+            seenTimezones.has(fields[2])) {
+            return "";
+        }
+
+        seenTimezones.add(fields[2]);
+        if (fields[2] === identifier) {
+            country = fields[0];
+        }
+    }
+
+    return country;
+}
+
+function readTextFile(filename, maximumBytes) {
+    try {
+        const [success, contents] = GLib.file_get_contents(filename);
+        if (!success || contents === null || contents === undefined ||
+            contents.length > maximumBytes) {
+            return "";
+        }
+        return typeof contents === "string" ? contents :
+            new TextDecoder().decode(contents);
+    } catch {
+        return "";
+    }
+}
+
+// Read on every call rather than memoizing: changing the operating-system
+// timezone must change the next automatic holiday default too.
+function localCountryCode() {
+    let localtimeLink = "";
+    let glibIdentifier = "";
+
+    try {
+        localtimeLink = GLib.file_read_link(LOCALTIME_FILE);
+    } catch {
+        localtimeLink = "";
+    }
+
+    try {
+        glibIdentifier = timezoneIdentity(GLib.TimeZone.new_local()) || "";
+    } catch {
+        glibIdentifier = "";
+    }
+
+    let timezoneSource = timezoneSourceFromLocaltimeLink(localtimeLink);
+    if (timezoneSource === null) {
+        timezoneSource = timezoneSourceIdentifier(glibIdentifier);
+    }
+    if (timezoneSource === null) {
+        const timezoneFile = readTextFile(TIMEZONE_FILE, MAX_TIMEZONE_FILE_BYTES);
+        timezoneSource = timezoneSourceIdentifier(timezoneFile);
+    }
+
+    const timezone = timezoneSource || "";
+    if (!timezone) {
+        return "";
+    }
+
+    const zoneTab = readTextFile(ZONE_TAB_FILE, MAX_ZONE_TAB_BYTES);
+    const exactCountry = countryCodeFromZoneTab(timezone, zoneTab);
+    if (exactCountry) {
+        return exactCountry;
+    }
+
+    const canonical = canonicalTimezoneFromSymlinks(timezone,
+        (filename) => GLib.file_read_link(filename));
+    return canonical ? countryCodeFromZoneTab(canonical, zoneTab) : "";
 }
 
 function builtInTimezoneKeys(builtins) {
@@ -181,9 +448,17 @@ if (typeof module !== "undefined") {
         builtinClocks,
         timezoneIdentity,
         timezoneCityName,
+        regionalTimezoneIdentifier,
+        timezoneFromLocaltimeLink,
+        localTimezoneFromSources,
+        timezoneAliasTarget,
+        canonicalTimezoneFromSymlinks,
+        countryCodeFromZoneTab,
+        localCountryCode,
         builtInTimezoneKeys,
         selectUserClocks,
         clockDisplayLabel,
-        MAX_CLOCK_LABEL_LENGTH
+        MAX_CLOCK_LABEL_LENGTH,
+        MAX_ZONE_TAB_BYTES
     };
 }
