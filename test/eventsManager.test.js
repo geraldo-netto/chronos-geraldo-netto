@@ -202,7 +202,15 @@ global.imports = {
 };
 
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "eventsManager.js");
-const { EventsManager, EventIndex, EventWindowCoordinator, SERVER_RETRY_SECONDS } = require(modulePath);
+const {
+    EventsManager,
+    EventIndex,
+    EventWindowCoordinator,
+    SERVER_RETRY_SECONDS,
+    SERVER_RETRY_MAX_SECONDS,
+    FETCH_RETRY_MAX_SECONDS,
+    FETCH_RETRY_MAX_ATTEMPTS
+} = require(modulePath);
 
 function emitted(manager, name) {
     return (manager._emitted || []).filter((e) => e.name === name);
@@ -805,6 +813,10 @@ test("a fetch that keeps failing gives up out loud", () => {
     global.log = originalLog;
 
     assert.equal(manager._fetch_retry_id, 0, "the chain ends");
+    assert.equal(manager._fetch_retry_attempts, 5,
+        "the fifth retry exhausts the budget; a sixth is never armed");
+    assert.equal(proxy.instance.set_time_range_calls.length, 6,
+        "one initial fetch plus exactly five retries reach EDS");
     assert.ok(logged.some((line) => /giving up on this month/.test(line)),
         "an exhausted retry chain that says nothing cannot be told from an outage");
 });
@@ -1002,9 +1014,6 @@ test("server retries back off exponentially with jitter up to the ceiling", () =
     }
     global.imports.mainloop.timeout_add_seconds = originalTimeout;
 
-    const { SERVER_RETRY_SECONDS, SERVER_RETRY_MAX_SECONDS } =
-        require(modulePath);
-
     // exact: base 5 + 0, base 10 + 2, base 20 + 4, base 40 + 0 …
     assert.equal(delays[0], SERVER_RETRY_SECONDS,
         "no jitter drawn means exactly the base delay");
@@ -1021,6 +1030,8 @@ test("server retries back off exponentially with jitter up to the ceiling", () =
     for (const d of delays) {
         assert.ok(d <= SERVER_RETRY_MAX_SECONDS + SERVER_RETRY_SECONDS, `ceiling holds: ${d}`);
     }
+    assert.equal(manager._server_connection._server_retry_attempts, 8,
+        "the retry exponent stops growing after eight failures");
 
     // success resets the ladder
     manager._server_connection._server_retry_attempts = 5;
@@ -1028,6 +1039,19 @@ test("server retries back off exponentially with jitter up to the ceiling", () =
     gio.watches.at(-1).foundCb(null, "eds", "owner");
     proxy.pendingReadyCb(null, "res");
     assert.equal(manager._server_connection._server_retry_attempts, 0);
+});
+
+test("EDS retry ceilings stay within the shipped outage budget", () => {
+    // These are policy limits, not values for a test to derive from production:
+    // pinning the literals is what catches an accidental 100x increase.
+    assert.equal(SERVER_RETRY_MAX_SECONDS, 300);
+    assert.equal(FETCH_RETRY_MAX_SECONDS, 120);
+    assert.equal(FETCH_RETRY_MAX_ATTEMPTS, 5);
+
+    const manager = new EventsManager({ showEvents: true }, { random: () => 0 });
+    manager._server_connection._server_retry_attempts = 8;
+    assert.equal(manager._server_connection.retryDelay(), 300,
+        "a saturated server retry arms five minutes, not hours");
 });
 
 test("idle reload today consumes the force flag and selects today", () => {
