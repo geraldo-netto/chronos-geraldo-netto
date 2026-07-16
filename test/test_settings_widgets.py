@@ -2628,3 +2628,19 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         # the non-string guard: junk off a settings file is not an identifier
         self.assertFalse(module.looks_like_iana(None))
         self.assertIn("utc", module.RESERVED_TIMEZONES)
+
+    def test_builtin_rules_match_the_js_clock_selector(self):
+        module = self.load_gi_free()
+        fixture = json.loads(
+            (Path(__file__).parent / "fixtures" / "timezone_builtin_cases.json").read_text())
+        resolver = module.TimezoneResolver(
+            None, None, local_timezone=fixture["local_timezone"])
+
+        self.assertEqual(
+            sorted(resolver.builtin_timezones), fixture["builtin_identities"])
+        self.assertEqual(
+            sorted(module.RESERVED_TIMEZONES),
+            sorted(value.lower() for value in fixture["reserved_inputs"]))
+        for timezone in fixture["reserved_inputs"]:
+            self.assertTrue(resolver.is_reserved(timezone), timezone)
+        self.assertFalse(resolver.is_reserved(fixture["ordinary_timezone"]))

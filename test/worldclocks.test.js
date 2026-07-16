@@ -466,6 +466,27 @@ test("timezoneCityName matches the Python local_city_name on the shared cases", 
     }
 });
 
+test("built-in timezone rules match the Python settings resolver", () => {
+    loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const fixture = require("./fixtures/timezone_builtin_cases.json");
+
+    assert.equal(LOCAL_TIMEZONE, fixture.local_timezone,
+        "the GLib local-zone double must match the shared parity case");
+    assert.deepEqual(
+        Array.from(WorldclockData.builtInTimezoneKeys(WorldclockData.builtinClocks())).sort(),
+        fixture.builtin_identities);
+
+    const choices = fixture.reserved_inputs
+        .concat(fixture.ordinary_timezone)
+        .map((timezone) => ({ label: timezone, timezone }));
+    assert.deepEqual(WorldclockData.selectUserClocks(choices), [{
+        label: fixture.ordinary_timezone,
+        timezone: fixture.ordinary_timezone
+    }]);
+});
+
 // the label is the user's own name for the clock and the dialog puts no limit on
 // it; it is rendered in the popup grid and padded to the widest cell in the
 // monospace tooltip, so one 60-character name stretches both

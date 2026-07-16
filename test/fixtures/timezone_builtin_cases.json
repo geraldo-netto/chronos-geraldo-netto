@@ -1,0 +1,15 @@
+{
+  "_comment": "Shared parity fixture for T509: JavaScript drops these zones because the popup already renders them, and Python must reject the same choices in Settings. Both suites assert this file so changing a built-in clock requires both implementations to move together.",
+  "local_timezone": "America/Sao_Paulo",
+  "builtin_identities": [
+    "America/Sao_Paulo",
+    "Etc/UTC",
+    "UTC"
+  ],
+  "reserved_inputs": [
+    "Etc/UTC",
+    "local",
+    "UTC"
+  ],
+  "ordinary_timezone": "Europe/Rome"
+}
