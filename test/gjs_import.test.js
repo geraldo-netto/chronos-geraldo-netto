@@ -219,6 +219,19 @@ function gjsImportsMock() {
                             HolidayCache: class {},
                             GLOBAL_REGION: "global"
                         },
+                        holidayRecord: {
+                            validDateParts() {},
+                            validHolidaySpan() {},
+                            holidaySpanDays() {},
+                            MAX_HOLIDAY_SPAN_DAYS: 366,
+                            MAX_HOLIDAYS_PER_YEAR: 1000,
+                            MAX_EXPANDED_HOLIDAY_ROWS: 4000,
+                            HolidayRecordContract: class {
+                                validResponse() {
+                                    return true;
+                                }
+                            }
+                        },
                         holidayServiceAdapters: {
                             EnricoServiceAdapter: class {},
                             NagerDateServiceAdapter: class {},
@@ -283,7 +296,10 @@ const EXPORTS = {
     holidayCache: ["HolidayCacheRepository", "HolidayCache", "validCachedHoliday",
         "validCachedStamp", "validCachedYears", "clampHolidayName", "MAX_HOLIDAY_NAME_LENGTH", "MAX_MEMOIZED_MONTHS",
         "UPDATE_PERIOD", "RETRY_PERIOD", "YEAR_WINDOW", "GLOBAL_REGION"],
-    holidayServiceAdapters: ["validDateParts", "regionSubdivisionCode", "isoDateParts",
+    holidayRecord: ["validDateParts", "validHolidaySpan", "holidaySpanDays",
+        "MAX_HOLIDAY_SPAN_DAYS", "MAX_HOLIDAYS_PER_YEAR", "MAX_EXPANDED_HOLIDAY_ROWS",
+        "HolidayRecordContract"],
+    holidayServiceAdapters: ["regionSubdivisionCode", "isoDateParts",
         "IsoHolidayServiceAdapter", "EnricoServiceAdapter", "NagerDateServiceAdapter",
         "OpenHolidaysServiceAdapter", "createHolidayServiceChain"],
     holidayConstants: ["HOLIDAY_ERRORS", "HOLIDAY_PROVIDER_NAMES", "GLOBAL_REGION",

@@ -34,6 +34,7 @@ const ioUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto",
 const localeUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
 const holidayCachePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayCache.js");
 const holidayConstantsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayConstants.js");
+const holidayRecordPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayRecord.js");
 const holidayServiceAdaptersPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "holidays.js");
 
@@ -94,6 +95,7 @@ function loadHolidays(options = {}) {
     delete require.cache[require.resolve(localeUtilsPath)];
     delete require.cache[require.resolve(holidayCachePath)];
     delete require.cache[require.resolve(holidayConstantsPath)];
+    delete require.cache[require.resolve(holidayRecordPath)];
     delete require.cache[require.resolve(holidayServiceAdaptersPath)];
 
     const soup = options.soup || makeSoup3();
@@ -1797,10 +1799,10 @@ test("a tampered cache file cannot inject malformed holidays", () => {
 });
 
 test("an unbounded holiday span is rejected, not expanded", () => {
-    const ServiceAdapters = require(holidayServiceAdaptersPath);
+    const HolidayRecord = require(holidayRecordPath);
     // the validate-and-expand rule is the record contract's, not the adapter's;
     // the adapter is a fetchYear and forwards to this
-    const record = new ServiceAdapters.HolidayRecordContract("en");
+    const record = new HolidayRecord.HolidayRecordContract("en");
 
     const hostile = {
         date: { year: 2026, month: 1, day: 1 },
@@ -1811,7 +1813,7 @@ test("an unbounded holiday span is rejected, not expanded", () => {
 
     assert.equal(record.validHoliday(hostile), false, "the payload must never reach the cache");
     // even reached directly, expansion stays bounded instead of freezing the shell
-    assert.ok(record.expandHoliday(hostile, "global").length <= ServiceAdapters.MAX_HOLIDAY_SPAN_DAYS + 1);
+    assert.ok(record.expandHoliday(hostile, "global").length <= HolidayRecord.MAX_HOLIDAY_SPAN_DAYS + 1);
 
     const yearLong = {
         date: { year: 2026, month: 1, day: 1 },
@@ -1820,6 +1822,15 @@ test("an unbounded holiday span is rejected, not expanded", () => {
         flags: []
     };
     assert.equal(record.validHoliday(yearLong), true, "a normal multi-day holiday still passes");
+});
+
+test("the holiday record contract is vendor-free", () => {
+    const recordSource = fs.readFileSync(holidayRecordPath, "utf8");
+    const adapterSource = fs.readFileSync(holidayServiceAdaptersPath, "utf8");
+
+    assert.doesNotMatch(recordSource, /kayaposoft|openholidaysapi|date\.nager/i);
+    assert.doesNotMatch(adapterSource, /class HolidayRecordContract/);
+    assert.equal(typeof require(holidayRecordPath).HolidayRecordContract, "function");
 });
 
 test("holiday status is reported per year, not shared across months", () => {
@@ -2509,8 +2520,7 @@ function assertExpandsSafely(record, holiday, maxSpanDays) {
 // two together.
 test("fuzz: HolidayService's parser cannot be made to run away or return junk", () => {
     const { HolidayRecordContract } = loadHolidays();
-    const { MAX_HOLIDAY_SPAN_DAYS } = require(
-        path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js"));
+    const { MAX_HOLIDAY_SPAN_DAYS } = require(holidayRecordPath);
     // the parser under fuzz is the record contract's; adapters normalize into
     // this shape before the chain asks the contract whether it can be used
     const record = new HolidayRecordContract("de");

@@ -42,6 +42,9 @@ const HolidayCacheModule = IS_NODE ?
 const HolidayServiceAdapters = IS_NODE ?
     require("./holidayServiceAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayServiceAdapters;
+const HolidayRecord = IS_NODE ?
+    require("./holidayRecord") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
 
 const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
@@ -80,9 +83,9 @@ var NagerDateServiceAdapter = HolidayServiceAdapters.NagerDateServiceAdapter;
 var OpenHolidaysServiceAdapter = HolidayServiceAdapters.OpenHolidaysServiceAdapter;
 var createHolidayServiceChain = HolidayServiceAdapters.createHolidayServiceChain;
 // the record shape the app owns: what an answer from *any* provider must be
-var HolidayRecordContract = HolidayServiceAdapters.HolidayRecordContract;
-var MAX_HOLIDAYS_PER_YEAR = HolidayServiceAdapters.MAX_HOLIDAYS_PER_YEAR;
-var MAX_EXPANDED_HOLIDAY_ROWS = HolidayServiceAdapters.MAX_EXPANDED_HOLIDAY_ROWS;
+var HolidayRecordContract = HolidayRecord.HolidayRecordContract;
+var MAX_HOLIDAYS_PER_YEAR = HolidayRecord.MAX_HOLIDAYS_PER_YEAR;
+var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS;
 
 // the adapters are loader-agnostic; this is the single place that hands
 // them an HTTP session, keeping the provider order intact
