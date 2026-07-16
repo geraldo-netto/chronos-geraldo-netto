@@ -777,6 +777,25 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertFalse(clocks.add_button.tooltip)
         self.assertFalse(clocks.add_button.has_tooltip)
 
+    def test_hidden_list_buttons_skip_add_button_updates(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        clocks.show_buttons = False
+        clocks.model = Model(self.module.MAX_CLOCKS)
+
+        clocks.update_button_sensitivity()
+
+        self.assertTrue(clocks.add_button.sensitive,
+                        "a hidden control needs no per-button state update")
+
+    def test_add_button_without_tooltip_api_still_updates_sensitivity(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        sensitivity = []
+        clocks.add_button = types.SimpleNamespace(set_sensitive=sensitivity.append)
+
+        clocks.update_button_sensitivity()
+
+        self.assertEqual(sensitivity, [True])
+
     def test_constructor_survives_corrupt_saved_clocks(self):
         corrupt_values = [
             [{"label": "Rome"}],                      # missing timezone key
@@ -837,6 +856,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(resolver.split(None), ("Etc", ""))
         self.assertEqual(resolver.normalize(" europe/rome "), "Europe/Rome")
         self.assertEqual(resolver.normalize("new york"), "America/New_York")
+        self.assertTrue(resolver.any_timezone_data())
         self.assertIsNone(resolver.normalize("UTC"))
         self.assertIsNone(resolver.normalize("local"))
         self.assertIsNone(resolver.normalize(""))
@@ -2356,6 +2376,17 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         widget.on_commit()
 
         self.assertEqual(settings.writes, [])
+
+    def test_clearing_the_location_is_saved_once(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+        settings.writes.clear()
+
+        self.assertEqual(widget.commit(None), "")
+        self.assertEqual(settings.writes, [("weather-location", "")])
+
+        self.assertEqual(widget.commit(None), "")
+        self.assertEqual(settings.writes, [("weather-location", "")],
+                         "an already-empty value is not written again")
 
     def test_closing_the_window_mid_edit_still_saves_the_name(self):
         widget, settings = self.entry({"weather-location": "Lisbon"})
