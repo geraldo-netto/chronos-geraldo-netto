@@ -94,7 +94,6 @@ global.imports = {
                 }
             }, { lctime_format: (d, f) => f })
         },
-        UPowerGlib: { Client: class { connect() { return 1; } } },
         Soup: { MAJOR_VERSION: 3, Session: class {} }
     },
     byteArray: {},
@@ -1024,8 +1023,7 @@ test("a destroyed applet does not re-arm its once-a-second clock handler", () =>
 // The panel's clock ticks because the applet connects to WallClock's
 // "notify::clock" — and the signal name was asserted nowhere: renaming it to
 // anything at all left the suite green, and the panel would simply stop ticking.
-// Its siblings are pinned (renaming "notify-resume" or "enter-event" fails the
-// suite), so this was a gap, not a policy.
+// Its sibling actor signals are pinned too, so this was a gap, not a policy.
 test("the panel clock connects to the tick signal WallClock actually emits", () => {
     const connects = [];
     const clock = {
@@ -1058,7 +1056,7 @@ test("the panel clock connects to the tick signal WallClock actually emits", () 
 // The provider teardown was one unguarded block: a throw in the first step —
 // abort() on a Soup session Cinnamon has already disposed during a reload, say —
 // left the city-weather provider, the holiday provider and the events manager
-// alive, with the desktop-settings and UPower signals still connected, for the
+// alive, with the desktop-settings and logind signals still connected, for the
 // rest of the session. The applet's own _destroy() has isolated its steps all
 // along.
 test("one failing teardown step does not strand the rest", () => {
@@ -1090,14 +1088,12 @@ test("one failing teardown step does not strand the rest", () => {
         destroy: () => torn.push(["events"])
     };
     lifecycle._desktop_settings_signal_ids = [7];
-    lifecycle._up_client = { disconnect: () => torn.push(["upower"]) };
-    lifecycle._up_resume_signal_id = 3;
 
     lifecycle.destroy();
     global.logError = originalLogError;
 
     const done = torn.map((step) => step[0]);
-    for (const step of ["clock", "city", "holiday", "events", "desktop", "upower"]) {
+    for (const step of ["clock", "city", "holiday", "events", "desktop"]) {
         assert.ok(done.includes(step), `${step} was never torn down`);
     }
     assert.equal(errors.length, 1, "and the failure is reported, not swallowed");
@@ -1209,19 +1205,16 @@ test("provider lifecycle tears down provider and system resources", () => {
     };
     lifecycle._events_manager_signal_ids = [31];
     lifecycle._desktop_settings_signal_ids = [11, 12];
-    lifecycle._up_client = { disconnect: (id) => torn.push(["up", id]) };
-    lifecycle._up_resume_signal_id = 9;
 
     lifecycle.destroy();
 
     assert.deepEqual(torn, [
         ["clock", 3], ["actor", 21], ["weather"], ["holiday"],
         ["events-signal", 31], ["events"],
-        ["desk", 11], ["desk", 12], ["up", 9]
+        ["desk", 11], ["desk", 12]
     ]);
     assert.equal(lifecycle._clock_notify_id, 0);
     assert.deepEqual(lifecycle._desktop_settings_signal_ids, []);
-    assert.equal(lifecycle._up_resume_signal_id, 0);
 });
 
 test("bindSystemSignals refetches on logind resume and unsubscribes on destroy", () => {
@@ -1971,7 +1964,7 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
     assert.equal(typeof AppletModule.main({}, St.Side.TOP, 20, 1), "object");
 });
 
-test("constructor registers desktop and resume callbacks", () => {
+test("constructor registers desktop and lifecycle callbacks", () => {
     const calls = [];
     const Calendar52 = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
     const EventView52 = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
@@ -1984,7 +1977,6 @@ test("constructor registers desktop and resume callbacks", () => {
         AppletSettings: global.imports.ui.settings.AppletSettings,
         GioSettings: global.imports.gi.Gio.Settings,
         WallClock: global.imports.gi.CinnamonDesktop.WallClock,
-        UPowerClient: global.imports.gi.UPowerGlib.Client,
         WeatherProvider: rootModules.weather.WeatherProvider,
         HolidayProviderFacade: rootModules.holidays.HolidayProviderFacade,
         Calendar: Calendar52.Calendar,
@@ -2044,17 +2036,6 @@ test("constructor registers desktop and resume callbacks", () => {
         get_clock_for_format(fmt) { return fmt; }
         set_format_string() { return true; }
     };
-    global.imports.gi.UPowerGlib.Client = class {
-        constructor() { this.callbacks = {}; }
-        connect(name, cb) {
-            if (name === "notify-resume") {
-                throw new Error("old signal unavailable");
-            }
-            this.callbacks[name] = cb;
-            return 1;
-        }
-        disconnect() {}
-    };
     rootModules.weather.WeatherProvider = class {
         schedule() {}
         queue() {}
@@ -2102,7 +2083,6 @@ test("constructor registers desktop and resume callbacks", () => {
     applet._onSettingsChanged = () => calls.push(["settings"]);
     applet.desktop_settings._settings.callbacks["changed::clock-use-24h"]();
     applet.desktop_settings._settings.callbacks["changed::clock-show-seconds"]();
-    assert.equal(typeof applet._providerLifecycle._up_client.callbacks["notify::resume"], "function");
     assert.deepEqual(calls, [["settings"], ["settings"]]);
 
     // the collaborators only reach the applet through the context they were
@@ -2142,7 +2122,6 @@ test("constructor registers desktop and resume callbacks", () => {
     global.imports.ui.settings.AppletSettings = originals.AppletSettings;
     global.imports.gi.Gio.Settings = originals.GioSettings;
     global.imports.gi.CinnamonDesktop.WallClock = originals.WallClock;
-    global.imports.gi.UPowerGlib.Client = originals.UPowerClient;
     rootModules.weather.WeatherProvider = originals.WeatherProvider;
     rootModules.holidays.HolidayProviderFacade = originals.HolidayProviderFacade;
     Calendar52.Calendar = originals.Calendar;

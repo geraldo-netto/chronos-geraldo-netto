@@ -70,9 +70,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         }
         catch (e) {
             global.logError(e);
-            // a partial build still holds a WallClock handler, the UPower
-            // client, weather timers, the EDS bus watch and DBus proxy
-            // signals; leaving them behind leaks them for the whole session
+            // a partial build still holds a WallClock handler, weather timers,
+            // the EDS bus watch and DBus proxy signals; leaving them behind
+            // leaks them for the whole session
             this._destroy();
         }
     }

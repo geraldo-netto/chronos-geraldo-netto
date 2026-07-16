@@ -11,7 +11,6 @@
 /* eslint camelcase: "off" */
 
 const CinnamonDesktop = imports.gi.CinnamonDesktop;
-const UPowerGlib = imports.gi.UPowerGlib;
 const Gio = imports.gi.Gio;
 const Settings = imports.ui.settings;
 const EventsManagerModule = require("./eventsManager");
@@ -100,8 +99,6 @@ class AppletProviderLifecycle {
         this._actor_signal_ids = [];
         this._desktop_settings_signal_ids = [];
         this._events_manager_signal_ids = [];
-        this._up_client = null;
-        this._up_resume_signal_id = 0;
         this._logind_sleep_signal_id = 0;
         this._destroyed = false;
     }
@@ -208,19 +205,8 @@ class AppletProviderLifecycle {
         this._desktop_settings_signal_ids =
             context.desktopSettings.connectClockFormatChanged(context.onSettingsChanged);
 
-        this._up_client = new UPowerGlib.Client();
-        try {
-            this._up_resume_signal_id = this._up_client.connect("notify-resume", context.onResume);
-        } catch (unsupportedSignal) {
-            void unsupportedSignal;
-            this._up_resume_signal_id = this._up_client.connect("notify::resume", context.onResume);
-        }
-
-        // The UPower path above is dead on a current stack: notify-resume is gone
-        // and notify::resume names a property that no longer exists, so onResume
-        // never fires after wake and the weather is not refetched. logind's
-        // PrepareForSleep on the system bus is what every modern system emits —
-        // true on the way into sleep, false on resume — so refresh on the false.
+        // logind's PrepareForSleep is true on the way into sleep and false on
+        // resume, so refresh on the false transition.
         if (Gio && Gio.DBus && Gio.DBus.system) {
             this._logind_sleep_signal_id = Gio.DBus.system.signal_subscribe(
                 "org.freedesktop.login1",
@@ -242,11 +228,10 @@ class AppletProviderLifecycle {
     // block, so a single failure — weatherProvider.destroy() calling abort() on
     // a Soup session Cinnamon has already disposed, say, during a reload — left
     // the city-weather provider, the holiday provider and the events manager
-    // undestroyed and the desktop-settings and UPower signals connected: a
-    // leaked EDS bus watch, four live DBus handlers, a 30-minute timer, and a
-    // UPower handler firing into a dead applet on every resume, for the rest of
-    // the session. The applet's own _destroy() has isolated its steps for
-    // exactly this reason all along; this one did not.
+    // undestroyed and the desktop-settings and logind signals connected: a
+    // leaked EDS bus watch, four live DBus handlers and a 30-minute timer for
+    // the rest of the session. The applet's own _destroy() has isolated its
+    // steps for exactly this reason all along; this one did not.
     _releaseClockNotify() {
         if (this._clock_notify_id > 0) {
             this.clock.disconnect(this._clock_notify_id);
@@ -280,13 +265,6 @@ class AppletProviderLifecycle {
         this._desktop_settings_signal_ids = [];
     }
 
-    _releaseUPower() {
-        if (this._up_resume_signal_id > 0) {
-            this._up_client.disconnect(this._up_resume_signal_id);
-            this._up_resume_signal_id = 0;
-        }
-    }
-
     _releaseLogind() {
         if (this._logind_sleep_signal_id > 0 && Gio && Gio.DBus && Gio.DBus.system) {
             Gio.DBus.system.signal_unsubscribe(this._logind_sleep_signal_id);
@@ -308,7 +286,6 @@ class AppletProviderLifecycle {
             () => this.holidayProvider && this.holidayProvider.destroy(),
             () => this._releaseEventsManager(),
             () => this._releaseDesktopSettings(),
-            () => this._releaseUPower(),
             () => this._releaseLogind()
         ];
 

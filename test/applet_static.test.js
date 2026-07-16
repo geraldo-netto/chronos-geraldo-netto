@@ -191,13 +191,12 @@ test("applets disconnect settings and resume handlers on removal", () => {
     const code = source("5.4/appletLifecycle.js");
     assert.match(appletCode, /require\("\.\/appletLifecycle"\)/);
     assert.match(code, /this\._desktop_settings_signal_ids = \[\];/);
-    assert.match(code, /this\._up_resume_signal_id = 0;/);
     assert.match(code, /class AppletProviderLifecycle \{/);
     assert.match(code, /this\._desktop_settings_signal_ids =\n\s*context\.desktopSettings\.connectClockFormatChanged\(context\.onSettingsChanged\);/);
-    assert.match(code, /this\._up_resume_signal_id = this\._up_client\.connect\("notify-resume", context\.onResume\);/);
-    assert.match(code, /this\._up_resume_signal_id = this\._up_client\.connect\("notify::resume", context\.onResume\);/);
     assert.match(code, /for \(let id of this\._desktop_settings_signal_ids\) \{[\s\S]*?this\.context\.desktopSettings\.disconnect\(id\);/);
-    assert.match(code, /this\._up_client\.disconnect\(this\._up_resume_signal_id\);/);
+    assert.match(code, /"PrepareForSleep"/);
+    assert.match(code, /signal_unsubscribe\(this\._logind_sleep_signal_id\)/);
+    assert.doesNotMatch(code, /UPower|notify-resume|notify::resume|_up_/);
     assert.match(appletCode, /this\.settings && this\.settings\.finalize\(\)/);
 });
 
