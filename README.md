@@ -100,6 +100,15 @@ will be able to install it from a panel's **Applets → Download** tab by
 searching for **Chronos Calendar**; until then, use the manual installation
 above.
 
+### Preparing a Cinnamon Spices submission
+
+Run `npm run package:spices` after the gates. It recreates
+`dist/chronos@geraldo-netto/` with only `info.json`, `screenshot.png`,
+`README.md`, and `files/` — the applet subtree that belongs in the Spices
+catalogue. Development files such as the test suite, npm metadata, audit ledger,
+and CI configuration are deliberately excluded. Source symlinks are copied as
+real files so the staged tree is safe for archive-based delivery.
+
 ### Configuration
 
 Right-click the applet → **Configure...**. Everything the applet ships:
