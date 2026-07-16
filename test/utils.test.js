@@ -563,7 +563,8 @@ test("httpGetJson refuses a response that declares itself oversized, before read
 // stream hands back the chunks one read at a time, then an empty buffer for EOF.
 // This is the path a real Soup takes, and the only one that can cap a chunked
 // body — one with no Content-Length for _declaredTooLarge to see.
-function makeStreamingSoup({ chunks = [], status = 200, contentLength = null } = {}) {
+function makeStreamingSoup({ chunks = [], status = 200, contentLength = null,
+    onRead = () => {} } = {}) {
     return {
         MAJOR_VERSION: 3,
         MessagePriority: { NORMAL: 0 },
@@ -592,6 +593,7 @@ function makeStreamingSoup({ chunks = [], status = 200, contentLength = null } =
                 let index = 0;
                 return {
                     read_bytes_async(_count, _priority, _cancellable, callback) {
+                        onRead(_count);
                         callback(this, {});
                     },
                     read_bytes_finish() {
@@ -608,10 +610,12 @@ function makeStreamingSoup({ chunks = [], status = 200, contentLength = null } =
 test("httpGetJson streams a body in chunks and parses it", () => {
     const utils = loadIoUtils();
     global.logError = () => {};
+    const readSizes = [];
 
     // one JSON payload split across two reads, then EOF
     Object.assign(global.imports.gi.Soup, makeStreamingSoup({
-        chunks: [Buffer.from('{"ci'), Buffer.from('ty":"Rome"}')]
+        chunks: [Buffer.from('{"ci'), Buffer.from('ty":"Rome"}')],
+        onRead: (size) => readSizes.push(size)
     }));
     const soup = global.imports.gi.Soup;
 
@@ -621,6 +625,8 @@ test("httpGetJson streams a body in chunks and parses it", () => {
     });
 
     assert.deepEqual(received, { city: "Rome" });
+    assert.deepEqual(readSizes, [64 * 1024, 64 * 1024, 64 * 1024],
+        "streaming keeps the shipped chunk size instead of degrading to tiny reads");
 });
 
 test("httpGetJson aborts a streamed body once it passes the cap", () => {

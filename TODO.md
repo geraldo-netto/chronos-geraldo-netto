@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 17 (Critical 0, High 1, Medium 5, Low 11).
+Open items: 16 (Critical 0, High 1, Medium 5, Low 10).
 
 ## Findings
 
@@ -30,7 +30,6 @@ Open items: 17 (Critical 0, High 1, Medium 5, Low 11).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T507 | testing | Low | open | S | **[verified]** Two more unpinned values. `weather.js:178`: deleting `this._request_generation++;` from `stop()` survives — the two tests that call `stop()` assert only that timers were removed, never that in-flight replies are discarded (mitigating: `stop()`'s only caller is `destroy()`, which is separately guarded, so this is nearly an equivalent mutant). `ioUtils.js:204`: `READ_CHUNK_BYTES` 64 KiB → `1` survives — correctness-neutral (the cap is enforced on the running total, which *is* tested), but a 1-byte chunk size would make every response pathologically slow and nothing would say so. | Fix: assert both. |
 | T520 | security / bounds | Low | open | S | **[verified]** `holidayCache.js:159-161` — holiday rows are type-checked per row on cache load but never **counted**, while the network path bounds the same data twice (`MAX_HOLIDAYS_PER_YEAR = 1000`, `MAX_EXPANDED_HOLIDAY_ROWS = 4000`) — and the disk path is the one the comment at `:40` says must not be trusted. | Verified: a Node harness called `_country()` with 200,000 valid-shaped rows — **all 200,000 accepted**. Anything running as the user can plant them; the 4 MiB file cap bounds the outcome to a startup stall on the compositor thread, not a hang, and the attacker already has the user's UID — hence Low. Fix: slice to `MAX_EXPANDED_HOLIDAY_ROWS`, mirroring `expandData()`. |
 | T522 | CI / supply chain | Low | open | S | **[verified]** Three hardening gaps in `.github/workflows/ci.yml`: no `permissions:` block anywhere (`grep -c permissions` → `0`), so `GITHUB_TOKEN` inherits the repo default, which on many repos is `contents: write` — and the job runs `npm ci` + `npm test`, i.e. repository and dependency code; `:32` installs pyflakes with `--upgrade` and no pin or hash, while the JS side is lockfile-pinned; `:16,20,25` pin `actions/checkout@v4`, `setup-node@v4`, `setup-python@v5` to mutable major tags. | Fork PRs are safe (GitHub forces a read-only token), which is what keeps this Low. Fix: `permissions: contents: read`, pin pyflakes, pin the actions to SHAs. |
 | T523 | i18n / packaging | Low | open | S | **[verified]** `po/chronos@geraldo-netto.pot` has stale source references: regenerating with `po/makepot` changes ~45 `#:` lines (e.g. `5.4/appletPanelStatus.js:29` → `:48`). The **msgid set is identical** — no string is missing, and `makepot` itself is correct. | Verified: ran `./po/makepot` on a scratch copy and diffed, ignoring `POT-Creation-Date`. Cosmetic, but it means the catalog is not regenerated in lockstep and the Spices translation tooling will churn. Fix: regenerate, and add the check to CI (T500). |

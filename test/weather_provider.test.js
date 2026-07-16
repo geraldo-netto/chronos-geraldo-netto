@@ -1229,6 +1229,27 @@ test("refresh ignores stale geocode and forecast callbacks", () => {
     assert.deepEqual(values, ["⛅ 15°C"]);
 });
 
+test("stop abandons an in-flight weather refresh", () => {
+    const Weather = loadWeather();
+    const pending = [];
+    const values = [];
+    const provider = new Weather.WeatherProvider({
+        httpGetJson(url, callback) {
+            pending.push({ url, callback });
+        }
+    });
+
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" },
+        (reading) => values.push(shown(reading)));
+    assert.equal(pending.length, 1);
+
+    provider.stop();
+    pending[0].callback({ results: [{ latitude: 1, longitude: 1, population: 1000 }] });
+
+    assert.equal(pending.length, 1, "a stopped geocode starts no forecast request");
+    assert.deepEqual(values, [], "a stopped refresh reports no late value");
+});
+
 test("refresh caches geocode results by normalized location", () => {
     const Weather = loadWeather();
     const requests = [];
