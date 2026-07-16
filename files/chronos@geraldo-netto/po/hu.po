@@ -240,7 +240,11 @@ msgstr ""
 "A naptáresemények nem érhetők el — nem fut naptárszolgáltatás. Telepítse "
 "vagy engedélyezze az Evolution Data Servert."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Befejeződött"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "Folyamatban"
 

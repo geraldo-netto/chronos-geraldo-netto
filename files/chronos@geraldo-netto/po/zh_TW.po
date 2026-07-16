@@ -235,7 +235,11 @@ msgstr ""
 "無法取得行事曆活動 — 沒有執行中的行事曆服務。請安裝或啟用 Evolution Data "
 "Server。"
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "已結束"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "進行中"
 

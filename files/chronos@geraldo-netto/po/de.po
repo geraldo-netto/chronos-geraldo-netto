@@ -236,7 +236,11 @@ msgstr ""
 "Kalendertermine sind nicht verfügbar – es läuft kein Kalenderdienst. "
 "Installieren oder aktivieren Sie den Evolution Data Server."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Beendet"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "Zur Zeit"
 

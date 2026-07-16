@@ -240,7 +240,11 @@ msgstr ""
 "События календаря недоступны — не запущена ни одна служба календаря. "
 "Установите или включите Evolution Data Server."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Завершено"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "Уже"
 

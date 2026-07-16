@@ -707,7 +707,10 @@ class EventRowPresenter {
     _applyState(state) {
         if (state.phase === EventFormat.EVENT_PHASE_PAST) {
             this.row.event_time.set_style_class_name("calendar-event-time-past");
-            this._setCountdown("");
+            // The time colour is theme-dependent and cannot be the only state
+            // cue. This word is visible and also becomes part of the row's
+            // accessible name through _announce().
+            this._setCountdown(_("Ended"), "ended");
         } else if (state.phase === EventFormat.EVENT_PHASE_UPCOMING) {
             this.row.event_time.set_style_class_name("calendar-event-time-future");
             this._applyUpcomingState(state);

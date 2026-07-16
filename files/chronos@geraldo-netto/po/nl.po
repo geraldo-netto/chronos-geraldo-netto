@@ -238,7 +238,11 @@ msgstr ""
 "Agenda-afspraken zijn niet beschikbaar — er draait geen agendadienst. "
 "Installeer of activeer Evolution Data Server."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Afgelopen"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "Bezig"
 

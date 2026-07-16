@@ -240,7 +240,11 @@ msgstr ""
 "Takvim etkinlikleri kullanılamıyor — çalışan bir takvim hizmeti yok. "
 "Evolution Data Server'ı kurun veya etkinleştirin."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Sona erdi"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "Devam ediyor"
 

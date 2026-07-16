@@ -240,7 +240,11 @@ msgstr ""
 "Gli eventi del calendario non sono disponibili: nessun servizio di "
 "calendario è in esecuzione. Installare o abilitare Evolution Data Server."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Terminato"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "In corso"
 

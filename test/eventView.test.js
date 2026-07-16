@@ -318,18 +318,20 @@ test("an event row says its time, its summary and its countdown as one thing", (
     assert.equal(row.actor.accessible_name,
         [row.event_time.text, "Team sync", row.countdown_label.text].join(" — "));
 
-    // a past event has no countdown, and its name does not trail an empty dash
+    // a past event says its state instead of relying on the time colour alone
     const past = new EventView.EventRow(
         makeRowEvent({ startUnix: 50 * DAY_S + 3600, endUnix: 50 * DAY_S + 7200 }),
         TODAY, rowParams());
-    assert.equal(past.actor.accessible_name, `${past.event_time.text} — Team sync`);
+    assert.equal(past.actor.accessible_name, `${past.event_time.text} — Team sync — Ended`);
 });
 
-test("EventRow marks past events and clears the countdown", () => {
+test("EventRow marks past events with a visible and accessible state", () => {
     const event = makeRowEvent({ startUnix: 50 * DAY_S + 3600, endUnix: 50 * DAY_S + 7200 });
     const row = new EventView.EventRow(event, TODAY, rowParams());
     assert.equal(row.event_time.style_class, "calendar-event-time-past");
-    assert.equal(row.countdown_label.text, "");
+    assert.equal(row.countdown_label.text, "Ended");
+    assert.deepEqual([...row.countdown_label.pseudo_classes], ["ended"]);
+    assert.match(row.actor.accessible_name, / — Ended$/);
     assert.equal(row.is_current_or_next, false);
 });
 
@@ -878,9 +880,9 @@ test("countdown pseudo-classes never accumulate across refreshes", () => {
     assert.deepEqual([...row.countdown_label.pseudo_classes], ["current"]);
 
     row.update_variations(at(14, 30), TODAY); // past
-    assert.deepEqual([...row.countdown_label.pseudo_classes], [],
-        "past clears the countdown class");
-    assert.equal(row.countdown_label.text, "");
+    assert.deepEqual([...row.countdown_label.pseudo_classes], ["ended"],
+        "past replaces the countdown class with its non-colour cue");
+    assert.equal(row.countdown_label.text, "Ended");
 });
 
 test("EventRow activation covers mouse, keyboard, and current all-day branches", () => {

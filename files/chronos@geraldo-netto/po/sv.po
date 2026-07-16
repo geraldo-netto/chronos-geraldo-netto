@@ -240,7 +240,11 @@ msgstr ""
 "Kalenderhändelser är inte tillgängliga — ingen kalendertjänst körs. "
 "Installera eller aktivera Evolution Data Server."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Avslutad"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "Pågår"
 

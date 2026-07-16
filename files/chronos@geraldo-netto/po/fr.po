@@ -237,7 +237,11 @@ msgstr ""
 "calendrier n’est en cours d’exécution. Installez ou activez Evolution Data "
 "Server."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Terminé"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "En cours"
 

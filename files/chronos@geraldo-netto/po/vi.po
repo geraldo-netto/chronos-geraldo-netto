@@ -237,7 +237,11 @@ msgstr ""
 "Không có sự kiện lịch — không có dịch vụ lịch nào đang chạy. Hãy cài đặt "
 "hoặc bật Evolution Data Server."
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr "Đã kết thúc"
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr "Đang diễn ra"
 

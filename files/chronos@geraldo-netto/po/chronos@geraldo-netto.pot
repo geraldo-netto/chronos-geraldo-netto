@@ -229,7 +229,11 @@ msgid ""
 " enable Evolution Data Server."
 msgstr ""
 
-#: 5.4/eventView.js:742
+#: 5.4/eventView.js:714
+msgid "Ended"
+msgstr ""
+
+#: 5.4/eventView.js:745
 msgid "In progress"
 msgstr ""
 
