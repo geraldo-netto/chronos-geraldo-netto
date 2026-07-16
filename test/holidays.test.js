@@ -229,9 +229,9 @@ test("clearPlace disables the provider and resets status", () => {
 
 test("HolidayCache owns fetched holiday persistence and place clearing", () => {
     const { HolidayCache } = loadHolidays();
-    let saved = null;
-    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), (_country, data) => {
-        saved = data;
+    const saves = [];
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), (country, data) => {
+        saves.push([country, data]);
     });
     cache.setPlace("ita", "global");
 
@@ -244,13 +244,18 @@ test("HolidayCache owns fetched holiday persistence and place clearing", () => {
     assert.deepEqual(cache.matchMonth(2026, 1).get("1/1"), ["New Year", []]);
     // recording is not writing: the cache no longer reaches for the disk from
     // inside its own record method, so nothing has been saved yet
-    assert.equal(saved, null);
+    assert.deepEqual(saves, []);
 
     cache.persist();
-    assert.equal(saved.holidays.length, 1);
+    assert.equal(saves.length, 1);
+    assert.equal(saves[0][0], "ita");
+    assert.equal(saves[0][1].holidays.length, 1);
 
     cache.clearPlace();
     assert.equal(cache.country, null);
+    cache.persist();
+    assert.equal(saves.length, 1,
+        "the real cache never asks its repository to save a null country");
 });
 
 // T76 regression: a response with no Date header must still mark the
