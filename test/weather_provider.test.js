@@ -1063,7 +1063,7 @@ test("destroy aborts the session and suppresses pending weather callbacks", () =
                 this.aborted = true;
             }
 
-            send_and_read_async() {}
+            send_async() {}
         }
     });
     const pending = [];

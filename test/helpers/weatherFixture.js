@@ -53,12 +53,7 @@ function loadWeather(soupOverrides = {}) {
     delete require.cache[require.resolve(ioUtilsPath)];
     delete require.cache[require.resolve(localeUtilsPath)];
 
-    const soup = Object.assign(makeSoup3({
-        data: "{}",
-        sessionMethods: {
-            send_and_read_async() {}
-        }
-    }), soupOverrides);
+    const soup = Object.assign(makeSoup3({ data: "{}" }), soupOverrides);
 
     global.imports = {
         byteArray: {

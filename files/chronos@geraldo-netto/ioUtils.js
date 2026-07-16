@@ -215,8 +215,8 @@ function _declaredTooLarge(message) {
 // Read a body in bounded chunks and stop the instant the running total passes
 // the cap, rather than letting the whole thing land in memory first. This is
 // what closes the chunked-transfer hole: a response with no Content-Length slips
-// past _declaredTooLarge, and send_and_read_finish would have spent the memory
-// before any length check could look.
+// past _declaredTooLarge, and a whole-body read would have spent the memory
+// before any post-read length check could look.
 var READ_CHUNK_BYTES = 64 * 1024;
 
 function _concatChunks(chunks, total) {
@@ -229,30 +229,37 @@ function _concatChunks(chunks, total) {
     return body;
 }
 
+function _abortRead(cancellable, deliver, error) {
+    if (cancellable) {
+        cancellable.cancel();
+    }
+    deliver(error, null);
+}
+
 function _readCapped(stream, cancellable, url, deliver) {
     const chunks = [];
     let total = 0;
     const readMore = () => {
         stream.read_bytes_async(READ_CHUNK_BYTES, 0, cancellable, (source, result) => {
+            let chunk = null;
             try {
-                const chunk = source.read_bytes_finish(result).get_data();
-                if (!chunk || chunk.length === 0) {
-                    deliver(null, _concatChunks(chunks, total));
-                    return;
-                }
-                total += chunk.length;
-                if (total > MAX_RESPONSE_BYTES) {
-                    throw new Error("response from " + urlForLog(url) + " exceeds " +
-                        MAX_RESPONSE_BYTES + " bytes");
-                }
-                chunks.push(chunk);
-                readMore();
+                chunk = source.read_bytes_finish(result).get_data();
             } catch (e) {
-                if (cancellable) {
-                    cancellable.cancel();
-                }
-                deliver(e, null);
+                _abortRead(cancellable, deliver, e);
+                return;
             }
+
+            if (!chunk || chunk.length === 0) {
+                deliver(null, _concatChunks(chunks, total));
+                return;
+            }
+            total += chunk.length;
+            if (total > MAX_RESPONSE_BYTES) {
+                _abortRead(cancellable, deliver, _tooLarge(url, "exceeds"));
+                return;
+            }
+            chunks.push(chunk);
+            readMore();
         });
     };
     readMore();
@@ -333,22 +340,6 @@ function _sendStreaming(session, message, url, cancellable, deliver, fail) {
     });
 }
 
-// The whole-body path, for a Soup with no send_async: only the declared length
-// bounds it, which is what the streaming path exists to improve on.
-function _sendAtOnce(session, message, url, cancellable, deliver, fail) {
-    session.send_and_read_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
-        let body = null;
-        try {
-            _refuseDeclaredTooLarge(message, url);
-            body = source.send_and_read_finish(result).get_data();
-        } catch (e) {
-            fail(e);
-            return;
-        }
-        deliver(body);
-    });
-}
-
 function httpGetJson(session, url, callback, options = {}) {
     const message = Soup.Message.new("GET", url);
     _setRequestHeaders(message, options.headers);
@@ -377,8 +368,7 @@ function httpGetJson(session, url, callback, options = {}) {
         callback(data, message);
     };
 
-    const send = typeof session.send_async === "function" ? _sendStreaming : _sendAtOnce;
-    send(session, message, url, cancellable, deliver, fail);
+    _sendStreaming(session, message, url, cancellable, deliver, fail);
 }
 
 // every endpoint this applet speaks to is https; a redirect that lands on

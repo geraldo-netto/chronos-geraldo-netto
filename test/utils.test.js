@@ -705,6 +705,35 @@ test("httpGetJson reports a stream that fails to open", () => {
     assert.match(logged[0], /connection reset/);
 });
 
+test("httpGetJson aborts a stream that fails while reading", () => {
+    const utils = loadIoUtils();
+    const error = new Error("read reset");
+    const logged = [];
+    global.logError = (message) => logged.push(message);
+
+    const soupDouble = makeStreamingSoup({});
+    soupDouble.Session.prototype.send_finish = function() {
+        return {
+            read_bytes_async(_count, _priority, _cancellable, callback) {
+                callback(this, {});
+            },
+            read_bytes_finish() {
+                throw error;
+            }
+        };
+    };
+    Object.assign(global.imports.gi.Soup, soupDouble);
+
+    let received = "unset";
+    utils.httpGetJson(new soupDouble.Session(), "https://example.test/x", (data) => {
+        received = data;
+    });
+
+    assert.equal(received, null);
+    assert.equal(global.imports.gi.Gio.Cancellable.last.cancelled, true);
+    assert.deepEqual(logged, [error]);
+});
+
 test("httpGetJson will not follow a redirect down to plain http", () => {
     const utils = loadIoUtils();
     const logged = [];
@@ -730,7 +759,7 @@ test("httpGetJson will not follow a redirect down to plain http", () => {
 
     let cancellable = null;
     const session = new soup.Session();
-    session.send_and_read_async = function(_message, _priority, cancel, callback) {
+    session.send_async = function(_message, _priority, cancel, callback) {
         cancellable = cancel;
         restarted();                       // the endpoint redirects us to http
         callback(this, {});
@@ -762,18 +791,10 @@ test("httpGetJson invokes a throwing callback exactly once", () => {
     // failure, and must not re-run the callback with data = null
     let calls = 0;
     assert.throws(() => {
-        utils.httpGetJson({
-            send_and_read_async(_message, _priority, _cancellable, callback) {
-                callback(this, {});
-            },
-            send_and_read_finish() {
-                return {
-                    get_data() {
-                        return Buffer.from('{"ok":true}');
-                    }
-                };
-            }
-        }, "https://example.test/fail", () => {
+        const session = new (makeStreamingSoup({
+            chunks: [Buffer.from('{"ok":true}')]
+        }).Session)();
+        utils.httpGetJson(session, "https://example.test/fail", () => {
             calls++;
             throw new Error("consumer exploded");
         });
@@ -798,36 +819,18 @@ test("httpGetJson applies request headers when provided", () => {
         };
     };
 
-    utils.httpGetJson({
-        send_and_read_async(_message, _priority, _cancellable, callback) {
-            callback(this, {});
-        },
-        send_and_read_finish() {
-            return {
-                get_data() {
-                    return Buffer.from("{}");
-                }
-            };
-        }
-    }, "https://example.test/ua", () => {}, {
+    utils.httpGetJson(new (makeStreamingSoup({
+        chunks: [Buffer.from("{}")]
+    }).Session)(), "https://example.test/ua", () => {}, {
         headers: { "User-Agent": "test-agent" }
     });
 
     assert.deepEqual(recorded, [["User-Agent", "test-agent"]]);
 
     // no options: nothing recorded, nothing thrown
-    utils.httpGetJson({
-        send_and_read_async(_message, _priority, _cancellable, callback) {
-            callback(this, {});
-        },
-        send_and_read_finish() {
-            return {
-                get_data() {
-                    return Buffer.from("{}");
-                }
-            };
-        }
-    }, "https://example.test/plain", () => {});
+    utils.httpGetJson(new (makeStreamingSoup({
+        chunks: [Buffer.from("{}")]
+    }).Session)(), "https://example.test/plain", () => {});
     assert.equal(recorded.length, 1);
 
     global.imports.gi.Soup.Message.new = function() {
@@ -840,18 +843,9 @@ test("httpGetJson applies request headers when provided", () => {
             }
         };
     };
-    utils.httpGetJson({
-        send_and_read_async(_message, _priority, _cancellable, callback) {
-            callback(this, {});
-        },
-        send_and_read_finish() {
-            return {
-                get_data() {
-                    return Buffer.from("{}");
-                }
-            };
-        }
-    }, "https://example.test/no-headers", () => {}, {
+    utils.httpGetJson(new (makeStreamingSoup({
+        chunks: [Buffer.from("{}")]
+    }).Session)(), "https://example.test/no-headers", () => {}, {
         headers: { "User-Agent": "test-agent" }
     });
     assert.equal(recorded.length, 1);
@@ -869,18 +863,9 @@ test("httpGetJson reports malformed JSON as null data", () => {
     };
 
     let malformed = "unset";
-    utils.httpGetJson({
-        send_and_read_async(_message, _priority, _cancellable, callback) {
-            callback(this, {});
-        },
-        send_and_read_finish() {
-            return {
-                get_data() {
-                    return Buffer.from("not json");
-                }
-            };
-        }
-    }, "https://example.test/malformed", (data, message) => {
+    utils.httpGetJson(new (makeStreamingSoup({
+        chunks: [Buffer.from("not json")]
+    }).Session)(), "https://example.test/malformed", (data, message) => {
         malformed = { data, message };
     });
 
@@ -939,14 +924,8 @@ test("fuzz: httpGetJson answers with a parsed object or null, and never throws",
         let seen = "unset";
 
         assert.doesNotThrow(() => {
-            utils.httpGetJson({
-                send_and_read_async(_message, _priority, _cancellable, callback) {
-                    callback(this, {});
-                },
-                send_and_read_finish() {
-                    return { get_data: () => body };
-                }
-            }, "https://example.test/fuzz?place=Lisbon", (data, msg) => {
+            const session = new (makeStreamingSoup({ chunks: [body] }).Session)();
+            utils.httpGetJson(session, "https://example.test/fuzz?place=Lisbon", (data, msg) => {
                 calls++;
                 seen = { data, msg };
             });
@@ -1549,14 +1528,9 @@ test("httpGetJson logs sanitized non-200 responses before reporting null", () =>
     const logged = [];
     global.logError = (message) => logged.push(message);
 
-    const session = {
-        send_and_read_async(message, priority, cancellable, callback) {
-            callback(session, {});
-        },
-        send_and_read_finish() {
-            return { get_data: () => Buffer.from("ignored") };
-        }
-    };
+    const session = new (makeStreamingSoup({
+        chunks: [Buffer.from("ignored")]
+    }).Session)();
     global.imports.gi.Soup.Message = {
         new: (method, url) => ({ method, url, get_status: () => 503 })
     };
@@ -1584,13 +1558,9 @@ test("httpGetJson reports Soup 3 read failures through the callback", () => {
     const logged = [];
     global.logError = (message) => logged.push(message);
 
-    const session = {
-        send_and_read_async(message, priority, cancellable, callback) {
-            callback(session, {});
-        },
-        send_and_read_finish() {
-            throw error;
-        }
+    const session = new (makeStreamingSoup().Session)();
+    session.send_finish = () => {
+        throw error;
     };
     global.imports.gi.Soup.Message = {
         new: (method, url) => ({ method, url, get_status: () => 200 })
@@ -1726,14 +1696,9 @@ test("httpGetJson tolerates a Soup message that exposes no request headers", () 
     const utils = loadIoUtils();
     let parsed = "unset";
 
-    const session = {
-        send_and_read_async(message, priority, cancellable, callback) {
-            callback(session, {});
-        },
-        send_and_read_finish() {
-            return { get_data: () => Buffer.from('{"ok":true}') };
-        }
-    };
+    const session = new (makeStreamingSoup({
+        chunks: [Buffer.from('{"ok":true}')]
+    }).Session)();
     // Soup 3 exposes request_headers as a property and through a getter; a
     // binding that offers neither must not cost the caller its response
     global.imports.gi.Soup.Message = {

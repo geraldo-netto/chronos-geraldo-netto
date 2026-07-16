@@ -62,20 +62,26 @@ function makeSoup3({
                 this.aborted = true;
             }
 
-            send_and_read_async(message, priority, cancellable, callback) {
+            send_async(message, priority, cancellable, callback) {
                 if (onSend) {
                     onSend(message, priority, cancellable);
                 }
                 callback(this, {});
             }
 
-            send_and_read_finish(result) {
+            send_finish(result) {
                 if (onFinish) {
                     return onFinish(result);
                 }
+                let delivered = false;
                 return {
-                    get_data() {
-                        return Buffer.from(data);
+                    read_bytes_async(_count, _priority, _cancellable, callback) {
+                        callback(this, {});
+                    },
+                    read_bytes_finish() {
+                        const chunk = delivered ? Buffer.alloc(0) : Buffer.from(data);
+                        delivered = true;
+                        return { get_data: () => chunk };
                     }
                 };
             }

@@ -1,5 +1,5 @@
 const {
-    assert, test, vm, fs, shimPath, shown, loadWeather
+    assert, test, vm, fs, shimPath, shown, loadWeather, makeSoup3
 } = require("./helpers/weatherFixture");
 
 test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
@@ -27,19 +27,7 @@ test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
                 return message;
             }
         },
-        Session: class {
-            send_and_read_async(_message, _priority, _cancellable, callback) {
-                callback(this, {});
-            }
-
-            send_and_read_finish() {
-                return {
-                    get_data() {
-                        return Buffer.from('{"ok":true}');
-                    }
-                };
-            }
-        }
+        Session: makeSoup3({ data: '{"ok":true}' }).Session
     });
     const provider = new Weather.WeatherProvider();
     let parsed = null;
@@ -67,19 +55,7 @@ test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
                 };
             }
         },
-        Session: class {
-            send_and_read_async(_message, _priority, _cancellable, callback) {
-                callback(this, {});
-            }
-
-            send_and_read_finish() {
-                return {
-                    get_data() {
-                        return Buffer.from('{"ok":true}');
-                    }
-                };
-            }
-        }
+        Session: makeSoup3({ data: '{"ok":true}' }).Session
     });
     const providerError = new WeatherError.WeatherProvider();
     let failed = "unset";
@@ -93,19 +69,7 @@ test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
 
 test("built-in Soup 3 JSON loader does not catch callback errors", () => {
     const Weather = loadWeather({
-        Session: class {
-            send_and_read_async(_message, _priority, _cancellable, callback) {
-                callback(this, {});
-            }
-
-            send_and_read_finish() {
-                return {
-                    get_data() {
-                        return Buffer.from('{"ok":true}');
-                    }
-                };
-            }
-        }
+        Session: makeSoup3({ data: '{"ok":true}' }).Session
     });
     const provider = new Weather.WeatherProvider();
     let calls = 0;
@@ -142,19 +106,7 @@ test("built-in Soup 3 JSON loader does not catch callback errors", () => {
 
 test("built-in JSON loader handles parse failures", () => {
     const Weather = loadWeather({
-        Session: class {
-            send_and_read_async(_message, _priority, _cancellable, callback) {
-                callback(this, {});
-            }
-
-            send_and_read_finish() {
-                return {
-                    get_data() {
-                        return Buffer.from("not json");
-                    }
-                };
-            }
-        }
+        Session: makeSoup3({ data: "not json" }).Session
     });
     const provider = new Weather.WeatherProvider();
     let value = "unset";
