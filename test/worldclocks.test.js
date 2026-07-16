@@ -143,11 +143,19 @@ function makeZonedTime(tz) {
 
     return {
         // GLib.DateTime.format takes a strftime string; the applet's are built
-        // from %H %M %S %I %l %p %d %m %Y %Z, and anything else passes through
+        // from %H %M %S %I %l %p %d %m %Y %Z. Refuse tokens this double does
+        // not implement so a new production format cannot be "verified" by an
+        // echo that only looks formatted.
         format(fmt) {
-            return String(fmt).replace(/%[A-Za-z%]/g, (token) =>
-                (token === "%%" ? "%" :
-                    (STRFTIME_FIELDS[token] ? timePart(timezone, token) : token)));
+            return String(fmt).replace(/%[A-Za-z%]/g, (token) => {
+                if (token === "%%") {
+                    return "%";
+                }
+                if (!STRFTIME_FIELDS[token]) {
+                    throw new Error(`unsupported strftime token in test double: ${token}`);
+                }
+                return timePart(timezone, token);
+            });
         },
         get_hour() {
             return Number(numeric({ hour: "2-digit", hour12: false }));
@@ -190,6 +198,11 @@ function knownTimeZone(timezone) {
 function timeIn(timezone, fmt = "%H:%M") {
     return makeZonedTime(fakeTimeZone(timezone)).format(fmt);
 }
+
+test("the zoned-time double refuses strftime fields it cannot render", () => {
+    assert.throws(() => timeIn("Etc/UTC", "%Q"), /unsupported strftime token.*%Q/);
+    assert.equal(timeIn("Etc/UTC", "%% %H:%M"), "% 11:45");
+});
 
 function loadWorldclocks(options = {}) {
     clearWorldclockCaches();
