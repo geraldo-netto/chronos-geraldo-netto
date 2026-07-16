@@ -574,7 +574,8 @@ test("weather display rules do not own vendor wire contracts", () => {
     assert.doesNotMatch(displaySource, /open-meteo|nominatim|aviationweather|api\.met\.no/i);
     assert.equal(display.geocodeUrl, undefined);
     assert.equal(display.weatherReading, undefined);
-    assert.equal(typeof display.formatReading, "function");
+    assert.equal(display.formatReading, undefined);
+    assert.equal(typeof display.formatTemperature, "function");
     assert.equal(typeof adapters.geocodeUrl, "function");
     assert.equal(typeof adapters.weatherReading, "function");
 });

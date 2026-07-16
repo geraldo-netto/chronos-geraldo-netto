@@ -171,7 +171,6 @@ function gjsImportsMock() {
                             WEATHER_ERRORS: {},
                             WEATHER_CONDITIONS: {},
                             normalizeUnits() {},
-                            formatReading() {},
                             formatTemperature() {}
                         },
                         weatherServiceAdapters: {
@@ -286,7 +285,7 @@ const EXPORTS = {
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale",
         "WEATHER_ERROR_MARKER", "WEATHER_PENDING_TEXT", "WEATHER_ERRORS",
-        "WEATHER_CONDITIONS", "normalizeUnits", "formatTemperature", "formatReading"],
+        "WEATHER_CONDITIONS", "normalizeUnits", "formatTemperature"],
     weatherServiceAdapters: ["GEOCODE_CANDIDATE_COUNT", "GEOCODE_LANGUAGE_FALLBACK",
         "WEATHER_USER_AGENT", "WEATHER_PROVIDER_NAMES", "AVIATION_WEATHER_BBOX_DEGREES",
         "weatherIcon", "geocodeUrl", "geocodeLanguage", "nominatimGeocodeUrl",

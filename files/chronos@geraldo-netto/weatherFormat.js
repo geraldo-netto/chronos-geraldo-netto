@@ -58,14 +58,10 @@ function formatTemperature(celsius, units) {
     return Math.round(value) + (imperial ? "°F" : "°C");
 }
 
-function formatReading(condition, celsius, units) {
-    return condition + " " + formatTemperature(celsius, units);
-}
-
 if (typeof module !== "undefined") {
     module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS,
         staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS,
         MAX_GEOCODE_CACHE_ENTRIES, WEATHER_DEBOUNCE_MS, WEATHER_UNITS,
         WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS,
-        WEATHER_CONDITIONS, normalizeUnits, formatTemperature, formatReading };
+        WEATHER_CONDITIONS, normalizeUnits, formatTemperature };
 }

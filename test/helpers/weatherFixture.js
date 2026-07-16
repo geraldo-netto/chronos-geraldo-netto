@@ -26,8 +26,8 @@ let originalLogError;
 function shown(reading, units = "metric") {
     const WeatherFormat = require(path.join(
         __dirname, "..", "..", "files", "chronos@geraldo-netto", "weatherFormat.js"));
-    return reading ?
-        WeatherFormat.formatReading(reading.condition, reading.temperatureC, units) : "";
+    return reading ? reading.condition + " " +
+        WeatherFormat.formatTemperature(reading.temperatureC, units) : "";
 }
 
 function immediateNominatimQueue() {
