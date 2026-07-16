@@ -1,4 +1,4 @@
-# chronos@geraldo-netto TODO
+# cinnamon-chronos TODO
 
 Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `agent-instructions/` review category **including the special ones — wiring gaps, unused functions/methods, legacy/deprecation, and variable/function scope**. The scan covered all tracked source, tests, CI, documentation, packaging scripts, catalogs and assets. It excluded generated or cached material: `.git/`, `node_modules/`, `dist/`, `build/`, `coverage/`, `.cache/`, Python/tool caches, bytecode and compiled catalogs. Candidates were reproduced where possible, checked against the current source and deduplicated against this ledger and `git log --oneline` before inclusion. A focused god-object/file and dependency-boundary follow-up on the same date measured class surfaces, traced imports and ownership, and rejected size-only candidates that still had one coherent responsibility.
 

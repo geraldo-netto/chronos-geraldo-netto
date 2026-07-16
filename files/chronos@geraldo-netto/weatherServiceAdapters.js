@@ -29,7 +29,7 @@ var MIN_TRUSTED_GEOCODE_POPULATION = 1000;
 // first hit survivable.
 var GEOCODE_CANDIDATE_COUNT = 10;
 var GEOCODE_LANGUAGE_FALLBACK = "en";
-var WEATHER_USER_AGENT = "chronos@geraldo-netto Cinnamon applet (https://github.com/geraldo-netto/chronos-geraldo-netto)";
+var WEATHER_USER_AGENT = "chronos@geraldo-netto Cinnamon applet (https://github.com/geraldo-netto/cinnamon-chronos)";
 var WEATHER_PROVIDER_NAMES = {
     OPEN_METEO: "Open-Meteo",
     AVIATION_WEATHER: "Aviation Weather",

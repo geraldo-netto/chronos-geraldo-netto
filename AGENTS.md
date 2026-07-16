@@ -1,4 +1,4 @@
-# Chronos — agent instructions
+# Cinnamon Chronos — agent instructions
 
 Cinnamon applet (`files/chronos@geraldo-netto/`), GJS/cjs on the JS side and
 GTK/Python on the settings side. `5.4/` is the multiversion tree Cinnamon loads.

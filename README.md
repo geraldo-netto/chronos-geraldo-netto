@@ -1,3 +1,5 @@
+# cinnamon-chronos
+
 Chronos Calendar is a merge of `calendar@ccprog` and `calendar@simonwiles.net`.
 It keeps the public-holiday, event, weather, and modern settings work from
 `calendar@ccprog` while preserving the world-clock focus of Simon Wiles'
@@ -62,13 +64,13 @@ test runner and Python's `unittest`.
 1. Copy the applet directory into your local applets folder:
 
    ```sh
-   git clone https://github.com/geraldo-netto/chronos-geraldo-netto.git
+   git clone https://github.com/geraldo-netto/cinnamon-chronos.git
    # the applets folder does not exist yet on a machine that has never
    # installed a third-party applet; rsync only creates the last component
    mkdir -p ~/.local/share/cinnamon/applets
    # --exclude keeps stale Python bytecode out of the install
    rsync -a --exclude '__pycache__' \
-         "chronos-geraldo-netto/files/chronos@geraldo-netto" \
+         "cinnamon-chronos/files/chronos@geraldo-netto" \
          ~/.local/share/cinnamon/applets/
    ```
 
@@ -321,7 +323,7 @@ at enrico@kayaposoft.com or raise an issue at [Github](https://github.com/jurajm
 
 If you find bugs in the applet itself or know about other sources of holiday information
 that can be included as webservices, please
-[tell me about them](https://github.com/geraldo-netto/chronos-geraldo-netto/issues).
+[tell me about them](https://github.com/geraldo-netto/cinnamon-chronos/issues).
 
 ## About Events and Holidays
 
@@ -348,7 +350,7 @@ Events are marked separately, and their details are shown in a side column.
 ## Authors and credits
 
 Chronos Calendar is maintained by **Geraldo Netto** (`geraldo-netto`) at
-[github.com/geraldo-netto/chronos-geraldo-netto](https://github.com/geraldo-netto/chronos-geraldo-netto).
+[github.com/geraldo-netto/cinnamon-chronos](https://github.com/geraldo-netto/cinnamon-chronos).
 
 It is a derived work. The original applets, and their authors, are:
 

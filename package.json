@@ -1,7 +1,7 @@
 {
-  "name": "chronos-geraldo-netto",
+  "name": "cinnamon-chronos",
   "version": "0.0.1",
-  "description": "Development tooling for the Chronos Calendar Cinnamon applet: the test suites, the coverage gate and the linters. The applet itself ships from files/.",
+  "description": "Development tooling for Cinnamon Chronos, the Chronos Calendar Cinnamon applet: the test suites, the coverage gate and the linters. The applet itself ships from files/.",
   "license": "GPL-2.0-or-later",
   "author": "Geraldo Netto <geraldonetto@gmail.com> (https://github.com/geraldo-netto)",
   "contributors": [
@@ -10,12 +10,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/geraldo-netto/chronos-geraldo-netto.git"
+    "url": "git+https://github.com/geraldo-netto/cinnamon-chronos.git"
   },
   "bugs": {
-    "url": "https://github.com/geraldo-netto/chronos-geraldo-netto/issues"
+    "url": "https://github.com/geraldo-netto/cinnamon-chronos/issues"
   },
-  "homepage": "https://github.com/geraldo-netto/chronos-geraldo-netto#readme",
+  "homepage": "https://github.com/geraldo-netto/cinnamon-chronos#readme",
   "private": true,
   "scripts": {
     "lint": "npm run lint:js && npm run lint:py",

@@ -5,6 +5,7 @@ const path = require("node:path");
 
 const readmePath = path.join(__dirname, "..", "README.md");
 const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
+const projectUrl = "https://github.com/geraldo-netto/cinnamon-chronos";
 
 function schema(version) {
     return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", version, "settings-schema.json"), "utf8"));
@@ -21,6 +22,29 @@ test("the manifest and the tooling agree on the version", () => {
     assert.match(metadata.version, /^\d+\.\d+\.\d+$/);
     assert.equal(pkg.version, metadata.version,
         "the tooling and the applet disagree about which version this is");
+});
+
+test("project metadata uses the Cinnamon Chronos repository identity", () => {
+    const root = path.join(__dirname, "..");
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+    const lock = JSON.parse(fs.readFileSync(path.join(root, "package-lock.json"), "utf8"));
+    const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
+    const readme = fs.readFileSync(readmePath, "utf8");
+    const makepot = fs.readFileSync(path.join(appletDir, "po", "makepot"), "utf8");
+    const weatherAdapters = fs.readFileSync(
+        path.join(appletDir, "weatherServiceAdapters.js"), "utf8");
+
+    assert.equal(pkg.name, "cinnamon-chronos");
+    assert.equal(lock.name, pkg.name);
+    assert.equal(lock.packages[""].name, pkg.name);
+    assert.equal(pkg.repository.url, `git+${projectUrl}.git`);
+    assert.equal(pkg.bugs.url, `${projectUrl}/issues`);
+    assert.equal(pkg.homepage, `${projectUrl}#readme`);
+    assert.ok(readme.includes(`git clone ${projectUrl}.git`));
+    assert.ok(makepot.includes(`${projectUrl}/issues`));
+    assert.ok(weatherAdapters.includes(projectUrl));
+    assert.equal(metadata.uuid, "chronos@geraldo-netto",
+        "renaming the repository must not change Cinnamon's installed applet identity");
 });
 
 // The applet declares GPL-2.0-or-later in package.json and the README, and it
