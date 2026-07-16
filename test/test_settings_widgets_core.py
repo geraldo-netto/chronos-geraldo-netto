@@ -1,5 +1,5 @@
 from helpers.settings_widgets_fixture import (
-    APPLET_DIR, COMMON_PATH, BaseWidget, ComboBox, DialogSettings, Entry,
+    APPLET_DIR, COMMON_PATH, BaseWidget, DialogSettings, Entry,
     FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model, Path,
     importlib, install_stubs, json, load_module, random, requires_pytz, sys,
     tearDownModule as teardown_fixture, types, unittest,
@@ -19,22 +19,6 @@ class SettingsWidgetsTest(unittest.TestCase):
         GtkMessageDialog.instances.clear()
         BaseWidget.instances.clear()
 
-    def test_list_edit_factory_combo_widget(self):
-        widget = self.module.list_edit_factory({
-            "title": "City",
-            "options": [("Rome", "Rome")]
-        })
-
-        self.assertIsInstance(widget, ComboBox)
-        self.assertEqual(widget.kwargs["label"], "City")
-        self.assertEqual(widget.kwargs["valtype"], str)
-        self.assertTrue(widget.handlers_connected)
-        self.assertIsNone(widget.get_value())
-
-        widget.set_widget_value("Rome")
-        self.assertEqual(widget.get_widget_value(), "Rome")
-        self.assertTrue(widget.changed)
-
     def test_list_edit_factory_entry_widget(self):
         widget = self.module.list_edit_factory({"title": "Label"})
 
@@ -47,17 +31,12 @@ class SettingsWidgetsTest(unittest.TestCase):
     def test_the_column_widgets_are_declared_once_not_per_dialog(self):
         # PyGObject registers a GType for every subclass of a GObject type, and
         # GTypes are never unregistered. Declaring the widget classes inside the
-        # factory leaked two of them - with their class structures and closures
+        # factory leaked one of them - with its class structure and closures
         # - on every Add or Edit click, for the life of the settings process.
         first = self.module.list_edit_factory({"title": "Label"})
         second = self.module.list_edit_factory({"title": "Label"})
         self.assertIs(type(first), type(second))
         self.assertIs(type(first), self.module.ListEditEntry)
-
-        combo = self.module.list_edit_factory({"title": "Zone", "options": {"a": "1"}})
-        again = self.module.list_edit_factory({"title": "Zone", "options": {"a": "1"}})
-        self.assertIs(type(combo), type(again))
-        self.assertIs(type(combo), self.module.ListEditComboBox)
 
     def test_the_suggestion_store_is_built_once_not_per_dialog(self):
         # ~440 rows with pytz, rebuilt on the GTK main thread every time the
@@ -256,14 +235,6 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertTrue(
             any("Install python3-pytz" in text for text in labels),
             "with no timezone database at all, the dialog has to say so: %r" % labels)
-
-    def test_a_combo_column_keeps_the_value_it_is_given(self):
-        # xapp's ComboBox calls set_value/get_value from connect_widget_handlers
-        widget = self.module.list_edit_factory({"title": "Zone", "options": {"Rome": "eu"}})
-
-        widget.set_value("eu")
-        self.assertEqual(widget.get_value(), "eu")
-        self.assertEqual(widget.get_widget_value(), "eu")
 
     def test_completion_match_refuses_a_row_it_cannot_read(self):
         match = self.module.timezone_completion_match

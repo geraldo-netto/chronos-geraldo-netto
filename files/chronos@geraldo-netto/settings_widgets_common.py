@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 from JsonSettingsWidgets import JSONSettingsBackend, JSONSettingsList
-from xapp.SettingsWidgets import ComboBox, Entry, SettingsLabel, SettingsWidget
+from xapp.SettingsWidgets import Entry, SettingsLabel, SettingsWidget
 import logging
 from typing import Any, Optional
 try:
@@ -493,28 +493,6 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         self.entry.set_text(self.model[tree_iter][1])
 
 
-class ListEditComboBox(ComboBox):
-    """A combo column of the add/edit dialog."""
-
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.bind_object = self.content_widget
-        self.connect_widget_handlers()
-
-    def get_value(self):
-        return getattr(self, "widget_value", None)
-
-    def set_value(self, value):
-        self.widget_value = value
-
-    def set_widget_value(self, value):
-        self.widget_value = value
-        self.on_setting_changed()
-
-    def get_widget_value(self):
-        return self.get_value()
-
-
 class ListEditEntry(Entry):
     """A text column of the add/edit dialog, optionally autocompleting."""
 
@@ -545,11 +523,11 @@ class ListEditEntry(Entry):
 def list_edit_factory(params):
     """Build one column widget for the add/edit dialog.
 
-    The two classes above used to be declared inside this function, so every
-    call defined a new PyGObject subclass - and PyGObject registers a GType per
-    subclass, which is never unregistered. That leaked two GTypes, with their
-    class structures and closures, on every Add or Edit click, for the life of
-    the settings process.
+    The class above used to be declared inside this function, so every call
+    defined a new PyGObject subclass - and PyGObject registers a GType per
+    subclass, which is never unregistered. That leaked a GType, with its class
+    structure and closures, on every Add or Edit click, for the life of the
+    settings process.
     """
     # the title is a schema string, which is an English msgid: translate it once,
     # here. It used to be handed a string that had *already* been translated
@@ -557,11 +535,6 @@ def list_edit_factory(params):
     # - working by accident, and only until a translated string collided with
     # another msgid.
     kwargs = {'label': _(params['title'])}
-
-    if 'options' in params:
-        kwargs['valtype'] = str
-        kwargs['options'] = params['options']
-        return ListEditComboBox(**kwargs)
 
     return ListEditEntry(completions=params.get('completions'),
                          placeholder=params.get('placeholder'), **kwargs)
