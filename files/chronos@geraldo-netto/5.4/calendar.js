@@ -30,6 +30,9 @@ const SettingsFacade = require("./settingsFacade");
 // adapters and the HTTP session into the day grid
 const Holidays = require("./holidayConstants");
 const EventDataModule = require("./eventData");
+const CalendarNavigation = require("./calendarNavigation");
+const CalendarNavigationController = CalendarNavigation.CalendarNavigationController;
+const browsedDate = CalendarNavigation.browsedDate;
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
@@ -46,9 +49,6 @@ const GTK_CALENDAR_ORDER_MSGID = 'calendar:MY';
 
 const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
-// how much smooth-scroll delta makes one month. Clutter reports a touchpad's
-// scroll in fractions of a notch, and one notch is what a mouse wheel sends.
-const SMOOTH_SCROLL_NOTCH = 1;
 // the key name itself lives in the settings boundary, with the schema
 const FIRST_WEEKDAY_KEY = SettingsFacade.FIRST_DAY_OF_WEEK_KEY;
 const PART_DAY_HOLIDAY = 'PART_DAY_HOLIDAY';
@@ -72,21 +72,6 @@ function _formatJsDate(jsDate, fmt) {
         jsDate.getFullYear(), jsDate.getMonth() + 1, jsDate.getDate(), 12, 0, 0);
     return dt ? dt.format(fmt) : "";
 }
-
-const DAY_KEY_DELTAS = {
-    [Clutter.KEY_Left]: -1,
-    [Clutter.KEY_Right]: 1,
-    [Clutter.KEY_Up]: -7,
-    [Clutter.KEY_Down]: 7
-};
-
-// Left and Right are directions on the screen, not directions in time. In an RTL
-// locale St mirrors the grid, so the cell to the *left* of Tuesday is Wednesday —
-// and walking a day back on Left moved the focus rightward, which is to say the
-// arrow keys were inverted for every Arabic and Hebrew user. Cinnamon's own
-// popupMenu.js asks the same question of the same actor before it decides what
-// Left means.
-const MIRRORED_KEYS = new Set([Clutter.KEY_Left, Clutter.KEY_Right]);
 
 function _sameDay(dateA, dateB) {
     return (dateA.getDate() == dateB.getDate() &&
@@ -242,56 +227,56 @@ function setTooltipText(owner, tooltip, text) {
 }
 
 class CalendarGridHost {
-    constructor(calendar) {
-        this._calendar = calendar;
+    constructor(port) {
+        this.port = port;
     }
 
     get selectedDate() {
-        return this._calendar._selectedDate;
+        return this.port.selectedDate();
     }
 
     get weekStart() {
-        return this._calendar._weekStart;
+        return this.port.weekStart();
     }
 
     get weekendLength() {
-        return this._calendar.weekend_length;
+        return this.port.weekendLength();
     }
 
     get eventsEnabled() {
-        return this._calendar.events_enabled;
+        return this.port.eventsEnabled();
     }
 
     get eventsManager() {
-        return this._calendar.events_manager;
+        return this.port.eventsManager;
     }
 
     get holidayProvider() {
-        return this._calendar.holiday;
+        return this.port.holidayProvider();
     }
 
     // a fetch that lands after the grid moved on belongs to a month that is no
     // longer on screen
     get holidayGeneration() {
-        return this._calendar._holiday_update_generation;
+        return this.port.holidayGeneration();
     }
 
     selectDate(date) {
-        this._calendar.setDate(date, false);
+        this.port.selectDate(date);
     }
 
     allocateDotBox(actor, box, flags) {
-        this._calendar._allocate_dot_box(actor, box, flags);
+        this.port.allocateDotBox(actor, box, flags);
     }
 
     // the cell renderer draws the dots and the annotator renames the cell it
     // just annotated: both used to reach through the calendar for the other
     renderDots(cell, iter, dateUnixKey) {
-        this._calendar._eventDotRenderer.update(cell, iter, dateUnixKey);
+        this.port.renderDots(cell, iter, dateUnixKey);
     }
 
     nameCell(cell) {
-        this._calendar._dayCellRenderer.applyAccessibleName(cell);
+        this.port.nameCell(cell);
     }
 }
 
@@ -800,7 +785,174 @@ class CalendarHolidayAnnotator {
     }
 }
 
+// Owns the persistent 6x7 grid and all writes to its actors. Calendar chooses
+// the month and coordinates annotations; this view handles grid geometry and
+// rendering through a small state port.
+class CalendarGridView {
+    constructor(port, dayCellRenderer) {
+        this.port = port;
+        this.dayCellRenderer = dayCellRenderer;
+        this.dayCells = [];
+        this.weekLabels = [];
+        this.dayHeadings = [];
+        this.dotMetrics = null;
+    }
+
+    reset() {
+        this.dayCells = [];
+        this.weekLabels = [];
+        this.dayHeadings = [];
+    }
+
+    addDayHeading(label, date) {
+        this.dayHeadings.push({ label, date });
+    }
+
+    invalidateStyle() {
+        this.dotMetrics = null;
+    }
+
+    render(monthWindow, annotating, today = new Date()) {
+        this.ensureGrid();
+        this.updateDayHeadings();
+        const cells = new Map();
+
+        for (let i = 0; i < this.dayCells.length; i++) {
+            const iter = monthWindow.days[i];
+            const cell = this.dayCells[i];
+            this.dayCellRenderer.update(cell, iter, 2 + Math.trunc(i / 7), today,
+                monthWindow.dateUnixKeys[i], monthWindow.accessibleDates[i]);
+            if (annotating) {
+                cells.set(`${iter.getMonth() + 1}/${iter.getDate()}`, cell);
+            }
+        }
+
+        this.updateWeekNumbers(monthWindow);
+        return cells;
+    }
+
+    updateWeekNumbers(monthWindow) {
+        if (!this.port.showWeekNumbers()) {
+            return;
+        }
+
+        for (let rowIndex = 0; rowIndex < this.weekLabels.length; rowIndex++) {
+            const week = monthWindow.weekLabelForRow(rowIndex);
+            const label = this.weekLabels[rowIndex];
+            if (label.text === week) {
+                continue;
+            }
+            label.text = week;
+            const name = _("Week %s").format(week);
+            if (label.set_accessible_name) {
+                label.set_accessible_name(name);
+            }
+            label.accessible_name = name;
+        }
+    }
+
+    dayHeadingStyleClass(iter) {
+        let styleClass = 'calendar-day-base calendar-day-heading';
+        if (_isWorkDay(iter, this.port.weekendLength())) {
+            styleClass += ' calendar-work-day';
+        } else {
+            styleClass += ' calendar-nonwork-day';
+        }
+        return styleClass;
+    }
+
+    updateDayHeadings() {
+        for (const heading of this.dayHeadings) {
+            const styleClass = this.dayHeadingStyleClass(heading.date);
+            if (heading.label.style_class !== styleClass) {
+                heading.label.style_class = styleClass;
+            }
+        }
+    }
+
+    ensureGrid() {
+        if (this.dayCells.length > 0) {
+            return;
+        }
+
+        const actor = this.port.actor();
+        const showWeekNumbers = this.port.showWeekNumbers();
+        const offsetCols = showWeekNumbers ? 1 : 0;
+        for (let i = 0; i < 42; i++) {
+            const row = 2 + Math.trunc(i / 7);
+            const col = i % 7;
+            if (showWeekNumbers && col === 0) {
+                const label = new St.Label(
+                    { style_class: 'calendar-day-base calendar-week-number' });
+                actor.add(label, { row, col: 0, y_align: St.Align.MIDDLE });
+                this.weekLabels.push(label);
+            }
+            const cell = this.dayCellRenderer.build();
+            actor.add(cell.group, { row, col: offsetCols + col });
+            this.dayCells.push(cell);
+        }
+    }
+
+    metricsFor(actor, dot) {
+        if (!this.dotMetrics) {
+            const [, nw] = dot.get_preferred_width(-1);
+            const [, nh] = dot.get_preferred_height(-1);
+            const [found, rows] = actor.get_theme_node().lookup_double("max-rows", false);
+            this.dotMetrics = { nw, nh, max_rows: found ? Math.trunc(rows) : 2 };
+        }
+        return this.dotMetrics;
+    }
+
+    allocateDotBox(actor, box, flags) {
+        const children = actor.get_children();
+        if (children.length === 0) {
+            return;
+        }
+
+        const boxWidth = box.x2 - box.x1;
+        const { nw, nh, max_rows: maxRows } = this.metricsFor(actor, children[0]);
+        const perRow = Math.trunc(boxWidth / nw);
+        const rowCount = Math.min(maxRows, Math.ceil(children.length / perRow));
+        let childIndex = 0;
+        for (let row = 0; row < rowCount; row++) {
+            const rowDots = Math.min(children.length - row * perRow, perRow);
+            const childBox = new Clutter.ActorBox();
+            childBox.x1 = Math.floor((boxWidth - nw * rowDots) / 2);
+            childBox.y1 = row * nh;
+            childBox.x2 = childBox.x1 + nw;
+            childBox.y2 = childBox.y1 + nh;
+            while (childIndex < row * perRow + rowDots) {
+                children[childIndex++].allocate(childBox, flags);
+                childBox.x1 += nw;
+                childBox.x2 += nw;
+            }
+        }
+    }
+}
+
 class Calendar {
+    get _selectedDate() {
+        return this._navigation.selectedDate;
+    }
+
+    set _selectedDate(date) {
+        this._navigation.selectedDate = date;
+    }
+
+    get _queued_set_date() {
+        return this._navigation.queuedDate;
+    }
+
+    get _set_date_idle_id() {
+        return this._navigation.setDateIdleId;
+    }
+
+    get _day_cells() { return this._gridView.dayCells; }
+    get _week_labels() { return this._gridView.weekLabels; }
+    get _day_headings() { return this._gridView.dayHeadings; }
+    get _dot_metrics() { return this._gridView.dotMetrics; }
+    set _dot_metrics(metrics) { this._gridView.dotMetrics = metrics; }
+
     constructor(settings, events_manager, holiday_provider, desktop_settings) {
         this.events_manager = events_manager;
         this._weekStart = Cinnamon.util_get_week_start();
@@ -808,25 +960,9 @@ class Calendar {
         this.settings = settings;
         this.holiday = holiday_provider;
         this._monthWindows = new CalendarMonthWindowCache();
-        // the collaborators see the calendar through one written-down seam, not
-        // through its private fields
-        this._gridHost = new CalendarGridHost(this);
-        this._eventDotRenderer = new CalendarEventDotRenderer(this._gridHost);
-        this._dayCellRenderer = new CalendarDayCellRenderer(this._gridHost);
-        this._holidayAnnotator = new CalendarHolidayAnnotator(this._gridHost);
         this._holiday_update_generation = 0;
 
         this._update_id = 0;
-        this._set_date_idle_id = 0;
-        this._queued_set_date = null;
-        // fractions of a scroll notch a touchpad has sent so far; see _onSmoothScroll
-        this._scroll_accumulator = 0;
-
-        // day cells live at fixed grid slots; they are built once and
-        // mutated on every update (rebuilt only when the header rebuilds)
-        this._day_cells = [];
-        this._week_labels = [];
-        this._day_headings = [];
 
         this.settings.bindShowWeekNumbers(this, "show_week_numbers", this._onSettingsChange);
         this.settings.bindWeekendLength(this, "weekend_length", this._onSettingsChange);
@@ -873,12 +1009,42 @@ class Calendar {
             break;
         }
 
-        // Start off with the current date
-        this._selectedDate = new Date();
-
         this.actor = new St.Table({ homogeneous: false,
                                     style_class: 'calendar',
                                     reactive: true });
+
+        this._gridHost = new CalendarGridHost({
+            selectedDate: () => this._selectedDate,
+            weekStart: () => this._weekStart,
+            weekendLength: () => this.weekend_length,
+            eventsEnabled: () => this.events_enabled,
+            eventsManager: this.events_manager,
+            holidayProvider: () => this.holiday,
+            holidayGeneration: () => this._holiday_update_generation,
+            selectDate: (date) => this.setDate(date, false),
+            allocateDotBox: (actor, box, flags) =>
+                this._gridView.allocateDotBox(actor, box, flags),
+            renderDots: (cell, iter, key) => this._eventDotRenderer.update(cell, iter, key),
+            nameCell: (cell) => this._dayCellRenderer.applyAccessibleName(cell)
+        });
+        this._eventDotRenderer = new CalendarEventDotRenderer(this._gridHost);
+        this._dayCellRenderer = new CalendarDayCellRenderer(this._gridHost);
+        this._gridView = new CalendarGridView({
+            actor: () => this.actor,
+            showWeekNumbers: () => this.show_week_numbers,
+            weekendLength: () => this.weekend_length
+        }, this._dayCellRenderer);
+        this._holidayAnnotator = new CalendarHolidayAnnotator(this._gridHost);
+
+        this._navigation = new CalendarNavigationController({
+            actor: () => this.actor,
+            dayCells: () => this._day_cells,
+            emitSelected: (date) => this.emit('selected-date-changed', date),
+            update: () => this._update(),
+            setDate: (date, forceReload) => this.setDate(date, forceReload),
+            browse: (year, month) => this._applyDateBrowseAction(year, month),
+            queueDate: (date) => this.queue_set_date(date)
+        });
 
         this.actor.connect('style-changed', this._onStyleChange.bind(this));
         this.actor.connect('scroll-event',
@@ -914,38 +1080,15 @@ class Calendar {
     }
 
     _cancel_set_date_idle() {
-        if (this._set_date_idle_id > 0) {
-            Mainloop.source_remove(this._set_date_idle_id);
-            this._set_date_idle_id = 0;
-        }
-        this._queued_set_date = null;
+        this._navigation.cancelQueuedDate();
     }
 
     _queue_set_date_idle() {
-        const date = this._queued_set_date;
-        this._queued_set_date = null;
-        this._set_date_idle_id = 0;
-
-        this.setDate(date, false);
-
-        // PageUp/PageDown moved the month; the focus goes with it, onto the day
-        // that is now selected
-        if (this._focus_after_set_date) {
-            this._focus_after_set_date = false;
-            this.focusSelectedDay();
-        }
-
-        return GLib.SOURCE_REMOVE;
-     }
+        return this._navigation._applyQueuedDate();
+    }
 
     queue_set_date(date) {
-        this._queued_set_date = date;
-
-        if (this._set_date_idle_id > 0) {
-            return;
-        }
-
-        this._set_date_idle_id = Mainloop.timeout_add(25, this._queue_set_date_idle.bind(this));
+        this._navigation.queueDate(date);
     }
 
     destroy() {
@@ -968,9 +1111,7 @@ class Calendar {
 
         // the actors go with the menu, but these arrays are the grid's own, and
         // the applet that holds the grid outlives its removal from the panel
-        this._day_cells = [];
-        this._week_labels = [];
-        this._day_headings = [];
+        this._gridView.reset();
     }
 
     _update_events_enabled(em) {
@@ -999,18 +1140,7 @@ class Calendar {
 
     // Sets the calendar to show a specific date
     setDate(date, forceReload) {
-        if (_sameDay(date, this._selectedDate) && !forceReload) {
-            return;
-        }
-
-        if (!_sameDay(date, this._selectedDate)) {
-            this._selectedDate = date;
-            this.emit('selected-date-changed', this._selectedDate);
-            this._update();
-            return;
-        }
-
-        this._update();
+        this._navigation.setDate(date, forceReload);
     }
 
     getSelectedDate() {
@@ -1036,9 +1166,7 @@ class Calendar {
         let offsetCols = this.show_week_numbers ? 1 : 0;
         this.actor.destroy_all_children();
         // the day-cell actors died with the table children
-        this._day_cells = [];
-        this._week_labels = [];
-        this._day_headings = [];
+        this._gridView.reset();
 
         // Top line of the calendar '<| September |> <| 2009 |>'
         this._topBoxMonth = new St.BoxLayout();
@@ -1130,7 +1258,7 @@ class Calendar {
             // and we want, ideally, a single character for e.g. S M T W T F S
             let customDayAbbrev = _getCalendarDayAbbreviation(iter.getDay());
             let label = new St.Label({ style_class: this._dayHeadingStyleClass(iter), text: customDayAbbrev });
-            this._day_headings.push({ label, date: new Date(iter) });
+            this._gridView.addDayHeading(label, new Date(iter));
             this.actor.add(label,
                            { row: 1,
                              col: offsetCols + (7 + iter.getDay() - this._weekStart) % 7,
@@ -1147,7 +1275,7 @@ class Calendar {
         this._setWeekdateHeaderWidth();
         // the dot size and max-rows come from the theme, and this is the one
         // moment they can change
-        this._dot_metrics = null;
+        this._gridView.invalidateStyle();
     }
 
     _setWeekdateHeaderWidth() {
@@ -1159,178 +1287,22 @@ class Calendar {
     // The menu opens on a hotkey, so the grid has to be usable without a
     // mouse: arrows walk days and weeks, PageUp/PageDown walk months, Home
     // returns to today.
-    _rtl() {
-        return Boolean(this.actor.get_direction &&
-            this.actor.get_direction() === St.TextDirection.RTL);
+    _onKeyPress(actor, event) {
+        return this._navigation.onKeyPress(event);
     }
 
-    _onKeyPress (actor, event) {
-        const symbol = event.get_key_symbol();
-        const days = DAY_KEY_DELTAS[symbol];
-
-        if (days !== undefined) {
-            // The handler is on the table, which is the ancestor of the month
-            // and year buttons too. Taking the arrows unconditionally meant
-            // Left and Right moved the selected date while the user was trying
-            // to move between those buttons.
-            if (!this._dayCellHasFocus()) {
-                return Clutter.EVENT_PROPAGATE;
-            }
-
-            // the grid is mirrored in an RTL locale, so the key that points at
-            // the previous day is the other one
-            const delta = this._rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
-            const target = new Date(this._selectedDate.getTime());
-            target.setDate(target.getDate() + delta);
-            this.setDate(target, false);
-            this.focusSelectedDay();
-            return Clutter.EVENT_STOP;
-        }
-
-        // the month change is queued on an idle, so the focus has to follow the
-        // date rather than chase it: focusing here would land on the day the
-        // grid is about to stop showing
-        // The handler is on the table, which is the ancestor of the month and year
-        // buttons too — so these were taken unconditionally, from wherever the
-        // focus happened to be. Pressing PageDown while focused on "Next year"
-        // changed the *month* and then yanked the focus off the button the user
-        // was operating. Only the arrows asked this question; these three did not.
-        if (!this._dayCellHasFocus()) {
-            return Clutter.EVENT_PROPAGATE;
-        }
-
-        if (symbol === Clutter.KEY_Page_Up) {
-            this._focus_after_set_date = true;
-            this._onPrevMonthButtonClicked();
-            return Clutter.EVENT_STOP;
-        }
-
-        if (symbol === Clutter.KEY_Page_Down) {
-            this._focus_after_set_date = true;
-            this._onNextMonthButtonClicked();
-            return Clutter.EVENT_STOP;
-        }
-
-        if (symbol === Clutter.KEY_Home) {
-            this.setDate(new Date(), false);
-            this.focusSelectedDay();
-            return Clutter.EVENT_STOP;
-        }
-
-        return Clutter.EVENT_PROPAGATE;
+    focusSelectedDay() {
+        return this._navigation.focusSelectedDay();
     }
 
-    _dayCellHasFocus () {
-        const focused = global.stage && global.stage.get_key_focus ?
-            global.stage.get_key_focus() : null;
-
-        // nothing has focus yet (the menu was just opened): the grid is the
-        // thing the arrows are for, so take them
-        if (!focused) {
-            return true;
-        }
-
-        return this._day_cells.some((cell) => cell.button === focused);
-    }
-
-    // Called when the menu opens. Cinnamon's menu manager focuses the menu's
-    // own actor on open (popupMenu.js, PopupMenuManager._onMenuOpenState), and
-    // the grid sits *below* that actor: a key event delivered to the focused
-    // menu never travels through the table, so the handler on it — and every
-    // key this class implements — was unreachable until focus moved into the
-    // grid. Nothing moved it there but a mouse click on a cell.
-    focusSelectedDay () {
-        for (const cell of this._day_cells) {
-            if (cell.date && _sameDay(cell.date, this._selectedDate) && cell.button.grab_key_focus) {
-                // the selected cell is the grid's one tab stop, so it has to be
-                // able to take the focus we are about to hand it
-                cell.button.can_focus = true;
-                cell.button.grab_key_focus();
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    _onScroll (actor, event) {
-        switch (event.get_scroll_direction()) {
-        case Clutter.ScrollDirection.UP:
-        case Clutter.ScrollDirection.LEFT:
-            this._onPrevMonthButtonClicked();
-            break;
-        case Clutter.ScrollDirection.DOWN:
-        case Clutter.ScrollDirection.RIGHT:
-            this._onNextMonthButtonClicked();
-            break;
-        case Clutter.ScrollDirection.SMOOTH:
-            this._onSmoothScroll(event);
-            break;
-        }
-    }
-
-    // A touchpad does not send UP or DOWN. It sends SMOOTH, with a fractional
-    // delta per frame — and the switch above had no case for it, so scrolling the
-    // month grid on a laptop did nothing at all. (The suite could not have caught
-    // it: its ScrollDirection double left SMOOTH out entirely.)
-    //
-    // The deltas are fractions of a notch, so they accumulate: a flick is one
-    // month, not twelve. Whatever is left over stays for the next frame, and the
-    // remainder is dropped when the direction reverses so a scroll back does not
-    // start out owing a month to the scroll that came before it.
-    _onSmoothScroll(event) {
-        const [dx, dy] = event.get_scroll_delta();
-        const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
-        if (!Number.isFinite(delta) || delta === 0) {
-            return;
-        }
-
-        if (Math.sign(delta) !== Math.sign(this._scroll_accumulator)) {
-            this._scroll_accumulator = 0;
-        }
-
-        this._scroll_accumulator += delta;
-
-        while (this._scroll_accumulator <= -SMOOTH_SCROLL_NOTCH) {
-            this._scroll_accumulator += SMOOTH_SCROLL_NOTCH;
-            this._onPrevMonthButtonClicked();
-        }
-
-        while (this._scroll_accumulator >= SMOOTH_SCROLL_NOTCH) {
-            this._scroll_accumulator -= SMOOTH_SCROLL_NOTCH;
-            this._onNextMonthButtonClicked();
-        }
+    _onScroll(actor, event) {
+        this._navigation.onScroll(event);
     }
 
     _applyDateBrowseAction(yearChange, monthChange) {
-        // Browse actions inside the coalescing window have to accumulate, not
-        // replace each other. queue_set_date holds the new date for 25 ms so a
-        // burst of scroll notches costs one grid rebuild — but this read the
-        // *committed* date, which the queued setDate has not written yet, so the
-        // second and third notch each recomputed from the same starting month and
-        // overwrote the first. Three notches in 30 ms moved the calendar one
-        // month; so did a held PageDown.
-        let oldDate = this._queued_set_date || this._selectedDate;
-        let newMonth = oldDate.getMonth() + monthChange;
-
-        if (newMonth> 11) {
-            yearChange = yearChange + 1;
-            newMonth = 0;
-        } else if (newMonth < 0) {
-            yearChange = yearChange - 1;
-            newMonth = 11;
-        }
-        let newYear = oldDate.getFullYear() + yearChange;
-
-        let newDayOfMonth = oldDate.getDate();
-        let daysInMonth = 32 - new Date(newYear, newMonth, 32).getDate();
-        if (newDayOfMonth > daysInMonth) {
-            newDayOfMonth = daysInMonth;
-        }
-
-        let newDate = new Date();
-        newDate.setFullYear(newYear, newMonth, newDayOfMonth);
-        this.queue_set_date(newDate);
+        const queued = this._navigation ? this._navigation.queuedDate : this._queued_set_date;
+        const selected = this._navigation ? this._navigation.selectedDate : this._selectedDate;
+        this.queue_set_date(browsedDate(queued || selected, yearChange, monthChange));
     }
 
     _onPrevYearButtonClicked() {
@@ -1338,7 +1310,7 @@ class Calendar {
     }
 
     _onNextYearButtonClicked() {
-        this._applyDateBrowseAction(+1, 0);
+        this._applyDateBrowseAction(1, 0);
     }
 
     _onPrevMonthButtonClicked() {
@@ -1346,7 +1318,7 @@ class Calendar {
     }
 
     _onNextMonthButtonClicked() {
-        this._applyDateBrowseAction(0, +1);
+        this._applyDateBrowseAction(0, 1);
     }
 
     _update() {
@@ -1360,9 +1332,6 @@ class Calendar {
             this._yearLabel.text = _formatJsDate(this._selectedDate, '%Y');
         }
 
-        this._ensureGrid();
-        this._updateDayHeadings();
-
         const holiday_generation = ++this._holiday_update_generation;
         // The annotator is the only consumer of this map, and it answers early
         // when there is no country: building 42 template-string keys for it on
@@ -1370,165 +1339,17 @@ class Calendar {
         // needed for the pass that *removes* the marks a country left behind.
         const annotating = Boolean(this.holiday && this.holiday.country) ||
             this._holidayAnnotator.annotated;
-        const cells = new Map();
         const monthWindow = this._monthWindows.get(this._selectedDate, this._weekStart);
-        const today = new Date();
-
-        for (let i = 0; i < this._day_cells.length; i++) {
-            const row = 2 + Math.trunc(i / 7);
-            const cell = this._day_cells[i];
-            const iter = monthWindow.days[i];
-
-            const dateUnixKey = monthWindow.dateUnixKeys[i];
-
-            this._dayCellRenderer.update(cell, iter, row, today, dateUnixKey,
-                monthWindow.accessibleDates[i]);
-
-            if (annotating) {
-                cells.set(`${iter.getMonth() + 1}/${iter.getDate()}`, cell);
-            }
-        }
-
-        this._updateWeekNumbers(monthWindow);
+        const cells = this._gridView.render(monthWindow, annotating);
         this._holidayAnnotator.annotate(monthWindow.months, cells, holiday_generation);
     }
 
-    // the gutter is six rows, not forty-two cells: lifted out of the day-cell
-    // loop, where it sat three levels deep and drove the method's complexity
-    _updateWeekNumbers(monthWindow) {
-        if (!this.show_week_numbers) {
-            return;
-        }
-
-        for (let rowIndex = 0; rowIndex < this._week_labels.length; rowIndex++) {
-            const week = monthWindow.weekLabelForRow(rowIndex);
-            const label = this._week_labels[rowIndex];
-            if (label.text === week) {
-                continue;
-            }
-
-            label.text = week;
-            // the gutter cell is a bare number ("28"), and the one place that
-            // says what it counts is the column header — a different actor, which
-            // a screen reader reading this cell never visits
-            const name = _("Week %s").format(week);
-            if (label.set_accessible_name) {
-                label.set_accessible_name(name);
-            }
-            label.accessible_name = name;
-        }
-    }
-
     _dayHeadingStyleClass(iter) {
-        let styleClass = 'calendar-day-base calendar-day-heading';
-        if (_isWorkDay(iter, this.weekend_length))
-            styleClass += ' calendar-work-day';
-        else
-            styleClass += ' calendar-nonwork-day';
-        return styleClass;
-    }
-
-    // the weekend length restyles the headings; the grid geometry did not
-    // change, so this must not rebuild the header
-    _updateDayHeadings() {
-        for (const heading of this._day_headings) {
-            const styleClass = this._dayHeadingStyleClass(heading.date);
-            if (heading.label.style_class !== styleClass) {
-                heading.label.style_class = styleClass;
-            }
-        }
-    }
-
-    // Builds the 42 day cells (and the week-number gutter) once; the grid
-    // always spans 6 rows, even if the month fits in 4, to prevent issues
-    // with jumping controls, see #226. Slots are fixed: only the dates
-    // shown in them change, so _update mutates cells instead of
-    // destroying and recreating ~42 actors on every pass.
-    _ensureGrid() {
-        if (this._day_cells.length > 0) {
-            return;
-        }
-
-        const offsetCols = this.show_week_numbers ? 1 : 0;
-
-        for (let i = 0; i < 42; i++) {
-            const row = 2 + Math.trunc(i / 7);
-            const col = i % 7;
-
-            if (this.show_week_numbers && col === 0) {
-                const label = new St.Label(
-                    { style_class: 'calendar-day-base calendar-week-number' });
-                this.actor.add(label, { row: row, col: 0, y_align: St.Align.MIDDLE });
-                this._week_labels.push(label);
-            }
-
-            const cell = this._dayCellRenderer.build();
-            this.actor.add(cell.group, { row: row, col: offsetCols + col });
-            this._day_cells.push(cell);
-        }
-    }
-
-    // This runs inside Clutter's allocation cycle, once per event-bearing day
-    // cell — up to 42 of them. The dot's natural size and the theme's max-rows
-    // do not depend on the box being allocated: they change on style-changed,
-    // which is where they are read now.
-    _dotMetrics (actor, a_dot) {
-        if (this._dot_metrics) {
-            return this._dot_metrics;
-        }
-
-        const [, nw] = a_dot.get_preferred_width(-1);
-        const [, nh] = a_dot.get_preferred_height(-1);
-        const [found, rows] = actor.get_theme_node().lookup_double("max-rows", false);
-
-        this._dot_metrics = {
-            nw,
-            nh,
-            max_rows: found ? Math.trunc(rows) : 2
-        };
-
-        return this._dot_metrics;
+        return this._gridView.dayHeadingStyleClass(iter);
     }
 
     _allocate_dot_box (actor, box, flags) {
-        let children = actor.get_children();
-
-        if (children.length == 0) {
-            return;
-        }
-
-        let a_dot = children[0];
-
-        let box_width = box.x2 - box.x1;
-        const { nw, nh, max_rows } = this._dotMetrics(actor, a_dot);
-
-        let max_children_per_row = Math.trunc(box_width / nw);
-
-        let n_rows = Math.min(max_rows, Math.ceil(children.length / max_children_per_row));
-
-        let dots_left = children.length;
-        let i = 0;
-        for (let dot_row = 0; dot_row < n_rows; dot_row++, dots_left -= max_children_per_row) {
-            let dots_this_row = Math.min(dots_left, max_children_per_row);
-            let total_child_width = nw * dots_this_row;
-
-            let start_x = Math.floor((box_width - total_child_width) / 2);
-
-            let cbox = new Clutter.ActorBox();
-            cbox.x1 = start_x;
-            cbox.y1 = dot_row * nh;
-            cbox.x2 = cbox.x1 + nw;
-            cbox.y2 = cbox.y1 + nh;
-
-            while (i < ((dot_row * max_children_per_row) + dots_this_row)) {
-                children[i].allocate(cbox, flags);
-
-                cbox.x1 += nw;
-                cbox.x2 += nw;
-
-                i++;
-            }
-        }
+        return this._gridView.allocateDotBox(actor, box, flags);
     }
 }
 
@@ -1540,6 +1361,7 @@ if (typeof module !== "undefined") {
         CalendarMonthWindow,
         CalendarMonthWindowCache,
         CalendarGridHost,
+        CalendarGridView,
         CalendarDayCellRenderer,
         CalendarEventDotRenderer,
         CalendarHolidayAnnotator,

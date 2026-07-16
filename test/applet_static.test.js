@@ -171,7 +171,9 @@ test("event managers expose teardown and applets call it", () => {
 
 test("calendar and event list destroy pending timers", () => {
     const calendar52 = source("5.4/calendar.js");
-    assert.match(calendar52, /_cancel_set_date_idle\(\) \{[\s\S]*?Mainloop\.source_remove\(this\._set_date_idle_id\);/);
+    const navigation52 = source("5.4/calendarNavigation.js");
+    assert.match(navigation52,
+        /cancelQueuedDate\(\) \{[\s\S]*?Mainloop\.source_remove\(this\.setDateIdleId\);/);
     assert.match(calendar52, /destroy\(\) \{[\s\S]*?this\._cancel_update\(\);[\s\S]*?this\._cancel_set_date_idle\(\);/);
     assert.match(calendar52, /this\._desktop_settings_signal_id =\n\s*this\.desktop_settings\.connectFirstDayOfWeekChanged\(/);
     assert.match(calendar52, /destroy\(\) \{[\s\S]*?this\.desktop_settings\.disconnect\(this\._desktop_settings_signal_id\);/);

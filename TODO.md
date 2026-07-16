@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (738 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 30 (Critical 0, High 1, Medium 8, Low 21).
+Open items: 29 (Critical 0, High 1, Medium 7, Low 21).
 
 ## Findings
 
@@ -27,7 +27,6 @@ Open items: 30 (Critical 0, High 1, Medium 8, Low 21).
 | T526 | reliability / fallback | Medium | open | S | **[verified]** A mixed holiday-provider failure can be cached as a successful holiday-free year. `_accept()` rejects an empty array so the queue continues, but `tryProvidersInOrder()` retains the **first** rejected value. If Enrico returns `[]` and later providers fail with invalid/null data, exhaustion returns that first `[]`; `HolidayService.addData()` then records the year as fetched, clears `last_error`, and caches the empty result for 50 days. | Existing tests cover empty-primary + fallback-success and all-providers-empty, not empty + hard failures. Fix: track a soft-empty outcome separately; accept empty only if every queried provider returned a valid empty result, otherwise propagate a hard failure. |
 | T528 | packaging / supply chain | Medium | open | M | **[verified]** `scripts/package-spices.mjs` recursively copies the live `files/` tree with `dereference: true`, so ignored/untracked junk is shipped and arbitrary source symlinks are followed before the output symlink check. A normal package copied five ignored `.pyc` files (76 files instead of the 71 tracked files); in an isolated fixture, `icon.png -> /etc/hostname` produced a successful package containing the host file as a regular file. | Fix: stage an exact tracked/declared source manifest, reject source symlinks or out-of-root targets before copying, and test that ignored/untracked artifacts cannot enter the archive. T439 removes the currently committed symlink. |
 | T529 | provider catalog / data | Medium | open | M | **[verified]** The holiday country catalog has drifted from Enrico: the live supported-country list and API accept Argentina (`arg`/`AR`) and Bulgaria (`bgr`/`BG`), but both are absent from `SUPPORTED_COUNTRIES`, `COUNTRY_TO_ISO2` and the schema. Internal parity tests stay green because they only compare the duplicated local tables to one another. | Verified against Enrico's [current supported-country list](https://holidays.kayaposoft.com/). Add both countries through constants, ISO mappings, schema, translations and tests; explicitly verify fallback-provider coverage. |
-| T537 | architecture / god class | Medium | open | L | **[verified]** `calendar.js` is 1,548 lines and its `Calendar` class alone spans 731 lines, 38 methods and 71 `this` members. One object owns actor/header/grid construction, settings and signal lifetimes, idle/timer coalescing, date state, mouse/keyboard/focus navigation, grid allocation, event-dot rendering coordination and asynchronous holiday presentation. The extracted `CalendarGridHost` still routes collaborators back through `Calendar` privates (`_eventDotRenderer`, `_dayCellRenderer`, `_allocate_dot_box`), so it documents the god object's surface without changing ownership. | Split along existing seams: a grid view owns actors/render state/allocation, a navigation controller owns date/input/focus, and the holiday presenter owns provider callbacks/status; leave `Calendar` as a thin coordinator with lifecycle and the public date API. Preserve the current batching and accessibility behaviour with characterization tests. |
 
 ### Low
 
@@ -61,7 +60,7 @@ Open items: 30 (Critical 0, High 1, Medium 8, Low 21).
 2. **T526** — make mixed empty/error holiday fallback fail safely instead of caching a false holiday-free year.
 3. **T529** — update the externally visible country catalog, building on the corrected provider/fallback tests.
 4. **T499, T500, T522** — establish the release flow, then gate its package/catalog output and harden the workflow.
-5. **T537, T541** — split the calendar ownership hub, then split the monolithic tests along the resulting seams.
+5. **T541** — split the monolithic tests along the production seams.
 6. Everything else, severity order. The dead-code cluster (T492, T455, T512–T515, T518, T533) is one sitting.
 
 ## Clean categories

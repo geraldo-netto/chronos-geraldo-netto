@@ -126,6 +126,39 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstant
 };
 
 const CalendarModule = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
+const NavigationModule = require(path.join(APPLET_DIR, "5.4", "calendarNavigation.js"));
+
+test("navigation controller owns no-op, cancellation, and focus boundaries", () => {
+    const removed = [];
+    global.imports.mainloop.source_remove = (id) => removed.push(id);
+    let updates = 0;
+    const selected = new Date(2026, 6, 9);
+    const controller = new NavigationModule.CalendarNavigationController({
+        actor: () => ({}),
+        dayCells: () => [],
+        emitSelected() {},
+        update: () => updates++,
+        setDate() {},
+        browse() {},
+        queueDate() {}
+    }, selected);
+
+    controller.setDate(new Date(selected), false);
+    assert.equal(updates, 0, "an unchanged date is a no-op");
+    controller.setDate(new Date(selected), true);
+    assert.equal(updates, 1, "a forced reload still updates");
+
+    controller.setDateIdleId = 7;
+    controller.queuedDate = new Date(selected);
+    controller.cancelQueuedDate();
+    assert.deepEqual(removed, [7]);
+    assert.equal(controller.queuedDate, null);
+    assert.equal(controller.focusSelectedDay(), false);
+
+    global.stage = null;
+    assert.equal(controller.onKeyPress({ get_key_symbol: () => -1 }),
+        global.imports.gi.Clutter.EVENT_PROPAGATE);
+});
 
 function browse(fromDate, yearChange, monthChange) {
     let queued = null;
@@ -734,22 +767,23 @@ test("the grid host is the whole contract the collaborators get", () => {
     let selected = null;
     const eventsManager = { get_colors_for_unix_key: () => null };
     const holiday = { country: "ita" };
-    const calendar = {
-        _selectedDate: new Date(2026, 6, 9),
-        _weekStart: 1,
-        weekend_length: 1,
-        events_enabled: true,
-        events_manager: eventsManager,
-        holiday,
-        _holiday_update_generation: 4,
-        setDate: (date, force) => { selected = [date, force]; },
-        _allocate_dot_box: (...args) => allocations.push(args),
-        _eventDotRenderer: { update: (...args) => dots.push(args) },
-        _dayCellRenderer: { applyAccessibleName: (cell) => named.push(cell) }
+    const selectedDate = new Date(2026, 6, 9);
+    const port = {
+        selectedDate: () => selectedDate,
+        weekStart: () => 1,
+        weekendLength: () => 1,
+        eventsEnabled: () => true,
+        eventsManager,
+        holidayProvider: () => holiday,
+        holidayGeneration: () => 4,
+        selectDate: (date) => { selected = date; },
+        allocateDotBox: (...args) => allocations.push(args),
+        renderDots: (...args) => dots.push(args),
+        nameCell: (cell) => named.push(cell)
     };
-    const host = new CalendarModule.CalendarGridHost(calendar);
+    const host = new CalendarModule.CalendarGridHost(port);
 
-    assert.equal(host.selectedDate, calendar._selectedDate);
+    assert.equal(host.selectedDate, selectedDate);
     assert.equal(host.weekStart, 1);
     assert.equal(host.weekendLength, 1);
     assert.equal(host.eventsEnabled, true);
@@ -761,7 +795,7 @@ test("the grid host is the whole contract the collaborators get", () => {
     host.selectDate(date);
     // a cell click never forces a reload: the date it selects is the date it
     // already shows
-    assert.deepEqual(selected, [date, false]);
+    assert.equal(selected, date);
 
     host.allocateDotBox("actor", "box", "flags");
     assert.deepEqual(allocations, [["actor", "box", "flags"]]);
@@ -790,6 +824,10 @@ test("a day cell's dot box allocates through the host", () => {
     assert.equal(allocations.length, 1, "the allocate signal reaches the calendar");
     assert.equal(allocations[0][0], cell.dot_box);
     assert.equal(allocations[0][1], box);
+
+    const calendar = makeCalendar();
+    calendar._update();
+    calendar._day_cells[0].dot_box.fire("allocate", box, 0);
 });
 
 // St gives every actor set_accessible_name; a plain double does not, and the

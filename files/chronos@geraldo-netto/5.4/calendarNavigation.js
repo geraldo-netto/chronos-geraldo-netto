@@ -1,0 +1,193 @@
+// Chronos Calendar — a Cinnamon calendar applet.
+// Copyright (C) Geraldo Netto <geraldonetto@gmail.com> and contributors.
+// Derived from calendar@ccprog (Claus Colloseus) and
+// calendar@simonwiles.net (Simon Wiles).
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+const Clutter = imports.gi.Clutter;
+const GLib = imports.gi.GLib;
+const St = imports.gi.St;
+const Mainloop = imports.mainloop;
+
+const SMOOTH_SCROLL_NOTCH = 1;
+const DAY_KEY_DELTAS = {
+    [Clutter.KEY_Left]: -1,
+    [Clutter.KEY_Right]: 1,
+    [Clutter.KEY_Up]: -7,
+    [Clutter.KEY_Down]: 7
+};
+const MIRRORED_KEYS = new Set([Clutter.KEY_Left, Clutter.KEY_Right]);
+
+function sameDay(dateA, dateB) {
+    return dateA.getDate() === dateB.getDate() &&
+        dateA.getMonth() === dateB.getMonth() &&
+        dateA.getFullYear() === dateB.getFullYear();
+}
+
+function browsedDate(oldDate, yearChange, monthChange) {
+    let newMonth = oldDate.getMonth() + monthChange;
+    if (newMonth > 11) {
+        yearChange++;
+        newMonth = 0;
+    } else if (newMonth < 0) {
+        yearChange--;
+        newMonth = 11;
+    }
+
+    const newYear = oldDate.getFullYear() + yearChange;
+    const daysInMonth = 32 - new Date(newYear, newMonth, 32).getDate();
+    const date = new Date();
+    date.setFullYear(newYear, newMonth, Math.min(oldDate.getDate(), daysInMonth));
+    return date;
+}
+
+// Owns selected-date state, input interpretation, focus and coalesced browsing.
+// Its port is the small part of the grid/lifecycle it needs to notify.
+class CalendarNavigationController {
+    constructor(port, selectedDate = new Date()) {
+        this.port = port;
+        this.selectedDate = selectedDate;
+        this.queuedDate = null;
+        this.setDateIdleId = 0;
+        this.scrollAccumulator = 0;
+        this.focusAfterSetDate = false;
+    }
+
+    setDate(date, forceReload) {
+        if (sameDay(date, this.selectedDate) && !forceReload) {
+            return;
+        }
+
+        if (!sameDay(date, this.selectedDate)) {
+            this.selectedDate = date;
+            this.port.emitSelected(date);
+        }
+        this.port.update();
+    }
+
+    cancelQueuedDate() {
+        if (this.setDateIdleId > 0) {
+            Mainloop.source_remove(this.setDateIdleId);
+            this.setDateIdleId = 0;
+        }
+        this.queuedDate = null;
+    }
+
+    _applyQueuedDate() {
+        const date = this.queuedDate;
+        this.queuedDate = null;
+        this.setDateIdleId = 0;
+        this.port.setDate(date, false);
+        if (this.focusAfterSetDate) {
+            this.focusAfterSetDate = false;
+            this.focusSelectedDay();
+        }
+        return GLib.SOURCE_REMOVE;
+    }
+
+    queueDate(date) {
+        this.queuedDate = date;
+        if (this.setDateIdleId === 0) {
+            this.setDateIdleId = Mainloop.timeout_add(25, this._applyQueuedDate.bind(this));
+        }
+    }
+
+    focusSelectedDay() {
+        for (const cell of this.port.dayCells()) {
+            if (cell.date && sameDay(cell.date, this.selectedDate) && cell.button.grab_key_focus) {
+                cell.button.can_focus = true;
+                cell.button.grab_key_focus();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    dayCellHasFocus() {
+        const focused = global.stage && global.stage.get_key_focus ?
+            global.stage.get_key_focus() : null;
+        return !focused || this.port.dayCells().some((cell) => cell.button === focused);
+    }
+
+    rtl() {
+        const actor = this.port.actor();
+        return Boolean(actor.get_direction && actor.get_direction() === St.TextDirection.RTL);
+    }
+
+    onKeyPress(event) {
+        const symbol = event.get_key_symbol();
+        const days = DAY_KEY_DELTAS[symbol];
+        if (days !== undefined) {
+            if (!this.dayCellHasFocus()) {
+                return Clutter.EVENT_PROPAGATE;
+            }
+            const delta = this.rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
+            const target = new Date(this.selectedDate.getTime());
+            target.setDate(target.getDate() + delta);
+            this.setDate(target, false);
+            this.focusSelectedDay();
+            return Clutter.EVENT_STOP;
+        }
+
+        if (!this.dayCellHasFocus()) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+        if (symbol === Clutter.KEY_Page_Up || symbol === Clutter.KEY_Page_Down) {
+            this.focusAfterSetDate = true;
+            this.applyBrowse(0, symbol === Clutter.KEY_Page_Up ? -1 : 1);
+            return Clutter.EVENT_STOP;
+        }
+        if (symbol === Clutter.KEY_Home) {
+            this.setDate(new Date(), false);
+            this.focusSelectedDay();
+            return Clutter.EVENT_STOP;
+        }
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    onScroll(event) {
+        switch (event.get_scroll_direction()) {
+        case Clutter.ScrollDirection.UP:
+        case Clutter.ScrollDirection.LEFT:
+            this.port.browse(0, -1);
+            break;
+        case Clutter.ScrollDirection.DOWN:
+        case Clutter.ScrollDirection.RIGHT:
+            this.port.browse(0, 1);
+            break;
+        case Clutter.ScrollDirection.SMOOTH:
+            this.onSmoothScroll(event);
+            break;
+        }
+    }
+
+    onSmoothScroll(event) {
+        const [dx, dy] = event.get_scroll_delta();
+        const delta = Math.abs(dy) > Math.abs(dx) ? dy : dx;
+        if (!Number.isFinite(delta) || delta === 0) {
+            return;
+        }
+        if (Math.sign(delta) !== Math.sign(this.scrollAccumulator)) {
+            this.scrollAccumulator = 0;
+        }
+        this.scrollAccumulator += delta;
+        while (this.scrollAccumulator <= -SMOOTH_SCROLL_NOTCH) {
+            this.scrollAccumulator += SMOOTH_SCROLL_NOTCH;
+            this.port.browse(0, -1);
+        }
+        while (this.scrollAccumulator >= SMOOTH_SCROLL_NOTCH) {
+            this.scrollAccumulator -= SMOOTH_SCROLL_NOTCH;
+            this.port.browse(0, 1);
+        }
+    }
+
+    applyBrowse(yearChange, monthChange) {
+        const oldDate = this.queuedDate || this.selectedDate;
+        this.port.queueDate(browsedDate(oldDate, yearChange, monthChange));
+    }
+}
+
+if (typeof module !== "undefined") {
+    module.exports = { CalendarNavigationController, browsedDate };
+}
