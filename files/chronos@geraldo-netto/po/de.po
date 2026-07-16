@@ -491,6 +491,10 @@ msgid "Angola"
 msgstr "Angola"
 
 #. 5.4->settings-schema.json->country->options
+msgid "Argentina"
+msgstr "Argentinien"
+
+#. 5.4->settings-schema.json->country->options
 msgid "Australia"
 msgstr "Australien"
 
@@ -513,6 +517,10 @@ msgstr "Weißrussland"
 #. 5.4->settings-schema.json->country->options
 msgid "Brazil"
 msgstr "Brasilien"
+
+#. 5.4->settings-schema.json->country->options
+msgid "Bulgaria"
+msgstr "Bulgarien"
 
 #. 5.4->settings-schema.json->country->options
 msgid "Canada"

@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 14 (Critical 0, High 1, Medium 4, Low 9).
+Open items: 13 (Critical 0, High 1, Medium 3, Low 9).
 
 ## Findings
 
@@ -23,7 +23,6 @@ Open items: 14 (Critical 0, High 1, Medium 4, Low 9).
 | T499 | release | Medium | open | M | **[verified]** No release story. Zero git tags, no changelog, version pinned at `0.0.1` in both `metadata.json:6` and `package.json:3`, and `ci.yml` has only a `gates` job — no tag, release or packaging job. The Spices site offers an update to installed users **only** when `metadata.json`'s version rises, and nothing enforces or records that bump (`schema_static.test.js:21-22` pins metadata/package *agreement*, not that either increments). | Fix: a version-bump + changelog + tag flow, gated in CI. |
 | T500 | CI | Medium | open | M | **[verified]** CI gates the code and nothing else. `.github/workflows/ci.yml` is honest about what it runs (no `continue-on-error`, no dead matrix, `lint:py` genuinely exits 1) — but every packaging and i18n defect in this ledger ships green: nothing rejects a symlinked `icon.png` (T439), checks the tracked-file package manifest/source symlinks (T528), runs `msgfmt -c` over the catalogs, or checks the `.pot` is current (T523). It also tests only Node 22 while `package.json:31` declares `>=20`, so the supported floor is never exercised. | Fix: a packaging job, and a Node 20/22 matrix. |
 | T528 | packaging / supply chain | Medium | open | M | **[verified]** `scripts/package-spices.mjs` recursively copies the live `files/` tree with `dereference: true`, so ignored/untracked junk is shipped and arbitrary source symlinks are followed before the output symlink check. A normal package copied five ignored `.pyc` files (76 files instead of the 71 tracked files); in an isolated fixture, `icon.png -> /etc/hostname` produced a successful package containing the host file as a regular file. | Fix: stage an exact tracked/declared source manifest, reject source symlinks or out-of-root targets before copying, and test that ignored/untracked artifacts cannot enter the archive. T439 removes the currently committed symlink. |
-| T529 | provider catalog / data | Medium | open | M | **[verified]** The holiday country catalog has drifted from Enrico: the live supported-country list and API accept Argentina (`arg`/`AR`) and Bulgaria (`bgr`/`BG`), but both are absent from `SUPPORTED_COUNTRIES`, `COUNTRY_TO_ISO2` and the schema. Internal parity tests stay green because they only compare the duplicated local tables to one another. | Verified against Enrico's [current supported-country list](https://holidays.kayaposoft.com/). Add both countries through constants, ISO mappings, schema, translations and tests; explicitly verify fallback-provider coverage. |
 
 ### Low
 

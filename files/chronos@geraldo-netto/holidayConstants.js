@@ -22,7 +22,7 @@ var GLOBAL_REGION = "global";
 // the countries the settings combobox offers; a value outside this list
 // cannot be picked in the UI and no provider can answer for it
 var SUPPORTED_COUNTRIES = [
-    "ago", "aus", "aut", "bel", "bih", "blr", "bra", "can",
+    "ago", "arg", "aus", "aut", "bel", "bih", "blr", "bgr", "bra", "can",
     "chl", "chn", "col", "hrv", "cyp", "cze", "dnk", "slv",
     "est", "esp", "fin", "fra", "deu", "grc", "hkg", "hun",
     "isl", "irl", "imn", "isr", "ita", "jpn", "kor", "xkx",
@@ -36,6 +36,7 @@ var OPEN_HOLIDAYS_COUNTRIES = {
     aut: true,
     bel: true,
     blr: true,
+    bgr: true,
     bra: true,
     che: true,
     cze: true,
@@ -63,11 +64,13 @@ var OPEN_HOLIDAYS_COUNTRIES = {
 };
 var COUNTRY_TO_ISO2 = {
     ago: "AO",
+    arg: "AR",
     aus: "AU",
     aut: "AT",
     bel: "BE",
     bih: "BA",
     blr: "BY",
+    bgr: "BG",
     bra: "BR",
     can: "CA",
     che: "CH",

@@ -14,6 +14,22 @@ test("every country the settings offer can reach the fallback providers", () => 
     assert.deepEqual(unreachable, []);
 });
 
+test("Argentina and Bulgaria have explicit fallback-provider coverage", () => {
+    const { COUNTRY_TO_ISO2, OPEN_HOLIDAYS_COUNTRIES } = require(holidayConstantsPath);
+    const { NagerDateServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
+    const nager = new NagerDateServiceAdapter(() => {});
+    const open = new OpenHolidaysServiceAdapter(() => {});
+
+    assert.equal(COUNTRY_TO_ISO2.arg, "AR");
+    assert.equal(COUNTRY_TO_ISO2.bgr, "BG");
+    assert.equal(nager.countryCode("arg"), "AR");
+    assert.equal(nager.countryCode("bgr"), "BG");
+    assert.equal(open.countryCode("arg"), null,
+        "OpenHolidays does not advertise Argentina, so Nager remains its fallback");
+    assert.equal(open.countryCode("bgr"), "BG");
+    assert.equal(OPEN_HOLIDAYS_COUNTRIES.bgr, true);
+});
+
 test("tzdata ISO2 countries map back to holiday country identifiers", () => {
     const {
         SUPPORTED_COUNTRIES,
