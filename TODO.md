@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 28 (Critical 0, High 1, Medium 7, Low 20).
+Open items: 27 (Critical 0, High 1, Medium 7, Low 19).
 
 ## Findings
 
@@ -33,7 +33,6 @@ Open items: 28 (Critical 0, High 1, Medium 7, Low 20).
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
 | T507 | testing | Low | open | S | **[verified]** Two more unpinned values. `weather.js:178`: deleting `this._request_generation++;` from `stop()` survives — the two tests that call `stop()` assert only that timers were removed, never that in-flight replies are discarded (mitigating: `stop()`'s only caller is `destroy()`, which is separately guarded, so this is nearly an equivalent mutant). `ioUtils.js:204`: `READ_CHUNK_BYTES` 64 KiB → `1` survives — correctness-neutral (the cap is enforced on the running total, which *is* tested), but a 1-byte chunk size would make every response pathologically slow and nothing would say so. | Fix: assert both. |
-| T510 | duplication | Low | open | S | `5.4/appletPanelStatus.js:79` (`describeWeather`) and `:350-353` (`_conditionWords`) each write the same condition-glyph → English word → translated word lookup, and the `⚠ + translateWeatherError(...)` phrase is built twice (`:473-474`, `:619`). | The two feed the tooltip and the screen-reader name respectively, so they can disagree about what the sky is. Fix: one helper. |
 | T455 | dead code | Low | open | S | **[verified]** `cityWeather.js:34` `CITY_STALE_AFTER_SECONDS` is computed at load and exported, but production reads none of it — `CityWeatherProvider` derives its own threshold from the injected period at `:54`. Only `cityWeather.test.js` reads it. | Re-confirmed independently by the 2026-07-13 wiring scan. Fix: delete the constant and its `module.exports` entry. |
 | T512 | dead code | Low | open | S | **[verified]** `weatherFormat.js:105` `formatReading(icon, celsius, units)` has no production caller: it is not re-exported by the `weather.js` barrel (`:32-64` lists every other `WeatherFormat` symbol), so no GJS consumer can reach it, and the only call sites are `weather.test.js:29` (which uses it to re-derive the panel string) and a stub in `gjs_import.test.js:181`. The panel renders via `formatTemperature` + `WEATHER_CONDITIONS`. | A test-only helper living in production. Fix: delete, or move it into the test. |
 | T513 | dead code | Low | open | S | **[verified]** `holidayCache.js:446-450` `_syncIndex()` can never see a mismatch in production: `this.data` is written only by `setData` (which rebuilds the index) and `addUnique` (which updates `_indexedDataLength` in the same block). The only writers that break the invariant are tests pushing straight onto the array (`holidays.test.js:1005`, `:1228`) — a production resync branch that exists to make fixtures work. | Fix: delete the branch and have the fixtures go through the API. |

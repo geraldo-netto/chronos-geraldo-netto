@@ -67,6 +67,16 @@ const WEATHER_CONDITION_TEXT = {
     Fair: _("Fair")
 };
 
+function weatherConditionWords(condition) {
+    const word = condition ? (Weather.WEATHER_CONDITIONS[condition] || "") : "";
+    return word ? (WEATHER_CONDITION_TEXT[word] || word) : "";
+}
+
+function markedWeatherError(error) {
+    const text = translateWeatherError(error);
+    return text ? Weather.WEATHER_ERROR_MARKER + " " + text : "";
+}
+
 // The panel has room for a glyph and a temperature, and no more. A screen
 // reader gets the emoji's codepoint name or nothing at all, so the spoken name
 // spells the condition out. `condition` is the reading's condition glyph
@@ -77,12 +87,12 @@ function describeWeather(text, condition = "", pending = false) {
         return joinPhrases(text, _("Weather: loading…"));
     }
 
-    const word = condition ? (Weather.WEATHER_CONDITIONS[condition] || "") : "";
-    if (!word) {
+    const words = weatherConditionWords(condition);
+    if (!words) {
         return text;
     }
 
-    return joinPhrases(text, WEATHER_CONDITION_TEXT[word] || word);
+    return joinPhrases(text, words);
 }
 
 // The result is handed to strftime, so every % in it is a directive. A
@@ -291,13 +301,6 @@ class AppletPanelStatusPresenter {
         view.setWorldclocksVisible(this.worldclocksEnabled());
     }
 
-    // the condition glyph in words, translated where a word exists — the tooltip
-    // cell and the accessible name both say the sky this way
-    _conditionWords(condition) {
-        const word = condition ? (Weather.WEATHER_CONDITIONS[condition] || "") : "";
-        return word ? (WEATHER_CONDITION_TEXT[word] || word) : "";
-    }
-
     // the panel carries the temperature, not the sky: the glyph is a picture of
     // what the tooltip and the accessible name already say in words. The record
     // is Celsius; the panel renders it in the user's unit.
@@ -399,7 +402,7 @@ class AppletPanelStatusPresenter {
     _readingCells(record, error) {
         return [
             Weather.formatTemperature(record.temperatureC, this.view.weatherUnits),
-            error || this._conditionWords(record.condition)
+            error || weatherConditionWords(record.condition)
         ];
     }
 
@@ -412,8 +415,7 @@ class AppletPanelStatusPresenter {
             return ["", ""];
         }
 
-        const error = view.weatherError ?
-            Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError) : "";
+        const error = view.weatherError ? markedWeatherError(view.weatherError) : "";
         // the first refresh has not landed: an ellipsis in the temperature
         // column, with nothing beside it, says less than nothing
         if (view.weatherPending) {
@@ -557,7 +559,7 @@ class AppletPanelStatusPresenter {
         }
 
         if (view.weatherError) {
-            return Weather.WEATHER_ERROR_MARKER + " " + translateWeatherError(view.weatherError);
+            return markedWeatherError(view.weatherError);
         }
 
         // the first refresh has not landed: an ellipsis on the panel says nothing
@@ -694,5 +696,5 @@ class AppletPanelStatusPresenter {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_MAX_LENGTH, LABEL_ELLIPSIS };
+    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, weatherConditionWords, markedWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_MAX_LENGTH, LABEL_ELLIPSIS };
 }

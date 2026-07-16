@@ -265,7 +265,8 @@ test("applets surface weather provider failures", () => {
     assert.match(coordinators, /setStatus\(reading = null, error = "", providerName = "", pending = false\) \{[\s\S]*?this\.reading = reading \|\| null;[\s\S]*?this\.pending = pending;[\s\S]*?this\.error = error;[\s\S]*?this\.providerName = providerName \|\| "";/);
     assert.match(code, /this\._weatherCoordinatorForCurrentState\(\)\.setStatus/);
     assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER\);\n/);
-    assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER \+ " " \+ translateWeatherError\(view\.weatherError\)/);
+    assert.match(panelStatus, /function markedWeatherError\(error\)/);
+    assert.match(panelStatus, /return text \? Weather\.WEATHER_ERROR_MARKER \+ " " \+ text : "";/);
     assert.match(panelStatus, /_\("Set a weather location"\)/);
     // the tooltip is a clock table and nothing else: the provider credit that
     // used to sit under a blank line at its foot is gone from it, and lives in
@@ -330,7 +331,7 @@ test("weather failures keep showing the stale reading with the marker", () => {
     // the tooltip row keeps the temperature in its own column and puts the marker
     // in the condition column, so a failed refresh loses neither. Both the
     // built-in and city rows render their reading record through _readingCells.
-    assert.match(code, /error \|\| this\._conditionWords\(record\.condition\)/);
+    assert.match(code, /error \|\| weatherConditionWords\(record\.condition\)/);
     assert.match(code, /return record \? this\._readingCells\(record, error\) : \["", error\];/);
 });
 
