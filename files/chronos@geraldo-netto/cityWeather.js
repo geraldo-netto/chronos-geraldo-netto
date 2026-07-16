@@ -65,12 +65,6 @@ const GEOCODE_CONCURRENCY = 2;
 // a failed round is retried sooner than the next period, backing off toward
 // it — the panel reading has worked this way all along
 const CITY_RETRY_SECONDS = Weather.RETRY_SECONDS;
-// a reading older than two periods is no longer being refreshed successfully,
-// and the tooltip says so rather than presenting it as current. The rule lives
-// in weatherFormat, with the panel's — this is only its value at the default
-// period.
-const CITY_STALE_AFTER_SECONDS = Weather.staleAfterSeconds(CITY_REFRESH_SECONDS);
-
 // The panel weather asks one place for one reading. The tooltip asks every
 // configured world clock, so each city carries its own place lookup and its
 // own last-good reading; a city that fails to geocode simply has no
@@ -434,5 +428,5 @@ var CityWeatherProvider = class CityWeatherProvider {
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { CityWeatherProvider, CITY_REFRESH_SECONDS, CITY_RETRY_SECONDS, CITY_STALE_AFTER_SECONDS, MAX_CITIES };
+    module.exports = { CityWeatherProvider, CITY_REFRESH_SECONDS, CITY_RETRY_SECONDS, MAX_CITIES };
 }

@@ -559,7 +559,7 @@ test("a city that fails to read is retried, and says so once it is old", () => {
 
     // the reading it is still showing was taken two periods ago, and is no
     // longer the weather
-    clock += (CityWeather.CITY_STALE_AFTER_SECONDS + 1) * 1000;
+    clock += (CityWeather.CITY_REFRESH_SECONDS * 2 + 1) * 1000;
     assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
     assert.equal(provider.staleFor("Rome"), true);
     assert.equal(provider.staleFor("Atlantis"), false, "a city with no reading is not stale");
@@ -770,11 +770,10 @@ test("staleness at the default period is still two refresh periods", () => {
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => {});
 
-    now += CityWeather.CITY_STALE_AFTER_SECONDS * 1000;
+    now += CityWeather.CITY_REFRESH_SECONDS * 2 * 1000;
     assert.equal(provider.staleFor("Lisbon"), false);
     now += 1000;
     assert.equal(provider.staleFor("Lisbon"), true);
-    assert.equal(CityWeather.CITY_STALE_AFTER_SECONDS, CityWeather.CITY_REFRESH_SECONDS * 2);
 });
 
 // The resolver's callback is (place, error) and _refreshCity took only (place),
