@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-13 against every `ag
 
 Baseline: `npm test` green (670 JS tests, JS coverage per-file 98/90/100; Python 111 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 22 (Critical 0, High 1, Medium 6, Low 15).
+Open items: 21 (Critical 0, High 1, Medium 6, Low 14).
 
 ## Findings
 
@@ -31,7 +31,6 @@ Open items: 22 (Critical 0, High 1, Medium 6, Low 15).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T506 | docs | Low | open | S | `README.md:236-237` documents a tooltip footer that no longer exists ("with the answering service named at the foot"). The code comment at `5.4/appletPanelStatus.js:604-606` records that the footer was removed and says it "is still credited … in the README" — the README was not updated. | Fix: correct the sentence. |
 | T507 | testing | Low | open | S | **[verified]** Two more unpinned values. `weather.js:178`: deleting `this._request_generation++;` from `stop()` survives — the two tests that call `stop()` assert only that timers were removed, never that in-flight replies are discarded (mitigating: `stop()`'s only caller is `destroy()`, which is separately guarded, so this is nearly an equivalent mutant). `ioUtils.js:204`: `READ_CHUNK_BYTES` 64 KiB → `1` survives — correctness-neutral (the cap is enforced on the running total, which *is* tested), but a 1-byte chunk size would make every response pathologically slow and nothing would say so. | Fix: assert both. |
 | T510 | duplication | Low | open | S | `5.4/appletPanelStatus.js:79` (`describeWeather`) and `:350-353` (`_conditionWords`) each write the same condition-glyph → English word → translated word lookup, and the `⚠ + translateWeatherError(...)` phrase is built twice (`:473-474`, `:619`). | The two feed the tooltip and the screen-reader name respectively, so they can disagree about what the sky is. Fix: one helper. |
 | T455 | dead code | Low | open | S | **[verified]** `cityWeather.js:34` `CITY_STALE_AFTER_SECONDS` is computed at load and exported, but production reads none of it — `CityWeatherProvider` derives its own threshold from the injected period at `:54`. Only `cityWeather.test.js` reads it. | Re-confirmed independently by the 2026-07-13 wiring scan. Fix: delete the constant and its `module.exports` entry. |
