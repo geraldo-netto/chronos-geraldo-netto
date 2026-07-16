@@ -973,7 +973,7 @@ test("HolidayService setPlace loads cache and getHolidays retrieves stale years"
     enrico.retrieveForYear = function(year, callback) {
         retrievedYear = year;
         this.cache.years[year] = { global: new Date().toUTCString() };
-        this.cache.data.push({ year, month: 3, day: 8, region: "global", name: "Fetched", flags: [] });
+        this.cache.addUnique({ year, month: 3, day: 8, region: "global", name: "Fetched", flags: [] });
         if (callback) {
             callback();
         }
@@ -1185,7 +1185,7 @@ test("HolidayCache indexes many rows into the month they fall in", () => {
     }
 });
 
-test("HolidayCache indexes loaded data and syncs direct mutations", () => {
+test("HolidayCache indexes loaded data and API mutations", () => {
     const { HolidayCache } = loadHolidays();
     const cache = new HolidayCache(
         (_country, done) => done({
@@ -1204,7 +1204,7 @@ test("HolidayCache indexes loaded data and syncs direct mutations", () => {
     assert.equal(cache.data.length, 2);
     assert.deepEqual(cache.matchMonth(2031, 1).get("1/1"), ["One\nUno", []]);
 
-    cache.data.push({ year: 2031, month: 1, day: 7, region: "global", name: "Seven", flags: [] });
+    cache.addUnique({ year: 2031, month: 1, day: 7, region: "global", name: "Seven", flags: [] });
 
     assert.deepEqual(cache.matchMonth(2031, 1).get("1/7"), ["Seven", []]);
     assert.equal(cache._holidayIndex.size, cache.data.length);

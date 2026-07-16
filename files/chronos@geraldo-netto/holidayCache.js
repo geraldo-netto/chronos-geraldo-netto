@@ -391,7 +391,6 @@ var HolidayCache = class HolidayCache {
         this._holidayIndex = new Map();
         this._monthIndex = new Map();
         this._matchedMonthCache = new Map();
-        this._indexedDataLength = 0;
         // insertion order is recency: re-touching deletes and re-adds
         this._yearUse = new Map();
     }
@@ -526,13 +525,6 @@ var HolidayCache = class HolidayCache {
         this._matchedMonthCache.clear();
 
         holidays.forEach((single) => this.addUnique(single));
-        this._indexedDataLength = this.data.length;
-    }
-
-    _syncIndex() {
-        if (this._indexedDataLength !== this.data.length) {
-            this._rebuildIndex();
-        }
     }
 
     addUnique (single) {
@@ -548,7 +540,6 @@ var HolidayCache = class HolidayCache {
             this.data.push(single);
             this._indexHoliday(single);
             this._matchedMonthCache.clear();
-            this._indexedDataLength = this.data.length;
         }
 
         this._touchYear(single.year);
@@ -608,7 +599,6 @@ var HolidayCache = class HolidayCache {
         this._matchedMonthCache.clear();
         this.years = {};
         this.attempts = {};
-        this._indexedDataLength = 0;
     }
 
     recordAttempt(year, region, attempted = new Date().toUTCString()) {
@@ -639,7 +629,6 @@ var HolidayCache = class HolidayCache {
     }
 
     matchMonth(year, month, region = this.region) {
-        this._syncIndex();
         // the grid is reading this year: that is what keeps it out of the prune
         this._touchYear(year);
         const monthKey = this._monthKey(year, month, region);
