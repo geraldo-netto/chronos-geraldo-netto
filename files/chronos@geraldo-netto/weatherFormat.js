@@ -63,6 +63,11 @@ function readingIsStale(readingAt, now, staleAfter) {
 // number nobody reads
 var MAX_RETRY_ATTEMPTS = 8;
 var MAX_GEOCODE_CACHE_ENTRIES = 16;
+// Open-Meteo may return an exact-name hamlet for a large city it knows only by
+// an exonym. A population below this is a candidate, not a confident answer:
+// let the next geocoder in the queue arbitrate it instead of showing weather
+// for the wrong place. Missing population is equally unverifiable.
+var MIN_TRUSTED_GEOCODE_POPULATION = 1000;
 // One hit was all that was ever asked for, so the first one the geocoder happened
 // to rank highest was the city, whatever it was. A handful of them, ranked here by
 // what the user typed and by how many people live there, is what makes a wrong
@@ -473,10 +478,14 @@ function openMeteoGeocodePlace(data, query) {
         return null;
     }
 
-    return data.results.reduce((best, result) => {
+    const best = data.results.reduce((currentBest, result) => {
         const candidate = placeCandidate(result);
-        return candidate ? betterPlace(candidate, best, query) : best;
+        return candidate ? betterPlace(candidate, currentBest, query) : currentBest;
     }, null);
+
+    const population = best ? Number(best.population) : NaN;
+    return Number.isFinite(population) && population >= MIN_TRUSTED_GEOCODE_POPULATION ?
+        best : null;
 }
 
 function nominatimGeocodePlace(data) {

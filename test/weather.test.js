@@ -206,9 +206,11 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
     // hostile or malformed geocode payloads never yield non-finite coordinates
     assert.equal(Weather.openMeteoGeocodePlace({ results: [{ latitude: "abc", longitude: 5 }] }), null);
     assert.equal(Weather.openMeteoGeocodePlace({ results: [{ latitude: Infinity, longitude: 5 }] }), null);
-    assert.equal(Weather.openMeteoGeocodePlace({ results: [{ latitude: "41.9", longitude: "12.5" }] }).latitude, 41.9);
+    assert.equal(Weather.openMeteoGeocodePlace({
+        results: [{ latitude: "41.9", longitude: "12.5", population: 1000 }]
+    }).latitude, 41.9);
     assert.equal(typeof Weather.openMeteoGeocodePlace(
-        { results: [{ latitude: "41.9", longitude: "12.5" }] }).longitude, "number");
+        { results: [{ latitude: "41.9", longitude: "12.5", population: 1000 }] }).longitude, "number");
 
     assert.equal(
         Weather.metNoForecastUrl({ latitude: 41.9, longitude: 12.5 }),
@@ -220,9 +222,12 @@ test("normalizes primary and fallback geocode responses", () => {
     const Weather = loadWeather();
 
     assert.deepEqual(
-        Weather.openMeteoGeocodePlace({ results: [{ latitude: 41.9, longitude: 12.5 }] }),
-        { latitude: 41.9, longitude: 12.5 }
+        Weather.openMeteoGeocodePlace({ results: [{ latitude: 41.9, longitude: 12.5, population: 1000 }] }),
+        { latitude: 41.9, longitude: 12.5, population: 1000 }
     );
+    assert.equal(Weather.openMeteoGeocodePlace({
+        results: [{ latitude: 41.9, longitude: 12.5, population: 999 }]
+    }), null, "a tiny result is left for the fallback geocoder to arbitrate");
     assert.equal(Weather.openMeteoGeocodePlace({ results: [] }), null);
     assert.deepEqual(
         Weather.nominatimGeocodePlace([{ lat: "41.9", lon: "12.5", display_name: "Rome, Italy" }]),
@@ -246,8 +251,7 @@ test("normalizes primary and fallback geocode responses", () => {
     }
 });
 
-// The Genova bug, in a test: Open-Meteo answers with four namesakes and the city
-// the user meant, and the first hit is not it.
+// Synthetic namesakes pin the ranking independently from the live provider data.
 const GENOVA_RESULTS = {
     results: [
         { name: "Génova", country: "Guatemala", population: 3744, latitude: 14.6, longitude: -91.8 },
@@ -280,15 +284,15 @@ test("the geocode hit is the one the user typed, not the one the API ranked firs
     // a hit with no usable coordinates is skipped, not returned
     const skipped = Weather.openMeteoGeocodePlace({
         results: [null, { name: "Genova", latitude: "x", longitude: 8.9 },
-            { name: "Genova", country: "Italy", latitude: 44.4, longitude: 8.9 }]
+            { name: "Genova", country: "Italy", population: 1000, latitude: 44.4, longitude: 8.9 }]
     }, "Genova");
     assert.equal(skipped.latitude, 44.4);
     assert.equal(Weather.openMeteoGeocodePlace({ results: [{ latitude: "x", longitude: 1 }] }, "x"), null);
 
-    // an unranked payload — no name, no population — is still a place
-    assert.deepEqual(
+    // an unranked payload cannot be trusted over the fallback geocoder
+    assert.equal(
         Weather.openMeteoGeocodePlace({ results: [{ latitude: 41.9, longitude: 12.5, population: "many" }] }),
-        { latitude: 41.9, longitude: 12.5, population: "many" }
+        null
     );
 });
 
@@ -878,7 +882,7 @@ test("the first fetch shows a pending placeholder, later ones do not", () => {
     const provider = new Weather.WeatherProvider({
         httpGetJson(url, callback) {
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 41.9, longitude: 12.5 }] });
+                callback({ results: [{ latitude: 41.9, longitude: 12.5, population: 2873000 }] });
             } else {
                 respond = () => callback({ current_weather: { weathercode: 2, temperature: 12.6 } });
             }
@@ -911,7 +915,7 @@ test("transient failures keep reporting the last good reading", () => {
             if (fail) {
                 callback(null);
             } else if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 41.9, longitude: 12.5 }] });
+                callback({ results: [{ latitude: 41.9, longitude: 12.5, population: 2873000 }] });
             } else {
                 callback({ current_weather: { weathercode: 2, temperature: 12.6 } });
             }
@@ -1025,7 +1029,7 @@ test("the geocode cache is bounded and re-resolves an edited location", () => {
         maxCacheEntries: 3,
         httpGetJson(url, callback) {
             geocodes++;
-            callback({ results: [{ latitude: 1, longitude: 2 }] });
+            callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
         }
     });
 
@@ -1386,6 +1390,42 @@ test("weather location resolver owns geocode fallback and cache", () => {
         "the searched-for location never reaches the log");
 });
 
+test("a tiny exact Open-Meteo namesake falls through to Nominatim", () => {
+    const Weather = loadWeather();
+    const requests = [];
+    const resolver = new Weather.WeatherLocationResolver({
+        httpGetJson(url, callback, options = {}) {
+            requests.push({ url, options });
+            if (url.includes("geocoding-api")) {
+                // This is the significant shape of the live English `Genova`
+                // response: the only exact spelling is a thirty-person hamlet.
+                callback({ results: [
+                    { name: "Génova", country: "Guatemala", population: 3744,
+                        latitude: 14.61667, longitude: -91.83333 },
+                    { name: "Geneva", country: "United States", population: 6447,
+                        latitude: 41.80505, longitude: -80.94815 },
+                    { name: "Genova", country: "Italy", admin1: "Veneto", population: 30,
+                        latitude: 45.21604, longitude: 11.87211 }
+                ] });
+                return;
+            }
+            callback([{ lat: "44.4072600", lon: "8.9338624", display_name: "Genova, Liguria, Italia" }]);
+        }
+    });
+    let resolved = null;
+
+    resolver.resolve("Genova", () => true, (place, error) => {
+        resolved = { place, error };
+    });
+
+    assert.equal(requests.length, 2, "the weak primary answer does not stop the queue");
+    assert.equal(requests[1].options.headers["User-Agent"], Weather.WEATHER_USER_AGENT);
+    assert.deepEqual(resolved, {
+        place: { name: "Genova, Liguria, Italia", latitude: 44.40726, longitude: 8.9338624 },
+        error: ""
+    });
+});
+
 test("weather forecast resolver owns fallback and last-success ordering", () => {
     const Weather = loadWeather();
     const requests = [];
@@ -1480,7 +1520,7 @@ test("refresh geocodes, fetches forecast, and reports formatted text", () => {
         httpGetJson(url, callback) {
             requests.push(url);
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 41.9, longitude: 12.5 }] });
+                callback({ results: [{ latitude: 41.9, longitude: 12.5, population: 2873000 }] });
             } else {
                 callback({ current_weather: { weathercode: 2, temperature: 12.6 } });
             }
@@ -1551,7 +1591,7 @@ test("refresh reports weather failures with user-visible status", () => {
     const forecastProvider = new Weather.WeatherProvider({
         httpGetJson(url, callback) {
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 1, longitude: 2 }] });
+                callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
             } else {
                 callback(null);
             }
@@ -1573,7 +1613,7 @@ test("refresh falls back to MET.no forecast with required user agent", () => {
         httpGetJson(url, callback, options = {}) {
             requests.push({ url, options });
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 1, longitude: 2 }] });
+                callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
                 return;
             }
             if (url.includes("api.open-meteo.com")) {
@@ -1690,7 +1730,7 @@ test("a forecast with no temperature fails over instead of reading NaN", () => {
         httpGetJson(url, callback) {
             asked.push(url);
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 1, longitude: 2 }] });
+                callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
                 return;
             }
             // Open-Meteo answers, but the station has no reading
@@ -1763,7 +1803,7 @@ test("schedule refreshes immediately, repeats, and can stop the timer", () => {
         refreshSeconds: 15,
         httpGetJson(url, callback) {
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 1, longitude: 2 }] });
+                callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
             } else {
                 callback({ current_weather: { weathercode: 80, temperature: 5 } });
             }
@@ -1878,7 +1918,7 @@ test("changing the units re-renders; it does not re-resolve the location", () =>
         httpGetJson(url, callback) {
             urls.push(url);
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 1, longitude: 2 }] });
+                callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
             } else {
                 callback({ current_weather: { weathercode: 0, temperature: 8 } });
             }
@@ -1923,7 +1963,7 @@ test("queue debounces weather refreshes before scheduling", () => {
         debounceMs: 25,
         httpGetJson(url, callback) {
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 1, longitude: 2 }] });
+                callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
             } else {
                 callback({ current_weather: { weathercode: 0, temperature: 8 } });
             }
@@ -1974,16 +2014,16 @@ test("refresh ignores stale geocode and forecast callbacks", () => {
     provider.refresh({ showWeather: true, location: "Newer", units: "si" }, (reading) => values.push(shown(reading)));
     assert.equal(pending.length, 2);
 
-    pending[0].callback({ results: [{ latitude: 1, longitude: 1 }] });
+    pending[0].callback({ results: [{ latitude: 1, longitude: 1, population: 1000 }] });
     assert.equal(pending.length, 2);
     assert.deepEqual(values, []);
 
-    pending[1].callback({ results: [{ latitude: 2, longitude: 2 }] });
+    pending[1].callback({ results: [{ latitude: 2, longitude: 2, population: 1000 }] });
     assert.equal(pending.length, 3);
 
     provider.refresh({ showWeather: true, location: "Newest", units: "si" }, (reading) => values.push(shown(reading)));
     assert.equal(pending.length, 4);
-    pending[3].callback({ results: [{ latitude: 3, longitude: 3 }] });
+    pending[3].callback({ results: [{ latitude: 3, longitude: 3, population: 1000 }] });
     assert.equal(pending.length, 5);
 
     pending[4].callback({ current_weather: { weathercode: 2, temperature: 15 } });
@@ -1999,7 +2039,7 @@ test("refresh caches geocode results by normalized location", () => {
         httpGetJson(url, callback) {
             requests.push(url);
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 41.9, longitude: 12.5 }] });
+                callback({ results: [{ latitude: 41.9, longitude: 12.5, population: 2873000 }] });
             } else {
                 callback({ current_weather: { weathercode: 3, temperature: 10 } });
             }
@@ -2511,7 +2551,7 @@ test("changing the location does not leave the old city's temperature on the pan
         reported.push([pending ? Weather.WEATHER_PENDING_TEXT : shown(reading, "si"), error]));
 
     // the geocode, then the forecast
-    pending.shift().callback({ results: [{ latitude: 38, longitude: -9 }] });
+    pending.shift().callback({ results: [{ latitude: 38, longitude: -9, population: 567000 }] });
     pending.shift().callback({ current_weather: { temperature: 21, weathercode: 0 } });
 
     assert.deepEqual(reported.at(-1), ["☀ 21°C", ""], "Lisbon is on the panel");
@@ -2526,7 +2566,7 @@ test("changing the location does not leave the old city's temperature on the pan
         "the panel says it is fetching, instead of showing Lisbon's temperature as Tokyo's");
     assert.equal(provider._display_state.hasReading(), false);
 
-    pending.shift().callback({ results: [{ latitude: 35, longitude: 139 }] });
+    pending.shift().callback({ results: [{ latitude: 35, longitude: 139, population: 14000000 }] });
     pending.shift().callback({ current_weather: { temperature: 30, weathercode: 0 } });
 
     assert.deepEqual(reported.at(-1), ["☀ 30°C", ""]);
@@ -2562,7 +2602,7 @@ test("switching between Celsius and Fahrenheit re-renders instead of refetching"
         httpGetJson(url, callback) {
             requests.push(url);
             if (url.includes("geocoding-api")) {
-                callback({ results: [{ latitude: 38, longitude: -9 }] });
+                callback({ results: [{ latitude: 38, longitude: -9, population: 567000 }] });
             } else {
                 callback({ current_weather: { weathercode: 0, temperature: 21 } });
             }
