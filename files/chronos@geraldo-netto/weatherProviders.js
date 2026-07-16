@@ -13,9 +13,8 @@
 // The provider chains of the weather feature: the geocoders that turn a typed
 // place into coordinates, the forecast backends that turn coordinates into a
 // reading, and the two resolvers that walk each chain with the shared failover
-// machinery. weatherFormat.js owns the pure numbers and words each provider
-// reads and writes; weatherScheduler.js owns the refresh clock; weather.js is
-// the barrel that requires all three and adds WeatherProvider on top.
+// machinery. weatherServiceAdapters.js owns vendor URLs and wire formats;
+// weatherScheduler.js owns the refresh clock; weather.js composes the feature.
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 // Which host is loading this file — and it is asked of the *host*, not of
@@ -38,22 +37,28 @@ const ProviderUtils = IS_NODE ?
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
+const WeatherServiceAdapters = IS_NODE ?
+    require("./weatherServiceAdapters") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherServiceAdapters;
 
-const WEATHER_PROVIDER_NAMES = WeatherFormat.WEATHER_PROVIDER_NAMES;
-const WEATHER_USER_AGENT = WeatherFormat.WEATHER_USER_AGENT;
 const WEATHER_ERRORS = WeatherFormat.WEATHER_ERRORS;
 const MAX_GEOCODE_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES;
-const locationCacheKey = WeatherFormat.locationCacheKey;
-const geocodeUrl = WeatherFormat.geocodeUrl;
-const openMeteoGeocodePlace = WeatherFormat.openMeteoGeocodePlace;
-const nominatimGeocodeUrl = WeatherFormat.nominatimGeocodeUrl;
-const nominatimGeocodePlace = WeatherFormat.nominatimGeocodePlace;
-const forecastUrl = WeatherFormat.forecastUrl;
-const weatherReading = WeatherFormat.weatherReading;
-const aviationWeatherUrl = WeatherFormat.aviationWeatherUrl;
-const aviationWeatherReading = WeatherFormat.aviationWeatherReading;
-const metNoForecastUrl = WeatherFormat.metNoForecastUrl;
-const metNoWeatherReading = WeatherFormat.metNoWeatherReading;
+const WEATHER_PROVIDER_NAMES = WeatherServiceAdapters.WEATHER_PROVIDER_NAMES;
+const WEATHER_USER_AGENT = WeatherServiceAdapters.WEATHER_USER_AGENT;
+const geocodeUrl = WeatherServiceAdapters.geocodeUrl;
+const openMeteoGeocodePlace = WeatherServiceAdapters.openMeteoGeocodePlace;
+const nominatimGeocodeUrl = WeatherServiceAdapters.nominatimGeocodeUrl;
+const nominatimGeocodePlace = WeatherServiceAdapters.nominatimGeocodePlace;
+const forecastUrl = WeatherServiceAdapters.forecastUrl;
+const weatherReading = WeatherServiceAdapters.weatherReading;
+const aviationWeatherUrl = WeatherServiceAdapters.aviationWeatherUrl;
+const aviationWeatherReading = WeatherServiceAdapters.aviationWeatherReading;
+const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
+const metNoWeatherReading = WeatherServiceAdapters.metNoWeatherReading;
+
+function locationCacheKey(location) {
+    return location.trim().toLowerCase();
+}
 
 // The geocoders, in the order they are tried. Named, because a nameless provider
 // is logged by its URL when the chain moves on - and a geocode URL carries the
@@ -265,7 +270,7 @@ var WeatherForecastResolver = class WeatherForecastResolver {
 
 if (typeof module !== "undefined") {
     module.exports = {
-        GEOCODE_PROVIDERS, FORECAST_PROVIDERS,
+        GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
         WeatherLocationResolver, WeatherForecastResolver
     };
 }

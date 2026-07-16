@@ -44,7 +44,7 @@ const WorldclockData = IS_NODE ?
     require("./worldclockData") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
 
-const locationCacheKey = Weather.locationCacheKey;
+const locationCacheKey = WeatherProviders.locationCacheKey;
 
 // the world-clock cities are read on the same period as the panel weather:
 // the popup is a glance at the time, not a forecast desk

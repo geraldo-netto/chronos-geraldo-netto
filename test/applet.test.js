@@ -156,6 +156,7 @@ rootModules.eventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
 rootModules.weather = require(path.join(APPLET_DIR, "weather.js"));
 rootModules.weatherFormat = require(path.join(APPLET_DIR, "weatherFormat.js"));
+rootModules.weatherServiceAdapters = require(path.join(APPLET_DIR, "weatherServiceAdapters.js"));
 rootModules.cityWeather = require(path.join(APPLET_DIR, "cityWeather.js"));
 rootModules.holidays = require(path.join(APPLET_DIR, "holidays.js"));
 rootModules.holidayConstants = require(path.join(APPLET_DIR, "holidayConstants.js"));

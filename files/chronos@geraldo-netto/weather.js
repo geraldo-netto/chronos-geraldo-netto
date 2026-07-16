@@ -44,6 +44,9 @@ const WeatherScheduler = IS_NODE ?
 const WeatherProviders = IS_NODE ?
     require("./weatherProviders") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherProviders;
+const WeatherServiceAdapters = IS_NODE ?
+    require("./weatherServiceAdapters") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherServiceAdapters;
 
 
 class WeatherDisplayState {
@@ -202,7 +205,7 @@ var WeatherProvider = class WeatherProvider {
     // on an Open-Meteo outage the geocode falls through to Nominatim, whose usage
     // policy is one request a second.
     _forgetIfLocationChanged(location) {
-        const key = location ? WeatherFormat.locationCacheKey(location) : "";
+        const key = location ? WeatherProviders.locationCacheKey(location) : "";
         if (key && key !== this._resolved_location_key) {
             this._location_resolver.forget(location);
         }
@@ -272,7 +275,7 @@ var WeatherProvider = class WeatherProvider {
     // and only a change of place invalidates it.
     _staleKey(settings) {
         const location = settings.location ? settings.location.trim() : "";
-        return WeatherFormat.locationCacheKey(location);
+        return WeatherProviders.locationCacheKey(location);
     }
 
     _refreshForecast(place, generation, callback) {
@@ -292,6 +295,7 @@ if (typeof module !== "undefined") {
     // parts was three edits in two files. Nothing in the applet reads a part's
     // symbol off this barrel any more — the consumers require the part — so the
     // var bindings GJS needs live in the module that declares each name.
-    module.exports = Object.assign({}, WeatherFormat, WeatherScheduler, WeatherProviders,
+    module.exports = Object.assign({}, WeatherFormat, WeatherServiceAdapters,
+        WeatherScheduler, WeatherProviders, { HTTP_TIMEOUT_SECONDS: IoUtils.HTTP_TIMEOUT_SECONDS },
         { WeatherProvider, WeatherDisplayState });
 }

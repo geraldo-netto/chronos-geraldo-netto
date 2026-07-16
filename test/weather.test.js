@@ -9,6 +9,8 @@ const { makeSoup3 } = require("./helpers/soup");
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "weather.js");
 const schedulerPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "weatherScheduler.js");
 const providersPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "weatherProviders.js");
+const serviceAdaptersPath = path.join(
+    __dirname, "..", "files", "chronos@geraldo-netto", "weatherServiceAdapters.js");
 const ioUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const localeUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "weather.js");
@@ -636,9 +638,10 @@ test("regression: the resolvers and the refresh period are var bindings", () => 
 // provider chains each live in their own module. weather.js requires all three
 // and adds WeatherProvider + WeatherDisplayState on top. This pins that shape so
 // a future edit cannot quietly inline a part back or drop one of the requires.
-test("weather.js is the barrel over weatherFormat, weatherScheduler and weatherProviders", () => {
+test("weather.js composes display, adapters, scheduling and resolvers", () => {
     const source = fs.readFileSync(modulePath, "utf8");
-    for (const dep of ["weatherFormat", "weatherScheduler", "weatherProviders"]) {
+    for (const dep of ["weatherFormat", "weatherServiceAdapters",
+        "weatherScheduler", "weatherProviders"]) {
         assert.match(source, new RegExp('require\\("\\./' + dep + '"\\)'),
             "weather.js must require " + dep);
     }
@@ -646,11 +649,27 @@ test("weather.js is the barrel over weatherFormat, weatherScheduler and weatherP
     const Weather = loadWeather();
     // a symbol that originates in each part reaches consumers through the barrel
     assert.equal(typeof Weather.staleAfterSeconds, "function", "carried on from weatherFormat");
+    assert.equal(typeof Weather.geocodeUrl, "function", "carried on from weatherServiceAdapters");
     assert.equal(typeof Weather.WeatherRefreshScheduler, "function", "carried on from weatherScheduler");
     assert.equal(typeof Weather.WeatherForecastResolver, "function", "carried on from weatherProviders");
     // ...and weather.js's own two additions
     assert.equal(typeof Weather.WeatherProvider, "function");
     assert.equal(typeof Weather.WeatherDisplayState, "function");
+});
+
+test("weather display rules do not own vendor wire contracts", () => {
+    const displaySource = fs.readFileSync(path.join(
+        __dirname, "..", "files", "chronos@geraldo-netto", "weatherFormat.js"), "utf8");
+    const display = require(path.join(
+        __dirname, "..", "files", "chronos@geraldo-netto", "weatherFormat.js"));
+    const adapters = require(serviceAdaptersPath);
+
+    assert.doesNotMatch(displaySource, /open-meteo|nominatim|aviationweather|api\.met\.no/i);
+    assert.equal(display.geocodeUrl, undefined);
+    assert.equal(display.weatherReading, undefined);
+    assert.equal(typeof display.formatReading, "function");
+    assert.equal(typeof adapters.geocodeUrl, "function");
+    assert.equal(typeof adapters.weatherReading, "function");
 });
 
 // pick the nearest station that carries a usable temperature, whatever the
