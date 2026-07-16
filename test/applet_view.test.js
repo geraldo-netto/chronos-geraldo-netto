@@ -693,6 +693,7 @@ test("no clock list, however shaped, puts a clock on the panel", () => {
 
 test("a suffix exactly at the length cap is kept whole, one past it is cut", () => {
     const presenter = panelStatus(suffixStub());
+    assert.equal(MAX_SUFFIX, 48, "the panel suffix cap is a product limit");
     const cap = "x".repeat(MAX_SUFFIX);
 
     assert.equal(presenter.ellipsizeLabelSuffix(cap), cap, "a suffix at the cap needs no trim");

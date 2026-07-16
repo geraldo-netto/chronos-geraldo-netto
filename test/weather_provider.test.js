@@ -3,6 +3,13 @@ const {
     shown, immediateNominatimQueue, loadWeather
 } = require("./helpers/weatherFixture");
 
+test("weather cache and debounce defaults stay at their shipped bounds", () => {
+    const Weather = loadWeather();
+
+    assert.equal(Weather.MAX_GEOCODE_CACHE_ENTRIES, 16);
+    assert.equal(Weather.WEATHER_DEBOUNCE_MS, 750);
+});
+
 test("enabled weather without a location reports the setup hint", () => {
     const Weather = loadWeather();
     const provider = new Weather.WeatherProvider({ httpGetJson() { throw new Error("no request expected"); } });

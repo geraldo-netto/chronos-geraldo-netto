@@ -339,6 +339,7 @@ test("fuzz: a hostile DBus event either builds or is refused, and never half-bui
 // wrapping, non-ellipsizing label laid out on the compositor thread
 test("a huge event summary is clamped, not laid out", () => {
     const max = EventDataModule.MAX_EVENT_SUMMARY_LENGTH;
+    assert.equal(max, 300, "the compositor-facing summary cap is a product limit");
     const times = { startUnix: 50 * 24 * 3600, endUnix: 50 * 24 * 3600 + 3600 };
     const event = new EventData(
         makeVariant(Object.assign({ summary: "x".repeat(500 * 1024) }, times)), 1);

@@ -573,6 +573,8 @@ test("a response from the country the user just left does not silence the new on
 // spanning a year, is twelve million objects in one loop.
 test("a payload with an absurd number of holidays is refused, not expanded", () => {
     const { HolidayRecordContract, MAX_HOLIDAYS_PER_YEAR } = loadHolidays();
+    assert.equal(MAX_HOLIDAYS_PER_YEAR, 1000,
+        "the network row cap is a product limit, not its own oracle");
     const record = new HolidayRecordContract("en");
 
     const holiday = (day) => ({

@@ -621,6 +621,7 @@ test("the cache file keeps a handful of countries, not every one ever tried", ()
 test("the month-match memo is bounded, and scrolling back is still free", () => {
     const { HolidayCache } = loadHolidays();
     const { MAX_MEMOIZED_MONTHS } = require(holidayCachePath);
+    assert.equal(MAX_MEMOIZED_MONTHS, 32, "the memo cap is a product limit, not its own oracle");
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
     cache.setPlace("usa");
     cache.addUnique({ year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: [] });
