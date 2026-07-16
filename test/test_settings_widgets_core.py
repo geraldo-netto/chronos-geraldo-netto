@@ -1,0 +1,827 @@
+from helpers.settings_widgets_fixture import (
+    APPLET_DIR, COMMON_PATH, BaseWidget, ComboBox, DialogSettings, Entry,
+    FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model, Path,
+    importlib, install_stubs, json, load_module, random, requires_pytz, sys,
+    tearDownModule as teardown_fixture, types, unittest,
+)
+
+
+def tearDownModule():
+    teardown_fixture()
+
+class SettingsWidgetsTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(COMMON_PATH, "settings_widgets_common_test")
+
+    def setUp(self):
+        GtkDialog.on_run = None
+        GtkMessageDialog.instances.clear()
+        BaseWidget.instances.clear()
+
+    def test_list_edit_factory_combo_widget(self):
+        widget = self.module.list_edit_factory({
+            "title": "City",
+            "options": [("Rome", "Rome")]
+        })
+
+        self.assertIsInstance(widget, ComboBox)
+        self.assertEqual(widget.kwargs["label"], "City")
+        self.assertEqual(widget.kwargs["valtype"], str)
+        self.assertTrue(widget.handlers_connected)
+        self.assertIsNone(widget.get_value())
+
+        widget.set_widget_value("Rome")
+        self.assertEqual(widget.get_widget_value(), "Rome")
+        self.assertTrue(widget.changed)
+
+    def test_list_edit_factory_entry_widget(self):
+        widget = self.module.list_edit_factory({"title": "Label"})
+
+        self.assertIsInstance(widget, Entry)
+        self.assertEqual(widget.kwargs["label"], "Label")
+
+        widget.set_widget_value("Home")
+        self.assertEqual(widget.get_widget_value(), "Home")
+
+    def test_the_column_widgets_are_declared_once_not_per_dialog(self):
+        # PyGObject registers a GType for every subclass of a GObject type, and
+        # GTypes are never unregistered. Declaring the widget classes inside the
+        # factory leaked two of them - with their class structures and closures
+        # - on every Add or Edit click, for the life of the settings process.
+        first = self.module.list_edit_factory({"title": "Label"})
+        second = self.module.list_edit_factory({"title": "Label"})
+        self.assertIs(type(first), type(second))
+        self.assertIs(type(first), self.module.ListEditEntry)
+
+        combo = self.module.list_edit_factory({"title": "Zone", "options": {"a": "1"}})
+        again = self.module.list_edit_factory({"title": "Zone", "options": {"a": "1"}})
+        self.assertIs(type(combo), type(again))
+        self.assertIs(type(combo), self.module.ListEditComboBox)
+
+    def test_the_suggestion_store_is_built_once_not_per_dialog(self):
+        # ~440 rows with pytz, rebuilt on the GTK main thread every time the
+        # dialog opened; the list does not change while the process runs
+        completions = [("Rome (Europe)", "Europe/Rome"), ("Tokyo (Asia)", "Asia/Tokyo")]
+
+        first = self.module.list_edit_factory({"title": "Zone", "completions": completions})
+        second = self.module.list_edit_factory({"title": "Zone", "completions": completions})
+
+        self.assertIs(first.completion.model, second.completion.model)
+        self.assertEqual(len(first.completion.model.rows), 2)
+
+    def test_add_button_stops_at_the_clock_limit(self):
+        clocks = self.module.ClocksList({
+            "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
+        }, "worldclocks", object())
+
+        self.assertTrue(clocks.add_button.sensitive)
+        self.assertFalse(clocks.add_button.tooltip,
+                         "a button that works needs no excuse")
+        self.assertFalse(clocks.add_button.has_tooltip,
+                         "an empty tooltip still pops an empty box on hover")
+
+        clocks.model = Model(self.module.MAX_CLOCKS)
+        clocks.update_button_sensitivity()
+        self.assertFalse(clocks.add_button.sensitive)
+
+        # The sentence explaining the cap fires from open_add_edit_dialog, which is
+        # reached by a click the button can no longer receive: it was unreachable,
+        # and the user got a dead button with no explanation anywhere. The button
+        # says why it is dead.
+        self.assertEqual(clocks.add_button.tooltip, self.module.CLOCK_LIMIT_MESSAGE)
+        self.assertIn("8", clocks.add_button.tooltip)
+
+        self.assertTrue(clocks.add_button.has_tooltip)
+
+        # ...and removing one brings it back, with no stale excuse on it
+        clocks.model = Model(self.module.MAX_CLOCKS - 1)
+        clocks.update_button_sensitivity()
+        self.assertTrue(clocks.add_button.sensitive)
+        self.assertFalse(clocks.add_button.tooltip)
+        self.assertFalse(clocks.add_button.has_tooltip)
+
+    def test_hidden_list_buttons_skip_add_button_updates(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        clocks.show_buttons = False
+        clocks.model = Model(self.module.MAX_CLOCKS)
+
+        clocks.update_button_sensitivity()
+
+        self.assertTrue(clocks.add_button.sensitive,
+                        "a hidden control needs no per-button state update")
+
+    def test_add_button_without_tooltip_api_still_updates_sensitivity(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        sensitivity = []
+        clocks.add_button = types.SimpleNamespace(set_sensitive=sensitivity.append)
+
+        clocks.update_button_sensitivity()
+
+        self.assertEqual(sensitivity, [True])
+
+    def test_constructor_survives_corrupt_saved_clocks(self):
+        corrupt_values = [
+            [{"label": "Rome"}],                      # missing timezone key
+            [{"label": "Rome", "timezone": None}],    # null timezone
+            [{"label": "Rome", "timezone": 42}],      # non-string timezone
+            ["not-a-dict"],                           # entry is not an object
+        ]
+
+        for value in corrupt_values:
+            with self.subTest(value=value):
+                clocks = self.module.ClocksList({"value": value}, "worldclocks", object())
+                self.assertTrue(clocks.add_button.sensitive)
+
+    def test_constructor_survives_non_list_saved_value(self):
+        # xlet-settings.py instantiates widgets outside its try block, so a
+        # constructor exception breaks the whole settings window
+        for info in [{"value": None}, {"value": 5}, {"value": "clocks"}, {}]:
+            with self.subTest(info=info):
+                clocks = self.module.ClocksList(dict(info), "worldclocks", object())
+                self.assertTrue(clocks.add_button.sensitive)
+
+    def test_clock_entry_serializer_owns_dialog_data_and_output_shape(self):
+        serializer = self.module.ClockEntrySerializer()
+
+        data, title = serializer.initial_dialog_data(None)
+        self.assertEqual(data, {"label": None, "timezone": None})
+        self.assertEqual(title, "Add new entry")
+
+        data, title = serializer.initial_dialog_data(["Tokyo", "Asia/Tokyo"])
+        self.assertEqual(data, {"label": "Tokyo", "timezone": "Asia/Tokyo"})
+        self.assertEqual(title, "Edit entry")
+
+        self.assertEqual(serializer.serialize("Home", "Europe/Rome"), ["Home", "Europe/Rome"])
+
+    def test_clock_entry_serializer_matches_schema_column_order(self):
+        schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
+        column_ids = [column["id"] for column in schema["worldclocks"]["columns"]]
+
+        serializer = self.module.ClockEntrySerializer()
+
+        self.assertEqual(column_ids, ["label", "timezone"])
+        self.assertEqual(
+            dict(zip(column_ids, serializer.serialize("Home", "Europe/Rome"))),
+            {"label": "Home", "timezone": "Europe/Rome"}
+        )
+
+    def test_timezone_resolver_builds_maps_and_normalizes_values(self):
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["Europe/Rome", "America/New_York", "UTC"],
+            common_timezones=["Europe/Rome", "America/New_York", "UTC"]
+        )
+
+        resolver = self.module.TimezoneResolver(fake_pytz, None)
+
+        self.assertTrue(resolver.has_timezone_data)
+        self.assertEqual(resolver.split("Europe/Rome"), ("Europe", "Rome"))
+        self.assertEqual(resolver.split("UTC"), ("Etc", "UTC"))
+        self.assertEqual(resolver.split(None), ("Etc", ""))
+        self.assertEqual(resolver.normalize(" europe/rome "), "Europe/Rome")
+        self.assertEqual(resolver.normalize("new york"), "America/New_York")
+        self.assertTrue(resolver.any_timezone_data())
+        self.assertIsNone(resolver.normalize("UTC"))
+        self.assertIsNone(resolver.normalize("local"))
+        self.assertIsNone(resolver.normalize(""))
+        self.assertIsNone(resolver.normalize("Not A Timezone"))
+        self.assertEqual(
+            resolver.completions,
+            [
+                ("New York (America)", "America/New_York"),
+                ("Rome (Europe)", "Europe/Rome"),
+                ("UTC", "UTC"),
+            ])
+
+    def test_timezone_resolver_finds_cities_nested_below_their_region(self):
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["America/Argentina/Buenos_Aires", "America/New_York"],
+            common_timezones=["America/Argentina/Buenos_Aires", "America/New_York"]
+        )
+
+        resolver = self.module.TimezoneResolver(fake_pytz, None)
+
+        self.assertEqual(
+            resolver.normalize("buenos aires"), "America/Argentina/Buenos_Aires")
+        self.assertEqual(
+            resolver.normalize("Argentina/Buenos_Aires"), "America/Argentina/Buenos_Aires")
+        self.assertEqual(
+            resolver.completions,
+            [
+                ("Buenos Aires (America / Argentina)", "America/Argentina/Buenos_Aires"),
+                ("New York (America)", "America/New_York"),
+            ])
+
+    def test_timezone_resolver_sorts_suggestions_by_city_name(self):
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["Europe/Rome", "Europe/Amsterdam", "Africa/Cairo"],
+            common_timezones=["Europe/Rome", "Europe/Amsterdam", "Africa/Cairo"]
+        )
+
+        resolver = self.module.TimezoneResolver(fake_pytz, None)
+
+        self.assertEqual(
+            [display for display, timezone in resolver.completions],
+            ["Amsterdam (Europe)", "Cairo (Africa)", "Rome (Europe)"])
+
+    def test_timezone_resolver_keeps_the_first_zone_for_a_shared_city_name(self):
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["Asia/Nicosia", "Europe/Nicosia"],
+            common_timezones=["Asia/Nicosia", "Europe/Nicosia"]
+        )
+
+        resolver = self.module.TimezoneResolver(fake_pytz, None)
+
+        self.assertEqual(resolver.normalize("nicosia"), "Asia/Nicosia")
+        self.assertEqual(resolver.normalize("Europe/Nicosia"), "Europe/Nicosia")
+
+    def test_a_dialog_with_no_timezone_database_says_so_in_the_dialog(self):
+        # the warning otherwise only reaches a log line nobody opening this
+        # dialog will ever read
+        module = load_module(COMMON_PATH, "settings_widgets_no_tz_hint", missing_pytz=True)
+        clocks = module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        clocks.timezone_resolver = module.TimezoneResolver(None, None)
+
+        labels = []
+
+        def script(dialog):
+            labels.extend(
+                child.text for child in dialog.content_area.children[0].children[0].children
+                if isinstance(child, GtkLabel))
+            return 0  # cancel
+
+        GtkDialog.on_run = script
+        clocks.open_add_edit_dialog()
+
+        self.assertTrue(
+            any("Install python3-pytz" in text for text in labels),
+            "with no timezone database at all, the dialog has to say so: %r" % labels)
+
+    def test_a_combo_column_keeps_the_value_it_is_given(self):
+        # xapp's ComboBox calls set_value/get_value from connect_widget_handlers
+        widget = self.module.list_edit_factory({"title": "Zone", "options": {"Rome": "eu"}})
+
+        widget.set_value("eu")
+        self.assertEqual(widget.get_value(), "eu")
+        self.assertEqual(widget.get_widget_value(), "eu")
+
+    def test_completion_match_refuses_a_row_it_cannot_read(self):
+        match = self.module.timezone_completion_match
+        model = self.module.timezone_completion_model([("Rome (Europe)", "Europe/Rome")])
+
+        # GTK passes the key straight from the entry; an empty one would match
+        # every row and pop the whole zone list open
+        self.assertFalse(match(None, "", 0, model))
+        self.assertFalse(match(None, "   ", 0, model))
+
+    def test_local_timezone_name_reads_the_zoneinfo_link(self):
+        # load_module stubs this out so the rest of the suite does not depend on
+        # where it runs; the real one is exercised here, against a real
+        # /etc/localtime and against the shapes it has to survive. It lives in
+        # the gi-free timezone_data sibling, so a fresh exec of that source —
+        # no stubs, no sys.path — is the unpatched function.
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "tzdata_localtime_real", APPLET_DIR / "timezone_data.py")
+        fresh = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fresh)
+
+        name = fresh.local_timezone_name()
+        # this machine has a real /etc/localtime; a container or a copied file
+        # would answer None, which is the other half of the contract
+        self.assertTrue(name is None or "/" in name or name.isalpha(), name)
+        if name is not None:
+            self.assertNotIn("zoneinfo", name)
+            self.assertFalse(name.startswith("/"))
+
+        # a path that is not inside a zoneinfo tree has no name to give
+        original_resolve = Path.resolve
+        try:
+            Path.resolve = lambda self, strict=False: Path("/etc/localtime")
+            self.assertIsNone(fresh.local_timezone_name())
+
+            def explode(self, strict=False):
+                raise OSError("no such file")
+
+            Path.resolve = explode
+            self.assertIsNone(fresh.local_timezone_name())
+        finally:
+            Path.resolve = original_resolve
+
+    def test_the_local_zone_is_reserved_under_whatever_name_it_is_typed(self):
+        # The applet draws a local-time row and drops any configured clock whose
+        # zone resolves to the same one. The dialog blocked the word "local" but
+        # happily validated, previewed and saved "America/Sao_Paulo" for a user
+        # in São Paulo — and then the clock never appeared, with nothing said.
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["America/Sao_Paulo", "Europe/Rome"],
+            common_timezones=["America/Sao_Paulo", "Europe/Rome"]
+        )
+        resolver = self.module.TimezoneResolver(
+            fake_pytz, None, local_timezone="America/Sao_Paulo")
+
+        for typed in ("America/Sao_Paulo", "america/sao_paulo", "Sao Paulo", "local"):
+            self.assertTrue(resolver.is_reserved(typed), typed)
+            self.assertIsNone(resolver.normalize(typed), typed)
+
+        # a zone that is not a built-in is still perfectly fine
+        self.assertFalse(resolver.is_reserved("Europe/Rome"))
+        self.assertEqual(resolver.normalize("Europe/Rome"), "Europe/Rome")
+
+    def test_the_dialog_says_why_a_built_in_zone_was_refused(self):
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["America/Sao_Paulo"], common_timezones=["America/Sao_Paulo"])
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        clocks.timezone_resolver = self.module.TimezoneResolver(
+            fake_pytz, None, local_timezone="America/Sao_Paulo")
+
+        values = {"label": "Home", "timezone": "Sao Paulo"}
+        choice = clocks.resolve_timezone_choice(values)
+
+        self.assertTrue(choice["reserved"])
+        self.assertIsNone(choice["timezone"])
+        self.assertEqual(
+            clocks.format_timezone_preview(values),
+            "UTC and local time are already shown as built-in clocks")
+
+    def test_timezone_resolver_uses_zoneinfo_fallback_without_pytz(self):
+        resolver = self.module.TimezoneResolver(
+            None,
+            lambda: {"Europe/Rome", "America/New_York"}
+        )
+
+        self.assertFalse(resolver.has_timezone_data)
+        self.assertEqual(
+            [timezone for display, timezone in resolver.completions],
+            ["America/New_York", "Europe/Rome"])
+        self.assertEqual(resolver.normalize(" europe/rome "), "Europe/Rome")
+        self.assertEqual(resolver.normalize("AMERICA/NEW_YORK"), "America/New_York")
+        self.assertEqual(resolver.normalize("new york"), "America/New_York")
+        self.assertIsNone(resolver.normalize("UTC"))
+        self.assertIsNone(resolver.normalize("local"))
+        self.assertIsNone(resolver.normalize("Mars/Olympus"))
+
+    def test_timezone_resolver_trusts_typed_values_when_no_timezone_source_exists(self):
+        resolver = self.module.TimezoneResolver(None, None)
+
+        self.assertFalse(resolver.has_timezone_data)
+        self.assertEqual(resolver.completions, [])
+        self.assertEqual(resolver.normalize(" Mars/Olympus "), "Mars/Olympus")
+        self.assertIsNone(resolver.normalize("UTC"))
+        self.assertIsNone(resolver.normalize("local"))
+        self.assertIsNone(resolver.normalize(None))
+
+    def test_a_zone_shaped_sentence_is_not_a_zone_with_no_database(self):
+        """With neither pytz nor zoneinfo, looks_like_iana is the *only* check a
+        typed timezone gets before it is saved — and its character rule (letters,
+        digits, _ + -) was never exercised: every no-db input in this file either
+        passed both rules or was rejected by the segment-count rule first. Mutating
+        the character rule to `return True` left the Python suite green, so a
+        settings dialog with no tz database would have accepted "Area/City baz" and
+        written it to the config, where the applet renders it as an italic
+        "Invalid timezone" row with nothing connecting the two.
+        """
+        resolver = self.module.TimezoneResolver(None, None)
+
+        # right shape, wrong characters: a space, and then the punctuation an
+        # identifier never carries
+        self.assertIsNone(resolver.normalize("Area/City baz"))
+        self.assertIsNone(resolver.normalize("Europe/Rome; rm -rf"))
+        self.assertIsNone(resolver.normalize("Europe/Ro me"))
+        self.assertIsNone(resolver.normalize("Europe/Rome!"))
+        self.assertIsNone(resolver.normalize("Europe//Rome"), "an empty segment is not a city")
+
+        # and the shape that is an identifier still gets through, punctuation and
+        # all: GMT+3 and Port-au-Prince are real
+        self.assertEqual(resolver.normalize("Etc/GMT+3"), "Etc/GMT+3")
+        self.assertEqual(resolver.normalize("America/Port-au-Prince"), "America/Port-au-Prince")
+        self.assertEqual(resolver.normalize("America/Argentina/Buenos_Aires"),
+                         "America/Argentina/Buenos_Aires")
+
+    @requires_pytz
+    def test_normalize_timezone_accepts_identifier_or_city(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+
+        self.assertEqual(clocks.normalize_timezone(" europe/rome "), "Europe/Rome")
+        self.assertEqual(clocks.normalize_timezone("new york"), "America/New_York")
+        self.assertEqual(
+            clocks.normalize_timezone("buenos aires"), "America/Argentina/Buenos_Aires")
+        self.assertIn(
+            ("Buenos Aires (America / Argentina)", "America/Argentina/Buenos_Aires"),
+            clocks.completions)
+        self.assertIsNone(clocks.normalize_timezone(""))
+        self.assertIsNone(clocks.normalize_timezone("Not A Timezone"))
+
+    @requires_pytz
+    def test_normalize_timezone_fuzzes_case_and_spaces(self):
+        random.seed(FUZZ_SEED)
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        samples = ["Europe/Rome", "America/New_York", "Asia/Tokyo", "Australia/Sydney"]
+
+        for timezone in samples:
+            for _ in range(10):
+                noisy = "".join(
+                    char.upper() if random.choice([True, False]) else char.lower()
+                    for char in timezone
+                )
+                self.assertEqual(clocks.normalize_timezone(f" {noisy} "), timezone)
+
+    @requires_pytz
+    def test_normalize_timezone_uses_precomputed_maps(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        # the resolver is built on first use — which is what opening the World
+        # Clocks page does — and the maps are precomputed then, once
+        clocks.timezone_resolver  # noqa: B018
+
+        class ExplodingTimezones:
+            def __iter__(self):
+                raise AssertionError("normalize_timezone should not scan pytz lists")
+
+        original_all = self.module.pytz.all_timezones
+        original_common = self.module.pytz.common_timezones
+        try:
+            self.module.pytz.all_timezones = ExplodingTimezones()
+            self.module.pytz.common_timezones = ExplodingTimezones()
+
+            self.assertEqual(clocks.normalize_timezone("europe/rome"), "Europe/Rome")
+            self.assertEqual(clocks.normalize_timezone("new york"), "America/New_York")
+            self.assertIsNone(clocks.normalize_timezone("Not A Timezone"))
+        finally:
+            self.module.pytz.all_timezones = original_all
+            self.module.pytz.common_timezones = original_common
+
+    @requires_pytz
+    def test_timezone_choice_previews_saved_value(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+
+        typed = {"label": "Work", "timezone": "Asia/Tokyo"}
+        self.assertEqual(clocks.resolve_timezone_choice(typed), {
+            "timezone": "Asia/Tokyo",
+            "typed_invalid": False,
+            "reserved": False
+        })
+        self.assertEqual(
+            clocks.format_timezone_preview(typed),
+            "Timezone to save: Asia/Tokyo"
+        )
+
+        city = {"label": "Work", "timezone": "buenos aires"}
+        self.assertEqual(
+            clocks.format_timezone_preview(city),
+            "Timezone to save: America/Argentina/Buenos_Aires"
+        )
+
+        empty = {"label": "Work", "timezone": ""}
+        self.assertEqual(clocks.format_timezone_preview(empty), "No timezone selected")
+
+        missing = {"label": "Work", "timezone": "Not A Timezone"}
+        self.assertEqual(clocks.resolve_timezone_choice(missing), {
+            "timezone": None,
+            "typed_invalid": True,
+            "reserved": False
+        })
+        self.assertEqual(clocks.format_timezone_preview(missing), "Invalid timezone")
+
+    @requires_pytz
+    def test_timezone_choice_fuzzes_invalid_text(self):
+        random.seed(FUZZ_SEED)
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 "
+
+        for _ in range(40):
+            text = "Invalid-" + "".join(random.choice(alphabet) for _ in range(12))
+
+            choice = clocks.resolve_timezone_choice({"label": "Home", "timezone": text})
+
+            self.assertIsNone(choice["timezone"])
+            self.assertTrue(choice["typed_invalid"])
+
+    @requires_pytz
+    def test_timezone_choice_rejects_reserved_builtin_ids(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+
+        for text in ("UTC", " utc ", "local", "Etc/UTC"):
+            values = {"label": "Duplicate", "timezone": text}
+            self.assertEqual(clocks.resolve_timezone_choice(values), {
+                "timezone": None,
+                "typed_invalid": True,
+                "reserved": True
+            })
+            self.assertEqual(
+                clocks.format_timezone_preview(values),
+                "UTC and local time are already shown as built-in clocks"
+            )
+
+    def test_add_dialog_blocks_at_max_clocks(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        clocks.model = Model(self.module.MAX_CLOCKS)
+
+        result = clocks.open_add_edit_dialog()
+
+        self.assertIsNone(result)
+        self.assertEqual(len(GtkMessageDialog.instances), 1)
+        message = GtkMessageDialog.instances[0]
+        self.assertIn(str(self.module.MAX_CLOCKS), message.args[-1])
+        self.assertTrue(message.ran)
+        self.assertTrue(message.destroyed)
+
+    @requires_pytz
+    def test_add_dialog_gates_ok_and_returns_normalized_timezone(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+
+        def script(dialog):
+            widgets = {w.kwargs["label"]: w for w in BaseWidget.instances}
+            # nothing entered yet: OK must start insensitive
+            self.assertEqual(dialog.sensitivity[-1], (1, False))
+
+            label = widgets["Display name"]
+            label.bind_object.set_property(label.bind_prop, "Home")
+            label.bind_object.emit_changed()
+            self.assertEqual(dialog.sensitivity[-1], (1, False))
+
+            timezone = widgets["Timezone"]
+            timezone.bind_object.set_property(timezone.bind_prop, " asia/tokyo ")
+            timezone.bind_object.emit_changed()
+            self.assertEqual(dialog.sensitivity[-1], (1, True))
+            return 1  # ResponseType.OK
+
+        GtkDialog.on_run = script
+        result = clocks.open_add_edit_dialog()
+
+        self.assertEqual(result, ["Home", "Asia/Tokyo"])
+
+    @requires_pytz
+    def test_edit_dialog_seeds_the_saved_timezone_and_keeps_it_on_ok(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+
+        seeded = {}
+
+        def script(dialog):
+            widgets = {w.kwargs["label"]: w for w in BaseWidget.instances}
+            self.assertEqual(
+                sorted(widgets),
+                sorted(["Display name", "Timezone"]))
+
+            timezone = widgets["Timezone"]
+            seeded["timezone"] = timezone.get_widget_value()
+            return 1  # ResponseType.OK
+
+        GtkDialog.on_run = script
+        result = clocks.open_add_edit_dialog(["Tokyo", "Asia/Tokyo"])
+
+        self.assertEqual(seeded, {"timezone": "Asia/Tokyo"})
+        self.assertEqual(result, ["Tokyo", "Asia/Tokyo"])
+
+    @requires_pytz
+    def test_timezone_entry_completes_a_typed_city_name(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+
+        completed = {}
+
+        def script(dialog):
+            widgets = {w.kwargs["label"]: w for w in BaseWidget.instances}
+            timezone = widgets["Timezone"]
+            completion = timezone.completion
+
+            completed["matches"] = completion.matches("buenos ai")
+            completion.select(completion.matches_index("America/Argentina/Buenos_Aires"))
+            completed["text"] = timezone.get_widget_value()
+            return 0  # ResponseType.CANCEL
+
+        GtkDialog.on_run = script
+        clocks.open_add_edit_dialog()
+
+        # asserted as a membership, not as the whole list: this runs against the
+        # real pytz, and a tzdata build that still carries the pre-1993
+        # America/Buenos_Aires alias offers it here too. The city completing at all
+        # is the behaviour; how many spellings of it the host knows is not.
+        self.assertIn("America/Argentina/Buenos_Aires", completed["matches"])
+        self.assertTrue(
+            all("Buenos_Aires" in match for match in completed["matches"]),
+            completed["matches"])
+        # picking a suggestion writes the identifier, not the pretty label
+        self.assertEqual(completed["text"], "America/Argentina/Buenos_Aires")
+
+    def test_add_dialog_without_pytz_accepts_typed_timezone(self):
+        module = load_module(COMMON_PATH, "settings_widgets_common_dialog_no_pytz", missing_pytz=True)
+        clocks = module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+
+        def script(dialog):
+            widgets = {w.kwargs["label"]: w for w in BaseWidget.instances}
+            self.assertEqual(
+                sorted(widgets),
+                sorted(["Display name", "Timezone"]))
+
+            label = widgets["Display name"]
+            label.bind_object.set_property(label.bind_prop, "Somewhere")
+            label.bind_object.emit_changed()
+
+            timezone = widgets["Timezone"]
+            # zoneinfo still validates typed entries without pytz
+            timezone.bind_object.set_property(timezone.bind_prop, "Mars/Olympus")
+            timezone.bind_object.emit_changed()
+            self.assertEqual(dialog.sensitivity[-1], (1, False))
+
+            timezone.bind_object.set_property(timezone.bind_prop, "europe/rome")
+            timezone.bind_object.emit_changed()
+            self.assertEqual(dialog.sensitivity[-1], (1, True))
+            return 1  # ResponseType.OK
+
+        GtkDialog.on_run = script
+        result = clocks.open_add_edit_dialog()
+
+        self.assertEqual(result, ["Somewhere", "Europe/Rome"])
+
+    def test_dialog_reads_columns_from_its_own_settings_key(self):
+        settings = DialogSettings()
+        clocks = self.module.ClocksList({"value": []}, "renamed-clocks", settings)
+
+        clocks.open_add_edit_dialog()  # default run() cancels
+
+        self.assertEqual(settings.requested, [("renamed-clocks", "columns")])
+
+    def test_missing_pytz_degrades_to_plain_timezone_entry(self):
+        module = load_module(COMMON_PATH, "settings_widgets_common_no_pytz_test", missing_pytz=True)
+        clocks = module.ClocksList({
+            "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
+        }, "worldclocks", object())
+
+        self.assertIsNone(module.pytz)
+        self.assertFalse(clocks.timezone_resolver.has_timezone_data)
+        # zoneinfo still feeds the suggestions and validates typed entries
+        self.assertIn(
+            ("Rome (Europe)", "Europe/Rome"), clocks.completions)
+        self.assertEqual(clocks.normalize_timezone(" Europe/Rome "), "Europe/Rome")
+        self.assertEqual(clocks.normalize_timezone("europe/rome"), "Europe/Rome")
+        self.assertEqual(clocks.normalize_timezone("rome"), "Europe/Rome")
+        self.assertIsNone(clocks.normalize_timezone("Mars/Olympus"))
+        self.assertEqual(
+            module.TIMEZONE_TEXT_HINT, "City or timezone (e.g. Buenos Aires)")
+
+    def test_the_typing_hint_sits_in_the_field_not_in_its_label(self):
+        # The hint was used as the field's *label*, so the dialog named the field
+        # with a sentence while the column heading above it said "Timezone" - two
+        # names for one thing. It was also already translated, and the factory
+        # translated it again: the second lookup missed and handed it back
+        # unchanged, which worked by accident.
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        captured = {}
+
+        def script(dialog):
+            captured.update({widget.kwargs["label"]: widget for widget in BaseWidget.instances})
+            return 0  # cancel
+
+        GtkDialog.on_run = script
+        clocks.open_add_edit_dialog()
+
+        self.assertIn("Timezone", captured, "the column heading names the field")
+        entry = captured["Timezone"]
+        self.assertEqual(
+            entry.content_widget.placeholder,
+            "City or timezone (e.g. Buenos Aires)",
+            "and the hint about what to type sits inside the empty field")
+
+    def test_with_no_timezone_database_at_all_only_an_identifier_is_accepted(self):
+        # neither pytz nor zoneinfo: anything typed used to be handed straight
+        # back and saved, so the dialog accepted gibberish and the applet showed
+        # an italic "Invalid timezone" row later, with nothing connecting the two
+        module = load_module(COMMON_PATH, "settings_widgets_common_no_tzdata_test", missing_pytz=True)
+        resolver = module.TimezoneResolver(None, None)
+
+        self.assertFalse(resolver.any_timezone_data())
+        self.assertEqual(resolver.normalize("America/Sao_Paulo"), "America/Sao_Paulo")
+        self.assertEqual(resolver.normalize("America/Argentina/Buenos_Aires"),
+                         "America/Argentina/Buenos_Aires")
+        self.assertIsNone(resolver.normalize("gibberish"))
+        self.assertIsNone(resolver.normalize("not a zone at all"))
+        self.assertIsNone(resolver.normalize("a/b/c/d"))
+
+    def test_the_dialog_says_which_field_is_missing(self):
+        # OK is insensitive until both fields are right, and the preview only
+        # ever spoke about the timezone: a valid timezone with an empty name gave
+        # a happy preview and a dead OK button
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        dialog = GtkDialog()
+        preview = GtkLabel()
+        presenter = self.module.ClockDialogStatePresenter(clocks, dialog, preview)
+
+        widgets = {
+            "label": self.module.list_edit_factory({"title": "Display name"}),
+            "timezone": self.module.list_edit_factory({"title": "Timezone"}),
+        }
+        widgets["timezone"].set_widget_value("Europe/Rome")
+
+        presenter.update(widgets)
+        self.assertEqual(preview.text, self.module.LABEL_MISSING_PREVIEW)
+        self.assertIn((1, False), dialog.sensitivity)   # Gtk.ResponseType.OK
+
+        widgets["label"].set_widget_value("Rome")
+        presenter.update(widgets)
+        self.assertEqual(preview.text, self.module.TIMEZONE_PREVIEW_TEMPLATE % "Europe/Rome")
+        self.assertIn((1, True), dialog.sensitivity)
+
+    def test_missing_pytz_logs_install_help(self):
+        module = load_module(COMMON_PATH, "settings_widgets_common_no_pytz_log_test", missing_pytz=True)
+
+        # Warned when the resolver is built, not at import: importing a module
+        # should define things, not emit them. At import time cinnamon-settings
+        # has not configured logging yet, so the warning landed on the whole
+        # process's stderr or was dropped, depending on import order.
+        with self.assertLogs("chronos@geraldo-netto.settings", level="WARNING") as logs:
+            module.TimezoneResolver(None, None)
+
+        message = "\n".join(logs.output)
+        self.assertIn("python3-pytz is not installed", message)
+        self.assertIn("sudo apt install python3-pytz", message)
+        self.assertIn("python3 -m pip install pytz", message)
+
+
+    def test_list_edit_factory_entry_gets_a_completion_when_offered(self):
+        widget = self.module.list_edit_factory({
+            "title": "City or timezone",
+            "completions": [("Rome (Europe)", "Europe/Rome")],
+        })
+
+        self.assertIsInstance(widget, Entry)
+        self.assertIs(widget.completion, widget.bind_object.completion)
+        # the third column is the folded text the match function searches: GTK
+        # calls that function for every row on every keystroke, so the folding
+        # happens once, here, rather than 600 times per character
+        self.assertEqual(
+            widget.completion.model.rows,
+            [["Rome (Europe)", "Europe/Rome", "rome (europe) europe/rome"]])
+
+    def test_the_suggestion_model_is_shared_by_every_settings_page(self):
+        # The memo was keyed by id(completions) and held a strong reference to the
+        # list and its ListStore, with no eviction. Every ClocksList builds its own
+        # resolver and therefore its own completions list, so the memo never hit
+        # across instances: it accumulated one 439-row store per settings page ever
+        # opened, for the life of the cinnamon-settings process. A cache that
+        # cannot hit is a leak wearing a cache's clothes.
+        self.module._COMPLETION_MODELS.clear()
+
+        rome = self.module.timezone_completion_model([("Rome (Europe)", "Europe/Rome")])
+        self.assertEqual(rome.rows[0][1], "Europe/Rome")
+
+        # a *different list object* with the same contents — which is what the next
+        # settings page builds — reads back the same model
+        again = self.module.timezone_completion_model([("Rome (Europe)", "Europe/Rome")])
+        self.assertIs(again, rome, "the store is built once for the whole process")
+        self.assertEqual(len(self.module._COMPLETION_MODELS), 1)
+
+        # and different suggestions are a different model, not a stranger's
+        tokyo = self.module.timezone_completion_model([("Tokyo (Asia)", "Asia/Tokyo")])
+        self.assertEqual(tokyo.rows[0][1], "Asia/Tokyo")
+        self.assertEqual(len(self.module._COMPLETION_MODELS), 2)
+
+    def test_version_wrappers_export_common_symbols(self):
+        wrapper_52 = load_module(APPLET_DIR / "5.4" / "settings_widgets.py", "settings_widgets_52_test")
+
+        # The shim exports the names the schema asks Cinnamon to instantiate —
+        # exactly those. create_custom_widget does getattr(module, widget) and
+        # dies on the whole settings window if the name is not there, so the
+        # schema is what this has to be checked against, not a list written here.
+        schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
+        named = sorted({entry["widget"] for entry in schema.values()
+                        if isinstance(entry, dict) and entry.get("type") == "custom"})
+        self.assertEqual(sorted(wrapper_52.__all__), named)
+
+        for widget in named:
+            self.assertEqual(getattr(wrapper_52, widget).__module__,
+                             "settings_widgets_common")
+
+        # list_edit_factory was re-exported here and never imported from here
+        self.assertFalse(hasattr(wrapper_52, "list_edit_factory"),
+                         "the shim is the widgets Cinnamon names, and nothing else")
+
+    def test_the_shim_puts_the_applet_dir_on_the_path_when_it_is_missing(self):
+        """The shim's whole job: cinnamon-settings imports it by the schema's
+        name, with the applet directory nowhere on sys.path, and it has to make
+        `from settings_widgets_common import …` resolve. Every other test loads it
+        with the directory already on the path — the harness puts it there — so
+        the one line that does the job never ran, and the coverage gate could not
+        see it because it did not look inside 5.4/ at all.
+        """
+        install_stubs()
+        applet_dir = str(APPLET_DIR)
+        saved_path = list(sys.path)
+        saved_modules = dict(sys.modules)
+        sys.path = [entry for entry in sys.path if entry != applet_dir]
+        try:
+            spec = importlib.util.spec_from_file_location(
+                "settings_widgets_52_path_test", APPLET_DIR / "5.4" / "settings_widgets.py")
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            self.assertIn(applet_dir, sys.path,
+                          "the shim did not make its own siblings importable")
+            # appended, never inserted at 0: this runs inside the shared
+            # cinnamon-settings process, and a directory at the front of sys.path
+            # would shadow the standard library for everything else in it
+            self.assertEqual(sys.path[-1], applet_dir)
+            self.assertEqual(sorted(module.__all__),
+                             ["ClocksList", "CountryComboBox", "WeatherLocationEntry"])
+        finally:
+            sys.path = saved_path
+            for name in set(sys.modules) - set(saved_modules):
+                del sys.modules[name]

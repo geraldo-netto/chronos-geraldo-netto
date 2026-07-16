@@ -4,9 +4,9 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 **Findings verified by running or mutating the code are marked [verified]**, each naming the experiment. Live provider responses or policies were consulted only where the current external contract was itself under review; source conclusions were checked locally.
 
-Baseline: `npm test` green (738 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
+Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 29 (Critical 0, High 1, Medium 7, Low 21).
+Open items: 28 (Critical 0, High 1, Medium 7, Low 20).
 
 ## Findings
 
@@ -51,7 +51,6 @@ Open items: 29 (Critical 0, High 1, Medium 7, Low 21).
 | T533 | dead code / testing | Low | open | S | **[verified]** `worldclockData.js` exports `timezoneFromLocaltimeLink()` and `localTimezoneFromSources()`, but neither has a production caller; only tests and GJS stubs use them. Runtime `localCountryCode()` independently duplicates the source precedence with private helpers, so selector tests can pass without exercising the production selector. | Route production through the pure selector, or move/delete the test-only helpers and test the composed runtime seam. |
 | T534 | testing / compatibility | Low | open | S | **[verified]** `schema_static.test.js` says Cinnamon matches `cinnamon-version` entries literally and therefore requires every series, but Cinnamon 6.6's loader treats the array as minimum compatible versions. The local applet loads on Cinnamon 6.6.7 even though metadata ends at 6.4 because the 5.4 entry satisfies the check. | Fix the test/comment to assert actual loader semantics, or document and test a separate Spices-store requirement if one exists; the current test provides false compatibility confidence and encourages redundant entries. |
 | T535 | API performance / docs | Low | open | S | **[verified]** The Enrico endpoint omits the canonical slash before the query (`/json/v2.0?action=...`), causing an HTTP 301 before every request; `/json/v2.0/?action=...` returns 200 directly. README's Enrico/documentation links also use `http://` and redirect to HTTPS. | Use the canonical slash-bearing HTTPS API base and HTTPS documentation links; pin the canonical URL in a test. |
-| T541 | testing / god files | Low | open | L | **[verified]** Four test files have become suites rather than module tests: `applet.test.js` is 3,274 lines/101 tests, `holidays.test.js` 3,640/105, `weather.test.js` 2,624/72 and `test_settings_widgets.py` 2,646/115. The JS files install process-global GJS/GI doubles, repeatedly clear `require.cache`, and patch constructors across several production modules; `applet.test.js` loads 12 root modules plus the applet and panel presenter. This mirrors the production ownership hubs and gives a boundary change a multi-thousand-line fixture blast radius. | Split tests by production seam, move stable GJS/Soup/Gtk doubles into shared helpers, and retain small composition/integration suites for the assembled graph. Keep coverage gates per production file rather than relying on monolithic fixture state. |
 | T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete. |
 
 ## Suggested order
@@ -60,8 +59,7 @@ Open items: 29 (Critical 0, High 1, Medium 7, Low 21).
 2. **T526** — make mixed empty/error holiday fallback fail safely instead of caching a false holiday-free year.
 3. **T529** — update the externally visible country catalog, building on the corrected provider/fallback tests.
 4. **T499, T500, T522** — establish the release flow, then gate its package/catalog output and harden the workflow.
-5. **T541** — split the monolithic tests along the production seams.
-6. Everything else, severity order. The dead-code cluster (T492, T455, T512–T515, T518, T533) is one sitting.
+5. Everything else, severity order. The dead-code cluster (T492, T455, T512–T515, T518, T533) is one sitting.
 
 ## Clean categories
 

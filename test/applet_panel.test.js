@@ -1,0 +1,671 @@
+const {
+    assert, test, AppletModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS,
+    Proto, panelStatus, DateFormats, St,
+    clockStub, readingFrom, suffixStub, updateStub, tooltipEntry
+} = require("./helpers/appletFixture");
+
+test("switching world clocks off stops the work they cost", () => {
+    const { stub, calls } = updateStub({ menuOpen: true });
+    Object.assign(stub, {
+        show_worldclocks: false,
+        panel_clocks: 2,
+        worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
+        _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
+    });
+
+    Proto._updateClockAndDate.call(stub);
+
+    assert.equal(calls.clockEntries, 0, "no clock is formatted when none are shown");
+    assert.ok(!calls.label.at(-1).includes("Tokyo"), "and none reach the panel label");
+    assert.ok(!calls.tooltip.at(-1).includes("Tokyo"), "or the tooltip");
+});
+
+test("city weather is not fetched for world clocks that are switched off", () => {
+    const scheduled = [];
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: true,
+        show_worldclocks: false,
+        weather_units: "si",
+        worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
+        _cityWeatherProvider: { schedule: (settings) => scheduled.push(settings) },
+        _updateClockAndDate: () => {}
+    });
+
+    Proto._scheduleCityWeatherRefresh.call(stub);
+
+    assert.deepEqual(scheduled[0].cities, [],
+        "8 cities × a forecast every 30 minutes, for a feature that is off");
+});
+
+// The guard above is only reached if something calls the scheduler when the
+// setting changes, and nothing did: _onSettingsChanged updated the format, the
+// clock and the event list and never the city weather. So turning the clocks
+// OFF did not stop anything — the armed timer closed over the old settings and
+// went on geocoding and forecasting eight cities every half hour for the rest of
+// the session, after the user had opted out. Calling the scheduler directly, as
+// the test above does, is exactly what hid it.
+test("turning world clocks off stops the city weather that was fetched for them", () => {
+    const scheduled = [];
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: true,
+        show_worldclocks: true,
+        weather_units: "si",
+        worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
+        show_events: false,
+        _applied_show_events: false,
+        orientation: St.Side.TOP,
+        custom_format: "",
+        desktop_settings: { use24h: true, showSeconds: false },
+        _cityWeatherProvider: { schedule: (settings) => scheduled.push(settings) },
+        _updateFormatString: () => {},
+        _updateClockAndDate: () => {},
+        _updateEventListState: () => {},
+        events_manager: { select_date() {} },
+        _calendar: { getSelectedDate: () => new Date() }
+    });
+
+    Proto._onSettingsChanged.call(stub);
+    assert.equal(scheduled.length, 1, "the first pass arms the round");
+    assert.deepEqual(scheduled[0].cities.map((city) => city.query), ["Tokyo"]);
+
+    // the user switches the clocks off
+    stub.show_worldclocks = false;
+    Proto._onSettingsChanged.call(stub);
+
+    assert.equal(scheduled.length, 2, "the change reaches the city-weather scheduler");
+    assert.deepEqual(scheduled[1].cities, [],
+        "and nothing is fetched for a feature the user turned off");
+
+    // ...and an unrelated settings change costs no further round
+    Proto._onSettingsChanged.call(stub);
+    assert.equal(scheduled.length, 2);
+});
+
+// The per-city temperature, the condition in words and the service that answered
+// existed only in the panel's mouse tooltip: a keyboard-only or screen-reader
+// user got none of it, and the provider credit is a courtesy the services are
+// owed.
+test("the popup clock rows carry the weather, not just the tooltip", () => {
+    const { stub, calls } = updateStub({ menuOpen: true });
+    Object.assign(stub, {
+        show_weather: true,
+        show_worldclocks: true,
+        worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
+        _weather_reading: { condition: "\u2600", temperatureC: 20 },
+        _weather_provider: "Open-Meteo",
+        cityWeatherReading: (city) => (city === "Tokyo" ? { condition: "\ud83c\udf27", temperatureC: 12 } : null),
+        cityWeatherStale: () => false,
+        cityWeatherProviderName: () => "Open-Meteo",
+        _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
+    });
+
+    Proto._updateClockAndDate.call(stub);
+
+    const tokyo = calls.lastEntries.find((entry) => entry.label === "Tokyo");
+    assert.ok(tokyo.weather.includes("12\u00b0C"), "the row carries the city's own reading");
+    assert.ok(tokyo.weather.includes("Rain"), "and the condition in words, not an emoji");
+
+    assert.ok(calls.weatherSource.includes("Open-Meteo"),
+        "and the service that answered is named where the popup can say it");
+});
+
+test("disabling the home button hands its key focus to the calendar", () => {
+    const focused = [];
+    const button = { reactive: true, can_focus: true, set_style_class_name: () => {} };
+    const applet = {
+        go_home_button: button,
+        _calendar: { focusSelectedDay: () => focused.push("day") }
+    };
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
+    const originalStage = global.stage;
+    global.stage = { get_key_focus: () => button };
+
+    // pressing Enter on "Go to today" selects today, which disables the button
+    // under the user's own hands: St drops the stage focus when the focused
+    // actor stops being focusable, and Cinnamon closes a menu whose focus left
+    view.setHomeEnabled(false);
+    global.stage = originalStage;
+
+    assert.deepEqual(focused, ["day"], "focus must move before the button loses can_focus");
+    assert.equal(button.can_focus, false);
+});
+
+test("the home button leaves an unfocused calendar alone", () => {
+    const focused = [];
+    const button = { reactive: true, can_focus: true, set_style_class_name: () => {} };
+    const applet = {
+        go_home_button: button,
+        _calendar: { focusSelectedDay: () => focused.push("day") }
+    };
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
+    const originalStage = global.stage;
+    global.stage = { get_key_focus: () => ({}) };
+
+    view.setHomeEnabled(false);
+    view.setHomeEnabled(true);
+    global.stage = originalStage;
+
+    assert.deepEqual(focused, [], "the focus is somewhere else; do not steal it");
+    assert.equal(button.can_focus, true);
+});
+
+// T27a/T27b: day-of-year cache
+test("getFormattedToday caches by day and invalidates at rollover", () => {
+    let formats = 0;
+    const stub = {
+        clock: clockStub({ get_clock_for_format: (fmt) => (formats++, "v:" + fmt) })
+    };
+    const presenter = panelStatus(stub);
+
+    const first = presenter.getFormattedToday();
+    assert.equal(formats, 3, "three formats computed once");
+    assert.equal(first.full, ("v:" + DateFormats.DATE_FORMAT_FULL).capitalize());
+
+    const second = presenter.getFormattedToday();
+    assert.equal(second, first, "same day: cache hit");
+    assert.equal(formats, 3);
+
+    // midnight rollover: stale key forces recompute
+    presenter._todayFormatCache = { ...first, key: "1999:1" };
+    const third = presenter.getFormattedToday();
+    assert.notEqual(third.key, "1999:1");
+    assert.equal(formats, 6, "recomputed after day change");
+});
+
+// T27d: suffix building and ellipsizing
+// a reading record {condition, temperatureC} from a display string like "☀ 20°C"
+test("buildLabelSuffix is the temperature on every panel orientation", () => {
+    // the panel shows the temperature; the sky glyph is in the tooltip and in
+    // the accessible name, both of which say it in words anyway
+    for (const orientation of [St.Side.TOP, St.Side.BOTTOM, St.Side.LEFT, St.Side.RIGHT]) {
+        assert.equal(panelStatus(suffixStub({
+            orientation,
+            _weather_reading: readingFrom("☀ 20°C")
+        })).buildLabelSuffix(), "20°C");
+    }
+
+    // world clocks never reach the panel, however many are configured: they are
+    // a table, and the panel is one line the date and the weather already share
+    const withClocks = suffixStub({
+        _weather_reading: readingFrom("☀ 20°C"),
+        worldclocks: [{ label: "NY" }, { label: "Tokyo" }]
+    });
+    assert.equal(panelStatus(withClocks).buildLabelSuffix(), "20°C");
+
+    const stale = suffixStub({ _weather_reading: readingFrom("☀ 20°C"), _weather_error: "boom" });
+    assert.equal(panelStatus(stale).buildLabelSuffix(), "⚠ 20°C");
+    // an error with no reading yet is the marker alone
+    assert.equal(panelStatus(suffixStub({ _weather_error: "boom" })).buildLabelSuffix(), "⚠");
+});
+
+test("ellipsizeLabelSuffix truncates long suffixes on a word-safe boundary", () => {
+    const short = "short";
+    assert.equal(panelStatus({}).ellipsizeLabelSuffix(short), short);
+
+    const long = "x".repeat(MAX_SUFFIX * 2);
+    const result = panelStatus({}).ellipsizeLabelSuffix(long);
+    assert.ok(result.length < long.length);
+    assert.ok(result.endsWith(ELLIPSIS));
+});
+
+// T74 regression: the cut must never split an astral glyph in half
+test("ellipsizeLabelSuffix never splits surrogate pairs", () => {
+    // places the rain glyph exactly across the old UTF-16 cut position
+    const straddling = "x".repeat(MAX_SUFFIX - 4) + "🌧" + "y".repeat(20);
+    const result = panelStatus({}).ellipsizeLabelSuffix(straddling);
+    assert.ok(result.isWellFormed(), "no lone surrogates in the label");
+    assert.ok(result.endsWith(ELLIPSIS));
+
+    // an emoji-heavy suffix stays well-formed at any cut
+    const stormy = "⛈🌧🌨🌦".repeat(30);
+    const cut = panelStatus({}).ellipsizeLabelSuffix(stormy);
+    assert.ok(cut.isWellFormed());
+    assert.ok(Array.from(cut).length <= MAX_SUFFIX);
+});
+
+// T27c: menu-state gating in _updateClockAndDate
+// The weather suffix was capped and the rest of the label was not — and the rest
+// is the user's own custom format. "%A, %-d %B %Y — %H:%M:%S %Z" is about 40
+// characters before the weather is added; on a 1366px panel that is two-fifths of
+// the width, and it pushes the window list off the panel with nothing to say the
+// applet did it.
+test("a long custom format cannot push the panel's other applets off it", () => {
+    const MAX = PanelStatusModule.LABEL_MAX_LENGTH;
+    const { stub, calls } = updateStub();
+    Object.assign(stub, {
+        show_weather: false,
+        custom_format: "ignored — the clock double answers with the string below",
+        // the label is whatever WallClock renders the user's format into
+        clock: Object.assign(clockStub(), {
+            get_clock: () => "Wednesday, 15 October 2025 — 14:52:07 Central European Summer Time"
+        }),
+        actor: { names: [], set_accessible_name(name) { this.names.push(name); } }
+    });
+
+    Proto._updateClockAndDate.call(stub);
+
+    const label = calls.label.at(-1);
+    assert.equal(Array.from(label).length, MAX, "the label is bounded");
+    assert.ok(label.endsWith(ELLIPSIS), "and it says it was cut");
+
+    // the screen reader still hears the whole thing: the cap is about the width of
+    // a shared panel, and a name has no width
+    assert.ok(stub.actor.names.at(-1).startsWith("Wednesday, 15 October 2025"));
+    assert.ok(stub.actor.names.at(-1).length > MAX);
+});
+
+test("the panel readout is announced with its condition", () => {
+    const { stub } = updateStub({ menuOpen: false });
+    stub.actor = { names: [], set_accessible_name(name) { this.names.push(name); } };
+    stub.show_weather = true;
+    stub._weather_error = "";
+    stub._weather_reading = { condition: "🌧", temperatureC: 8 };
+
+    Proto._updateClockAndDate.call(stub);
+
+    assert.match(stub.actor.names.at(-1), /Rain/,
+        "the emoji reads as a codepoint name or nothing; the word does not");
+});
+
+test("a weather failure on the panel is announced in words", () => {
+    const { stub, calls } = updateStub({ menuOpen: false });
+    void calls;
+    stub.actor = { names: [], set_accessible_name(name) { this.names.push(name); } };
+    stub.show_weather = true;
+    stub._weather_error = "Weather service unavailable";
+    stub._weather_reading = null;
+
+    Proto._updateClockAndDate.call(stub);
+
+    // the panel label carries only the warning glyph; the name carries the words
+    assert.match(stub.actor.names.at(-1), /Weather service unavailable/);
+
+    stub._weather_error = "";
+    Proto._updateClockAndDate.call(stub);
+    assert.doesNotMatch(stub.actor.names.at(-1), /unavailable/);
+});
+
+test("_updateClockAndDate with the menu closed only updates the label", () => {
+    const { stub, calls } = updateStub({ menuOpen: false });
+    Proto._updateClockAndDate.call(stub);
+    assert.equal(calls.label.length, 1);
+    assert.equal(calls.tooltip.length, 0, "tooltip untouched while not hovered");
+    assert.equal(calls.selected, 0, "no event-selection churn while closed");
+    assert.equal(calls.worldTicks, 0, "hidden clocks not updated");
+    // nothing on a closed panel shows a clock, so a closed tick converts no
+    // timezone: that was a GLib.DateTime per configured city, every second
+    assert.equal(calls.clockEntries, 0, "a closed panel formats no world clocks");
+    assert.equal(calls.dayText.length, 0);
+
+    stub._panel_hovered = true;
+    Proto._updateClockAndDate.call(stub);
+    assert.equal(calls.tooltip.length, 1, "hovered panel refreshes the tooltip");
+    // the tooltip is the full table — UTC, local and every configured city —
+    // so a hovered panel pays for the whole set, and only then
+    assert.equal(calls.clockEntries, 1, "the clocks are formatted for the tooltip that shows them");
+});
+
+test("a closed panel with nothing to show does no per-tick clock work", () => {
+    const { stub, calls } = updateStub({ menuOpen: false });
+    stub.panel_clocks = 0;
+    stub.show_weather = false;
+
+    Proto._updateClockAndDate.call(stub);
+
+    assert.equal(calls.clockEntries, 0, "no timezone conversions when nothing renders them");
+    assert.equal(calls.worldTicks, 0);
+    assert.equal(calls.label.length, 1, "the clock label is still written");
+});
+
+test("the day and date labels are not rewritten every tick", () => {
+    const { stub, calls } = updateStub({ menuOpen: true });
+
+    Proto._updateClockAndDate.call(stub);
+    Proto._updateClockAndDate.call(stub);
+    Proto._updateClockAndDate.call(stub);
+
+    assert.equal(calls.dayText.length, 1,
+        "the day changes once a day; the tick is once a second");
+});
+
+test("_updateClockAndDate skips tooltip row formatting while hidden", () => {
+    let tooltipFormats = 0;
+    const { stub } = updateStub({ menuOpen: false });
+    stub._worldclocks.getClockEntries = () => [{
+        label: "UTC",
+        timezone: "UTC",
+        builtin: true,
+        time: "04 Jul 09:05",
+        localTime: { format: () => { tooltipFormats++; return "04 Jul 09:05"; } }
+    }];
+
+    Proto._updateClockAndDate.call(stub);
+
+    assert.equal(tooltipFormats, 0);
+});
+
+test("_updateClockAndDate with the menu open refreshes the full view", () => {
+    const { stub, calls } = updateStub({ menuOpen: true });
+    Proto._updateClockAndDate.call(stub);
+    assert.equal(calls.selected, 1);
+    assert.equal(calls.worldTicks, 1);
+    assert.equal(calls.lastEntries.length, 4);
+    assert.equal(calls.lastEntries.filter((entry) => entry.builtin).length, 1,
+        "menu updates include the built-in rows");
+    assert.equal(calls.dayText.length, 1);
+});
+
+test("_updateClockAndDate keeps an invalid tooltip format inside the clock table", () => {
+    const errors = [];
+    const formats = [];
+    const originalLogError = global.logError;
+    global.logError = (message) => errors.push(message);
+    const { stub, calls } = updateStub({ menuOpen: true });
+    Object.assign(stub, {
+        custom_tooltip_format: "bad",
+        _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
+    });
+    stub._worldclocks.getClockEntries = () => [{
+        label: "UTC",
+        timezone: "UTC",
+        builtin: true,
+        time: "09:05",
+        localTime: {
+            format: (format) => {
+                formats.push(format);
+                return format === "bad" ? "" : "04 Jul 09:05";
+            }
+        }
+    }];
+    Proto._updateClockAndDate.call(stub);
+    global.logError = originalLogError;
+
+    assert.equal(stub.go_home_button.reactive, true);
+    assert.equal(calls.tooltip.at(-1), "UTC  04 Jul 09:05");
+    assert.deepEqual(formats, ["bad", "%d %b %H:%M", "bad", "%d %b %H:%M"]);
+    assert.ok(errors.length > 0);
+});
+
+test("_updateClockAndDate appends the weather reading to the clock", () => {
+    const { stub, calls } = updateStub({ menuOpen: false });
+    Object.assign(stub, {
+        show_weather: true,
+        _weather_reading: { condition: "☀", temperatureC: 20 },
+        clock: clockStub({ get_clock: () => "04 Jul 09:05" })
+    });
+    Proto._updateClockAndDate.call(stub);
+    // the clock and the reading run together; the panel suffix is the
+    // temperature and nothing else — the sky glyph and the world clocks are not
+    // on the panel. (ellipsizeLabelSuffix is exercised directly elsewhere.)
+    assert.equal(calls.label[0], "04 Jul 09:05 20°C");
+});
+
+test("_updateClockAndDate forces the full view when asked", () => {
+    const { stub, calls } = updateStub({ menuOpen: false });
+    Proto._updateClockAndDate.call(stub, true);
+    assert.equal(calls.selected, 1);
+    assert.equal(calls.worldTicks, 1);
+    assert.equal(calls.lastEntries[1].label, "NY");
+});
+
+// broader prototype coverage: cheap stubs over the remaining leaf methods
+// the presenter used to reach into the applet's actors and private fields, so
+// extracting it had moved the code without decoupling it: the applet's private
+// shape was the presenter's API
+test("the panel presenter reads and writes through a view it is given", () => {
+    const written = [];
+    // the seam is the whole API now: the presenter holds no applet, so a view
+    // that answers every question it asks is enough to drive it
+    const view = {
+        orientation: 0,
+        showWeather: false,
+        worldclocksEnabled: true,
+        customFormat: "",
+        customTooltipFormat: "",
+        panelClocks: 0,
+        worldclocks: [],
+        // the menu is open, so the tooltip and the today button are drawn too
+        panelHovered: true,
+        menuOpen: true,
+        desktopSettings: { use24h: true, showSeconds: false },
+        weatherReading: null,
+        weatherPending: false,
+        weatherUnits: "metric",
+        weatherError: "",
+        weatherProvider: "",
+        cityWeatherReading: () => null,
+        cityWeatherStale: () => false,
+        cityWeatherProviderName: () => "",
+        formattedClock: () => "12 Jul 14:03",
+        formatClock: () => "Sunday, July 12, 2026",
+        setClockFormatString: () => true,
+        todaySelected: () => true,
+        selectEventsDate: () => written.push(["events"]),
+        getClockEntries: () => [],
+        updateWorldclocks: () => written.push(["clocks"]),
+        setWeatherSource: (source) => written.push(["source", source]),
+        setWeatherStatus: (text) => written.push(["weather-status", text]),
+        setLabel: (text) => written.push(["label", text]),
+        setTooltip: (text) => written.push(["tooltip", text]),
+        setAccessibleName: (name) => written.push(["name", name]),
+        setHomeEnabled: (enabled) => written.push(["home", enabled]),
+        dayLabel: { set_text: (text) => written.push(["day", text]) },
+        dateLabel: { set_text: (text) => written.push(["date", text]) }
+    };
+
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(null, view);
+    presenter.updateClockAndDate();
+
+    // nothing is written by reaching into the applet
+    assert.ok(written.some(([what]) => what === "label"));
+    assert.ok(written.some(([what]) => what === "tooltip"));
+    assert.deepEqual(written.find(([what]) => what === "home"), ["home", false],
+        "today is selected, so there is nowhere to go");
+});
+
+test("a translation containing a percent sign cannot corrupt the panel label", () => {
+    // The fallback is handed to strftime, where every % is a directive. A
+    // translator can legitimately write "100 % ungültig", and xgettext does not
+    // mark these strings c-format, so msgfmt would not catch a stray %d either.
+    const twentyFour = { desktopSettings: { use24h: true, showSeconds: false } };
+    const twelve = { desktopSettings: { use24h: false, showSeconds: false } };
+
+    const escaped = PanelStatusModule.badFormatFallback(twentyFour, "Format 100 % ungültig");
+    assert.match(escaped, /Format 100 %% ungültig/, "the percent is escaped for strftime");
+    assert.match(escaped, /%H:%M$/, "and the time follows the user's own clock");
+
+    assert.match(PanelStatusModule.badFormatFallback(twelve, "Bad %d format"),
+        /^Bad %%d format .*%-l:%M %p$/, "a stray directive cannot survive either");
+});
+
+test("the tooltip clock uses its configured day-month 24-hour format", () => {
+    const twelveHour = Object.assign(Object.create(Proto), {
+        show_weather: false,
+        custom_tooltip_format: "%d %b %H:%M",
+        desktop_settings: { use24h: false, showSeconds: false }
+    });
+    const twentyFour = Object.assign(Object.create(Proto), {
+        show_weather: false,
+        custom_tooltip_format: "%d %b %H:%M",
+        desktop_settings: { use24h: true, showSeconds: false }
+    });
+
+    assert.equal(panelStatus(twelveHour).tooltipClockFormat(), "%d %b %H:%M");
+    assert.equal(panelStatus(twentyFour).tooltipClockFormat(), "%d %b %H:%M");
+});
+
+test("a tooltip row is location, fixed-order timestamp, temperature, and weather", () => {
+    const formats = [];
+    const stub = {
+        custom_tooltip_format: "%d %b %H:%M",
+        show_weather: true,
+        weather_units: "si",
+        _weather_reading: { condition: "☀", temperatureC: 20 },
+        _weather_pending: false,
+        _weather_error: ""
+    };
+    const entry = {
+        label: "Local time",
+        timezone: "Europe/Rome",
+        builtin: true,
+        time: "fallback",
+        localTime: {
+            format(format) {
+                formats.push(format);
+                return "04 Jul 09:05";
+            }
+        }
+    };
+    const presenter = panelStatus(stub);
+
+    assert.deepEqual(presenter.tooltipClockRow(entry),
+        ["Local time", "04 Jul 09:05", "20°C", "Clear"]);
+    assert.equal(presenter.buildTooltipText([entry]),
+        "Local time  04 Jul 09:05  20°C  Clear");
+    assert.ok(formats.every((format) => format === "%d %b %H:%M"));
+});
+
+test("buildTooltipText tabulates every clock with its own weather", () => {
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: true,
+        weather_units: "si",
+        _weather_reading: { condition: "☀", temperatureC: 20 },
+        _weather_error: "",
+        _weather_provider: "Open-Meteo",
+        worldclocks: [{ label: "New York" }],
+        panel_clocks: 0,
+        cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : null),
+        cityWeatherProviderName: () => "Aviation Weather"
+    });
+    const entries = [
+        tooltipEntry("UTC", "UTC", "11 Jul 01:52", true),
+        tooltipEntry("Local time", "local", "11 Jul 22:52", true),
+        tooltipEntry("New York", "America/New_York", "11 Jul 18:52", false)
+    ];
+
+    const lines = panelStatus(stub).buildTooltipText(entries).split("\n");
+
+    // UTC is a scale, not a place: no temperature on that row
+    assert.equal(lines[0], "UTC         11 Jul 01:52");
+    assert.ok(lines[1].includes("Local time") && lines[1].endsWith("20°C  Clear"));
+    assert.ok(lines[2].includes("New York") && lines[2].endsWith("12°C  Rain"));
+    assert.equal(lines.length, 3, "one line per location and no standalone header");
+
+    Proto._weatherCoordinatorForCurrentState.call(stub).error = "boom";
+    const errText = panelStatus(stub).buildTooltipText(entries);
+    assert.ok(errText.includes("⚠ Weather service unavailable") || errText.includes("⚠ boom"));
+    // a failed refresh keeps the last reading: the marker takes the condition's
+    // place in the row, it does not take the temperature away
+    assert.match(errText.split("\n").find((line) => line.startsWith("Local time")),
+        /20°C.*⚠ boom/);
+});
+
+test("the tooltip is empty when there are no clocks or weather status", () => {
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: false,
+        worldclocks: [],
+        panel_clocks: 0
+    });
+
+    assert.equal(panelStatus(stub).buildTooltipText([]), "");
+});
+
+test("_setWeatherStatus stores state and refreshes the clock line", () => {
+    let updated = 0;
+    const stub = Object.assign(Object.create(Proto), {
+        _updateClockAndDate: () => updated++
+    });
+    Proto._setWeatherStatus.call(stub, { condition: "☀", temperatureC: 20 }, "err", "prov");
+    assert.deepEqual(stub._weatherCoordinator.reading, { condition: "☀", temperatureC: 20 });
+    assert.equal(stub._weatherCoordinator.pending, false);
+    assert.equal(stub._weatherCoordinator.error, "err");
+    assert.equal(stub._weatherCoordinator.providerName, "prov");
+    assert.equal(updated, 1);
+
+    // the reserved first-fetch slot and the switched-off state carry no record;
+    // pending is a flag, not a placeholder string the panel has to recognize
+    Proto._setWeatherStatus.call(stub, null, "", "", true);
+    assert.equal(stub._weatherCoordinator.reading, null);
+    assert.equal(stub._weatherCoordinator.pending, true);
+});
+
+test("weather refresh scheduling forwards the settings snapshot", () => {
+    const scheduled = [];
+    const queued = [];
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: true,
+        weather_location: "Rome",
+        weather_units: "si",
+        _weatherProvider: {
+            schedule: (settings) => scheduled.push(settings),
+            queue: (settings) => queued.push(settings)
+        }
+    });
+    Proto._scheduleWeatherRefresh.call(stub);
+    Proto._queueWeatherRefresh.call(stub);
+    assert.deepEqual(scheduled[0], { showWeather: true, location: "Rome", units: "si" });
+    assert.deepEqual(queued[0], { showWeather: true, location: "Rome", units: "si" });
+});
+
+test("event-manager readiness toggles the event list and reselects", () => {
+    let selected = 0;
+    let forced = null;
+    const unavailable = [];
+    const stub = Object.assign(Object.create(Proto), {
+        show_events: true,
+        events_manager: {
+            is_active: () => true,
+            select_date: (date, force) => {
+                selected++;
+                forced = force;
+            }
+        },
+        event_list: {
+            actor: { visible: false },
+            set_unavailable: (flag) => unavailable.push(flag)
+        },
+        _calendar: { getSelectedDate: () => new Date() }
+    });
+    Proto._events_manager_ready.call(stub);
+    assert.equal(stub.event_list.actor.visible, true);
+    assert.equal(selected, 1);
+    // the first selection after the manager comes up must force the fetch: the
+    // window coordinator would otherwise skip a date it thinks it already has
+    assert.equal(forced, true);
+    Proto._has_calendars_changed.call(stub);
+    assert.equal(stub.event_list.actor.visible, true);
+    assert.deepEqual(unavailable, [false, false]);
+});
+
+test("events enabled without a calendar service says so instead of vanishing", () => {
+    const unavailable = [];
+    const stub = Object.assign(Object.create(Proto), {
+        show_events: true,
+        // the calendar server never answered, or there are no calendars
+        events_manager: { is_active: () => false, select_date: () => {} },
+        event_list: {
+            actor: { visible: false },
+            set_unavailable: (flag) => unavailable.push(flag)
+        },
+        _calendar: { getSelectedDate: () => new Date() }
+    });
+
+    Proto._has_calendars_changed.call(stub);
+
+    assert.equal(stub.event_list.actor.visible, true, "the column the user asked for stays up");
+    assert.deepEqual(unavailable, [true]);
+});
+
+test("world-clock setting changes rebuild and repaint the clocks", () => {
+    const ops = [];
+    const stub = Object.assign(Object.create(Proto), {
+        worldclock_format: "%H:%M",
+        _worldclocks: {
+            buildClocks: (clocks, format) => ops.push(["build", clocks.length, format]),
+            updateClocks: () => ops.push(["update"])
+        }
+    });
+    Proto._onWorldclocksChanged.call(stub, null, "worldclocks", [], [{ a: 1 }, { b: 2 }]);
+    assert.deepEqual(stub.worldclocks, [{ a: 1 }, { b: 2 }]);
+    assert.deepEqual(ops, [["build", 2, "%H:%M"], ["update"]]);
+});
