@@ -261,6 +261,10 @@ nearest reporting airport is used, and `api.met.no` is the last resort. The
 applet keeps resolved coordinates in memory while it is running; disabling
 weather stops these lookups.
 
+Nominatim search data is © [OpenStreetMap contributors](https://www.openstreetmap.org/copyright).
+All panel and world-clock Nominatim fallbacks share one process-wide queue:
+requests are single-flight and start no more than once per second.
+
 With weather on, each configured world-clock city is resolved and read the same
 way, so the tooltip can show a temperature next to every clock. That is one
 lookup per city, on the same 30-minute period; with weather off, no city is

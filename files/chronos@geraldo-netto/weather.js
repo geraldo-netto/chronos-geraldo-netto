@@ -134,7 +134,8 @@ var WeatherProvider = class WeatherProvider {
         this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(params);
         this._location_resolver = params.locationResolver || new WeatherProviders.WeatherLocationResolver({
             cache: params.geocodeCache,
-            httpGetJson: this._httpGetJson
+            httpGetJson: this._httpGetJson,
+            nominatimQueue: params.nominatimQueue
         });
         this._forecast_resolver = params.forecastResolver || new WeatherProviders.WeatherForecastResolver({
             httpGetJson: this._httpGetJson

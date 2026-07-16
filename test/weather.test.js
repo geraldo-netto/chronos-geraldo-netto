@@ -30,6 +30,16 @@ function shown(reading, units = "metric") {
         WeatherFormat.formatReading(reading.condition, reading.temperatureC, units) : "";
 }
 
+function immediateNominatimQueue() {
+    return {
+        enqueue(start, isCurrent) {
+            if (isCurrent()) {
+                start(() => {});
+            }
+        }
+    };
+}
+
 function loadWeather(soupOverrides = {}) {
     delete require.cache[require.resolve(modulePath)];
     // the scheduler captures GLib at load; reload it so it binds this call's
@@ -1007,6 +1017,7 @@ test("a provider whose refresh fails schedules its own retry", () => {
     const timers = [];
     let nextId = 900;
     const provider = new Weather.WeatherProvider({
+        nominatimQueue: immediateNominatimQueue(),
         retrySeconds: 30,
         scheduleTimer(seconds, callback) {
             timers.push({ seconds, callback });
@@ -1043,6 +1054,7 @@ test("the geocode cache is bounded and re-resolves an edited location", () => {
     const Weather = loadWeather();
     let geocodes = 0;
     const resolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
         maxCacheEntries: 3,
         httpGetJson(url, callback) {
             geocodes++;
@@ -1336,6 +1348,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
     const requests = [];
     let current = true;
     const resolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
         httpGetJson(url, callback, options = {}) {
             requests.push({ url, options });
             if (url.includes("geocoding-api")) {
@@ -1371,6 +1384,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
 
     const staleRequests = [];
     const staleResolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
         httpGetJson(url, callback) {
             staleRequests.push({ url, callback });
         }
@@ -1386,6 +1400,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
     const exhaustedLogs = [];
     global.log = (message) => exhaustedLogs.push(message);
     const unresolvedResolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             callback({ results: [] });
         }
@@ -1407,10 +1422,52 @@ test("weather location resolver owns geocode fallback and cache", () => {
         "the searched-for location never reaches the log");
 });
 
+test("Nominatim requests are single-flight and start at least one second apart", () => {
+    const Weather = loadWeather();
+    let now = 0;
+    const timers = [];
+    const starts = [];
+    const releases = [];
+    const queue = new Weather.NominatimRequestQueue({
+        now: () => now,
+        schedule(delay, callback) {
+            timers.push({ delay, callback });
+            return timers.length;
+        }
+    });
+
+    queue.enqueue((release) => {
+        starts.push(now);
+        releases.push(release);
+    });
+    queue.enqueue((release) => {
+        starts.push(now);
+        releases.push(release);
+    });
+
+    assert.deepEqual(starts, [0], "only one request is in flight");
+    releases.shift()();
+    assert.equal(timers.length, 1);
+    assert.equal(timers[0].delay, Weather.NOMINATIM_MIN_INTERVAL_MS);
+
+    now = Weather.NOMINATIM_MIN_INTERVAL_MS;
+    assert.equal(timers.shift().callback(), false);
+    assert.deepEqual(starts, [0, Weather.NOMINATIM_MIN_INTERVAL_MS]);
+});
+
+test("panel and city resolvers share the process-wide Nominatim queue", () => {
+    const Weather = loadWeather();
+    const panelResolver = new Weather.WeatherLocationResolver({ httpGetJson() {} });
+    const cityResolver = new Weather.WeatherLocationResolver({ httpGetJson() {} });
+
+    assert.equal(panelResolver._nominatim_queue, cityResolver._nominatim_queue);
+});
+
 test("a tiny exact Open-Meteo namesake falls through to Nominatim", () => {
     const Weather = loadWeather();
     const requests = [];
     const resolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
         httpGetJson(url, callback, options = {}) {
             requests.push({ url, options });
             if (url.includes("geocoding-api")) {
@@ -1562,6 +1619,7 @@ test("refresh returns empty text when disabled, blank, or unresolved", () => {
     const Weather = loadWeather();
     let calls = 0;
     const provider = new Weather.WeatherProvider({
+        nominatimQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             calls++;
             callback({ results: [] });
@@ -1581,6 +1639,7 @@ test("refresh reports weather failures with user-visible status", () => {
     const Weather = loadWeather();
     const geocodeFailures = [];
     const provider = new Weather.WeatherProvider({
+        nominatimQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             callback(null);
         }
@@ -1595,6 +1654,7 @@ test("refresh reports weather failures with user-visible status", () => {
 
     const unresolved = [];
     const unresolvedProvider = new Weather.WeatherProvider({
+        nominatimQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             callback({ results: [] });
         }

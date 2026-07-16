@@ -31,6 +31,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
+const GLib = GjsImports.gi.GLib;
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
@@ -60,6 +61,83 @@ function locationCacheKey(location) {
     return location.trim().toLowerCase();
 }
 
+var NOMINATIM_MIN_INTERVAL_MS = 1000;
+
+// The public Nominatim service permits one request at a time and at most one
+// request per second. This queue is module-global so every applet instance and
+// both the panel and world-clock weather paths share the same budget.
+var NominatimRequestQueue = class NominatimRequestQueue {
+    constructor(params = {}) {
+        this._now = params.now || (() => Date.now());
+        this._schedule = params.schedule || ((delay, callback) =>
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, callback));
+        this._jobs = [];
+        this._active = false;
+        this._last_started_at = null;
+        this._timer_id = 0;
+    }
+
+    enqueue(start, isCurrent = () => true) {
+        this._jobs.push({ start, isCurrent });
+        this._drain();
+    }
+
+    _nextCurrentJob() {
+        while (this._jobs.length) {
+            const job = this._jobs.shift();
+            if (job.isCurrent()) {
+                return job;
+            }
+        }
+        return null;
+    }
+
+    _drain() {
+        if (this._active || this._timer_id) {
+            return;
+        }
+
+        const job = this._nextCurrentJob();
+        if (!job) {
+            return;
+        }
+
+        const elapsed = this._last_started_at === null ?
+            NOMINATIM_MIN_INTERVAL_MS : this._now() - this._last_started_at;
+        const delay = Math.max(0, NOMINATIM_MIN_INTERVAL_MS - elapsed);
+        if (delay > 0) {
+            this._jobs.unshift(job);
+            this._timer_id = this._schedule(delay, () => {
+                this._timer_id = 0;
+                this._drain();
+                return false;
+            });
+            return;
+        }
+
+        this._active = true;
+        this._last_started_at = this._now();
+        let released = false;
+        const release = () => {
+            if (released) {
+                return;
+            }
+            released = true;
+            this._active = false;
+            this._drain();
+        };
+
+        try {
+            job.start(release);
+        } catch (error) {
+            release();
+            throw error;
+        }
+    }
+};
+
+var NOMINATIM_REQUEST_QUEUE = new NominatimRequestQueue();
+
 // The geocoders, in the order they are tried. Named, because a nameless provider
 // is logged by its URL when the chain moves on - and a geocode URL carries the
 // place the user typed.
@@ -87,6 +165,7 @@ var WeatherLocationResolver = class WeatherLocationResolver {
         this._geocode_cache = params.cache || new Map();
         this._max_entries = params.maxCacheEntries || MAX_GEOCODE_CACHE_ENTRIES;
         this._httpGetJson = params.httpGetJson;
+        this._nominatim_queue = params.nominatimQueue || NOMINATIM_REQUEST_QUEUE;
     }
 
     get cache() {
@@ -139,7 +218,9 @@ var WeatherLocationResolver = class WeatherLocationResolver {
             name: provider.name,
             url: provider.url(location),
             normalize: (data) => provider.normalize(data, location),
-            options: provider.options
+            options: provider.options,
+            requestQueue: provider.name === WEATHER_PROVIDER_NAMES.NOMINATIM ?
+                this._nominatim_queue : null
         }));
 
         this._tryGeocodeProviders(providers, isCurrent, callback);
@@ -150,13 +231,20 @@ var WeatherLocationResolver = class WeatherLocationResolver {
         ProviderUtils.tryProvidersInOrder(
             providers,
             (provider, onResult) => {
-                this._httpGetJson(provider.url, (data) => {
+                const request = (release = () => {}) => this._httpGetJson(provider.url, (data) => {
+                    release();
                     if (!isCurrent()) {
                         return;
                     }
                     anyResponse = anyResponse || (data !== null && data !== undefined);
                     onResult(provider.normalize(data));
                 }, provider.options || {});
+
+                if (provider.requestQueue) {
+                    provider.requestQueue.enqueue(request, isCurrent);
+                } else {
+                    request();
+                }
             },
             (place) => Boolean(place),
             (provider, place) => callback(place, ""),
@@ -271,6 +359,7 @@ var WeatherForecastResolver = class WeatherForecastResolver {
 if (typeof module !== "undefined") {
     module.exports = {
         GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
+        NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
         WeatherLocationResolver, WeatherForecastResolver
     };
 }

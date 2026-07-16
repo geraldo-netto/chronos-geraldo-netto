@@ -287,6 +287,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         Util.spawnCommandLine("xdg-open https://cinnamon-spices.linuxmint.com/strftime.php");
     }
 
+    on_openstreetmap_attribution_pressed() {
+        Util.spawnCommandLine("xdg-open https://www.openstreetmap.org/copyright");
+    }
+
     _onLaunchSettings() {
         this.menu.close();
         Util.spawnCommandLine("cinnamon-settings calendar");

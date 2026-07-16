@@ -410,6 +410,14 @@ msgid ""
 "minutes."
 msgstr ""
 
+#. 5.4->settings-schema.json->openstreetmap-attribution->description
+msgid "© OpenStreetMap contributors"
+msgstr ""
+
+#. 5.4->settings-schema.json->openstreetmap-attribution->tooltip
+msgid "Open the OpenStreetMap copyright and attribution page."
+msgstr ""
+
 #. 5.4->settings-schema.json->weather-units->description
 msgid "Weather units"
 msgstr ""

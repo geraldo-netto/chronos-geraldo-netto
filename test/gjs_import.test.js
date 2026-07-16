@@ -138,6 +138,8 @@ function gjsImportsMock() {
                             GEOCODE_PROVIDERS: [],
                             FORECAST_PROVIDERS: [],
                             locationCacheKey() {},
+                            NOMINATIM_MIN_INTERVAL_MS: 1000,
+                            NominatimRequestQueue: class {},
                             WeatherLocationResolver: class {},
                             WeatherForecastResolver: class {}
                         },
@@ -267,6 +269,7 @@ const EXPORTS = {
         "openMeteoGeocodePlace", "nominatimGeocodePlace"],
     weatherScheduler: ["WeatherRefreshScheduler"],
     weatherProviders: ["GEOCODE_PROVIDERS", "FORECAST_PROVIDERS", "locationCacheKey",
+        "NOMINATIM_MIN_INTERVAL_MS", "NominatimRequestQueue",
         "WeatherLocationResolver", "WeatherForecastResolver"],
     // WeatherProvider is the only name production reads off the barrel through the
     // GJS importer — cityWeather and the panel presenter require the part that

@@ -82,7 +82,7 @@ test("schema groups panel label controls together", () => {
     assert.deepEqual(layout.section5, {
         type: "section",
         title: "Panel Label",
-        keys: ["show-weather", "weather-location", "weather-units"]
+        keys: ["show-weather", "weather-location", "openstreetmap-attribution", "weather-units"]
     });
     assert.ok(layout.page1.sections.includes("section5"));
     assert.equal(layout.section1.keys.includes("show-weather"), false);

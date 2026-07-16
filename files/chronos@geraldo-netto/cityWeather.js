@@ -59,8 +59,8 @@ const MAX_CITIES = WorldclockData.MAX_CLOCKS;
 // The cities are geocoded through a small pool, not all at once. On an
 // Open-Meteo outage every one falls through to Nominatim, whose usage policy
 // caps a client at one request a second, so a cold-cache round of eight
-// simultaneous fallbacks could get the user throttled. Two in flight keeps the
-// round quick without bursting.
+// simultaneous fallbacks could get the user throttled. Two primary lookups may
+// stay in flight; their Nominatim fallbacks pass through the process-wide queue.
 const GEOCODE_CONCURRENCY = 2;
 // a failed round is retried sooner than the next period, backing off toward
 // it — the panel reading has worked this way all along
