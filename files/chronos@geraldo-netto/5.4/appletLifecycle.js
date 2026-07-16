@@ -78,7 +78,7 @@ const DEFAULT_FACTORIES = {
     clock: () => new CinnamonDesktop.WallClock(),
     weatherProvider: () => new Weather.WeatherProvider(),
     cityWeatherProvider: () => new CityWeather.CityWeatherProvider(),
-    eventsManager: (eventsSettings) => new EventsManagerModule.EventsManager(eventsSettings),
+    eventsManager: (eventsSettings) => EventsManagerModule.createEventsManager(eventsSettings),
     holidayProvider: () => Holidays.createHolidayProvider()
 };
 

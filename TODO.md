@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (738 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 32 (Critical 0, High 1, Medium 9, Low 22).
+Open items: 31 (Critical 0, High 1, Medium 9, Low 21).
 
 ## Findings
 
@@ -54,7 +54,6 @@ Open items: 32 (Critical 0, High 1, Medium 9, Low 22).
 | T534 | testing / compatibility | Low | open | S | **[verified]** `schema_static.test.js` says Cinnamon matches `cinnamon-version` entries literally and therefore requires every series, but Cinnamon 6.6's loader treats the array as minimum compatible versions. The local applet loads on Cinnamon 6.6.7 even though metadata ends at 6.4 because the 5.4 entry satisfies the check. | Fix the test/comment to assert actual loader semantics, or document and test a separate Spices-store requirement if one exists; the current test provides false compatibility confidence and encourages redundant entries. |
 | T535 | API performance / docs | Low | open | S | **[verified]** The Enrico endpoint omits the canonical slash before the query (`/json/v2.0?action=...`), causing an HTTP 301 before every request; `/json/v2.0/?action=...` returns 200 directly. README's Enrico/documentation links also use `http://` and redirect to HTTPS. | Use the canonical slash-bearing HTTPS API base and HTTPS documentation links; pin the canonical URL in a test. |
 | T541 | testing / god files | Low | open | L | **[verified]** Four test files have become suites rather than module tests: `applet.test.js` is 3,274 lines/101 tests, `holidays.test.js` 3,640/105, `weather.test.js` 2,624/72 and `test_settings_widgets.py` 2,646/115. The JS files install process-global GJS/GI doubles, repeatedly clear `require.cache`, and patch constructors across several production modules; `applet.test.js` loads 12 root modules plus the applet and panel presenter. This mirrors the production ownership hubs and gives a boundary change a multi-thousand-line fixture blast radius. | Split tests by production seam, move stable GJS/Soup/Gtk doubles into shared helpers, and retain small composition/integration suites for the assembled graph. Keep coverage gates per production file rather than relying on monolithic fixture state. |
-| T542 | architecture / composition boundary | Low | open | M | `eventsManager.js` has four well-named classes but still combines three layers in one 838-line runtime module: the Cinnamon/DBus adapter (`CalendarServerConnection`), the domain index (`EventIndex`), the date-window use case (`EventWindowCoordinator`) and the signal/timer orchestration facade (`EventsManager`). `EventsManager` hardcodes all three collaborators in its constructor; `AppletProviderLifecycle`, the declared composition root, can inject only an RNG and therefore cannot wire or substitute the boundary components production actually uses. | Move the DBus adapter and pure index/window logic to their own modules, accept them as constructor dependencies, and have `AppletProviderLifecycle` or a factory assemble the graph. Keep `EventsManager` responsible for event-flow orchestration and emitted applet events. |
 | T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete. |
 
 ## Suggested order
@@ -63,9 +62,8 @@ Open items: 32 (Critical 0, High 1, Medium 9, Low 22).
 2. **T526** — make mixed empty/error holiday fallback fail safely instead of caching a false holiday-free year.
 3. **T529** — update the externally visible country catalog, building on the corrected provider/fallback tests.
 4. **T499, T500, T522** — establish the release flow, then gate its package/catalog output and harden the workflow.
-5. **T542** — restore the event-provider/domain seams before moving the larger objects around.
-6. **T536, T537, T541** — split the applet/calendar ownership hubs, then split their monolithic tests along the resulting seams.
-7. Everything else, severity order. The dead-code cluster (T492, T455, T512–T515, T518, T533) is one sitting.
+5. **T536, T537, T541** — split the applet/calendar ownership hubs, then split their monolithic tests along the resulting seams.
+6. Everything else, severity order. The dead-code cluster (T492, T455, T512–T515, T518, T533) is one sitting.
 
 ## Clean categories
 

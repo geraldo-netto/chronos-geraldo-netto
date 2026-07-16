@@ -153,6 +153,9 @@ rootModules.styleUtils = require(path.join(APPLET_DIR, "styleUtils.js"));
 rootModules.textUtils = require(path.join(APPLET_DIR, "textUtils.js"));
 rootModules.eventData = require(path.join(APPLET_DIR, "eventData.js"));
 rootModules.eventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
+rootModules.calendarServerConnection = require(path.join(APPLET_DIR, "calendarServerConnection.js"));
+rootModules.eventIndex = require(path.join(APPLET_DIR, "eventIndex.js"));
+rootModules.eventWindow = require(path.join(APPLET_DIR, "eventWindow.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
 rootModules.weather = require(path.join(APPLET_DIR, "weather.js"));
 rootModules.weatherFormat = require(path.join(APPLET_DIR, "weatherFormat.js"));
@@ -1683,7 +1686,7 @@ test("an unrelated settings keystroke costs no refetch and no clock rebuild", ()
 test("provider initialization wires hover and event manager signals", () => {
     const calls = [];
     const originalWeatherProvider = rootModules.weather.WeatherProvider;
-    const originalEventsManager = rootModules.eventsManager.EventsManager;
+    const originalCreateEventsManager = rootModules.eventsManager.createEventsManager;
     // the applet's default factories assemble the real graph; this test is about
     // the signal wiring around it, so the holiday root is the thing to replace
     const originalCreateHolidayProvider = rootModules.holidays.createHolidayProvider;
@@ -1694,13 +1697,13 @@ test("provider initialization wires hover and event manager signals", () => {
     rootModules.weather.WeatherProvider = class {
         constructor() { calls.push(["weather"]); }
     };
-    rootModules.eventsManager.EventsManager = class {
-        constructor(settings) { calls.push(["events", settings]); }
+    rootModules.eventsManager.createEventsManager = (settings) => ({
+        settings,
         connect(name, cb) {
             calls.push(["connect", name]);
             return calls.length;
         }
-    };
+    });
 
     const stub = Object.assign(Object.create(Proto), {
         actor: {
@@ -1732,7 +1735,7 @@ test("provider initialization wires hover and event manager signals", () => {
     stub.actor.handlers["leave-event"]();
 
     rootModules.weather.WeatherProvider = originalWeatherProvider;
-    rootModules.eventsManager.EventsManager = originalEventsManager;
+    rootModules.eventsManager.createEventsManager = originalCreateEventsManager;
     rootModules.holidays.createHolidayProvider = originalCreateHolidayProvider;
 
     assert.equal(stub._panel_hovered, false);
@@ -2007,7 +2010,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
         HolidayProviderFacade: rootModules.holidays.HolidayProviderFacade,
         Calendar: Calendar52.Calendar,
         EventList: EventView52.EventList,
-        EventsManager: rootModules.eventsManager.EventsManager,
+        createEventsManager: rootModules.eventsManager.createEventsManager,
         Worldclocks: rootModules.worldclocks.Worldclocks
     };
 
@@ -2072,13 +2075,13 @@ test("constructor registers desktop and lifecycle callbacks", () => {
         setPlace() {}
         destroy() {}
     };
-    rootModules.eventsManager.EventsManager = class {
-        connect() { return 1; }
-        is_active() { return true; }
-        select_date() {}
-        start_events() {}
+    rootModules.eventsManager.createEventsManager = () => ({
+        connect() { return 1; },
+        is_active() { return true; },
+        select_date() {},
+        start_events() {},
         destroy() {}
-    };
+    });
     EventView52.EventList = class {
         constructor() { this.actor = {}; }
         connect() { return 1; }
@@ -2152,7 +2155,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     rootModules.holidays.HolidayProviderFacade = originals.HolidayProviderFacade;
     Calendar52.Calendar = originals.Calendar;
     EventView52.EventList = originals.EventList;
-    rootModules.eventsManager.EventsManager = originals.EventsManager;
+    rootModules.eventsManager.createEventsManager = originals.createEventsManager;
     rootModules.worldclocks.Worldclocks = originals.Worldclocks;
 });
 

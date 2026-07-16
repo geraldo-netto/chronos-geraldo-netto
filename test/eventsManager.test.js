@@ -204,6 +204,7 @@ global.imports = {
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "eventsManager.js");
 const {
     EventsManager,
+    createEventsManager,
     EventIndex,
     EventWindowCoordinator,
     SERVER_RETRY_SECONDS,
@@ -217,7 +218,7 @@ function emitted(manager, name) {
 }
 
 function makeManager(showEvents = true) {
-    return new EventsManager({ showEvents });
+    return createEventsManager({ showEvents });
 }
 
 function readyManager() {
@@ -257,6 +258,8 @@ beforeEach(() => {
 
 test("start_events watches the EDS bus once", () => {
     const manager = makeManager();
+    assert.doesNotThrow(() => manager._server_connection.setTimeRange(1, 2, false, null, () => {}));
+    assert.throws(() => manager._server_connection.finishSetTimeRange("reply"), /proxy is gone/);
     manager.start_events();
     manager.start_events();
     assert.equal(gio.watches.length, 1);
@@ -949,6 +952,16 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     assert.equal(emittedEvents.some((event) => event[0] === "selected-date-changed"), true);
     assert.equal(emittedEvents.at(-1)[0], "selected-date-events-changed");
     assert.equal(emittedEvents.at(-1)[1], index.eventsByDate[selected.to_unix()]);
+
+    coordinator.current_selected_signature = null;
+    coordinator.selectDate(
+        new Date(50 * DAY_S * 1000),
+        false,
+        () => true,
+        () => { throw new Error("an unchanged GDate must not fetch"); },
+        () => { throw new Error("an unchanged GDate must not emit"); }
+    );
+    assert.notEqual(coordinator.current_selected_signature, null);
 });
 
 test("day registration: single-day event touches exactly one bucket", () => {
@@ -1006,7 +1019,7 @@ test("server retries back off exponentially with jitter up to the ceiling", () =
     // satisfies exactly: deleting the jitter outright left all 29 tests passing.
     const draws = [0, 0.5, 0.999];
     let draw = 0;
-    const manager = new EventsManager({ showEvents: true },
+    const manager = createEventsManager({ showEvents: true },
         { random: () => draws[draw++ % draws.length] });
 
     for (let i = 0; i < 10; i++) {
@@ -1048,10 +1061,29 @@ test("EDS retry ceilings stay within the shipped outage budget", () => {
     assert.equal(FETCH_RETRY_MAX_SECONDS, 120);
     assert.equal(FETCH_RETRY_MAX_ATTEMPTS, 5);
 
-    const manager = new EventsManager({ showEvents: true }, { random: () => 0 });
+    const manager = createEventsManager({ showEvents: true }, { random: () => 0 });
     manager._server_connection._server_retry_attempts = 8;
     assert.equal(manager._server_connection.retryDelay(), 300,
         "a saturated server retry arms five minutes, not hours");
+});
+
+test("EventsManager receives its boundary collaborators", () => {
+    const serverConnection = { isActive: () => false };
+    const eventIndex = { getColorsByUnixKey: () => ["injected"] };
+    const windowCoordinator = { current_selected_date: "selected" };
+    const manager = new EventsManager({ showEvents: true }, {
+        serverConnection,
+        eventIndex,
+        windowCoordinator,
+        random: () => 0
+    });
+
+    assert.equal(manager._server_connection, serverConnection);
+    assert.equal(manager._event_index, eventIndex);
+    assert.equal(manager._window_coordinator, windowCoordinator);
+    assert.equal(manager.current_selected_date, "selected");
+    assert.deepEqual(manager.get_colors_for_unix_key(1), ["injected"]);
+    assert.throws(() => new EventsManager({ showEvents: true }), /requires its connection/);
 });
 
 test("idle reload today consumes the force flag and selects today", () => {

@@ -265,6 +265,9 @@ rootModules.localeText = require(path.join(APPLET_DIR, "localeText.js"));
 rootModules.styleUtils = require(path.join(APPLET_DIR, "styleUtils.js"));
 rootModules.eventData = require(path.join(APPLET_DIR, "eventData.js"));
 rootModules.eventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
+rootModules.calendarServerConnection = require(path.join(APPLET_DIR, "calendarServerConnection.js"));
+rootModules.eventIndex = require(path.join(APPLET_DIR, "eventIndex.js"));
+rootModules.eventWindow = require(path.join(APPLET_DIR, "eventWindow.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
 
 const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));

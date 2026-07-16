@@ -4,486 +4,52 @@
 // calendar@simonwiles.net (Simon Wiles).
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
-// This program comes with ABSOLUTELY NO WARRANTY. See the LICENSE file beside
-// this one, or <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
 
 /* global imports */
 /* eslint camelcase: "off" */
 
-// EventsManager: DBus I/O and fetch-state for calendar events, shared by
-// 5.4/eventView.js. Split from the view so the retry/teardown/GC state
-// machine is Node-testable.
-
+// Signal/timer orchestration for calendar events. Boundary adapters, indexing,
+// and date-window policy are constructor dependencies assembled by the factory.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
-// Which host is loading this file — and it is asked of the *host*, not of
-// require(). It used to test `typeof require === "function"`, on the stated
-// assumption that "Cinnamon provides neither require() nor module". That was true
-// of 5.4 through 6.4 and is not true of Cinnamon master, which sets
-// globalThis.require = xletRequire (js/ui/extension.js). There the test would
-// invert: the root modules would take the require() branch, _requireLocal would
-// resolve "./localeUtils" against extension.meta.path — which
-// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
-// applet would fail to load, because localeUtils.js is not in there.
-//
-// Node is what this asks about, because Node is the only host that requires these
-// files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
-const Cinnamon = GjsImports.gi.Cinnamon;
 const Mainloop = GjsImports.mainloop;
 const Signals = GjsImports.signals;
 const APPLET_MODULES = IS_NODE ?
     null : GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
-const DateFormats = APPLET_MODULES ? APPLET_MODULES.dateFormats : require("./dateFormats");
 const ProviderUtils = APPLET_MODULES ? APPLET_MODULES.providerUtils : require("./providerUtils");
-const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
-const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
-const date_only = EventDataModule.date_only;
-const month_year_only = EventDataModule.month_year_only;
-const dt_equals = EventDataModule.dt_equals;
-const EventData = EventDataModule.EventData;
-const EventDataList = EventDataModule.EventDataList;
+const CalendarServerModule = APPLET_MODULES ? APPLET_MODULES.calendarServerConnection : require("./calendarServerConnection");
+const EventIndexModule = APPLET_MODULES ? APPLET_MODULES.eventIndex : require("./eventIndex");
+const EventWindowModule = APPLET_MODULES ? APPLET_MODULES.eventWindow : require("./eventWindow");
 
-const UUID = "chronos@geraldo-netto";
+const CalendarServerConnection = CalendarServerModule.CalendarServerConnection;
+const EventIndex = EventIndexModule.EventIndex;
+const EventWindowCoordinator = EventWindowModule.EventWindowCoordinator;
+var EDS_BUS_NAME = CalendarServerModule.EDS_BUS_NAME;
+var SERVER_RETRY_SECONDS = CalendarServerModule.SERVER_RETRY_SECONDS;
+var SERVER_RETRY_MAX_SECONDS = CalendarServerModule.SERVER_RETRY_MAX_SECONDS;
 
-const STATUS_UNKNOWN = 0;
-const STATUS_NO_CALENDARS = 1;
-
-// days an event is indexed across before the walk gives up: a bugged event whose
-// end never arrives would otherwise index days forever
-const MAX_SPANNED_DAYS = 50;
-
-var EDS_BUS_NAME = "org.gnome.evolution.dataserver.Calendar8"
-var SERVER_RETRY_SECONDS = 5;
-var SERVER_RETRY_MAX_SECONDS = 300;
-// a month fetch that fails takes the month's events with it; retry it a few
-// times with backoff before giving up
+// A month fetch that fails takes the month's events with it; retry it a few
+// times with backoff before giving up.
 var FETCH_RETRY_SECONDS = 5;
 var FETCH_RETRY_MAX_SECONDS = 120;
 var FETCH_RETRY_MAX_ATTEMPTS = 5;
-// events turned into EventData per main-loop turn. A normal delivery is a
-// handful and lands in one go; a shared calendar's 42-day window is not.
 var EVENT_BATCH_CHUNK = 25;
-
-var CalendarServerConnection = class CalendarServerConnection {
-    constructor(callbacks, params = {}) {
-        this.callbacks = callbacks;
-        this._bus_watch_id = 0;
-        this._calendar_server = null;
-        this._calendar_server_signal_ids = [];
-        this._server_retry_id = 0;
-        this._server_retry_attempts = 0;
-        this._cached_state = STATUS_UNKNOWN;
-        this._inited = false;
-        this._destroyed = false;
-        // injectable so the retry jitter is a fixed number under test, as the
-        // weather scheduler's already is
-        this._random = params.random || Math.random;
-    }
-
-    start() {
-        // Destroyed is terminal. The constructor catches its own failure and
-        // tears itself down, but it still returns an object, so Cinnamon goes
-        // on to call on_applet_added_to_panel() — which lands here. Guarding
-        // only on the watch id would re-arm the watch on a dead applet, and
-        // destroy() has already run and will not run again.
-        if (this._destroyed || this._bus_watch_id > 0) {
-            return;
-        }
-
-        this.cancelRetry();
-        this._bus_watch_id = Gio.bus_watch_name(Gio.BusType.SESSION,
-                                                EDS_BUS_NAME,
-                                                Gio.BusNameWatcherFlags.NONE,
-                                                this.eds_service_found.bind(this),
-                                                null);
-    }
-
-    eds_service_found(connection, name, name_owner) {
-        Gio.bus_unwatch_name(this._bus_watch_id);
-        this._bus_watch_id = 0;
-
-        if (this._calendar_server == null) {
-            log(UUID + ": Calendar events supported.")
-
-            Cinnamon.CalendarServerProxy.new_for_bus(
-                Gio.BusType.SESSION,
-                Gio.DBusProxyFlags.DO_NOT_AUTO_START_AT_CONSTRUCTION,
-                "org.cinnamon.CalendarServer",
-                "/org/cinnamon/CalendarServer",
-                null,
-                this._calendar_server_ready.bind(this)
-            );
-        }
-    }
-
-    _calendar_server_ready(obj, res) {
-        // the proxy construction may finish after the applet was removed
-        // from the panel; connecting signals then would leak them forever
-        if (this._destroyed) {
-            return;
-        }
-
-        try {
-            this._calendar_server = Cinnamon.CalendarServerProxy.new_for_bus_finish(res);
-
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
-                "events-added-or-updated",
-                this.callbacks.onAddedOrUpdated
-            ));
-
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
-                "events-removed",
-                this.callbacks.onRemoved
-            ));
-
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
-                "client-disappeared",
-                this.callbacks.onClientDisappeared
-            ));
-
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
-                "notify::status",
-                this._handle_status_notify.bind(this)
-            ));
-
-            this._inited = true;
-            this._server_retry_attempts = 0;
-
-            this.callbacks.onReady();
-        } catch (e) {
-            log("could not connect to calendar server process: " + e);
-            // The proxy can be built and still fail to wire up: if one of the
-            // connect() calls above throws, _calendar_server is left non-null
-            // and half-connected. The retried start() then walks into the
-            // "if (this._calendar_server == null)" guard in eds_service_found,
-            // builds nothing, never reaches onReady, never sets _inited — and
-            // never queues another retry either. The event column read
-            // "Calendar events are unavailable" for the rest of the session.
-            //
-            // Undo the half-built proxy so the retry starts from nothing.
-            this._disconnectServer();
-            this._calendar_server = null;
-            this._inited = false;
-            this.queueRetry();
-            return;
-        }
-    }
-
-    cancelRetry() {
-        if (this._server_retry_id > 0) {
-            Mainloop.source_remove(this._server_retry_id);
-            this._server_retry_id = 0;
-        }
-    }
-
-    retryDelay() {
-        return ProviderUtils.backoffDelay(this._server_retry_attempts, {
-            base: SERVER_RETRY_SECONDS,
-            cap: SERVER_RETRY_MAX_SECONDS,
-            random: this._random
-        });
-    }
-
-    queueRetry() {
-        if (this._destroyed) {
-            return;
-        }
-
-        this.cancelRetry();
-        const delay = this.retryDelay();
-        this._server_retry_attempts = Math.min(this._server_retry_attempts + 1, 8);
-        this._server_retry_id = Mainloop.timeout_add_seconds(
-            delay,
-            () => {
-                this._server_retry_id = 0;
-                this.start();
-                return GLib.SOURCE_REMOVE;
-            }
-        );
-    }
-
-    _handle_status_notify() {
-        if (this._calendar_server.status === this._cached_state) {
-            return;
-        }
-
-        // Never reload when the new status is STATUS_UNKNOWN - this
-        // means the server name-owner disappeared, it doesn't mean
-        // there are no calendars.
-        if (this._calendar_server.status === STATUS_UNKNOWN) {
-            return;
-        }
-
-        this._cached_state = this._calendar_server.status;
-        this.callbacks.onStatusChanged();
-    }
-
-    // whatever handlers made it onto the proxy come back off it; a half-wired
-    // proxy has some of them, a live one has all four
-    _disconnectServer() {
-        if (this._calendar_server !== null) {
-            for (let id of this._calendar_server_signal_ids) {
-                this._calendar_server.disconnect(id);
-            }
-        }
-
-        this._calendar_server_signal_ids = [];
-    }
-
-    destroy() {
-        if (this._bus_watch_id > 0) {
-            Gio.bus_unwatch_name(this._bus_watch_id);
-            this._bus_watch_id = 0;
-        }
-
-        this.cancelRetry();
-        this._disconnectServer();
-
-        this._calendar_server = null;
-        this._inited = false;
-        this._destroyed = true;
-    }
-
-    // The proxy is this object's to own: it builds it, connects its signals and
-    // nulls it in destroy(), so it is the only place that should dereference it.
-    // These two methods are what EventsManager and the window coordinator used to
-    // reach through _calendar_server to call — the ownership is no longer split.
-    setTimeRange(start, end, force, cancellable, callFinished) {
-        if (this._calendar_server === null) {
-            return;
-        }
-
-        this._calendar_server.call_set_time_range(start, end, force, cancellable, callFinished);
-    }
-
-    finishSetTimeRange(res) {
-        // no proxy means no reply to finish; let the caller's catch treat it as a
-        // failed fetch and retry, exactly as a thrown finish() did before
-        if (this._calendar_server === null) {
-            throw new Error("calendar server proxy is gone");
-        }
-
-        this._calendar_server.call_set_time_range_finish(res);
-    }
-
-    isActive(showEvents) {
-        return this._inited &&
-               showEvents &&
-               this._calendar_server !== null &&
-               // Not blocking STATUS_UNKNOWN allows our calendar to remain
-               // populated while the server is 'unowned' (sleeping), since
-               // its cached property is set to 0 when its current owner exits.
-               this._calendar_server.status !== STATUS_NO_CALENDARS;
-    }
-};
-
-var EventIndex = class EventIndex {
-    constructor(eventsByDate = {}) {
-        this.eventsByDate = eventsByDate;
-    }
-
-    clear() {
-        this.eventsByDate = {};
-    }
-
-    get(date) {
-        return this.getByUnixKey(date.to_unix());
-    }
-
-    // an emptied day is "no events", not "a list of nothing": the renderer
-    // builds zero rows for the latter and leaves a blank panel behind
-    getByUnixKey(dateUnixKey) {
-        const event_data_list = this.eventsByDate[dateUnixKey];
-        return event_data_list && event_data_list.length > 0 ? event_data_list : null;
-    }
-
-    getColorsByUnixKey(dateUnixKey) {
-        const event_data_list = this.eventsByDate[dateUnixKey];
-        return event_data_list !== undefined ? event_data_list.get_colors() : null;
-    }
-
-    register(data, timestamp, currentSelectedDate) {
-        let changed = false;
-        let selected_changed = false;
-
-        // don't loop endlessly in case of a bugged event: the bound is the loop's
-        // own condition, not a counter checked inside a `while (true)`
-        let date_iter = date_only(data.start);
-        for (let escape = 0; escape <= MAX_SPANNED_DAYS; escape++) {
-            let hash = date_iter.to_unix();
-
-            if (this.eventsByDate[hash] === undefined) {
-                this.eventsByDate[hash] = new EventDataList(date_iter);
-            }
-
-            if (this.eventsByDate[hash].add_or_update(data, timestamp)) {
-                changed = true;
-                if (dt_equals(date_iter, currentSelectedDate)) {
-                    selected_changed = true;
-                }
-            }
-
-            if (data.ends_on_date_only(date_iter)) {
-                break;
-            }
-
-            date_iter = date_iter.add_days(1);
-        }
-
-        return { changed, selected_changed };
-    }
-
-    addOrUpdate(events, timestamp, currentSelectedDate) {
-        let events_changed = false;
-        let selected_date_changed = false;
-
-        for (let n = 0; n < events.length; n++) {
-            let data;
-            try {
-                data = new EventData(events[n], timestamp);
-            } catch (e) {
-                // This runs inside a DBus signal handler on the compositor
-                // thread: one unusable event out of a feed must cost that
-                // event, not the whole month — and not the shell.
-                if (global.logError) {
-                    global.logError(e);
-                }
-                continue;
-            }
-
-            const result = this.register(data, timestamp, currentSelectedDate);
-            events_changed = events_changed || result.changed;
-            selected_date_changed = selected_date_changed || result.selected_changed;
-        }
-
-        return { events_changed, selected_date_changed };
-    }
-
-    remove(uids) {
-        for (let hash in this.eventsByDate) {
-            let event_data_list = this.eventsByDate[hash];
-
-            for (let uid of uids) {
-                event_data_list.delete(uid);
-            }
-        }
-    }
-
-    cull(timestamp) {
-        let any_removed = false;
-        for (let date in this.eventsByDate) {
-            if (this.eventsByDate[date].cull_removed_events(timestamp)) {
-                any_removed = true;
-            }
-
-            // an emptied bucket would otherwise be kept forever
-            if (this.eventsByDate[date].length === 0) {
-                delete this.eventsByDate[date];
-            }
-        }
-
-        return any_removed;
-    }
-};
-
-var EventWindowCoordinator = class EventWindowCoordinator {
-    constructor(index) {
-        this.index = index;
-        this.current_month_year = null;
-        this.current_selected_date = GLib.DateTime.new_from_unix_local(0);
-        this.current_selected_signature = null;
-    }
-
-    fetchMonthEvents(month_year, force, setTimeRange, callFinished, timestampNow, cancellable = null) {
-        let changed_month = this.current_month_year === null || !dt_equals(month_year, this.current_month_year);
-
-        if (!changed_month && !force) {
-            return null;
-        }
-        this.current_month_year = month_year;
-
-        if (changed_month) {
-            this.index.clear();
-        }
-
-        // get first day of month
-        let day_one = month_year_only(month_year);
-
-        // back up to the start of the week containing day 1
-        let start = day_one.add_days( -DateFormats.monthWindowStartOffset(
-            day_one.get_day_of_week(), Cinnamon.util_get_week_start()) );
-        // The calendar has 42 boxes
-        let end = start.add_days(42).add_seconds(-1);
-
-        // The reply lands in call_finished. Removing the applet mid-call used to
-        // throw a TypeError there, caught and logged as though the month's events
-        // had failed; the connection now guards its own proxy, and the HTTP paths
-        // in this codebase already pass a cancellable for the same reason.
-        setTimeRange(start.to_unix(), end.to_unix(), force, cancellable, callFinished);
-
-        return timestampNow();
-    }
-
-    selectDate(date, force, isActive, fetchMonthEvents, emit) {
-        if (!isActive()) {
-            return;
-        }
-
-        const selectedSignature = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
-        if (!force && selectedSignature === this.current_selected_signature) {
-            return;
-        }
-
-        // date is a js Date(). Eventually the calendar side should use
-        // GDateTime, but for now we'll convert it here - it's a bit more
-        // useful for dealing with events.
-        let gdate = js_date_to_gdatetime(date);
-
-        let gdate_only = date_only(gdate);
-        if (!force && dt_equals(gdate_only, this.current_selected_date)) {
-            this.current_selected_signature = selectedSignature;
-            return;
-        }
-
-        let month_year = month_year_only(gdate_only);
-        fetchMonthEvents(month_year, force);
-        emit("selected-date-changed", gdate_only);
-
-        // current_selected_date starts at the unix epoch, never null
-        let delay_no_events_box = !dt_equals(month_year_only(this.current_selected_date),
-                                             month_year_only(gdate_only));
-
-        this.current_selected_date = gdate_only;
-        this.current_selected_signature = selectedSignature;
-
-        let existing_event_list = this.index.get(gdate_only);
-        if (existing_event_list !== null) {
-            // log("---------------cache hit");
-            emit("selected-date-events-changed", existing_event_list, delay_no_events_box);
-        } else {
-            emit("selected-date-events-changed", null, delay_no_events_box);
-        }
-    }
-};
 
 var EventsManager = class EventsManager {
     constructor(settings, params = {}) {
+        if (!params.serverConnection || !params.eventIndex || !params.windowCoordinator) {
+            throw new Error("EventsManager requires its connection, index, and window collaborators");
+        }
+
         this.settings = settings;
-        // one RNG for both retry chains in this file, injectable under test
         this._random = params.random || Math.random;
-        this._server_connection = new CalendarServerConnection({
-            onReady: () => this.emit("events-manager-ready"),
-            onAddedOrUpdated: this._handle_added_or_updated_events.bind(this),
-            onRemoved: this._handle_removed_events.bind(this),
-            onClientDisappeared: this._handle_client_disappeared.bind(this),
-            onStatusChanged: this._handle_status_changed.bind(this)
-        }, { random: this._random });
+        this._server_connection = params.serverConnection;
         this.last_update_timestamp = 0;
-        this._event_index = new EventIndex();
-        this._window_coordinator = new EventWindowCoordinator(this._event_index);
+        this._event_index = params.eventIndex;
+        this._window_coordinator = params.windowCoordinator;
 
         this._destroyed = false;
 
@@ -832,8 +398,36 @@ var EventsManager = class EventsManager {
     }
 };
 
+
+
+function createEventsManager(settings, params = {}) {
+    const random = params.random || Math.random;
+    const eventIndex = params.eventIndex || new EventIndex();
+    const windowCoordinator = params.windowCoordinator ||
+        new EventWindowCoordinator(eventIndex);
+    let manager = null;
+    const serverConnection = params.serverConnection || new CalendarServerConnection({
+        onReady: () => manager.emit("events-manager-ready"),
+        onAddedOrUpdated: (...args) => manager._handle_added_or_updated_events(...args),
+        onRemoved: (...args) => manager._handle_removed_events(...args),
+        onClientDisappeared: (...args) => manager._handle_client_disappeared(...args),
+        onStatusChanged: () => manager._handle_status_changed()
+    }, { random });
+
+    manager = new EventsManager(settings, {
+        serverConnection,
+        eventIndex,
+        windowCoordinator,
+        random
+    });
+    return manager;
+}
+
 Signals.addSignalMethods(EventsManager.prototype);
 
 if (typeof module !== "undefined") {
-    module.exports = { EventsManager, CalendarServerConnection, EventIndex, EventWindowCoordinator, SERVER_RETRY_SECONDS, SERVER_RETRY_MAX_SECONDS, FETCH_RETRY_SECONDS, FETCH_RETRY_MAX_SECONDS, FETCH_RETRY_MAX_ATTEMPTS, EDS_BUS_NAME };
+    module.exports = { EventsManager, createEventsManager, CalendarServerConnection,
+        EventIndex, EventWindowCoordinator, SERVER_RETRY_SECONDS,
+        SERVER_RETRY_MAX_SECONDS, FETCH_RETRY_SECONDS, FETCH_RETRY_MAX_SECONDS,
+        FETCH_RETRY_MAX_ATTEMPTS, EDS_BUS_NAME };
 }

@@ -65,6 +65,19 @@ function gjsImportsMock() {
                             EventData: class {},
                             EventDataList: class {}
                         },
+                        calendarServerConnection: {
+                            CalendarServerConnection: class {},
+                            SERVER_RETRY_SECONDS: 5,
+                            SERVER_RETRY_MAX_SECONDS: 300,
+                            EDS_BUS_NAME: "org.gnome.evolution.dataserver.Calendar8"
+                        },
+                        eventIndex: {
+                            EventIndex: class {},
+                            MAX_SPANNED_DAYS: 50
+                        },
+                        eventWindow: {
+                            EventWindowCoordinator: class {}
+                        },
                         textUtils: {
                             clampText(text, max) { return String(text).slice(0, max); },
                             TEXT_ELLIPSIS: "…"
@@ -312,7 +325,11 @@ const EXPORTS = {
         "countryCodeFromZoneTab", "localCountryCode", "builtInTimezoneKeys"],
     eventData: ["js_date_to_gdatetime", "date_only", "month_year_only", "dt_equals",
         "EventData", "EventDataList"],
-    eventsManager: ["EventsManager", "CalendarServerConnection", "EventIndex", "EventWindowCoordinator", "SERVER_RETRY_SECONDS", "EDS_BUS_NAME"],
+    calendarServerConnection: ["CalendarServerConnection", "SERVER_RETRY_SECONDS",
+        "SERVER_RETRY_MAX_SECONDS", "EDS_BUS_NAME"],
+    eventIndex: ["EventIndex"],
+    eventWindow: ["EventWindowCoordinator"],
+    eventsManager: ["EventsManager", "createEventsManager", "SERVER_RETRY_SECONDS", "EDS_BUS_NAME"],
     eventFormat: ["EVENT_PHASE_PAST", "EVENT_PHASE_UPCOMING", "EVENT_PHASE_CURRENT",
         "dtEquals", "classifyEventDisplayState", "localeCap", "formatRangePrefix",
         "formatRangeSuffix", "formatEventTimeRange", "ARROW_SEPARATOR"],

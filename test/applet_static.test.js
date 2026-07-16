@@ -157,13 +157,14 @@ test("5.4 strftime help opens over HTTPS", () => {
 
 test("event managers expose teardown and applets call it", () => {
     const code = source("eventsManager.js");
-    assert.match(code, /this\._calendar_server_signal_ids = \[\];/);
+    const connection = source("calendarServerConnection.js");
+    assert.match(connection, /this\._calendar_server_signal_ids = \[\];/);
     assert.match(code, /destroy\(\) \{[\s\S]*?this\._server_connection\.destroy\(\);[\s\S]*?this\._stop_gc_timer\(\);[\s\S]*?this\._cancel_reload_today\(\);/);
-    assert.match(code, /for \(let id of this\._calendar_server_signal_ids\) \{[\s\S]*?this\._calendar_server\.disconnect\(id\);/);
-    assert.match(code, /this\._calendar_server = null;[\s\S]*?this\._inited = false;/);
+    assert.match(connection, /for \(let id of this\._calendar_server_signal_ids\) \{[\s\S]*?this\._calendar_server\.disconnect\(id\);/);
+    assert.match(connection, /this\._calendar_server = null;[\s\S]*?this\._inited = false;/);
 
-    assert.match(code, /Gio\.bus_unwatch_name\(this\._bus_watch_id\);/);
-    assert.match(code, /this\.cancelRetry\(\);/);
+    assert.match(connection, /Gio\.bus_unwatch_name\(this\._bus_watch_id\);/);
+    assert.match(connection, /this\.cancelRetry\(\);/);
 
     assert.match(appletSource("5.4"), /this\._providerLifecycle && this\._providerLifecycle\.destroy\(\)/);
 });
@@ -271,11 +272,22 @@ test("applets surface weather provider failures", () => {
 });
 
 test("event fetch window uses the shared week-start offset", () => {
-    const code = source("eventsManager.js");
+    const code = source("eventWindow.js");
     // raw week_day - week_start mixes ISO (1=Mon..7=Sun) with the 0=Sun
     // convention and started the window a week early for Sunday locales
     assert.doesNotMatch(code, /week_day - week_start/);
     assert.match(code, /DateFormats\.monthWindowStartOffset\(\n?\s*day_one\.get_day_of_week\(\), Cinnamon\.util_get_week_start\(\)\)/);
+});
+
+test("event orchestration depends on extracted boundary collaborators", () => {
+    const manager = source("eventsManager.js");
+    const lifecycle = source("5.4/appletLifecycle.js");
+
+    assert.doesNotMatch(manager, /class CalendarServerConnection|class EventIndex|class EventWindowCoordinator/);
+    assert.match(manager, /params\.serverConnection/);
+    assert.match(manager, /params\.eventIndex/);
+    assert.match(manager, /params\.windowCoordinator/);
+    assert.match(lifecycle, /EventsManagerModule\.createEventsManager\(eventsSettings\)/);
 });
 
 test("translating files use the applet's own gettext domain", () => {
