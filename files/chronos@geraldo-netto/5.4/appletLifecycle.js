@@ -159,8 +159,7 @@ class AppletProviderLifecycle {
             weatherProvider: this.weatherProvider,
             cityWeatherProvider: this.cityWeatherProvider,
             eventsManager: this.eventsManager,
-            holidayProvider: this.holidayProvider,
-            holidayRegions: this.holidayRegions
+            holidayProvider: this.holidayProvider
         };
     }
 

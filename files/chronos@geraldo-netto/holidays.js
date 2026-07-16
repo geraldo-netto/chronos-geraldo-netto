@@ -570,7 +570,7 @@ function createHolidayProvider(params = {}) {
 }
 
 var HolidayProviderFacade = class HolidayProviderFacade {
-    constructor(provider = new HolidayService()) {
+    constructor(provider) {
         this._provider = provider;
     }
 
