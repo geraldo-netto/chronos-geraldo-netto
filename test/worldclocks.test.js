@@ -645,14 +645,12 @@ test("updateClocks formats every configured timezone", () => {
 
     assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, timeIn("Asia/Tokyo"));
     assert.equal(worldclocks.clocks[BUILTIN_ROWS + 1].display.text, timeIn("Europe/Rome"));
-    const entries = worldclocks.getClockEntries(1);
+    const entries = worldclocks.getClockEntries();
     assert.deepEqual(entries.map((entry) => [entry.label, entry.time, entry.builtin]), [
         ["UTC", timeIn("UTC"), true],
         ["Local time", timeIn(LOCAL_TIMEZONE), true],
-        ["Tokyo", timeIn("Asia/Tokyo"), false]
-    ]);
-    assert.deepEqual(worldclocks.getClockEntries(1, false).map((entry) => [entry.label, entry.time, entry.builtin]), [
-        ["Tokyo", timeIn("Asia/Tokyo"), false]
+        ["Tokyo", timeIn("Asia/Tokyo"), false],
+        ["Rome", timeIn("Europe/Rome"), false]
     ]);
     entries[BUILTIN_ROWS].time = "cached";
     worldclocks.updateClocks(entries);
@@ -699,7 +697,7 @@ test("invalid timezones are marked instead of silently using UTC", () => {
     const bad = worldclocks.clocks[BUILTIN_ROWS];
     assert.equal(bad.display.text, "Invalid timezone");
     assert.equal(bad.display.options.style_class, "calendar-world-time calendar-world-time-invalid");
-    const badEntry = worldclocks.getClockEntries(1).find((entry) => entry.label === "Bad");
+    const badEntry = worldclocks.getClockEntries().find((entry) => entry.label === "Bad");
     assert.equal(badEntry.time, "Invalid timezone");
     assert.equal(badEntry.builtin, false);
 });
@@ -783,11 +781,10 @@ test("fuzzed clock lists never crash and always respect the cap and invalid mark
         shown.forEach((entry, index) =>
             assertClockMatchesEntry(worldclocks.clocks[BUILTIN_ROWS + index], entry, index));
 
-        const limit = Math.floor(random() * 12);
-        const texts = worldclocks.getClockEntries(limit)
+        const texts = worldclocks.getClockEntries()
             .filter((entry) => !entry.builtin)
             .map((entry) => ({ label: entry.label, time: entry.time }));
-        assert.equal(texts.length, Math.min(limit, shown.length));
+        assert.equal(texts.length, shown.length);
         texts.forEach((text) => {
             assert.equal(typeof text.label, "string");
             assert.ok(text.time.length > 0);

@@ -442,10 +442,8 @@ function updateStub({ menuOpen = false } = {}) {
         menu: { isOpen: menuOpen },
         _worldclocks: {
             setVisible: () => {},
-            getClockEntries: (limit, includeBuiltin) => {
+            getClockEntries: () => {
                 calls.clockEntries++;
-                calls.lastLimit = limit;
-                calls.lastIncludeBuiltin = includeBuiltin;
                 return clockEntries;
             },
             updateClocks: (entries) => {
@@ -546,8 +544,6 @@ test("_updateClockAndDate with the menu closed only updates the label", () => {
     // the tooltip is the full table — UTC, local and every configured city —
     // so a hovered panel pays for the whole set, and only then
     assert.equal(calls.clockEntries, 1, "the clocks are formatted for the tooltip that shows them");
-    assert.equal(calls.lastIncludeBuiltin, true, "a hovered tooltip lists the built-in rows");
-    assert.equal(calls.lastLimit, undefined, "a hovered tooltip is capped by nothing");
 });
 
 test("a closed panel with nothing to show does no per-tick clock work", () => {
@@ -595,8 +591,8 @@ test("_updateClockAndDate with the menu open refreshes the full view", () => {
     assert.equal(calls.selected, 1);
     assert.equal(calls.worldTicks, 1);
     assert.equal(calls.lastEntries.length, 4);
-    assert.equal(calls.lastLimit, undefined, "menu updates receive the full entry list");
-    assert.equal(calls.lastIncludeBuiltin, true, "menu updates include built-in rows");
+    assert.equal(calls.lastEntries.filter((entry) => entry.builtin).length, 1,
+        "menu updates include the built-in rows");
     assert.equal(calls.dayText.length, 1);
 });
 
@@ -2661,8 +2657,6 @@ test("a hovered panel shows every clock in the tooltip and none on the panel", (
 
     Proto._updateClockAndDate.call(stub);
 
-    assert.equal(calls.lastLimit, undefined, "the tooltip is capped by nothing");
-    assert.equal(calls.lastIncludeBuiltin, true, "the tooltip keeps the UTC and local rows");
     assert.equal(calls.tooltip.length, 1);
 
     // the panel label is the date and the weather: no clock reaches it
@@ -2879,24 +2873,20 @@ test("the accessible name speaks the error, or the condition, or neither", () =>
     assert.equal(announce({ _weather_reading: null }), "10:00");
 });
 
-test("getClockEntries includes the built-in rows unless told otherwise", () => {
-    const asked = [];
+test("getClockEntries reads the complete clock list through the view", () => {
+    let calls = 0;
     const stub = {
         _worldclocks: {
-            getClockEntries(limit, includeBuiltin) {
-                asked.push({ limit, includeBuiltin });
+            getClockEntries() {
+                calls++;
                 return [];
             }
         }
     };
     const presenter = panelStatus(stub);
 
-    // the default is the menu's view: UTC and local time are always in it
     presenter.getClockEntries();
-    assert.deepEqual(asked[0], { limit: undefined, includeBuiltin: true });
-
-    presenter.getClockEntries(2, false);
-    assert.deepEqual(asked[1], { limit: 2, includeBuiltin: false });
+    assert.equal(calls, 1);
 });
 
 test("the go-home button is dead only while today is the selected day", () => {

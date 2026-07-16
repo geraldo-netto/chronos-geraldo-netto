@@ -254,9 +254,8 @@ class PanelView {
         this.applet._worldclocks.setWeatherSource(source);
     }
 
-    getClockEntries(limit, includeBuiltin) {
-        return this.applet._worldclocks.getClockEntries(
-            limit === null ? undefined : limit, includeBuiltin);
+    getClockEntries() {
+        return this.applet._worldclocks.getClockEntries();
     }
 
     // --- the menu's own collaborators --------------------------------------
@@ -667,8 +666,8 @@ class AppletPanelStatusPresenter {
         label.set_text(text);
     }
 
-    getClockEntries(limit = null, includeBuiltin = true) {
-        return this.view.getClockEntries(limit, includeBuiltin);
+    getClockEntries() {
+        return this.view.getClockEntries();
     }
 
     updateClockAndDate(forceMenuUpdate = false) {
@@ -682,8 +681,7 @@ class AppletPanelStatusPresenter {
         // tooltip and the popup draw. They are built when one of those two is
         // about to be shown, and then in full.
         const showingClocks = Boolean(refreshMenu || view.panelHovered);
-        let clockEntries = (clocksOn && showingClocks) ?
-            this.getClockEntries(null, true) : [];
+        let clockEntries = (clocksOn && showingClocks) ? this.getClockEntries() : [];
         let label_suffix = this.buildLabelSuffix();
         if (label_suffix) {
             // the temperature reads as part of the clock line, so no bullet
