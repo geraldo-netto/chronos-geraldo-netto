@@ -479,6 +479,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         // to survive
         this._guarded(() => {
             this._onSettingsChanged();
+            this._settingsBinder.deferInitialHolidayCountry();
 
             this._providerLifecycle.connectClockNotify(() => this._clockNotify());
 
@@ -507,6 +508,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // failure after that point used to leave a live global hotkey bound
             // to a destroyed applet — pressing it opened a menu that was gone
             () => Main.keybindingManager.removeHotKey("calendar-open-" + this.instance_id),
+            () => this._settingsBinder && this._settingsBinder.destroy(),
             () => this._providerLifecycle && this._providerLifecycle.destroy(),
             // the menu builder connects five signals on the events manager and
             // the event list, and nothing used to disconnect them

@@ -385,9 +385,13 @@ test("settings binding wires schema keys and creates settings facades", () => {
         "the location reaches the applet through the mirror, not through bind()");
 });
 
-test("settings binding fills the initial holiday country from the operating-system timezone", () => {
+test("holiday-country inference yields startup and preserves later choices", () => {
     const originalSettings = global.imports.ui.settings.AppletSettings;
     const originalCountryCode = rootModules.worldclockData.localCountryCode;
+    const originalIdleAdd = global.imports.mainloop.idle_add;
+    const originalSourceRemove = global.imports.mainloop.source_remove;
+    const idles = [];
+    const removed = [];
     const values = {
         "date-format-defaults-migrated": true,
         "weather-location": "Rome",
@@ -405,6 +409,11 @@ test("settings binding fills the initial holiday country from the operating-syst
         timezoneReads++;
         return timezoneReads === 1 ? "IT" : "FR";
     };
+    global.imports.mainloop.idle_add = (callback) => {
+        idles.push(callback);
+        return 8 + idles.length;
+    };
+    global.imports.mainloop.source_remove = (id) => removed.push(id);
 
     const stub = Object.assign(Object.create(Proto), {
         instance_id: 42,
@@ -413,17 +422,31 @@ test("settings binding fills the initial holiday country from the operating-syst
 
     try {
         Proto._bindSettings.call(stub);
+        assert.equal(timezoneReads, 0, "construction performs no tzdata I/O");
+        assert.equal(values.country, "");
+        stub._settingsBinder.deferInitialHolidayCountry();
+        assert.equal(idles.length, 1, "inference waits on the main-loop idle");
+        assert.equal(idles[0](), false);
         assert.equal(values.country, "ita");
 
         values.country = "none";
         Proto._bindSettings.call(stub);
+        stub._settingsBinder.deferInitialHolidayCountry();
+        assert.equal(idles.length, 1, "an explicit choice schedules no read");
+
+        values.country = "";
+        Proto._bindSettings.call(stub);
+        stub._settingsBinder.deferInitialHolidayCountry();
+        stub._settingsBinder.destroy();
     } finally {
         global.imports.ui.settings.AppletSettings = originalSettings;
         rootModules.worldclockData.localCountryCode = originalCountryCode;
+        global.imports.mainloop.idle_add = originalIdleAdd;
+        global.imports.mainloop.source_remove = originalSourceRemove;
     }
 
     assert.equal(timezoneReads, 1, "tzdata is read only for the initial default");
-    assert.equal(values.country, "none", "a later explicit disable is preserved");
+    assert.deepEqual(removed, [10], "teardown cancels an inference that never ran");
 });
 
 test("settings binding preserves a pre-existing holiday opt-out on upgrade", () => {
@@ -463,6 +486,8 @@ test("settings binding preserves a pre-existing holiday opt-out on upgrade", () 
 test("regression: an unsupported OS timezone country leaves holidays disabled", () => {
     const originalSettings = global.imports.ui.settings.AppletSettings;
     const originalCountryCode = rootModules.worldclockData.localCountryCode;
+    const originalIdleAdd = global.imports.mainloop.idle_add;
+    let infer = null;
     const values = {
         "date-format-defaults-migrated": true,
         "weather-location": "San Marino",
@@ -476,6 +501,10 @@ test("regression: an unsupported OS timezone country leaves holidays disabled", 
         setValue(key, value) { values[key] = value; }
     };
     rootModules.worldclockData.localCountryCode = () => "SM";
+    global.imports.mainloop.idle_add = (callback) => {
+        infer = callback;
+        return 1;
+    };
 
     const stub = Object.assign(Object.create(Proto), {
         instance_id: 42,
@@ -484,9 +513,12 @@ test("regression: an unsupported OS timezone country leaves holidays disabled", 
 
     try {
         Proto._bindSettings.call(stub);
+        stub._settingsBinder.deferInitialHolidayCountry();
+        infer();
     } finally {
         global.imports.ui.settings.AppletSettings = originalSettings;
         rootModules.worldclockData.localCountryCode = originalCountryCode;
+        global.imports.mainloop.idle_add = originalIdleAdd;
     }
 
     assert.equal(values.country, "none",
@@ -1046,6 +1078,9 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
         // the constructor sets this last: a build that threw does not have it,
         // and Cinnamon calls on_applet_added_to_panel() anyway
         _constructed: true,
+        _settingsBinder: {
+            deferInitialHolidayCountry: () => calls.push(["country-inference"])
+        },
         _providerLifecycle: {
             connectClockNotify: (cb) => {
                 calls.push(["clock-connect"]);
@@ -1061,6 +1096,7 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
     Proto.on_applet_added_to_panel.call(added);
     calls.clockCallback();
     assert.ok(calls.some((row) => row[0] === "clock-connect"));
+    assert.ok(calls.some((row) => row[0] === "country-inference"));
     assert.ok(calls.some((row) => row[0] === "clock-notify"));
 
     const reset = Object.assign(Object.create(Proto), {

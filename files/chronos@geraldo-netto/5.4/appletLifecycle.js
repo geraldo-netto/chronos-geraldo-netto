@@ -12,6 +12,8 @@
 
 const CinnamonDesktop = imports.gi.CinnamonDesktop;
 const Gio = imports.gi.Gio;
+const GLib = imports.gi.GLib;
+const Mainloop = imports.mainloop;
 const Settings = imports.ui.settings;
 const EventsManagerModule = require("./eventsManager");
 const Weather = require("./weather");
@@ -31,6 +33,8 @@ class AppletSettingsBinder {
     constructor(applet, handlers) {
         this.applet = applet;
         this.handlers = handlers;
+        this.holidaySettings = null;
+        this._country_inference_idle_id = 0;
     }
 
     bind() {
@@ -38,6 +42,7 @@ class AppletSettingsBinder {
         const settings = new Settings.AppletSettings(applet, "chronos@geraldo-netto", applet.instance_id);
         const panel = new SettingsFacade.PanelSettings(settings);
         const holiday = new SettingsFacade.HolidaySettings(settings);
+        this.holidaySettings = holiday;
 
         panel.migrateDateFormatDefaults();
         panel.bindPanelKeys(this.handlers.onSettingsChanged);
@@ -47,9 +52,6 @@ class AppletSettingsBinder {
         panel.fillEmptyWeatherLocation(applet, WorldclockData.localCityName());
         panel.bindKeybinding(this.handlers.onKeybindingChanged);
 
-        holiday.fillInitialCountryFromTimezone(() =>
-            HolidayConstants.countryFromIso2(WorldclockData.localCountryCode()));
-
         return {
             settings,
             panel,
@@ -58,6 +60,33 @@ class AppletSettingsBinder {
             holiday,
             worldclock: new SettingsFacade.WorldclockSettings(settings)
         };
+    }
+
+    // tzdata is local but synchronous. Cinnamon constructs applets on its
+    // compositor thread, so wait for the added-to-panel callback and then yield
+    // to the low-priority idle queue before reading it. A user choice made in
+    // the meantime still wins because the facade only fills the empty sentinel.
+    deferInitialHolidayCountry() {
+        const holiday = this.holidaySettings;
+        if (!holiday || this._country_inference_idle_id > 0 ||
+                (holiday.country !== "" && holiday.country != null)) {
+            return;
+        }
+
+        this._country_inference_idle_id = Mainloop.idle_add(() => {
+            this._country_inference_idle_id = 0;
+            holiday.fillInitialCountryFromTimezone(() =>
+                HolidayConstants.countryFromIso2(WorldclockData.localCountryCode()));
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    destroy() {
+        if (this._country_inference_idle_id > 0) {
+            Mainloop.source_remove(this._country_inference_idle_id);
+            this._country_inference_idle_id = 0;
+        }
+        this.holidaySettings = null;
     }
 }
 
@@ -158,7 +187,7 @@ class AppletProviderLifecycle {
         // value) leaves the widget blank and every lookup failing, with only a
         // warning glyph on the month label to show for it
         const country = holidaySettings.country;
-        if (country !== NO_HOLIDAYS && SUPPORTED_COUNTRIES.indexOf(country) === -1) {
+        if (country && country !== NO_HOLIDAYS && SUPPORTED_COUNTRIES.indexOf(country) === -1) {
             global.logError(`chronos@geraldo-netto: holidays are unavailable for "${country}"; ` +
                 "resetting the country to none");
             holidaySettings.country = NO_HOLIDAYS;
