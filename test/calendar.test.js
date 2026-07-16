@@ -1369,6 +1369,30 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
     });
 });
 
+test("weekday headings stay unique across a daylight-saving fallback", () => {
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = "America/New_York";
+
+    try {
+        const cal = makeCalendar();
+        // New York repeats an hour on Sunday, 1 November 2026. Walking from
+        // midnight in fixed 24-hour steps lands at 23:00 on Sunday again and
+        // duplicates its heading; the production noon anchor avoids the fold.
+        cal._selectedDate = new Date(2026, 10, 1, 0, 30);
+        cal._buildHeader();
+
+        assert.deepEqual(cal._day_headings.map((heading) => heading.date.getDay()),
+            [0, 1, 2, 3, 4, 5, 6],
+            "every weekday appears once through the repeated-hour transition");
+    } finally {
+        if (previousTimezone === undefined) {
+            delete process.env.TZ;
+        } else {
+            process.env.TZ = previousTimezone;
+        }
+    }
+});
+
 // T69 regression: the week-number gutter keeps a wired header cell that
 // receives the digit-based width (it must never dangle unassigned again)
 test("week-number gutter gets a header cell sized by digit width", () => {
