@@ -256,10 +256,12 @@ test("holiday requests never log a raw URL", () => {
 
 test("applets surface weather provider failures", () => {
     const code = appletSource("5.4");
+    const coordinators = source("5.4/appletCoordinators.js");
     const panelStatus = source("5.4/appletPanelStatus.js");
-    assert.match(code, /this\._weather_error = "";/);
-    assert.match(code, /this\._weather_provider = "";/);
-    assert.match(code, /_setWeatherStatus\(weatherReading = null, weatherError = "", weatherProvider = "", pending = false\) \{[\s\S]*?this\._weather_reading = weatherReading \|\| null;[\s\S]*?this\._weather_pending = pending;[\s\S]*?this\._weather_error = weatherError;[\s\S]*?this\._weather_provider = weatherProvider \|\| "";/);
+    assert.match(coordinators, /this\.error = "";/);
+    assert.match(coordinators, /this\.providerName = "";/);
+    assert.match(coordinators, /setStatus\(reading = null, error = "", providerName = "", pending = false\) \{[\s\S]*?this\.reading = reading \|\| null;[\s\S]*?this\.pending = pending;[\s\S]*?this\.error = error;[\s\S]*?this\.providerName = providerName \|\| "";/);
+    assert.match(code, /this\._weatherCoordinatorForCurrentState\(\)\.setStatus/);
     assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER\);\n/);
     assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER \+ " " \+ translateWeatherError\(view\.weatherError\)/);
     assert.match(panelStatus, /_\("Set a weather location"\)/);
@@ -267,8 +269,8 @@ test("applets surface weather provider failures", () => {
     // used to sit under a blank line at its foot is gone from it, and lives in
     // the world-clock popup's accessible name
     assert.doesNotMatch(panelStatus, /_\("Source: %s"\)/);
-    assert.match(code, /this\._weatherProvider\.schedule\([\s\S]*?this\._setWeatherStatus\.bind\(this\)\);/);
-    assert.match(code, /this\._weatherProvider\.queue\([\s\S]*?this\._setWeatherStatus\.bind\(this\)\);/);
+    assert.match(coordinators, /this\.weatherProvider\.schedule\(this\._request\(\), this\.setStatus\.bind\(this\)\);/);
+    assert.match(coordinators, /this\.weatherProvider\.queue\(this\._request\(\), this\.setStatus\.bind\(this\)\);/);
 });
 
 test("event fetch window uses the shared week-start offset", () => {

@@ -15,16 +15,73 @@ const Gio = imports.gi.Gio;
 const Util = imports.misc.util;
 const PopupMenu = imports.ui.popupMenu;
 const AppletLifecycle = require("./appletLifecycle");
+const AppletCoordinators = require("./appletCoordinators");
 const SettingsFacade = require("./settingsFacade");
 const LocaleQuery = imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 const AppletPanelStatus = require("./appletPanelStatus");
 const AppletMenu = require("./appletMenuBuilder");
-const WorldclockData = require("./worldclockData");
 const Main = imports.ui.main;
 const AppletSettingsBinder = AppletLifecycle.AppletSettingsBinder;
 const AppletProviderLifecycle = AppletLifecycle.AppletProviderLifecycle;
 const AppletPanelStatusPresenter = AppletPanelStatus.AppletPanelStatusPresenter;
+const PanelView = AppletPanelStatus.PanelView;
 const AppletMenuBuilder = AppletMenu.AppletMenuBuilder;
+const AppletWeatherCoordinator = AppletCoordinators.AppletWeatherCoordinator;
+const AppletEventListCoordinator = AppletCoordinators.AppletEventListCoordinator;
+
+// Explicit adapter from the Cinnamon applet to the panel presenter's port. The
+// presenter/view receive this object, never the applet or its private shape.
+function createPanelPort(applet) {
+    const weather = () => applet._weatherCoordinator || {
+        reading: applet._weather_reading,
+        pending: applet._weather_pending,
+        error: applet._weather_error,
+        providerName: applet._weather_provider
+    };
+
+    return {
+        showWeather: () => applet.show_weather,
+        worldclocksEnabled: () => applet.show_worldclocks !== false,
+        customFormat: () => applet.custom_format,
+        customTooltipFormat: () => applet.custom_tooltip_format,
+        panelHovered: () => applet._panel_hovered,
+        menuOpen: () => applet.menu.isOpen,
+        desktopSettings: () => applet.desktop_settings,
+        weatherReading: () => weather().reading,
+        weatherPending: () => weather().pending,
+        weatherUnits: () => applet.weather_units,
+        weatherError: () => weather().error,
+        weatherProvider: () => weather().providerName,
+        cityWeatherReading: (city) => applet.cityWeatherReading ? applet.cityWeatherReading(city) : null,
+        cityWeatherStale: (city) => Boolean(applet.cityWeatherStale && applet.cityWeatherStale(city)),
+        cityWeatherProviderName: () => applet.cityWeatherProviderName ? applet.cityWeatherProviderName() : "",
+        formattedClock: () => applet.clock.get_clock(),
+        formatClock: (format) => applet.clock.get_clock_for_format(format),
+        setClockFormatString: (format) => applet.clock.set_format_string(format),
+        setLabel: (text) => applet.set_applet_label(text),
+        setTooltip: (text) => applet.set_applet_tooltip(text),
+        actor: () => applet.actor,
+        dayLabel: () => applet._day,
+        dateLabel: () => applet._date,
+        setWorldclockFormat: (format) => {
+            applet.worldclock_format = format;
+            applet._worldclocks.setFormat(format);
+        },
+        setWorldclocksVisible: (visible) => applet._worldclocks.setVisible(visible),
+        updateWorldclocks: (entries) => applet._worldclocks.updateClocks(entries),
+        setWeatherSource: (source) => applet._worldclocks.setWeatherSource(source),
+        setWeatherStatus: (text) => {
+            applet._weather_status.set_text(text);
+            applet._weather_status.visible = Boolean(text);
+        },
+        getClockEntries: () => applet._worldclocks.getClockEntries(),
+        todaySelected: () => applet._calendar.todaySelected(),
+        selectEventsDate: () => applet.events_manager.select_date(applet._calendar.getSelectedDate()),
+        homeButton: () => applet.go_home_button,
+        focusSelectedDay: () => applet._calendar && applet._calendar.focusSelectedDay &&
+            applet._calendar.focusSelectedDay()
+    };
+}
 
 class CinnamonCalendarApplet extends Applet.TextApplet {
     constructor(orientation, panel_height, instance_id) {
@@ -78,13 +135,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _initProviders() {
-        // the reading is the unit-free record the panel renders from; the text
-        // is the placeholder/empty/pending string state the record cannot carry
-        this._weather_reading = null;
-        // no reading has landed yet: a state of its own, not a placeholder string
-        this._weather_pending = false;
-        this._weather_error = "";
-        this._weather_provider = "";
         this._panel_hovered = false;
 
         this._providerLifecycle = new AppletProviderLifecycle({
@@ -115,6 +165,26 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._cityWeatherProvider = providers.cityWeatherProvider;
         this.events_manager = providers.eventsManager;
         this.holiday_provider = providers.holidayProvider;
+
+        this._weatherCoordinator = new AppletWeatherCoordinator({
+            weatherProvider: this._weatherProvider,
+            cityWeatherProvider: this._cityWeatherProvider,
+            settings: () => ({
+                showWeather: this.show_weather,
+                showWorldclocks: this.show_worldclocks,
+                location: this.weather_location,
+                units: this.weather_units
+            }),
+            worldclocks: () => this.worldclocks,
+            onChanged: () => this._updateClockAndDate(),
+            guard: (fn) => this._guarded(fn)
+        });
+        this._eventListCoordinator = new AppletEventListCoordinator({
+            manager: this.events_manager,
+            eventList: () => this.event_list,
+            selectedDate: () => this._calendar.getSelectedDate(),
+            guard: (fn) => this._guarded(fn)
+        });
     }
 
     _buildUi() {
@@ -256,12 +326,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         }
 
         this._updateClockAndDate();
-        this._updateEventListState();
-
-        if (this.show_events !== this._applied_show_events) {
-            this._applied_show_events = this.show_events;
-            this.events_manager.select_date(this._calendar.getSelectedDate(), true);
-        }
+        this._eventListCoordinatorForCurrentState().apply(this.show_events);
 
         // The city weather exists to put a temperature beside each world clock,
         // so switching the clocks off is the end of the reason to fetch it. The
@@ -298,7 +363,8 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
     _panelStatus() {
         if (!this._panelStatusPresenter) {
-            this._panelStatusPresenter = new AppletPanelStatusPresenter(this);
+            this._panelStatusPresenter = new AppletPanelStatusPresenter(
+                null, new PanelView(createPanelPort(this)));
         }
         return this._panelStatusPresenter;
     }
@@ -307,99 +373,85 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._panelStatus().updateFormatString();
     }
 
+    _weatherCoordinatorForCurrentState() {
+        if (this._weatherCoordinator) {
+            return this._weatherCoordinator;
+        }
+
+        this._weatherCoordinator = new AppletWeatherCoordinator({
+            weatherProvider: this._weatherProvider,
+            cityWeatherProvider: this._cityWeatherProvider,
+            settings: () => ({
+                showWeather: this.show_weather,
+                showWorldclocks: this.show_worldclocks,
+                location: this.weather_location,
+                units: this.weather_units
+            }),
+            worldclocks: () => this.worldclocks,
+            onChanged: () => this._updateClockAndDate(),
+            guard: (fn) => this._guarded(fn)
+        });
+        this._weatherCoordinator.reading = this._weather_reading || null;
+        this._weatherCoordinator.pending = Boolean(this._weather_pending);
+        this._weatherCoordinator.error = this._weather_error || "";
+        this._weatherCoordinator.providerName = this._weather_provider || "";
+        return this._weatherCoordinator;
+    }
+
+    _eventListCoordinatorForCurrentState() {
+        if (!this._eventListCoordinator) {
+            this._eventListCoordinator = new AppletEventListCoordinator({
+                manager: this.events_manager,
+                eventList: () => this.event_list,
+                selectedDate: () => this._calendar.getSelectedDate(),
+                guard: (fn) => this._guarded(fn)
+            });
+            this._eventListCoordinator._appliedShowEvents = this._applied_show_events;
+        }
+        return this._eventListCoordinator;
+    }
+
     _scheduleWeatherRefresh({ force = false } = {}) {
-        this._weatherProvider.schedule({
-            showWeather: this.show_weather,
-            location: this.weather_location,
-            units: this.weather_units
-        }, this._setWeatherStatus.bind(this));
-        this._scheduleCityWeatherRefresh(force);
+        this._weatherCoordinatorForCurrentState().schedule({ force });
     }
 
     _queueWeatherRefresh() {
-        this._weatherProvider.queue({
-            showWeather: this.show_weather,
-            location: this.weather_location,
-            units: this.weather_units
-        }, this._setWeatherStatus.bind(this));
-        this._scheduleCityWeatherRefresh();
+        this._weatherCoordinatorForCurrentState().queue();
     }
 
     // the tooltip prints a temperature next to every world clock, so the
     // cities are read as a set; a clock the user just added is one more place
     // to resolve, not a reason to re-read the panel location
     _scheduleCityWeatherRefresh(force = false) {
-        if (!this._cityWeatherProvider) {
-            return;
-        }
-
-        this._cityWeatherProvider.schedule({
-            showWeather: this.show_weather,
-            units: this.weather_units,
-            // selectUserClocks is what decides which clocks the popup shows, so
-            // it is what decides which cities have weather. Reading the raw
-            // list here meant a clock the popup drops — one whose timezone
-            // resolves to a built-in, like Etc/UTC — was still geocoded every
-            // half hour and still ate one of the eight weather slots.
-            //
-            // The label is the user's own name for the clock — it can be "Mom's
-            // place" — and geocoding it would send that to two third-party
-            // services, and ask the wrong question while doing it. The timezone
-            // already names the city.
-            // ...and with the world clocks switched off there are no rows to
-            // put a temperature beside, so there is nothing to ask about: this
-            // used to geocode and forecast all eight cities every 30 minutes
-            // for a feature the user had turned off
-            cities: this.show_worldclocks === false ? [] :
-                WorldclockData.selectUserClocks(this.worldclocks).map((clock) => ({
-                    label: clock.label,
-                    query: WorldclockData.timezoneCityName(clock.timezone)
-                }))
-        }, () => this._updateClockAndDate(), force);
+        this._weatherCoordinatorForCurrentState().scheduleCities(force);
     }
 
     cityWeatherReading(city) {
-        return this._cityWeatherProvider ? this._cityWeatherProvider.recordFor(city) : null;
+        return this._weatherCoordinatorForCurrentState().cityReading(city);
     }
 
     cityWeatherStale(city) {
-        return this._cityWeatherProvider ? this._cityWeatherProvider.staleFor(city) : false;
+        return this._weatherCoordinatorForCurrentState().cityStale(city);
     }
 
     cityWeatherProviderName() {
-        return this._cityWeatherProvider ? this._cityWeatherProvider.lastProvider : "";
+        return this._weatherCoordinatorForCurrentState().cityProviderName();
     }
 
     // an HTTP completion, so its caller is the main loop, not the code that
     // asked for the forecast
     _setWeatherStatus(weatherReading = null, weatherError = "", weatherProvider = "", pending = false) {
-        this._guarded(() => {
-            this._weather_reading = weatherReading || null;
-            this._weather_pending = pending;
-            this._weather_error = weatherError;
-            this._weather_provider = weatherProvider || "";
-            this._updateClockAndDate();
-        });
-    }
-
-    // the column stays up whenever the user asked for events; when no calendar
-    // service answers, the list says so instead of vanishing
-    _updateEventListState() {
-        const active = this.events_manager.is_active();
-        this.event_list.actor.visible = Boolean(this.show_events);
-        this.event_list.set_unavailable(Boolean(this.show_events) && !active);
+        this._weatherCoordinatorForCurrentState().setStatus(
+            weatherReading, weatherError, weatherProvider, pending);
     }
 
     // both are EventsManager signals, raised from a DBus callback
     _events_manager_ready() {
-        this._guarded(() => {
-            this._updateEventListState();
-            this.events_manager.select_date(this._calendar.getSelectedDate(), true);
-        });
+        this._eventListCoordinatorForCurrentState().ready(() => this.show_events);
     }
 
     _has_calendars_changed() {
-        this._guarded(() => this._updateEventListState());
+        this._eventListCoordinatorForCurrentState().calendarsChanged(() => this.show_events);
     }
 
     _updateClockAndDate(forceMenuUpdate = false) {
@@ -524,5 +576,6 @@ function main(metadata, orientation, panel_height, instance_id) {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { CinnamonCalendarApplet, AppletSettingsBinder, AppletProviderLifecycle, AppletMenuBuilder, AppletPanelStatusPresenter, main };
+    module.exports = { CinnamonCalendarApplet, AppletSettingsBinder, AppletProviderLifecycle,
+        AppletMenuBuilder, AppletPanelStatusPresenter, createPanelPort, main };
 }

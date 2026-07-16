@@ -111,186 +111,147 @@ function badFormatFallback(view, message) {
 // The reads are here now. AppletMenuBuilder and AppletProviderLifecycle take a
 // context and hand their products back; this is the same idea for the panel.
 class PanelView {
-    constructor(applet) {
-        this.applet = applet;
+    constructor(port) {
+        this.port = port;
     }
-
-    // --- what the panel is being asked to show -----------------------------
 
     get showWeather() {
-        return this.applet.show_weather;
+        return this.port.showWeather();
     }
 
-    // the one setting that decides whether the popup grid, the panel suffix, the
-    // tooltip rows and the per-city weather exist at all
     get worldclocksEnabled() {
-        return this.applet.show_worldclocks !== false;
+        return this.port.worldclocksEnabled();
     }
 
     get customFormat() {
-        return this.applet.custom_format;
+        return this.port.customFormat();
     }
 
     get customTooltipFormat() {
-        return this.applet.custom_tooltip_format;
+        return this.port.customTooltipFormat();
     }
 
     get panelHovered() {
-        return this.applet._panel_hovered;
+        return this.port.panelHovered();
     }
 
     get menuOpen() {
-        return this.applet.menu.isOpen;
+        return this.port.menuOpen();
     }
 
     get desktopSettings() {
-        return this.applet.desktop_settings;
+        return this.port.desktopSettings();
     }
 
-    // --- the weather readings ----------------------------------------------
-
-    // the unit-free reading record everything on the panel and in the tooltip is
-    // rendered from: this side of the applet is the only one that knows the units
     get weatherReading() {
-        return this.applet._weather_reading;
+        return this.port.weatherReading();
     }
 
-    // the first refresh has not landed yet. It used to be told by comparing the
-    // stored text against the "…" placeholder, which made a display string load
-    // bearing: a provider that rendered its own ellipsis would have been read as
-    // a pending fetch.
     get weatherPending() {
-        return this.applet._weather_pending;
+        return this.port.weatherPending();
     }
 
-    // the record is Celsius; the panel and tooltip render its temperature in the
-    // unit the user asked for, so the render needs to know which
     get weatherUnits() {
-        return Weather.normalizeUnits(this.applet.weather_units);
+        return Weather.normalizeUnits(this.port.weatherUnits());
     }
 
     get weatherError() {
-        return this.applet._weather_error;
+        return this.port.weatherError();
     }
 
     get weatherProvider() {
-        return this.applet._weather_provider;
+        return this.port.weatherProvider();
     }
 
     cityWeatherReading(city) {
-        return this.applet.cityWeatherReading ? this.applet.cityWeatherReading(city) : null;
+        return this.port.cityWeatherReading(city);
     }
 
     cityWeatherStale(city) {
-        return Boolean(this.applet.cityWeatherStale && this.applet.cityWeatherStale(city));
+        return this.port.cityWeatherStale(city);
     }
 
     cityWeatherProviderName() {
-        return this.applet.cityWeatherProviderName ? this.applet.cityWeatherProviderName() : "";
+        return this.port.cityWeatherProviderName();
     }
 
-    // --- the clock, and the actors it writes to -----------------------------
-
     formattedClock() {
-        return this.applet.clock.get_clock();
+        return this.port.formattedClock();
     }
 
     formatClock(format) {
-        return this.applet.clock.get_clock_for_format(format);
+        return this.port.formatClock(format);
     }
 
     setClockFormatString(format) {
-        return this.applet.clock.set_format_string(format);
+        return this.port.setClockFormatString(format);
     }
 
     setLabel(text) {
-        this.applet.set_applet_label(text);
+        this.port.setLabel(text);
     }
 
     setTooltip(text) {
-        this.applet.set_applet_tooltip(text);
+        this.port.setTooltip(text);
     }
 
     setAccessibleName(name) {
-        const actor = this.applet.actor;
+        const actor = this.port.actor();
         if (!actor || !actor.set_accessible_name) {
             return;
         }
 
         actor.set_accessible_name(name);
-
-        // The home button and the date heading were both given a PUSH_BUTTON role
-        // in the accessibility pass; the panel button itself was missed. Orca read
-        // out the date, the time and the weather with a filler role and never said
-        // the thing was activatable — and clicking it is how the menu opens.
         if (Atk.Role && actor.accessible_role !== Atk.Role.PUSH_BUTTON) {
             actor.accessible_role = Atk.Role.PUSH_BUTTON;
         }
     }
 
     get dayLabel() {
-        return this.applet._day;
+        return this.port.dayLabel();
     }
 
     get dateLabel() {
-        return this.applet._date;
+        return this.port.dateLabel();
     }
 
-    // the world-clock rows: the format they render in, whether they are shown at
-    // all, and what they say. The presenter used to set applet.worldclock_format
-    // directly — a write straight past the seam it writes everything else
-    // through.
     setWorldclockFormat(format) {
-        this.applet.worldclock_format = format;
-        this.applet._worldclocks.setFormat(format);
+        this.port.setWorldclockFormat(format);
     }
 
     setWorldclocksVisible(visible) {
-        this.applet._worldclocks.setVisible(visible);
+        this.port.setWorldclocksVisible(visible);
     }
 
     updateWorldclocks(entries) {
-        this.applet._worldclocks.updateClocks(entries);
+        this.port.updateWorldclocks(entries);
     }
 
     setWeatherSource(source) {
-        this.applet._worldclocks.setWeatherSource(source);
+        this.port.setWeatherSource(source);
     }
 
     setWeatherStatus(text) {
-        this.applet._weather_status.set_text(text);
-        this.applet._weather_status.visible = Boolean(text);
+        this.port.setWeatherStatus(text);
     }
 
     getClockEntries() {
-        return this.applet._worldclocks.getClockEntries();
+        return this.port.getClockEntries();
     }
 
-    // --- the menu's own collaborators --------------------------------------
-
     todaySelected() {
-        return this.applet._calendar.todaySelected();
+        return this.port.todaySelected();
     }
 
     selectEventsDate() {
-        this.applet.events_manager.select_date(this.applet._calendar.getSelectedDate());
+        this.port.selectEventsDate();
     }
 
-    // today is already selected: there is nowhere to go, and a button that only
-    // *looks* disabled still takes focus and still fires on Enter
     setHomeEnabled(enabled) {
-        const button = this.applet.go_home_button;
+        const button = this.port.homeButton();
 
-        // Clearing can_focus on the actor that currently holds the key focus
-        // makes St drop the stage focus to null, and the menu manager closes
-        // the menu the moment focus leaves it. Pressing Enter on "Go to today"
-        // therefore selected today and slammed the popup shut. Hand the focus
-        // to the day the button just jumped to before taking the button's away.
         if (!enabled && button.can_focus && this._hasKeyFocus(button)) {
-            const calendar = this.applet._calendar;
-            if (calendar && calendar.focusSelectedDay) {
-                calendar.focusSelectedDay();
-            }
+            this.port.focusSelectedDay();
         }
 
         button.reactive = enabled;
@@ -304,11 +265,9 @@ class PanelView {
         return Boolean(stage && stage.get_key_focus && stage.get_key_focus() === actor);
     }
 }
-
 class AppletPanelStatusPresenter {
-    // the applet is only here to build the default view: the presenter itself
     // does not hold it, and reads and writes nothing but the seam
-    constructor(applet, view = new PanelView(applet)) {
+    constructor(applet, view) {
         this.view = view;
         this._todayFormatCache = null;
         this._invalidTooltipFormat = null;

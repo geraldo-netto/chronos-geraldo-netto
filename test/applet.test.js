@@ -173,7 +173,8 @@ const PanelStatusModule = require(path.join(APPLET_DIR, "5.4", "appletPanelStatu
 const MAX_SUFFIX = PanelStatusModule.LABEL_SUFFIX_MAX_LENGTH;
 const ELLIPSIS = PanelStatusModule.LABEL_ELLIPSIS;
 const Proto = AppletModule.CinnamonCalendarApplet.prototype;
-const panelStatus = (applet) => new AppletModule.AppletPanelStatusPresenter(applet);
+const panelStatus = (applet) => new AppletModule.AppletPanelStatusPresenter(
+    null, new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet)));
 const DateFormats = rootModules.dateFormats;
 const Weather = rootModules.weather;
 const St = global.imports.gi.St;
@@ -303,7 +304,7 @@ test("disabling the home button hands its key focus to the calendar", () => {
         go_home_button: button,
         _calendar: { focusSelectedDay: () => focused.push("day") }
     };
-    const view = new PanelStatusModule.PanelView(applet);
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
     const originalStage = global.stage;
     global.stage = { get_key_focus: () => button };
 
@@ -324,7 +325,7 @@ test("the home button leaves an unfocused calendar alone", () => {
         go_home_button: button,
         _calendar: { focusSelectedDay: () => focused.push("day") }
     };
-    const view = new PanelStatusModule.PanelView(applet);
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
     const originalStage = global.stage;
     global.stage = { get_key_focus: () => ({}) };
 
@@ -342,7 +343,7 @@ test("getFormattedToday caches by day and invalidates at rollover", () => {
     const stub = {
         clock: clockStub({ get_clock_for_format: (fmt) => (formats++, "v:" + fmt) })
     };
-    const presenter = new AppletModule.AppletPanelStatusPresenter(stub);
+    const presenter = panelStatus(stub);
 
     const first = presenter.getFormattedToday();
     assert.equal(formats, 3, "three formats computed once");
@@ -818,7 +819,7 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
     assert.ok(lines[2].includes("New York") && lines[2].endsWith("12°C  Rain"));
     assert.equal(lines.length, 3, "one line per location and no standalone header");
 
-    stub._weather_error = "boom";
+    Proto._weatherCoordinatorForCurrentState.call(stub).error = "boom";
     const errText = panelStatus(stub).buildTooltipText(entries);
     assert.ok(errText.includes("⚠ Weather service unavailable") || errText.includes("⚠ boom"));
     // a failed refresh keeps the last reading: the marker takes the condition's
@@ -843,17 +844,17 @@ test("_setWeatherStatus stores state and refreshes the clock line", () => {
         _updateClockAndDate: () => updated++
     });
     Proto._setWeatherStatus.call(stub, { condition: "☀", temperatureC: 20 }, "err", "prov");
-    assert.deepEqual(stub._weather_reading, { condition: "☀", temperatureC: 20 });
-    assert.equal(stub._weather_pending, false);
-    assert.equal(stub._weather_error, "err");
-    assert.equal(stub._weather_provider, "prov");
+    assert.deepEqual(stub._weatherCoordinator.reading, { condition: "☀", temperatureC: 20 });
+    assert.equal(stub._weatherCoordinator.pending, false);
+    assert.equal(stub._weatherCoordinator.error, "err");
+    assert.equal(stub._weatherCoordinator.providerName, "prov");
     assert.equal(updated, 1);
 
     // the reserved first-fetch slot and the switched-off state carry no record;
     // pending is a flag, not a placeholder string the panel has to recognize
     Proto._setWeatherStatus.call(stub, null, "", "", true);
-    assert.equal(stub._weather_reading, null);
-    assert.equal(stub._weather_pending, true);
+    assert.equal(stub._weatherCoordinator.reading, null);
+    assert.equal(stub._weatherCoordinator.pending, true);
 });
 
 test("weather refresh scheduling forwards the settings snapshot", () => {
@@ -1725,6 +1726,19 @@ test("provider initialization wires hover and event manager signals", () => {
         _updateClockAndDate: () => calls.push(["clock"])
     });
     Proto._initProviders.call(stub);
+    stub.show_weather = true;
+    stub.show_worldclocks = true;
+    stub.weather_location = "Rome";
+    stub.weather_units = "si";
+    stub.worldclocks = [];
+    assert.equal(stub._weatherCoordinator.settings().location, "Rome");
+    assert.deepEqual(stub._weatherCoordinator.worldclocks(), []);
+    stub._weatherCoordinator.onChanged();
+    stub._weatherCoordinator.guard(() => calls.push(["weather-guard"]));
+    assert.equal(stub._eventListCoordinator.eventList(), undefined);
+    stub._calendar = { getSelectedDate: () => "selected" };
+    assert.equal(stub._eventListCoordinator.selectedDate(), "selected");
+    stub._eventListCoordinator.guard(() => calls.push(["events-guard"]));
     // _panel_hovered gates the expensive path: a tooltip-sized entry list every
     // second. A fresh applet must not think the pointer is already on it.
     assert.equal(stub._panel_hovered, false, "no hover before an enter-event");
@@ -2297,7 +2311,7 @@ test("_setWeatherStatus clears the provider name when a refresh reports none", (
     // a failed refresh carries no provider: the tooltip must not keep naming
     // the source of a reading that is gone
     Proto._setWeatherStatus.call(stub, null, "Weather service unavailable");
-    assert.equal(stub._weather_provider, "");
+    assert.equal(stub._weatherCoordinator.providerName, "");
 });
 
 // a country key that was cleared to an empty string (rather than to "none") is
@@ -2972,20 +2986,19 @@ test("the panel presenter goes through the view for every read", () => {
 
     assert.doesNotMatch(presenter, /this\.applet/,
         "the presenter holds no applet: everything it knows comes through the view");
-    // ...and the view is the only thing that touches the applet's shape
+    // ...and the view receives an explicit port, not the applet's shape
     const view = source.slice(source.indexOf("class PanelView"), presenterStart);
-    assert.match(view, /this\.applet\._weather_reading/);
-    assert.match(view, /this\.applet\._weather_reading/);
-    assert.match(view, /this\.applet\.worldclock_format = format;/,
-        "including the one field the presenter used to write around the seam");
+    assert.doesNotMatch(view, /this\.applet|_weather_reading|_worldclocks/);
+    assert.match(view, /this\.port\.weatherReading\(\)/);
+    assert.match(view, /this\.port\.setWorldclockFormat\(format\)/);
 });
 
 // the record is on the surface now; the panel and tooltip read its fields in
 // T442d, so for now the view just exposes it
 test("the panel view exposes the weather reading record", () => {
-    const view = new PanelStatusModule.PanelView({
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort({
         _weather_reading: { condition: "☀", temperatureC: 20 }
-    });
+    }));
     assert.deepEqual(view.weatherReading, { condition: "☀", temperatureC: 20 });
 });
 
@@ -3093,8 +3106,8 @@ test("a keyboard-opened popup shows weather status without world clocks", () => 
     assert.equal(stub._weather_status.visible, true);
     assert.equal(calls.weatherStatus.at(-1), "⚠ Set a weather location");
 
-    stub._weather_error = "";
-    stub._weather_reading = { condition: "☀", temperatureC: 20 };
+    stub._weatherCoordinator.error = "";
+    stub._weatherCoordinator.reading = { condition: "☀", temperatureC: 20 };
     Proto._updateClockAndDate.call(stub);
     assert.equal(stub._weather_status.visible, false,
         "a successful reading leaves no redundant status row");
@@ -3242,7 +3255,7 @@ test("the menu builder disconnects the calendar signal too", () => {
 test("the panel button announces that it is a button", () => {
     const Atk = global.imports.gi.Atk;
     const actor = { set_accessible_name(name) { this.accessible_name = name; } };
-    const view = new PanelStatusModule.PanelView({ actor });
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort({ actor }));
 
     view.setAccessibleName("12 Jul 14:03");
 
