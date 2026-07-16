@@ -13,11 +13,12 @@
 // The holiday provider port, and the three adapters that implement it.
 //
 //     fetchYear(country, region, year, callback)
-//         callback(data, params, retrieved) — data is the provider's raw payload,
+//         callback(data, params, retrieved) — data is the provider response,
+//         normalized into the app-owned record shape when it is a holiday list;
 //         params carries at least providerName and year, retrieved is the Date
 //         response header or null.
 //
-// That is the whole port. What a payload has to look like, how a holiday is
+// That is the whole port. What normalized data has to look like, how a holiday is
 // localized and what it expands to is the record contract (HolidayRecordContract),
 // which the *domain* owns — an adapter neither implements it nor is asked for it.
 // The chain consults the contract for one decision only: whether a provider's
@@ -60,6 +61,21 @@ var ENRICO_URL = "https://kayaposoft.com/enrico/json/v2.0?action=getHolidaysForY
 
 function unavailableLoadJsonAsync() {
     throw new Error("holiday service adapter has no JSON loader");
+}
+
+function deliverTranslated(adapter, data, params, retrieved, callback) {
+    let translated;
+    try {
+        translated = adapter.translateResponse(data, params);
+    } catch (e) {
+        if (global.logError) {
+            global.logError(e);
+        }
+        callback(null, params, retrieved);
+        return;
+    }
+
+    callback(translated, params, retrieved);
 }
 
 // A holiday never spans more than a year. Without a bound, a hostile or
@@ -113,12 +129,12 @@ function validDateParts(parts) {
 // The app's own holiday record, and the only shape the cache and the calendar
 // ever see: a date, an optional dateTo, localizable names and flags.
 //
-// This shape existed already — it is Enrico's wire format — and that was the
-// problem: the fallback chain validated and expanded *every* provider's payload
-// with the *primary's* validator, so the port's contract was one vendor's
-// payload. Nager.Date and OpenHolidays have no validator of their own;
-// IsoHolidayServiceAdapter.translateResponse reshapes them into Enrico's format
-// so that Enrico's check will accept them. Add a fourth provider that does not
+// This shape was derived from Enrico's wire format, but is not identical to it:
+// Enrico makes flags optional and carries the holiday type separately. Every
+// adapter translates its vendor's answer into this shape before the fallback
+// chain validates it. The chain used to validate and expand every provider's
+// payload with the primary's validator, so the port's contract was one vendor's
+// payload. Add a fourth provider that does not
 // reverse-engineer that shape and its perfectly good data comes back as
 // INVALID_RESPONSE, with nothing to say that the *validator*, not the data, was
 // the wrong one — and dropping Enrico, the flakiest of the three, would have
@@ -192,8 +208,8 @@ var HolidayRecordContract = class HolidayRecordContract {
     }
 };
 
-// An adapter is a fetchYear and nothing else: it builds the request and hands
-// the raw payload back. Validating, expanding and localizing it is the record
+// An adapter is a fetchYear and nothing else: it builds the request and translates
+// the vendor response. Validating, expanding and localizing it is the record
 // contract's job, owned by the fallback chain that composes the adapters — so
 // this carries no record and no lang of its own.
 var EnricoServiceAdapter = class EnricoServiceAdapter {
@@ -225,10 +241,45 @@ var EnricoServiceAdapter = class EnricoServiceAdapter {
         return url;
     }
 
+    _flags(holiday) {
+        if (Array.isArray(holiday.flags)) {
+            return holiday.flags;
+        }
+
+        return typeof holiday.holidayType === "string" ? [holiday.holidayType] : null;
+    }
+
+    _translateHoliday(holiday) {
+        if (!holiday || typeof holiday !== "object" || Array.isArray(holiday)) {
+            return holiday;
+        }
+
+        const translated = {
+            date: holiday.date,
+            name: holiday.name,
+            flags: this._flags(holiday)
+        };
+        if (holiday.dateTo) {
+            translated.dateTo = holiday.dateTo;
+        }
+
+        return translated;
+    }
+
+    translateResponse(data) {
+        if (!Array.isArray(data)) {
+            return data;
+        }
+
+        return data.map((holiday) => this._translateHoliday(holiday));
+    }
+
     fetchYear(country, region, year, callback) {
         const params = this.params(country, region, year);
         params.providerName = this.name;
-        this._loadJsonAsync(this.url(params), params, callback);
+        this._loadJsonAsync(this.url(params), params, (data, requestParams, retrieved) => {
+            deliverTranslated(this, data, requestParams, retrieved, callback);
+        });
     }
 };
 
@@ -321,7 +372,7 @@ var IsoHolidayServiceAdapter = class IsoHolidayServiceAdapter {
         }
 
         this._loadJsonAsync(this.url(params), params, (data, requestParams, retrieved) => {
-            callback(this.translateResponse(data, requestParams), requestParams, retrieved);
+            deliverTranslated(this, data, requestParams, retrieved, callback);
         });
     }
 };

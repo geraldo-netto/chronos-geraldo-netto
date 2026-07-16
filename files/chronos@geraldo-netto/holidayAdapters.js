@@ -62,7 +62,11 @@ var HolidayFallbackChain = class HolidayFallbackChain {
                         return;
                     }
 
-                    onResult({data, params, retrieved});
+                    onResult({
+                        data,
+                        params: this._sourceParams(provider, params),
+                        retrieved
+                    });
                 });
             },
             (result) => this._accept(result),
@@ -84,13 +88,30 @@ var HolidayFallbackChain = class HolidayFallbackChain {
         return Utils.orderProvidersByLastSuccess(providers, this._last_provider);
     }
 
+    _sourceParams(provider, params) {
+        if (!provider.name || (params && params.providerName === provider.name)) {
+            return params;
+        }
+
+        return Object.assign({}, params || {}, {providerName: provider.name});
+    }
+
     // The chain used to fall back to `this.primary.validResponse` when no
     // validator was given — so whichever provider happened to be first decided
     // what a valid answer from *all* of them looked like, and the port's
     // contract was one vendor's payload shape. The validator is the caller's,
     // and the caller is the thing that owns the record shape.
     _accept(result) {
-        if (!this._validResponse(result.data)) {
+        let valid = false;
+        try {
+            valid = this._validResponse(result.data);
+        } catch (e) {
+            if (global.logError) {
+                global.logError(e);
+            }
+        }
+
+        if (!valid) {
             return false;
         }
 

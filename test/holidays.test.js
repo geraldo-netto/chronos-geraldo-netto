@@ -2508,7 +2508,8 @@ test("fuzz: HolidayService's parser cannot be made to run away or return junk", 
     const { HolidayRecordContract } = loadHolidays();
     const { MAX_HOLIDAY_SPAN_DAYS } = require(
         path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js"));
-    // the parser under fuzz is the record contract's; the adapter forwards to it
+    // the parser under fuzz is the record contract's; adapters normalize into
+    // this shape before the chain asks the contract whether it can be used
     const record = new HolidayRecordContract("de");
     const rand = makeRandom(0xe27100);
 
@@ -2971,6 +2972,49 @@ test("EnricoServiceAdapter builds params and the record localizes and expands", 
     assert.ok(adapter.url(adapter.params("u sa", "new york", 2026)).includes("region=new%20york"));
 });
 
+test("EnricoServiceAdapter normalizes live rows whose optional flags are absent", () => {
+    const { EnricoServiceAdapter, HolidayRecordContract } = loadHolidays();
+    const wireRows = [
+        {
+            date: { year: 2026, month: 1, day: 1, dayOfWeek: 4 },
+            name: [{ lang: "it", text: "Capodanno" }, { lang: "en", text: "New Year's Day" }],
+            holidayType: "public_holiday"
+        },
+        {
+            date: { year: 2026, month: 12, day: 24, dayOfWeek: 4 },
+            dateTo: { year: 2026, month: 12, day: 25, dayOfWeek: 5 },
+            name: [{ lang: "en", text: "Christmas Eve" }],
+            flags: ["PART_DAY_HOLIDAY"],
+            holidayType: "public_holiday"
+        }
+    ];
+    const adapter = new EnricoServiceAdapter((_url, params, callback) => {
+        callback(wireRows, params, STAMP);
+    });
+
+    let answer;
+    adapter.fetchYear("ita", "global", 2026, (data, params, retrieved) => {
+        answer = { data, params, retrieved };
+    });
+
+    assert.deepEqual(answer.data, [
+        {
+            date: wireRows[0].date,
+            name: wireRows[0].name,
+            flags: ["public_holiday"]
+        },
+        {
+            date: wireRows[1].date,
+            dateTo: wireRows[1].dateTo,
+            name: wireRows[1].name,
+            flags: ["PART_DAY_HOLIDAY"]
+        }
+    ]);
+    assert.equal(new HolidayRecordContract("it").validResponse(answer.data), true);
+    assert.equal(answer.params.providerName, "Enrico");
+    assert.equal(answer.retrieved, STAMP);
+});
+
 test("the record contract falls back to the first holiday name", () => {
     const { HolidayRecordContract } = loadHolidays();
     const record = new HolidayRecordContract("it");
@@ -3148,6 +3192,86 @@ test("a provider whose payload the contract refuses falls through to the next", 
     // and the chain exposes no contract of its own: an adapter owes fetchYear
     assert.equal(typeof adapter.validResponse, "undefined");
     assert.equal(typeof adapter.expandHoliday, "undefined");
+});
+
+test("a provider parse failure falls through and credits the successful source", () => {
+    const { createHolidayServiceChain } = loadHolidays();
+    const calls = [];
+    const primary = {
+        name: "Broken parser",
+        fetchYear(_country, _region, year, callback) {
+            calls.push(this.name);
+            callback([{ broken: true }], { year }, STAMP);
+        }
+    };
+    const fallback = {
+        name: "Backup source",
+        fetchYear(_country, _region, year, callback) {
+            calls.push(this.name);
+            callback([{ year }], { year }, STAMP);
+        }
+    };
+    const record = anyRecord({
+        validResponse(data) {
+            if (data[0] && data[0].broken) {
+                throw new Error("cannot parse provider payload");
+            }
+            return Array.isArray(data);
+        }
+    });
+    const service = createHolidayServiceChain(primary, [fallback], record);
+
+    let answer;
+    assert.doesNotThrow(() => {
+        service.fetchYear("ita", "global", 2026, (data, params) => {
+            answer = { data, params };
+        });
+    });
+
+    assert.deepEqual(calls, ["Broken parser", "Backup source"]);
+    assert.deepEqual(answer.data, [{ year: 2026 }]);
+    assert.equal(answer.params.providerName, "Backup source");
+    assert.equal(service._last_provider, "Backup source");
+});
+
+test("an adapter translation failure becomes failover instead of escaping", () => {
+    const { createHolidayServiceChain } = loadHolidays();
+    const { IsoHolidayServiceAdapter } = require(holidayServiceAdaptersPath);
+    class BrokenAdapter extends IsoHolidayServiceAdapter {
+        constructor() {
+            super((_url, params, callback) => callback([], params, STAMP));
+            this.name = "Broken adapter";
+        }
+
+        params(_country, _region, year) {
+            return { year, countryCode: "IT" };
+        }
+
+        url() {
+            return "https://example.test/broken";
+        }
+
+        translateResponse() {
+            throw new Error("translation failed");
+        }
+    }
+    const fallback = {
+        name: "Usable source",
+        fetchYear(_country, _region, year, callback) {
+            callback([{ year }], { year }, STAMP);
+        }
+    };
+    const service = createHolidayServiceChain(new BrokenAdapter(), [fallback], anyRecord());
+
+    let answer;
+    assert.doesNotThrow(() => {
+        service.fetchYear("ita", "global", 2026, (data, params) => {
+            answer = { data, params };
+        });
+    });
+
+    assert.deepEqual(answer.data, [{ year: 2026 }]);
+    assert.equal(answer.params.providerName, "Usable source");
 });
 
 test("the fallback chain reports provider success and failure", () => {
