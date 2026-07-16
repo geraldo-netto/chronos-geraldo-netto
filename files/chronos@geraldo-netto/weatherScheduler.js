@@ -33,9 +33,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
 const GLib = GjsImports.gi.GLib;
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
@@ -136,7 +136,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler {
             this._retry_id = 0;
         }
 
-        const delay = Utils.backoffDelay(this._retry_attempts, {
+        const delay = ProviderUtils.backoffDelay(this._retry_attempts, {
             base: this._retry_seconds,
             cap: this._refresh_seconds,
             random: this._random

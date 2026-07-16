@@ -18,23 +18,8 @@
 // one had grown to 870 lines without it.
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
-// Which host is loading this file — and it is asked of the *host*, not of
-// require(). It used to test `typeof require === "function"`, on the stated
-// assumption that "Cinnamon provides neither require() nor module". That was true
-// of 5.4 through 6.4 and is not true of Cinnamon master, which sets
-// globalThis.require = xletRequire (js/ui/extension.js). There the test would
-// invert: the root modules would take the require() branch, _requireLocal would
-// resolve "./localeUtils" against extension.meta.path — which
-// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
-// applet would fail to load, because localeUtils.js is not in there.
-//
-// Node is what this asks about, because Node is the only host that requires these
-// files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
 
 var REFRESH_SECONDS = 1800;
 var RETRY_SECONDS = 30;
@@ -74,13 +59,13 @@ var MIN_TRUSTED_GEOCODE_POPULATION = 1000;
 // first hit survivable.
 var GEOCODE_CANDIDATE_COUNT = 10;
 var GEOCODE_LANGUAGE_FALLBACK = "en";
-var HTTP_TIMEOUT_SECONDS = Utils.HTTP_TIMEOUT_SECONDS;
+var HTTP_TIMEOUT_SECONDS = 30;
 var WEATHER_DEBOUNCE_MS = 750;
 var WEATHER_UNITS = {
     SI: "si",
     IMPERIAL: "imperial"
 };
-var WEATHER_ERROR_MARKER = Utils.UI_ERROR_MARKER;
+var WEATHER_ERROR_MARKER = "⚠";
 var WEATHER_PENDING_TEXT = "…";
 var WEATHER_ERRORS = {
     LOCATION_NOT_FOUND: "Location not found",

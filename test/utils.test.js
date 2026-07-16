@@ -6,7 +6,6 @@ const path = require("node:path");
 const { makeRandom } = require("./helpers/prng");
 const { makeSoup3 } = require("./helpers/soup");
 
-const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "utils.js");
 const localeModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
 // localeUtils is a barrel over these three: the gettext runtime, the `locale -k`
 // state machine and the strftime constants. The state machine's caches, timers
@@ -17,15 +16,14 @@ const localePartPaths = ["localeText.js", "localeQuery.js", "dateFormats.js"].ma
 const ioModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const styleModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "styleUtils.js");
 const providerModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "providerUtils.js");
+const textModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "textUtils.js");
 const versionDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4");
-const shimPath = path.join(versionDir, "utils.js");
 
 let originalImports;
 let originalLog;
 let originalLogError;
 
 function loadUtils(options = "") {
-    delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(localeModulePath)];
     for (const part of localePartPaths) {
         delete require.cache[require.resolve(part)];
@@ -33,6 +31,7 @@ function loadUtils(options = "") {
     delete require.cache[require.resolve(ioModulePath)];
     delete require.cache[require.resolve(styleModulePath)];
     delete require.cache[require.resolve(providerModulePath)];
+    delete require.cache[require.resolve(textModulePath)];
     const spawnOutput = typeof options === "string" ? options : (options.spawnOutput || "");
     const spawnFails = typeof options === "object" ? options.spawnFails : null;
     const noSubprocess = typeof options === "object" && options.noSubprocess === true;
@@ -140,7 +139,13 @@ function loadUtils(options = "") {
         delete global.imports.gi.Gio.Subprocess;
     }
 
-    return require(modulePath);
+    return Object.assign(
+        {},
+        require(textModulePath),
+        require(localeModulePath),
+        require(ioModulePath),
+        require(styleModulePath),
+        require(providerModulePath));
 }
 
 function loadLocaleUtils(options = "") {
@@ -165,25 +170,6 @@ function loadProviderUtils(options = "") {
 
 function localeInfo(utils, env) {
     return utils.lazyLocaleValue(env, (info) => info)();
-}
-
-function runForwardingShim(shimFile, moduleName, shared) {
-    const context = {
-        module: { exports: null },
-        imports: {
-            ui: {
-                appletManager: {
-                    applets: {
-                        "chronos@geraldo-netto": { [moduleName]: shared }
-                    }
-                }
-            }
-        }
-    };
-
-    vm.createContext(context);
-    vm.runInContext(fs.readFileSync(shimFile, "utf8"), context);
-    return context.module.exports;
 }
 
 function randomLocalePayload(seed = 0x10ca1e, count = 20) {
@@ -1256,7 +1242,6 @@ test("the translations are looked for where the applet is installed", () => {
                 appletMeta: { "chronos@geraldo-netto": { path: appletPath } }
             }
         };
-        delete require.cache[require.resolve(modulePath)];
         delete require.cache[require.resolve(localeModulePath)];
         for (const part of localePartPaths) {
             delete require.cache[require.resolve(part)];
@@ -1286,13 +1271,11 @@ test("date formats prefer the applet's own gettext domain", () => {
         }
     };
     global.imports.gi.GLib.get_home_dir = () => "/home/test";
-    delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(localeModulePath)];
     for (const part of localePartPaths) {
         delete require.cache[require.resolve(part)];
     }
 
-    const utils = require(modulePath);
     const localeUtils = require(localeModulePath);
 
     assert.deepEqual(domains, [{
@@ -1300,16 +1283,14 @@ test("date formats prefer the applet's own gettext domain", () => {
         localeDir: "/home/test/.local/share/locale"
     }]);
     // translated in the UUID domain
-    assert.equal(utils.DATE_FORMAT_SHORT, "localized:%-e. %B %Y");
     assert.equal(localeUtils.DATE_FORMAT_SHORT, "localized:%-e. %B %Y");
     // Untranslated in our domain stays English — it never asks Cinnamon's.
     // That lookup matches on the English word rather than the meaning: "Fair"
     // is untranslated in all 15 of our catalogs, and Cinnamon's translates it
     // as a quality rating (de "Ausreichend", fr "Moyen", es "Normal"), so a
     // German user with weather on was told the sky was adequate.
-    assert.equal(utils.DATE_FORMAT_FULL, "localized:%A, %B %-e, %Y");
+    assert.equal(localeUtils.DATE_FORMAT_FULL, "localized:%A, %B %-e, %Y");
     assert.equal(localeUtils.translate("Fair"), "Fair");
-    assert.equal(utils.translate("Fair"), "Fair");
     assert.equal(localeUtils.translatePlural("%d event", "%d events", 2), "%d events");
 });
 
@@ -1338,27 +1319,6 @@ test("month window offset reaches week start for every day and locale", () => {
     // and the common cases stay put
     assert.equal(utils.monthWindowStartOffset(1, 1), 0);
     assert.equal(utils.monthWindowStartOffset(7, 1), 6);
-});
-
-test("version shims forward the shared utility module", () => {
-    const shared = {
-        MSECS_IN_DAY: 86400000,
-        UI_ERROR_MARKER: "!",
-        DAY_FORMAT: "day",
-        DATE_FORMAT_SHORT: "short",
-        DATE_FORMAT_FULL: "full",
-        translate() {},
-        translatePlural() {},
-        createHttpSession() {},
-        LazyHttpSession: class {},
-        HTTP_TIMEOUT_SECONDS: 30,
-        httpGetJson() {},
-        monthWindowStartOffset() {},
-        readJsonFile() {},
-        readJsonFileAsync() {},
-        writeJsonFile() {}
-    };
-    assert.equal(runForwardingShim(shimPath, "utils", shared), shared);
 });
 
 // A shim only earns its place if a 5.4 module requires it: the root modules
@@ -1642,8 +1602,8 @@ test("httpGetJson reports Soup 3 read failures through the callback", () => {
     assert.deepEqual(logged, [error]);
 });
 
-// utils.js is the seam between the two module systems the applet lives in: GJS
-// has `imports` and no require(), Node has require() and no `imports`. Only one
+// Root modules bridge the two module systems the applet lives in: GJS has
+// `imports` and no require(), Node has require() and no `imports`. Only one
 // arm of every ternary can run per host, so the module is compiled once and run
 // against both hosts; a re-export that works under Node but resolves to
 // undefined under the GJS importer is exactly how the applet breaks on a real
@@ -1760,21 +1720,6 @@ test("localeUtils re-exports its three parts under the GJS importer and under No
     assert.equal(dates.gjs.MSECS_IN_DAY, 86400000);
     assert.equal(dates.gjs.monthWindowStartOffset(7, 0), 0, "Sunday, week starting Sunday");
     assert.equal(dates.node.monthWindowStartOffset(1, 0), 1, "Monday, week starting Sunday");
-});
-
-test("utils.js re-exports the same API under the GJS importer and under Node", () => {
-    loadUtils();
-    const hosts = runInBothHosts(modulePath);
-
-    // every symbol Node exports must also be a top-level var under GJS: the
-    // GJS importer only sees var/function declarations
-    for (const symbol of Object.keys(hosts.node)) {
-        assert.notEqual(hosts.gjs[symbol], undefined,
-            `utils.${symbol} is missing when loaded through imports.ui.appletManager`);
-    }
-
-    assert.equal(hosts.gjs.UI_ERROR_MARKER, "⚠");
-    assert.equal(hosts.gjs.MSECS_IN_DAY, 86400000);
 });
 
 test("httpGetJson tolerates a Soup message that exposes no request headers", () => {

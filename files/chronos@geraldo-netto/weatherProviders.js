@@ -32,9 +32,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
@@ -142,7 +142,7 @@ var WeatherLocationResolver = class WeatherLocationResolver {
 
     _tryGeocodeProviders(providers, isCurrent, callback) {
         let anyResponse = false;
-        Utils.tryProvidersInOrder(
+        ProviderUtils.tryProvidersInOrder(
             providers,
             (provider, onResult) => {
                 this._httpGetJson(provider.url, (data) => {
@@ -227,11 +227,12 @@ var WeatherForecastResolver = class WeatherForecastResolver {
     }
 
     _orderedForecastProviders() {
-        return Utils.orderProvidersByLastSuccess(this._providers, this._last_forecast_provider);
+        return ProviderUtils.orderProvidersByLastSuccess(
+            this._providers, this._last_forecast_provider);
     }
 
     _tryForecastProviders(providers, place, isCurrent, callback) {
-        Utils.tryProvidersInOrder(
+        ProviderUtils.tryProvidersInOrder(
             providers,
             (provider, onResult) => {
                 this._httpGetJson(provider.url(place), (data) => {

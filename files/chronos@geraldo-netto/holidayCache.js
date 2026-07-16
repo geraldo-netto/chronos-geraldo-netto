@@ -27,9 +27,9 @@ const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const IoUtils = IS_NODE ?
+    require("./ioUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
@@ -214,7 +214,7 @@ var HolidayCacheRepository = class HolidayCacheRepository {
             return;
         }
 
-        Utils.readJsonFileAsync(file, (all) => {
+        IoUtils.readJsonFileAsync(file, (all) => {
             if (all && Object.keys(all).length > 0) {
                 this._all = all;
                 callback(this._country(all, country));
@@ -264,7 +264,7 @@ var HolidayCacheRepository = class HolidayCacheRepository {
             return;
         }
 
-        Utils.readJsonFileAsync(legacyFile, (all) => callback(all));
+        IoUtils.readJsonFileAsync(legacyFile, (all) => callback(all));
     }
 
     static loadFile (fn) {
@@ -313,7 +313,7 @@ var HolidayCacheRepository = class HolidayCacheRepository {
 
         const flushing = Object.assign({}, this._pending);
 
-        Utils.readJsonFileAsync(file, (data, etag) => {
+        IoUtils.readJsonFileAsync(file, (data, etag) => {
             Object.keys(flushing).forEach((country) => {
                 data[country] = flushing[country];
             });
@@ -327,7 +327,7 @@ var HolidayCacheRepository = class HolidayCacheRepository {
             // merges writes that had already settled. The etag closes the rest:
             // if the file moved between our read and our write, the write fails
             // and we merge again against what is actually there.
-            Utils.writeJsonFileAsync(file, allData, (stale) => {
+            IoUtils.writeJsonFileAsync(file, allData, (stale) => {
                 this._writing = false;
 
                 if (stale && merges < MAX_MERGE_RETRIES) {

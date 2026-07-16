@@ -16,7 +16,7 @@ const Util = imports.misc.util;
 const PopupMenu = imports.ui.popupMenu;
 const AppletLifecycle = require("./appletLifecycle");
 const SettingsFacade = require("./settingsFacade");
-const Utils = require("./utils");
+const LocaleQuery = imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 const AppletPanelStatus = require("./appletPanelStatus");
 const AppletMenu = require("./appletMenuBuilder");
 const WorldclockData = require("./worldclockData");
@@ -37,7 +37,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // instance of this applet on the panel; the count is what stops this
             // instance's teardown from cancelling their query. Claimed before
             // anything below can throw, because the catch tears down.
-            Utils.registerLocaleConsumer();
+            LocaleQuery.registerLocaleConsumer();
 
             this.menuManager = new PopupMenu.PopupMenuManager(this);
             this.orientation = orientation;
@@ -468,7 +468,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // the locale query's deadline and its retry are module-level timers
             // with no other owner: without this the retry can still spawn
             // `locale` two minutes after the applet is gone
-            () => Utils.cancelPendingLocaleQueries()
+            () => LocaleQuery.cancelPendingLocaleQueries()
         ];
 
         for (let step of steps) {

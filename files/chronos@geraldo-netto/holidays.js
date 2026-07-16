@@ -27,9 +27,12 @@ const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
 // Under GJS this file is reached through the native importer, which provides
 // neither require() nor module; Node (tests) provides both.
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const IoUtils = IS_NODE ?
+    require("./ioUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
+const LocaleQuery = IS_NODE ?
+    require("./localeQuery") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
@@ -40,9 +43,9 @@ const HolidayServiceAdapters = IS_NODE ?
     require("./holidayServiceAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayServiceAdapters;
 
-const _lcLang = Utils.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
+const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
-var HTTP_TIMEOUT_SECONDS = Utils.HTTP_TIMEOUT_SECONDS;
+var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS;
 
 function logHolidayDataError(provider, year, reason) {
     if (global.logError) {
@@ -59,7 +62,7 @@ var Provider = class Provider {
     // one is removed
     static loaderFor(getSession) {
         return (url, params, callback) => {
-            Utils.httpGetJson(getSession(), url, (data, message) => {
+            IoUtils.httpGetJson(getSession(), url, (data, message) => {
                 const headers = message.get_response_headers();
                 const retrieved = headers ? headers.get_one("date") : null;
 
@@ -205,7 +208,7 @@ var HolidayInflight = class HolidayInflight {
 
 var HolidayService = class HolidayService {
     constructor (service, cache, params = {}) {
-        this._session = params.httpSession || new Utils.LazyHttpSession();
+        this._session = params.httpSession || new IoUtils.LazyHttpSession();
         this.service = service || httpBackedService(() => this._getHttpSession());
         // What a payload has to look like, and what a holiday expands to, is one
         // rule for all three providers — so it is held here, not asked of the
@@ -547,7 +550,7 @@ HolidayService.fn = "/holidays.json";
 function createHolidayProvider(params = {}) {
     const lang = params.lang || _lcLang();
     const record = params.record || new HolidayRecordContract(lang);
-    const session = params.httpSession || new Utils.LazyHttpSession();
+    const session = params.httpSession || new IoUtils.LazyHttpSession();
 
     const service = params.service ||
         httpBackedService(() => session.get(), { lang, record, load: params.load });

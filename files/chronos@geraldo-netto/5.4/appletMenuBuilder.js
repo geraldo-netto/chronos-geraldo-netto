@@ -15,12 +15,13 @@ const Clutter = imports.gi.Clutter;
 const St = imports.gi.St;
 const PopupMenu = imports.ui.popupMenu;
 const Tooltips = imports.ui.tooltips;
-const Utils = require("./utils");
+const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const LocaleText = AppletModules.localeText;
 const Calendar = require("./calendar");
 const EventView = require("./eventView");
 const Worldclocks = require("./worldclocks");
 
-const _ = Utils.translate;
+const _ = LocaleText.translate;
 
 // Builds the menu contents and hands them back; the applet is the only
 // writer of its own fields. The context carries the collaborators the UI

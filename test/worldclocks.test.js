@@ -7,7 +7,7 @@ const { makeRandom: makeSeededRandom } = require("./helpers/prng");
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "worldclocks.js");
 const dataModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "worldclockData.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "worldclockData.js");
-const utilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "utils.js");
+const localeTextPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeText.js");
 const style52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "stylesheet.css");
 
 // two built-in rows (UTC and local time) always precede the configured clocks
@@ -206,7 +206,7 @@ test("the zoned-time double refuses strftime fields it cannot render", () => {
 
 function loadWorldclocks(options = {}) {
     clearWorldclockCaches();
-    require.cache[require.resolve(utilsPath)] = {
+    require.cache[require.resolve(localeTextPath)] = {
         exports: {
             translate: options.translate || ((str) => str),
             joinPhrases: (...parts) => parts.filter((part) => part).join(" — ")
@@ -278,7 +278,7 @@ function reloadWorldclocks() {
         applets: {
             "chronos@geraldo-netto": {
                 worldclockData: require(dataModulePath),
-                utils: require(utilsPath)
+                localeText: require(localeTextPath)
             }
         }
     };
@@ -293,7 +293,7 @@ beforeEach(() => {
 afterEach(() => {
     global.imports = originalImports;
     clearWorldclockCaches();
-    delete require.cache[require.resolve(utilsPath)];
+    delete require.cache[require.resolve(localeTextPath)];
 });
 
 test("constructor adds a grid actor to the supplied box", () => {
@@ -869,8 +869,8 @@ test("worldclockData exposes the same API under the GJS importer and under Node"
                 appletManager: {
                     applets: {
                         "chronos@geraldo-netto": {
-                            utils: {
-                                translate: (str) => str,
+                            localeText: { translate: (str) => str },
+                            textUtils: {
                                 clampText: (text, max) => String(text).slice(0, max)
                             }
                         }
@@ -890,7 +890,7 @@ test("worldclockData exposes the same API under the GJS importer and under Node"
         // the loader guard asks whether this is Node, not whether require() exists
         process: { versions: { node: process.versions.node } }
     };
-    require.cache[require.resolve(utilsPath)] = { exports: { translate: (str) => str } };
+    require.cache[require.resolve(localeTextPath)] = { exports: { translate: (str) => str } };
     script.runInNewContext(nodeContext);
 
     for (const symbol of Object.keys(nodeContext.module.exports)) {

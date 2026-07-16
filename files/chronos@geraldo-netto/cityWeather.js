@@ -25,9 +25,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const IoUtils = IS_NODE ?
+    require("./ioUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 // the parts, not the barrel: requiring ./weather pulled in WeatherProvider — the
 // panel provider this module is the twin of — and its Soup session, for a handful
 // of constants, two resolvers and the refresh clock
@@ -111,10 +111,10 @@ var CityWeatherProvider = class CityWeatherProvider {
         // WeatherProvider defers the same way for the same reason.
         // one lazy session, guarded abort and all, shared with the panel provider
         // and the holiday chain: the lifecycle lives in ioUtils
-        this._session = new Utils.LazyHttpSession(
+        this._session = new IoUtils.LazyHttpSession(
             params.httpSession ? () => params.httpSession : undefined);
         this._httpGetJson = params.httpGetJson || ((url, callback, options = {}) => {
-            Utils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
+            IoUtils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
         });
 
         this._location_resolver = params.locationResolver || new WeatherProviders.WeatherLocationResolver({

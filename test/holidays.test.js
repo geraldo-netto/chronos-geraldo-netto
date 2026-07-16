@@ -30,7 +30,6 @@ const NAGER_STAMP = "Thu, 09 Jul 2026 08:00:00 GMT";
 const OPENHOLIDAYS_STAMP = "Wed, 08 Jul 2026 08:00:00 GMT";
 
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidays.js");
-const utilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "utils.js");
 const ioUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const localeUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
 const holidayCachePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "holidayCache.js");
@@ -91,7 +90,6 @@ function cachePath(...parts) {
 
 function loadHolidays(options = {}) {
     delete require.cache[require.resolve(modulePath)];
-    delete require.cache[require.resolve(utilsPath)];
     delete require.cache[require.resolve(ioUtilsPath)];
     delete require.cache[require.resolve(localeUtilsPath)];
     delete require.cache[require.resolve(holidayCachePath)];

@@ -260,7 +260,9 @@ global.imports = {
 // the root modules read global.imports at require time, so load them after
 // the mock exists and then expose them through the native-importer path
 const rootModules = global.imports.ui.appletManager.applets["chronos@geraldo-netto"];
-rootModules.utils = require(path.join(APPLET_DIR, "utils.js"));
+rootModules.dateFormats = require(path.join(APPLET_DIR, "dateFormats.js"));
+rootModules.localeText = require(path.join(APPLET_DIR, "localeText.js"));
+rootModules.styleUtils = require(path.join(APPLET_DIR, "styleUtils.js"));
 rootModules.eventData = require(path.join(APPLET_DIR, "eventData.js"));
 rootModules.eventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
@@ -298,7 +300,7 @@ test("EventRow renders the formatted time range into its label", () => {
 
     const expected = EventFormat.formatEventTimeRange(event, TODAY, TODAY, {
         timeFormat: "%H:%M",
-        dayFormat: global.imports.ui.appletManager.applets["chronos@geraldo-netto"].utils.DAY_FORMAT,
+        dayFormat: rootModules.dateFormats.DAY_FORMAT,
         translate: (s) => s
     });
     assert.equal(row.event_time.text, expected);

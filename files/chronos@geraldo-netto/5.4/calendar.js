@@ -19,7 +19,11 @@ const Pango = imports.gi.Pango;
 const Gettext_gtk30 = imports.gettext.domain('gtk30');
 const Cinnamon = imports.gi.Cinnamon;
 const Mainloop = imports.mainloop;
-const Utils = require("./utils");
+const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const DateFormats = AppletModules.dateFormats;
+const LocaleQuery = AppletModules.localeQuery;
+const LocaleText = AppletModules.localeText;
+const StyleUtils = AppletModules.styleUtils;
 const SettingsFacade = require("./settingsFacade");
 // only HOLIDAY_ERRORS is read here, and it is declared in holidayConstants;
 // requiring the holidays barrel linked the cache repository, the three vendor
@@ -27,9 +31,9 @@ const SettingsFacade = require("./settingsFacade");
 const Holidays = require("./holidayConstants");
 const EventDataModule = require("./eventData");
 
-const _ = Utils.translate;
-const joinPhrases = Utils.joinPhrases;
-const ngettext = Utils.translatePlural;
+const _ = LocaleText.translate;
+const joinPhrases = LocaleText.joinPhrases;
+const ngettext = LocaleText.translatePlural;
 const date_only = EventDataModule.date_only;
 const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 
@@ -40,7 +44,7 @@ const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 // meaningful.
 const GTK_CALENDAR_ORDER_MSGID = 'calendar:MY';
 
-const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
+const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
 // how much smooth-scroll delta makes one month. Clutter reports a touchpad's
 // scroll in fractions of a notch, and one notch is what a mouse wheel sends.
@@ -48,17 +52,18 @@ const SMOOTH_SCROLL_NOTCH = 1;
 // the key name itself lives in the settings boundary, with the schema
 const FIRST_WEEKDAY_KEY = SettingsFacade.FIRST_DAY_OF_WEEK_KEY;
 const PART_DAY_HOLIDAY = 'PART_DAY_HOLIDAY';
-const HOLIDAY_ERROR_MARKER = Utils.UI_ERROR_MARKER;
+const HOLIDAY_ERROR_MARKER = "⚠";
 const HOLIDAY_PENDING_MARKER = "…";
 // weekday, day, month and year: what a sighted user reads off the grid
 // The visible full date is locale-ordered through the shared format, so a
 // hardcoded day-month order here meant an en_US user saw "Saturday, July 12,
 // 2026" while their screen reader said "Saturday, 12 July 2026". Same date,
 // same applet, two different orders.
-const ACCESSIBLE_DATE_FORMAT = Utils.DATE_FORMAT_FULL;
+const ACCESSIBLE_DATE_FORMAT = DateFormats.DATE_FORMAT_FULL;
 
-const _lcAbday = Utils.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
-const _lcFirstWorkday = Utils.lazyLocaleValue("LC_TIME", (info) => (info.first_workday + 6) % 7);
+const _lcAbday = LocaleQuery.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
+const _lcFirstWorkday = LocaleQuery.lazyLocaleValue(
+    "LC_TIME", (info) => (info.first_workday + 6) % 7);
 
 // Date.prototype.toLocaleFormat is a non-standard SpiderMonkey extension
 // that modern GJS removed; format through GLib.DateTime instead
@@ -181,7 +186,7 @@ class CalendarMonthWindow {
         beginDate.setHours(12);
         // monthWindowStartOffset speaks GLib's ISO weekday (1=Mon..7=Sun);
         // Date.getDay() reports Sunday as 0
-        const daysToWeekStart = Utils.monthWindowStartOffset(
+        const daysToWeekStart = DateFormats.monthWindowStartOffset(
             beginDate.getDay() || 7, this.weekStart);
         beginDate.setTime(beginDate.getTime() - daysToWeekStart * MSECS_IN_DAY);
         return beginDate;
@@ -470,7 +475,7 @@ class CalendarEventDotRenderer {
     update(cell, iter, dateUnixKey) {
         const color_set = this.host.eventsManager.get_colors_for_unix_key(dateUnixKey);
         const colors = (this.host.eventsEnabled && color_set !== null) ?
-            color_set.map((color) => Utils.safeCssColor(color)) : [];
+            color_set.map((color) => StyleUtils.safeCssColor(color)) : [];
 
         // the dots are the only sign that a day has events, and they are 4px of
         // colour: the count goes into the cell's name so it can be said as well
@@ -841,7 +846,7 @@ class Calendar {
         // which nothing in this header depends on — rebuilt the header, dropped
         // all 42 day cells and every tooltip on them, and made the next update
         // reconstruct the lot.
-        this._locale_listener = Utils.onLocaleInfoChanged("LC_TIME", () => {
+        this._locale_listener = LocaleQuery.onLocaleInfoChanged("LC_TIME", () => {
             this._buildHeader();
             this._queue_update();
         });

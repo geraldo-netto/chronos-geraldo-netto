@@ -89,39 +89,6 @@ function gjsImportsMock() {
                             DATE_FORMAT_FULL: "%A, %B %-e, %Y",
                             monthWindowStartOffset() {}
                         },
-                        utils: {
-                            clampText(text, max) { return String(text).slice(0, max); },
-                            TEXT_ELLIPSIS: "…",
-                            MSECS_IN_DAY: 86400000,
-                            UI_ERROR_MARKER: "⚠",
-                            DAY_FORMAT: "%A",
-                            DATE_FORMAT_SHORT: "%B %-e, %Y",
-                            DATE_FORMAT_FULL: "%A, %B %-e, %Y",
-                            translate(str) { return str; },
-                            translatePlural(s, p, n) { return n === 1 ? s : p; },
-                            HTTP_TIMEOUT_SECONDS: 30,
-                            createHttpSession() {},
-                            urlForLog() {},
-                            writeJsonFileAsync() {},
-                            monthWindowStartOffset() {},
-                            lazyLocaleValue(env, pick) {
-                                let value = null;
-                                return () => {
-                                    if (value === null) {
-                                        value = pick(this.getInfo(env));
-                                    }
-                                    return value;
-                                };
-                            },
-                            getInfo() {
-                                return {
-                                    lang_ab: "en",
-                                    country_ab3: "usa",
-                                    abday: "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
-                                    first_workday: 2
-                                };
-                            }
-                        },
                         localeUtils: {
                             MSECS_IN_DAY: 86400000,
                             DAY_FORMAT: "%A",
@@ -284,9 +251,6 @@ const EXPORTS = {
     dateFormats: ["MSECS_IN_DAY", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "monthWindowStartOffset"],
     providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
-    utils: ["clampText", "TEXT_ELLIPSIS", "MSECS_IN_DAY", "UI_ERROR_MARKER", "onLocaleInfoChanged", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
-        "translate", "translatePlural", "createHttpSession", "HTTP_TIMEOUT_SECONDS", "httpGetJson", "monthWindowStartOffset", "readJsonFileAsync",
-        "writeJsonFileAsync", "safeCssColor", "lazyLocaleValue", "backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale", "HTTP_TIMEOUT_SECONDS",
         "WEATHER_ERROR_MARKER", "WEATHER_PENDING_TEXT", "WEATHER_ERRORS",
@@ -361,7 +325,7 @@ test("the barrel carries its parts to Node, and nothing reads a part off it in G
     const originalImports = global.imports;
     global.imports = gjsImportsMock();
     for (const file of ["weather.js", "weatherScheduler.js", "weatherProviders.js", "weatherFormat.js",
-        "utils.js", "localeUtils.js", "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
+        "localeUtils.js", "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
         delete require.cache[require.resolve(path.join(APPLET_DIR, file))];
     }
     const parts = ["weatherFormat", "weatherScheduler", "weatherProviders"]

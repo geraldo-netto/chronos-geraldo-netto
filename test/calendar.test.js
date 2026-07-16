@@ -103,8 +103,14 @@ global.imports = {
         appletManager: { applets: { "chronos@geraldo-netto": {} } }
     }
 };
-global.imports.ui.appletManager.applets["chronos@geraldo-netto"].utils =
-    require(path.join(APPLET_DIR, "utils.js"));
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats =
+    require(path.join(APPLET_DIR, "dateFormats.js"));
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery =
+    require(path.join(APPLET_DIR, "localeQuery.js"));
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].localeText =
+    require(path.join(APPLET_DIR, "localeText.js"));
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].styleUtils =
+    require(path.join(APPLET_DIR, "styleUtils.js"));
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].eventData =
     require(path.join(APPLET_DIR, "eventData.js"));
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].settingsFacade =
@@ -456,10 +462,10 @@ test("harness: Calendar instantiates and builds header plus 42 day cells", () =>
 });
 
 test("the calendar rebuilds when the locale query answers", () => {
-    const utils = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+    const localeQuery = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
     const listeners = [];
-    const original = utils.onLocaleInfoChanged;
-    utils.onLocaleInfoChanged = (env, callback) => {
+    const original = localeQuery.onLocaleInfoChanged;
+    localeQuery.onLocaleInfoChanged = (env, callback) => {
         listeners.push({ env, callback });
         return () => {
             const index = listeners.findIndex((entry) => entry.callback === callback);
@@ -470,7 +476,7 @@ test("the calendar rebuilds when the locale query answers", () => {
     };
 
     const cal = makeCalendar();
-    utils.onLocaleInfoChanged = original;
+        localeQuery.onLocaleInfoChanged = original;
 
     assert.equal(listeners.length, 1, "the calendar listens for the locale info");
     // ...for LC_TIME, and only LC_TIME: the header depends on the weekday

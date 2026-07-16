@@ -20,15 +20,18 @@ const Separator = imports.ui.separator;
 const Tooltips = imports.ui.tooltips;
 const Util = imports.misc.util;
 const Mainloop = imports.mainloop;
-const Utils = require("./utils");
+const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const DateFormats = AppletModules.dateFormats;
+const LocaleText = AppletModules.localeText;
+const StyleUtils = AppletModules.styleUtils;
 const EventFormat = require("./eventFormat");
 
-const _ = Utils.translate;
-const joinPhrases = Utils.joinPhrases;
-const ngettext = Utils.translatePlural;
+const _ = LocaleText.translate;
+const joinPhrases = LocaleText.joinPhrases;
+const ngettext = LocaleText.translatePlural;
 
-const DATE_FORMAT_FULL = Utils.DATE_FORMAT_FULL;
-const DAY_FORMAT = Utils.DAY_FORMAT;
+const DATE_FORMAT_FULL = DateFormats.DATE_FORMAT_FULL;
+const DAY_FORMAT = DateFormats.DAY_FORMAT;
 
 const locale_cap = EventFormat.localeCap;
 
@@ -642,7 +645,7 @@ class EventRowPresenter {
     }
 
     colorStyle() {
-        return `background-color: ${Utils.safeCssColor(this.row.event.color)};`;
+        return `background-color: ${StyleUtils.safeCssColor(this.row.event.color)};`;
     }
 
     connectActivation() {

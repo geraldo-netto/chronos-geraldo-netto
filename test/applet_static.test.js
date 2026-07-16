@@ -237,7 +237,7 @@ test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
 // accessible name
 test("calendars surface holiday provider failures", () => {
     const code = source("5.4/calendar.js");
-    assert.match(code, /const HOLIDAY_ERROR_MARKER = Utils\.UI_ERROR_MARKER;/);
+    assert.match(code, /const HOLIDAY_ERROR_MARKER = "⚠";/);
     assert.match(code, /class CalendarHolidayAnnotator \{/);
     assert.match(code, /setStatus\(error, providerName = ""\) \{/);
     assert.match(code, /HOLIDAY_ERROR_MARKER/);
@@ -275,7 +275,7 @@ test("event fetch window uses the shared week-start offset", () => {
     // raw week_day - week_start mixes ISO (1=Mon..7=Sun) with the 0=Sun
     // convention and started the window a week early for Sunday locales
     assert.doesNotMatch(code, /week_day - week_start/);
-    assert.match(code, /Utils\.monthWindowStartOffset\(\n?\s*day_one\.get_day_of_week\(\), Cinnamon\.util_get_week_start\(\)\)/);
+    assert.match(code, /DateFormats\.monthWindowStartOffset\(\n?\s*day_one\.get_day_of_week\(\), Cinnamon\.util_get_week_start\(\)\)/);
 });
 
 test("translating files use the applet's own gettext domain", () => {
@@ -287,7 +287,7 @@ test("translating files use the applet's own gettext domain", () => {
         "worldclockData.js"
     ]) {
         const code = source(relativePath);
-        assert.match(code, /const _ = Utils\.translate/,
+        assert.match(code, /const _ = LocaleText\.translate/,
             `${relativePath} must use the shared UUID-domain translator`);
     }
 
@@ -304,7 +304,7 @@ test("translating files use the applet's own gettext domain", () => {
     // the shipped .po files carry these plural msgids; the global ngettext
     // (cinnamon domain) can never load them
     const eventView = source("5.4/eventView.js");
-    assert.match(eventView, /const ngettext = Utils\.translatePlural;/);
+    assert.match(eventView, /const ngettext = LocaleText\.translatePlural;/);
     assert.doesNotMatch(eventView, /function ngettext\(singular, plural, n\)/);
 });
 

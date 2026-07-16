@@ -38,9 +38,12 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const DateFormats = IS_NODE ?
+    require("./dateFormats") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats;
+const LocaleQuery = IS_NODE ?
+    require("./localeQuery") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 const HolidayAdapters = IS_NODE ?
     require("./holidayAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayAdapters;
@@ -48,8 +51,8 @@ const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
 
-const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
-const _lcLang = Utils.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
+const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
+const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
 var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS;

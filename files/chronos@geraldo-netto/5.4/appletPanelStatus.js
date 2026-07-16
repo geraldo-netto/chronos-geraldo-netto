@@ -11,17 +11,20 @@
 /* eslint camelcase: "off" */
 
 const Atk = imports.gi.Atk;
-const Utils = require("./utils");
+const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const DateFormats = AppletModules.dateFormats;
+const LocaleText = AppletModules.localeText;
+const TextUtils = AppletModules.textUtils;
 // the pure half of the weather module: the constants and the formatters. The
 // panel presenter renders — it must not link the Soup session, the provider
 // chains and the refresh scheduler that the weather.js barrel drags in.
 const Weather = require("./weatherFormat");
 const WorldclockData = require("./worldclockData");
 
-const _ = Utils.translate;
-const joinPhrases = Utils.joinPhrases;
+const _ = LocaleText.translate;
+const joinPhrases = LocaleText.joinPhrases;
 
-const MSECS_IN_DAY = Utils.MSECS_IN_DAY;
+const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 // Eight world clocks plus a weather reading reached the old 80-character cap
 // and squeezed every other applet off a 1366px panel. The panel is shared: the
 // suffix is an extra, and the date and time are the point.
@@ -35,7 +38,7 @@ const LABEL_SUFFIX_MAX_LENGTH = 48;
 const LABEL_MAX_LENGTH = 64;
 // the ellipsis everything else in this applet uses, rather than three dots — it
 // is the one clampText appends, and the tests read it from here
-const LABEL_ELLIPSIS = Utils.TEXT_ELLIPSIS;
+const LABEL_ELLIPSIS = TextUtils.TEXT_ELLIPSIS;
 // The shipped panel and tooltip formats keep the same day-month, 24-hour order
 // in every locale. %b still localizes the abbreviated month name itself.
 const DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
@@ -387,7 +390,7 @@ class AppletPanelStatusPresenter {
     }
 
     ellipsizeLabelSuffix(suffix) {
-        return Utils.clampText(suffix, LABEL_SUFFIX_MAX_LENGTH);
+        return TextUtils.clampText(suffix, LABEL_SUFFIX_MAX_LENGTH);
     }
 
     tooltipClockFormat() {
@@ -636,9 +639,9 @@ class AppletPanelStatusPresenter {
 
         this._todayFormatCache = {
             key,
-            full: view.formatClock(Utils.DATE_FORMAT_FULL).capitalize(),
-            short: view.formatClock(Utils.DATE_FORMAT_SHORT).capitalize(),
-            day: view.formatClock(Utils.DAY_FORMAT).capitalize()
+            full: view.formatClock(DateFormats.DATE_FORMAT_FULL).capitalize(),
+            short: view.formatClock(DateFormats.DATE_FORMAT_SHORT).capitalize(),
+            day: view.formatClock(DateFormats.DAY_FORMAT).capitalize()
         };
 
         return this._todayFormatCache;
@@ -694,7 +697,7 @@ class AppletPanelStatusPresenter {
             label_string += " " + this.ellipsizeLabelSuffix(label_suffix);
         }
 
-        this.view.setLabel(Utils.clampText(label_string, LABEL_MAX_LENGTH));
+        this.view.setLabel(TextUtils.clampText(label_string, LABEL_MAX_LENGTH));
         // the panel label carries the weather failure as a bare glyph; a screen
         // reader needs the words — and it gets them in full: the cap is about the
         // width of a shared panel, and a screen reader has no width

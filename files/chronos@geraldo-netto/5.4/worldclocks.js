@@ -19,10 +19,11 @@ const St = GjsImports.gi.St;
 // same-dir shim like every other 5.4 module: it hands back the single
 // importer-loaded root module instead of a second CJS copy of it
 const WorldclockData = require("./worldclockData");
-const Utils = require("./utils");
+const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const LocaleText = AppletModules.localeText;
 
-const _ = Utils.translate;
-const joinPhrases = Utils.joinPhrases;
+const _ = LocaleText.translate;
+const joinPhrases = LocaleText.joinPhrases;
 
 const MAX_CLOCKS = WorldclockData.MAX_CLOCKS;
 const INVALID_TIMEZONE_TEXT = WorldclockData.INVALID_TIMEZONE_TEXT;

@@ -25,9 +25,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const IoUtils = IS_NODE ?
+    require("./ioUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 
 // GJS exports only var bindings: anything another module reaches for
 // through imports.ui.appletManager must be declared with var
@@ -148,7 +148,7 @@ var WeatherProvider = class WeatherProvider {
         // the same argument for the same reason.
         // the same lazy session, the same guarded abort, as the city provider and
         // the holiday chain: one lifecycle, in ioUtils
-        this._session = new Utils.LazyHttpSession(
+        this._session = new IoUtils.LazyHttpSession(
             params.httpSession ? () => params.httpSession : undefined);
     }
 
@@ -282,7 +282,7 @@ var WeatherProvider = class WeatherProvider {
     }
 
     _httpGetJson(url, callback, options = {}) {
-        Utils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
+        IoUtils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
     }
 };
 

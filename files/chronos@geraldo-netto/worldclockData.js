@@ -26,13 +26,13 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
 const GLib = GjsImports.gi.GLib;
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const LocaleText = IS_NODE ?
+    require("./localeText") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeText;
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
-const _ = Utils.translate;
+const _ = LocaleText.translate;
 
 // user-configurable clocks; the built-in UTC and local rows come on top
 var MAX_CLOCKS = 8;

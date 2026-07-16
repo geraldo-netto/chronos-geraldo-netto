@@ -36,7 +36,8 @@ const Mainloop = GjsImports.mainloop;
 const Signals = GjsImports.signals;
 const APPLET_MODULES = IS_NODE ?
     null : GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
-const Utils = APPLET_MODULES ? APPLET_MODULES.utils : require("./utils");
+const DateFormats = APPLET_MODULES ? APPLET_MODULES.dateFormats : require("./dateFormats");
+const ProviderUtils = APPLET_MODULES ? APPLET_MODULES.providerUtils : require("./providerUtils");
 const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
 const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 const date_only = EventDataModule.date_only;
@@ -179,7 +180,7 @@ var CalendarServerConnection = class CalendarServerConnection {
     }
 
     retryDelay() {
-        return Utils.backoffDelay(this._server_retry_attempts, {
+        return ProviderUtils.backoffDelay(this._server_retry_attempts, {
             base: SERVER_RETRY_SECONDS,
             cap: SERVER_RETRY_MAX_SECONDS,
             random: this._random
@@ -412,7 +413,7 @@ var EventWindowCoordinator = class EventWindowCoordinator {
         let day_one = month_year_only(month_year);
 
         // back up to the start of the week containing day 1
-        let start = day_one.add_days( -Utils.monthWindowStartOffset(
+        let start = day_one.add_days( -DateFormats.monthWindowStartOffset(
             day_one.get_day_of_week(), Cinnamon.util_get_week_start()) );
         // The calendar has 42 boxes
         let end = start.add_days(42).add_seconds(-1);
@@ -717,7 +718,7 @@ var EventsManager = class EventsManager {
             return;
         }
 
-        const delay = Utils.backoffDelay(this._fetch_retry_attempts, {
+        const delay = ProviderUtils.backoffDelay(this._fetch_retry_attempts, {
             base: FETCH_RETRY_SECONDS,
             cap: FETCH_RETRY_MAX_SECONDS,
             random: this._random

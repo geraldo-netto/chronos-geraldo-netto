@@ -25,9 +25,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node);
-const Utils = IS_NODE ?
-    require("./utils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].utils;
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 
 var HolidayFallbackChain = class HolidayFallbackChain {
     // `validResponse` is what an answer from *any* provider in this chain has to
@@ -54,7 +54,7 @@ var HolidayFallbackChain = class HolidayFallbackChain {
     }
 
     fetchYear(country, region, year, callback) {
-        Utils.tryProvidersInOrder(
+        ProviderUtils.tryProvidersInOrder(
             this._orderedProviders(),
             (provider, onResult) => {
                 provider.fetchYear(country, region, year, (data, params, retrieved) => {
@@ -85,7 +85,7 @@ var HolidayFallbackChain = class HolidayFallbackChain {
 
     _orderedProviders() {
         const providers = [this.primary].concat(this.fallbacks);
-        return Utils.orderProvidersByLastSuccess(providers, this._last_provider);
+        return ProviderUtils.orderProvidersByLastSuccess(providers, this._last_provider);
     }
 
     _sourceParams(provider, params) {

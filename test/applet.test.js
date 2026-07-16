@@ -144,7 +144,13 @@ global.imports = {
 };
 
 const rootModules = global.imports.ui.appletManager.applets["chronos@geraldo-netto"];
-rootModules.utils = require(path.join(APPLET_DIR, "utils.js"));
+rootModules.dateFormats = require(path.join(APPLET_DIR, "dateFormats.js"));
+rootModules.ioUtils = require(path.join(APPLET_DIR, "ioUtils.js"));
+rootModules.localeQuery = require(path.join(APPLET_DIR, "localeQuery.js"));
+rootModules.localeText = require(path.join(APPLET_DIR, "localeText.js"));
+rootModules.providerUtils = require(path.join(APPLET_DIR, "providerUtils.js"));
+rootModules.styleUtils = require(path.join(APPLET_DIR, "styleUtils.js"));
+rootModules.textUtils = require(path.join(APPLET_DIR, "textUtils.js"));
 rootModules.eventData = require(path.join(APPLET_DIR, "eventData.js"));
 rootModules.eventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
@@ -163,7 +169,7 @@ const MAX_SUFFIX = PanelStatusModule.LABEL_SUFFIX_MAX_LENGTH;
 const ELLIPSIS = PanelStatusModule.LABEL_ELLIPSIS;
 const Proto = AppletModule.CinnamonCalendarApplet.prototype;
 const panelStatus = (applet) => new AppletModule.AppletPanelStatusPresenter(applet);
-const Utils = rootModules.utils;
+const DateFormats = rootModules.dateFormats;
 const Weather = rootModules.weather;
 const St = global.imports.gi.St;
 
@@ -335,7 +341,7 @@ test("getFormattedToday caches by day and invalidates at rollover", () => {
 
     const first = presenter.getFormattedToday();
     assert.equal(formats, 3, "three formats computed once");
-    assert.equal(first.full, ("v:" + Utils.DATE_FORMAT_FULL).capitalize());
+    assert.equal(first.full, ("v:" + DateFormats.DATE_FORMAT_FULL).capitalize());
 
     const second = presenter.getFormattedToday();
     assert.equal(second, first, "same day: cache hit");
