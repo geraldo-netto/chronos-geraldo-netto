@@ -82,6 +82,15 @@
     text-align: center;
 }
 
+/* Weather failures must remain readable in a keyboard-opened popup even when
+ * the optional world-clock table is hidden. */
+.calendar-weather-status {
+    font-size: 0.8em;
+    max-width: 18em;
+    padding-top: 0.5em;
+    text-align: center;
+}
+
 /*
  * The empty-state label is one word ("No Events") most of the time, but when
  * no calendar service is running it carries the whole remediation sentence.

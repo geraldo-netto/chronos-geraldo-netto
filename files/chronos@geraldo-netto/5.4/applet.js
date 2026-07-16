@@ -134,6 +134,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this.event_list = ui.eventList;
         this._calendar = ui.calendar;
         this._worldclocks = ui.worldclocks;
+        this._weather_status = ui.weatherStatus;
         this.go_home_button = ui.goHomeButton;
         this._day = ui.dayLabel;
         this._date = ui.dateLabel;

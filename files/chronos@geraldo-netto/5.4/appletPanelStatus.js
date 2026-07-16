@@ -254,6 +254,11 @@ class PanelView {
         this.applet._worldclocks.setWeatherSource(source);
     }
 
+    setWeatherStatus(text) {
+        this.applet._weather_status.set_text(text);
+        this.applet._weather_status.visible = Boolean(text);
+    }
+
     getClockEntries() {
         return this.applet._worldclocks.getClockEntries();
     }
@@ -711,6 +716,9 @@ class AppletPanelStatusPresenter {
         this._setLabel(view.dayLabel, "_rendered_day", formattedToday.day);
         this._setLabel(view.dateLabel, "_rendered_date", formattedToday.short);
         this.setTooltipText(clockEntries);
+        // Unlike a tooltip, this actor is reachable from a keyboard-opened menu
+        // and remains present when the world-clock block is switched off.
+        view.setWeatherStatus(this.weatherStatusLine());
 
         view.selectEventsDate();
 

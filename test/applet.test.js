@@ -417,7 +417,8 @@ test("ellipsizeLabelSuffix never splits surrogate pairs", () => {
 
 // T27c: menu-state gating in _updateClockAndDate
 function updateStub({ menuOpen = false } = {}) {
-    const calls = { label: [], tooltip: [], selected: 0, worldTicks: 0, dayText: [], clockEntries: 0, lastEntries: null };
+    const calls = { label: [], tooltip: [], weatherStatus: [], selected: 0,
+        worldTicks: 0, dayText: [], clockEntries: 0, lastEntries: null };
     // the entries carry their timezone, as the real ones do: the city weather is
     // keyed on the city the timezone names, not on the label — two clocks may
     // share a label, and the user's name for a row is not a place
@@ -458,6 +459,10 @@ function updateStub({ menuOpen = false } = {}) {
         go_home_button: { reactive: true, set_style_class_name: () => {} },
         _day: { set_text: (t) => calls.dayText.push(t) },
         _date: { set_text: () => {} },
+        _weather_status: {
+            visible: false,
+            set_text: (text) => calls.weatherStatus.push(text)
+        },
         events_manager: { select_date: () => calls.selected++ },
         set_applet_label: (t) => calls.label.push(t),
         set_applet_tooltip: (t) => calls.tooltip.push(t)
@@ -695,6 +700,7 @@ test("the panel presenter reads and writes through a view it is given", () => {
         getClockEntries: () => [],
         updateWorldclocks: () => written.push(["clocks"]),
         setWeatherSource: (source) => written.push(["source", source]),
+        setWeatherStatus: (text) => written.push(["weather-status", text]),
         setLabel: (text) => written.push(["label", text]),
         setTooltip: (text) => written.push(["tooltip", text]),
         setAccessibleName: (name) => written.push(["name", name]),
@@ -3045,6 +3051,26 @@ test("a weather failure explains itself even with no world clocks", () => {
         weatherError: ""
     }));
     assert.equal(fine.buildTooltipText([]), "");
+});
+
+test("a keyboard-opened popup shows weather status without world clocks", () => {
+    const { stub, calls } = updateStub({ menuOpen: true });
+    Object.assign(stub, {
+        show_weather: true,
+        show_worldclocks: false,
+        _weather_error: Weather.WEATHER_ERRORS.NO_LOCATION
+    });
+
+    Proto._updateClockAndDate.call(stub);
+
+    assert.equal(stub._weather_status.visible, true);
+    assert.equal(calls.weatherStatus.at(-1), "⚠ Set a weather location");
+
+    stub._weather_error = "";
+    stub._weather_reading = { condition: "☀", temperatureC: 20 };
+    Proto._updateClockAndDate.call(stub);
+    assert.equal(stub._weather_status.visible, false,
+        "a successful reading leaves no redundant status row");
 });
 
 // The applet's resume path drives both readouts. The city half needs to be forced

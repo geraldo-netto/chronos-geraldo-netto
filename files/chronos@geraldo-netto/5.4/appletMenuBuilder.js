@@ -70,11 +70,17 @@ class AppletMenuBuilder {
         this._addSettingsMenuItems();
 
         const worldclocks = new Worldclocks.Worldclocks(calbox);
+        const weatherStatus = new St.Label({
+            style_class: "calendar-weather-status",
+            visible: false
+        });
+        calbox.add_actor(weatherStatus);
 
         return {
             eventList,
             calendar,
             worldclocks,
+            weatherStatus,
             goHomeButton: home.button,
             dayLabel: home.day,
             dateLabel: home.date
