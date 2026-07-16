@@ -125,8 +125,9 @@ function formatRangePrefix(event, selected_date, today, opts) {
     return _prefixForOtherDaySelected(event, selected_date, today, opts);
 }
 
-// https://www.w3schools.com/charsets/ref_utf_geometric.asp
-var ARROW_SEPARATOR = "  ►  ";
+// U+2192 has the Unicode Bidi_Mirrored property, so the compositor flips the
+// direction cue with the surrounding event range in an RTL layout.
+var ARROW_SEPARATOR = "  →  ";
 
 function _suffixForTodaySelected(event, selected_date, opts) {
     const _ = opts.translate;

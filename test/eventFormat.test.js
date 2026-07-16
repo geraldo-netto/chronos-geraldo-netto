@@ -186,6 +186,11 @@ test("formatEventTimeRange asks the event only for date-only comparisons", () =>
     assert.equal(label, "%H:%M|day1000" + EventFormat.ARROW_SEPARATOR + "%H:%M|day1000");
 });
 
+test("event ranges use the Unicode bidi-mirrored arrow", () => {
+    assert.equal(EventFormat.ARROW_SEPARATOR, "  →  ");
+    assert.doesNotMatch(EventFormat.ARROW_SEPARATOR, /►/);
+});
+
 test("classify: in-progress multi-day event that started earlier is not next", () => {
     const event = makeEvent({ startUs: NOW.usec - 2 * DAY_US, endUs: NOW.usec + DAY_US });
     const state = classify(event);
