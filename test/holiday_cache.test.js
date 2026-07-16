@@ -1583,6 +1583,25 @@ test("a cache file with some bad rows keeps the good ones", () => {
         "a file that parses is not a file that can be trusted row by row");
 });
 
+test("a tampered cache file cannot load more than the expanded-row cap", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const holiday = (day) => ({
+        year: 2026,
+        month: 1,
+        day: (day % 28) + 1,
+        region: "global",
+        name: `Holiday ${day}`,
+        flags: []
+    });
+    const stored = Array.from({ length: 4001 }, (_unused, day) => holiday(day));
+
+    const loaded = repository._country({ usa: { years: {}, holidays: stored } }, "usa");
+
+    assert.equal(loaded.holidays.length, 4000);
+    assert.equal(loaded.holidays.at(-1).name, "Holiday 3999");
+});
+
 test("a tampered cache file cannot inject malformed holidays", () => {
     const { HolidayCacheRepository } = loadHolidays();
     const repository = new HolidayCacheRepository("/holidays.json");

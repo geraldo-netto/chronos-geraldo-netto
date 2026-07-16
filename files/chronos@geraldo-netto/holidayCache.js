@@ -36,6 +36,9 @@ const TextUtils = IS_NODE ?
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
+const HolidayRecord = IS_NODE ?
+    require("./holidayRecord") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
 
 // Named so the number the README quotes ("once every 50 days") has one place
 // to read it from; schema_static.test.js asserts the two agree.
@@ -75,6 +78,7 @@ var MAX_CACHED_COUNTRIES = 4;
 // us; the loser of the last round simply gives up and refetches later
 var MAX_MERGE_RETRIES = 3;
 var GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
+var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS;
 
 // The cache file is plain JSON in the user's cache dir: anything running as
 // the user can rewrite it. Network payloads are schema-checked before they
@@ -192,7 +196,9 @@ var HolidayCacheRepository = class HolidayCacheRepository {
                 struct.years = validCachedYears(stored.years);
             }
             if (Array.isArray(stored.holidays)) {
-                struct.holidays = stored.holidays.filter(validCachedHoliday);
+                struct.holidays = stored.holidays
+                    .slice(0, MAX_EXPANDED_HOLIDAY_ROWS)
+                    .filter(validCachedHoliday);
             }
         }
 
