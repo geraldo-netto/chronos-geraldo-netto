@@ -410,8 +410,7 @@ class EventList {
             {
                 style_class: "calendar-events-no-events-icon",
                 icon_name: 'x-office-calendar',
-                icon_type: St.IconType.SYMBOLIC,
-                icon_size: 48
+                icon_type: St.IconType.SYMBOLIC
             }
         );
 

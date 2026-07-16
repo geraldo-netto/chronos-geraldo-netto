@@ -416,3 +416,27 @@ test("every text-align in the sheet is a value St can parse", () => {
             "it, the theme's value wins, and nothing anywhere says so");
     }
 });
+
+test("text-bound popup sizes follow the desktop text scale", () => {
+    const css = source("5.4/stylesheet.css");
+    const selectors = [
+        ".calendar-world-label",
+        ".calendar-holiday-reason",
+        ".calendar-events-no-events-label"
+    ];
+
+    for (const selector of selectors) {
+        const escaped = selector.replace(".", "\\.");
+        const declarations = new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(css);
+        assert.ok(declarations, `${selector} has a style rule`);
+        assert.match(declarations[1], /max-width:\s*[0-9.]+em\s*;/,
+            `${selector} grows with the user's text scale`);
+        assert.doesNotMatch(declarations[1], /max-width:\s*[0-9.]+px\s*;/);
+    }
+
+    const icon = /\.calendar-events-no-events-icon\s*\{([^}]*)\}/.exec(css);
+    assert.ok(icon, "the empty-state icon has a style rule");
+    assert.match(icon[1], /icon-size:\s*[0-9.]+em\s*;/);
+    assert.doesNotMatch(source("5.4/eventView.js"), /icon_size:\s*48\b/,
+        "a fixed constructor size would override the text-relative style");
+});
