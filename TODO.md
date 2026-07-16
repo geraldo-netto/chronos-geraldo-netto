@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 19 (Critical 0, High 1, Medium 6, Low 12).
+Open items: 18 (Critical 0, High 1, Medium 6, Low 11).
 
 ## Findings
 
@@ -32,7 +32,6 @@ Open items: 19 (Critical 0, High 1, Medium 6, Low 12).
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
 | T507 | testing | Low | open | S | **[verified]** Two more unpinned values. `weather.js:178`: deleting `this._request_generation++;` from `stop()` survives — the two tests that call `stop()` assert only that timers were removed, never that in-flight replies are discarded (mitigating: `stop()`'s only caller is `destroy()`, which is separately guarded, so this is nearly an equivalent mutant). `ioUtils.js:204`: `READ_CHUNK_BYTES` 64 KiB → `1` survives — correctness-neutral (the cap is enforced on the running total, which *is* tested), but a 1-byte chunk size would make every response pathologically slow and nothing would say so. | Fix: assert both. |
-| T518 | legacy | Low | open | S | **[verified]** Compat shims for versions this applet cannot run on. `localeUtils.js:271` `typeof output === "string" ? output : decodeUtf8(output)` — `communicate_utf8_finish()` returns a string in every GJS Cinnamon 5.4+ ships, which `ioUtils.js:32-34` states explicitly where it *deletes* the equivalent `imports.byteArray` shim. `5.4/appletLifecycle.js:217` `Gio.DBusSignalFlags ? Gio.DBusSignalFlags.NONE : 0` guards against a GIO that exists in no supported release. `ioUtils.js:145,193` — `message.request_headers \|\| message.get_request_headers()` and the `get_content_length` fallback, whose own comment says the second arm is there so "plain test doubles keep working". | Production fallbacks whose only consumer is a test double. Fix: delete, and fix the doubles. |
 | T520 | security / bounds | Low | open | S | **[verified]** `holidayCache.js:159-161` — holiday rows are type-checked per row on cache load but never **counted**, while the network path bounds the same data twice (`MAX_HOLIDAYS_PER_YEAR = 1000`, `MAX_EXPANDED_HOLIDAY_ROWS = 4000`) — and the disk path is the one the comment at `:40` says must not be trusted. | Verified: a Node harness called `_country()` with 200,000 valid-shaped rows — **all 200,000 accepted**. Anything running as the user can plant them; the 4 MiB file cap bounds the outcome to a startup stall on the compositor thread, not a hang, and the attacker already has the user's UID — hence Low. Fix: slice to `MAX_EXPANDED_HOLIDAY_ROWS`, mirroring `expandData()`. |
 | T522 | CI / supply chain | Low | open | S | **[verified]** Three hardening gaps in `.github/workflows/ci.yml`: no `permissions:` block anywhere (`grep -c permissions` → `0`), so `GITHUB_TOKEN` inherits the repo default, which on many repos is `contents: write` — and the job runs `npm ci` + `npm test`, i.e. repository and dependency code; `:32` installs pyflakes with `--upgrade` and no pin or hash, while the JS side is lockfile-pinned; `:16,20,25` pin `actions/checkout@v4`, `setup-node@v4`, `setup-python@v5` to mutable major tags. | Fork PRs are safe (GitHub forces a read-only token), which is what keeps this Low. Fix: `permissions: contents: read`, pin pyflakes, pin the actions to SHAs. |
 | T523 | i18n / packaging | Low | open | S | **[verified]** `po/chronos@geraldo-netto.pot` has stale source references: regenerating with `po/makepot` changes ~45 `#:` lines (e.g. `5.4/appletPanelStatus.js:29` → `:48`). The **msgid set is identical** — no string is missing, and `makepot` itself is correct. | Verified: ran `./po/makepot` on a scratch copy and diffed, ignoring `POT-Creation-Date`. Cosmetic, but it means the catalog is not regenerated in lockstep and the Spices translation tooling will churn. Fix: regenerate, and add the check to CI (T500). |
@@ -50,7 +49,7 @@ Open items: 19 (Critical 0, High 1, Medium 6, Low 12).
 2. **T526** — make mixed empty/error holiday fallback fail safely instead of caching a false holiday-free year.
 3. **T529** — update the externally visible country catalog, building on the corrected provider/fallback tests.
 4. **T499, T500, T522** — establish the release flow, then gate its package/catalog output and harden the workflow.
-5. Everything else, severity order. The dead-code cluster (T492, T455, T512–T515, T518, T533) is one sitting.
+5. Everything else, severity order.
 
 ## Clean categories
 
@@ -73,7 +72,7 @@ Verified on the 2026-07-16 rescan; caveats point to the corresponding open row:
 | id | finding | why rejected |
 |----|---------|--------------|
 | R01 | `dtEquals` duplicated between `eventData.js` and `eventFormat.js`. | Deliberate boundary: `eventFormat.js` stays free of GJS imports so it is Node-pure. Centralizing re-couples the modules for a one-line function. (Re-raised by the 2026-07-13 architecture scan; re-rejected.) |
-| R05 | Barrel re-exports as the GJS `var` bindings importers need. | The re-exports **are** the import mechanism; tests reach the modules through them. (Does **not** cover T455/T512, which are genuinely unread.) |
+| R05 | Barrel re-exports as the GJS `var` bindings importers need. | The re-exports **are** the import mechanism; tests reach the modules through them. |
 | R06 | `eventView.js:70`: commented-out `Util.trySpawn(["gnome-calendar"])`. | Deliberate documented switch with a maintainer note directly above it. |
 | R08 | No watchdog/metrics/circuit-breakers/health surface. | For a panel applet these are reasonable omissions; the three-provider failover with last-success ordering plus a per-year freshness gate is a coherent substitute. |
 | R09 | Per-calendar colour strip conveys calendar identity by colour alone. | Not actionable here: `cinnamon-calendar-server` sends the calendar's colour and never its display name, so there is no name to announce. The strip is `Atk.Role.SEPARATOR` so a screen reader skips it. Needs an upstream change. |
@@ -90,7 +89,7 @@ Verified on the 2026-07-16 rescan; caveats point to the corresponding open row:
 | id | decision |
 |----|----------|
 | D01 | Keep the third-party endpoints rather than a bundled data set or a single vendor. A bundled table goes stale and covers fewer countries; a single provider breaks whenever it is down — the fallback chain exists because the primary is a hobbyist service. Risk accepted with mitigations (weather opt-in; one-time local-tzdata holiday default with visible third-party disclosure and explicit disable/override; size caps; bounded spans; shape checks in and out of cache; colour filtering; no URL logging). |
-| D02 | **Keep the widened export surface.** ~80 exported names have no cross-module consumer — used inside their own file and otherwise only by `test/`. The applet runs inside a compositor where a bug costs the whole session; testing only through the composition root would be slow and flaky. **This does not license the inverse:** a production field, branch or fallback that exists only to fit a mock's shape is the code bending to the test, which D02 never covered — see T492, T513, T518. |
+| D02 | **Keep the widened export surface.** ~80 exported names have no cross-module consumer — used inside their own file and otherwise only by `test/`. The applet runs inside a compositor where a bug costs the whole session; testing only through the composition root would be slow and flaky. **This does not license the inverse:** production must not bend to a test double's shape. |
 | D03 | **`author` is the display name "Geraldo Netto", not the GitHub handle.** `info.json`/`package.json` use "Geraldo Netto"; `schema_static.test.js` asserts it. The Spices convention prefers the handle, but the display name is the maintainer's explicit choice. |
 
 ## Resolved merge choices

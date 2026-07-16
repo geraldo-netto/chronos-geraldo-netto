@@ -242,7 +242,7 @@ class AppletProviderLifecycle {
                 "PrepareForSleep",
                 "/org/freedesktop/login1",
                 null,
-                Gio.DBusSignalFlags ? Gio.DBusSignalFlags.NONE : 0,
+                Gio.DBusSignalFlags.NONE,
                 (connection, sender, path, iface, signal, params) => {
                     const [sleeping] = params.deep_unpack();
                     if (!sleeping) {

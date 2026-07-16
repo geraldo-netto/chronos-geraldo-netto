@@ -157,10 +157,7 @@ function _setRequestHeaders(message, headers) {
         return;
     }
 
-    // Soup 3 exposes request_headers both as a GObject property and via
-    // the getter; accept either so plain test doubles keep working
-    const requestHeaders = message.request_headers ||
-        (message.get_request_headers ? message.get_request_headers() : null);
+    const requestHeaders = message.request_headers;
     if (!requestHeaders || !requestHeaders.append) {
         return;
     }
@@ -200,14 +197,12 @@ function createHttpSession(options = {}) {
 // constant would document an intent nothing enforced. The declared length is
 // the one thing available before the read, so refuse on that.
 function _declaredTooLarge(message) {
-    const headers = message.response_headers ||
-        (message.get_response_headers ? message.get_response_headers() : null);
+    const headers = message.response_headers;
     if (!headers) {
         return false;
     }
 
-    const declared = headers.get_content_length ? headers.get_content_length() :
-        Number(headers.get_one && headers.get_one("content-length"));
+    const declared = headers.get_content_length();
 
     return Number.isFinite(declared) && declared > MAX_RESPONSE_BYTES;
 }

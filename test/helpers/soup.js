@@ -20,23 +20,30 @@ function makeSoup3({
         Message: {
             new(method, url) {
                 const requestHeaders = [];
+                const requestHeaderBag = {
+                    append(name, value) {
+                        requestHeaders.push([name, value]);
+                    }
+                };
+                const responseHeaderBag = {
+                    get_content_length() {
+                        return null;
+                    },
+                    get_one(name) {
+                        return name.toLowerCase() === "date" ? date : null;
+                    }
+                };
                 const message = {
                     method,
                     url,
                     requestHeaders,
+                    request_headers: requestHeaderBag,
+                    response_headers: responseHeaderBag,
                     get_request_headers() {
-                        return {
-                            append(name, value) {
-                                requestHeaders.push([name, value]);
-                            }
-                        };
+                        return requestHeaderBag;
                     },
                     get_response_headers() {
-                        return {
-                            get_one(name) {
-                                return name.toLowerCase() === "date" ? date : null;
-                            }
-                        };
+                        return responseHeaderBag;
                     },
                     get_status() {
                         return status;

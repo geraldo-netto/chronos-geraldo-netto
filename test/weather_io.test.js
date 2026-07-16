@@ -12,12 +12,10 @@ test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
                     method,
                     url,
                     headers,
-                    get_request_headers() {
-                        return {
-                            append(name, value) {
-                                headers.push([name, value]);
-                            }
-                        };
+                    request_headers: {
+                        append(name, value) {
+                            headers.push([name, value]);
+                        }
                     },
                     get_status() {
                         return 200;

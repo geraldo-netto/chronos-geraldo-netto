@@ -38,7 +38,6 @@ function loadUtils(options = "") {
     const neverAnswers = typeof options === "object" && options.neverAnswers === true;
     // GJS hands back a string; the old byte-array behaviour is kept for the one
     // test that pins it
-    const utf8Output = typeof options !== "object" || options.utf8Output !== false;
     const spawn = typeof options === "object" && options.spawn ?
         options.spawn :
         function(command) {
@@ -116,7 +115,7 @@ function loadUtils(options = "") {
                         // the real communicate_utf8_finish answers with a
                         // decoded string, as its name says; returning bytes
                         // here hid a TypeError that only ever fired in Cinnamon
-                        return [ok, utf8Output ? Buffer.from(stdout).toString("utf8") : stdout];
+                        return [ok, Buffer.from(stdout).toString("utf8")];
                     }
                 }
             },
@@ -242,18 +241,14 @@ test("httpGetJson parses Soup 3 and reports HTTP failures", () => {
 // so the applet just silently used English day names and a US work week forever.
 // The test double had been returning bytes, which is the only reason no test saw
 // it: it was a bug that existed exclusively in Cinnamon.
-test("the locale output is parsed whether it arrives as text or as bytes", () => {
+test("the locale output is parsed from communicate_utf8 text", () => {
     // deliberately NOT the English defaults: a parse that silently fails falls
     // back to those, and a test that asserts them cannot tell the difference
     const payload = 'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\nfirst_workday=1\n';
     const expected = { abday: "Dom;Seg;Ter;Qua;Qui;Sex;Sáb", first_workday: 1 };
 
-    const fromString = loadLocaleUtils({ spawnOutput: payload });
-    assert.deepEqual(localeInfo(fromString, "LC_TIME"), expected);
-
-    // older GJS handed back a byte array here; both still parse
-    const fromBytes = loadLocaleUtils({ spawnOutput: payload, utf8Output: false });
-    assert.deepEqual(localeInfo(fromBytes, "LC_TIME"), expected);
+    const utils = loadLocaleUtils({ spawnOutput: payload });
+    assert.deepEqual(localeInfo(utils, "LC_TIME"), expected);
 });
 
 test("a locale query that never answers is abandoned instead of hanging", () => {
@@ -541,11 +536,9 @@ test("httpGetJson refuses a response that declares itself oversized, before read
     let read = false;
     Object.assign(global.imports.gi.Soup, makeSoup3({
         messageMethods: {
-            get_response_headers() {
-                return {
-                    get_content_length: () => utils.MAX_RESPONSE_BYTES + 1,
-                    get_one: () => null
-                };
+            response_headers: {
+                get_content_length: () => utils.MAX_RESPONSE_BYTES + 1,
+                get_one: () => null
             }
         },
         onFinish() {
@@ -579,11 +572,10 @@ function makeStreamingSoup({ chunks = [], status = 200, contentLength = null } =
                 return {
                     method,
                     url,
-                    get_request_headers() {
-                        return { append() {} };
-                    },
-                    get_response_headers() {
-                        return { get_content_length: () => contentLength, get_one: () => null };
+                    request_headers: { append() {} },
+                    response_headers: {
+                        get_content_length: () => contentLength,
+                        get_one: () => null
                     },
                     get_status() {
                         return status;
@@ -834,14 +826,7 @@ test("httpGetJson applies request headers when provided", () => {
     assert.equal(recorded.length, 1);
 
     global.imports.gi.Soup.Message.new = function() {
-        return {
-            get_request_headers() {
-                return null;
-            },
-            get_status() {
-                return 200;
-            }
-        };
+        return { get_status: () => 200 };
     };
     utils.httpGetJson(new (makeStreamingSoup({
         chunks: [Buffer.from("{}")]
@@ -1699,8 +1684,8 @@ test("httpGetJson tolerates a Soup message that exposes no request headers", () 
     const session = new (makeStreamingSoup({
         chunks: [Buffer.from('{"ok":true}')]
     }).Session)();
-    // Soup 3 exposes request_headers as a property and through a getter; a
-    // binding that offers neither must not cost the caller its response
+    // A malformed double with no request_headers must not cost the caller its
+    // response when there is simply nowhere to append an optional header.
     global.imports.gi.Soup.Message = {
         new: (method, url) => ({ method, url, get_status: () => 200 })
     };
