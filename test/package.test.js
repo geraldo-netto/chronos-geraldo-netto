@@ -47,3 +47,13 @@ test("the packaging command stages only the Cinnamon Spices applet tree", async 
         await assert.rejects(fs.access(path.join(output, developmentOnly)));
     }
 });
+
+test("the catalogue screenshot is the current Chronos popup capture", async () => {
+    const png = await fs.readFile(path.join(ROOT, "screenshot.png"));
+
+    assert.deepEqual([...png.subarray(0, 8)], [137, 80, 78, 71, 13, 10, 26, 10],
+        "the catalogue asset is a PNG");
+    assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [650, 595],
+        "the inherited 640×420 calendar@ccprog capture is gone");
+    assert.ok(png.length > 30000, "the capture contains the rendered popup, not an empty frame");
+});
