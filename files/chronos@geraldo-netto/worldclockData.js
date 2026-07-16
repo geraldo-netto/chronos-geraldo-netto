@@ -152,11 +152,6 @@ function regionalTimezoneIdentifier(value) {
     return identifier;
 }
 
-function timezoneFromLocaltimeLink(target) {
-    const source = timezoneSourceFromLocaltimeLink(target);
-    return source === null ? "" : source;
-}
-
 // null means this source revealed no timezone, while "" means it explicitly
 // revealed a countryless or invalid timezone. Keeping those states distinct is
 // important: an effective UTC setting must not fall through to a stale
@@ -193,7 +188,8 @@ function localTimezoneFromSources(timezoneFile, localtimeLink, glibIdentifier) {
         return glibSource;
     }
 
-    return timezoneSourceIdentifier(timezoneFile) || "";
+    const fallback = typeof timezoneFile === "function" ? timezoneFile() : timezoneFile;
+    return timezoneSourceIdentifier(fallback) || "";
 }
 
 // Resolve one lexical symlink target as a path below the zoneinfo directory.
@@ -357,16 +353,10 @@ function localCountryCode() {
         glibIdentifier = "";
     }
 
-    let timezoneSource = timezoneSourceFromLocaltimeLink(localtimeLink);
-    if (timezoneSource === null) {
-        timezoneSource = timezoneSourceIdentifier(glibIdentifier);
-    }
-    if (timezoneSource === null) {
-        const timezoneFile = readTextFile(TIMEZONE_FILE, MAX_TIMEZONE_FILE_BYTES);
-        timezoneSource = timezoneSourceIdentifier(timezoneFile);
-    }
-
-    const timezone = timezoneSource || "";
+    const timezone = localTimezoneFromSources(
+        () => readTextFile(TIMEZONE_FILE, MAX_TIMEZONE_FILE_BYTES),
+        localtimeLink,
+        glibIdentifier);
     if (!timezone) {
         return "";
     }
@@ -449,7 +439,6 @@ if (typeof module !== "undefined") {
         timezoneIdentity,
         timezoneCityName,
         regionalTimezoneIdentifier,
-        timezoneFromLocaltimeLink,
         localTimezoneFromSources,
         timezoneAliasTarget,
         canonicalTimezoneFromSymlinks,

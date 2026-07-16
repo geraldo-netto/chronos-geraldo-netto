@@ -1031,15 +1031,7 @@ test("regionalTimezoneIdentifier accepts named regions but not offsets", () => {
 
 test("local timezone sources preserve aliases and have deterministic precedence", () => {
     loadWorldclocks();
-    const { localTimezoneFromSources, timezoneFromLocaltimeLink } = require(dataModulePath);
-
-    assert.equal(timezoneFromLocaltimeLink("/usr/share/zoneinfo/Europe/Vatican"),
-        "Europe/Vatican");
-    assert.equal(timezoneFromLocaltimeLink("../usr/share/zoneinfo/US/Eastern"),
-        "US/Eastern");
-    assert.equal(timezoneFromLocaltimeLink("/usr/share/zoneinfo/Etc/UTC"), "");
-    assert.equal(timezoneFromLocaltimeLink("/etc/alternatives/localtime"), "");
-    assert.equal(timezoneFromLocaltimeLink(null), "");
+    const { localTimezoneFromSources } = require(dataModulePath);
 
     assert.equal(localTimezoneFromSources(
         "Europe/Vatican\n", "/usr/share/zoneinfo/Europe/Rome", "Asia/Tokyo"),
@@ -1276,7 +1268,6 @@ test("fuzz: timezone identifiers and OS source priority stay geographic", () => 
     loadWorldclocks();
     const {
         regionalTimezoneIdentifier,
-        timezoneFromLocaltimeLink,
         localTimezoneFromSources
     } = require(dataModulePath);
     const random = makeRandom(FUZZ_SEED + 10);
@@ -1330,7 +1321,6 @@ test("fuzz: timezone identifiers and OS source priority stay geographic", () => 
         const afterLocaltime = localtime.state !== null ? localtime.state : glib.state;
         const expected = afterLocaltime !== null ? afterLocaltime : (timezoneFile.state || "");
 
-        assert.equal(timezoneFromLocaltimeLink(localtime.link), localtime.state || "");
         assert.equal(localTimezoneFromSources(
             timezoneFile.value, localtime.link, glib.value), expected);
     }
