@@ -720,6 +720,29 @@ test("an empty answer is believed once every provider gives one", () => {
     assert.equal(enrico.staleCache(2026), false, "and the year is recorded, not refetched in a loop");
 });
 
+test("an empty answer followed by a hard failure is not cached as success", () => {
+    const { HolidayService, EnricoServiceAdapter, HolidayCache,
+        createHolidayServiceChain, NagerDateServiceAdapter } = loadHolidays();
+    const primary = new EnricoServiceAdapter((_url, params, callback) => {
+        callback([], params, "Enrico answered empty");
+    });
+    const fallback = new NagerDateServiceAdapter((_url, params, callback) => {
+        callback(null, params, null);
+    });
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    const service = new HolidayService(createHolidayServiceChain(primary, [fallback]), cache);
+
+    service.country = "usa";
+    service.region = "global";
+    service.retrieveForYear(2026);
+
+    assert.equal(service.last_error, "Holiday service unavailable");
+    assert.equal(service.staleCache(2026), false, "the one-hour failure backoff still applies");
+    assert.equal(service.staleCache(2026, Date.now() + 2 * 60 * 60 * 1000), true,
+        "a hard failure cannot make an earlier empty response fresh for 50 days");
+    assert.equal(service.cache.years[2026], undefined);
+});
+
 test("the fallback chain tries OpenHolidays before Nager", () => {
     const { HolidayService, EnricoServiceAdapter, HolidayCache, createHolidayServiceChain, NagerDateServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
     const primary = new EnricoServiceAdapter((_url, params, callback) => {

@@ -54,6 +54,8 @@ var HolidayFallbackChain = class HolidayFallbackChain {
     }
 
     fetchYear(country, region, year, callback) {
+        let emptyResult = null;
+        const acceptedResults = new Set();
         ProviderUtils.tryProvidersInOrder(
             this._orderedProviders(),
             (provider, onResult) => {
@@ -62,14 +64,24 @@ var HolidayFallbackChain = class HolidayFallbackChain {
                         return;
                     }
 
-                    onResult({
+                    const result = {
                         data,
                         params: this._sourceParams(provider, params),
                         retrieved
-                    });
+                    };
+                    const classification = this._classify(result);
+                    if (classification === "empty") {
+                        emptyResult = result;
+                        onResult(null);
+                        return;
+                    }
+                    if (classification === "success") {
+                        acceptedResults.add(result);
+                    }
+                    onResult(result);
                 });
             },
-            (result) => this._accept(result),
+            (result) => acceptedResults.has(result),
             (provider, result) => {
                 this._last_provider = provider.name;
                 callback(result.data, result.params, result.retrieved);
@@ -78,7 +90,8 @@ var HolidayFallbackChain = class HolidayFallbackChain {
                 if (global.log) {
                     global.log(`all holiday providers failed for ${country}/${region}/${year}`);
                 }
-                callback(failure.data, failure.params, failure.retrieved);
+                const outcome = failure || emptyResult;
+                callback(outcome.data, outcome.params, outcome.retrieved);
             }
         );
     }
@@ -101,10 +114,10 @@ var HolidayFallbackChain = class HolidayFallbackChain {
     // what a valid answer from *all* of them looked like, and the port's
     // contract was one vendor's payload shape. The validator is the caller's,
     // and the caller is the thing that owns the record shape.
-    _accept(result) {
+    _classify(result) {
         let valid = false;
         try {
-            valid = this._validResponse(result.data);
+            valid = Boolean(result) && this._validResponse(result.data);
         } catch (e) {
             if (global.logError) {
                 global.logError(e);
@@ -112,7 +125,7 @@ var HolidayFallbackChain = class HolidayFallbackChain {
         }
 
         if (!valid) {
-            return false;
+            return "failure";
         }
 
         // An empty array is a well-formed payload — [].every() is vacuously
@@ -122,7 +135,8 @@ var HolidayFallbackChain = class HolidayFallbackChain {
         // period: a holiday-free calendar, with no error, for 50 days. Let the
         // chain run instead; if every provider says empty, the exhausted path
         // hands the empty answer through and it is believed.
-        return !Array.isArray(result.data) || result.data.length > 0;
+        return Array.isArray(result.data) && result.data.length === 0 ?
+            "empty" : "success";
     }
 };
 
