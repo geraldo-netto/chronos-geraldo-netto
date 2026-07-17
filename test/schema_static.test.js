@@ -503,6 +503,7 @@ test("the manual install does not copy Python bytecode", () => {
 
 test("holiday timezone default is one-time and weather remains opt-in", () => {
     const data = schema("5.4");
+    const readme = fs.readFileSync(readmePath, "utf8");
 
     assert.equal(data["show-weather"].default, false);
     assert.equal(data.country.default, "",
@@ -510,6 +511,8 @@ test("holiday timezone default is one-time and weather remains opt-in", () => {
     assert.equal(data.country.options["None (disable holidays)"], "none");
     assert.equal(data["holiday-country-timezone-default-attempted"], undefined);
     assert.match(data.country.tooltip, /operating-system timezone/);
+    assert.match(readme, /Weather is off by\s+default\. Holidays start automatically only when/);
+    assert.match(readme, /None \(disable holidays\).*opt out/);
 });
 
 test("the clock cap is the same in schema, JS, Python, and the README", () => {

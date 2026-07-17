@@ -15,8 +15,9 @@ calendar fork.
   event view talks to over DBus.
 - Python 3 with GTK bindings (`python3-gi`) — the settings dialog runs in its
   own Python process, not inside Cinnamon.
-- An internet connection, only for the optional holiday and weather data. Both
-  are off by default.
+- An internet connection, only for holiday and weather data. Weather is off by
+  default. Holidays start automatically only when the operating-system timezone
+  maps to a supported country; choose **None (disable holidays)** to opt out.
 - Optional: the Python 3 `pytz` module (`python3-pytz` on Mint/Debian/Ubuntu),
   used by the settings dialog to auto-complete and validate the timezone you
   type. Without it, Python's built-in `zoneinfo` database serves the same

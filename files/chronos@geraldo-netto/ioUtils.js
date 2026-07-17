@@ -380,9 +380,10 @@ function _downgraded(message, url) {
     return Boolean(scheme) && scheme !== "https";
 }
 
-// One HTTP session per owner, built on the first request: weather and holidays
-// are both off by default, and a session at construction costs applet startup for
-// every user who never turns them on. The session is per *instance*, not per
+// One HTTP session per owner, built on the first request: weather is off by
+// default and holidays stay off when timezone inference finds no supported
+// country. A session at construction would cost startup even when neither is
+// used. The session is per *instance*, not per
 // module — a second applet on the panel must not have its requests aborted when
 // the first one is removed.
 //
