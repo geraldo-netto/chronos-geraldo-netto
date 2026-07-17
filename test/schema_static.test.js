@@ -451,27 +451,35 @@ test("what ships carries its licence", () => {
     }
 });
 
-// Cinnamon matches the running series against this list literally: a manifest
-// that names only 5.4 is "incompatible" on Mint's current 6.x, even though the
-// multiversion 5.4/ tree loads there fine — and the README promises 5.4 or newer.
-// The list is the promise; the loader picks the highest 5.4/-style directory at
-// or below the running series, so one directory serves them all.
-test("the manifest supports every Cinnamon series the README promises", () => {
+// Cinnamon treats each entry as a minimum compatible version, not as a literal
+// allow-list. The multiversion loader separately picks the newest versioned
+// source tree at or below the running series, so the 5.4 floor serves later
+// Cinnamon releases until the applet needs to declare a newer compatibility
+// boundary.
+test("the manifest declares the Cinnamon compatibility floor", () => {
     const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
     const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
     const supported = metadata["cinnamon-version"];
+    const supports = (current) => {
+        const [currentMajor, currentMinor] = current.split(".").map(Number);
+        return supported.some((minimum) => {
+            const [minimumMajor, minimumMinor] = minimum.split(".").map(Number);
+            return currentMajor > minimumMajor ||
+                (currentMajor === minimumMajor && currentMinor >= minimumMinor);
+        });
+    };
 
     assert.match(readme, /Cinnamon \*\*5\.4 or newer\*\*/);
-    assert.equal(supported[0], "5.4", "5.4 is the floor the README states");
-    assert.ok(supported.some((series) => series.startsWith("6.")),
-        "a 6.x series is missing, so the Applets manager calls this incompatible on Mint 22");
+    assert.deepEqual(supported, ["5.4"], "declare the compatibility floor once");
+    assert.ok(supported.every((series) => /^\d+\.\d+$/.test(series)));
+    assert.equal(supports("5.2"), false);
+    assert.equal(supports("5.4"), true);
+    assert.equal(supports("6.6"), true,
+        "later Cinnamon series satisfy the 5.4 minimum");
+    assert.equal(supports("7.0"), true,
+        "a minimum version is not a finite allow-list");
 
-    // ascending, with no gap in the series Cinnamon actually ships
-    assert.deepEqual(supported, [...supported].sort(
-        (a, b) => Number(a.split(".")[0]) - Number(b.split(".")[0]) ||
-            Number(a.split(".")[1]) - Number(b.split(".")[1])));
-
-    // and every version directory that ships is one the manifest claims
+    // Every version directory that ships still needs its own manifest entry.
     const versionDirs = fs.readdirSync(appletDir, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && /^\d+\.\d+$/.test(entry.name))
         .map((entry) => entry.name);
