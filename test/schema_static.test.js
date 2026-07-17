@@ -312,9 +312,12 @@ test("controls that cannot do anything are gated", () => {
 // standing when they make it happen.
 test("the weather location says what an empty one does", () => {
     const data = schema("5.4");
+    const readme = fs.readFileSync(readmePath, "utf8");
 
     assert.equal(data["weather-location"].default, "");
     assert.match(data["weather-location"].tooltip, /empty/i);
+    assert.match(readme, /Clearing the field saves an empty location/);
+    assert.match(readme, /Reopening the settings dialog or reloading the applet restores/);
     // and it shows what a good answer looks like
     assert.match(data["weather-location"].tooltip, /Lisbon/);
 });

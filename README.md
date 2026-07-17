@@ -152,7 +152,9 @@ you have typed anything. This is read off the machine: no IP address is sent to 
 geolocation service to work out where you are. A timezone names its region's
 reference city and not necessarily your town, so the city is written *into the
 field* rather than used invisibly: if you are in Genoa it will say Rome, and you
-can correct it. Clearing the field refills it.
+can correct it. Clearing the field saves an empty location and the panel shows
+its setup warning. Reopening the settings dialog or reloading the applet restores
+the timezone-derived city when one is available; typing another city replaces it.
 
 The world clocks never appear on the panel. The panel is one line, which the date
 and the weather readout already share; the clocks are a table, and they are shown
