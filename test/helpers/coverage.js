@@ -17,6 +17,14 @@ const LINES = 98;
 const BRANCHES = 90;
 const FUNCTIONS = 100;
 
+// These orchestration files own teardown and stale-callback guards. Their
+// historical 98 % slack was exactly those guards, so keep their line paths
+// exhaustive while the broader UI files retain the practical project floor.
+const LINE_OVERRIDES = new Map([
+    ["files/chronos@geraldo-netto/eventsManager.js", 100],
+    ["files/chronos@geraldo-netto/holidays.js", 100]
+]);
+
 const APPLET_DIR = path.join(__dirname, "..", "..");
 
 // The two directories the include globs above cover. A shipped file that no
@@ -72,8 +80,9 @@ for (const file of shippedFiles()) {
 
 for (const file of summary.files) {
     const name = path.relative(APPLET_DIR, file.path);
+    const lineThreshold = LINE_OVERRIDES.get(name) || LINES;
     const checks = [
-        ["lines", file.coveredLinePercent, LINES],
+        ["lines", file.coveredLinePercent, lineThreshold],
         ["branches", file.coveredBranchPercent, BRANCHES],
         ["functions", file.coveredFunctionPercent, FUNCTIONS]
     ];

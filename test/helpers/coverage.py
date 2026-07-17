@@ -32,6 +32,10 @@ SOURCES = sorted((APPLET_DIR / "files" / "chronos@geraldo-netto").rglob("*.py"))
 LINE_THRESHOLD = 98.0
 BRANCH_THRESHOLD = 90.0
 FUNCTION_THRESHOLD = 100.0
+# This module's remaining line slack used to consist solely of import fallbacks
+# and no-style-context guards. Those paths are now behavioral tests, and a
+# per-file override prevents the global 98 % allowance from hiding them again.
+LINE_OVERRIDES = {Path("settings_widgets_common.py"): 100.0}
 
 
 def code_key(code: types.CodeType) -> tuple[str, int]:
@@ -223,6 +227,7 @@ def main() -> int:
 
         missed = sorted(can_run - did_run)
         shown = path.relative_to(APPLET_DIR / "files" / "chronos@geraldo-netto")
+        line_threshold = LINE_OVERRIDES.get(shown, LINE_THRESHOLD)
         print(f"{str(shown):32} lines {line_percent:6.2f} %  "
               f"branches {branch_percent:6.2f} %  functions {function_percent:6.2f} %")
         if missed:
@@ -236,7 +241,7 @@ def main() -> int:
                   + (" …" if len(shown_branches) > 12 else ""))
 
         metrics = (
-            ("lines", line_percent, LINE_THRESHOLD),
+            ("lines", line_percent, line_threshold),
             ("branches", branch_percent, BRANCH_THRESHOLD),
             ("functions", function_percent, FUNCTION_THRESHOLD),
         )

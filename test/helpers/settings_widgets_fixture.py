@@ -629,7 +629,7 @@ def install_stubs():
 FIXED_LOCAL_TIMEZONE = "Antarctica/Troll"
 
 
-def load_module(path, name, missing_pytz=False):
+def load_module(path, name, missing_pytz=False, missing_zoneinfo=False):
     install_stubs()
     sys.path.insert(0, str(APPLET_DIR))
     original_import = builtins.__import__
@@ -643,6 +643,8 @@ def load_module(path, name, missing_pytz=False):
     def guarded_import(import_name, *args, **kwargs):
         if missing_pytz and import_name == "pytz":
             raise ImportError("pytz unavailable")
+        if missing_zoneinfo and import_name == "zoneinfo":
+            raise ImportError("zoneinfo unavailable")
         return original_import(import_name, *args, **kwargs)
 
     builtins.__import__ = guarded_import

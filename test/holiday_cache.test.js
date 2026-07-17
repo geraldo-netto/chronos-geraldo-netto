@@ -1783,6 +1783,39 @@ test("setPlace repaints when the fetch for the new place lands", () => {
     assert.equal(repaints, 1);
 });
 
+test("a stale cache-load callback cannot act on the next place", () => {
+    const { HolidayService } = loadHolidays();
+    const loads = [];
+    let staleChecks = 0;
+    const cache = {
+        country: null,
+        region: "global",
+        setPlace(country, region, callback) {
+            this.country = country;
+            this.region = region;
+            loads.push(callback);
+        },
+        stale() {
+            staleChecks++;
+            return false;
+        }
+    };
+    const enrico = new HolidayService({}, cache);
+    let repaints = 0;
+
+    enrico.setPlace("fra", "global", () => repaints++);
+    enrico.setPlace("deu", "global", () => repaints++);
+
+    loads[0]();
+    assert.equal(staleChecks, 0,
+        "France's late disk read cannot inspect Germany's cache state");
+    assert.equal(repaints, 0);
+
+    loads[1]();
+    assert.equal(staleChecks, 1);
+    assert.equal(repaints, 1, "the current place still completes normally");
+});
+
 test("a second month of the same grid joins the in-flight year fetch", () => {
     const { HolidayService, HolidayCache } = loadHolidays();
     let pending = null;

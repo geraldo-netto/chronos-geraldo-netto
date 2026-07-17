@@ -1,3 +1,6 @@
+import gettext
+from unittest import mock
+
 from helpers.settings_widgets_fixture import (
     COMMON_PATH, FUZZ_SEED, RESERVED_TIMEZONES, BaseWidget, BindObject,
     DialogSettings, GLibError, GLibStub, GtkDialog, GtkEntryCompletion, GtkLabel,
@@ -145,6 +148,21 @@ class GettextIsolationTest(unittest.TestCase):
         module = load_module(COMMON_PATH, "settings_widgets_common_gettext_test")
         self.assertTrue(callable(module._))
         self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
+
+    def test_the_first_installed_gnu_catalog_is_used(self):
+        class Translation(gettext.GNUTranslations):
+            def __init__(self):
+                pass
+
+            def gettext(self, message):
+                return "translated: " + message
+
+        with mock.patch.object(gettext, "translation", return_value=Translation()):
+            module = load_module(
+                COMMON_PATH, "settings_widgets_common_gnu_translation_test")
+
+        self.assertEqual(module._("Invalid timezone"),
+                         "translated: Invalid timezone")
 
 
 class FakeWindow:

@@ -765,6 +765,40 @@ test("a failed month fetch is retried with backoff", () => {
     assert.equal(manager._fetch_retry_id, 0);
 });
 
+test("destroy cancels one queued fetch retry and duplicate queues are ignored", () => {
+    const manager = readyManager();
+
+    manager._queue_fetch_retry();
+    const retryId = manager._fetch_retry_id;
+    assert.ok(timers.pending.has(retryId));
+
+    manager._queue_fetch_retry();
+    assert.equal(manager._fetch_retry_id, retryId,
+        "one failure chain owns one retry timer");
+
+    manager.destroy();
+    assert.equal(manager._fetch_retry_id, 0);
+    assert.equal(timers.pending.has(retryId), false,
+        "destroy removes the queued callback from the main loop");
+});
+
+test("a dispatched fetch retry becomes a no-op after teardown", () => {
+    const manager = readyManager();
+    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    const callsBefore = proxy.instance.set_time_range_calls.length;
+
+    manager._queue_fetch_retry();
+    const retryId = manager._fetch_retry_id;
+    // Model the narrow race where GLib has dispatched the callback just before
+    // destroy can remove its source.
+    manager._destroyed = true;
+
+    assert.equal(fireTimer(retryId), false);
+    assert.equal(manager._fetch_retry_id, 0);
+    assert.equal(proxy.instance.set_time_range_calls.length, callsBefore,
+        "a late callback cannot touch the calendar server");
+});
+
 // the retry was the one caller that reached fetch_month_events without asking
 // is_active() first — so if EDS died while it sat queued, it dereferenced a
 // null proxy inside a GLib callback and the retry chain died there, silently

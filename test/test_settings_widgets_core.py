@@ -38,6 +38,16 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertIs(type(first), type(second))
         self.assertIs(type(first), self.module.ListEditEntry)
 
+    def test_error_state_tolerates_a_widget_without_style_context(self):
+        self.assertIsNone(self.module.set_error_state(object(), True))
+
+    def test_widget_module_tolerates_missing_stdlib_zoneinfo(self):
+        module = load_module(
+            COMMON_PATH, "settings_widgets_common_no_zoneinfo_test",
+            missing_zoneinfo=True)
+
+        self.assertIsNone(module.available_timezones)
+
     def test_the_suggestion_store_is_built_once_not_per_dialog(self):
         # ~440 rows with pytz, rebuilt on the GTK main thread every time the
         # dialog opened; the list does not change while the process runs
