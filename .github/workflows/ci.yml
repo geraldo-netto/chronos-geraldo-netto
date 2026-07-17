@@ -74,6 +74,16 @@ jobs:
       - run: npm run i18n:check
       - run: npm run package:spices
 
+      # Preserve the exact tree that passed the package and catalog gates. The
+      # tag job and the maintainer both consume this artifact; neither rebuilds
+      # release bytes from a potentially dirty local checkout.
+      - name: Upload validated Spices package
+        uses: actions/upload-artifact@v4
+        with:
+          name: chronos-spices-${{ github.sha }}-${{ github.run_attempt }}
+          path: dist/chronos@geraldo-netto/
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: packaging
@@ -89,3 +99,12 @@ jobs:
 
       - run: npm ci
       - run: npm run release:check -- "$GITHUB_REF_NAME"
+
+      - name: Download validated Spices package
+        uses: actions/download-artifact@v4
+        with:
+          name: chronos-spices-${{ github.sha }}-${{ github.run_attempt }}
+          path: dist/chronos@geraldo-netto/
+
+      - name: Verify downloaded package layout
+        run: test -f dist/chronos@geraldo-netto/files/chronos@geraldo-netto/metadata.json

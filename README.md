@@ -147,9 +147,11 @@ git push origin v0.0.2
 ```
 
 Tag CI reruns the Node 20/22 gates and packaging, then rejects any tag that does
-not match all three manifests and the dated changelog entry. Publish or submit
-the staged `dist/chronos@geraldo-netto/` tree only after that release job is
-green.
+not match all three manifests and the dated changelog entry. The packaging job
+uploads the exact gated tree as `chronos-spices-<commit SHA>-<run attempt>`, and
+the release job downloads that same immutable artifact. After the release job
+is green, download that artifact from the workflow run and publish or submit its
+contents; do not rebuild the release from a local checkout.
 
 ### Configuration
 

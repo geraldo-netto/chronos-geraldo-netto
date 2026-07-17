@@ -333,6 +333,13 @@ test("CI runs the gates the README promises", () => {
     const workflow = fs.readFileSync(
         path.join(__dirname, "..", ".github", "workflows", "ci.yml"), "utf8");
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+    const readme = fs.readFileSync(readmePath, "utf8");
+    const packagingStart = workflow.indexOf("  packaging:");
+    const releaseStart = workflow.indexOf("  release:");
+    const packagingJob = workflow.slice(packagingStart, releaseStart);
+    const releaseJob = workflow.slice(releaseStart);
+    const artifactName =
+        /name: chronos-spices-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}/;
 
     assert.match(workflow, /on:[\s\S]*push:[\s\S]*pull_request:/, "on push and on pull request");
     assert.match(workflow, /run: npm ci/);
@@ -346,9 +353,18 @@ test("CI runs the gates the README promises", () => {
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,
         "the exact tracked-file package is built in CI");
+    assert.match(packagingJob, /uses: actions\/upload-artifact@v4/);
+    assert.match(packagingJob, artifactName, "the gated package is retained under its commit SHA");
+    assert.match(packagingJob, /path: dist\/chronos@geraldo-netto\//);
     assert.match(workflow, /tags: \['v\*'\]/, "release tags trigger CI");
     assert.match(workflow, /release:[\s\S]*needs: packaging/,
         "a release tag is accepted only after gates and packaging");
+    assert.match(releaseJob, /uses: actions\/download-artifact@v4/);
+    assert.match(releaseJob, artifactName,
+        "the release job consumes the package built by its dependency");
+    assert.match(releaseJob, /path: dist\/chronos@geraldo-netto\//);
+    assert.match(releaseJob, /test -f dist\/chronos@geraldo-netto\/files\//,
+        "the downloaded artifact must have the expected package root");
     assert.match(workflow, /release:check -- "\$GITHUB_REF_NAME"/,
         "the tag must match every version owner and the changelog");
     // pyflakes is what lint:py runs, and lint:py now fails when it is missing:
@@ -361,6 +377,8 @@ test("CI runs the gates the README promises", () => {
     assert.match(pkg.scripts["lint:py"], /exit 1/);
     assert.equal(pkg.scripts["i18n:check"], "node scripts/check-i18n.mjs");
     assert.equal(pkg.scripts["release:check"], "node scripts/release.mjs check");
+    assert.match(readme, /downloads that same immutable artifact/);
+    assert.match(readme, /do not rebuild the release from a local checkout/);
 
     // sixteen timezone tests skipped themselves in CI because pytz was never
     // installed there, and neither the suite count nor a coverage number moved
