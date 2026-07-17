@@ -939,7 +939,8 @@ test("a corrupt cache file is ignored instead of breaking holidays", () => {
     const payloads = [
         "{ not json at all",
         "null",
-        JSON.stringify({ usa: { years: null, holidays: "nope" } })
+        JSON.stringify({ usa: { years: null, holidays: "nope" } }),
+        JSON.stringify({ usa: { years: { 2026: { global: STAMP } }, holidays: "nope" } })
     ];
 
     for (const payload of payloads) {
@@ -1578,9 +1579,12 @@ test("a cache file with some bad rows keeps the good ones", () => {
         }
     }));
 
-    assert.deepEqual(loadCountry(repository, "usa").holidays.map((single) => single.name),
+    const loaded = loadCountry(repository, "usa");
+
+    assert.deepEqual(loaded.holidays.map((single) => single.name),
         ["Independence Day"],
         "a file that parses is not a file that can be trusted row by row");
+    assert.deepEqual(loaded.years, {}, "discarded rows make the snapshot stale");
 });
 
 test("a tampered cache file cannot load more than the expanded-row cap", () => {
@@ -1600,6 +1604,35 @@ test("a tampered cache file cannot load more than the expanded-row cap", () => {
 
     assert.equal(loaded.holidays.length, 4000);
     assert.equal(loaded.holidays.at(-1).name, "Holiday 3999");
+});
+
+test("truncating cached rows also invalidates their freshness stamps", () => {
+    const { HolidayCacheRepository, HolidayCache } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const holiday = (year, number) => ({
+        year,
+        month: 1,
+        day: (number % 28) + 1,
+        region: "global",
+        name: `Holiday ${year}-${number}`,
+        flags: []
+    });
+    const stored = Array.from({ length: 4000 }, (_unused, number) => holiday(2025, number));
+    stored.push(holiday(2026, 4000));
+    const loaded = repository._country({
+        usa: {
+            years: { 2025: { global: STAMP }, 2026: { global: STAMP } },
+            holidays: stored
+        }
+    }, "usa");
+    const cache = new HolidayCache((_country, done) => done(loaded), () => {});
+
+    cache.setPlace("usa", "global");
+
+    assert.equal(loaded.holidays.some((single) => single.year === 2026), false,
+        "the cap demonstrates that the later year was omitted");
+    assert.deepEqual(loaded.years, {}, "an incomplete snapshot carries no fresh years");
+    assert.equal(cache.stale(2026, "global"), true, "the omitted year will be refetched");
 });
 
 test("a tampered cache file cannot inject malformed holidays", () => {

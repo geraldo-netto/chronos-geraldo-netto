@@ -196,9 +196,17 @@ var HolidayCacheRepository = class HolidayCacheRepository {
                 struct.years = validCachedYears(stored.years);
             }
             if (Array.isArray(stored.holidays)) {
-                struct.holidays = stored.holidays
-                    .slice(0, MAX_EXPANDED_HOLIDAY_ROWS)
-                    .filter(validCachedHoliday);
+                const bounded = stored.holidays.slice(0, MAX_EXPANDED_HOLIDAY_ROWS);
+                struct.holidays = bounded.filter(validCachedHoliday);
+
+                // Freshness describes the complete row snapshot. If validation
+                // or the safety cap drops anything, keeping the stamps would
+                // suppress the fetch that can repair the incomplete cache.
+                if (struct.holidays.length !== stored.holidays.length) {
+                    struct.years = {};
+                }
+            } else {
+                struct.years = {};
             }
         }
 
