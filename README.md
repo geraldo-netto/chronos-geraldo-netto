@@ -119,6 +119,38 @@ regenerates the translation template in a temporary directory to prove it is
 current. CI runs both checks and builds the Spices tree after the lint and test
 gates pass on Node 20 and Node 22.
 
+### Releasing
+
+Releases use strict `major.minor.patch` versions. Record user-visible changes as
+bullets under **Unreleased** in `CHANGELOG.md`, then run:
+
+```sh
+npm run release:bump -- 0.0.2
+npm run lint
+npm test
+npm run i18n:check
+npm run package:spices
+```
+
+The bump command refuses an empty Unreleased section or a version that does not
+increase. It moves those notes into a dated release section and updates
+`metadata.json`, `package.json`, both version owners in `package-lock.json`, and
+the changelog comparison links. Review the changes and commit them with a
+`chore(release): 0.0.2` commit, replacing the example version as appropriate.
+
+After that commit is merged to `main` and its CI is green, create and push an
+annotated matching tag:
+
+```sh
+git tag -a v0.0.2 -m "Cinnamon Chronos 0.0.2"
+git push origin v0.0.2
+```
+
+Tag CI reruns the Node 20/22 gates and packaging, then rejects any tag that does
+not match all three manifests and the dated changelog entry. Publish or submit
+the staged `dist/chronos@geraldo-netto/` tree only after that release job is
+green.
+
 ### Configuration
 
 Right-click the applet → **Configure...**. Everything the applet ships:

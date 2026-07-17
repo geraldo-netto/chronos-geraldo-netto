@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 4 (Critical 0, High 1, Medium 1, Low 2).
+Open items: 3 (Critical 0, High 1, Medium 0, Low 2).
 
 ## Findings
 
@@ -20,7 +20,6 @@ Open items: 4 (Critical 0, High 1, Medium 1, Low 2).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T499 | release | Medium | open | M | **[verified]** No release story. Zero git tags, no changelog, version pinned at `0.0.1` in both `metadata.json:6` and `package.json:3`, and `ci.yml` has only a `gates` job — no tag, release or packaging job. The Spices site offers an update to installed users **only** when `metadata.json`'s version rises, and nothing enforces or records that bump (`schema_static.test.js:21-22` pins metadata/package *agreement*, not that either increments). | Fix: a version-bump + changelog + tag flow, gated in CI. |
 
 ### Low
 
@@ -31,24 +30,22 @@ Open items: 4 (Critical 0, High 1, Medium 1, Low 2).
 
 ## Suggested order
 
-1. **T439 + T528** — remove the committed symlink, then make packaging consume only the intended tracked inputs and reject future source symlinks/junk.
-2. **T526** — make mixed empty/error holiday fallback fail safely instead of caching a false holiday-free year.
-3. **T529** — update the externally visible country catalog, building on the corrected provider/fallback tests.
-4. **T499, T500, T522** — establish the release flow, then gate its package/catalog output and harden the workflow.
-5. Everything else, severity order.
+1. **T439** — remove the committed delivery-fragile icon symlink.
+2. **T522** — reduce and pin the CI supply-chain authority.
+3. **T343** — remove the orphaned root image.
 
 ## Clean categories
 
 Verified on the 2026-07-16 rescan; caveats point to the corresponding open row:
 
 - **Secrets, TLS, injection.** No credential in the tree; all external services are keyless. Every runtime endpoint is `https://`, and `ioUtils.js:347` cancels a request *before* a redirect to plain `http` goes out, because the query string carries the user's location. No `set_markup`/`use_markup` anywhere; Cinnamon's own `Tooltip.set_text` calls `set_use_markup(false)`. Both inline-`style` sinks pass through `styleUtils.safeCssColor` — **fuzzed with 11 payloads** (`red; background-image: url(…)`, `)}*{background:red}`, `expression(alert(1))`, newline smuggling): every one returned `"transparent"`. Every subprocess is argv-form; `launchUuid` writes `"--uuid=" + uuid` as one argument so a feed-supplied UID beginning with `-` cannot be parsed as an option. No `eval`/`Function`/dynamic import; no SQL.
-- **Untrusted-input bounds.** Body size capped twice (declared `Content-Length` refused before the read; the stream aborted at 4 MiB, which closes the chunked-transfer hole). Non-object JSON coerced to `null`. Every provider normalizer checks `Number.isFinite`/`Array.isArray` before use. Prototype pollution **tested**: a cache file containing `{"__proto__":{…}}` leaves `Object.prototype` untouched; the event list already uses `Object.create(null)` for feed-supplied UIDs. (The one gap is the missing row *count* on the disk path — T520.)
+- **Untrusted-input bounds.** Body size capped twice (declared `Content-Length` refused before the read; the stream aborted at 4 MiB, which closes the chunked-transfer hole). Non-object JSON coerced to `null`. Every provider normalizer checks `Number.isFinite`/`Array.isArray` before use. Prototype pollution **tested**: a cache file containing `{"__proto__":{…}}` leaves `Object.prototype` untouched; the event list already uses `Object.create(null)` for feed-supplied UIDs. The disk loader also caps accepted holiday rows before expanding or indexing them.
 - **Cache file safety.** Fixed filename under `GLib.get_user_cache_dir()`; no user or remote input in the path; dir `0700`; `REPLACE_DESTINATION` unlinks-and-recreates rather than writing *through* a planted symlink; etag-guarded merge with a bounded retry loop; every row re-validated on load, including the future-stamp check.
-- **Egress containment (apart from disclosure T531).** Weather is off by default; holidays may auto-enable from the local timezone and can be disabled with `None`. The world-clock **display name never leaves the machine**: only the IANA-derived city is geocoded, so a clock labelled "Mom's place" stays local. Calendar event summaries and hostnames never leave. Every log line is stripped of its query string (`_urlForLog`). README's egress list is an **exact** match for the 8 hosts in the source.
+- **Egress containment and disclosure.** Weather is off by default; holidays may auto-enable from the local timezone and can be disabled with `None`. The world-clock **display name never leaves the machine**: only the IANA-derived city is geocoded, so a clock labelled "Mom's place" stays local. Calendar event summaries and hostnames never leave. Every log line is stripped of its query string (`_urlForLog`). README's egress list is an **exact** match for the 8 hosts in the source.
 - **Timers, signals and teardown *of resources*.** Drove both weather providers through `destroy()` with requests in flight and retries armed, under a fake GLib loop tracking every id: zero leftover sources, zero `source_remove` on an unknown id, zero late callbacks. Generation counters abandon superseded work. Cinnamon's `XletSettingsBase.finalize()` covers the settings signals. (What teardown does **not** do is release the *data* — T463.)
 - **Backoff and retry.** 24 h of simulated total failure: 54 attempts, no runaway; `backoffDelay` caps at the refresh period and adds jitter on top of the cap; `MAX_RETRY_ATTEMPTS = 8`; every HTTP path sets `timeout` + `idle_timeout` = 30 s. The holiday state machine never wedges: 20 rapid `_update()`s after a total failure issue 0 extra fetches.
 - **Main-loop hygiene.** Startup tzdata inference is deferred out of applet construction. No sub-minute periodic timer: `notify::clock` fires only when the rendered string changes (0 emissions in 10 s with `%H:%M`). The idle tick is **1.3 µs, zero allocations**. The 42 grid cells are built once and mutated; dots are diffed by key; every label write has an equality guard. Heap delta after 200k `_update()` calls: **98 KiB** (flat). No `Intl.DateTimeFormat` in any loop.
-- **Internal settings-schema → runtime parity (external catalog drift is T529).** All 17 keys are bound and acted on; all 58 locally declared countries agree across schema, `SUPPORTED_COUNTRIES` and `COUNTRY_TO_ISO2`; `has_region`'s 10 entries match `REGION_TO_SUBDIVISION`; every region option has a subdivision mapping and there are no orphan table entries; `MAX_CLOCKS = 8` agrees across `worldclockData.js`, `cityWeather.js` and `settings_widgets_common.py`; every `dependency` in the schema is honoured by Cinnamon for custom widgets too.
+- **Settings-schema → runtime parity.** All 17 keys are bound and acted on; all 60 locally declared countries agree across schema, `SUPPORTED_COUNTRIES` and `COUNTRY_TO_ISO2`; `has_region`'s 10 entries match `REGION_TO_SUBDIVISION`; every region option has a subdivision mapping and there are no orphan table entries; `MAX_CLOCKS = 8` agrees across `worldclockData.js`, `cityWeather.js` and `settings_widgets_common.py`; every `dependency` in the schema is honoured by Cinnamon for custom widgets too.
 - **Keyboard navigation of the day grid.** Roving focus (one tab stop), arrows/PageUp/PageDown/Home, RTL mirroring of Left/Right, focus moved into the grid on menu open, focus rings for every focusable actor. Genuinely good.
 - **The gates themselves.** The JS coverage gate holds every file to 98/90/100 *and* globs the shipped tree from disk to fail any `.js` no test loads — a hole was looked for and not found. The eslint gate lints real text through the real config to prove `no-unreachable`/`no-dupe-keys`/`no-cond-assign` fire. `lint:py` genuinely exits 1 when pyflakes is missing. The `.pot`'s **msgid set is complete** (zero missing across all JS, the schema and both Python files). No `Lang.bind`, `imports.byteArray`, `toLocaleFormat`, `Soup.SessionAsync` or `queue_message` anywhere.
 - **Not applicable**: database / migrations, multi-tenancy, Electron, Rust, ML / retrieval / RAG, vectorization, CLI surface, SQL injection, CORS/CSRF, prompt injection.
@@ -68,7 +65,7 @@ Verified on the 2026-07-16 rescan; caveats point to the corresponding open row:
 | R13 | `metadata.json` is missing `icon` / `author`. | Cinnamon's `requiredProperties` for an applet are `uuid`, `name`, `description`; `author` belongs in `info.json` per the Spices spec, and is there. `max-instances: -1` is valid. |
 | R14 | The `5.4/` shims are indirection; the root modules "depend on files that only exist in the parent". | Intended and correct on every declared version: `appletManager.js:61` roots `imports.ui.appletManager.applets[uuid]` at the *applets folder*, so `[uuid]` is the parent dir. The seven-line shims work, and `gjs_import.test.js` pins them. (The forward-compat risk is T464, which is about `require`, not the shims.) |
 | R15 | `settings_widgets_common.py` at 991 lines is a god module. | Many concerns, but they are all "the settings dialog"; the gi-free half is already extracted into `timezone_data.py`, and no change was identified that becomes dangerous because of the co-location. |
-| R16 | `metadata.json` omits Cinnamon 6.6, so the applet is incompatible with the installed desktop. | Rejected after checking Cinnamon 6.6.7's loader: `cinnamon-version` entries are minimum compatible versions, and the declared 5.4 entry admits 6.6. The misleading test/documentation around this is T534. |
+| R16 | `metadata.json` omits Cinnamon 6.6, so the applet is incompatible with the installed desktop. | Rejected after checking Cinnamon 6.6.7's loader: `cinnamon-version` entries are minimum compatible versions, and the declared 5.4 entry admits 6.6. The compatibility test now models that loader rule directly. |
 
 ## Recorded decisions
 

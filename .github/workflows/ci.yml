@@ -6,6 +6,7 @@ name: CI
 on:
   push:
     branches: [develop, main]
+    tags: ['v*']
   pull_request:
 
 jobs:
@@ -69,5 +70,22 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install --no-install-recommends cinnamon gettext
 
       - run: npm ci
+      - run: npm run release:check
       - run: npm run i18n:check
       - run: npm run package:spices
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: packaging
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run release:check -- "$GITHUB_REF_NAME"

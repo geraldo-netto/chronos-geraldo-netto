@@ -18,10 +18,13 @@ function schema(version) {
 test("the manifest and the tooling agree on the version", () => {
     const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package.json"), "utf8"));
+    const lock = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "package-lock.json"), "utf8"));
 
     assert.match(metadata.version, /^\d+\.\d+\.\d+$/);
     assert.equal(pkg.version, metadata.version,
         "the tooling and the applet disagree about which version this is");
+    assert.equal(lock.version, metadata.version);
+    assert.equal(lock.packages[""].version, metadata.version);
 });
 
 test("project metadata uses the Cinnamon Chronos repository identity", () => {
@@ -343,6 +346,11 @@ test("CI runs the gates the README promises", () => {
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,
         "the exact tracked-file package is built in CI");
+    assert.match(workflow, /tags: \['v\*'\]/, "release tags trigger CI");
+    assert.match(workflow, /release:[\s\S]*needs: packaging/,
+        "a release tag is accepted only after gates and packaging");
+    assert.match(workflow, /release:check -- "\$GITHUB_REF_NAME"/,
+        "the tag must match every version owner and the changelog");
     // pyflakes is what lint:py runs, and lint:py now fails when it is missing:
     // a workflow that does not install it cannot pass
     assert.match(workflow, /pip install .*pyflakes/);
@@ -352,6 +360,7 @@ test("CI runs the gates the README promises", () => {
     assert.doesNotMatch(pkg.scripts["lint:py"], /skipping/);
     assert.match(pkg.scripts["lint:py"], /exit 1/);
     assert.equal(pkg.scripts["i18n:check"], "node scripts/check-i18n.mjs");
+    assert.equal(pkg.scripts["release:check"], "node scripts/release.mjs check");
 
     // sixteen timezone tests skipped themselves in CI because pytz was never
     // installed there, and neither the suite count nor a coverage number moved
