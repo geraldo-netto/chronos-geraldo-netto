@@ -2,7 +2,6 @@
 # This file is put in the public domain.
 # ccprog, 2020
 #
-#, fuzzy
 msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
@@ -289,14 +288,12 @@ msgstr ""
 "phố; nếu không, chỉ chấp nhận định danh đầy đủ như America/Sao_Paulo."
 
 #: settings_widgets_common.py:83
-#, fuzzy
 msgid "City or town (e.g. Lisbon)"
-msgstr "Thành phố hoặc múi giờ (ví dụ: Buenos Aires)"
+msgstr "Thành phố hoặc thị trấn (ví dụ: Lisbon)"
 
 #: settings_widgets_common.py:84
-#, fuzzy
 msgid "Type a country name"
-msgstr "Múi giờ hoặc tên thành phố"
+msgstr "Nhập tên quốc gia"
 
 #: settings_widgets_common.py:575
 msgid "Add new entry"
@@ -308,7 +305,7 @@ msgstr "Chỉnh sửa mục"
 
 #. metadata.json->name
 msgid "Chronos Calendar"
-msgstr ""
+msgstr "Chronos Calendar"
 
 #. metadata.json->description
 msgid "Calendar with holidays, events, weather, and world clocks"

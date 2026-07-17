@@ -599,7 +599,7 @@ test("timezone entry dialog title is localized and extracted", () => {
 //
 // The name is read from the manifest rather than written here twice: renaming the
 // applet must not quietly turn this test into a no-op that matches nothing.
-test("the applet's name is not translated", () => {
+test("catalogs are complete without translating the applet name", () => {
     const poDir = path.join(appletDir, "po");
     const { name } = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
     const pattern = new RegExp(`msgid "${name}"\\nmsgstr "([^"]*)"`);
@@ -612,7 +612,9 @@ test("the applet's name is not translated", () => {
         const entry = pattern.exec(catalog);
 
         assert.ok(entry, `${file} has no entry for the applet name "${name}"`);
-        assert.equal(entry[1], "", `${file} renames the applet to "${entry[1]}"`);
+        assert.equal(entry[1], name, `${file} renames the applet to "${entry[1]}"`);
+        assert.doesNotMatch(catalog, /^#, fuzzy\n(?!#~)/m,
+            `${file} contains an active fuzzy translation that gettext will ignore`);
     }
 });
 

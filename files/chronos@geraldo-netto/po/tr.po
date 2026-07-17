@@ -293,14 +293,12 @@ msgstr ""
 "edilir."
 
 #: settings_widgets_common.py:83
-#, fuzzy
 msgid "City or town (e.g. Lisbon)"
-msgstr "Şehir veya saat dilimi (ör. Buenos Aires)"
+msgstr "Şehir veya kasaba (ör. Lizbon)"
 
 #: settings_widgets_common.py:84
-#, fuzzy
 msgid "Type a country name"
-msgstr "Saat dilimi veya şehir adı"
+msgstr "Bir ülke adı yazın"
 
 #: settings_widgets_common.py:575
 msgid "Add new entry"
@@ -312,7 +310,7 @@ msgstr "Girdiyi düzenle"
 
 #. metadata.json->name
 msgid "Chronos Calendar"
-msgstr ""
+msgstr "Chronos Calendar"
 
 #. metadata.json->description
 msgid "Calendar with holidays, events, weather, and world clocks"

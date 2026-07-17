@@ -290,14 +290,12 @@ msgstr ""
 "America/Sao_Paulo est accepté."
 
 #: settings_widgets_common.py:83
-#, fuzzy
 msgid "City or town (e.g. Lisbon)"
-msgstr "Ville ou fuseau horaire (par ex. Buenos Aires)"
+msgstr "Ville ou commune (p. ex. Lisbonne)"
 
 #: settings_widgets_common.py:84
-#, fuzzy
 msgid "Type a country name"
-msgstr "Fuseau horaire ou nom de ville"
+msgstr "Saisissez le nom d’un pays"
 
 #: settings_widgets_common.py:575
 msgid "Add new entry"
@@ -309,7 +307,7 @@ msgstr "Modifier l'entrée sélectionnée"
 
 #. metadata.json->name
 msgid "Chronos Calendar"
-msgstr ""
+msgstr "Chronos Calendar"
 
 #. metadata.json->description
 msgid "Calendar with holidays, events, weather, and world clocks"

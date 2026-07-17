@@ -293,14 +293,12 @@ msgstr ""
 "Sao_Paulo."
 
 #: settings_widgets_common.py:83
-#, fuzzy
 msgid "City or town (e.g. Lisbon)"
-msgstr "By eller tidszone (f.eks. Buenos Aires)"
+msgstr "By eller landsby (f.eks. Lissabon)"
 
 #: settings_widgets_common.py:84
-#, fuzzy
 msgid "Type a country name"
-msgstr "Tidszone eller bynavn"
+msgstr "Indtast et landenavn"
 
 #: settings_widgets_common.py:575
 msgid "Add new entry"
@@ -312,7 +310,7 @@ msgstr "Redigér indgang"
 
 #. metadata.json->name
 msgid "Chronos Calendar"
-msgstr ""
+msgstr "Chronos Calendar"
 
 #. metadata.json->description
 msgid "Calendar with holidays, events, weather, and world clocks"
