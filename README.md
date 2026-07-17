@@ -109,8 +109,15 @@ Run `npm run package:spices` after the gates. It recreates
 `dist/chronos@geraldo-netto/` with only `info.json`, `screenshot.png`,
 `README.md`, and `files/` — the applet subtree that belongs in the Spices
 catalogue. Development files such as the test suite, npm metadata, audit ledger,
-and CI configuration are deliberately excluded. Source symlinks are copied as
-real files so the staged tree is safe for archive-based delivery.
+and CI configuration are deliberately excluded. The staged files come from the
+Git index, so ignored or untracked artifacts cannot enter it. Tracked symlinks
+are accepted only when their final target is also tracked inside the source
+tree, and are copied as real files for archive-based delivery.
+
+`npm run i18n:check` validates every language catalog with `msgfmt` and
+regenerates the translation template in a temporary directory to prove it is
+current. CI runs both checks and builds the Spices tree after the lint and test
+gates pass on Node 20 and Node 22.
 
 ### Configuration
 

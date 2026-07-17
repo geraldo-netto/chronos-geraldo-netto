@@ -11,15 +11,19 @@ on:
 jobs:
   gates:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [20, 22]
 
     steps:
       - uses: actions/checkout@v4
 
-      # the engines field asks for >= 20; 22 is the current LTS and is what the
-      # suite's node:test coverage flags are tuned against
+      # Exercise both the declared floor and the current runtime used for
+      # development; node:test coverage behavior is part of the gate.
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ matrix.node }}
           cache: npm
 
       - uses: actions/setup-python@v5
@@ -46,3 +50,24 @@ jobs:
       - run: npm test
         env:
           CHRONOS_REQUIRE_PYTZ: "1"
+
+  packaging:
+    needs: gates
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # gettext validates every catalog. Cinnamon supplies the same extraction
+      # command contributors use through po/makepot, so stale source references
+      # and msgids fail here instead of churning in the Spices tooling.
+      - run: sudo apt-get update && sudo apt-get install --no-install-recommends cinnamon gettext
+
+      - run: npm ci
+      - run: npm run i18n:check
+      - run: npm run package:spices

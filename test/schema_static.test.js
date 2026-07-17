@@ -335,6 +335,14 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /run: npm ci/);
     assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
     assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
+    assert.match(workflow, /node: \[20, 22\]/,
+        "the declared Node floor and the current development runtime");
+    assert.match(workflow, /packaging:[\s\S]*needs: gates/,
+        "packaging runs only after both Node gate jobs pass");
+    assert.match(workflow, /run: npm run i18n:check/,
+        "catalog syntax and template freshness");
+    assert.match(workflow, /run: npm run package:spices/,
+        "the exact tracked-file package is built in CI");
     // pyflakes is what lint:py runs, and lint:py now fails when it is missing:
     // a workflow that does not install it cannot pass
     assert.match(workflow, /pip install .*pyflakes/);
@@ -343,6 +351,7 @@ test("CI runs the gates the README promises", () => {
     // `if import pyflakes; then …; else echo skipping; fi` — exit 0 either way
     assert.doesNotMatch(pkg.scripts["lint:py"], /skipping/);
     assert.match(pkg.scripts["lint:py"], /exit 1/);
+    assert.equal(pkg.scripts["i18n:check"], "node scripts/check-i18n.mjs");
 
     // sixteen timezone tests skipped themselves in CI because pytz was never
     // installed there, and neither the suite count nor a coverage number moved

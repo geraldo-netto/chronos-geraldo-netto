@@ -21,6 +21,7 @@
     "lint": "npm run lint:js && npm run lint:py",
     "lint:js": "eslint .",
     "lint:py": "python3 -m pyflakes files/chronos@geraldo-netto test || { status=$?; if python3 -c 'import pyflakes' 2>/dev/null; then exit $status; fi; echo 'pyflakes is not installed: pip install pyflakes (the Python lint is a gate, not an optional extra)'; exit 1; }",
+    "i18n:check": "node scripts/check-i18n.mjs",
     "package:spices": "node scripts/package-spices.mjs",
     "test": "npm run test:js && npm run test:py",
     "test:js": "node test/helpers/coverage.js",
