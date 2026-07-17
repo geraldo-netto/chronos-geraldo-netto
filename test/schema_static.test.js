@@ -345,10 +345,10 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /run: npm ci/);
     assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
     assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
-    assert.match(workflow, /node: \[20, 22\]/,
-        "the declared Node floor and the current development runtime");
+    assert.match(workflow, /node: \[22\]/,
+        "the declared Node development runtime");
     assert.match(workflow, /packaging:[\s\S]*needs: gates/,
-        "packaging runs only after both Node gate jobs pass");
+        "packaging runs only after the Node gate job passes");
     assert.match(workflow, /run: npm run i18n:check/,
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,

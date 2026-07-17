@@ -6,6 +6,11 @@ All notable changes to Cinnamon Chronos are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Development tooling and CI now require Node.js 22; Node.js 20 is no longer
+  supported.
+
 ## [0.0.1] - 2026-07-17
 
 ### Added

@@ -48,7 +48,7 @@ with the applet:
 
 | Tool | Version | Needed for | Install |
 | --- | --- | --- | --- |
-| Node.js | **≥ 20** | the JS suite and its coverage gate | `sudo apt install nodejs npm` |
+| Node.js | **≥ 22** | the JS suite and its coverage gate | `sudo apt install nodejs npm` |
 | Python 3 | ≥ 3.8 | the settings-widget suite | already present |
 | eslint | `^9` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
@@ -118,8 +118,7 @@ tree, and are copied as real files for archive-based delivery.
 `npm run i18n:check` validates every language catalog with `msgfmt`, rejects
 active fuzzy translations with `msgattrib`, and regenerates the translation
 template in a temporary directory to prove it is current. CI runs every check
-and builds the Spices tree after the lint and test gates pass on Node 20 and
-Node 22.
+and builds the Spices tree after the lint and test gates pass on Node 22.
 
 ### Releasing
 
@@ -148,7 +147,7 @@ git tag -a v0.0.2 -m "Cinnamon Chronos 0.0.2"
 git push origin v0.0.2
 ```
 
-Tag CI reruns the Node 20/22 gates and packaging, then rejects any tag that does
+Tag CI reruns the Node 22 gates and packaging, then rejects any tag that does
 not match all three manifests and the dated changelog entry. The packaging job
 uploads the exact gated tree as `chronos-spices-<commit SHA>-<run attempt>`, and
 the release job downloads that same immutable artifact. After the release job
@@ -218,7 +217,7 @@ PageUp/PageDown by month, Home returns to today.
 
 ### Running the tests and linters (development)
 
-From the repository root. The test suites need no dependencies — Node ≥ 20 for
+From the repository root. The test suites need no dependencies — Node ≥ 22 for
 the JS suite, Python 3 for the settings suite:
 
 ```sh
