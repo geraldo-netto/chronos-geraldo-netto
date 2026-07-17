@@ -23,8 +23,9 @@ calendar fork.
   type. Without it, Python's built-in `zoneinfo` database serves the same
   suggestions when available; if neither timezone database is available, the
   dialog falls back to plain typed timezone entry.
-- `gettext`, for its `msgfmt` — only to compile the translations at install time
-  (step 2 below). Mint ships `gettext-base`, which does not carry `msgfmt`.
+- `gettext`, for `msgfmt` and `msgattrib` — to compile translations at install
+  time and reject ignored fuzzy entries in the i18n gate (step 2 below). Mint
+  ships `gettext-base`, which does not carry these tools.
 
 There is no build step for the code. Cinnamon loads the JavaScript from `files/`
 as it is written — nothing is compiled, bundled, or transpiled. The one thing
@@ -52,7 +53,7 @@ with the applet:
 | eslint | `^9` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
-| gettext | any | compiling `po/*.po` to `.mo` at install time (`msgfmt`) | `sudo apt install gettext` |
+| gettext | any | compiling catalogs (`msgfmt`) and rejecting active fuzzy entries (`msgattrib`) | `sudo apt install gettext` |
 
 `npm install` pulls exactly one direct dependency, eslint, into `node_modules/`.
 The test suites themselves need no packages at all — they run on Node's built-in
@@ -114,10 +115,11 @@ Git index, so ignored or untracked artifacts cannot enter it. Tracked symlinks
 are accepted only when their final target is also tracked inside the source
 tree, and are copied as real files for archive-based delivery.
 
-`npm run i18n:check` validates every language catalog with `msgfmt` and
-regenerates the translation template in a temporary directory to prove it is
-current. CI runs both checks and builds the Spices tree after the lint and test
-gates pass on Node 20 and Node 22.
+`npm run i18n:check` validates every language catalog with `msgfmt`, rejects
+active fuzzy translations with `msgattrib`, and regenerates the translation
+template in a temporary directory to prove it is current. CI runs every check
+and builds the Spices tree after the lint and test gates pass on Node 20 and
+Node 22.
 
 ### Releasing
 

@@ -649,8 +649,6 @@ test("catalogs are complete without translating the applet name", () => {
 
         assert.ok(entry, `${file} has no entry for the applet name "${name}"`);
         assert.equal(entry[1], name, `${file} renames the applet to "${entry[1]}"`);
-        assert.doesNotMatch(catalog, /^#, fuzzy\n(?!#~)/m,
-            `${file} contains an active fuzzy translation that gettext will ignore`);
     }
 });
 

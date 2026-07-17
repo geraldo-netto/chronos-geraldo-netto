@@ -19,6 +19,17 @@ function withoutCreationDate(pot) {
         "\"POT-Creation-Date: <generated>\\n\"");
 }
 
+export async function validateCatalog(catalogPath, run = execFileAsync) {
+    await run("msgfmt", ["-c", "-o", os.devNull, catalogPath]);
+    const {stdout = ""} = await run("msgattrib", [
+        "--only-fuzzy", "--no-obsolete", catalogPath
+    ], {encoding: "utf8", maxBuffer: 4 * 1024 * 1024});
+
+    if (stdout.trim()) {
+        throw new Error(`${path.basename(catalogPath)} contains active fuzzy translations`);
+    }
+}
+
 export async function checkI18n(projectRoot) {
     const root = path.resolve(projectRoot);
     const applet = path.join(root, "files", UUID);
@@ -27,9 +38,7 @@ export async function checkI18n(projectRoot) {
         .filter((name) => name.endsWith(".po"))
         .sort();
 
-    await Promise.all(catalogs.map((name) => execFileAsync("msgfmt", [
-        "-c", "-o", os.devNull, path.join(poDir, name)
-    ])));
+    await Promise.all(catalogs.map((name) => validateCatalog(path.join(poDir, name))));
 
     const temporary = await mkdtemp(path.join(os.tmpdir(), "chronos-i18n-"));
     try {
