@@ -288,7 +288,7 @@ The city a world clock's weather is looked up for comes from its **timezone**,
 not from the name you gave the clock: a clock called "Mom's place" is looked up
 as the city its timezone names, and the name you typed never leaves the machine.
 
-The holiday data are obtained from the webservice [Enrico](http://kayaposoft.com/enrico/)
+The holiday data are obtained from the webservice [Enrico](https://kayaposoft.com/enrico/)
 by Kayaposoft.com, with [OpenHolidays](https://www.openholidaysapi.org/) and
 [Nager.Date](https://date.nager.at/) as fallback providers (in that order) for
 supported countries. When the operating-system timezone supplies the initial
@@ -312,7 +312,7 @@ location or country you configure is involved.
   Enrico Service 2.0 is an open-source software licensed under the MIT License so you can 
   study, contribute, change or use it. See Enrico source code on Github.
 
-See [here](http://holidays.kayaposoft.com/) for a list of supported countries and
+See [here](https://holidays.kayaposoft.com/) for a list of supported countries and
 its regions. It needs to be noted that each change to their list needs to be reflected
 by an update to this applet. While I will try to keep track, if you notice something
 missing in the applet that the service offers, let me know about it.

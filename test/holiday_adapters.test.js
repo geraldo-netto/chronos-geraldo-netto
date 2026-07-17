@@ -993,6 +993,9 @@ test("EnricoServiceAdapter builds params and the record localizes and expands", 
         holidayType: "public_holiday",
         region: "rm"
     });
+    assert.equal(adapter.url(adapter.params("ita", "global", 2026)),
+        "https://kayaposoft.com/enrico/json/v2.0/?action=getHolidaysForYear" +
+        "&year=2026&country=ita&holidayType=public_holiday");
     assert.ok(adapter.url(adapter.params("ita", "rm", 2026)).includes("region=rm"));
     assert.ok(adapter.url(adapter.params("u sa", "new york", 2026)).includes("country=u%20sa"));
     assert.ok(adapter.url(adapter.params("u sa", "new york", 2026)).includes("region=new%20york"));

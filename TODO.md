@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 13 (Critical 0, High 1, Medium 3, Low 9).
+Open items: 12 (Critical 0, High 1, Medium 3, Low 8).
 
 ## Findings
 
@@ -35,7 +35,6 @@ Open items: 13 (Critical 0, High 1, Medium 3, Low 9).
 | T531 | documentation / privacy | Low | open | S | **[verified]** README's opening privacy summary says holiday and weather data are “both off by default”, but only weather is. A blank holiday country is inferred synchronously from local timezone data during binding and a supported result starts holiday lookup automatically; the later README section correctly describes that behaviour. | Fix the top-level disclosure: weather is opt-in, while holidays auto-enable only when the timezone maps to a supported country, with `None` as the explicit opt-out. |
 | T532 | UI / documentation | Low | open | S | **[verified]** Empty weather-location behaviour is contradictory. README says clearing the field refills it, but `WeatherLocationEntry.commit()` saves the empty string and `test_clearing_the_location_is_saved_once` pins that behaviour. Prefill occurs only when the widget/applet is constructed, so clearing it in an open settings session leaves an empty value and panel warning until reopen/reload. | Choose one contract: refill on empty commit, or document that empty intentionally shows a warning. Unify the applet/widget default policy and its tests. |
 | T534 | testing / compatibility | Low | open | S | **[verified]** `schema_static.test.js` says Cinnamon matches `cinnamon-version` entries literally and therefore requires every series, but Cinnamon 6.6's loader treats the array as minimum compatible versions. The local applet loads on Cinnamon 6.6.7 even though metadata ends at 6.4 because the 5.4 entry satisfies the check. | Fix the test/comment to assert actual loader semantics, or document and test a separate Spices-store requirement if one exists; the current test provides false compatibility confidence and encourages redundant entries. |
-| T535 | API performance / docs | Low | open | S | **[verified]** The Enrico endpoint omits the canonical slash before the query (`/json/v2.0?action=...`), causing an HTTP 301 before every request; `/json/v2.0/?action=...` returns 200 directly. README's Enrico/documentation links also use `http://` and redirect to HTTPS. | Use the canonical slash-bearing HTTPS API base and HTTPS documentation links; pin the canonical URL in a test. |
 | T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete. |
 
 ## Suggested order

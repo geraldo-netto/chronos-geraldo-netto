@@ -61,7 +61,7 @@ var HOLIDAY_PROVIDER_NAMES = HolidayConstants.HOLIDAY_PROVIDER_NAMES;
 var OPEN_HOLIDAYS_COUNTRIES = HolidayConstants.OPEN_HOLIDAYS_COUNTRIES;
 var COUNTRY_TO_ISO2 = HolidayConstants.COUNTRY_TO_ISO2;
 var REGION_TO_SUBDIVISION = HolidayConstants.REGION_TO_SUBDIVISION;
-var ENRICO_URL = "https://kayaposoft.com/enrico/json/v2.0?action=getHolidaysForYear";
+var ENRICO_URL = "https://kayaposoft.com/enrico/json/v2.0/?action=getHolidaysForYear";
 
 function unavailableLoadJsonAsync() {
     throw new Error("holiday service adapter has no JSON loader");
