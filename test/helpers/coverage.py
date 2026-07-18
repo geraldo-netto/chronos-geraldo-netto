@@ -138,8 +138,13 @@ def branch_edges_for_code(code, instructions):
     for index, instruction in enumerate(instructions[:-1]):
         if not is_conditional_jump(instruction):
             continue
-        yield (key, instruction.offset, int(instruction.argval))
-        yield (key, instruction.offset, instructions[index + 1].offset)
+        source_index = index
+        while (source_index > 0
+               and instructions[source_index - 1].opname == "EXTENDED_ARG"):
+            source_index -= 1
+        source = instructions[source_index].offset
+        yield (key, source, int(instruction.argval))
+        yield (key, source, instructions[index + 1].offset)
 
 
 def function_keys(path: Path) -> set[tuple[str, int]]:
