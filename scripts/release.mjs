@@ -3,13 +3,21 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const UUID = "chronos@geraldo-netto";
 const REPOSITORY = "https://github.com/geraldo-netto/cinnamon-chronos";
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const TRANSACTION_DIR = ".chronos-release-transaction";
+const TRANSACTION_MANIFEST = "manifest.json";
+const RELEASE_TARGETS = [
+    "package.json",
+    "package-lock.json",
+    `files/${UUID}/metadata.json`,
+    "CHANGELOG.md"
+];
 
 function parseVersion(version) {
     const match = VERSION_PATTERN.exec(version);
@@ -31,6 +39,7 @@ function compareVersions(left, right) {
 }
 
 async function readReleaseFiles(root) {
+    await recoverReleaseTransaction(root);
     const packagePath = path.join(root, "package.json");
     const lockPath = path.join(root, "package-lock.json");
     const metadataPath = path.join(root, "files", UUID, "metadata.json");
@@ -45,6 +54,68 @@ async function readReleaseFiles(root) {
         metadata: JSON.parse(await readFile(metadataPath, "utf8")),
         changelog: await readFile(changelogPath, "utf8")
     };
+}
+
+function validateTransaction(entries) {
+    if (!Array.isArray(entries) || entries.length !== RELEASE_TARGETS.length) {
+        throw new Error("release transaction has an invalid target list");
+    }
+    for (let index = 0; index < RELEASE_TARGETS.length; index++) {
+        const entry = entries[index];
+        if (!Array.isArray(entry) || entry.length !== 2 ||
+            entry[0] !== RELEASE_TARGETS[index] || typeof entry[1] !== "string") {
+            throw new Error("release transaction has an invalid target list");
+        }
+    }
+}
+
+async function replaceReleaseTarget(root, relative, content) {
+    const target = path.join(root, ...relative.split("/"));
+    const temporary = `${target}.chronos-release-${process.pid}.tmp`;
+    try {
+        await writeFile(temporary, content);
+        await rename(temporary, target);
+    } finally {
+        await rm(temporary, { force: true });
+    }
+}
+
+async function applyReleaseTransaction(root, entries) {
+    validateTransaction(entries);
+    for (const [relative, content] of entries) {
+        await replaceReleaseTarget(root, relative, content);
+    }
+}
+
+async function recoverReleaseTransaction(root) {
+    const transaction = path.join(root, TRANSACTION_DIR);
+    let entries;
+    try {
+        entries = JSON.parse(await readFile(path.join(transaction, TRANSACTION_MANIFEST), "utf8"));
+    } catch (error) {
+        if (error && error.code === "ENOENT") {
+            return;
+        }
+        throw error;
+    }
+    await applyReleaseTransaction(root, entries);
+    await rm(transaction, { recursive: true });
+}
+
+async function writeReleaseTransaction(root, entries) {
+    validateTransaction(entries);
+    const staging = await mkdtemp(path.join(root, `${TRANSACTION_DIR}-`));
+    const transaction = path.join(root, TRANSACTION_DIR);
+    try {
+        await writeFile(path.join(staging, TRANSACTION_MANIFEST), JSON.stringify(entries));
+        await rename(staging, transaction);
+    } catch (error) {
+        await rm(staging, { recursive: true, force: true });
+        throw error;
+    }
+
+    await applyReleaseTransaction(root, entries);
+    await rm(transaction, { recursive: true });
 }
 
 function validateReleaseFiles(files, tag) {
@@ -121,16 +192,23 @@ export async function bumpRelease(projectRoot, nextVersion, options = {}) {
     let changelog = files.changelog.slice(0, notesStart) +
         `\n\n## [${nextVersion}] - ${date}\n\n${notes}\n` +
         files.changelog.slice(nextHeading);
-    changelog = changelog.replace(
+    const linkedChangelog = changelog.replace(
         new RegExp(`^\\[Unreleased\\]: ${REPOSITORY.replaceAll(".", "\\.")}\\/compare\\/v` +
             `${currentVersion.replaceAll(".", "\\.")}\\.\\.\\.HEAD$`, "m"),
         `[Unreleased]: ${REPOSITORY}/compare/v${nextVersion}...HEAD\n` +
         `[${nextVersion}]: ${REPOSITORY}/releases/tag/v${nextVersion}`);
+    if (linkedChangelog === changelog) {
+        throw new Error("CHANGELOG.md could not rewrite the exact Unreleased compare link");
+    }
+    files.changelog = linkedChangelog;
+    validateReleaseFiles(files);
 
-    await writeFile(files.packagePath, JSON.stringify(files.pkg, null, 2) + "\n");
-    await writeFile(files.lockPath, JSON.stringify(files.lock, null, 2) + "\n");
-    await writeFile(files.metadataPath, JSON.stringify(files.metadata, null, 4) + "\n");
-    await writeFile(files.changelogPath, changelog);
+    await writeReleaseTransaction(root, [
+        ["package.json", JSON.stringify(files.pkg, null, 2) + "\n"],
+        ["package-lock.json", JSON.stringify(files.lock, null, 2) + "\n"],
+        [`files/${UUID}/metadata.json`, JSON.stringify(files.metadata, null, 4) + "\n"],
+        ["CHANGELOG.md", files.changelog]
+    ]);
 
     return nextVersion;
 }

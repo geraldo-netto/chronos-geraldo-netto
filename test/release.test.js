@@ -10,6 +10,12 @@ const { pathToFileURL } = require("node:url");
 const ROOT = path.join(__dirname, "..");
 const UUID = "chronos@geraldo-netto";
 const execFileAsync = promisify(execFile);
+const RELEASE_FILES = [
+    "package.json",
+    "package-lock.json",
+    path.join("files", UUID, "metadata.json"),
+    "CHANGELOG.md"
+];
 
 async function makeReleaseFixture(t, mutate) {
     const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-release-"));
@@ -37,6 +43,11 @@ async function editJson(root, relative, edit) {
 async function editText(root, relative, edit) {
     const filePath = path.join(root, relative);
     await fs.writeFile(filePath, edit(await fs.readFile(filePath, "utf8")));
+}
+
+async function releaseSnapshot(root) {
+    return Promise.all(RELEASE_FILES.map((relative) =>
+        fs.readFile(path.join(root, relative), "utf8")));
 }
 
 test("release metadata, changelog, and an optional tag agree", async () => {
@@ -143,7 +154,12 @@ const DENIED_BUMP_INPUTS = [
         (root) => editText(root, "CHANGELOG.md", (text) =>
             text.replace("## [Unreleased]\n", "") + "\n## [Unreleased]\n"),
         "0.0.2", { date: "2026-07-18" },
-        /needs Unreleased followed by a released version/]
+        /needs Unreleased followed by a released version/],
+    ["an Unreleased compare link with trailing whitespace",
+        (root) => editText(root, "CHANGELOG.md", (text) =>
+            text.replace(/^(\[Unreleased\]: .*)$/m, "$1  ")),
+        "0.0.2", { date: "2026-07-18" },
+        /could not rewrite the exact Unreleased compare link/]
 ];
 
 test("the release bump rejects bad input before touching any file", async (t) => {
@@ -152,11 +168,31 @@ test("the release bump rejects bad input before touching any file", async (t) =>
 
     for (const [state, mutate, next, options, expected] of DENIED_BUMP_INPUTS) {
         const root = await makeReleaseFixture(t, mutate);
-        const before = await fs.readFile(path.join(root, "CHANGELOG.md"), "utf8");
+        const before = await releaseSnapshot(root);
         await assert.rejects(bumpRelease(root, next, options), expected, `accepted ${state}`);
-        assert.equal(await fs.readFile(path.join(root, "CHANGELOG.md"), "utf8"), before,
-            `a rejected bump must not rewrite the changelog (${state})`);
+        assert.deepEqual(await releaseSnapshot(root), before,
+            `a rejected bump must not rewrite release files (${state})`);
     }
+});
+
+test("an interrupted release transaction is completed before the next check", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { bumpRelease, checkRelease } = await import(releaseUrl);
+    const interrupted = await makeReleaseFixture(t);
+    const completed = await makeReleaseFixture(t);
+    await bumpRelease(completed, "0.0.2", { date: "2026-07-18" });
+
+    const entries = await Promise.all(RELEASE_FILES.map(async (relative) => [
+        relative.split(path.sep).join("/"),
+        await fs.readFile(path.join(completed, relative), "utf8")
+    ]));
+    const transaction = path.join(interrupted, ".chronos-release-transaction");
+    await fs.mkdir(transaction);
+    await fs.writeFile(path.join(transaction, "manifest.json"), JSON.stringify(entries));
+    await fs.writeFile(path.join(interrupted, RELEASE_FILES[0]), entries[0][1]);
+
+    assert.equal(await checkRelease(interrupted, "v0.0.2"), "0.0.2");
+    await assert.rejects(fs.access(transaction), "the completed transaction is removed");
 });
 
 test("the release CLI dispatch rejects unknown commands and missing versions", async () => {
