@@ -21,13 +21,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: ['22.13.0', 24]
+        include:
+          - node: '22.13.0'
+            python: '3.8'
+          - node: 24
+            python: '3.12'
 
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      # Exercise both the supported floor and the current development major;
-      # node:test coverage behavior is part of the gate.
+      # Exercise both runtime floors and the current development versions
+      # without multiplying two independent compatibility axes into four jobs.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
@@ -35,7 +39,7 @@ jobs:
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python }}
 
       # pyflakes is what lint:py runs. It used to skip itself when the import
       # failed — exit 0 either way — so the Python lint was a no-op on any
@@ -45,7 +49,7 @@ jobs:
       # install it: sixteen tests skipped themselves here and the coverage gate
       # printed byte-identical numbers, so the line that wires pytz into the
       # dialog was verified on a maintainer's laptop and nowhere else.
-      - run: python3 -m pip install pyflakes==3.4.0 pytz==2026.2
+      - run: python3 -m pip install pyflakes==3.2.0 pytz==2026.2
 
       - run: npm ci
 

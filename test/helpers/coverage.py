@@ -108,14 +108,29 @@ def branch_labels(path: Path) -> dict[tuple[tuple[str, int], int, int], str]:
         if not code.co_flags & inspect.CO_NEWLOCALS:
             continue
         instructions = list(dis.get_instructions(code))
-        by_offset = {instruction.offset: instruction for instruction in instructions}
+        by_offset = instruction_line_map(instructions)
         key = code_key(code)
         for edge in branch_edges_for_code(code, instructions):
             _key, source, destination = edge
-            source_line = by_offset[source].positions.lineno
-            destination_line = by_offset[destination].positions.lineno
+            source_line = by_offset[source]
+            destination_line = by_offset[destination]
             labels[edge] = f"{key[0]}:{source_line}->{destination_line}"
     return labels
+
+
+def instruction_line_map(instructions):
+    """Source line at each bytecode offset, including Python before 3.11."""
+    lines = {}
+    current = None
+    for instruction in instructions:
+        positions = getattr(instruction, "positions", None)
+        positioned = getattr(positions, "lineno", None)
+        if positioned is not None:
+            current = positioned
+        elif instruction.starts_line is not None:
+            current = instruction.starts_line
+        lines[instruction.offset] = current
+    return lines
 
 
 def branch_edges_for_code(code, instructions):
