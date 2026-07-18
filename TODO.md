@@ -6,7 +6,7 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 Baseline: `npm test` green (793 JS tests, JS coverage per-file 98/90/100; Python 119 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
 
-Open items: 4 (Critical 0, High 0, Medium 1, Low 3).
+Open items: 3 (Critical 0, High 0, Medium 0, Low 3).
 
 ## Findings
 
@@ -19,7 +19,6 @@ Open items: 4 (Critical 0, High 0, Medium 1, Low 3).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T554 | ingestion / format coverage; caching strategy; robustness / recovery | Medium | open | S | Reject a non-empty holiday response whose dates do not belong to the requested year, so the fallback chain can repair it. | `HolidayRecordContract.validResponse` validates each real date but receives no requested year, and neither the ISO translators nor Enrico compare a row's year with `params.year`. **[verified]** A provider asked for 2026 returned a valid 2027 record and `HolidayFallbackChain` accepted it as the successful 2026 answer. `HolidayService.addData` then stamps 2026 fresh while indexing the row under 2027: the requested year stays blank and no fallback or normal refresh repairs it for 50 days. Validate the request/response relationship before classifying success; cover start/end years, mixed-year bodies and legitimate spans crossing New Year. |
 
 ### Low
 

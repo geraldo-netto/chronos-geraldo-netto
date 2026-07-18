@@ -363,7 +363,8 @@ var HolidayService = class HolidayService {
             return;
         }
 
-        if (!this.record.validResponse(data)) {
+        if (!params || !Number.isInteger(params.year) ||
+            !this.record.validResponse(data, params.year)) {
             this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
             logHolidayDataError(this.last_provider, params && params.year, this.last_error);
             return;

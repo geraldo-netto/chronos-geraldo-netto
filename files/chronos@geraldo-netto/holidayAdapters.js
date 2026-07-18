@@ -69,7 +69,7 @@ var HolidayFallbackChain = class HolidayFallbackChain {
                         params: this._sourceParams(provider, params),
                         retrieved
                     };
-                    const classification = this._classify(result);
+                    const classification = this._classify(result, year);
                     if (classification === "empty") {
                         emptyResult = result;
                         onResult(null);
@@ -114,10 +114,10 @@ var HolidayFallbackChain = class HolidayFallbackChain {
     // what a valid answer from *all* of them looked like, and the port's
     // contract was one vendor's payload shape. The validator is the caller's,
     // and the caller is the thing that owns the record shape.
-    _classify(result) {
+    _classify(result, requestedYear) {
         let valid = false;
         try {
-            valid = Boolean(result) && this._validResponse(result.data);
+            valid = Boolean(result) && this._validResponse(result.data, requestedYear);
         } catch (e) {
             if (global.logError) {
                 global.logError(e);

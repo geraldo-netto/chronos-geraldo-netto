@@ -1075,7 +1075,8 @@ test("HolidayService validates remote payloads before caching", () => {
         { not: "array" },
         [{ date: { year: 2026, month: 1, day: 1 }, name: [], flags: [] }],
         [{ date: { year: "2026", month: 1, day: 1 }, name: [{ lang: "en", text: "Bad" }], flags: [] }],
-        [{ date: { year: 2026, month: 1, day: 1 }, name: [{ lang: "en", text: "Bad" }], flags: "public" }]
+        [{ date: { year: 2026, month: 1, day: 1 }, name: [{ lang: "en", text: "Bad" }], flags: "public" }],
+        [holiday("Wrong year", 2027, 1, 1)]
     ]) {
         enrico.addData(payload, { year: 2026, region: "global", providerName: "Schema Test" }, STAMP);
     }
@@ -1083,7 +1084,7 @@ test("HolidayService validates remote payloads before caching", () => {
     assert.equal(enrico.cache.data.length, 0);
     assert.equal(enrico.cache.years[2026], undefined);
     assert.equal(enrico.last_error, HOLIDAY_ERRORS.INVALID_RESPONSE);
-    assert.equal(logged.length, 4);
+    assert.equal(logged.length, 5);
     assert.ok(logged.every((line) => line ===
         `holiday provider Schema Test returned invalid data for 2026: ${HOLIDAY_ERRORS.INVALID_RESPONSE}`));
 

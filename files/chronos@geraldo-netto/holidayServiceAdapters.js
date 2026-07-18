@@ -442,7 +442,7 @@ function createHolidayServiceChain(primary = new EnricoServiceAdapter(),
     ],
     record = new HolidayRecordContract()) {
     return new HolidayAdapters.HolidayFallbackChain(
-        primary, fallbacks, (data) => record.validResponse(data));
+        primary, fallbacks, (data, year) => record.validResponse(data, year));
 }
 
 if (typeof module !== "undefined") {

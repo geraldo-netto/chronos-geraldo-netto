@@ -172,6 +172,43 @@ test("a provider whose payload the contract refuses falls through to the next", 
     assert.equal(typeof adapter.expandHoliday, "undefined");
 });
 
+test("a provider answer for another year falls through before the cache is stamped", () => {
+    const { HolidayRecordContract, createHolidayServiceChain } = loadHolidays();
+    const row = (year, text) => ({
+        date: { year, month: 1, day: 1 },
+        name: [{ lang: "en", text }],
+        flags: []
+    });
+    const calls = [];
+    const primary = {
+        name: "Wrong year",
+        fetchYear(_country, _region, _year, callback) {
+            calls.push(this.name);
+            callback([row(2027, "Too late")],
+                { year: 2026, region: "global", providerName: this.name }, STAMP);
+        }
+    };
+    const fallback = {
+        name: "Requested year",
+        fetchYear(_country, _region, year, callback) {
+            calls.push(this.name);
+            callback([row(year, "New Year")],
+                { year, region: "global", providerName: this.name }, STAMP);
+        }
+    };
+    const chain = createHolidayServiceChain(
+        primary, [fallback], new HolidayRecordContract("en"));
+
+    let answer;
+    chain.fetchYear("ita", "global", 2026, (data, params) => {
+        answer = { data, params };
+    });
+
+    assert.deepEqual(calls, ["Wrong year", "Requested year"]);
+    assert.deepEqual(answer.data, [row(2026, "New Year")]);
+    assert.equal(answer.params.providerName, "Requested year");
+});
+
 test("a provider parse failure falls through and credits the successful source", () => {
     const { createHolidayServiceChain } = loadHolidays();
     const calls = [];

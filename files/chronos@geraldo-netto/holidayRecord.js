@@ -52,6 +52,11 @@ function validDateParts(parts) {
         date.getDate() === parts.day;
 }
 
+function holidayOverlapsYear(holiday, year) {
+    const end = holiday.dateTo || holiday.date;
+    return holiday.date.year <= year && end.year >= year;
+}
+
 var HolidayRecordContract = class HolidayRecordContract {
     constructor(lang = _lcLang()) {
         this._lang = lang;
@@ -69,10 +74,13 @@ var HolidayRecordContract = class HolidayRecordContract {
             Array.isArray(holiday.flags);
     }
 
-    validResponse(data) {
+    validResponse(data, requestedYear) {
         return Array.isArray(data) &&
             data.length <= MAX_HOLIDAYS_PER_YEAR &&
-            data.every((holiday) => this.validHoliday(holiday));
+            data.every((holiday) => this.validHoliday(holiday)) &&
+            (requestedYear === undefined ||
+                (Number.isInteger(requestedYear) &&
+                    data.every((holiday) => holidayOverlapsYear(holiday, requestedYear))));
     }
 
     localizeName(holiday) {
@@ -111,7 +119,7 @@ var HolidayRecordContract = class HolidayRecordContract {
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { validDateParts, validHolidaySpan, holidaySpanDays,
+    module.exports = { validDateParts, validHolidaySpan, holidaySpanDays, holidayOverlapsYear,
         MAX_HOLIDAY_SPAN_DAYS, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
         HolidayRecordContract };
 }

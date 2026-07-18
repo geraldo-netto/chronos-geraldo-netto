@@ -547,6 +547,30 @@ test("fuzz: HolidayService's parser cannot be made to run away or return junk", 
     ]), false);
     assert.equal(record.validResponse("not an array"), false);
     assert.equal(record.validResponse([]), true, "an empty year is a valid answer");
+    const named = (date, dateTo) => ({
+        date,
+        ...(dateTo ? { dateTo } : {}),
+        name: [{ lang: "en", text: "New Year span" }],
+        flags: []
+    });
+    const startsBefore = named(
+        { year: 2025, month: 12, day: 31 },
+        { year: 2026, month: 1, day: 1 });
+    const endsAfter = named(
+        { year: 2026, month: 12, day: 31 },
+        { year: 2027, month: 1, day: 1 });
+    assert.equal(record.validResponse([startsBefore], 2026), true,
+        "a span ending in the requested year belongs to it");
+    assert.equal(record.validResponse([endsAfter], 2026), true,
+        "a span starting in the requested year belongs to it");
+    assert.equal(record.validResponse([startsBefore, endsAfter], 2026), true);
+    assert.equal(record.validResponse([named(
+        { year: 2027, month: 1, day: 1 })], 2026), false);
+    assert.equal(record.validResponse([startsBefore, named(
+        { year: 2027, month: 1, day: 1 })], 2026), false,
+    "one off-year row invalidates the mixed response");
+    assert.equal(record.validResponse([startsBefore], "2026"), false,
+        "the requested year is an integer contract");
 
     assert.ok(accepted > 0, "some payloads must be accepted");
     assert.ok(rejected > 0, "and some must be rejected");
