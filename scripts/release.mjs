@@ -44,29 +44,38 @@ async function readReleaseFiles(root) {
     const lockPath = path.join(root, "package-lock.json");
     const metadataPath = path.join(root, "files", UUID, "metadata.json");
     const changelogPath = path.join(root, "CHANGELOG.md");
+    const original = await Promise.all([
+        readFile(packagePath, "utf8"),
+        readFile(lockPath, "utf8"),
+        readFile(metadataPath, "utf8"),
+        readFile(changelogPath, "utf8")
+    ]);
     return {
         packagePath,
         lockPath,
         metadataPath,
         changelogPath,
-        pkg: JSON.parse(await readFile(packagePath, "utf8")),
-        lock: JSON.parse(await readFile(lockPath, "utf8")),
-        metadata: JSON.parse(await readFile(metadataPath, "utf8")),
-        changelog: await readFile(changelogPath, "utf8")
+        original,
+        pkg: JSON.parse(original[0]),
+        lock: JSON.parse(original[1]),
+        metadata: JSON.parse(original[2]),
+        changelog: original[3]
     };
 }
 
-function validateTransaction(entries) {
+function validateTransaction(transaction) {
+    const entries = transaction && transaction.version === 1 ? transaction.entries : null;
     if (!Array.isArray(entries) || entries.length !== RELEASE_TARGETS.length) {
         throw new Error("release transaction has an invalid target list");
     }
     for (let index = 0; index < RELEASE_TARGETS.length; index++) {
         const entry = entries[index];
-        if (!Array.isArray(entry) || entry.length !== 2 ||
-            entry[0] !== RELEASE_TARGETS[index] || typeof entry[1] !== "string") {
+        if (!entry || entry.target !== RELEASE_TARGETS[index] ||
+            typeof entry.before !== "string" || typeof entry.after !== "string") {
             throw new Error("release transaction has an invalid target list");
         }
     }
+    return entries;
 }
 
 async function replaceReleaseTarget(root, relative, content) {
@@ -80,42 +89,56 @@ async function replaceReleaseTarget(root, relative, content) {
     }
 }
 
-async function applyReleaseTransaction(root, entries) {
-    validateTransaction(entries);
-    for (const [relative, content] of entries) {
-        await replaceReleaseTarget(root, relative, content);
+async function applyReleaseTransaction(root, transaction) {
+    for (const entry of validateTransaction(transaction)) {
+        await replaceReleaseTarget(root, entry.target, entry.after);
     }
+}
+
+async function divergentReleaseTargets(root, transaction) {
+    const divergent = [];
+    for (const entry of validateTransaction(transaction)) {
+        const current = await readFile(path.join(root, ...entry.target.split("/")), "utf8");
+        if (current !== entry.before && current !== entry.after) {
+            divergent.push(entry.target);
+        }
+    }
+    return divergent;
 }
 
 async function recoverReleaseTransaction(root) {
     const transaction = path.join(root, TRANSACTION_DIR);
-    let entries;
+    let manifest;
     try {
-        entries = JSON.parse(await readFile(path.join(transaction, TRANSACTION_MANIFEST), "utf8"));
+        manifest = JSON.parse(await readFile(path.join(transaction, TRANSACTION_MANIFEST), "utf8"));
     } catch (error) {
         if (error && error.code === "ENOENT") {
             return;
         }
         throw error;
     }
-    await applyReleaseTransaction(root, entries);
+    const divergent = await divergentReleaseTargets(root, manifest);
+    if (divergent.length > 0) {
+        throw new Error(`release transaction conflicts with modified files: ${divergent.join(", ")}`);
+    }
+    await applyReleaseTransaction(root, manifest);
     await rm(transaction, { recursive: true });
 }
 
-async function writeReleaseTransaction(root, entries) {
-    validateTransaction(entries);
+async function writeReleaseTransaction(root, transaction) {
+    validateTransaction(transaction);
     const staging = await mkdtemp(path.join(root, `${TRANSACTION_DIR}-`));
-    const transaction = path.join(root, TRANSACTION_DIR);
+    const published = path.join(root, TRANSACTION_DIR);
     try {
-        await writeFile(path.join(staging, TRANSACTION_MANIFEST), JSON.stringify(entries));
-        await rename(staging, transaction);
+        await writeFile(path.join(staging, TRANSACTION_MANIFEST), JSON.stringify(transaction));
+        await rename(staging, published);
     } catch (error) {
         await rm(staging, { recursive: true, force: true });
         throw error;
     }
 
-    await applyReleaseTransaction(root, entries);
-    await rm(transaction, { recursive: true });
+    await applyReleaseTransaction(root, transaction);
+    await rm(published, { recursive: true });
 }
 
 function validateReleaseFiles(files, tag) {
@@ -203,12 +226,20 @@ export async function bumpRelease(projectRoot, nextVersion, options = {}) {
     files.changelog = linkedChangelog;
     validateReleaseFiles(files);
 
-    await writeReleaseTransaction(root, [
-        ["package.json", JSON.stringify(files.pkg, null, 2) + "\n"],
-        ["package-lock.json", JSON.stringify(files.lock, null, 2) + "\n"],
-        [`files/${UUID}/metadata.json`, JSON.stringify(files.metadata, null, 4) + "\n"],
-        ["CHANGELOG.md", files.changelog]
-    ]);
+    const after = [
+        JSON.stringify(files.pkg, null, 2) + "\n",
+        JSON.stringify(files.lock, null, 2) + "\n",
+        JSON.stringify(files.metadata, null, 4) + "\n",
+        files.changelog
+    ];
+    await writeReleaseTransaction(root, {
+        version: 1,
+        entries: RELEASE_TARGETS.map((target, index) => ({
+            target,
+            before: files.original[index],
+            after: after[index]
+        }))
+    });
 
     return nextVersion;
 }

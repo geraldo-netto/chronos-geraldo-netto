@@ -180,9 +180,15 @@ test("release recovery rejects malformed transaction journals", async (t) => {
     const { checkRelease } = await import(releaseUrl);
 
     for (const [name, manifest, expected] of [
-        ["wrong target count", JSON.stringify([]), /invalid target list/],
-        ["wrong target name", JSON.stringify(RELEASE_FILES.map((relative, index) =>
-            [index === 0 ? "wrong.json" : relative.split(path.sep).join("/"), ""])),
+        ["wrong target count", JSON.stringify({ version: 1, entries: [] }), /invalid target list/],
+        ["wrong target name", JSON.stringify({
+            version: 1,
+            entries: RELEASE_FILES.map((relative, index) => ({
+                target: index === 0 ? "wrong.json" : relative.split(path.sep).join("/"),
+                before: "",
+                after: ""
+            }))
+        }),
         /invalid target list/],
         ["invalid JSON", "{", /JSON|property name/]
     ]) {
@@ -220,17 +226,49 @@ test("an interrupted release transaction is completed before the next check", as
     const completed = await makeReleaseFixture(t);
     await bumpRelease(completed, "0.0.2", { date: "2026-07-18" });
 
-    const entries = await Promise.all(RELEASE_FILES.map(async (relative) => [
-        relative.split(path.sep).join("/"),
-        await fs.readFile(path.join(completed, relative), "utf8")
-    ]));
+    const before = await releaseSnapshot(interrupted);
+    const after = await releaseSnapshot(completed);
+    const entries = RELEASE_FILES.map((relative, index) => ({
+        target: relative.split(path.sep).join("/"),
+        before: before[index],
+        after: after[index]
+    }));
     const transaction = path.join(interrupted, ".chronos-release-transaction");
     await fs.mkdir(transaction);
-    await fs.writeFile(path.join(transaction, "manifest.json"), JSON.stringify(entries));
-    await fs.writeFile(path.join(interrupted, RELEASE_FILES[0]), entries[0][1]);
+    await fs.writeFile(path.join(transaction, "manifest.json"),
+        JSON.stringify({ version: 1, entries }));
+    await fs.writeFile(path.join(interrupted, RELEASE_FILES[0]), entries[0].after);
 
     assert.equal(await checkRelease(interrupted, "v0.0.2"), "0.0.2");
     await assert.rejects(fs.access(transaction), "the completed transaction is removed");
+});
+
+test("release recovery preserves files edited after interruption", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { bumpRelease, checkRelease } = await import(releaseUrl);
+    const interrupted = await makeReleaseFixture(t);
+    const completed = await makeReleaseFixture(t);
+    await bumpRelease(completed, "0.0.2", { date: "2026-07-18" });
+    const before = await releaseSnapshot(interrupted);
+    const after = await releaseSnapshot(completed);
+    const entries = RELEASE_FILES.map((relative, index) => ({
+        target: relative.split(path.sep).join("/"),
+        before: before[index],
+        after: after[index]
+    }));
+    const transaction = path.join(interrupted, ".chronos-release-transaction");
+    await fs.mkdir(transaction);
+    await fs.writeFile(path.join(transaction, "manifest.json"),
+        JSON.stringify({ version: 1, entries }));
+    await editJson(interrupted, "package.json", (pkg) => {
+        pkg.description = "manual edit made after interruption";
+    });
+    const edited = await fs.readFile(path.join(interrupted, "package.json"), "utf8");
+
+    await assert.rejects(checkRelease(interrupted),
+        /conflicts with modified files: package\.json/);
+    assert.equal(await fs.readFile(path.join(interrupted, "package.json"), "utf8"), edited);
+    await fs.access(transaction);
 });
 
 test("the release CLI dispatch rejects unknown commands and missing versions", async () => {

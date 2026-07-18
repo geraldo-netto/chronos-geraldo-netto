@@ -4,9 +4,9 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 **Findings verified by running or mutating the code are marked [verified]**, each naming the experiment. Live provider responses or policies were consulted only where the current external contract was itself under review; source conclusions were checked locally.
 
-Baseline: `npm test` green (788 JS tests, JS coverage per-file 98/90/100; Python 116 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
+Baseline: `npm test` green (789 JS tests, JS coverage per-file 98/90/100; Python 116 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
 
-Open items: 7 (Critical 0, High 0, Medium 1, Low 6).
+Open items: 6 (Critical 0, High 0, Medium 0, Low 6).
 
 ## Findings
 
@@ -19,7 +19,6 @@ Open items: 7 (Critical 0, High 0, Medium 1, Low 6).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T550 | robustness / recovery / data integrity | Medium | open | M | `recoverReleaseTransaction()` (`release.mjs:90-102`) validates only the target names, then blindly writes the journal's desired contents over all four release files. The journal records neither the pre-transaction contents nor hashes, so if a maintainer edits `package.json`, the lockfile, metadata or changelog after an interrupted bump, the next `release:check` silently destroys that work. Journal both the before and after identity for every target; recover only when each file still matches one of those states, and stop with a conflict that names divergent files otherwise. | **[verified]** In a temporary release fixture, a valid leftover journal plus `package.json.description = "manual edit made after interruption"` made `checkRelease()` return success and restore the old description; `editWasLost: true`. The existing recovery test covers only one old/one new file and cannot detect divergence. |
 
 ### Low
 
