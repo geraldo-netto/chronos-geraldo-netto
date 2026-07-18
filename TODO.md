@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 1 (Critical 0, High 0, Medium 0, Low 1).
+Open items: 0 (Critical 0, High 0, Medium 0, Low 0).
 
 ## Findings
 
@@ -24,11 +24,6 @@ Open items: 1 (Critical 0, High 0, Medium 0, Low 1).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete. |
-
-## Suggested order
-
-1. **T343** — remove the orphaned root image.
 
 ## Clean categories
 
@@ -79,4 +74,4 @@ Decisions from the calendar@ccprog / Simon Wiles merge. Kept so future audits do
 |----|------------|
 | G01 | Kept the `calendar@ccprog` world-clock settings workflow (Cinnamon-native settings, up to 8 user clocks plus built-in UTC/local, region/city selection, IANA/city entry, timezone validation, inherited coverage). Simon Wiles' separate GTK editor remains unported. |
 | G02 | Kept `calendar@ccprog` locale-aware weekend behaviour (locale-derived work weeks plus a configurable one- or two-day weekend length). |
-| G03 | Kept the copied `calendar@ccprog` visual assets as the initial merged set. The Chronos screenshot was refreshed on 2026-07-16; the unrelated root `calendar.png` remains tracked for removal under T343. |
+| G03 | Kept the copied `calendar@ccprog` visual assets as the initial merged set. The Chronos screenshot was refreshed on 2026-07-16; the icon was replaced with an original design and the orphaned root `calendar.png` deleted on 2026-07-18. |
