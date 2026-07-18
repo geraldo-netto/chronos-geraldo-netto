@@ -67,9 +67,9 @@ async function resolveSourceFile(source, sourcePath, relative, manifest) {
         return { sourcePath, stats };
     }
 
-    // Inspect the link before copying any bytes. A safe in-tree tracked target
-    // is dereferenced because the repository still contains one legacy icon
-    // link; a link to the host or to ignored source material is never followed.
+    // Inspect the link before copying any bytes. The tracked tree has no links,
+    // but a future safe in-tree tracked target can be dereferenced; a link to the
+    // host or to ignored source material is never followed.
     const linkTarget = await readlink(sourcePath);
     const lexicalTarget = path.resolve(path.dirname(sourcePath), linkTarget);
     if (!isInside(source, lexicalTarget)) {
