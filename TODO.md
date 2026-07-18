@@ -6,7 +6,9 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 Baseline: `npm test` green with the JS and Python per-file coverage gates satisfied, including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
 
-Open items: 0 (Critical 0, High 0, Medium 0, Low 0).
+The 2026-07-18 SonarCloud pass was also triaged against the source and Cinnamon runtime rather than accepting analyzer severities at face value. Its GitHub decoration called every open issue "new", while the Web API's current leak-period query returned only the newly introduced subset. Framework, compatibility, test-double and bounded-input findings are recorded under Rejected; actionable analysis/gate gaps remain below.
+
+Open items: 1 (Critical 0, High 0, Medium 1, Low 0).
 
 ## Findings
 
@@ -19,6 +21,7 @@ Open items: 0 (Critical 0, High 0, Medium 0, Low 0).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
+| T557 | process & delivery governance; test coverage | Medium | open | L | Replace SonarCloud automatic analysis with a scoped CI analysis that imports the existing JS and Python coverage results and distinguishes tests from production sources. | The live API exposes no overall coverage measure and reports `new_lines_to_cover = 0`; automatic analysis cannot import coverage, yet the GitHub decoration displays `0.0%`. It also counts `test/` as production, creating both reported vulnerabilities and most critical test-stub smells. Add standard LCOV/XML output without weakening the local 98/90/100 and Python 98 gates, declare source/test paths, disable automatic analysis, run the scanner after tests, and require the resulting check if it is meant to gate delivery. SonarCloud administration and a GitHub secret are external prerequisites. |
 
 ### Low
 
@@ -58,6 +61,11 @@ Verified on the 2026-07-16 rescan and re-traced on 2026-07-18 (weather scheduler
 | R14 | The `5.4/` shims are indirection; the root modules "depend on files that only exist in the parent". | Intended and correct on every declared version: `appletManager.js:61` roots `imports.ui.appletManager.applets[uuid]` at the *applets folder*, so `[uuid]` is the parent dir. The seven-line shims work, `gjs_import.test.js` pins them, and the former `require()` host-detection risk was resolved with T464. |
 | R15 | `settings_widgets_common.py` at 965 lines is a god module. | Many concerns, but they are all "the settings dialog"; the gi-free half is already extracted into `timezone_data.py`, and no change was identified that becomes dangerous because of the co-location. |
 | R16 | `metadata.json` omits Cinnamon 6.6, so the applet is incompatible with the installed desktop. | Rejected after checking Cinnamon 6.6.7's loader: `cinnamon-version` entries are minimum compatible versions, and the declared 5.4 entry admits 6.6. The compatibility test now models that loader rule directly. |
+| R17 | Sonar `css:S4654`: `icon-size` is an unknown CSS property. | **False positive.** Cinnamon's shipped `/usr/share/cinnamon/theme/cinnamon.css` uses the same property throughout; it is an St theme property, not browser CSS. The applet's `icon-size: 4em` is valid Cinnamon styling. |
+| R18 | Sonar's nine analyzer-labelled bugs: unused `Tooltip` constructions, an unmodified holiday iterator/limit, implicit string sort, empty-matching URL regex and an unseeded `reduce`. | **False positives.** Cinnamon `TooltipBase._init` registers actor/stage callbacks holding the tooltip instance; `Date.setTime` mutates `iter`; `limit` is intentionally constant; package paths intentionally sort lexicographically; `urlForLog` intentionally accepts an empty optional path; and `joinPhrases` returns before `reduce` when the array is empty. Existing tests exercise each behavior. |
+| R19 | Sonar's two vulnerabilities in `test/helpers/appletFixture.js` and `test/helpers/coverage.js`. | **False positives outside shipped code.** `"/tmp/cache"` is a return value in an in-memory GLib test double, not a filesystem write, and the coverage harness invokes the same developer/CI `node` selected by the already-trusted process environment. T557 will classify `test/` separately so these do not distort the production security rating. |
+| R20 | Sonar's mass `var`, optional-chaining, object-spread, class-field, `replaceAll`, `Object.hasOwn` and test-stub findings. | Not defects. All `javascript:S3504` sites are zero-indented legacy GJS module bindings whose `var` visibility is the import/export mechanism covered by R05/D02. The remaining findings are modernization preferences, compatibility-sensitive alternatives, deliberate empty test doubles, or trivial local style; changing them wholesale adds runtime-floor risk without correcting behavior. |
+| R21 | Sonar `javascript:S8786`: two end-whitespace regexes can backtrack super-linearly. | The theoretical regex shape is real but the production inputs are tightly bounded: third-party summaries and holiday names are clamped to 300 code points, panel labels to 64, clock labels to 24, and there are at most eight clocks. No attacker-controlled unbounded string reaches either expression, so this is not an actionable denial-of-service path. |
 
 ## Recorded decisions
 
