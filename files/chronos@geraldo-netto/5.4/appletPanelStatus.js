@@ -471,32 +471,51 @@ class AppletPanelStatusPresenter {
         return entry.builtin ? this._builtinWeatherCells(entry) : this._cityWeatherCells(entry);
     }
 
+    // Derive the clock stamp and weather cells once. The tooltip key, tooltip
+    // text and popup accessibility all consume this model; timezone-to-city
+    // resolution can synchronously inspect zoneinfo, so repeating it on every
+    // consumer is expensive on the compositor thread.
+    _clockRenderModel(clockEntries = []) {
+        const showWeather = this.view.showWeather;
+        const rows = clockEntries.map((entry) => {
+            const cells = [entry.label, this.tooltipClockStamp(entry)];
+            const weatherCells = showWeather ? this.tooltipWeatherCells(entry) : [];
+            const renderedCells = cells.concat(weatherCells);
+            const weather = weatherCells.filter((cell) => cell).join(", ");
+
+            return {
+                cells: renderedCells,
+                popupEntry: weather ? Object.assign({}, entry, { weather }) : entry
+            };
+        });
+        const status = rows.length ? "" : this.weatherStatusLine();
+        const key = [
+            rows.map((row) => row.cells.join("\u0001")).join("\u0002"),
+            status
+        ].join("\u0003");
+
+        return {
+            key,
+            popupEntries: rows.map((row) => row.popupEntry),
+            rows: rows.map((row) => row.cells),
+            status
+        };
+    }
+
     // The tooltip can be refreshed more often than its configured timestamp
     // changes. The key uses the rendered row stamps so byte-identical text is not
     // written and laid out again.
     _tooltipKey(clockEntries) {
-        const view = this.view;
-
-        return [
-            view.showWeather ? this.panelReadingText() : "",
-            view.showWeather ? view.weatherError : "",
-            clockEntries.map((entry) => [
-                entry.label,
-                this.tooltipClockStamp(entry),
-                entry.builtin ? "b" : "",
-                view.showWeather ? this.tooltipWeatherCells(entry).join("\u0001") : ""
-            ].join("\u0002")).join("\u0003")
-        ].join("\u0004");
+        return this._clockRenderModel(clockEntries).key;
     }
 
-    setTooltipText(clockEntries) {
-        const key = this._tooltipKey(clockEntries);
-        if (this._rendered_tooltip_key === key) {
+    _setTooltipModel(model) {
+        if (this._rendered_tooltip_key === model.key) {
             return;
         }
-        this._rendered_tooltip_key = key;
+        this._rendered_tooltip_key = model.key;
 
-        this.view.setTooltip(this.buildTooltipText(clockEntries));
+        this.view.setTooltip(this._tooltipText(model));
     }
 
     // a tooltip is plain text, so the columns can only be lined up by padding;
@@ -528,12 +547,11 @@ class AppletPanelStatusPresenter {
         });
     }
 
-    buildTooltipText(clockEntries = []) {
+    _tooltipText(model) {
         const lines = [];
 
-        const rows = clockEntries.map((entry) => this.tooltipClockRow(entry));
-        if (rows.length) {
-            lines.push(...this.alignTooltipRows(rows));
+        if (model.rows.length) {
+            lines.push(...this.alignTooltipRows(model.rows));
         }
 
         // The weather's failure and its "loading" reached the user only through
@@ -543,17 +561,18 @@ class AppletPanelStatusPresenter {
         // nothing at all; NO_LOCATION was a lone ⚠ that never said "set a weather
         // location". The words existed, and were translated, and were unreachable
         // in the one configuration where the panel has nothing else to say.
-        if (!rows.length) {
-            const status = this.weatherStatusLine();
-            if (status) {
-                lines.push(status);
-            }
+        if (model.status) {
+            lines.push(model.status);
         }
 
         // The provider used to be credited here, under a blank line. It is still
         // credited in the world-clock popup's accessible name and in the README —
         // the tooltip is a table of times, and a footer is not part of the table.
         return lines.join("\n");
+    }
+
+    buildTooltipText(clockEntries = []) {
+        return this._tooltipText(this._clockRenderModel(clockEntries));
     }
 
     // what the panel's weather is doing, in words, for a tooltip with no clock
@@ -574,19 +593,6 @@ class AppletPanelStatusPresenter {
         }
 
         return "";
-    }
-
-    // the same cells the tooltip prints, as one phrase for the row's name
-    describeClockWeather(clockEntries) {
-        if (!this.view.showWeather) {
-            return clockEntries;
-        }
-
-        return clockEntries.map((entry) => {
-            const [reading, words] = this.tooltipWeatherCells(entry);
-            const weather = [reading, words].filter((cell) => cell).join(", ");
-            return weather ? Object.assign({}, entry, { weather }) : entry;
-        });
     }
 
     weatherSourceName() {
@@ -665,6 +671,7 @@ class AppletPanelStatusPresenter {
         // about to be shown, and then in full.
         const showingClocks = Boolean(refreshMenu || view.panelHovered);
         let clockEntries = (clocksOn && showingClocks) ? this.getClockEntries() : [];
+        let clockModel = showingClocks ? this._clockRenderModel(clockEntries) : null;
         let label_suffix = this.buildLabelSuffix();
         if (label_suffix) {
             // the temperature reads as part of the clock line, so no bullet
@@ -680,7 +687,7 @@ class AppletPanelStatusPresenter {
 
         if (!refreshMenu) {
             if (view.panelHovered) {
-                this.setTooltipText(clockEntries);
+                this._setTooltipModel(clockModel);
             }
             return;
         }
@@ -693,7 +700,7 @@ class AppletPanelStatusPresenter {
         // or a second, if clock-show-seconds is on
         this._setLabel(view.dayLabel, "_rendered_day", formattedToday.day);
         this._setLabel(view.dateLabel, "_rendered_date", formattedToday.short);
-        this.setTooltipText(clockEntries);
+        this._setTooltipModel(clockModel);
         // Unlike a tooltip, this actor is reachable from a keyboard-opened menu
         // and remains present when the world-clock block is switched off.
         view.setWeatherStatus(this.weatherStatusLine());
@@ -704,7 +711,7 @@ class AppletPanelStatusPresenter {
         // answered lived only in the panel's mouse tooltip, so a keyboard-only
         // or screen-reader user never got any of it — and the provider credit is
         // a courtesy the data services are owed.
-        view.updateWorldclocks(this.describeClockWeather(clockEntries));
+        view.updateWorldclocks(clockModel.popupEntries);
         view.setWeatherSource(view.showWeather ? this.weatherSourceName() : "");
     }
 }

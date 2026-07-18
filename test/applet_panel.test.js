@@ -1,6 +1,6 @@
 const {
-    assert, test, AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS,
-    Proto, panelStatus, DateFormats, St,
+    assert, test, rootModules, AppletModule, CoordinatorModule, PanelStatusModule,
+    MAX_SUFFIX, ELLIPSIS, Proto, panelStatus, DateFormats, St,
     clockStub, readingFrom, suffixStub, updateStub, tooltipEntry
 } = require("./helpers/appletFixture");
 
@@ -129,6 +129,43 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
 
     assert.ok(calls.weatherSource.includes("Open-Meteo"),
         "and the service that answered is named where the popup can say it");
+});
+
+test("one render model serves tooltip and popup weather", () => {
+    const derived = [];
+    const original = rootModules.worldclockData.timezoneWeatherCity;
+    rootModules.worldclockData.timezoneWeatherCity = (timezone) => {
+        derived.push(timezone);
+        return timezone.split("/").pop().replace("_", " ");
+    };
+    const { stub, calls } = updateStub({ menuOpen: true });
+    Object.assign(stub, {
+        show_weather: true,
+        show_worldclocks: true
+    });
+    Object.assign(stub._weatherCoordinator, {
+        cityReading: () => ({ condition: "🌧", temperatureC: 12 }),
+        cityStale: () => false
+    });
+
+    try {
+        Proto._updateClockAndDate.call(stub);
+    } finally {
+        rootModules.worldclockData.timezoneWeatherCity = original;
+    }
+
+    assert.deepEqual(derived,
+        ["America/New_York", "Asia/Tokyo", "Australia/Sydney"],
+        "each configured timezone is derived once per open-menu tick");
+    assert.equal(calls.tooltip.at(-1), [
+        "UTC     UTC:%H:%M",
+        "NY      04:00      12°C  Rain",
+        "Tokyo   18:00      12°C  Rain",
+        "Sydney  20:00      12°C  Rain"
+    ].join("\n"), "the tooltip remains byte-identical");
+    assert.deepEqual(calls.lastEntries.map((entry) => entry.weather || ""), [
+        "", "12°C, Rain", "12°C, Rain", "12°C, Rain"
+    ], "popup accessibility reuses the same weather cells");
 });
 
 test("disabling the home button hands its key focus to the calendar", () => {
@@ -416,7 +453,8 @@ test("_updateClockAndDate keeps an invalid tooltip format inside the clock table
 
     assert.equal(stub.go_home_button.reactive, true);
     assert.equal(calls.tooltip.at(-1), "UTC  04 Jul 09:05");
-    assert.deepEqual(formats, ["bad", "%d %b %H:%M", "bad", "%d %b %H:%M"]);
+    assert.deepEqual(formats, ["bad", "%d %b %H:%M"],
+        "the shared render model formats each row once");
     assert.ok(errors.length > 0);
 });
 

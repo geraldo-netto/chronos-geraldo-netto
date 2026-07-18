@@ -8,7 +8,7 @@ Baseline: `npm test` green with the JS and Python per-file coverage gates satisf
 
 The 2026-07-18 SonarCloud pass was also triaged against the source and Cinnamon runtime rather than accepting analyzer severities at face value. Its GitHub decoration called every open issue "new", while the Web API's current leak-period query returned only the newly introduced subset. Framework, compatibility, test-double and bounded-input findings are recorded under Rejected; actionable analysis/gate gaps remain below.
 
-Open items: 2 (Critical 0, High 0, Medium 2, Low 0).
+Open items: 1 (Critical 0, High 0, Medium 1, Low 0).
 
 ## Findings
 
@@ -22,7 +22,6 @@ Open items: 2 (Critical 0, High 0, Medium 2, Low 0).
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
 | T557 | process & delivery governance; test coverage | Medium | open | L | Replace SonarCloud automatic analysis with a scoped CI analysis that imports the existing JS and Python coverage results and distinguishes tests from production sources. | The live API exposes no overall coverage measure and reports `new_lines_to_cover = 0`; automatic analysis cannot import coverage, yet the GitHub decoration displays `0.0%`. It also counts `test/` as production, creating both reported vulnerabilities and most critical test-stub smells. Add standard LCOV/XML output without weakening the local 98/90/100 and Python 98 gates, declare source/test paths, disable automatic analysis, run the scanner after tests, and require the resulting check if it is meant to gate delivery. SonarCloud administration and a GitHub secret are external prerequisites. |
-| T558 | performance; memory and CPU management | Medium | open | M | Derive each world-clock tooltip row once per open-menu/hover tick and reuse it for change detection, tooltip text and popup accessibility. | **[verified]** Instrumenting `timezoneWeatherCity` during one open-menu update with three configured clocks counted 9 calls: `_tooltipKey`, `buildTooltipText` and `describeClockWeather` each repeat the same weather-cell derivation. At the eight-clock cap that is 24 timezone constructions and synchronous zoneinfo link probes per tick when weather is shown; a seconds-enabled clock repeats it every second on the compositor thread. Build one row/render model, key and render from it, and add a regression asserting one derivation per entry with byte-identical tooltip/accessibility output. |
 
 ### Low
 
