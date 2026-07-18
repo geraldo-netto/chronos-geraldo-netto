@@ -679,6 +679,43 @@ test("weather attribution opens the OpenStreetMap copyright page", () => {
         ["xdg-open https://www.openstreetmap.org/copyright"]);
 });
 
+test("About launches the shared GTK page without a shell", () => {
+    const launches = [];
+    const gio = global.imports.gi.Gio;
+    const originalSubprocess = gio.Subprocess;
+    const originalFlags = gio.SubprocessFlags;
+    gio.SubprocessFlags = { NONE: 0 };
+    gio.Subprocess = class {
+        constructor(options) {
+            launches.push(["construct", options]);
+        }
+
+        init(cancellable) {
+            launches.push(["init", cancellable]);
+        }
+    };
+
+    try {
+        Proto.openAbout.call(Object.assign(Object.create(Proto), {
+            _meta: { path: "/home/user/Chronos App;safe/5.4" }
+        }));
+    } finally {
+        gio.Subprocess = originalSubprocess;
+        gio.SubprocessFlags = originalFlags;
+    }
+
+    assert.deepEqual(launches, [
+        ["construct", {
+            argv: [
+                "python3",
+                "/home/user/Chronos App;safe/5.4/settings_about.py"
+            ],
+            flags: 0
+        }],
+        ["init", null]
+    ]);
+});
+
 test("_updateFormatString always applies the configured format and handles invalid input", () => {
     const builds = [];
     const errors = [];

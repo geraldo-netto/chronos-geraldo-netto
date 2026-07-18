@@ -353,6 +353,16 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         Util.spawnCommandLine("xdg-open https://www.openstreetmap.org/copyright");
     }
 
+    openAbout() {
+        this._guarded(() => {
+            const process = new Gio.Subprocess({
+                argv: ["python3", this._meta.path + "/settings_about.py"],
+                flags: Gio.SubprocessFlags.NONE
+            });
+            process.init(null);
+        });
+    }
+
     _onLaunchSettings() {
         this.menu.close();
         Util.spawnCommandLine("cinnamon-settings calendar");

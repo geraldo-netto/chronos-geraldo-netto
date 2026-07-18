@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-07-18 18:06+0200\n"
+"POT-Creation-Date: 2026-07-18 18:35+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -45,7 +45,7 @@ msgstr ""
 msgid "%s — %s"
 msgstr ""
 
-#: worldclockData.js:60 settings_widgets_common.py:69
+#: worldclockData.js:60 settings_widgets_common.py:58
 msgid "Invalid timezone"
 msgstr ""
 
@@ -246,128 +246,127 @@ msgstr ""
 msgid "Source: %s"
 msgstr ""
 
-#: settings_widgets_common.py:67
+#: settings_widgets_common.py:56
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr ""
 
-#: settings_widgets_common.py:68
+#: settings_widgets_common.py:57
 #, python-format
 msgid "Timezone to save: %s"
 msgstr ""
 
-#: settings_widgets_common.py:70
+#: settings_widgets_common.py:59
 msgid "No timezone selected"
 msgstr ""
 
-#: settings_widgets_common.py:71
+#: settings_widgets_common.py:60
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr ""
 
-#: settings_widgets_common.py:72
+#: settings_widgets_common.py:61
 msgid "Enter a display name for this clock"
 msgstr ""
 
-#: settings_widgets_common.py:76
+#: settings_widgets_common.py:65
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr ""
 
-#: settings_widgets_common.py:79
+#: settings_widgets_common.py:68
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
 msgstr ""
 
-#: settings_widgets_common.py:83
+#: settings_widgets_common.py:72
 msgid "City or town (e.g. Lisbon)"
 msgstr ""
 
-#: settings_widgets_common.py:84
+#: settings_widgets_common.py:73
 msgid "Type a country name"
 msgstr ""
 
-#: settings_widgets_common.py:548
+#: settings_widgets_common.py:537
 msgid "Add new entry"
 msgstr ""
 
-#: settings_widgets_common.py:550
+#: settings_widgets_common.py:539
 msgid "Edit entry"
 msgstr ""
 
 #. 5.4->settings-schema.json->openstreetmap-attribution->description
-#: 5.4/settings_about.py:29
+#: 5.4/settings_about.py:37
 msgid "© OpenStreetMap contributors"
 msgstr ""
 
-#: 5.4/settings_about.py:37
+#: 5.4/settings_about.py:45
 msgid "Primary place search and weather forecast service."
 msgstr ""
 
-#: 5.4/settings_about.py:44
+#: 5.4/settings_about.py:52
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
 msgstr ""
 
-#: 5.4/settings_about.py:52
+#: 5.4/settings_about.py:60
 msgid "First fallback weather service, using nearby METAR observations."
 msgstr ""
 
-#: 5.4/settings_about.py:58
+#: 5.4/settings_about.py:66
 msgid "Final fallback weather forecast service."
 msgstr ""
 
-#: 5.4/settings_about.py:67
+#: 5.4/settings_about.py:75
 msgid "Primary public-holiday service."
 msgstr ""
 
-#: 5.4/settings_about.py:73
+#: 5.4/settings_about.py:81
 msgid "First fallback public-holiday service."
 msgstr ""
 
-#: 5.4/settings_about.py:79
+#: 5.4/settings_about.py:87
 msgid "Final fallback public-holiday service."
 msgstr ""
 
+#: 5.4/settings_about.py:125
+#, python-format
+msgid "Version %s"
+msgstr ""
+
 #: 5.4/settings_about.py:131
+msgid "Project website and source code"
+msgstr ""
+
+#: 5.4/settings_about.py:137
+msgid "License: GPL 2.0 or later"
+msgstr ""
+
+#: 5.4/settings_about.py:172
 msgid "Weather and location services"
 msgstr ""
 
-#: 5.4/settings_about.py:133
+#: 5.4/settings_about.py:174
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
 msgstr ""
 
-#: 5.4/settings_about.py:139
+#: 5.4/settings_about.py:180
 msgid "Holiday services"
 msgstr ""
 
-#: 5.4/settings_about.py:141
+#: 5.4/settings_about.py:182
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
 msgstr ""
 
-#: 5.4/settings_about.py:148
+#: 5.4/settings_about.py:189
 msgid "About Chronos"
 msgstr ""
 
-#: 5.4/settings_about.py:152
-#, python-format
-msgid "Version %s"
-msgstr ""
-
-#: 5.4/settings_about.py:154
-#, python-format
-msgid "License: %s"
-msgstr ""
-
-#: 5.4/settings_about.py:160
-msgid "Project website and source code"
-msgstr ""
-
-#: 5.4/settings_about.py:164
+#: 5.4/settings_about.py:193
 msgid "Authors and credits"
 msgstr ""
 

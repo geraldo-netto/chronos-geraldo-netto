@@ -164,6 +164,15 @@ class GettextIsolationTest(unittest.TestCase):
         self.assertEqual(module._("Invalid timezone"),
                          "translated: Invalid timezone")
 
+    def test_missing_catalogs_use_gettext_fallback(self):
+        with mock.patch.object(
+                gettext, "translation",
+                return_value=gettext.NullTranslations()):
+            module = load_module(
+                COMMON_PATH, "settings_widgets_common_null_translation_test")
+
+        self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
+
 
 class FakeWindow:
     def __init__(self, size=(800, 694), workarea=(0, 1080, 3840, 2160), broken=False,

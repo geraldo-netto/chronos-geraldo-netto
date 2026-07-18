@@ -1555,6 +1555,10 @@ msgstr "Simon Wiles (simonwiles)"
 msgid "About"
 msgstr "About"
 
+#: 5.4/settings_about.py:137
+msgid "License: GPL 2.0 or later"
+msgstr "License: GPL 2.0 or later"
+
 #~ msgid "%b %-e"
 #~ msgstr "%-e %b"
 

@@ -280,6 +280,9 @@ class GtkStub:
     def set_selection_mode(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
+    def set_policy(self, horizontal, vertical):
+        self.policy = (horizontal, vertical)
+
 
 class GtkLabel(GtkStub):
     instances = []
@@ -326,6 +329,52 @@ class GtkLinkButton(GtkStub):
 
     def set_halign(self, alignment):
         self.halign = alignment
+
+
+class GtkImage(GtkStub):
+    instances = []
+
+    def __init__(self, path):
+        super().__init__()
+        self.path = path
+        self.valign = None
+        GtkImage.instances.append(self)
+
+    @classmethod
+    def new_from_file(cls, path):
+        return cls(path)
+
+    def set_valign(self, alignment):
+        self.valign = alignment
+
+
+class GtkWindow(GtkStub):
+    instances = []
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.title = kwargs.get("title")
+        self.default_size = None
+        self.position = None
+        self.icon_path = None
+        self.handlers = []
+        self.shown = False
+        GtkWindow.instances.append(self)
+
+    def set_default_size(self, width, height):
+        self.default_size = (width, height)
+
+    def set_position(self, position):
+        self.position = position
+
+    def set_icon_from_file(self, path):
+        self.icon_path = path
+
+    def connect(self, signal, callback):
+        self.handlers.append((signal, callback))
+
+    def show_all(self):
+        self.shown = True
 
 
 class GtkMessageDialog(GtkStub):
@@ -628,6 +677,7 @@ def install_stubs():
     sys.modules["xapp.SettingsWidgets"] = settings_widgets
 
     gi = types.ModuleType("gi")
+    gi.require_version = lambda *_args: None
     repository = types.ModuleType("gi.repository")
     gtk = types.SimpleNamespace(
         MessageDialog=GtkMessageDialog,
@@ -646,12 +696,20 @@ def install_stubs():
         ListBox=GtkStub,
         SelectionMode=types.SimpleNamespace(NONE=0),
         Align=types.SimpleNamespace(START=0),
+        PolicyType=types.SimpleNamespace(NEVER=0, AUTOMATIC=1),
+        WindowPosition=types.SimpleNamespace(CENTER=1),
         Label=GtkLabel,
         LinkButton=GtkLinkButton,
+        Image=GtkImage,
+        Window=GtkWindow,
+        ScrolledWindow=GtkStub,
         ListStore=GtkListStore,
         EntryCompletion=GtkEntryCompletion,
         ComboBox=GtkComboBoxWithEntry,
     )
+    gtk.main_calls = 0
+    gtk.main = lambda: setattr(gtk, "main_calls", gtk.main_calls + 1)
+    gtk.main_quit = lambda: None
     repository.Gtk = gtk
     # the accessibility layer every GTK widget answers through; the dialog uses it
     # to tie its validation message to the field the message is about
@@ -738,7 +796,7 @@ __all__ = [
     "BindObject", "GtkEntryCompletion", "GtkDialog", "GtkMessageDialog",
     "GtkLabel", "BaseWidget", "ComboBox", "Entry", "Model", "DialogSettings",
     "FakeSettings", "GLibError", "GLibStub", "GtkStub",
-    "GtkLinkButton", "FIXED_LOCAL_TIMEZONE",
+    "GtkLinkButton", "GtkImage", "GtkWindow", "FIXED_LOCAL_TIMEZONE",
     "load_module", "install_stubs", "tearDownModule", "FUZZ_SEED",
     "unittest", "types", "json", "random", "re", "sys", "importlib", "Path",
     "_pytz"

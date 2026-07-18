@@ -13,6 +13,8 @@ import json
 import sys
 from pathlib import Path
 
+import gi
+gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
 from xapp.SettingsWidgets import SettingsPage, SettingsWidget
 
@@ -21,10 +23,16 @@ APPLET_DIR = Path(__file__).resolve().parent.parent
 if str(APPLET_DIR) not in sys.path:
     sys.path.append(str(APPLET_DIR))
 
-from settings_widgets_common import _  # noqa: E402
+from settings_i18n import _  # noqa: E402
 
 
 PROJECT_URL = "https://github.com/geraldo-netto/cinnamon-chronos"
+LICENSE_URL = "https://www.gnu.org/licenses/old-licenses/gpl-2.0.html"
+CONTRIBUTOR_LINKS = (
+    ("Geraldo Netto", "https://github.com/geraldo-netto"),
+    ("Claus Colloseus (ccprog)", "https://github.com/ccprog"),
+    ("Simon Wiles (simonwiles)", "https://github.com/simonwiles"),
+)
 OPENSTREETMAP_ATTRIBUTION = (
     _("© OpenStreetMap contributors"),
     "https://www.openstreetmap.org/copyright",
@@ -105,6 +113,39 @@ def content_row(*children):
     return row
 
 
+def identity_row(metadata):
+    row = SettingsWidget()
+    content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+    icon = Gtk.Image.new_from_file(str(APPLET_DIR / "icon.png"))
+    icon.set_valign(Gtk.Align.START)
+    details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+    identity = "\n".join(
+        (
+            "%s (%s)" % (_(metadata["name"]), metadata["uuid"]),
+            _("Version %s") % metadata["version"],
+            _(metadata["description"]),
+        )
+    )
+    details.pack_start(text_label(identity), False, False, 0)
+    details.pack_start(
+        link_button(_("Project website and source code"), PROJECT_URL),
+        False,
+        False,
+        0,
+    )
+    details.pack_start(
+        link_button(_("License: GPL 2.0 or later"), LICENSE_URL),
+        False,
+        False,
+        0,
+    )
+    content.pack_start(icon, False, False, 0)
+    content.pack_start(details, True, True, 0)
+    row.content_widget = content
+    row.pack_start(content, True, True, 0)
+    return row
+
+
 def link_button(label, uri):
     link = Gtk.LinkButton.new_with_label(uri, label)
     link.set_halign(Gtk.Align.START)
@@ -146,31 +187,48 @@ class AboutPage(SettingsPage):
 
     def _add_identity(self, metadata):
         section = self.add_section(_("About Chronos"))
-        identity = "\n".join(
-            (
-                "%s (%s)" % (_(metadata["name"]), metadata["uuid"]),
-                _("Version %s") % metadata["version"],
-                _(metadata["description"]),
-                _("License: %s") % metadata["license"],
-            )
-        )
-        section.add_row(content_row(text_label(identity)))
+        section.add_row(identity_row(metadata))
         section.add_row(
             content_row(
-                link_button(_("Project website and source code"), PROJECT_URL)
+                text_label(_("Authors and credits")),
+                *(
+                    link_button(name, uri)
+                    for name, uri in CONTRIBUTOR_LINKS
+                ),
             )
-        )
-
-        credits = self.add_section(_("Authors and credits"))
-        contributor_lines = "\n".join(
-            contributor.strip()
-            for contributor in metadata["contributors"].split(",")
-        )
-        credits.add_row(
-            content_row(text_label(contributor_lines))
         )
 
     def _add_services(self, title, subtitle, services):
         section = self.add_section(title, subtitle)
         for service in services:
             section.add_row(service_row(*service))
+
+
+class AboutWindow(Gtk.Window):
+    def __init__(self):
+        metadata = read_metadata()
+        super().__init__(title=_(metadata["name"]))
+        self.set_default_size(800, 650)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_icon_from_file(str(APPLET_DIR / "icon.png"))
+
+        self.scroller = Gtk.ScrolledWindow()
+        self.scroller.set_policy(
+            Gtk.PolicyType.NEVER,
+            Gtk.PolicyType.AUTOMATIC,
+        )
+        self.page = AboutPage({}, None)
+        self.scroller.add(self.page)
+        self.add(self.scroller)
+        self.connect("destroy", Gtk.main_quit)
+
+
+def show_about_window():
+    window = AboutWindow()
+    window.show_all()
+    Gtk.main()
+    return window
+
+
+if __name__ == "__main__":
+    show_about_window()

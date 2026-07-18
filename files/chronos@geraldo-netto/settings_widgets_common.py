@@ -24,8 +24,6 @@ try:
 except ImportError:
     available_timezones = None
 from gi.repository import Atk, GLib, Gtk
-import gettext
-from pathlib import Path
 # The gi-free half of the feature — timezone identity and city names — lives in a
 # sibling with no Gtk/Atk/GLib. Re-exported here so the dialog code below and the
 # tests keep reaching the whole feature through this one module.
@@ -34,6 +32,7 @@ from timezone_data import (
     local_city_name,
     TimezoneResolver,
 )
+from settings_i18n import _
 
 # i18n: bind the domain to a module-level name. Installing the translator
 # globally would inject _ into builtins for the whole cinnamon-settings
@@ -41,19 +40,9 @@ from timezone_data import (
 #
 # The applet can be installed per-user or system-wide, and the catalogs follow
 # it. Binding only to $HOME meant a system-wide install silently fell back to
-# NullTranslations - fallback=True - and the whole dialog reverted to English
-# with nothing said. Try the user's catalog first, then the system's.
-def _load_translation():
-    domain = "chronos@geraldo-netto"
-    for locale_dir in (str(Path.home() / ".local/share/locale"), "/usr/share/locale"):
-        translation = gettext.translation(domain, locale_dir, fallback=True)
-        if isinstance(translation, gettext.GNUTranslations):
-            return translation.gettext
-
-    return gettext.translation(domain, fallback=True).gettext
-
-
-_ = _load_translation()
+# NullTranslations - fallback=True - and the whole dialog reverted to English.
+# settings_i18n keeps the same lookup available to the standalone About window
+# without importing this module's Cinnamon settings dependencies.
 
 LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 
