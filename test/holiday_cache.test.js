@@ -1367,6 +1367,98 @@ test("the cache persists only the reachable window but keeps the session's data"
     assert.equal(saved[0][1].years[old], undefined);
 });
 
+function regionRows(year, region) {
+    const rows = [];
+    for (let day = 1; day <= 28; day++) {
+        for (let month = 1; month <= 4; month++) {
+            rows.push({ year, month, day, region, name: `${region} ${month}/${day}`, flags: [] });
+        }
+    }
+    return rows;
+}
+
+function fillRegionHeavySession(cache, years, regions, stamp) {
+    for (const year of years) {
+        for (let index = 0; index < regions; index++) {
+            cache.recordFetch(year, `region${index}`, stamp, regionRows(year, `region${index}`));
+        }
+    }
+}
+
+// T524 regression: the loader accepts at most MAX_EXPANDED_HOLIDAY_ROWS rows
+// per country and wipes every freshness stamp when a snapshot comes back
+// truncated — so a persisted snapshot above the cap turned into a refetch and
+// a rewrite on every applet load, forever. The persist side now evicts whole
+// years, stamps together with rows, until the snapshot fits the loader.
+test("an oversized session persists a snapshot the loader accepts whole", () => {
+    const { HolidayCache, HolidayCacheRepository } = loadHolidays();
+    const { MAX_EXPANDED_HOLIDAY_ROWS } = require(holidayRecordPath);
+    const saved = [];
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        (country, data) => saved.push([country, data])
+    );
+    cache.setPlace("deu", "global");
+
+    const now = new Date();
+    const current = now.getFullYear();
+    const stamp = new Date(now.getTime() - 60000).toUTCString();
+    fillRegionHeavySession(cache, [current - 1, current, current + 1], 16, stamp);
+    assert.ok(cache.data.length > MAX_EXPANDED_HOLIDAY_ROWS,
+        "the session accumulated more in-window rows than the loader accepts");
+    cache.persist(now);
+
+    const [, snapshot] = saved[0];
+    assert.ok(snapshot.holidays.length > 0);
+    assert.ok(snapshot.holidays.length <= MAX_EXPANDED_HOLIDAY_ROWS,
+        "the persisted snapshot fits the loader's per-country cap");
+    // the farthest year went first, rows and stamps together
+    assert.deepEqual(Object.keys(snapshot.years).map(Number).sort((a, b) => a - b),
+        [current, current + 1]);
+    assert.equal(snapshot.holidays.some((single) => single.year === current - 1), false);
+    // the live session keeps everything it fetched
+    assert.equal(cache.data.length, 3 * 16 * regionRows(current, "region0").length);
+
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const loaded = repository._country(
+        { deu: Object.assign({ savedAt: Date.now() }, snapshot) }, "deu");
+    assert.equal(loaded.holidays.length, snapshot.holidays.length);
+    assert.deepEqual(loaded.years, snapshot.years,
+        "no freshness stamp is wiped on the way back in");
+});
+
+// the degenerate corner of the same cap: one year alone above the loader's cap
+// is truncated, and its stamp goes with the dropped rows so the incomplete year
+// is refetched instead of trusted as complete
+test("a single year above the loader cap persists truncated and unstamped", () => {
+    const { HolidayCache, HolidayCacheRepository } = loadHolidays();
+    const { MAX_EXPANDED_HOLIDAY_ROWS } = require(holidayRecordPath);
+    const saved = [];
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        (country, data) => saved.push([country, data])
+    );
+    cache.setPlace("deu", "global");
+
+    const now = new Date();
+    const current = now.getFullYear();
+    const stamp = new Date(now.getTime() - 60000).toUTCString();
+    fillRegionHeavySession(cache, [current], 40, stamp);
+    assert.ok(cache.data.length > MAX_EXPANDED_HOLIDAY_ROWS);
+    cache.persist(now);
+
+    const [, snapshot] = saved[0];
+    assert.equal(snapshot.holidays.length, MAX_EXPANDED_HOLIDAY_ROWS);
+    assert.equal(snapshot.years[current], undefined,
+        "a truncated year carries no freshness stamp");
+
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const loaded = repository._country(
+        { deu: Object.assign({ savedAt: Date.now() }, snapshot) }, "deu");
+    assert.equal(loaded.holidays.length, MAX_EXPANDED_HOLIDAY_ROWS);
+    assert.deepEqual(loaded.years, {});
+});
+
 // The bug this guards: pruning live state discarded a year browsed to that is
 // outside the window, along with the stamp that throttles it, so every calendar
 // update refetched it over the network and rewrote the disk, forever, while the

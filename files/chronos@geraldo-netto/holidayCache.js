@@ -493,7 +493,51 @@ var HolidayCache = class HolidayCache {
             }
         }
 
-        return { years, holidays: this.data.filter((single) => keep(single.year)) };
+        return this._boundedForPersist(years,
+            this.data.filter((single) => keep(single.year)), current);
+    }
+
+    // The loader accepts at most MAX_EXPANDED_HOLIDAY_ROWS rows per country and
+    // treats a longer snapshot as incomplete, wiping every stamp beside it — so
+    // persisting more than that turned one region-heavy session into a refetch
+    // and rewrite on every applet load, forever. Evict whole years from the
+    // snapshot, farthest from today first, stamps together with rows (in this
+    // copy only), until it fits: what is persisted is then loaded back whole,
+    // freshness included.
+    _boundedForPersist(years, holidays, current) {
+        if (holidays.length <= MAX_EXPANDED_HOLIDAY_ROWS) {
+            return { years, holidays };
+        }
+
+        const rowsPerYear = new Map();
+        holidays.forEach((single) => {
+            const year = Number(single.year);
+            rowsPerYear.set(year, (rowsPerYear.get(year) || 0) + 1);
+        });
+
+        const evicted = new Set();
+        let total = holidays.length;
+        const farthestFirst = Array.from(rowsPerYear.keys())
+            .sort((a, b) => Math.abs(b - current) - Math.abs(a - current) || a - b);
+        for (const year of farthestFirst) {
+            if (total <= MAX_EXPANDED_HOLIDAY_ROWS || evicted.size === rowsPerYear.size - 1) {
+                break;
+            }
+            evicted.add(year);
+            total -= rowsPerYear.get(year);
+            delete years[year];
+        }
+
+        let kept = holidays.filter((single) => !evicted.has(Number(single.year)));
+        if (kept.length > MAX_EXPANDED_HOLIDAY_ROWS) {
+            // one year alone overflows the loader's cap: persist what fits and
+            // drop that year's stamp, so the truncated year is refetched rather
+            // than trusted as complete
+            delete years[Number(kept[0].year)];
+            kept = kept.slice(0, MAX_EXPANDED_HOLIDAY_ROWS);
+        }
+
+        return { years, holidays: kept };
     }
 
     // The memo gains an entry for every month scrolled to, empty ones
