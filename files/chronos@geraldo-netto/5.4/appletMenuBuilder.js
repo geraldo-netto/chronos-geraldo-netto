@@ -127,30 +127,27 @@ class AppletMenuBuilder {
 
     // reachable from on_applet_removed_from_panel, like every other teardown in
     // the applet; each step is isolated so one throw does not strand the rest
+    _disconnectAll(target, ids) {
+        if (!target) {
+            return;
+        }
+        for (const id of ids) {
+            target.disconnect(id);
+        }
+    }
+
     destroy() {
         const steps = [
             () => {
-                for (const id of this._events_manager_signal_ids) {
-                    this.context.eventsManager.disconnect(id);
-                }
+                this._disconnectAll(this.context.eventsManager, this._events_manager_signal_ids);
                 this._events_manager_signal_ids = [];
             },
             () => {
-                if (!this._eventList) {
-                    return;
-                }
-                for (const id of this._event_list_signal_ids) {
-                    this._eventList.disconnect(id);
-                }
+                this._disconnectAll(this._eventList, this._event_list_signal_ids);
                 this._event_list_signal_ids = [];
             },
             () => {
-                if (!this._calendar) {
-                    return;
-                }
-                for (const id of this._calendar_signal_ids) {
-                    this._calendar.disconnect(id);
-                }
+                this._disconnectAll(this._calendar, this._calendar_signal_ids);
                 this._calendar_signal_ids = [];
             },
             () => {

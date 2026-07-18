@@ -184,39 +184,43 @@ var Worldclocks = class Worldclocks {
 
     updateClocks (entries = this.getClockEntries()) {
         for (const entry of entries) {
-            const clock = entry.clock;
-            const text = entry.time;
+            this._renderClockEntry(entry);
+        }
+    }
 
-            // a tick is a change in the *panel* clock's rendered string, and a
-            // zone on a half-hour offset rolls its minute somewhere else in the
-            // hour — so a tick is not news for every clock in the table
-            if (clock.rendered_time !== text) {
-                clock.rendered_time = text;
-                clock.display.set_text(text);
-            }
+    _renderClockEntry(entry) {
+        const clock = entry.clock;
+        const text = entry.time;
 
-            // The city label beside this one is read from its own text, so a
-            // name of "Tokyo 07:51" here made a screen reader say "Tokyo",
-            // then "Tokyo 07:51". The row is a label and a time side by side:
-            // the time cell says the time — plus this city's weather, which
-            // otherwise existed only in the panel's mouse tooltip and so reached
-            // neither a keyboard user nor a screen reader.
-            const name = entry.weather ? joinPhrases(text, entry.weather) : text;
-            if (clock.rendered_name !== name) {
-                clock.rendered_name = name;
-                if (clock.display.set_accessible_name) {
-                    clock.display.set_accessible_name(name);
-                }
-            }
+        // a tick is a change in the *panel* clock's rendered string, and a
+        // zone on a half-hour offset rolls its minute somewhere else in the
+        // hour — so a tick is not news for every clock in the table
+        if (clock.rendered_time !== text) {
+            clock.rendered_time = text;
+            clock.display.set_text(text);
+        }
 
-            // ...and the same reading, drawn. The accessible name carries the
-            // condition in words as well; the cell is the temperature, which is
-            // what the row has room for beside a time.
-            const reading = entry.weather ? String(entry.weather).split(",")[0].trim() : "";
-            if (clock.rendered_weather !== reading && clock.weather) {
-                clock.rendered_weather = reading;
-                clock.weather.set_text(reading);
+        // The city label beside this one is read from its own text, so a
+        // name of "Tokyo 07:51" here made a screen reader say "Tokyo",
+        // then "Tokyo 07:51". The row is a label and a time side by side:
+        // the time cell says the time — plus this city's weather, which
+        // otherwise existed only in the panel's mouse tooltip and so reached
+        // neither a keyboard user nor a screen reader.
+        const name = entry.weather ? joinPhrases(text, entry.weather) : text;
+        if (clock.rendered_name !== name) {
+            clock.rendered_name = name;
+            if (clock.display.set_accessible_name) {
+                clock.display.set_accessible_name(name);
             }
+        }
+
+        // ...and the same reading, drawn. The accessible name carries the
+        // condition in words as well; the cell is the temperature, which is
+        // what the row has room for beside a time.
+        const reading = entry.weather ? String(entry.weather).split(",")[0].trim() : "";
+        if (clock.rendered_weather !== reading && clock.weather) {
+            clock.rendered_weather = reading;
+            clock.weather.set_text(reading);
         }
     }
 

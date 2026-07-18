@@ -11,7 +11,12 @@ const { testBodies, functionBodies } = require("./helpers/cognitive");
 //
 // Five bodies were over this when the audit measured them by hand (T449), and a
 // sixth had drifted over since. Hand-measured means it drifts, so it is a test.
-const MAX_COGNITIVE_COMPLEXITY = 15;
+//
+// The project rule is "at or below 10, 15 or higher forbidden": this gate holds
+// the forbidden line — a body scoring FORBIDDEN_COGNITIVE_COMPLEXITY fails, not
+// just one above it. Ratcheting the ceiling toward 10 is tracked work, not this
+// constant.
+const FORBIDDEN_COGNITIVE_COMPLEXITY = 15;
 
 const TEST_DIR = __dirname;
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
@@ -22,7 +27,7 @@ test("no test body is too complex to follow", () => {
     for (const file of fs.readdirSync(TEST_DIR).filter((name) => name.endsWith(".test.js"))) {
         const source = fs.readFileSync(path.join(TEST_DIR, file), "utf8");
         for (const body of testBodies(source)) {
-            if (body.complexity > MAX_COGNITIVE_COMPLEXITY) {
+            if (body.complexity >= FORBIDDEN_COGNITIVE_COMPLEXITY) {
                 offenders.push(`${file}:${body.line} — ${body.complexity} — ${body.name}`);
             }
         }
@@ -79,7 +84,7 @@ test("no function in the applet is too complex to follow", () => {
     for (const file of appletSources()) {
         const source = fs.readFileSync(file, "utf8");
         for (const body of functionBodies(source)) {
-            if (body.complexity > MAX_COGNITIVE_COMPLEXITY) {
+            if (body.complexity >= FORBIDDEN_COGNITIVE_COMPLEXITY) {
                 offenders.push(
                     `${path.relative(APPLET_DIR, file)}:${body.line} — ${body.complexity} — ${body.name}`);
             }
