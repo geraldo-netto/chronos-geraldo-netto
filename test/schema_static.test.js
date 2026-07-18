@@ -368,6 +368,8 @@ test("CI runs the gates the README promises", () => {
     assert.match(packagingJob, /uses: actions\/upload-artifact@[0-9a-f]{40} # v\d/);
     assert.match(packagingJob, artifactName, "the gated package is retained under its commit SHA");
     assert.match(packagingJob, /path: dist\/chronos@geraldo-netto\//);
+    assert.match(packagingJob, /overwrite: true/,
+        "rerunning every job replaces the deterministic artifact instead of conflicting");
     assert.match(workflow, /tags: \['v\*'\]/, "release tags trigger CI");
     assert.match(workflow, /release:[\s\S]*needs: packaging/,
         "a release tag is accepted only after gates and packaging");
@@ -392,8 +394,9 @@ test("CI runs the gates the README promises", () => {
     assert.match(pkg.scripts["lint:py"], /exit 1/);
     assert.equal(pkg.scripts["i18n:check"], "node scripts/check-i18n.mjs");
     assert.equal(pkg.scripts["release:check"], "node scripts/release.mjs check");
-    assert.match(readme, /downloads that same immutable artifact/);
-    assert.match(readme, /do not rebuild the release from a local checkout/);
+    assert.match(readme,
+        /replacing that\s+same deterministic artifact when all jobs are rerun/);
+    assert.match(readme, /do not rebuild the release\s+from a local checkout/);
 
     // sixteen timezone tests skipped themselves in CI because pytz was never
     // installed there, and neither the suite count nor a coverage number moved

@@ -6,7 +6,7 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 Baseline: `npm test` green (792 JS tests, JS coverage per-file 98/90/100; Python 118 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
 
-Open items: 2 (Critical 0, High 0, Medium 0, Low 2).
+Open items: 1 (Critical 0, High 0, Medium 0, Low 1).
 
 ## Findings
 
@@ -24,7 +24,6 @@ Open items: 2 (Critical 0, High 0, Medium 0, Low 2).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T552 | release & deploy engineering | Low | open | S | T543 made the artifact name retry-stable as `chronos-spices-${{ github.sha }}`, but `actions/upload-artifact@v7` artifacts are immutable and `overwrite` defaults to false. “Re-run all jobs” now reruns packaging in the same workflow run and its upload conflicts with the artifact from the first attempt; the fix traded one standard recovery path for another. Set `overwrite: true` for this deterministic rebuild, or design separate upload/download names that preserve both failed-job and all-job retries; pin both paths in the workflow test. | **[verified]** The pinned action's current official README says a repeated name fails, artifacts are immutable, and `overwrite` defaults to false. The current static test asserts absence of `github.run_attempt` but has no rerun-all assertion. README still describes a `<run attempt>` suffix and must be corrected here. |
 | T553 | release artifact integrity | Low | open | M | CI says it preserves and hands off the “exact” gated Spices tree, but `upload-artifact@v7`'s default zipped upload resets every file to mode `0644`. The tracked package contains three executable `100755` files (`5.4/settings_widgets.py`, `settings_widgets_common.py`, `po/makepot`), and the release job checks only that metadata exists after download. Wrap the tree in a tar archive (or another mode-preserving format), upload it without a second archive layer, extract it in the release job, and verify the manifest and executable modes before publication. | **[verified]** Git records all three files as `100755`; the official action README's “Permission Loss” contract says zipped uploads return all files as `644` and recommends tar when permissions matter. This is fail-closed for CI execution but contradicts the documented exact-artifact handoff and can strip modes from a submitted tree. |
 
 ## Clean categories
