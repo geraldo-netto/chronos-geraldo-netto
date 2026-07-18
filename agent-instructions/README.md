@@ -1,7 +1,7 @@
 # Agent Instruction Domains
 
-This directory contains extracted, composable instruction modules from `old/`.
-Use one or more files to build a project-specific `AGENTS.md`.
+This directory contains composable instruction modules. Use one or more files to
+build a project-specific `AGENTS.md`.
 
 ## Suggested Base
 
