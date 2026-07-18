@@ -64,10 +64,6 @@ test("the packaging command stages only the Cinnamon Spices applet tree", async 
     await assert.rejects(fs.access(path.join(output, path.relative(ROOT, junk))),
         "ignored bytecode cannot enter the package");
 
-    const dereferencedIcon = await fs.lstat(path.join(output, "files", UUID, "5.4", "icon.png"));
-    assert.equal(dereferencedIcon.isFile(), true,
-        "the legacy in-tree icon link is delivered as a real file");
-
     for (const developmentOnly of ["package.json", "TODO.md", "test", ".github", "agent-instructions"]) {
         await assert.rejects(fs.access(path.join(output, developmentOnly)));
     }

@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 3 (Critical 0, High 1, Medium 0, Low 2).
+Open items: 2 (Critical 0, High 0, Medium 0, Low 2).
 
 ## Findings
 
@@ -14,7 +14,6 @@ Open items: 3 (Critical 0, High 1, Medium 0, Low 2).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T439 | packaging | High | open | S | **[verified]** `5.4/icon.png` is committed as a git **symlink** (mode `120000` → `../icon.png`), not a file. Zip delivery (the Spices "Download" tab) and several install paths do not preserve symlinks: the entry lands as a broken link or a 12-byte file containing the literal text `../icon.png` — a corrupt PNG, so the applet is iconless. | Verified: `git ls-files -s` → `120000 …`. The rescan also found it **unnecessary**: the Spices spec puts the icon at `files/UUID/icon.png`, which already exists as a real 48×48 file; Cinnamon only adds `5.4/` to the icon *theme* search path. Fix: delete the symlink (or replace it with a real copy). Raised from Medium — the previous ledger had not established that zip delivery is the shipping path. |
 
 ### Medium
 
@@ -30,9 +29,8 @@ Open items: 3 (Critical 0, High 1, Medium 0, Low 2).
 
 ## Suggested order
 
-1. **T439** — remove the committed delivery-fragile icon symlink.
-2. **T522** — reduce and pin the CI supply-chain authority.
-3. **T343** — remove the orphaned root image.
+1. **T522** — reduce and pin the CI supply-chain authority.
+2. **T343** — remove the orphaned root image.
 
 ## Clean categories
 
