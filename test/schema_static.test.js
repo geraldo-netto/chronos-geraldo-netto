@@ -352,8 +352,11 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /run: npm ci/);
     assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
     assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
-    assert.match(workflow, /node: \[22\]/,
-        "the declared Node development runtime");
+    assert.equal(pkg.engines.node, ">=22.13.0");
+    assert.match(workflow, /node: \['22\.13\.0'\]/,
+        "the supported Node floor is exercised exactly");
+    assert.doesNotMatch(workflow, /node-version: 22\b/,
+        "release jobs must not resolve an unsupported early Node 22 runtime");
     assert.match(workflow, /packaging:[\s\S]*needs: gates/,
         "packaging runs only after the Node gate job passes");
     assert.match(workflow, /run: npm run i18n:check/,
