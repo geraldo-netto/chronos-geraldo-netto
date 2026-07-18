@@ -585,6 +585,7 @@ class SettingsWidgetsTest(unittest.TestCase):
 
     def test_add_dialog_without_pytz_accepts_typed_timezone(self):
         module = load_module(COMMON_PATH, "settings_widgets_common_dialog_no_pytz", missing_pytz=True)
+        module.available_timezones = lambda: {"Europe/Rome"}
         clocks = module.ClocksList({"value": []}, "worldclocks", DialogSettings())
 
         def script(dialog):
@@ -623,6 +624,7 @@ class SettingsWidgetsTest(unittest.TestCase):
 
     def test_missing_pytz_degrades_to_plain_timezone_entry(self):
         module = load_module(COMMON_PATH, "settings_widgets_common_no_pytz_test", missing_pytz=True)
+        module.available_timezones = lambda: {"Europe/Rome"}
         clocks = module.ClocksList({
             "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
         }, "worldclocks", object())
