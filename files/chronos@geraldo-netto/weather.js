@@ -245,8 +245,9 @@ var WeatherProvider = class WeatherProvider {
 
         const report = this._display_state.reporter(this._staleKey(settings),
             (reading, error, provider) => {
-                // a failed refresh must not wait out the whole refresh period
-                if (error) {
+                // Service outages may recover before the normal period. A name
+                // that both geocoders answered but could not resolve will not.
+                if (error && error !== WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND) {
                     this._scheduler.retry(() => this.refresh(settings, callback));
                 } else {
                     this._scheduler.succeeded();

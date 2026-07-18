@@ -170,6 +170,40 @@ test("a provider whose refresh fails schedules its own retry", () => {
     assert.equal(provider._scheduler.retryId, 0, "destroy clears the retry");
 });
 
+test("panel weather settles an unknown place but retries a service outage", () => {
+    const Weather = loadWeather();
+    const calls = [];
+    const scheduler = {
+        retry() {
+            calls.push("retry");
+        },
+        succeeded() {
+            calls.push("succeeded");
+        },
+        stop() {}
+    };
+    const settings = { showWeather: true, location: "Atlantis", units: "si" };
+
+    for (const error of [
+        Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND,
+        Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE
+    ]) {
+        const provider = new Weather.WeatherProvider({
+            scheduler,
+            locationResolver: {
+                forget() {},
+                resolve(_location, _isCurrent, callback) {
+                    callback(null, error);
+                }
+            },
+            httpGetJson() {}
+        });
+        provider.refresh(settings, () => {});
+    }
+
+    assert.deepEqual(calls, ["succeeded", "retry"]);
+});
+
 test("the geocode cache is bounded and re-resolves an edited location", () => {
     const Weather = loadWeather();
     let geocodes = 0;
