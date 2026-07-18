@@ -401,9 +401,10 @@ Chronos Calendar is maintained by **Geraldo Netto** (`geraldo-netto`) at
 It is a derived work. The original applets, and their authors, are:
 
 - **`calendar@ccprog`** — Claus Colloseus (`ccprog`): public holidays, events,
-  weather, the settings dialog, the world-clock settings workflow, the
-  locale-aware weekend handling, and the icon, screenshot, and calendar assets
-  this applet still ships.
+  weather, the settings dialog, the world-clock settings workflow, and the
+  locale-aware weekend handling. The shipped icon is an original Chronos
+  design and the screenshot is a current Chronos capture; neither is a
+  `calendar@ccprog` asset anymore.
 - **`calendar@simonwiles.net`** — Simon Wiles (`simonwiles`): the world-clock
   focus that Chronos keeps in the panel and the popup.
 
