@@ -327,15 +327,25 @@ function foldPlaceName(name) {
         .trim().toLowerCase();
 }
 
+function coordinateNumber(value, minimum, maximum) {
+    if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) {
+        return null;
+    }
+
+    const coordinate = Number(value);
+    return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum ?
+        coordinate : null;
+}
+
 function placeCandidate(place) {
     if (!place || typeof place !== "object") {
         return null;
     }
 
-    const latitude = Number(place.latitude);
-    const longitude = Number(place.longitude);
+    const latitude = coordinateNumber(place.latitude, -90, 90);
+    const longitude = coordinateNumber(place.longitude, -180, 180);
 
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    if (latitude === null || longitude === null) {
         return null;
     }
 
@@ -397,10 +407,10 @@ function nominatimGeocodePlace(data) {
         return null;
     }
 
-    const latitude = parseFloat(place.lat);
-    const longitude = parseFloat(place.lon);
+    const latitude = coordinateNumber(place.lat, -90, 90);
+    const longitude = coordinateNumber(place.lon, -180, 180);
 
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    if (latitude === null || longitude === null) {
         return null;
     }
 

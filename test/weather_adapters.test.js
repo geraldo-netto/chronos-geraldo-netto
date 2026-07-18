@@ -142,6 +142,34 @@ test("normalizes primary and fallback geocode responses", () => {
     );
     assert.equal(Weather.nominatimGeocodePlace([{ lat: "x", lon: "12.5" }]), null);
 
+    for (const value of [null, "", " ", false, true, [], {}, NaN, Infinity]) {
+        assert.equal(Weather.openMeteoGeocodePlace({
+            results: [{ latitude: value, longitude: 12.5, population: 1000 }]
+        }), null);
+        assert.equal(Weather.nominatimGeocodePlace([{ lat: value, lon: "12.5" }]), null);
+    }
+
+    for (const [latitude, longitude] of [
+        [-90, -180], [90, 180], ["-90", "-180"], ["90", "180"]
+    ]) {
+        assert.deepEqual(Weather.openMeteoGeocodePlace({
+            results: [{ latitude, longitude, population: 1000 }]
+        }), { latitude: Number(latitude), longitude: Number(longitude), population: 1000 });
+        assert.deepEqual(Weather.nominatimGeocodePlace([{
+            lat: latitude, lon: longitude, display_name: "edge"
+        }]), { name: "edge", latitude: Number(latitude), longitude: Number(longitude) });
+    }
+
+    for (const [latitude, longitude] of [
+        [-90.001, 0], [90.001, 0], [0, -180.001], [0, 180.001], [999, 999],
+        ["41.9north", "12.5"]
+    ]) {
+        assert.equal(Weather.openMeteoGeocodePlace({
+            results: [{ latitude, longitude, population: 1000 }]
+        }), null);
+        assert.equal(Weather.nominatimGeocodePlace([{ lat: latitude, lon: longitude }]), null);
+    }
+
     const nextUnit = makeRandom(0x51eed123);
 
     for (let i = 0; i < 100; i++) {
@@ -252,12 +280,17 @@ function assertNullOrFinitePlace(place) {
     assert.equal(typeof place, "object");
     assert.equal(Number.isFinite(place.latitude), true);
     assert.equal(Number.isFinite(place.longitude), true);
+    assert.ok(place.latitude >= -90 && place.latitude <= 90);
+    assert.ok(place.longitude >= -180 && place.longitude <= 180);
 }
 
 test("geocode parsers fuzz malformed payloads without throwing", () => {
     const Weather = loadWeather();
     const rand = makeRandom(0x9e0c0de);
-    const scalars = [null, undefined, "", "12.5", "Infinity", "NaN", 0, 42, Infinity, NaN, true, false];
+    const scalars = [
+        null, undefined, "", "12.5", "Infinity", "NaN", "999", 0, 42, 999,
+        Infinity, NaN, true, false, []
+    ];
 
     function pick(list) {
         return list[Math.floor(rand() * list.length)];
