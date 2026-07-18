@@ -34,6 +34,7 @@ MISSING_PYTZ_WARNING = (
 
 TZ_NO_REGION = 'Etc'
 RESERVED_TIMEZONES = {"utc", "etc/utc", "local"}
+ZONEINFO_DIRECTORY = Path("/usr/share/zoneinfo")
 
 
 def local_timezone_name() -> Optional[str]:
@@ -94,7 +95,16 @@ def local_city_name(timezone: Optional[str] = None) -> str:
     if not name or '/' not in name or name.startswith(TZ_NO_REGION + '/'):
         return ""
 
-    return name.rsplit('/', maxsplit=1)[-1].replace('_', ' ')
+    city_timezone = name
+    try:
+        source = ZONEINFO_DIRECTORY.joinpath(*name.split('/'))
+        if source.is_symlink():
+            resolved = source.resolve(strict=True)
+            city_timezone = resolved.relative_to(ZONEINFO_DIRECTORY).as_posix()
+    except (OSError, RuntimeError, ValueError):
+        return ""
+
+    return city_timezone.rsplit('/', maxsplit=1)[-1].replace('_', ' ')
 
 
 class TimezoneResolver:

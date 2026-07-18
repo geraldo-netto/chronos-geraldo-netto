@@ -110,7 +110,14 @@ function timezoneCityName(timezone) {
         return "";
     }
 
-    return identifier.split("/").pop().replace(/_/g, " ").trim();
+    const readLink = (filename) => GLib.file_read_link(filename);
+    const isAlias = readTimezoneLink(identifier, readLink) !== null;
+    const cityIdentifier = isAlias ?
+        canonicalTimezoneFromSymlinks(identifier, readLink) : identifier;
+    if (!cityIdentifier) {
+        return "";
+    }
+    return cityIdentifier.split("/").pop().replace(/_/g, " ").trim();
 }
 
 // Weather egress must use the runtime's resolved timezone, not the configured

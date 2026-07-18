@@ -57,6 +57,17 @@ global.imports = {
             TimeZone: {
                 new_identifier: (tz) => ({ get_identifier: () => tz }),
                 new_local: () => ({ get_identifier: () => "Europe/Berlin" })
+            },
+            file_read_link: (filename) => {
+                const links = {
+                    "/usr/share/zoneinfo/US/Eastern": "../America/New_York",
+                    "/usr/share/zoneinfo/Canada/Eastern": "../America/Toronto",
+                    "/usr/share/zoneinfo/Brazil/East": "../America/Sao_Paulo"
+                };
+                if (Object.prototype.hasOwnProperty.call(links, filename)) {
+                    return links[filename];
+                }
+                throw new Error("regular zoneinfo file");
             }
         },
         St: {

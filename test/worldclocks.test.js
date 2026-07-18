@@ -181,6 +181,11 @@ const ZONE_POOL = [
     "Pacific/Auckland", "America/Mexico_City", "Asia/Shanghai", "Europe/Berlin"
 ];
 const zoneAt = (index) => ZONE_POOL[index % ZONE_POOL.length];
+const ZONEINFO_LINKS = {
+    "/usr/share/zoneinfo/US/Eastern": "../America/New_York",
+    "/usr/share/zoneinfo/Canada/Eastern": "../America/Toronto",
+    "/usr/share/zoneinfo/Brazil/East": "../America/Sao_Paulo"
+};
 
 // GLib.TimeZone.new_identifier answers null for a zone it does not know, and so
 // does this: Intl is the zone database, and a name it rejects is not a zone.
@@ -248,6 +253,12 @@ function loadWorldclocks(options = {}) {
                             }
                         };
                     }
+                },
+                file_read_link(filename) {
+                    if (Object.prototype.hasOwnProperty.call(ZONEINFO_LINKS, filename)) {
+                        return ZONEINFO_LINKS[filename];
+                    }
+                    throw new Error("regular zoneinfo file");
                 }
             },
             Clutter: {
@@ -918,6 +929,20 @@ test("timezoneCityName reads the place out of the identifier, not the label", ()
     assert.equal(WorldclockData.timezoneCityName("America/New_York"), "New York");
     assert.equal(WorldclockData.timezoneCityName("America/Argentina/Buenos_Aires"), "Buenos Aires");
     assert.equal(WorldclockData.timezoneCityName("Europe/Rome"), "Rome");
+    assert.equal(WorldclockData.timezoneCityName("US/Eastern"), "New York");
+    assert.equal(WorldclockData.timezoneCityName("Canada/Eastern"), "Toronto");
+    assert.equal(WorldclockData.timezoneCityName("Brazil/East"), "Sao Paulo");
+
+    const aliasClock = WorldclockData.selectUserClocks([
+        { label: "Legacy", timezone: "US/Eastern" }
+    ])[0];
+    assert.deepEqual(aliasClock, { label: "Legacy", timezone: "US/Eastern" },
+        "canonicalizing the weather city does not rewrite the saved or displayed timezone");
+
+    const GLib = global.imports.gi.GLib;
+    GLib.file_read_link = (filename) => filename.endsWith("/First") ? "Second" : "First";
+    assert.equal(WorldclockData.timezoneCityName("Europe/First"), "",
+        "an alias cycle exposes no false city to the weather providers");
 
     // UTC is a scale and the local row is the panel location's job; neither is
     // a place to ask a geocoder about
