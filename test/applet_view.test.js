@@ -618,69 +618,80 @@ test("a hovered panel shows every clock in the tooltip and none on the panel", (
     assert.match(calls.tooltip[0], /Sydney/);
 });
 
-test("fuzz: the tooltip table never throws and keeps its columns aligned", () => {
-    const TEMPERATURE_COLUMN = 2;
-    const rand = makeRandom(FUZZ_SEED);
-    const alphabets = [
-        "abcdefghijklmnopqrstuvwxyz ",
-        "ÅÄÖéèçñüß",
-        "東京モスクワ",
-        "🌧⛈☀❄🇯🇵",
-        "́̈-_/:.",
-        ""
-    ];
+const TOOLTIP_FUZZ_ALPHABETS = [
+    "abcdefghijklmnopqrstuvwxyz ",
+    "ÅÄÖéèçñüß",
+    "東京モスクワ",
+    "🌧⛈☀❄🇯🇵",
+    "́̈-_/:.",
+    ""
+];
 
-    // a real cell is a label, a stamp or a reading: it never ends in padding
-    // of its own, which the row-trailing trim would then eat
-    function randomCell() {
-        const chars = Array.from(alphabets[Math.floor(rand() * alphabets.length)]);
-        const length = Math.floor(rand() * 20);
-        let cell = "";
-        for (let i = 0; i < length && chars.length; i++) {
-            cell += chars[Math.floor(rand() * chars.length)];
-        }
-        return cell.replace(/\s+$/, "");
+function randomTooltipCell(rand) {
+    const alphabet = TOOLTIP_FUZZ_ALPHABETS[
+        Math.floor(rand() * TOOLTIP_FUZZ_ALPHABETS.length)];
+    const chars = Array.from(alphabet);
+    const length = Math.floor(rand() * 20);
+    let cell = "";
+    for (let i = 0; i < length && chars.length; i++) {
+        cell += chars[Math.floor(rand() * chars.length)];
     }
+    return cell.replace(/\s+$/, "");
+}
 
+function randomTooltipRows(rand) {
+    const rowCount = 1 + Math.floor(rand() * 5);
+    return Array.from({ length: rowCount }, () => {
+        const cellCount = 1 + Math.floor(rand() * 3);
+        return Array.from({ length: cellCount }, () => randomTooltipCell(rand));
+    });
+}
+
+function tooltipColumnWidths(rows) {
+    const widths = [];
+    rows.forEach((cells) => cells.forEach((cell, column) => {
+        widths[column] = Math.max(widths[column] || 0, Array.from(cell).length);
+    }));
+    return widths;
+}
+
+function assertTooltipCell(chars, cell, column, last, offset, widths, row) {
+    // A trailing empty cell is trimmed off the row entirely. Temperatures are
+    // right-aligned, so their cell ends at the shared boundary.
+    const expected = last && !cell ? "" : cell;
+    const size = Array.from(expected).length;
+    const start = column === 2 ? offset + widths[column] - size : offset;
+    assert.equal(chars.slice(start, start + size).join(""), expected,
+        `row ${row} column ${column} sits on the shared offset`);
+}
+
+function assertTooltipLine(line, cells, widths, row) {
+    const chars = Array.from(line);
+    assert.ok(line.isWellFormed(), "no glyph is split by the padding");
+    assert.doesNotMatch(line, /\s$/, "no row ends in padding");
+    let offset = 0;
+    cells.forEach((cell, column) => {
+        assertTooltipCell(chars, cell, column, column === cells.length - 1,
+            offset, widths, row);
+        offset += widths[column] + 2;
+    });
+}
+
+function assertTooltipTable(lines, rows) {
+    const widths = tooltipColumnWidths(rows);
+    lines.forEach((line, row) => assertTooltipLine(line, rows[row], widths, row));
+}
+
+test("fuzz: the tooltip table never throws and keeps its columns aligned", () => {
+    const rand = makeRandom(FUZZ_SEED);
     const presenter = panelStatus({});
     for (let round = 0; round < 200; round++) {
-        const rowCount = 1 + Math.floor(rand() * 5);
-        const rows = Array.from({ length: rowCount }, () => {
-            const cellCount = 1 + Math.floor(rand() * 3);
-            return Array.from({ length: cellCount }, randomCell);
-        });
+        const rows = randomTooltipRows(rand);
 
         let lines;
         assert.doesNotThrow(() => { lines = presenter.alignTooltipRows(rows); });
         assert.equal(lines.length, rows.length);
-
-        // the padding is the only thing holding the columns together, so it is
-        // counted in code points: a surrogate pair is one column, not two
-        const widths = [];
-        rows.forEach((cells) => cells.forEach((cell, column) => {
-            widths[column] = Math.max(widths[column] || 0, Array.from(cell).length);
-        }));
-
-        lines.forEach((line, row) => {
-            const chars = Array.from(line);
-            assert.ok(line.isWellFormed(), "no glyph is split by the padding");
-            assert.doesNotMatch(line, /\s$/, "no row ends in padding");
-
-            let offset = 0;
-            rows[row].forEach((cell, column) => {
-                const last = column === rows[row].length - 1;
-                // a trailing empty cell is trimmed off the row entirely
-                const expected = last && !cell ? "" : cell;
-                const size = Array.from(expected).length;
-                // the temperature column is right-aligned: its cell ends on the
-                // column boundary instead of starting on it
-                const start = column === TEMPERATURE_COLUMN ?
-                    offset + widths[column] - size : offset;
-                assert.equal(chars.slice(start, start + size).join(""),
-                    expected, `row ${row} column ${column} sits on the shared offset`);
-                offset += widths[column] + 2;
-            });
-        });
+        assertTooltipTable(lines, rows);
     }
 
     // rows made of nothing but padding are still rows

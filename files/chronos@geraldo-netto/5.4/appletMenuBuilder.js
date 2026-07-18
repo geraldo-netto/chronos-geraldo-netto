@@ -22,6 +22,11 @@ const EventView = require("./eventView");
 const Worldclocks = require("./worldclocks");
 
 const _ = LocaleText.translate;
+const HOME_KEY_SYMBOLS = new Set([
+    Clutter.KEY_Return,
+    Clutter.KEY_KP_Enter,
+    Clutter.KEY_space
+]);
 
 // Builds the menu contents and hands them back; the applet is the only
 // writer of its own fields. The context carries the collaborators the UI
@@ -171,7 +176,6 @@ class AppletMenuBuilder {
     }
 
     _buildHomeButton(calbox) {
-        const context = this.context;
         const button = new St.BoxLayout(
             {
                 style_class: "calendar-today-home-button",
@@ -202,35 +206,9 @@ class AppletMenuBuilder {
             actor.remove_style_pseudo_class("hover");
         });
 
-        button.connect("button-press-event", (actor, event) => {
-            if (event.get_button() == Clutter.BUTTON_PRIMARY) {
-                return Clutter.EVENT_STOP;
-            }
-        });
-
-        button.connect("button-release-event", (actor, event) => {
-            if (event.get_button() == Clutter.BUTTON_PRIMARY) {
-                actor.remove_style_pseudo_class("hover");
-                context.onGoHome();
-                return Clutter.EVENT_STOP;
-            }
-        });
-
-        button.connect("key-press-event", (actor, event) => {
-            // today is already selected: the button is styled as disabled, and
-            // it should act disabled too
-            if (!actor.reactive) {
-                return Clutter.EVENT_PROPAGATE;
-            }
-
-            const symbol = event.get_key_symbol();
-            if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter ||
-                symbol === Clutter.KEY_space) {
-                context.onGoHome();
-                return Clutter.EVENT_STOP;
-            }
-            return Clutter.EVENT_PROPAGATE;
-        });
+        button.connect("button-press-event", this._onHomeButtonPress.bind(this));
+        button.connect("button-release-event", this._onHomeButtonRelease.bind(this));
+        button.connect("key-press-event", this._onHomeButtonKeyPress.bind(this));
 
         calbox.add_actor(button);
 
@@ -249,6 +227,30 @@ class AppletMenuBuilder {
         button.add_actor(date);
 
         return { button, day, date };
+    }
+
+    _onHomeButtonPress(_actor, event) {
+        return event.get_button() == Clutter.BUTTON_PRIMARY ?
+            Clutter.EVENT_STOP : undefined;
+    }
+
+    _onHomeButtonRelease(actor, event) {
+        if (event.get_button() != Clutter.BUTTON_PRIMARY) {
+            return undefined;
+        }
+        actor.remove_style_pseudo_class("hover");
+        this.context.onGoHome();
+        return Clutter.EVENT_STOP;
+    }
+
+    _onHomeButtonKeyPress(actor, event) {
+        // today is already selected: the button is styled as disabled, and it
+        // should act disabled too
+        if (!actor.reactive || !HOME_KEY_SYMBOLS.has(event.get_key_symbol())) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+        this.context.onGoHome();
+        return Clutter.EVENT_STOP;
     }
 
     _buildCalendar(calbox) {

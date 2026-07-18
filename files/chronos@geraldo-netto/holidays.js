@@ -355,18 +355,12 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             // skipped the clamp every other one goes through, so a 4 MiB response
             // could be laid out by Pango on the compositor thread, or forge lines
             // in the Cinnamon log.
-            const reported = HolidayCacheModule.clampHolidayName(
-                typeof data.error === "string" ? data.error.replace(/[\r\n]+/g, " ") : "");
-            this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
-            logHolidayDataError(this.last_provider, params && params.year, // NOSONAR [S6582] -- accepted compatible form
-                reported || HOLIDAY_ERRORS.INVALID_RESPONSE);
+            this._rejectHolidayData(params, this._remoteErrorText(data.error));
             return;
         }
 
-        if (!params || !Number.isInteger(params.year) ||
-            !this.record.validResponse(data, params.year)) {
-            this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
-            logHolidayDataError(this.last_provider, params && params.year, this.last_error); // NOSONAR [S6582] -- accepted compatible form
+        if (!this._validFetchedData(data, params)) {
+            this._rejectHolidayData(params, HOLIDAY_ERRORS.INVALID_RESPONSE);
             return;
         }
 
@@ -379,6 +373,27 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         // The cache used to do this from inside recordFetch, i.e. a disk write
         // from inside a data structure.
         this.cache.persist();
+    }
+
+    _remoteErrorText(error) {
+        const text = typeof error === "string" ?
+            error.replace(/[\r\n]+/g, " ") : "";
+        return HolidayCacheModule.clampHolidayName(text) ||
+            HOLIDAY_ERRORS.INVALID_RESPONSE;
+    }
+
+    _validFetchedData(data, params) {
+        return Boolean(params) &&
+            Number.isInteger(params.year) &&
+            this.record.validResponse(data, params.year);
+    }
+
+    _rejectHolidayData(params, reported) {
+        this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
+        logHolidayDataError(
+            this.last_provider,
+            params && params.year, // NOSONAR [S6582] -- accepted compatible form
+            reported);
     }
 
     _inflightKey(year) {

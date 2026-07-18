@@ -231,23 +231,30 @@ function timezoneLinkSegments(identifier, target) {
     return segments;
 }
 
+function applyTimezoneSegment(normalized, segment) {
+    if (!segment || segment === ".") {
+        return true;
+    }
+    if (segment === "..") {
+        if (normalized.length === 0) {
+            return false;
+        }
+        normalized.pop();
+        return true;
+    }
+    if (!/^[A-Za-z0-9._+-]+$/.test(segment)) {
+        return false;
+    }
+    normalized.push(segment);
+    return true;
+}
+
 function normalizedTimezonePath(segments) {
     const normalized = [];
     for (const segment of segments) {
-        if (!segment || segment === ".") {
-            continue;
-        }
-        if (segment === "..") {
-            if (!normalized.length) {
-                return "";
-            }
-            normalized.pop();
-            continue;
-        }
-        if (!/^[A-Za-z0-9._+-]+$/.test(segment)) {
+        if (!applyTimezoneSegment(normalized, segment)) {
             return "";
         }
-        normalized.push(segment);
     }
 
     return regionalTimezoneIdentifier(normalized.join("/"));
@@ -303,6 +310,14 @@ function canonicalTimezoneFromSymlinks(timezone, readLink) {
 // zone.tab is the OS timezone database's explicit timezone-to-country mapping.
 // Do not guess from the Area part: America/Indiana/Indianapolis and
 // America/Argentina/Buenos_Aires demonstrate why that would not be a country.
+function validZoneTabFields(fields, seenTimezones) {
+    return (fields.length === 3 || fields.length === 4) &&
+        /^[A-Z]{2}$/.test(fields[0]) &&
+        /^[+-]\d{4}(?:\d{2})?[+-]\d{5}(?:\d{2})?$/.test(fields[1]) &&
+        regionalTimezoneIdentifier(fields[2]) === fields[2] &&
+        !seenTimezones.has(fields[2]);
+}
+
 function countryCodeFromZoneTab(timezone, zoneTab) {
     const identifier = regionalTimezoneIdentifier(timezone);
     if (!identifier || typeof zoneTab !== "string" ||
@@ -318,11 +333,7 @@ function countryCodeFromZoneTab(timezone, zoneTab) {
         }
 
         const fields = line.split("\t");
-        const validFieldCount = fields.length === 3 || fields.length === 4;
-        if (!validFieldCount || !/^[A-Z]{2}$/.test(fields[0]) ||
-            !/^[+-]\d{4}(?:\d{2})?[+-]\d{5}(?:\d{2})?$/.test(fields[1]) ||
-            regionalTimezoneIdentifier(fields[2]) !== fields[2] ||
-            seenTimezones.has(fields[2])) {
+        if (!validZoneTabFields(fields, seenTimezones)) {
             return "";
         }
 

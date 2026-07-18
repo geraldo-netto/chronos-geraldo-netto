@@ -29,6 +29,34 @@ const AppletMenuBuilder = AppletMenu.AppletMenuBuilder;
 const AppletWeatherCoordinator = AppletCoordinators.AppletWeatherCoordinator;
 const AppletEventListCoordinator = AppletCoordinators.AppletEventListCoordinator;
 
+function destroyIfPresent(collaborator) {
+    if (collaborator) {
+        collaborator.destroy();
+    }
+}
+
+function finalizeIfPresent(settings) {
+    if (settings) {
+        settings.finalize();
+    }
+}
+
+function removeOwnedMenu(applet) {
+    if (applet.menu && applet.menuManager) {
+        applet.menuManager.removeMenu(applet.menu);
+    }
+}
+
+function runTeardownSteps(steps) {
+    for (const step of steps) {
+        try {
+            step();
+        } catch (e) {
+            global.logError(e);
+        }
+    }
+}
+
 // Explicit adapter from the Cinnamon applet to the panel presenter's port. The
 // presenter/view receive this object, never the applet or its private shape.
 function createPanelPort(applet) {
@@ -465,34 +493,28 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // failure after that point used to leave a live global hotkey bound
             // to a destroyed applet — pressing it opened a menu that was gone
             () => Main.keybindingManager.removeHotKey("calendar-open-" + this.instance_id),
-            () => this._settingsBinder && this._settingsBinder.destroy(), // NOSONAR [S6582] -- accepted compatible form
-            () => this._providerLifecycle && this._providerLifecycle.destroy(), // NOSONAR [S6582] -- accepted compatible form
+            () => destroyIfPresent(this._settingsBinder),
+            () => destroyIfPresent(this._providerLifecycle),
             // the menu builder connects five signals on the events manager and
             // the event list, and nothing used to disconnect them
-            () => this._menuBuilder && this._menuBuilder.destroy(), // NOSONAR [S6582] -- accepted compatible form
-            () => this._calendar && this._calendar.destroy(), // NOSONAR [S6582] -- accepted compatible form
-            () => this.event_list && this.event_list.destroy(), // NOSONAR [S6582] -- accepted compatible form
+            () => destroyIfPresent(this._menuBuilder),
+            () => destroyIfPresent(this._calendar),
+            () => destroyIfPresent(this.event_list),
             // the popup menu is parented to Main.uiGroup, not to the applet
             // actor, so nothing else ever destroys it: without this the whole
             // 42-cell grid, its tooltips and the event rows are stranded on
             // every reload, and they keep the providers alive through their
             // closures
-            () => this.menu && this.menuManager && this.menuManager.removeMenu(this.menu), // NOSONAR [S6582] -- accepted compatible form
-            () => this.menu && this.menu.destroy(), // NOSONAR [S6582] -- accepted compatible form
-            () => this.settings && this.settings.finalize(), // NOSONAR [S6582] -- accepted compatible form
+            () => removeOwnedMenu(this),
+            () => destroyIfPresent(this.menu),
+            () => finalizeIfPresent(this.settings),
             // the locale query's deadline and its retry are module-level timers
             // with no other owner: without this the retry can still spawn
             // `locale` two minutes after the applet is gone
             () => LocaleQuery.cancelPendingLocaleQueries()
         ];
 
-        for (let step of steps) {
-            try {
-                step();
-            } catch (e) {
-                global.logError(e);
-            }
-        }
+        runTeardownSteps(steps);
     }
 
     _initContextMenu () {

@@ -24,26 +24,19 @@ const FUNCTIONS = new Set([
     "FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"
 ]);
 
-function childNodes(node) {
-    const children = [];
-    for (const key of Object.keys(node)) {
-        if (key === "parent" || key === "loc" || key === "range") {
-            continue;
-        }
+const NON_CHILD_KEYS = new Set(["parent", "loc", "range"]);
 
-        const value = node[key];
-        if (Array.isArray(value)) {
-            value.forEach((entry) => {
-                if (entry && typeof entry.type === "string") {
-                    children.push(entry);
-                }
-            });
-        } else if (value && typeof value.type === "string") {
-            children.push(value);
-        }
+function childValueNodes(value) {
+    if (Array.isArray(value)) {
+        return value.filter((entry) => entry && typeof entry.type === "string");
     }
+    return value && typeof value.type === "string" ? [value] : [];
+}
 
-    return children;
+function childNodes(node) {
+    return Object.entries(node)
+        .filter(([key]) => !NON_CHILD_KEYS.has(key))
+        .flatMap(([, value]) => childValueNodes(value));
 }
 
 // `a && b && c` is one sequence, and costs 1; `a && b || c` alternates and costs 2

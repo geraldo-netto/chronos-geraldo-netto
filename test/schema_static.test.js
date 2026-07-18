@@ -475,6 +475,42 @@ test("the documented install compiles the catalogs the applet reads", () => {
 // 2026", and the same string is the grid's ACCESSIBLE_DATE_FORMAT, so her screen
 // reader announced all 42 day cells that way too.
 //
+function assertCatalogDateFormat(source, catalog, msgid) {
+    const escaped = msgid.replace(/[%\-.*+?^${}()|[\]\\]/g, "\\$&");
+    const match = source.match(new RegExp(
+        `^msgid "${escaped}"\nmsgstr "(.*)"$`, "m"));
+    assert.ok(match, `${catalog} has no entry for ${msgid}`);
+    assert.notEqual(match[1], "",
+        `${catalog} leaves ${msgid} untranslated, so it renders in US order`);
+    assert.match(match[1], /%[-\w]*[Bbm]/, `${catalog}: ${msgid} lost its month`);
+    assert.match(match[1], /%[-\w]*[eYd]/,
+        `${catalog}: ${msgid} lost its day or year`);
+}
+
+function assertCatalogDateFormats(poDir, catalog, msgids) {
+    const source = fs.readFileSync(path.join(poDir, catalog), "utf8");
+    msgids.forEach((msgid) => assertCatalogDateFormat(source, catalog, msgid));
+}
+
+function shippedSourceFiles(dir) {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            return entry.name === "po" || entry.name === "__pycache__" ?
+                [] : shippedSourceFiles(full);
+        }
+        return entry.isFile() && /\.(js|py)$/.test(entry.name) ? [full] : [];
+    });
+}
+
+function assertSourceLicence(file) {
+    const head = fs.readFileSync(file, "utf8").split("\n").slice(0, 12).join("\n");
+    assert.match(head, /SPDX-License-Identifier: GPL-2\.0-or-later/,
+        `${path.relative(appletDir, file)} ships with no licence notice`);
+    assert.match(head, /calendar@ccprog[\s\S]*calendar@simonwiles\.net/,
+        `${path.relative(appletDir, file)} does not credit the works it derives from`);
+}
+
 // The machinery was right; the data was never filled in. This is the data.
 test("catalogs localize calendar dates while panel formats keep their fixed order", () => {
     const poDir = path.join(appletDir, "po");
@@ -494,19 +530,7 @@ test("catalogs localize calendar dates while panel formats keep their fixed orde
         "the fixed display order must not be translated or rearranged");
 
     for (const catalog of catalogs) {
-        const source = fs.readFileSync(path.join(poDir, catalog), "utf8");
-
-        for (const msgid of msgids) {
-            const entry = new RegExp(`^msgid "${msgid.replace(/[%\-.*+?^${}()|[\]\\]/g, "\\$&")}"\nmsgstr "(.*)"$`, "m");
-            const match = source.match(entry);
-            assert.ok(match, `${catalog} has no entry for ${msgid}`);
-            assert.notEqual(match[1], "",
-                `${catalog} leaves ${msgid} untranslated, so it renders in US order`);
-
-            // a format string, not a sentence: the fields must survive translation
-            assert.match(match[1], /%[-\w]*[Bbm]/, `${catalog}: ${msgid} lost its month`);
-            assert.match(match[1], /%[-\w]*[eYd]/, `${catalog}: ${msgid} lost its day or year`);
-        }
+        assertCatalogDateFormats(poDir, catalog, msgids);
     }
 });
 
@@ -521,27 +545,9 @@ test("what ships carries its licence", () => {
     assert.equal(shipped, fs.readFileSync(path.join(__dirname, "..", "LICENSE"), "utf8"),
         "the copy that ships and the one at the root must not drift");
 
-    const sources = [];
-    const walk = (dir) => {
-        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-            const full = path.join(dir, entry.name);
-            if (entry.isDirectory() && entry.name !== "po" && entry.name !== "__pycache__") {
-                walk(full);
-            } else if (entry.isFile() && /\.(js|py)$/.test(entry.name)) {
-                sources.push(full);
-            }
-        }
-    };
-    walk(appletDir);
+    const sources = shippedSourceFiles(appletDir);
     assert.ok(sources.length >= 40, `${sources.length} shipped sources`);
-
-    for (const file of sources) {
-        const head = fs.readFileSync(file, "utf8").split("\n").slice(0, 12).join("\n");
-        assert.match(head, /SPDX-License-Identifier: GPL-2\.0-or-later/,
-            `${path.relative(appletDir, file)} ships with no licence notice`);
-        assert.match(head, /calendar@ccprog[\s\S]*calendar@simonwiles\.net/,
-            `${path.relative(appletDir, file)} does not credit the works it derives from`);
-    }
+    sources.forEach(assertSourceLicence);
 });
 
 // Cinnamon treats each entry as a minimum compatible version, not as a literal

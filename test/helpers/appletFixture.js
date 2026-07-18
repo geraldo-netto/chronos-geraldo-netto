@@ -225,20 +225,34 @@ function weatherCoordinator(overrides = {}) {
     }, overrides);
 }
 
+function legacyCityReading(applet, city) {
+    return applet.cityWeatherReading ? applet.cityWeatherReading(city) : null;
+}
+
+function legacyCityStale(applet, city) {
+    return Boolean(applet.cityWeatherStale && // NOSONAR [S6582] -- deliberate test seam
+        applet.cityWeatherStale(city));
+}
+
+function legacyCityProviderName(applet) {
+    return applet.cityWeatherProviderName ? applet.cityWeatherProviderName() : "";
+}
+
+function legacyWeatherCoordinator(applet) {
+    return weatherCoordinator({
+        reading: applet.weatherReading || null,
+        pending: Boolean(applet.weatherPending),
+        error: applet.weatherError || "",
+        providerName: applet.weatherProvider || "",
+        cityReading: (city) => legacyCityReading(applet, city),
+        cityStale: (city) => legacyCityStale(applet, city),
+        cityProviderName: () => legacyCityProviderName(applet)
+    });
+}
+
 function panelStatus(applet) {
     if (!applet._weatherCoordinator) {
-        applet._weatherCoordinator = weatherCoordinator({
-            reading: applet.weatherReading || null,
-            pending: Boolean(applet.weatherPending),
-            error: applet.weatherError || "",
-            providerName: applet.weatherProvider || "",
-            cityReading: (city) => applet.cityWeatherReading ?
-                applet.cityWeatherReading(city) : null,
-            cityStale: (city) => Boolean(applet.cityWeatherStale && // NOSONAR [S6582] -- deliberate test seam
-                applet.cityWeatherStale(city)),
-            cityProviderName: () => applet.cityWeatherProviderName ?
-                applet.cityWeatherProviderName() : ""
-        });
+        applet._weatherCoordinator = legacyWeatherCoordinator(applet);
     }
     return new AppletModule.AppletPanelStatusPresenter(
         new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet)));

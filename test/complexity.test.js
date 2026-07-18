@@ -9,14 +9,9 @@ const { functionBodies } = require("./helpers/cognitive");
 // re-derives its own expected answer inline is a second implementation that can be
 // wrong in the same way as the first — and then they agree, and the suite is green.
 //
-// Five bodies were over this when the audit measured them by hand (T449), and a
-// sixth had drifted over since. Hand-measured means it drifts, so it is a test.
-//
-// The project rule is "at or below 10, 15 or higher forbidden": this gate holds
-// the forbidden line — a body scoring FORBIDDEN_COGNITIVE_COMPLEXITY fails, not
-// just one above it. Ratcheting the ceiling toward 10 is tracked work, not this
-// constant.
-const FORBIDDEN_COGNITIVE_COMPLEXITY = 15;
+// The project rule is "at or below 10". This constant is the first forbidden
+// score: a body at 11 fails, not just one above it.
+const FORBIDDEN_COGNITIVE_COMPLEXITY = 11;
 
 const TEST_DIR = __dirname;
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
@@ -126,12 +121,13 @@ test("every JavaScript test function stays below the forbidden line", () => {
 
 test("the JavaScript gate rejects a named helper at the forbidden line", () => {
     const source = "function hidden(value) {" +
-        "if (value) { for (;;) { if (value) { while (value) { if (value) {} } } } }" +
+        "if (value) { for (;;) { if (value) { while (value) {} } } }" +
+        "if (value) {}" +
         "}";
 
     assert.deepEqual(
         complexityOffenders([["test/injected-helper.js", "script"]], () => source),
-        ["test/injected-helper.js:1 — 15 — hidden"]
+        ["test/injected-helper.js:1 — 11 — hidden"]
     );
 });
 

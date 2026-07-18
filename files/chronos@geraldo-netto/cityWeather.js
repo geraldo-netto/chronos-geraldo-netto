@@ -264,17 +264,19 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         const round = { outstanding: cities.length, failed: 0, changed: false, completed: false, settings, queue: cities.slice() };
         // start the next queued city; _cityDone calls this again as each frees a
         // slot, so at most GEOCODE_CONCURRENCY chains run at once
-        round.pump = () => {
-            if (!this._isCurrent(generation)) {
-                return;
-            }
-            const city = round.queue.shift();
-            if (city) {
-                this._refreshCity(city, generation, callback, round);
-            }
-        };
+        round.pump = () => this._pumpRound(round, generation, callback);
         for (let started = 0; started < GEOCODE_CONCURRENCY; started++) {
             round.pump();
+        }
+    }
+
+    _pumpRound(round, generation, callback) {
+        if (!this._isCurrent(generation)) {
+            return;
+        }
+        const city = round.queue.shift();
+        if (city) {
+            this._refreshCity(city, generation, callback, round);
         }
     }
 
@@ -378,52 +380,50 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     }
 
     _refreshCity(city, generation, callback, round) {
-        const settings = round.settings;
-        const done = (ok) => this._cityDone(generation, round, settings, callback, ok);
-
         // the query is the timezone's city; the label is only ever a local key
-        this._location_resolver.resolve(city.query, () => this._isCurrent(generation), (place, error) => {
-            if (!this._isCurrent(generation)) {
-                return;
-            }
+        this._location_resolver.resolve(
+            city.query,
+            () => this._isCurrent(generation),
+            (place, error) => this._cityPlaceResolved(
+                city, generation, callback, round, place, error));
+    }
 
-            if (!place) {
-                // A place that will not geocode is not a failure to retry: the
-                // name is wrong, and asking again will not make it right. That is
-                // true of LOCATION_NOT_FOUND — and this used to discard the error
-                // argument entirely and apply it to every failure, including the
-                // one that means "nobody answered".
-                //
-                // Start before NetworkManager is up and every city exhausts its
-                // chain with SERVICE_UNAVAILABLE; the round then scored zero
-                // failures, told the scheduler it had succeeded, and armed no
-                // retry — so the tooltip had no temperatures for thirty minutes,
-                // while the panel weather beside it, on the identical failure,
-                // was back in twenty seconds.
-                done(error !== Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE);
-                return;
-            }
+    _cityPlaceResolved(city, generation, callback, round, place, error) {
+        if (!this._isCurrent(generation)) {
+            return;
+        }
+        if (!place) {
+            // An unknown name will not improve on retry; a service outage may.
+            const ok = error !== Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
+            this._cityDone(generation, round, round.settings, callback, ok);
+            return;
+        }
+        this._forecast_resolver.refresh(
+            place,
+            () => this._isCurrent(generation),
+            (reading, forecastError, provider) => this._cityForecastResolved(
+                city, generation, callback, round, reading, forecastError, provider));
+    }
 
-            this._forecast_resolver.refresh(place, () => this._isCurrent(generation),
-                (reading, forecastError, provider) => {
-                    if (!this._isCurrent(generation)) {
-                        return;
-                    }
+    _cityForecastResolved(city, generation, callback, round,
+        reading, forecastError, provider) {
+        if (!this._isCurrent(generation)) {
+            return;
+        }
+        if (forecastError || !reading) {
+            // the city keeps the reading it had; it is now aging, and staleFor()
+            // says so once it is two periods old
+            this._cityDone(generation, round, round.settings, callback, false);
+            return;
+        }
 
-                    if (forecastError || !reading) {
-                        // the city keeps the reading it had; it is now aging,
-                        // and staleFor() says so once it is two periods old
-                        done(false);
-                        return;
-                    }
-
-                    this._readings.set(locationCacheKey(city.query), { record: reading, at: this._now() });
-                    this._last_provider = provider || this._last_provider;
-                    // the panel is repainted once, when the round finishes
-                    round.changed = true;
-                    done(true);
-                });
-        });
+        this._readings.set(
+            locationCacheKey(city.query),
+            { record: reading, at: this._now() });
+        this._last_provider = provider || this._last_provider;
+        // the panel is repainted once, when the round finishes
+        round.changed = true;
+        this._cityDone(generation, round, round.settings, callback, true);
     }
 };
 

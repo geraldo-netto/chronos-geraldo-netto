@@ -66,42 +66,51 @@ const proxy = {
     instance: null
 };
 
+class ProxyInstance {
+    constructor() {
+        this.status = 2;
+        this.connections = {};
+        this.disconnected = [];
+        this.next_signal_id = 1;
+        this.set_time_range_calls = [];
+    }
+
+    connect(name, cb) {
+        const failure = typeof proxy.connectError === "function" ?
+            proxy.connectError() : proxy.connectError;
+        if (failure) {
+            throw failure;
+        }
+        const id = this.next_signal_id++;
+        this.connections[id] = { name, cb };
+        return id;
+    }
+
+    disconnect(id) {
+        this.disconnected.push(id);
+        delete this.connections[id];
+    }
+
+    signal(name, ...args) {
+        for (const id in this.connections) {
+            if (this.connections[id].name === name) {
+                this.connections[id].cb(this, ...args);
+            }
+        }
+    }
+
+    call_set_time_range(start, end, force, cancellable, cb) {
+        this.set_time_range_calls.push({ start, end, force, cancellable });
+        if (cb) {
+            cb(this, "res");
+        }
+    }
+
+    call_set_time_range_finish(res) {}
+}
+
 function makeProxyInstance() {
-    return {
-        status: 2,
-        connections: {},
-        disconnected: [],
-        next_signal_id: 1,
-        set_time_range_calls: [],
-        connect(name, cb) {
-            const failure = typeof proxy.connectError === "function" ?
-                proxy.connectError() : proxy.connectError;
-            if (failure) {
-                throw failure;
-            }
-            const id = this.next_signal_id++;
-            this.connections[id] = { name, cb };
-            return id;
-        },
-        disconnect(id) {
-            this.disconnected.push(id);
-            delete this.connections[id];
-        },
-        signal(name, ...args) {
-            for (const id in this.connections) {
-                if (this.connections[id].name === name) {
-                    this.connections[id].cb(this, ...args);
-                }
-            }
-        },
-        call_set_time_range(start, end, force, cancellable, cb) {
-            this.set_time_range_calls.push({ start, end, force, cancellable });
-            if (cb) {
-                cb(this, "res");
-            }
-        },
-        call_set_time_range_finish(res) {}
-    };
+    return new ProxyInstance();
 }
 
 global.log = () => {};

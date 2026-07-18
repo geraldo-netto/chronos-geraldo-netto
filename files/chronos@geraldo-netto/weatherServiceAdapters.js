@@ -247,32 +247,23 @@ function weatherReading(weather) {
     return { condition: weatherIcon(weather.weathercode), temperatureC: weather.temperature };
 }
 
+const MET_NO_ICON_RULES = [
+    [["thunder"], "⛈"],
+    [["clearsky"], "☀"],
+    [["fair"], "🌤"],
+    [["partlycloudy"], "⛅"],
+    [["fog", "cloudy"], "☁"],
+    [["snow"], "🌨"],
+    [["showers"], "🌦"],
+    [["rain", "drizzle", "sleet"], "🌧"]
+];
+
 function metNoIcon(symbolCode) {
     const symbol = typeof symbolCode === "string" ? symbolCode.toLowerCase() : "";
-
-    if (symbol.indexOf("thunder") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "⛈";
-    }
-    if (symbol.indexOf("clearsky") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "☀";
-    }
-    if (symbol.indexOf("fair") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "🌤";
-    }
-    if (symbol.indexOf("partlycloudy") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "⛅";
-    }
-    if (symbol.indexOf("fog") !== -1 || symbol.indexOf("cloudy") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "☁";
-    }
-    if (symbol.indexOf("snow") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "🌨";
-    }
-    if (symbol.indexOf("showers") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "🌦";
-    }
-    if (symbol.indexOf("rain") !== -1 || symbol.indexOf("drizzle") !== -1 || symbol.indexOf("sleet") !== -1) { // NOSONAR [S7765] -- accepted compatible form
-        return "🌧";
+    for (const [tokens, icon] of MET_NO_ICON_RULES) {
+        if (tokens.some((token) => symbol.indexOf(token) !== -1)) { // NOSONAR [S7765] -- accepted compatible form
+            return icon;
+        }
     }
 
     return "🌤";

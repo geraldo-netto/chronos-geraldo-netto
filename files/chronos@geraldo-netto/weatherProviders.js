@@ -227,36 +227,46 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
     }
 
     _tryGeocodeProviders(providers, isCurrent, callback) {
-        let anyResponse = false;
+        const state = { anyResponse: false };
         ProviderUtils.tryProvidersInOrder(
             providers,
-            (provider, onResult) => {
-                const request = (release = () => {}) => this._httpGetJson(provider.url, (data) => {
-                    release();
-                    if (!isCurrent()) {
-                        return;
-                    }
-                    anyResponse = anyResponse || (data !== null && data !== undefined);
-                    onResult(provider.normalize(data));
-                }, provider.options || {});
-
-                if (provider.requestQueue) {
-                    provider.requestQueue.enqueue(request, isCurrent);
-                } else {
-                    request();
-                }
-            },
+            (provider, onResult) => this._requestGeocodeProvider(
+                provider, isCurrent, onResult, state),
             (place) => Boolean(place), // NOSONAR [S7770] -- accepted compatible form
             (provider, place) => callback(place, ""),
-            () => {
-                if (global.log) {
-                    global.log("all weather geocode providers failed");
-                }
-                callback(null, anyResponse ?
-                    WEATHER_ERRORS.LOCATION_NOT_FOUND :
-                    WEATHER_ERRORS.SERVICE_UNAVAILABLE);
-            }
+            () => this._reportGeocodeFailure(state.anyResponse, callback)
         );
+    }
+
+    _requestGeocodeProvider(provider, isCurrent, onResult, state) {
+        const request = (release = () => {}) => this._httpGetJson(
+            provider.url,
+            (data) => {
+                release();
+                if (!isCurrent()) {
+                    return;
+                }
+                state.anyResponse = state.anyResponse ||
+                    (data !== null && data !== undefined);
+                onResult(provider.normalize(data));
+            },
+            provider.options || {}
+        );
+
+        if (provider.requestQueue) {
+            provider.requestQueue.enqueue(request, isCurrent);
+        } else {
+            request();
+        }
+    }
+
+    _reportGeocodeFailure(anyResponse, callback) {
+        if (global.log) {
+            global.log("all weather geocode providers failed");
+        }
+        callback(null, anyResponse ?
+            WEATHER_ERRORS.LOCATION_NOT_FOUND :
+            WEATHER_ERRORS.SERVICE_UNAVAILABLE);
     }
 }
 

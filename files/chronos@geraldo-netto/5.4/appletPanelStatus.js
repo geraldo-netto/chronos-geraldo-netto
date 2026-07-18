@@ -45,6 +45,27 @@ const DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
 // label, date and time, temperature, condition: only the numbers are right-aligned
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
 
+function tooltipColumnWidths(rows) {
+    const widths = [];
+    rows.forEach((cells) => {
+        cells.forEach((cell, column) => {
+            const width = Array.from(cell).length;
+            widths[column] = Math.max(widths[column] || 0, width);
+        });
+    });
+    return widths;
+}
+
+function alignedTooltipCell(cell, column, cells, widths) {
+    const pad = widths[column] - Array.from(cell).length;
+    const padding = " ".repeat(Math.max(pad, 0)); // NOSONAR [S7766] -- accepted compatible form
+    if (column === TOOLTIP_TEMPERATURE_COLUMN) {
+        return padding + cell;
+    }
+    // the last cell of a row needs no padding behind it
+    return column === cells.length - 1 ? cell : cell + padding;
+}
+
 const WEATHER_ERROR_TEXT = {
     [Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND]: _("Location not found"),
     [Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE]: _("Weather service unavailable"),
@@ -521,30 +542,10 @@ class AppletPanelStatusPresenter {
     // a tooltip is plain text, so the columns can only be lined up by padding;
     // the temperatures hang off the right of their column so the digits stack
     alignTooltipRows(rows) {
-        const widths = [];
-        rows.forEach((cells) => {
-            cells.forEach((cell, column) => {
-                const width = Array.from(cell).length;
-                if (!widths[column] || width > widths[column]) {
-                    widths[column] = width;
-                }
-            });
-        });
-
-        return rows.map((cells) => {
-            return cells.map((cell, column) => {
-                const pad = widths[column] - Array.from(cell).length;
-                const padding = " ".repeat(pad > 0 ? pad : 0); // NOSONAR [S7766] -- accepted compatible form
-                if (column === TOOLTIP_TEMPERATURE_COLUMN) {
-                    return padding + cell;
-                }
-                // the last cell of a row needs no padding behind it
-                if (column === cells.length - 1) {
-                    return cell;
-                }
-                return cell + padding;
-            }).join("  ").replace(/\s+$/, ""); // NOSONAR [S8786] -- input length is bounded
-        });
+        const widths = tooltipColumnWidths(rows);
+        return rows.map((cells) => cells.map(
+            (cell, column) => alignedTooltipCell(cell, column, cells, widths)
+        ).join("  ").replace(/\s+$/, "")); // NOSONAR [S8786] -- input length is bounded
     }
 
     _tooltipText(model) {

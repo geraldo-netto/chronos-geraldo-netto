@@ -286,6 +286,16 @@ class CalendarDayCellRenderer {
     }
 
     update(cell, iter, row, today, dateUnixKey, accessibleDate) {
+        const dateChanged = this._updateDateIdentity(
+            cell, iter, today, accessibleDate);
+        this._updateCellStyle(cell, iter, row, today);
+        this._updateSelection(cell, iter);
+        this._clearOldHolidayTooltip(cell, dateChanged);
+        this.host.renderDots(cell, iter, dateUnixKey);
+        this.applyAccessibleName(cell);
+    }
+
+    _updateDateIdentity(cell, iter, today, accessibleDate) {
         // the slot is reused: whether it is showing a different day now is what
         // decides whether last pass's holiday annotation still belongs to it
         const dateChanged = !cell.date || !_sameDay(cell.date, iter);
@@ -308,7 +318,10 @@ class CalendarDayCellRenderer {
         if (dateChanged) {
             cell.holiday_name = "";
         }
+        return dateChanged;
+    }
 
+    _updateCellStyle(cell, iter, row, today) {
         // a holiday annotation appends classes after our write, so an
         // annotated cell needs a rewrite even when the base is unchanged
         const styleClass = this._dayStyleClass(iter, row, today);
@@ -317,7 +330,9 @@ class CalendarDayCellRenderer {
             cell.rendered_style = styleClass;
             cell.holiday_styled = false;
         }
+    }
 
+    _updateSelection(cell, iter) {
         const selected = _sameDay(this.host.selectedDate, iter);
         if (selected !== cell.selected) {
             if (selected) {
@@ -330,15 +345,14 @@ class CalendarDayCellRenderer {
             // is one stop rather than forty-two
             cell.button.can_focus = selected;
         }
+    }
 
+    _clearOldHolidayTooltip(cell, dateChanged) {
         // clear any holiday annotation from the date previously shown here
         if (dateChanged && cell.holiday_tooltip_set) {
             setTooltipText(cell, cell.holidayTooltip, "");
             cell.holiday_tooltip_set = false;
         }
-
-        this.host.renderDots(cell, iter, dateUnixKey);
-        this.applyAccessibleName(cell);
     }
 
     // The date, whether it is today, whether it is the selected day, how many

@@ -162,6 +162,82 @@ function loadUtils(options = "") {
         require(providerModulePath));
 }
 
+function randomHttpBytes(rand) {
+    const bytes = Buffer.alloc(Math.floor(rand() * 48));
+    for (let i = 0; i < bytes.length; i++) {
+        bytes[i] = Math.floor(rand() * 256);
+    }
+    return bytes;
+}
+
+function truncatedWeatherBody(rand) {
+    const whole = JSON.stringify({ current_weather: { temperature: 12 } });
+    return Buffer.from(whole.slice(0, 1 + Math.floor(rand() * (whole.length - 1))));
+}
+
+function httpFuzzBodies(utils, rand) {
+    return [
+        () => Buffer.from(JSON.stringify({ ok: true, n: Math.floor(rand() * 1000) })),
+        () => Buffer.from(JSON.stringify([1, 2, 3])),
+        () => Buffer.from(JSON.stringify(Math.floor(rand() * 100))),
+        () => Buffer.from("null"),
+        () => Buffer.from('"a string"'),
+        () => truncatedWeatherBody(rand),
+        () => randomHttpBytes(rand),
+        () => Buffer.alloc(0),
+        () => Buffer.from('{"x":"' + "y".repeat(utils.MAX_RESPONSE_BYTES) + '"}')
+    ];
+}
+
+function runHttpFuzzRound(utils, rand, bodies) {
+    const body = bodies[Math.floor(rand() * bodies.length)]();
+    const status = rand() < 0.25 ? [301, 404, 500, 503][Math.floor(rand() * 4)] : 200;
+    const message = { get_status: () => status };
+    global.imports.gi.Soup.Message.new = () => message;
+    let calls = 0;
+    let seen = "unset";
+
+    assert.doesNotThrow(() => {
+        const session = new (makeStreamingSoup({ chunks: [body] }).Session)();
+        utils.httpGetJson(session, "https://example.test/fuzz?place=Lisbon", (data, msg) => {
+            calls++;
+            seen = { data, msg };
+        });
+    }, `body of ${body.length} bytes, status ${status}`);
+    assert.equal(calls, 1, "the callback fires exactly once, whatever happened");
+    assert.ok(seen.data === null || (typeof seen.data === "object" && seen.data !== null),
+        `data must be an object or null, got ${typeof seen.data}`);
+    if (status !== 200) {
+        assert.equal(seen.data, null, "a failed request has no data");
+    }
+    if (body.length > utils.MAX_RESPONSE_BYTES) {
+        assert.equal(seen.data, null, "an oversized body is never parsed");
+    }
+    return seen.data !== null;
+}
+
+function randomSanitizerUrl(rand, pick, schemes, hosts, paths, secret) {
+    const encoded = rand() < 0.5 ? encodeURIComponent(secret) : secret;
+    const query = rand() < 0.8 ? `?name=${encoded}&count=1` : "";
+    const fragment = rand() < 0.3 ? `#${encoded}` : "";
+    return {
+        encoded,
+        hasSecretSuffix: Boolean(query || fragment),
+        url: `${pick(schemes)}://${pick(hosts)}${pick(paths)}${query}${fragment}`
+    };
+}
+
+function assertSanitizedUrl(utils, url, encoded, hasSecretSuffix) {
+    const logged = utils.urlForLog(url);
+    assert.equal(typeof logged, "string");
+    assert.doesNotMatch(logged, /[?#]/, "no query and no fragment survive");
+    if (hasSecretSuffix) {
+        assert.equal(logged.includes(encoded), false,
+            `the location must not reach the log: ${url}`);
+    }
+    assert.ok(url.startsWith(logged), "what is kept is a prefix of the real URL");
+}
+
 function loadLocaleModules(options = "") {
     loadUtils(options);
     return Object.assign(
@@ -890,73 +966,14 @@ test("fuzz: httpGetJson answers with a parsed object or null, and never throws",
     const utils = loadIoUtils();
     const rand = makeRandom(0xdec0de);
 
-    const bodies = [
-        // valid JSON of every shape the providers can send
-        () => Buffer.from(JSON.stringify({ ok: true, n: Math.floor(rand() * 1000) })),
-        () => Buffer.from(JSON.stringify([1, 2, 3])),
-        // valid JSON that is not an object: a scalar is not a payload
-        () => Buffer.from(JSON.stringify(Math.floor(rand() * 100))),
-        () => Buffer.from("null"),
-        () => Buffer.from('"a string"'),
-        // truncated, and truncated in the middle rather than always at the end
-        () => {
-            const whole = JSON.stringify({ current_weather: { temperature: 12 } });
-            return Buffer.from(whole.slice(0, 1 + Math.floor(rand() * (whole.length - 1))));
-        },
-        // random bytes, which may or may not be valid UTF-8
-        () => {
-            const length = Math.floor(rand() * 48);
-            const bytes = Buffer.alloc(length);
-            for (let i = 0; i < length; i++) {
-                bytes[i] = Math.floor(rand() * 256);
-            }
-            return bytes;
-        },
-        () => Buffer.alloc(0),
-        // past the cap: parsing this on the compositor thread is the thing the
-        // cap exists to prevent
-        () => Buffer.from('{"x":"' + "y".repeat(utils.MAX_RESPONSE_BYTES) + '"}')
-    ];
-
+    const bodies = httpFuzzBodies(utils, rand);
     let parsedObjects = 0;
     let refused = 0;
 
     for (let round = 0; round < 240; round++) {
-        const body = bodies[Math.floor(rand() * bodies.length)]();
-        const status = rand() < 0.25 ? [301, 404, 500, 503][Math.floor(rand() * 4)] : 200;
-        const message = { get_status: () => status };
-        global.imports.gi.Soup.Message.new = () => message;
-
-        let calls = 0;
-        let seen = "unset";
-
-        assert.doesNotThrow(() => {
-            const session = new (makeStreamingSoup({ chunks: [body] }).Session)();
-            utils.httpGetJson(session, "https://example.test/fuzz?place=Lisbon", (data, msg) => {
-                calls++;
-                seen = { data, msg };
-            });
-        }, `body of ${body.length} bytes, status ${status}`);
-
-        assert.equal(calls, 1, "the callback fires exactly once, whatever happened");
-
-        // the contract: an object, or null. Never a scalar, never a partial
-        // parse, never a throw.
-        assert.ok(seen.data === null || (typeof seen.data === "object" && seen.data !== null),
-            `data must be an object or null, got ${typeof seen.data}`);
-
-        if (seen.data === null) {
-            refused++;
-        } else {
-            parsedObjects++;
-        }
-
-        if (status !== 200) {
-            assert.equal(seen.data, null, "a failed request has no data");
-        }
-        if (body.length > utils.MAX_RESPONSE_BYTES) {
-            assert.equal(seen.data, null, "an oversized body is never parsed");
-        }
+        const parsed = runHttpFuzzRound(utils, rand, bodies);
+        parsedObjects += Number(parsed);
+        refused += Number(!parsed);
     }
 
     // a fuzz that only ever explored one branch would satisfy every assertion
@@ -1138,20 +1155,8 @@ test("fuzz: the log sanitizer never lets a query or fragment through", () => {
 
     for (let round = 0; round < 500; round++) {
         const secret = pick(secrets);
-        const encoded = rand() < 0.5 ? encodeURIComponent(secret) : secret;
-        const query = rand() < 0.8 ? `?name=${encoded}&count=1` : "";
-        const fragment = rand() < 0.3 ? `#${encoded}` : "";
-        const url = `${pick(schemes)}://${pick(hosts)}${pick(paths)}${query}${fragment}`;
-
-        const logged = utils.urlForLog(url);
-
-        assert.equal(typeof logged, "string");
-        assert.doesNotMatch(logged, /[?#]/, "no query and no fragment survive");
-        if (query || fragment) {
-            assert.equal(logged.includes(encoded), false,
-                `the location must not reach the log: ${url}`);
-        }
-        assert.ok(url.startsWith(logged), "what is kept is a prefix of the real URL");
+        const fuzzed = randomSanitizerUrl(rand, pick, schemes, hosts, paths, secret);
+        assertSanitizedUrl(utils, fuzzed.url, fuzzed.encoded, fuzzed.hasSecretSuffix);
     }
 
     // and anything that is not a URL at all is still answered with a string

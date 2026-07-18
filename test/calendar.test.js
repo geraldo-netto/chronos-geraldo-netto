@@ -222,6 +222,20 @@ test("year change from Feb 29 clamps to Feb 28 in the non-leap target", () => {
     assert.equal(result.getDate(), 28);
 });
 
+function expectedBrowseTarget(from, yearChange, monthChange) {
+    let month = from.getMonth() + monthChange;
+    let year = from.getFullYear() + yearChange;
+    if (month > 11) {
+        month = 0;
+        year++;
+    }
+    if (month < 0) {
+        month = 11;
+        year--;
+    }
+    return { month, year };
+}
+
 test("fuzz: browse always lands in the expected month with a valid day", () => {
     const rand = makeRandom(424242);
     for (let i = 0; i < 400; i++) {
@@ -231,15 +245,10 @@ test("fuzz: browse always lands in the expected month with a valid day", () => {
         const monthChange = rand() < 0.5 ? 0 : (rand() < 0.5 ? -1 : 1);
 
         const result = browse(from, yearChange, monthChange);
-
-        let expectedMonth = from.getMonth() + monthChange;
-        let expectedYear = from.getFullYear() + yearChange;
-        if (expectedMonth > 11) { expectedMonth = 0; expectedYear++; }
-        if (expectedMonth < 0) { expectedMonth = 11; expectedYear--; }
-
-        assert.equal(result.getMonth(), expectedMonth,
+        const expected = expectedBrowseTarget(from, yearChange, monthChange);
+        assert.equal(result.getMonth(), expected.month,
             `from ${from.toDateString()} y${yearChange} m${monthChange}`);
-        assert.equal(result.getFullYear(), expectedYear);
+        assert.equal(result.getFullYear(), expected.year);
         assert.ok(result.getDate() >= 1 && result.getDate() <= 31);
     }
 });
@@ -1636,6 +1645,44 @@ test("in place: a holiday cell never accumulates duplicate style classes", () =>
 
 // seeded fuzz: dots always mirror the current color source, writes stay
 // suppressed on stable passes
+function mutateDayColors(rand, colorsByDay, palette) {
+    const day = 1 + Math.floor(rand() * 28);
+    if (rand() < 0.3) {
+        colorsByDay.delete(`6/${day}`);
+    } else {
+        const count = 1 + Math.floor(rand() * 4);
+        colorsByDay.set(`6/${day}`,
+            Array.from({ length: count }, () => palette[Math.floor(rand() * palette.length)]));
+    }
+    return day;
+}
+
+function assertRenderedDots(cal, colorsByDay, iteration) {
+    for (const [key, colors] of colorsByDay) {
+        const [month, day] = key.split("/").map(Number);
+        const cell = cellForDay(cal, month, day);
+        if (!cell) {
+            continue;
+        }
+        assert.equal(cell.dot_box.children.length, colors.length,
+            `iteration ${iteration}: day ${day} dot count`);
+        cell.dot_box.children.forEach((dot, index) => {
+            const rendered = dot.style || dot.options.style;
+            const safe = colors[index] === "bad;value" ? "transparent" : colors[index];
+            assert.equal(rendered, `background-color: ${safe};`);
+        });
+    }
+}
+
+function assertStableDay(cal, day, iteration) {
+    const probe = cellForDay(cal, 6, day);
+    const labelCount = countWrites(probe.button, "label");
+    const dotIdentity = probe.dot_box.children.slice();
+    cal._update();
+    assert.equal(labelCount(), 0, `iteration ${iteration}: stable pass writes label`);
+    assert.deepEqual(probe.dot_box.children, dotIdentity);
+}
+
 test("fuzz: in-place dot updates always match the color source", () => {
     const rand = makeRandom(97531);
     const { cal, colorsByDay } = makeColorCalendar();
@@ -1643,38 +1690,10 @@ test("fuzz: in-place dot updates always match the color source", () => {
     const palette = ["#101010", "#202020", "red", "rgb(1,2,3)", "bad;value"];
 
     for (let i = 0; i < 200; i++) {
-        // mutate a random day's colors within July
-        const day = 1 + Math.floor(rand() * 28);
-        if (rand() < 0.3) {
-            colorsByDay.delete(`6/${day}`);
-        } else {
-            const count = 1 + Math.floor(rand() * 4);
-            colorsByDay.set(`6/${day}`,
-                Array.from({ length: count }, () => palette[Math.floor(rand() * palette.length)]));
-        }
-
+        const day = mutateDayColors(rand, colorsByDay, palette);
         cal._update();
-
-        for (const [key, colors] of colorsByDay) {
-            const [m, d] = key.split("/").map(Number);
-            const cell = cellForDay(cal, m, d);
-            if (!cell) continue;
-            assert.equal(cell.dot_box.children.length, colors.length,
-                `iteration ${i}: day ${d} dot count`);
-            cell.dot_box.children.forEach((dot, j) => {
-                const rendered = dot.style || dot.options.style;
-                const safe = colors[j] === "bad;value" ? "transparent" : colors[j];
-                assert.equal(rendered, `background-color: ${safe};`);
-            });
-        }
-
-        // a second pass with no data change must be write-free
-        const probe = cellForDay(cal, 6, day);
-        const labelCount = countWrites(probe.button, "label");
-        const dotIdentity = probe.dot_box.children.slice();
-        cal._update();
-        assert.equal(labelCount(), 0, `iteration ${i}: stable pass writes label`);
-        assert.deepEqual(probe.dot_box.children, dotIdentity);
+        assertRenderedDots(cal, colorsByDay, i);
+        assertStableDay(cal, day, i);
     }
 });
 

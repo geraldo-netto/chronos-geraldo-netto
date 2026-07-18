@@ -255,34 +255,36 @@ class EventListRenderer {
         const end = Math.min(state.index + EVENT_ROW_CHUNK, state.events.length);
 
         for (; state.index < end; state.index++) {
-            const event_data = state.events[state.index];
-
-            if (this.list.rows.length > 0) {
-                this.list.addSeparator();
-            }
-
-            const row = new EventRow(
-                event_data,
-                this.list.selectedDate,
-                {
-                    use_24h: this.list.desktopSettings.use24h,
-                    launcher: this.list.calendarLauncher
-                }
-            );
-
-            row.connect("view-event", (emitter, uuid) => {
-                if (this.list.calendarLauncher.launchUuid(uuid)) {
-                    this.list.emitLaunched();
-                }
-            });
-
-            if (row.is_current_or_next && state.scroll_to_row === null) {
-                state.scroll_to_row = row;
-            }
-
-            this.list.addRow(row);
+            this._appendEventRow(state, state.events[state.index]);
         }
 
+        return this._continueRowBuild(state);
+    }
+
+    _appendEventRow(state, event_data) {
+        if (this.list.rows.length > 0) {
+            this.list.addSeparator();
+        }
+        const row = new EventRow(
+            event_data,
+            this.list.selectedDate,
+            {
+                use_24h: this.list.desktopSettings.use24h,
+                launcher: this.list.calendarLauncher
+            }
+        );
+        row.connect("view-event", (_emitter, uuid) => {
+            if (this.list.calendarLauncher.launchUuid(uuid)) {
+                this.list.emitLaunched();
+            }
+        });
+        if (row.is_current_or_next && state.scroll_to_row === null) {
+            state.scroll_to_row = row;
+        }
+        this.list.addRow(row);
+    }
+
+    _continueRowBuild(state) {
         if (state.index < state.events.length) {
             this._build_rows_idle_id = Mainloop.idle_add(() => this._buildRowChunk(state));
             return GLib.SOURCE_REMOVE;
@@ -335,8 +337,15 @@ class EventList {
         // tooltip it is a click target no keyboard user can reach and no user
         // can discover
         const canLaunch = this._calendar_launcher.isAvailable();
+        this.selected_date_label = this._buildSelectedDateLabel(canLaunch);
+        this.actor.add_actor(this.selected_date_label);
+        this._buildNoEventsView(canLaunch);
+        this.set_no_events_text(_("No Events"));
+        this._buildEventsView();
+    }
 
-        this.selected_date_label = new St.Label(
+    _buildSelectedDateLabel(canLaunch) {
+        const label = new St.Label(
             {
                 style_class: "calendar-events-date-label",
                 reactive: canLaunch,
@@ -349,32 +358,36 @@ class EventList {
             // *replaces* the label's own text: naming it only "Open the
             // calendar app" left the selected date - which this heading is the
             // only place to read - unsayable.
-            if (this.selected_date_label.set_accessible_role && Atk.Role) {
-                this.selected_date_label.accessible_role = Atk.Role.PUSH_BUTTON;
+            if (label.set_accessible_role && Atk.Role) {
+                label.accessible_role = Atk.Role.PUSH_BUTTON;
             }
 
-            new Tooltips.Tooltip(this.selected_date_label, _("Open the calendar app")); // NOSONAR [S1848] -- constructor registers handlers
-
-            this.selected_date_label.connect("button-press-event", (actor, event) => {
-                if (event.get_button() == Clutter.BUTTON_PRIMARY) {
-                    this.launch_calendar(this.selected_date);
-                    return Clutter.EVENT_STOP;
-                }
-            });
-
-            this.selected_date_label.connect("key-press-event", (actor, event) => {
-                const symbol = event.get_key_symbol();
-                if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter ||
-                    symbol === Clutter.KEY_space) {
-                    this.launch_calendar(this.selected_date);
-                    return Clutter.EVENT_STOP;
-                }
-                return Clutter.EVENT_PROPAGATE;
-            });
+            new Tooltips.Tooltip(label, _("Open the calendar app")); // NOSONAR [S1848] -- constructor registers handlers
+            label.connect("button-press-event", this._onDateButtonPress.bind(this));
+            label.connect("key-press-event", this._onDateKeyPress.bind(this));
         }
+        return label;
+    }
 
-        this.actor.add_actor(this.selected_date_label);
+    _onDateButtonPress(_actor, event) {
+        if (event.get_button() != Clutter.BUTTON_PRIMARY) {
+            return undefined;
+        }
+        this.launch_calendar(this.selected_date);
+        return Clutter.EVENT_STOP;
+    }
 
+    _onDateKeyPress(_actor, event) {
+        const symbol = event.get_key_symbol();
+        if (symbol !== Clutter.KEY_Return && symbol !== Clutter.KEY_KP_Enter &&
+            symbol !== Clutter.KEY_space) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+        this.launch_calendar(this.selected_date);
+        return Clutter.EVENT_STOP;
+    }
+
+    _buildNoEventsView(canLaunch) {
         this.no_events_box = new St.BoxLayout(
             {
                 style_class: "calendar-events-no-events-box",
@@ -437,9 +450,9 @@ class EventList {
         this.no_events_button.add_actor(button_inner_box);
         this.no_events_box.add_actor(this.no_events_button);
         this.actor.add_actor(this.no_events_box);
+    }
 
-        this.set_no_events_text(_("No Events"));
-
+    _buildEventsView() {
         this.events_box = new St.BoxLayout(
             {
                 style_class: 'calendar-events-event-container',

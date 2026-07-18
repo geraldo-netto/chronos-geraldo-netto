@@ -376,6 +376,20 @@ function pickFrom(rand, list) {
     return list[Math.floor(rand() * list.length)];
 }
 
+function fuzzOpenHolidayName(rand, index, wellFormed) {
+    return wellFormed && rand() < 0.8 ?
+        [{ language: "EN", text: `Holiday ${index}` }] :
+        pickFrom(rand, OPEN_HOLIDAYS_JUNK_NAMES);
+}
+
+function fuzzOpenHolidayEndDate(rand, wellFormed, validDate, month, day) {
+    if (!wellFormed || rand() >= 0.5) {
+        return pickFrom(rand, OPEN_HOLIDAYS_JUNK_DATES);
+    }
+    return rand() < 0.5 ? validDate :
+        `2030-${String(month).padStart(2, "0")}-${String(day + 1).padStart(2, "0")}`;
+}
+
 function fuzzOpenHolidaysRow(rand, index) {
     const wellFormed = rand() < 0.5;
     const month = 1 + Math.floor(rand() * 12);
@@ -386,19 +400,15 @@ function fuzzOpenHolidaysRow(rand, index) {
         startDate: wellFormed ? validDate :
             pickFrom(rand, OPEN_HOLIDAYS_JUNK_DATES),
         type: rand() < 0.5 ? "Public" : pickFrom(rand, ["Optional", "Bank", "", null]),
-        name: wellFormed && rand() < 0.8 ?
-            [{ language: "EN", text: `Holiday ${index}` }] :
-            pickFrom(rand, OPEN_HOLIDAYS_JUNK_NAMES),
+        name: fuzzOpenHolidayName(rand, index, wellFormed),
         nationwide: rand() < 0.3,
         subdivisions: rand() < 0.7 ?
             [{ code: "CH-FR", shortName: "FR" }] : [{ code: "CH-TI", shortName: "TI" }]
     };
 
     if (rand() < 0.65) {
-        row.endDate = wellFormed && rand() < 0.5 ?
-            (rand() < 0.5 ? validDate :
-                `2030-${String(month).padStart(2, "0")}-${String(day + 1).padStart(2, "0")}`) :
-            pickFrom(rand, OPEN_HOLIDAYS_JUNK_DATES);
+        row.endDate = fuzzOpenHolidayEndDate(
+            rand, wellFormed, validDate, month, day);
     }
 
     return row;
@@ -647,6 +657,27 @@ test("fuzz: HolidayService's parser cannot be made to run away or return junk", 
 // second pass over identical input must agree with the first
 // Nager's wire shape. Months run to 14 and days to 33, so the corpus carries every
 // kind of impossible date, and a slice of the rows use slashes instead of dashes.
+function fuzzNagerCounties(roll) {
+    if (roll < 0.4) {
+        return ["US-CA"];
+    }
+    if (roll < 0.6) {
+        return ["US-TX"];
+    }
+    return roll < 0.8 ? [] : ["US-TX", "US-CA"];
+}
+
+function fuzzNagerTypes(rand, roll) {
+    if (roll < 0.45) {
+        return ["Public"];
+    }
+    if (roll < 0.7) {
+        return ["Optional", "Bank"];
+    }
+    return roll < 0.8 ? [] :
+        [pickFrom(rand, [null, undefined, 42, true, {}, []])];
+}
+
 function fuzzNagerRow(rand, index) {
     const month = 1 + Math.floor(rand() * 14);      // 13/14 are invalid
     const day = 1 + Math.floor(rand() * 33);        // up to 33: overflow days
@@ -660,13 +691,8 @@ function fuzzNagerRow(rand, index) {
         name: `Holiday ${index}`,
         localName: rand() < 0.5 ? `Feriado ${index}` : `Holiday ${index}`,
         global: rand() < 0.2,
-        counties: countyRoll < 0.4 ? ["US-CA"] :
-            countyRoll < 0.6 ? ["US-TX"] :
-                countyRoll < 0.8 ? [] : ["US-TX", "US-CA"],
-        types: typeRoll < 0.45 ? ["Public"] :
-            typeRoll < 0.7 ? ["Optional", "Bank"] :
-                typeRoll < 0.8 ? [] :
-                    [pickFrom(rand, [null, undefined, 42, true, {}, []])]
+        counties: fuzzNagerCounties(countyRoll),
+        types: fuzzNagerTypes(rand, typeRoll)
     };
 }
 

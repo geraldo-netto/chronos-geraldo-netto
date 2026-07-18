@@ -115,20 +115,28 @@ class CalendarNavigationController {
         const symbol = event.get_key_symbol();
         const days = DAY_KEY_DELTAS[symbol];
         if (days !== undefined) {
-            if (!this.dayCellHasFocus()) {
-                return Clutter.EVENT_PROPAGATE;
-            }
-            const delta = this.rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
-            const target = new Date(this.selectedDate.getTime()); // NOSONAR [S7719] -- accepted compatible form
-            target.setDate(target.getDate() + delta);
-            this.setDate(target, false);
-            this.focusSelectedDay();
-            return Clutter.EVENT_STOP;
+            return this._moveSelectionByDays(symbol, days);
         }
 
         if (!this.dayCellHasFocus()) {
             return Clutter.EVENT_PROPAGATE;
         }
+        return this._handleGridCommand(symbol);
+    }
+
+    _moveSelectionByDays(symbol, days) {
+        if (!this.dayCellHasFocus()) {
+            return Clutter.EVENT_PROPAGATE;
+        }
+        const delta = this.rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
+        const target = new Date(this.selectedDate.getTime()); // NOSONAR [S7719] -- accepted compatible form
+        target.setDate(target.getDate() + delta);
+        this.setDate(target, false);
+        this.focusSelectedDay();
+        return Clutter.EVENT_STOP;
+    }
+
+    _handleGridCommand(symbol) {
         if (symbol === Clutter.KEY_Page_Up || symbol === Clutter.KEY_Page_Down) {
             this.focusAfterSetDate = true;
             this.applyBrowse(0, symbol === Clutter.KEY_Page_Up ? -1 : 1);

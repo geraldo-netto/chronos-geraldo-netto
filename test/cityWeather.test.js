@@ -620,6 +620,24 @@ function fuzzCities(rand) {
     });
 }
 
+function assertNormalizedCity(city, cities) {
+    assert.equal(typeof city.label, "string");
+    assert.equal(typeof city.query, "string");
+    assert.equal(city.query, city.query.trim(), "the trimmed name is what gets geocoded");
+    assert.notEqual(city.query, "");
+    assert.ok(cities.some((entry) => typeof entry === "string" &&
+        entry.trim() === city.label));
+}
+
+function assertNormalizedCities(CityWeather, provider, cities) {
+    const unique = provider._cities({ cities });
+    assert.ok(unique.length <= CityWeather.MAX_CITIES, "the clock list is capped");
+    assert.ok(unique.length <= cities.length);
+    const keys = unique.map((city) => city.label.trim().toLowerCase());
+    assert.equal(new Set(keys).size, keys.length, "one lookup per place, whatever the spelling");
+    unique.forEach((city) => assertNormalizedCity(city, cities));
+}
+
 test("city lists fuzz junk, blanks and duplicates into a capped unique list", () => {
     const CityWeather = loadCityWeather();
     const rand = makeRandom(FUZZ_SEED);
@@ -629,22 +647,7 @@ test("city lists fuzz junk, blanks and duplicates into a capped unique list", ()
 
     for (let i = 0; i < 300; i++) {
         const cities = fuzzCities(rand);
-        const unique = provider._cities({ cities });
-
-        assert.ok(unique.length <= CityWeather.MAX_CITIES, "the clock list is capped");
-        assert.ok(unique.length <= cities.length);
-
-        const keys = unique.map((city) => city.label.trim().toLowerCase());
-        assert.equal(new Set(keys).size, keys.length, "one lookup per place, whatever the spelling");
-
-        for (const city of unique) {
-            assert.equal(typeof city.label, "string");
-            assert.equal(typeof city.query, "string");
-            assert.equal(city.query, city.query.trim(), "the trimmed name is what gets geocoded");
-            assert.notEqual(city.query, "");
-            // every kept name really was in the input, in the order given
-            assert.ok(cities.some((entry) => typeof entry === "string" && entry.trim() === city.label));
-        }
+        assertNormalizedCities(CityWeather, provider, cities);
     }
 
     // a settings object with no cities at all is a list of nothing
@@ -652,6 +655,41 @@ test("city lists fuzz junk, blanks and duplicates into a capped unique list", ()
     assert.deepEqual(provider._cities({}), []);
     assert.deepEqual(provider._cities({ cities: "Rome" }), []);
 });
+
+function randomCityWeatherSettings(rand, cities) {
+    return rand() < 0.1 ? null : {
+        showWeather: rand() < 0.75,
+        units: [undefined, "si", "imperial", "metric", 7][Math.floor(rand() * 5)],
+        cities: rand() < 0.08 ? "Rome" : cities
+    };
+}
+
+function assertNoStrayCityReadings(provider, settings) {
+    const wanted = new Set(provider._cities(settings)
+        .map((city) => city.label.trim().toLowerCase()));
+    for (const key of provider._readings.keys()) {
+        assert.ok(wanted.has(key), "no temperature survives for a clock the user removed");
+    }
+}
+
+function assertCityReadingShape(provider, input) {
+    let reading;
+    assert.doesNotThrow(() => {
+        reading = provider.recordFor(input);
+    });
+    assert.ok(reading === null ||
+        (typeof reading === "object" && typeof reading.condition === "string" &&
+            typeof reading.temperatureC === "number"),
+    "the tooltip row always gets a reading record or nothing");
+}
+
+function runCityWeatherFuzzRound(provider, rand, inputs) {
+    const cities = fuzzCities(rand);
+    const settings = randomCityWeatherSettings(rand, cities);
+    assert.doesNotThrow(() => provider.refresh(settings, () => {}));
+    assertNoStrayCityReadings(provider, settings);
+    inputs.forEach((input) => assertCityReadingShape(provider, input));
+}
 
 test("recordFor and refresh fuzz random settings without throwing or keeping strays", () => {
     const CityWeather = loadCityWeather();
@@ -662,30 +700,7 @@ test("recordFor and refresh fuzz random settings without throwing or keeping str
     const inputs = [null, undefined, 42, {}, [], true, "", "  ", "Rome", " rome ", "TOKYO", "Atlantis", " "];
 
     for (let i = 0; i < 300; i++) {
-        const cities = fuzzCities(rand);
-        const settings = rand() < 0.1 ? null : {
-            showWeather: rand() < 0.75,
-            units: [undefined, "si", "imperial", "metric", 7][Math.floor(rand() * 5)],
-            cities: rand() < 0.08 ? "Rome" : cities
-        };
-
-        assert.doesNotThrow(() => provider.refresh(settings, () => {}));
-
-        const wanted = new Set(provider._cities(settings).map((city) => city.label.trim().toLowerCase()));
-        for (const key of provider._readings.keys()) {
-            assert.ok(wanted.has(key), "no temperature survives for a clock the user removed");
-        }
-
-        for (const input of inputs) {
-            let reading;
-            assert.doesNotThrow(() => {
-                reading = provider.recordFor(input);
-            });
-            assert.ok(reading === null ||
-                (typeof reading === "object" && typeof reading.condition === "string" &&
-                    typeof reading.temperatureC === "number"),
-                "the tooltip row always gets a reading record or nothing");
-        }
+        runCityWeatherFuzzRound(provider, rand, inputs);
     }
 });
 

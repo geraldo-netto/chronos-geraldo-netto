@@ -276,37 +276,15 @@ var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer exp
     // for the current day keep all-day events just above the current or
     // first pending event
     _orderTodayWithAllDays(events_as_array, now) {
-        let all_days = [];
-        let final_list = [];
+        const allDays = events_as_array.filter((event) => event.all_day);
+        const timed = events_as_array.filter((event) => !event.all_day);
+        const firstCurrent = timed.findIndex((event) => event.end.difference(now) >= 0);
 
-        for (let i = 0; i < events_as_array.length; i++) { // NOSONAR [S4138] -- accepted compatible form
-            if (events_as_array[i].all_day) {
-                all_days.push(events_as_array[i]);
-            }
+        if (firstCurrent < 0) {
+            return timed.concat(allDays);
         }
-
-        all_days.reverse();
-        let all_days_inserted = false;
-
-        for (let i = events_as_array.length - 1; i >= 0; i--) {
-            let event = events_as_array[i];
-
-            if (event.all_day && all_days_inserted) {
-                break;
-            }
-
-            if (event.end.difference(now) < 0 && !all_days_inserted) {
-                for (let j = 0; j < all_days.length ; j++) { // NOSONAR [S4138] -- accepted compatible form
-                    final_list.push(all_days[j]);
-                }
-                all_days_inserted = true;
-            }
-
-            final_list.push(event);
-        }
-
-        final_list.reverse();
-        return final_list;
+        return timed.slice(0, firstCurrent)
+            .concat(allDays, timed.slice(firstCurrent));
     }
 
     get_colors() {

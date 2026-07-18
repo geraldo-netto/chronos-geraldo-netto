@@ -103,40 +103,42 @@ function readJsonFileAsync (file, callback) {
 // The cache write happens on the compositor thread, so it goes through Gio's
 // async API. `onDone` fires whether the write succeeded or failed: the caller
 // needs it to know when the file is settled, not whether it liked the outcome.
+function _notifyWriteDone(onDone, stale = false) {
+    if (typeof onDone === "function") {
+        onDone(stale);
+    }
+}
+
+function _finishJsonWrite(source, result, onDone) {
+    try {
+        source.replace_contents_finish(result);
+    } catch (e) {
+        if (_isWrongEtag(e)) {
+            // not an error: someone else got there first
+            _notifyWriteDone(onDone, true);
+            return;
+        }
+        if (global.logError) {
+            global.logError(e);
+        }
+    }
+    _notifyWriteDone(onDone);
+}
+
 function writeJsonFileAsync (file, data, onDone, etag = null) {
     // `stale` says the file moved under us: another applet instance wrote it
     // between our read and our write, so the snapshot we merged into is no
     // longer the whole truth and the caller must merge again. Without the etag
     // the write simply won.
-    const done = (stale = false) => {
-        if (typeof onDone === "function") {
-            onDone(stale);
-        }
-    };
-
     const bytes = new TextEncoder().encode(JSON.stringify(data));
     try {
         file.replace_contents_async(bytes, etag, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null,
-            (source, result) => {
-                try {
-                    source.replace_contents_finish(result);
-                } catch (e) {
-                    if (_isWrongEtag(e)) {
-                        // not an error: someone else got there first
-                        done(true);
-                        return;
-                    }
-                    if (global.logError) {
-                        global.logError(e);
-                    }
-                }
-                done();
-            });
+            (source, result) => _finishJsonWrite(source, result, onDone));
     } catch (e) {
         if (global.logError) {
             global.logError(e);
         }
-        done();
+        _notifyWriteDone(onDone);
     }
 }
 

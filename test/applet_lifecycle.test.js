@@ -1050,6 +1050,16 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
         true
     );
     assert.equal(
+        stub.go_home_button.handlers["button-press-event"](stub.go_home_button, { get_button: () => 3 }),
+        undefined,
+        "a secondary click is left for Cinnamon to handle"
+    );
+    assert.equal(
+        stub.go_home_button.handlers["button-release-event"](stub.go_home_button, { get_button: () => 3 }),
+        undefined,
+        "releasing a secondary click does not go home"
+    );
+    assert.equal(
         stub.go_home_button.handlers["key-press-event"](stub.go_home_button, { get_key_symbol: () => 65293 }),
         true
     );

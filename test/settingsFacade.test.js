@@ -8,6 +8,43 @@ const { makeRandom } = require("./helpers/prng");
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "settingsFacade.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "settingsFacade.js");
 
+function assertHolidayChoiceRound(SettingsFacade, random, currentValues, inferredValues) {
+    const initial = currentValues[Math.floor(random() * currentValues.length)];
+    const inferred = inferredValues[Math.floor(random() * inferredValues.length)];
+    const values = { country: initial };
+    const writes = [];
+    let resolutions = 0;
+    const facade = new SettingsFacade.HolidaySettings({
+        getValue: (key) => values[key],
+        setValue(key, value) {
+            values[key] = value;
+            writes.push([key, value]);
+        }
+    });
+
+    const shouldResolve = initial === null || initial === undefined || initial === "";
+    const inferredCountry = inferred || "none";
+    const expectedCountry = shouldResolve ? inferredCountry : initial;
+    const result = facade.fillInitialCountryFromTimezone(() => {
+        resolutions += 1;
+        return inferred;
+    });
+
+    assert.equal(values.country, expectedCountry);
+    assert.equal(result, shouldResolve ? (inferred || "") : "");
+    assert.equal(resolutions, shouldResolve ? 1 : 0);
+    assert.equal(writes.length, shouldResolve ? 1 : 0);
+
+    const writesAfterFirstCall = writes.length;
+    assert.equal(facade.fillInitialCountryFromTimezone(() => {
+        resolutions += 1;
+        return "jpn";
+    }), "");
+    assert.equal(values.country, expectedCountry);
+    assert.equal(resolutions, shouldResolve ? 1 : 0);
+    assert.equal(writes.length, writesAfterFirstCall);
+}
+
 test("CalendarSettings exposes intent-named bind methods", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);
@@ -222,39 +259,7 @@ test("fuzz: timezone defaults never overwrite an existing holiday choice", () =>
     const inferredValues = ["", null, "ita", "fra", "jpn"];
 
     for (let round = 0; round < 500; round++) {
-        const initial = currentValues[Math.floor(random() * currentValues.length)];
-        const inferred = inferredValues[Math.floor(random() * inferredValues.length)];
-        const values = { country: initial };
-        const writes = [];
-        let resolutions = 0;
-        const facade = new SettingsFacade.HolidaySettings({
-            getValue: (key) => values[key],
-            setValue(key, value) {
-                values[key] = value;
-                writes.push([key, value]);
-            }
-        });
-
-        const shouldResolve = initial === null || initial === undefined || initial === "";
-        const result = facade.fillInitialCountryFromTimezone(() => {
-            resolutions += 1;
-            return inferred;
-        });
-        const expectedCountry = shouldResolve ? (inferred || "none") : initial;
-
-        assert.equal(values.country, expectedCountry);
-        assert.equal(result, shouldResolve ? (inferred || "") : "");
-        assert.equal(resolutions, shouldResolve ? 1 : 0);
-        assert.equal(writes.length, shouldResolve ? 1 : 0);
-
-        const writesAfterFirstCall = writes.length;
-        assert.equal(facade.fillInitialCountryFromTimezone(() => {
-            resolutions += 1;
-            return "jpn";
-        }), "");
-        assert.equal(values.country, expectedCountry);
-        assert.equal(resolutions, shouldResolve ? 1 : 0);
-        assert.equal(writes.length, writesAfterFirstCall);
+        assertHolidayChoiceRound(SettingsFacade, random, currentValues, inferredValues);
     }
 });
 

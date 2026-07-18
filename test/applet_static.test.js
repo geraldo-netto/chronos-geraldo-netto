@@ -45,6 +45,39 @@ function jsSources(relativeDir = "") {
     });
 }
 
+function importsOf(code) {
+    const aliases = new Map();
+    // [^;] keeps the match inside one declaration: a greedier scan runs past
+    // the semicolon and pins the next module's import onto this alias
+    const pattern = /const\s+([\w$]+)\s*=[^;]{0,200}?applets\["chronos@geraldo-netto"\]\.([\w$]+)/g;
+    for (const [, alias, imported] of code.matchAll(pattern)) {
+        aliases.set(alias, `${imported}.js`);
+    }
+    return aliases;
+}
+
+function assertImportedNames(file, code, alias, imported, targetCode) {
+    let checked = 0;
+    const reads = new RegExp(`\\b${alias}\\.([A-Za-z_$][\\w$]*)`, "g");
+    for (const [, name] of code.matchAll(reads)) {
+        const declared = new RegExp(`^(?:var\\s+${name}\\b|function\\s+${name}\\s*\\()`, "m");
+        assert.match(targetCode, declared,
+            `${file} reads ${alias}.${name}, so ${imported} must declare ${name} as var or function`);
+        checked++;
+    }
+    return checked;
+}
+
+function assertModuleImports(file, code, sources) {
+    let checked = 0;
+    for (const [alias, imported] of importsOf(code)) {
+        const targetCode = sources.get(imported);
+        checked += targetCode ?
+            assertImportedNames(file, code, alias, imported, targetCode) : 0;
+    }
+    return checked;
+}
+
 // Under Cinnamon the root modules reach each other through the GJS importer
 // (appletManager.applets[UUID].weatherFormat), which exposes a module's
 // top-level `var` and function declarations and nothing else. A `const` still
@@ -61,32 +94,9 @@ test("every name one root module reads off another is declared with var or funct
     const rootModules = jsSources().filter((file) => !file.includes(path.sep));
     const sources = new Map(rootModules.map((file) => [file, source(file)]));
 
-    const importsOf = (code) => {
-        const aliases = new Map();
-        // [^;] keeps the match inside one declaration: a greedier scan runs past
-        // the semicolon and pins the next module's import onto this alias
-        const pattern = /const\s+([\w$]+)\s*=[^;]{0,200}?applets\["chronos@geraldo-netto"\]\.([\w$]+)/g;
-        for (const [, alias, imported] of code.matchAll(pattern)) {
-            aliases.set(alias, `${imported}.js`);
-        }
-        return aliases;
-    };
-
     let checked = 0;
     for (const [file, code] of sources) {
-        for (const [alias, imported] of importsOf(code)) {
-            const targetCode = sources.get(imported);
-            if (!targetCode) {
-                continue;
-            }
-
-            for (const [, name] of code.matchAll(new RegExp(`\\b${alias}\\.([A-Za-z_$][\\w$]*)`, "g"))) {
-                const declared = new RegExp(`^(?:var\\s+${name}\\b|function\\s+${name}\\s*\\()`, "m");
-                assert.match(targetCode, declared,
-                    `${file} reads ${alias}.${name}, so ${imported} must declare ${name} as var or function`);
-                checked++;
-            }
-        }
+        checked += assertModuleImports(file, code, sources);
     }
 
     // a regex that silently matched nothing would pass this test forever
@@ -166,7 +176,10 @@ test("event managers expose teardown and applets call it", () => {
     assert.match(connection, /Gio\.bus_unwatch_name\(this\._bus_watch_id\);/);
     assert.match(connection, /this\.cancelRetry\(\);/);
 
-    assert.match(appletSource("5.4"), /this\._providerLifecycle && this\._providerLifecycle\.destroy\(\)/);
+    const applet = appletSource("5.4");
+    assert.match(applet,
+        /function destroyIfPresent\(collaborator\) \{[\s\S]*?collaborator\.destroy\(\);/);
+    assert.match(applet, /destroyIfPresent\(this\._providerLifecycle\)/);
 });
 
 test("calendar and event list destroy pending timers", () => {
@@ -185,8 +198,8 @@ test("calendar and event list destroy pending timers", () => {
     assert.match(eventView52, /destroy\(\) \{\n\s*this\._renderer\.destroy\(\);/);
 
     const applet52 = appletSource("5.4");
-    assert.match(applet52, /this\._calendar && this\._calendar\.destroy\(\)/);
-    assert.match(applet52, /this\.event_list && this\.event_list\.destroy\(\)/);
+    assert.match(applet52, /destroyIfPresent\(this\._calendar\)/);
+    assert.match(applet52, /destroyIfPresent\(this\.event_list\)/);
 });
 
 test("applets disconnect settings and resume handlers on removal", () => {
@@ -200,7 +213,9 @@ test("applets disconnect settings and resume handlers on removal", () => {
     assert.match(code, /"PrepareForSleep"/);
     assert.match(code, /signal_unsubscribe\(this\._logind_sleep_signal_id\)/);
     assert.doesNotMatch(code, /UPower|notify-resume|notify::resume|_up_/);
-    assert.match(appletCode, /this\.settings && this\.settings\.finalize\(\)/);
+    assert.match(appletCode,
+        /function finalizeIfPresent\(settings\) \{[\s\S]*?settings\.finalize\(\);/);
+    assert.match(appletCode, /finalizeIfPresent\(this\.settings\)/);
 });
 
 test("date changes force a menu update explicitly", () => {

@@ -62,39 +62,51 @@ function registerLocaleConsumer() {
     _consumers++;
 }
 
+function _lastLocaleConsumerLeft() {
+    if (_consumers === 0) {
+        return true;
+    }
+    _consumers--;
+    return _consumers === 0;
+}
+
+function _removePendingTimer(id) {
+    try {
+        GLib.source_remove(id);
+    } catch (e) {
+        if (global.logError) {
+            global.logError(e);
+        }
+    }
+}
+
+function _cancelPendingTimers() {
+    _pendingTimers.forEach(_removePendingTimer);
+    _pendingTimers.clear();
+}
+
+function _cancelPendingRequest(env) {
+    if (!requested[env] || !_cancellables[env]) {
+        return;
+    }
+    // a cancel we asked for is not a locale that failed: without this the abort
+    // lands in fail(), which degrades the env and spends an attempt, so removing
+    // and re-adding the applet three times would leave the next one on the
+    // English defaults with the retry ladder used up
+    abandoned[env] = true;
+    _cancellables[env].cancel();
+}
+
 // Called from the applet's teardown. The locale cache itself is deliberately
 // process-wide — a second applet on the panel should not re-run `locale` — so
 // this cancels what is in flight rather than forgetting what was learned.
 function cancelPendingLocaleQueries() {
-    if (_consumers > 0) {
-        _consumers--;
-        // another applet is still on the panel, still waiting on this query
-        if (_consumers > 0) {
-            return;
-        }
+    // another applet is still on the panel, still waiting on this query
+    if (!_lastLocaleConsumerLeft()) {
+        return;
     }
-
-    for (const id of _pendingTimers) {
-        try {
-            GLib.source_remove(id);
-        } catch (e) {
-            if (global.logError) {
-                global.logError(e);
-            }
-        }
-    }
-    _pendingTimers.clear();
-
-    for (const env of Object.keys(requested)) {
-        if (requested[env] && _cancellables[env]) {
-            // a cancel we asked for is not a locale that failed: without this the
-            // abort lands in fail(), which degrades the env and spends an attempt,
-            // so removing and re-adding the applet three times would leave the
-            // next one on the English defaults with the retry ladder used up
-            abandoned[env] = true;
-            _cancellables[env].cancel();
-        }
-    }
+    _cancelPendingTimers();
+    Object.keys(requested).forEach(_cancelPendingRequest);
 }
 
 const re = /^(\w+)=(.*)$/;

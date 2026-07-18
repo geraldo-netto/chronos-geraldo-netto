@@ -54,46 +54,58 @@ var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJ
     }
 
     fetchYear(country, region, year, callback) {
-        let emptyResult = null;
-        const acceptedResults = new Set();
+        const state = { emptyResult: null, acceptedResults: new Set() };
         ProviderUtils.tryProvidersInOrder(
             this._orderedProviders(),
-            (provider, onResult) => {
-                provider.fetchYear(country, region, year, (data, params, retrieved) => {
-                    if (!this._isAlive()) {
-                        return;
-                    }
-
-                    const result = {
-                        data,
-                        params: this._sourceParams(provider, params),
-                        retrieved
-                    };
-                    const classification = this._classify(result, year);
-                    if (classification === "empty") {
-                        emptyResult = result;
-                        onResult(null);
-                        return;
-                    }
-                    if (classification === "success") {
-                        acceptedResults.add(result);
-                    }
-                    onResult(result);
-                });
-            },
-            (result) => acceptedResults.has(result),
-            (provider, result) => {
-                this._last_provider = provider.name;
-                callback(result.data, result.params, result.retrieved);
-            },
-            (failure) => {
-                if (global.log) {
-                    global.log(`all holiday providers failed for ${country}/${region}/${year}`);
-                }
-                const outcome = failure || emptyResult;
-                callback(outcome.data, outcome.params, outcome.retrieved);
-            }
+            (provider, onResult) => this._fetchProviderYear(
+                provider, country, region, year, state, onResult),
+            (result) => state.acceptedResults.has(result),
+            (provider, result) => this._acceptProviderResult(
+                provider, result, callback),
+            (failure) => this._reportProviderFailure(
+                country, region, year, failure, state.emptyResult, callback)
         );
+    }
+
+    _fetchProviderYear(provider, country, region, year, state, onResult) {
+        provider.fetchYear(country, region, year, (data, params, retrieved) => {
+            this._handleProviderResult(
+                provider, year, data, params, retrieved, state, onResult);
+        });
+    }
+
+    _handleProviderResult(provider, year, data, params, retrieved, state, onResult) {
+        if (!this._isAlive()) {
+            return;
+        }
+        const result = {
+            data,
+            params: this._sourceParams(provider, params),
+            retrieved
+        };
+        const classification = this._classify(result, year);
+        if (classification === "empty") {
+            state.emptyResult = result;
+            onResult(null);
+            return;
+        }
+        if (classification === "success") {
+            state.acceptedResults.add(result);
+        }
+        onResult(result);
+    }
+
+    _acceptProviderResult(provider, result, callback) {
+        this._last_provider = provider.name;
+        callback(result.data, result.params, result.retrieved);
+    }
+
+    _reportProviderFailure(country, region, year, failure, emptyResult, callback) {
+        if (global.log) {
+            global.log(`all holiday providers failed for ${country}/${region}/${year}`);
+        }
+        const outcome = failure || emptyResult;
+        callback(outcome.data, outcome.params, outcome.retrieved);
     }
 
     _orderedProviders() {

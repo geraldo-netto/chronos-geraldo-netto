@@ -12,7 +12,8 @@ from helpers.python_cognitive import (
 ROOT = Path(__file__).resolve().parent.parent
 APPLET_DIR = ROOT / "files" / "chronos@geraldo-netto"
 TEST_DIR = ROOT / "test"
-FORBIDDEN_COGNITIVE_COMPLEXITY = 15
+# The documented ceiling is 10, so 11 is the first rejected score.
+FORBIDDEN_COGNITIVE_COMPLEXITY = 11
 
 
 def python_sources():
@@ -45,8 +46,9 @@ def hidden(value):
         for item in value:
             if item:
                 while item:
-                    if item:
-                        return item
+                    return item
+    if value:
+        return value
 """
 
         self.assertEqual(
@@ -55,7 +57,7 @@ def hidden(value):
                 FORBIDDEN_COGNITIVE_COMPLEXITY,
                 read=lambda _path: source,
             ),
-            ["test/injected_helper.py:2 — 15 — hidden"],
+            ["test/injected_helper.py:2 — 11 — hidden"],
         )
 
     def test_the_walker_keeps_elif_flat_and_counts_boolean_sequences(self):

@@ -189,23 +189,25 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         const struct = { years: {}, holidays: []};
         const stored = all[country];
 
-        if (stored && typeof stored === "object") {
-            if (stored.years && typeof stored.years === "object") {
-                struct.years = validCachedYears(stored.years);
-            }
-            if (Array.isArray(stored.holidays)) {
-                const bounded = stored.holidays.slice(0, MAX_EXPANDED_HOLIDAY_ROWS);
-                struct.holidays = bounded.filter(validCachedHoliday);
+        if (!stored || typeof stored !== "object") {
+            return struct;
+        }
+        if (stored.years && typeof stored.years === "object") {
+            struct.years = validCachedYears(stored.years);
+        }
+        if (!Array.isArray(stored.holidays)) {
+            struct.years = {};
+            return struct;
+        }
 
-                // Freshness describes the complete row snapshot. If validation
-                // or the safety cap drops anything, keeping the stamps would
-                // suppress the fetch that can repair the incomplete cache.
-                if (struct.holidays.length !== stored.holidays.length) {
-                    struct.years = {};
-                }
-            } else {
-                struct.years = {};
-            }
+        const bounded = stored.holidays.slice(0, MAX_EXPANDED_HOLIDAY_ROWS);
+        struct.holidays = bounded.filter(validCachedHoliday);
+
+        // Freshness describes the complete row snapshot. If validation or the
+        // safety cap drops anything, keeping the stamps would suppress the
+        // fetch that can repair the incomplete cache.
+        if (struct.holidays.length !== stored.holidays.length) {
+            struct.years = {};
         }
 
         return struct;

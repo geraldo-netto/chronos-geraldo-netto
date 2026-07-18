@@ -243,31 +243,42 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             return;
         }
 
-        const report = this._display_state.reporter(this._staleKey(settings),
+        const report = this._refreshReporter(settings, callback);
+        this._location_resolver.resolve(
+            location,
+            () => this._isCurrent(generation),
+            (place, error) => this._weatherPlaceResolved(
+                generation, report, place, error));
+    }
+
+    _isCurrent(generation) {
+        return !this._destroyed && generation === this._request_generation;
+    }
+
+    _refreshReporter(settings, callback) {
+        return this._display_state.reporter(this._staleKey(settings),
             (reading, error, provider) => {
                 // Service outages may recover before the normal period. A name
                 // that both geocoders answered but could not resolve will not.
-                if (error && error !== WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND) {
+                if (error &&
+                    error !== WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND) {
                     this._scheduler.retry(() => this.refresh(settings, callback));
                 } else {
                     this._scheduler.succeeded();
                 }
                 callback(reading, error, provider);
             });
-        this._location_resolver.resolve(location, () => {
-            return !this._destroyed && generation === this._request_generation;
-        }, (place, error) => {
-            if (this._destroyed || generation !== this._request_generation) {
-                return;
-            }
+    }
 
-            if (!place) {
-                report(null, error, "");
-                return;
-            }
-
-            this._refreshForecast(place, generation, report);
-        });
+    _weatherPlaceResolved(generation, report, place, error) {
+        if (!this._isCurrent(generation)) {
+            return;
+        }
+        if (!place) {
+            report(null, error, "");
+            return;
+        }
+        this._refreshForecast(place, generation, report);
     }
 
     // What a reading is a reading *of*: the place. It used to be the place and
