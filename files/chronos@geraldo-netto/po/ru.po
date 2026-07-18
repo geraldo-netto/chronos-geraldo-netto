@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-18 12:10+0200\n"
+"POT-Creation-Date: 2026-07-18 13:09+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: blogdron\n"
 "Language-Team: \n"
@@ -103,20 +103,20 @@ msgstr "Гроза"
 msgid "Fair"
 msgstr "Малооблачно"
 
-#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:422
-#: 5.4/appletPanelStatus.js:567
+#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:428
+#: 5.4/appletPanelStatus.js:573
 msgid "Weather: loading…"
 msgstr "Погода: загрузка…"
 
-#: 5.4/appletPanelStatus.js:293
+#: 5.4/appletPanelStatus.js:299
 msgid "Invalid time format; edit it in Settings"
 msgstr "Недопустимый формат времени; измените его в настройках"
 
-#: 5.4/appletPanelStatus.js:446
+#: 5.4/appletPanelStatus.js:452
 msgid "No weather for this timezone"
 msgstr "Погода для этого часового пояса недоступна"
 
-#: 5.4/appletPanelStatus.js:458
+#: 5.4/appletPanelStatus.js:464
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Последнее известное значение"
@@ -155,23 +155,23 @@ msgstr "Данные о праздниках: %s"
 msgid "Week %s"
 msgstr "Неделя %s"
 
-#: 5.4/calendar.js:1187
+#: 5.4/calendar.js:1194
 msgid "Previous month"
 msgstr "Предыдущий месяц"
 
-#: 5.4/calendar.js:1217
+#: 5.4/calendar.js:1224
 msgid "Next month"
 msgstr "Следующий месяц"
 
-#: 5.4/calendar.js:1221
+#: 5.4/calendar.js:1228
 msgid "Previous year"
 msgstr "Предыдущий год"
 
-#: 5.4/calendar.js:1228
+#: 5.4/calendar.js:1235
 msgid "Next year"
 msgstr "Следующий год"
 
-#: 5.4/calendar.js:1241
+#: 5.4/calendar.js:1248
 msgid "Week"
 msgstr "Неделя"
 
@@ -460,13 +460,14 @@ msgid ""
 "Country whose public holidays are marked in the calendar. For new settings, "
 "the applet fills this from the operating-system timezone when supported; "
 "otherwise holidays stay disabled. You can change or disable it at any time. "
-"The lookup sends the selected country to a third-party holiday service."
+"The lookup may send the selected country to up to three third-party holiday "
+"services."
 msgstr ""
 "Страна, государственные праздники которой отмечаются в календаре. При новых "
 "настройках апплет заполняет её по часовому поясу операционной системы, если "
 "он поддерживается; иначе праздники остаются отключёнными. Вы можете изменить "
-"или отключить её в любой момент. Запрос отправляет выбранную страну "
-"стороннему сервису праздников."
+"или отключить её в любой момент. Запрос может отправить выбранную страну не "
+"более чем трём сторонним сервисам праздников."
 
 #. 5.4->settings-schema.json->country->options
 msgid "None (disable holidays)"

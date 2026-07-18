@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-18 12:10+0200\n"
+"POT-Creation-Date: 2026-07-18 13:09+0200\n"
 "PO-Revision-Date: 2024-11-20 18:59+0100\n"
 "Last-Translator: Claus Colloseus <ccprog@gmx.de>\n"
 "Language-Team: German\n"
@@ -102,20 +102,20 @@ msgstr "Gewitter"
 msgid "Fair"
 msgstr "Heiter"
 
-#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:422
-#: 5.4/appletPanelStatus.js:567
+#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:428
+#: 5.4/appletPanelStatus.js:573
 msgid "Weather: loading…"
 msgstr "Wetter: wird geladen …"
 
-#: 5.4/appletPanelStatus.js:293
+#: 5.4/appletPanelStatus.js:299
 msgid "Invalid time format; edit it in Settings"
 msgstr "Ungültiges Zeitformat; in den Einstellungen bearbeiten"
 
-#: 5.4/appletPanelStatus.js:446
+#: 5.4/appletPanelStatus.js:452
 msgid "No weather for this timezone"
 msgstr "Kein Wetter für diese Zeitzone"
 
-#: 5.4/appletPanelStatus.js:458
+#: 5.4/appletPanelStatus.js:464
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Letzte bekannte Messung"
@@ -153,23 +153,23 @@ msgstr "Feiertagsdaten: %s"
 msgid "Week %s"
 msgstr "Woche %s"
 
-#: 5.4/calendar.js:1187
+#: 5.4/calendar.js:1194
 msgid "Previous month"
 msgstr "Voriger Monat"
 
-#: 5.4/calendar.js:1217
+#: 5.4/calendar.js:1224
 msgid "Next month"
 msgstr "Nächster Monat"
 
-#: 5.4/calendar.js:1221
+#: 5.4/calendar.js:1228
 msgid "Previous year"
 msgstr "Voriges Jahr"
 
-#: 5.4/calendar.js:1228
+#: 5.4/calendar.js:1235
 msgid "Next year"
 msgstr "Nächstes Jahr"
 
-#: 5.4/calendar.js:1241
+#: 5.4/calendar.js:1248
 msgid "Week"
 msgstr "Woche"
 
@@ -461,13 +461,14 @@ msgid ""
 "Country whose public holidays are marked in the calendar. For new settings, "
 "the applet fills this from the operating-system timezone when supported; "
 "otherwise holidays stay disabled. You can change or disable it at any time. "
-"The lookup sends the selected country to a third-party holiday service."
+"The lookup may send the selected country to up to three third-party holiday "
+"services."
 msgstr ""
 "Land, dessen gesetzliche Feiertage im Kalender markiert werden. Bei neuen "
 "Einstellungen füllt das Applet dies aus der Zeitzone des Betriebssystems, "
 "sofern sie unterstützt wird; andernfalls bleiben Feiertage deaktiviert. Sie "
-"können es jederzeit ändern oder deaktivieren. Die Abfrage sendet das "
-"ausgewählte Land an einen Feiertagsdienst eines Drittanbieters."
+"können es jederzeit ändern oder deaktivieren. Die Abfrage kann das "
+"ausgewählte Land an bis zu drei Feiertagsdienste von Drittanbietern senden."
 
 #. 5.4->settings-schema.json->country->options
 msgid "None (disable holidays)"

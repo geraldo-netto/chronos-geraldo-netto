@@ -160,7 +160,7 @@
         "widget": "CountryComboBox",
         "default": "",
         "description": "Country",
-        "tooltip": "Country whose public holidays are marked in the calendar. For new settings, the applet fills this from the operating-system timezone when supported; otherwise holidays stay disabled. You can change or disable it at any time. The lookup sends the selected country to a third-party holiday service.",
+        "tooltip": "Country whose public holidays are marked in the calendar. For new settings, the applet fills this from the operating-system timezone when supported; otherwise holidays stay disabled. You can change or disable it at any time. The lookup may send the selected country to up to three third-party holiday services.",
         "options": {
             "None (disable holidays)": "none",
             "Angola": "ago",
