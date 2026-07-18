@@ -279,6 +279,25 @@ test("OpenHolidaysServiceAdapter maps countries, regions, and localized holidays
         flags: ["public_holiday"],
         dateTo: { year: 2026, month: 5, day: 3 }
     }]);
+
+    const endpointRows = adapter.translateResponse([
+        {
+            startDate: "2026-05-01",
+            type: "Public",
+            name: [{ language: "EN", text: "No endpoint" }],
+            nationwide: true
+        },
+        {
+            startDate: "2026-05-01",
+            endDate: "2026-05-01",
+            type: "Public",
+            name: [{ language: "EN", text: "Same-day endpoint" }],
+            nationwide: true
+        }
+    ], globalParams);
+    assert.equal(endpointRows.length, 2);
+    assert.equal(Object.hasOwn(endpointRows[0], "dateTo"), false);
+    assert.equal(Object.hasOwn(endpointRows[1], "dateTo"), false);
 });
 
 test("OpenHolidaysServiceAdapter translates dates and subdivisions", () => {
@@ -341,10 +360,10 @@ function fuzzOpenHolidaysRow(rand, index) {
     const wellFormed = rand() < 0.5;
     const month = 1 + Math.floor(rand() * 12);
     const day = 1 + Math.floor(rand() * 28);
+    const validDate = `2030-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-    return {
-        startDate: wellFormed ?
-            `2030-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` :
+    const row = {
+        startDate: wellFormed ? validDate :
             pickFrom(rand, OPEN_HOLIDAYS_JUNK_DATES),
         type: rand() < 0.5 ? "Public" : pickFrom(rand, ["Optional", "Bank", "", null]),
         name: wellFormed && rand() < 0.8 ?
@@ -354,6 +373,15 @@ function fuzzOpenHolidaysRow(rand, index) {
         subdivisions: rand() < 0.7 ?
             [{ code: "CH-FR", shortName: "FR" }] : [{ code: "CH-TI", shortName: "TI" }]
     };
+
+    if (rand() < 0.65) {
+        row.endDate = wellFormed && rand() < 0.5 ?
+            (rand() < 0.5 ? validDate :
+                `2030-${String(month).padStart(2, "0")}-${String(day + 1).padStart(2, "0")}`) :
+            pickFrom(rand, OPEN_HOLIDAYS_JUNK_DATES);
+    }
+
+    return row;
 }
 
 // Every row the adapter kept must be one the calendar can actually place: a real
@@ -386,6 +414,11 @@ function assertPlaceableHoliday(holiday) {
         "a holiday with no name cannot be shown");
     assert.ok(Array.isArray(holiday.flags) && holiday.flags.length > 0);
     assert.ok(holiday.flags.every((flag) => typeof flag === "string"));
+    if (holiday.dateTo) {
+        assert.ok(holiday.dateTo.year >= holiday.date.year);
+        assert.ok(holiday.dateTo.month >= 1 && holiday.dateTo.month <= 12);
+        assert.ok(holiday.dateTo.day >= 1 && holiday.dateTo.day <= 31);
+    }
 }
 
 test("fuzz: OpenHolidays translation keeps only rows it can actually place", () => {
@@ -395,6 +428,18 @@ test("fuzz: OpenHolidays translation keeps only rows it can actually place", () 
     const rand = makeRandom(0x0f00d);
     let kept = 0;
     let dropped = 0;
+    const base = {
+        startDate: "2030-05-01",
+        type: "Public",
+        name: [{ language: "EN", text: "Malformed endpoint" }],
+        nationwide: true
+    };
+
+    for (const endDate of OPEN_HOLIDAYS_JUNK_DATES) {
+        assert.deepEqual(adapter.translateResponse([
+            { ...base, endDate }
+        ], params), [], `present endDate ${String(endDate)} must parse`);
+    }
 
     for (let round = 0; round < 300; round++) {
         const payload = Array.from({ length: 1 + Math.floor(rand() * 8) },

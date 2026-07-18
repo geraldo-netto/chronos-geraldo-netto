@@ -6,7 +6,7 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 Baseline: `npm test` green (793 JS tests, JS coverage per-file 98/90/100; Python 119 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
 
-Open items: 3 (Critical 0, High 0, Medium 0, Low 3).
+Open items: 2 (Critical 0, High 0, Medium 0, Low 2).
 
 ## Findings
 
@@ -24,7 +24,6 @@ Open items: 3 (Critical 0, High 0, Medium 0, Low 3).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T552 | ingestion / format coverage; reliability / correctness | Low | open | S | Reject an OpenHolidays row whose present `endDate` is not a real ISO calendar date instead of silently truncating it to one day. | `_finishTranslation` adds `dateTo` only when `_dateParts(endDate)` succeeds, but returns the otherwise-valid translated row when it fails. **[verified]** `2026-02-30` and `not-a-date` were both erased from a May 1 span; `HolidayRecordContract.validResponse` then accepted each result as a one-day holiday, while valid `2026-05-03` retained its span. Make the shared ISO translation hook able to reject after start-date parsing, and add malformed-end fuzz cases proving valid same-day/forward endpoints retain the intended policy. |
 | T553 | process & delivery governance; release & deploy engineering; robustness / recovery | Low | open | S | Give release-lock owners an identity that survives PID reuse, not a PID alone. | `acquireReleaseLock` writes only `{pid}` and `retireStaleLock` treats `process.kill(pid, 0)` as proof that the same release command still owns the lock. After a crash, Linux may reuse that PID for an unrelated long-lived process; the ignored lock then blocks `release:check` and `release:bump` until that process exits or the user discovers and deletes it manually. Record and compare the process start identity (or an equivalently bounded owner token), retain the existing live-owner exclusion, and test dead PID, reused PID, corrupt owner, and concurrent stale retirement. |
 | T555 | ingestion / format coverage; robustness / recovery | Low | open | S | Validate every Nager holiday `types` element before lowercasing it, dropping only the malformed row. | `_validHoliday` verifies that `types` is an array but not that its members are strings; `_flags` calls `type.toLowerCase()` on each member. **[verified]** A response containing two good rows around one row with `types: [null]` translated to `null` in `fetchYear`, discarding the whole provider response. This violates the adapter's existing per-row isolation policy and can leave the last fallback with no holidays. Add hostile element types to the seeded adapter fuzz corpus and prove valid type strings normalize unchanged while one bad row cannot erase its siblings. |
 

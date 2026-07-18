@@ -367,7 +367,8 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     _validHoliday(holiday) {
         return holiday &&
             typeof holiday.startDate === "string" &&
-            (!holiday.endDate || typeof holiday.endDate === "string") &&
+            (!Object.prototype.hasOwnProperty.call(holiday, "endDate") ||
+                typeof holiday.endDate === "string") &&
             (!holiday.type || typeof holiday.type === "string") &&
             Array.isArray(holiday.name) &&
             holiday.name.length > 0 &&
@@ -408,11 +409,16 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     }
 
     _finishTranslation(translated, holiday) {
-        if (holiday.endDate && holiday.endDate !== holiday.startDate) {
-            const dateTo = this._dateParts(holiday.endDate);
-            if (dateTo) {
-                translated.dateTo = dateTo;
-            }
+        if (!Object.prototype.hasOwnProperty.call(holiday, "endDate")) {
+            return translated;
+        }
+
+        const dateTo = this._dateParts(holiday.endDate);
+        if (!dateTo) {
+            return null;
+        }
+        if (holiday.endDate !== holiday.startDate) {
+            translated.dateTo = dateTo;
         }
 
         return translated;
