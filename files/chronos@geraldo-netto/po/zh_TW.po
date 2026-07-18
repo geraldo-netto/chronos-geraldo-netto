@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-13 12:35+0200\n"
+"POT-Creation-Date: 2026-07-18 12:10+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -25,17 +25,17 @@ msgstr "%Y年%-m月%-e日"
 msgid "%A, %B %-e, %Y"
 msgstr "%Y年%-m月%-e日 %A"
 
-#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:134 eventFormat.js:148
-#: 5.4/calendar.js:369
+#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
+#: 5.4/calendar.js:359
 msgid "Today"
 msgstr "今天"
 
-#: eventFormat.js:109 eventFormat.js:150
+#: eventFormat.js:109 eventFormat.js:151
 #, javascript-format
 msgid "%s Today"
 msgstr "%s 今天"
 
-#: eventFormat.js:178
+#: eventFormat.js:179
 msgid "All day"
 msgstr "全天"
 
@@ -44,190 +44,182 @@ msgstr "全天"
 msgid "%s — %s"
 msgstr "%s — %s"
 
-#: worldclockData.js:52 settings_widgets_common.py:69
+#: worldclockData.js:60 settings_widgets_common.py:69
 msgid "Invalid timezone"
 msgstr "無效的時區"
 
-#: worldclockData.js:53
+#: worldclockData.js:61
 msgid "Local time"
 msgstr "當地時間"
 
-#: 5.4/appletMenuBuilder.js:185 5.4/appletMenuBuilder.js:191
+#: 5.4/appletMenuBuilder.js:189 5.4/appletMenuBuilder.js:195
 msgid "Go to today"
 msgstr "跳到今天"
 
-#: 5.4/appletMenuBuilder.js:274
+#: 5.4/appletMenuBuilder.js:278
 msgid "Date and Time Settings"
 msgstr "日期與時間設定"
 
-#: 5.4/appletPanelStatus.js:57
-msgid "%b %-e"
-msgstr "%-m月%-e日"
-
-#: 5.4/appletPanelStatus.js:89
+#: 5.4/appletPanelStatus.js:49
 msgid "Location not found"
 msgstr "找不到位置"
 
-#: 5.4/appletPanelStatus.js:90
+#: 5.4/appletPanelStatus.js:50
 msgid "Weather service unavailable"
 msgstr "天氣服務無法使用"
 
-#: 5.4/appletPanelStatus.js:91
+#: 5.4/appletPanelStatus.js:51
 msgid "Set a weather location"
 msgstr "設定天氣位置"
 
-#: 5.4/appletPanelStatus.js:100
+#: 5.4/appletPanelStatus.js:60
 msgid "Clear"
 msgstr "晴朗"
 
-#: 5.4/appletPanelStatus.js:101
+#: 5.4/appletPanelStatus.js:61
 msgid "Partly cloudy"
 msgstr "多雲時晴"
 
-#: 5.4/appletPanelStatus.js:102
+#: 5.4/appletPanelStatus.js:62
 msgid "Cloudy"
 msgstr "陰天"
 
-#: 5.4/appletPanelStatus.js:103
+#: 5.4/appletPanelStatus.js:63
 msgid "Rain"
 msgstr "雨"
 
-#: 5.4/appletPanelStatus.js:104
+#: 5.4/appletPanelStatus.js:64
 msgid "Snow"
 msgstr "雪"
 
-#: 5.4/appletPanelStatus.js:105
+#: 5.4/appletPanelStatus.js:65
 msgid "Showers"
 msgstr "陣雨"
 
-#: 5.4/appletPanelStatus.js:106
+#: 5.4/appletPanelStatus.js:66
 msgid "Thunderstorm"
 msgstr "雷雨"
 
-#: 5.4/appletPanelStatus.js:107
+#: 5.4/appletPanelStatus.js:67
 msgid "Fair"
 msgstr "晴時多雲"
 
-#: 5.4/appletPanelStatus.js:117 5.4/appletPanelStatus.js:508
-#: 5.4/appletPanelStatus.js:667
+#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:422
+#: 5.4/appletPanelStatus.js:567
 msgid "Weather: loading…"
 msgstr "天氣：載入中…"
 
-#: 5.4/appletPanelStatus.js:368
+#: 5.4/appletPanelStatus.js:293
 msgid "Invalid time format; edit it in Settings"
 msgstr "時間格式無效；請在設定中編輯"
 
-#: 5.4/appletPanelStatus.js:532
+#: 5.4/appletPanelStatus.js:446
 msgid "No weather for this timezone"
 msgstr "此時區沒有天氣資訊"
 
-#: 5.4/appletPanelStatus.js:544
+#: 5.4/appletPanelStatus.js:458
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s 最後已知的讀數"
 
-#: 5.4/appletPanelStatus.js:752
-msgid "Invalid tooltip format; edit it in Settings"
-msgstr "工具提示格式無效；請在設定中編輯"
-
-#: 5.4/calendar.js:120
+#: 5.4/calendar.js:110
 msgid "Holiday service unavailable"
 msgstr "假日服務無法使用"
 
-#: 5.4/calendar.js:121
+#: 5.4/calendar.js:111
 msgid "Holiday data unavailable"
 msgstr "假日資料無法使用"
 
-#: 5.4/calendar.js:372
+#: 5.4/calendar.js:362
 msgid "Selected"
 msgstr "已選取"
 
-#: 5.4/calendar.js:376
+#: 5.4/calendar.js:366
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d 個活動"
 
-#: 5.4/calendar.js:647
+#: 5.4/calendar.js:637
 msgid "Holiday data: loading…"
 msgstr "假日資料：載入中…"
 
-#: 5.4/calendar.js:687
+#: 5.4/calendar.js:677
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "假日資料：%s"
 
-#: 5.4/calendar.js:1054
-msgid "Previous month"
-msgstr "上個月"
-
-#: 5.4/calendar.js:1084
-msgid "Next month"
-msgstr "下個月"
-
-#: 5.4/calendar.js:1088
-msgid "Previous year"
-msgstr "上一年"
-
-#: 5.4/calendar.js:1095
-msgid "Next year"
-msgstr "下一年"
-
-#: 5.4/calendar.js:1108
-msgid "Week"
-msgstr "週"
-
-#: 5.4/calendar.js:1409
+#: 5.4/calendar.js:846
 #, javascript-format
 msgid "Week %s"
 msgstr "第 %s 週"
 
-#: 5.4/eventView.js:48
+#: 5.4/calendar.js:1187
+msgid "Previous month"
+msgstr "上個月"
+
+#: 5.4/calendar.js:1217
+msgid "Next month"
+msgstr "下個月"
+
+#: 5.4/calendar.js:1221
+msgid "Previous year"
+msgstr "上一年"
+
+#: 5.4/calendar.js:1228
+msgid "Next year"
+msgstr "下一年"
+
+#: 5.4/calendar.js:1241
+msgid "Week"
+msgstr "週"
+
+#: 5.4/eventView.js:51
 msgid "Starting in a few minutes"
 msgstr "將在幾分鐘後開始"
 
-#: 5.4/eventView.js:55
+#: 5.4/eventView.js:58
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "%d 分鐘後開始"
 
-#: 5.4/eventView.js:65
+#: 5.4/eventView.js:68
 msgid "This evening"
 msgstr "今晚"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:71
 msgid "Starting later today"
 msgstr "今天稍晚開始"
 
-#: 5.4/eventView.js:71
+#: 5.4/eventView.js:74
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "%d 小時後"
 
-#: 5.4/eventView.js:193
+#: 5.4/eventView.js:196
 msgid "Loading…"
 msgstr "載入中…"
 
-#: 5.4/eventView.js:197 5.4/eventView.js:207 5.4/eventView.js:439
-#: 5.4/eventView.js:620
+#: 5.4/eventView.js:200 5.4/eventView.js:210 5.4/eventView.js:441
+#: 5.4/eventView.js:622
 msgid "No Events"
 msgstr "沒有任何活動"
 
-#: 5.4/eventView.js:353 5.4/eventView.js:520
+#: 5.4/eventView.js:356 5.4/eventView.js:522
 msgid "Open the calendar app"
 msgstr "開啟行事曆應用程式"
 
-#: 5.4/eventView.js:451
+#: 5.4/eventView.js:453
 msgid "Events for the selected day"
 msgstr "所選日期的活動"
 
-#: 5.4/eventView.js:504
+#: 5.4/eventView.js:506
 msgid "Add an event"
 msgstr "新增活動"
 
-#: 5.4/eventView.js:628
+#: 5.4/eventView.js:630
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -235,19 +227,19 @@ msgstr ""
 "無法取得行事曆活動 — 沒有執行中的行事曆服務。請安裝或啟用 Evolution Data "
 "Server。"
 
-#: 5.4/eventView.js:714
+#: 5.4/eventView.js:716
 msgid "Ended"
 msgstr "已結束"
 
-#: 5.4/eventView.js:745
+#: 5.4/eventView.js:747
 msgid "In progress"
 msgstr "進行中"
 
-#: 5.4/worldclocks.js:253 5.4/worldclocks.js:254
+#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
 msgid "World clocks"
 msgstr "世界時鐘"
 
-#: 5.4/worldclocks.js:253
+#: 5.4/worldclocks.js:230
 #, javascript-format
 msgid "Source: %s"
 msgstr "來源：%s"
@@ -294,11 +286,11 @@ msgstr "城市或城鎮（例如里斯本）"
 msgid "Type a country name"
 msgstr "輸入國家名稱"
 
-#: settings_widgets_common.py:575
+#: settings_widgets_common.py:548
 msgid "Add new entry"
 msgstr "新增項目"
 
-#: settings_widgets_common.py:577
+#: settings_widgets_common.py:550
 msgid "Edit entry"
 msgstr "編輯項目"
 
@@ -371,15 +363,6 @@ msgstr "一天"
 msgid "Two days"
 msgstr "兩天"
 
-#. 5.4->settings-schema.json->use-custom-format->description
-msgid "Use a custom date format"
-msgstr "使用自訂日期格式"
-
-#. 5.4->settings-schema.json->use-custom-format->tooltip
-msgid ""
-"Check this to define a custom format for the date in the calendar applet."
-msgstr "勾選此選項即可自訂行事曆小工具的日期格式。"
-
 #. 5.4->settings-schema.json->custom-format->description
 msgid "Date format"
 msgstr "日期格式"
@@ -411,12 +394,10 @@ msgstr "在面板上顯示天氣"
 #. 5.4->settings-schema.json->show-weather->tooltip
 msgid ""
 "Enable a small weather readout in the applet label. The reading is fetched "
-"from a third-party weather service, and the location below is sent to it. A "
-"vertical panel has no room for the readout, so it shows only in the tooltip "
-"and the popup."
+"from a third-party weather service, and the location below is sent to it."
 msgstr ""
 "在小程式標籤上顯示簡短的天氣讀數。讀數取自第三方天氣服務，下方的地點會傳送給"
-"該服務。垂直面板沒有空間顯示，因此只會出現在提示與選單中。"
+"該服務。"
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -433,6 +414,14 @@ msgstr ""
 "查詢天氣所用的城市 — 例如「里斯本」或「阿雷格里港」。若留空，面板只會顯示警告"
 "標記而非讀數。這個城市會傳送給第三方地理編碼服務以取得座標，之後大約每 30 分"
 "鐘傳送給第三方預報服務。"
+
+#. 5.4->settings-schema.json->openstreetmap-attribution->description
+msgid "© OpenStreetMap contributors"
+msgstr "© OpenStreetMap 貢獻者"
+
+#. 5.4->settings-schema.json->openstreetmap-attribution->tooltip
+msgid "Open the OpenStreetMap copyright and attribution page."
+msgstr "開啟 OpenStreetMap 版權與署名頁面。"
 
 #. 5.4->settings-schema.json->weather-units->description
 msgid "Weather units"
@@ -458,12 +447,14 @@ msgstr "國家"
 
 #. 5.4->settings-schema.json->country->tooltip
 msgid ""
-"Country whose public holidays are marked in the calendar. Holidays are off "
-"until you pick a country: the lookup sends your country to a third-party "
-"holiday service."
+"Country whose public holidays are marked in the calendar. For new settings, "
+"the applet fills this from the operating-system timezone when supported; "
+"otherwise holidays stay disabled. You can change or disable it at any time. "
+"The lookup sends the selected country to a third-party holiday service."
 msgstr ""
-"在行事曆中標示國定假日的國家。在選擇國家之前假日功能為關閉：查詢會將您的國家"
-"傳送給第三方假日服務。"
+"在行事曆中標示國定假日的國家。新設定時，若系統時區受支援，小程式會據此自動填"
+"入；否則假日功能保持關閉。您可以隨時變更或關閉。查詢會將所選國家傳送給第三方"
+"假日服務。"
 
 #. 5.4->settings-schema.json->country->options
 msgid "None (disable holidays)"
@@ -1446,6 +1437,19 @@ msgstr "顯示名稱"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "時區"
+
+#~ msgid "%b %-e"
+#~ msgstr "%-m月%-e日"
+
+#~ msgid "Invalid tooltip format; edit it in Settings"
+#~ msgstr "工具提示格式無效；請在設定中編輯"
+
+#~ msgid "Use a custom date format"
+#~ msgstr "使用自訂日期格式"
+
+#~ msgid ""
+#~ "Check this to define a custom format for the date in the calendar applet."
+#~ msgstr "勾選此選項即可自訂行事曆小工具的日期格式。"
 
 #, fuzzy
 #~ msgid "calendar:MY"

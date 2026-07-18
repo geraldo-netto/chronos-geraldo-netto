@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-13 12:35+0200\n"
+"POT-Creation-Date: 2026-07-18 12:10+0200\n"
 "PO-Revision-Date: 2021-10-02 18:47-0300\n"
 "Last-Translator: Marcelo Aof\n"
 "Language-Team: \n"
@@ -27,17 +27,17 @@ msgstr "%-e de %B de %Y"
 msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e de %B de %Y"
 
-#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:134 eventFormat.js:148
-#: 5.4/calendar.js:369
+#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
+#: 5.4/calendar.js:359
 msgid "Today"
 msgstr "Hoje"
 
-#: eventFormat.js:109 eventFormat.js:150
+#: eventFormat.js:109 eventFormat.js:151
 #, javascript-format
 msgid "%s Today"
 msgstr "%s hoje"
 
-#: eventFormat.js:178
+#: eventFormat.js:179
 msgid "All day"
 msgstr "Todo dia"
 
@@ -46,193 +46,185 @@ msgstr "Todo dia"
 msgid "%s — %s"
 msgstr "%s — %s"
 
-#: worldclockData.js:52 settings_widgets_common.py:69
+#: worldclockData.js:60 settings_widgets_common.py:69
 msgid "Invalid timezone"
 msgstr "Fuso horário inválido"
 
-#: worldclockData.js:53
+#: worldclockData.js:61
 msgid "Local time"
 msgstr "Hora local"
 
-#: 5.4/appletMenuBuilder.js:185 5.4/appletMenuBuilder.js:191
+#: 5.4/appletMenuBuilder.js:189 5.4/appletMenuBuilder.js:195
 msgid "Go to today"
 msgstr "Ir para hoje"
 
-#: 5.4/appletMenuBuilder.js:274
+#: 5.4/appletMenuBuilder.js:278
 msgid "Date and Time Settings"
 msgstr "Configurações de Data e Hora"
 
-#: 5.4/appletPanelStatus.js:57
-msgid "%b %-e"
-msgstr "%-e %b"
-
-#: 5.4/appletPanelStatus.js:89
+#: 5.4/appletPanelStatus.js:49
 msgid "Location not found"
 msgstr "Local não encontrado"
 
-#: 5.4/appletPanelStatus.js:90
+#: 5.4/appletPanelStatus.js:50
 msgid "Weather service unavailable"
 msgstr "Serviço de clima indisponível"
 
-#: 5.4/appletPanelStatus.js:91
+#: 5.4/appletPanelStatus.js:51
 msgid "Set a weather location"
 msgstr "Defina um local para o clima"
 
-#: 5.4/appletPanelStatus.js:100
+#: 5.4/appletPanelStatus.js:60
 msgid "Clear"
 msgstr "Céu limpo"
 
-#: 5.4/appletPanelStatus.js:101
+#: 5.4/appletPanelStatus.js:61
 msgid "Partly cloudy"
 msgstr "Parcialmente nublado"
 
-#: 5.4/appletPanelStatus.js:102
+#: 5.4/appletPanelStatus.js:62
 msgid "Cloudy"
 msgstr "Nublado"
 
-#: 5.4/appletPanelStatus.js:103
+#: 5.4/appletPanelStatus.js:63
 msgid "Rain"
 msgstr "Chuva"
 
-#: 5.4/appletPanelStatus.js:104
+#: 5.4/appletPanelStatus.js:64
 msgid "Snow"
 msgstr "Neve"
 
-#: 5.4/appletPanelStatus.js:105
+#: 5.4/appletPanelStatus.js:65
 msgid "Showers"
 msgstr "Pancadas de chuva"
 
-#: 5.4/appletPanelStatus.js:106
+#: 5.4/appletPanelStatus.js:66
 msgid "Thunderstorm"
 msgstr "Tempestade"
 
-#: 5.4/appletPanelStatus.js:107
+#: 5.4/appletPanelStatus.js:67
 msgid "Fair"
 msgstr "Tempo bom"
 
-#: 5.4/appletPanelStatus.js:117 5.4/appletPanelStatus.js:508
-#: 5.4/appletPanelStatus.js:667
+#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:422
+#: 5.4/appletPanelStatus.js:567
 msgid "Weather: loading…"
 msgstr "Clima: carregando…"
 
-#: 5.4/appletPanelStatus.js:368
+#: 5.4/appletPanelStatus.js:293
 msgid "Invalid time format; edit it in Settings"
 msgstr "Formato de hora inválido; edite nas Configurações"
 
-#: 5.4/appletPanelStatus.js:532
+#: 5.4/appletPanelStatus.js:446
 msgid "No weather for this timezone"
 msgstr "Sem meteorologia para este fuso horário"
 
-#: 5.4/appletPanelStatus.js:544
+#: 5.4/appletPanelStatus.js:458
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última leitura conhecida"
 
-#: 5.4/appletPanelStatus.js:752
-msgid "Invalid tooltip format; edit it in Settings"
-msgstr "Formato de dica inválido; edite nas Configurações"
-
-#: 5.4/calendar.js:120
+#: 5.4/calendar.js:110
 msgid "Holiday service unavailable"
 msgstr "Serviço de feriados indisponível"
 
-#: 5.4/calendar.js:121
+#: 5.4/calendar.js:111
 msgid "Holiday data unavailable"
 msgstr "Dados de feriados indisponíveis"
 
-#: 5.4/calendar.js:372
+#: 5.4/calendar.js:362
 msgid "Selected"
 msgstr "Selecionado"
 
-#: 5.4/calendar.js:376
+#: 5.4/calendar.js:366
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d evento"
 msgstr[1] "%d eventos"
 
-#: 5.4/calendar.js:647
+#: 5.4/calendar.js:637
 msgid "Holiday data: loading…"
 msgstr "Dados de feriados: carregando…"
 
-#: 5.4/calendar.js:687
+#: 5.4/calendar.js:677
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dados de feriados: %s"
 
-#: 5.4/calendar.js:1054
-msgid "Previous month"
-msgstr "Mês anterior"
-
-#: 5.4/calendar.js:1084
-msgid "Next month"
-msgstr "Próximo mês"
-
-#: 5.4/calendar.js:1088
-msgid "Previous year"
-msgstr "Ano anterior"
-
-#: 5.4/calendar.js:1095
-msgid "Next year"
-msgstr "Próximo ano"
-
-#: 5.4/calendar.js:1108
-msgid "Week"
-msgstr "Semana"
-
-#: 5.4/calendar.js:1409
+#: 5.4/calendar.js:846
 #, javascript-format
 msgid "Week %s"
 msgstr "Semana %s"
 
-#: 5.4/eventView.js:48
+#: 5.4/calendar.js:1187
+msgid "Previous month"
+msgstr "Mês anterior"
+
+#: 5.4/calendar.js:1217
+msgid "Next month"
+msgstr "Próximo mês"
+
+#: 5.4/calendar.js:1221
+msgid "Previous year"
+msgstr "Ano anterior"
+
+#: 5.4/calendar.js:1228
+msgid "Next year"
+msgstr "Próximo ano"
+
+#: 5.4/calendar.js:1241
+msgid "Week"
+msgstr "Semana"
+
+#: 5.4/eventView.js:51
 msgid "Starting in a few minutes"
 msgstr "Começando em alguns minutos"
 
-#: 5.4/eventView.js:55
+#: 5.4/eventView.js:58
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Começa em %d minuto"
 msgstr[1] "Começa em %d minutos"
 
-#: 5.4/eventView.js:65
+#: 5.4/eventView.js:68
 msgid "This evening"
 msgstr "Esta noite"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:71
 msgid "Starting later today"
 msgstr "Começando mais tarde hoje"
 
-#: 5.4/eventView.js:71
+#: 5.4/eventView.js:74
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Em %d hora"
 msgstr[1] "Em %d horas"
 
-#: 5.4/eventView.js:193
+#: 5.4/eventView.js:196
 msgid "Loading…"
 msgstr "Carregando…"
 
-#: 5.4/eventView.js:197 5.4/eventView.js:207 5.4/eventView.js:439
-#: 5.4/eventView.js:620
+#: 5.4/eventView.js:200 5.4/eventView.js:210 5.4/eventView.js:441
+#: 5.4/eventView.js:622
 msgid "No Events"
 msgstr "Sem eventos"
 
-#: 5.4/eventView.js:353 5.4/eventView.js:520
+#: 5.4/eventView.js:356 5.4/eventView.js:522
 msgid "Open the calendar app"
 msgstr "Abrir o aplicativo de calendário"
 
-#: 5.4/eventView.js:451
+#: 5.4/eventView.js:453
 msgid "Events for the selected day"
 msgstr "Eventos do dia selecionado"
 
-#: 5.4/eventView.js:504
+#: 5.4/eventView.js:506
 msgid "Add an event"
 msgstr "Adicionar um evento"
 
-#: 5.4/eventView.js:628
+#: 5.4/eventView.js:630
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -240,19 +232,19 @@ msgstr ""
 "Os eventos do calendário estão indisponíveis — nenhum serviço de calendário "
 "está em execução. Instale ou ative o Evolution Data Server."
 
-#: 5.4/eventView.js:714
+#: 5.4/eventView.js:716
 msgid "Ended"
 msgstr "Encerrado"
 
-#: 5.4/eventView.js:745
+#: 5.4/eventView.js:747
 msgid "In progress"
 msgstr "Em andamento"
 
-#: 5.4/worldclocks.js:253 5.4/worldclocks.js:254
+#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
 msgid "World clocks"
 msgstr "Relógios mundiais"
 
-#: 5.4/worldclocks.js:253
+#: 5.4/worldclocks.js:230
 #, javascript-format
 msgid "Source: %s"
 msgstr "Fonte: %s"
@@ -300,11 +292,11 @@ msgstr "Cidade ou município (por exemplo, Lisboa)"
 msgid "Type a country name"
 msgstr "Digite o nome de um país"
 
-#: settings_widgets_common.py:575
+#: settings_widgets_common.py:548
 msgid "Add new entry"
 msgstr "Adicionar novo relógio"
 
-#: settings_widgets_common.py:577
+#: settings_widgets_common.py:550
 msgid "Edit entry"
 msgstr "Editar relógio"
 
@@ -377,17 +369,6 @@ msgstr "Um dia"
 msgid "Two days"
 msgstr "Dois dias"
 
-#. 5.4->settings-schema.json->use-custom-format->description
-msgid "Use a custom date format"
-msgstr "Usar um formato de data personalizado"
-
-#. 5.4->settings-schema.json->use-custom-format->tooltip
-msgid ""
-"Check this to define a custom format for the date in the calendar applet."
-msgstr ""
-"Marque esta opção para definir um formato de data personalizado no applet de "
-"calendário."
-
 #. 5.4->settings-schema.json->custom-format->description
 msgid "Date format"
 msgstr "Formato da Data"
@@ -420,14 +401,10 @@ msgstr "Mostrar o clima no painel"
 #. 5.4->settings-schema.json->show-weather->tooltip
 msgid ""
 "Enable a small weather readout in the applet label. The reading is fetched "
-"from a third-party weather service, and the location below is sent to it. A "
-"vertical panel has no room for the readout, so it shows only in the tooltip "
-"and the popup."
+"from a third-party weather service, and the location below is sent to it."
 msgstr ""
 "Ativa uma pequena leitura do clima no rótulo do applet. A leitura é obtida "
-"de um serviço de clima de terceiros, e a localização abaixo é enviada a ele. "
-"Um painel vertical não tem espaço para a leitura, então ela aparece apenas "
-"na dica e no menu."
+"de um serviço de clima de terceiros, e a localização abaixo é enviada a ele."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -446,6 +423,14 @@ msgstr ""
 "de uma leitura. Ela é enviada a um serviço de geocodificação de terceiros "
 "para obter suas coordenadas e, em seguida, a um serviço de previsão de "
 "terceiros, a cada 30 minutos aproximadamente."
+
+#. 5.4->settings-schema.json->openstreetmap-attribution->description
+msgid "© OpenStreetMap contributors"
+msgstr "© Colaboradores do OpenStreetMap"
+
+#. 5.4->settings-schema.json->openstreetmap-attribution->tooltip
+msgid "Open the OpenStreetMap copyright and attribution page."
+msgstr "Abre a página de direitos autorais e atribuição do OpenStreetMap."
 
 #. 5.4->settings-schema.json->weather-units->description
 msgid "Weather units"
@@ -473,13 +458,16 @@ msgstr "País"
 
 #. 5.4->settings-schema.json->country->tooltip
 msgid ""
-"Country whose public holidays are marked in the calendar. Holidays are off "
-"until you pick a country: the lookup sends your country to a third-party "
-"holiday service."
+"Country whose public holidays are marked in the calendar. For new settings, "
+"the applet fills this from the operating-system timezone when supported; "
+"otherwise holidays stay disabled. You can change or disable it at any time. "
+"The lookup sends the selected country to a third-party holiday service."
 msgstr ""
-"País cujos feriados são marcados no calendário. Os feriados ficam "
-"desativados até você escolher um país: a consulta envia seu país a um "
-"serviço de feriados de terceiros."
+"País cujos feriados são marcados no calendário. Em configurações novas, o "
+"applet o preenche a partir do fuso horário do sistema operacional quando "
+"houver suporte; caso contrário, os feriados permanecem desativados. Você "
+"pode alterá-lo ou desativá-lo a qualquer momento. A consulta envia o país "
+"selecionado a um serviço de feriados de terceiros."
 
 #. 5.4->settings-schema.json->country->options
 msgid "None (disable holidays)"
@@ -1468,6 +1456,21 @@ msgstr "Nome em exibição"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Fuso horário"
+
+#~ msgid "%b %-e"
+#~ msgstr "%-e %b"
+
+#~ msgid "Invalid tooltip format; edit it in Settings"
+#~ msgstr "Formato de dica inválido; edite nas Configurações"
+
+#~ msgid "Use a custom date format"
+#~ msgstr "Usar um formato de data personalizado"
+
+#~ msgid ""
+#~ "Check this to define a custom format for the date in the calendar applet."
+#~ msgstr ""
+#~ "Marque esta opção para definir um formato de data personalizado no applet "
+#~ "de calendário."
 
 #, fuzzy
 #~ msgid "calendar:MY"

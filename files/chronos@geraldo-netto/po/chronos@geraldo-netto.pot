@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-07-17 02:04+0200\n"
+"POT-Creation-Date: 2026-07-18 12:10+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -53,11 +53,11 @@ msgstr ""
 msgid "Local time"
 msgstr ""
 
-#: 5.4/appletMenuBuilder.js:192 5.4/appletMenuBuilder.js:198
+#: 5.4/appletMenuBuilder.js:189 5.4/appletMenuBuilder.js:195
 msgid "Go to today"
 msgstr ""
 
-#: 5.4/appletMenuBuilder.js:281
+#: 5.4/appletMenuBuilder.js:278
 msgid "Date and Time Settings"
 msgstr ""
 
@@ -237,11 +237,11 @@ msgstr ""
 msgid "In progress"
 msgstr ""
 
-#: 5.4/worldclocks.js:226 5.4/worldclocks.js:227
+#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
 msgid "World clocks"
 msgstr ""
 
-#: 5.4/worldclocks.js:226
+#: 5.4/worldclocks.js:230
 #, javascript-format
 msgid "Source: %s"
 msgstr ""
