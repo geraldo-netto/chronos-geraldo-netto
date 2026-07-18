@@ -6,7 +6,7 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 Baseline: `npm test` green (793 JS tests, JS coverage per-file 98/90/100; Python 119 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
 
-Open items: 5 (Critical 0, High 0, Medium 2, Low 3).
+Open items: 4 (Critical 0, High 0, Medium 1, Low 3).
 
 ## Findings
 
@@ -19,7 +19,6 @@ Open items: 5 (Critical 0, High 0, Medium 2, Low 3).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T551 | caching strategy; ingestion / format coverage; reliability / correctness | Medium | open | S | Apply the same real-calendar validation to cached holiday dates that network records receive, and invalidate freshness when any cached row fails it. | `validCachedHoliday` checks only that `year`, `month` and `day` are integers, despite its trust-boundary comment; it never calls `HolidayRecord.validDateParts`. **[verified]** It accepted `2026-99-99` and non-leap `2026-02-29`, and `_country` retained both the bad row and a current 2026 freshness stamp. Such a corrupt/tampered snapshot suppresses the provider fetch that would repair the year while its impossible dates never match the calendar grid. Extend the existing cache fuzz test with range/leap invariants and prove one rejected row clears all snapshot stamps while valid leap days survive. |
 | T554 | ingestion / format coverage; caching strategy; robustness / recovery | Medium | open | S | Reject a non-empty holiday response whose dates do not belong to the requested year, so the fallback chain can repair it. | `HolidayRecordContract.validResponse` validates each real date but receives no requested year, and neither the ISO translators nor Enrico compare a row's year with `params.year`. **[verified]** A provider asked for 2026 returned a valid 2027 record and `HolidayFallbackChain` accepted it as the successful 2026 answer. `HolidayService.addData` then stamps 2026 fresh while indexing the row under 2027: the requested year stays blank and no fallback or normal refresh repairs it for 50 days. Validate the request/response relationship before classifying success; cover start/end years, mixed-year bodies and legitimate spans crossing New Year. |
 
 ### Low

@@ -86,9 +86,7 @@ var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS;
 function validCachedHoliday(single) {
     return Boolean(single) &&
         typeof single === "object" &&
-        Number.isInteger(single.year) &&
-        Number.isInteger(single.month) &&
-        Number.isInteger(single.day) &&
+        HolidayRecord.validDateParts(single) &&
         typeof single.name === "string" &&
         Array.isArray(single.flags) &&
         (single.region === undefined || typeof single.region === "string");

@@ -1719,9 +1719,13 @@ test("a save merges with the file instead of overwriting another writer's countr
 // transitively, always with rows that were already valid.
 test("fuzz: only well-formed rows survive the cache's own validator", () => {
     const { validCachedHoliday } = require(holidayCachePath);
+    const { validDateParts } = require(holidayRecordPath);
     const rand = makeRandom(0xca6e);
     const pick = (pool) => pool[Math.floor(rand() * pool.length)];
-    const numbers = [2026, 1, 31, 0, -1, 1.5, NaN, Infinity, "2026", null, undefined, {}, []];
+    const numbers = [
+        2024, 2026, 1, 2, 28, 29, 30, 31, 99, 0, -1, 1.5, NaN, Infinity,
+        "2026", null, undefined, {}, []
+    ];
     const names = ["New Year", "", "x".repeat(500), 42, null, undefined, {}, ["a"]];
     const flagSets = [[], ["public_holiday"], "public_holiday", null, undefined, {}, 7];
     const regions = ["global", "ca", "", 42, null, undefined, {}];
@@ -1750,10 +1754,39 @@ test("fuzz: only well-formed rows survive the cache's own validator", () => {
         assert.ok(Number.isInteger(candidate.year));
         assert.ok(Number.isInteger(candidate.month));
         assert.ok(Number.isInteger(candidate.day));
+        assert.ok(validDateParts(candidate), "accepted parts form a real calendar date");
         assert.equal(typeof candidate.name, "string");
         assert.ok(Array.isArray(candidate.flags));
         assert.ok(candidate.region === undefined || typeof candidate.region === "string");
     }
+});
+
+test("one impossible cached date invalidates freshness but a leap day survives", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const { validCachedHoliday } = require(holidayCachePath);
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const leap = {
+        year: 2024, month: 2, day: 29, region: "global", name: "Leap Day", flags: []
+    };
+    const impossible = [
+        { year: 2026, month: 99, day: 99, region: "global", name: "Impossible", flags: [] },
+        { year: 2026, month: 2, day: 29, region: "global", name: "False Leap Day", flags: [] }
+    ];
+
+    assert.equal(validCachedHoliday(leap), true);
+    for (const row of impossible) {
+        assert.equal(validCachedHoliday(row), false);
+    }
+
+    const loaded = repository._country({
+        usa: {
+            years: { 2024: { global: STAMP }, 2026: { global: STAMP } },
+            holidays: [leap, ...impossible]
+        }
+    }, "usa");
+
+    assert.deepEqual(loaded.holidays, [leap], "the valid leap day remains renderable");
+    assert.deepEqual(loaded.years, {}, "one rejected row makes every snapshot stamp stale");
 });
 
 test("a cache file with some bad rows keeps the good ones", () => {
