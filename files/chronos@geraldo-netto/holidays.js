@@ -529,11 +529,23 @@ var HolidayService = class HolidayService {
             callback(this.matchMonth(year, month), status.error, status.provider);
         };
 
-        if (this.fetching(year) || this.staleCache(year)) {
-            this.retrieveForYear(year, respond);
-        } else {
-            respond();
-        }
+        // Cinnamon runs the first grid update in the same call stack as applet
+        // construction, while setPlace's disk read is still in flight: judged
+        // at that instant every year looks stale, and a real HTTP fetch went
+        // out for data already fresh on disk — bypassing the 50-day and 1-hour
+        // throttles the cache exists to enforce. Staleness is judged once the
+        // cache has answered; with no load pending this path is synchronous.
+        this.cache.whenReady(() => {
+            if (this._destroyed) {
+                return;
+            }
+
+            if (this.fetching(year) || this.staleCache(year)) {
+                this.retrieveForYear(year, respond);
+            } else {
+                respond();
+            }
+        });
     }
 };
 // the on-disk cache. Renamed off the primary provider's name; the repository

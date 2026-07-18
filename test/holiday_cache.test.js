@@ -1335,6 +1335,80 @@ test("the per-year status record does not outlive the years the grid can reach",
         [`${current - 1}/global`, `${current + 1}/global`, `${current}/global`].sort());
 });
 
+// T525 regression: Cinnamon runs the first grid update in the same call stack
+// as applet construction, while setPlace's disk read is still in flight — the
+// cache looked empty, staleCache answered true, and a real HTTP fetch went out
+// for data already fresh on disk, on every applet load. The fixture answers
+// loads synchronously, so this test defers the load by hand like Gio does.
+test("the first grid read waits for the disk cache instead of fetching", () => {
+    const { HolidayCache, HolidayService } = loadHolidays();
+    const year = FIXED_YEAR;
+    const stamp = new Date(Date.now() - 60 * 60 * 1000).toUTCString();
+    let deliverLoad = null;
+    const cache = new HolidayCache((_country, done) => {
+        deliverLoad = () => done({
+            years: { [year]: { global: stamp } },
+            holidays: [{ year, month: 7, day: 4, name: "Cached Day", flags: [], region: "global" }]
+        });
+    }, () => {});
+    const fetches = [];
+    const service = {
+        fetchYear(country, region, y) { fetches.push(`${country}/${region}/${y}`); },
+        validResponse: () => true
+    };
+    const enrico = new HolidayService(service, cache, { record: service });
+
+    const updates = [];
+    enrico.setPlace("usa", "global", () => updates.push("place"));
+    const answers = [];
+    enrico.getHolidays(year, 7, (dates, error) => answers.push([dates, error]));
+
+    assert.deepEqual(fetches, [], "no fetch is dispatched before the disk read lands");
+    assert.deepEqual(answers, [], "the grid answer waits for the cache");
+
+    deliverLoad();
+    assert.deepEqual(fetches, [], "a fresh disk cache satisfies startup without a fetch");
+    assert.deepEqual(updates, ["place"]);
+    assert.equal(answers.length, 1);
+    assert.deepEqual(answers[0][0].get("7/4"), ["Cached Day", []]);
+    assert.equal(answers[0][1], "");
+});
+
+// the queue must never wedge: leaving the place while a load is in flight
+// answers the waiters with the no-country state instead of never
+test("clearing the place releases readers queued behind a pending load", () => {
+    const { HolidayCache, HolidayService, HOLIDAY_ERRORS } = loadHolidays();
+    const cache = new HolidayCache(() => {}, () => {});
+    const service = { fetchYear() { throw new Error("no fetch expected"); }, validResponse: () => true };
+    const enrico = new HolidayService(service, cache, { record: service });
+
+    enrico.setPlace("usa", "global");
+    const answers = [];
+    enrico.getHolidays(FIXED_YEAR, 7, (dates, error) => answers.push([dates.size, error]));
+    assert.deepEqual(answers, []);
+
+    enrico.clearPlace();
+    assert.deepEqual(answers, [[0, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE]]);
+});
+
+// after destroy the actors a repaint would touch are gone: a late grid read
+// stays silent, exactly like retrieveForYear already does
+test("a grid read after destroy neither fetches nor answers", () => {
+    const { HolidayCache, HolidayService } = loadHolidays();
+    const fresh = new Date(Date.now() - 60000).toUTCString();
+    const cache = new HolidayCache((_country, done) => done({
+        years: { [FIXED_YEAR]: { global: fresh } }, holidays: []
+    }), () => {});
+    const service = { fetchYear() { throw new Error("no fetch expected"); }, validResponse: () => true };
+    const enrico = new HolidayService(service, cache, { record: service });
+    enrico.setPlace("usa", "global");
+    enrico.destroy();
+
+    let answered = 0;
+    assert.doesNotThrow(() => enrico.getHolidays(FIXED_YEAR, 7, () => answered++));
+    assert.equal(answered, 0);
+});
+
 test("the cache persists only the reachable window but keeps the session's data", () => {
     const { HolidayCache } = loadHolidays();
     const saved = [];

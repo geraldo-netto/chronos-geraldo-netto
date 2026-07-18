@@ -407,6 +407,30 @@ var HolidayCache = class HolidayCache {
         this._matchedMonthCache = new Map();
         // insertion order is recency: re-touching deletes and re-adds
         this._yearUse = new Map();
+        this._loading = false;
+        this._onReady = [];
+    }
+
+    // The disk read setPlace starts is asynchronous, and Cinnamon runs the
+    // first grid update in the same stack as applet construction — before the
+    // read lands. Staleness judged at that instant sees no years at all, so a
+    // caller that acts on it dispatches a network fetch for data that is
+    // already fresh on disk. Anyone whose answer depends on the cached years
+    // waits here; with no load pending this is a plain synchronous call.
+    whenReady(callback) {
+        if (this._loading) {
+            this._onReady.push(callback);
+            return;
+        }
+
+        callback();
+    }
+
+    _flushReady() {
+        this._loading = false;
+        const waiting = this._onReady;
+        this._onReady = [];
+        waiting.forEach((callback) => callback());
     }
 
     _touchYear(year) {
@@ -453,10 +477,13 @@ var HolidayCache = class HolidayCache {
         this.region = region;
 
         if (!changed) {
-            ready();
+            // a load for this country may still be in flight; the caller's
+            // answer is only meaningful once it has landed
+            this.whenReady(ready);
             return;
         }
 
+        this._loading = true;
         this._load(country, (data) => {
             // a second place change can land while the first is still reading
             if (this.country !== country) {
@@ -467,6 +494,7 @@ var HolidayCache = class HolidayCache {
             this.attempts = {};
             this.setData(data.holidays);
             ready();
+            this._flushReady();
         });
     }
 
@@ -642,6 +670,9 @@ var HolidayCache = class HolidayCache {
 
     clearPlace() {
         this.country = null;
+        // a load still in flight was for a place that no longer exists; whoever
+        // queued behind it gets the no-country answer now instead of never
+        this._flushReady();
     }
 
     // The applet is gone: the persisted copy is already on disk, and every
@@ -650,6 +681,9 @@ var HolidayCache = class HolidayCache {
     // rest of the login session — the applet object outlives its removal (see
     // AppletContextMenu's sourceActor), so nothing else drops them.
     release() {
+        // waiters would repaint actors the removal has already destroyed
+        this._onReady = [];
+        this._loading = false;
         this.data = [];
         this._yearUse.clear();
         this._holidayIndex.clear();
