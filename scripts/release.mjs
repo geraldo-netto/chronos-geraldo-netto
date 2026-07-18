@@ -21,21 +21,57 @@ const RELEASE_TARGETS = [
     "CHANGELOG.md"
 ];
 
-function processIsAlive(pid) {
+export function parseProcessStartTime(stat) {
+    if (typeof stat !== "string") {
+        return null;
+    }
+    const commandEnd = stat.lastIndexOf(")");
+    if (commandEnd < 0) {
+        return null;
+    }
+    const fields = stat.slice(commandEnd + 1).trim().split(/\s+/);
+    const startTime = fields[19];
+    return typeof startTime === "string" && /^\d+$/.test(startTime) ? startTime : null;
+}
+
+export async function readProcessStartTime(pid, readStat = readFile) {
     try {
-        process.kill(pid, 0);
-        return true;
+        const stat = await readStat(`/proc/${pid}/stat`, "utf8");
+        const startTime = parseProcessStartTime(stat);
+        if (!startTime) {
+            throw new Error(`process ${pid} has an unreadable start identity`);
+        }
+        return startTime;
     } catch (error) {
-        return !error || error.code !== "ESRCH";
+        if (error && error.code === "ENOENT") {
+            return null;
+        }
+        throw error;
     }
 }
 
-async function retireStaleLock(lockPath) {
-    const owner = JSON.parse(await readFile(lockPath, "utf8"));
-    if (!Number.isInteger(owner.pid) || owner.pid <= 0) {
+export async function retireStaleLock(lockPath) {
+    let contents;
+    try {
+        contents = await readFile(lockPath, "utf8");
+    } catch (error) {
+        if (error && error.code === "ENOENT") {
+            return;
+        }
+        throw error;
+    }
+
+    let owner;
+    try {
+        owner = JSON.parse(contents);
+    } catch (error) {
+        throw new Error("release lock has an invalid owner", { cause: error });
+    }
+    if (!Number.isInteger(owner.pid) || owner.pid <= 0 ||
+        typeof owner.startTime !== "string" || !/^\d+$/.test(owner.startTime)) {
         throw new Error("release lock has an invalid owner");
     }
-    if (processIsAlive(owner.pid)) {
+    if (await readProcessStartTime(owner.pid) === owner.startTime) {
         throw new Error(`another release command is running as process ${owner.pid}`);
     }
 
@@ -54,7 +90,11 @@ async function retireStaleLock(lockPath) {
 async function acquireReleaseLock(root) {
     const lockPath = path.join(root, LOCK_FILE);
     const candidate = path.join(root, `${LOCK_FILE}-${process.pid}-${randomUUID()}`);
-    await writeFile(candidate, JSON.stringify({ pid: process.pid }), { flag: "wx" });
+    const startTime = await readProcessStartTime(process.pid);
+    if (!startTime) {
+        throw new Error("current process has no start identity");
+    }
+    await writeFile(candidate, JSON.stringify({ pid: process.pid, startTime }), { flag: "wx" });
     try {
         for (let attempt = 0; attempt < 3; attempt++) {
             try {

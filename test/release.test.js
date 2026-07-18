@@ -233,11 +233,12 @@ test("release startup removes staging left before journal publication", async (t
 
 test("release cleanup never crosses a live command lock", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
-    const { checkRelease } = await import(releaseUrl);
+    const { checkRelease, readProcessStartTime } = await import(releaseUrl);
     const root = await makeReleaseFixture(t);
     const lock = path.join(root, ".chronos-release-lock");
     const staging = path.join(root, ".chronos-release-transaction-active");
-    await fs.writeFile(lock, JSON.stringify({ pid: process.pid }));
+    const startTime = await readProcessStartTime(process.pid);
+    await fs.writeFile(lock, JSON.stringify({ pid: process.pid, startTime }));
     await fs.mkdir(staging);
 
     await assert.rejects(checkRelease(root),
@@ -254,14 +255,81 @@ test("release startup retires dead locks and rejects corrupt owners", async (t) 
     const { checkRelease } = await import(releaseUrl);
     const root = await makeReleaseFixture(t);
     const lock = path.join(root, ".chronos-release-lock");
-    await fs.writeFile(lock, JSON.stringify({ pid: 99_999_999 }));
+    await fs.writeFile(lock, JSON.stringify({ pid: 99_999_999, startTime: "1" }));
 
     assert.equal(await checkRelease(root), "0.0.1");
     await assert.rejects(fs.access(lock));
 
-    await fs.writeFile(lock, JSON.stringify({ pid: "unknown" }));
-    await assert.rejects(checkRelease(root), /release lock has an invalid owner/);
-    await fs.access(lock);
+    for (const corrupt of [
+        JSON.stringify({ pid: "unknown", startTime: "1" }),
+        JSON.stringify({ pid: process.pid }),
+        JSON.stringify({ pid: process.pid, startTime: "not-a-tick" }),
+        "{"
+    ]) {
+        await fs.writeFile(lock, corrupt);
+        await assert.rejects(checkRelease(root), /release lock has an invalid owner/);
+        await fs.access(lock);
+        await fs.rm(lock);
+    }
+});
+
+test("release startup distinguishes a reused PID from the lock owner", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease, readProcessStartTime } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const lock = path.join(root, ".chronos-release-lock");
+    const currentStart = await readProcessStartTime(process.pid);
+    const previousStart = (BigInt(currentStart) + 1n).toString();
+    await fs.writeFile(lock,
+        JSON.stringify({ pid: process.pid, startTime: previousStart }));
+
+    assert.equal(await checkRelease(root), "0.0.1");
+    await assert.rejects(fs.access(lock));
+});
+
+test("concurrent stale-lock retirement is idempotent", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { retireStaleLock } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const lock = path.join(root, ".chronos-release-lock");
+    await fs.writeFile(lock, JSON.stringify({ pid: 99_999_999, startTime: "1" }));
+
+    await Promise.all(Array.from({ length: 8 }, () => retireStaleLock(lock)));
+    await assert.rejects(fs.access(lock));
+    await retireStaleLock(lock);
+    assert.deepEqual(
+        (await fs.readdir(root)).filter((name) => name.startsWith(
+            ".chronos-release-lock.stale-")),
+        []);
+
+    const unreadable = path.join(root, ".chronos-release-lock-directory");
+    await fs.mkdir(unreadable);
+    await assert.rejects(retireStaleLock(unreadable),
+        (error) => error.code === "EISDIR");
+});
+
+test("process start identities parse the comm field safely", async () => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { parseProcessStartTime, readProcessStartTime } = await import(releaseUrl);
+    const prefix = Array.from({ length: 19 }, (_unused, index) =>
+        index === 0 ? "S" : String(index)).join(" ");
+
+    assert.equal(parseProcessStartTime(`7 (a command) ${prefix} 4242 0`), "4242");
+    assert.equal(parseProcessStartTime("missing command terminator"), null);
+    assert.equal(parseProcessStartTime(null), null);
+    assert.equal(parseProcessStartTime("7 (short) S 1"), null);
+    assert.equal(await readProcessStartTime(7, async () =>
+        `7 (a command) ${prefix} 4242 0`), "4242");
+    await assert.rejects(readProcessStartTime(7, async () => "broken"),
+        /unreadable start identity/);
+    assert.equal(await readProcessStartTime(7, async () => {
+        const error = new Error("gone");
+        error.code = "ENOENT";
+        throw error;
+    }), null);
+    await assert.rejects(readProcessStartTime(7, async () => {
+        throw new Error("permission denied");
+    }), /permission denied/);
 });
 
 test("an interrupted release transaction is completed before the next check", async (t) => {
