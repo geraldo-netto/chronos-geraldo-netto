@@ -283,7 +283,7 @@ class PanelView {
 }
 class AppletPanelStatusPresenter {
     // does not hold it, and reads and writes nothing but the seam
-    constructor(applet, view) {
+    constructor(view) {
         this.view = view;
         this._todayFormatCache = null;
         this._invalidTooltipFormat = null;

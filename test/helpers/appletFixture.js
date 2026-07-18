@@ -185,7 +185,7 @@ const MAX_SUFFIX = PanelStatusModule.LABEL_SUFFIX_MAX_LENGTH;
 const ELLIPSIS = PanelStatusModule.LABEL_ELLIPSIS;
 const Proto = AppletModule.CinnamonCalendarApplet.prototype;
 const panelStatus = (applet) => new AppletModule.AppletPanelStatusPresenter(
-    null, new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet)));
+    new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet)));
 const DateFormats = rootModules.dateFormats;
 const Weather = rootModules.weather;
 const St = global.imports.gi.St;

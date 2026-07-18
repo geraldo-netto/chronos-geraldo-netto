@@ -368,7 +368,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     _panelStatus() {
         if (!this._panelStatusPresenter) {
             this._panelStatusPresenter = new AppletPanelStatusPresenter(
-                null, new PanelView(createPanelPort(this)));
+                new PanelView(createPanelPort(this)));
         }
         return this._panelStatusPresenter;
     }

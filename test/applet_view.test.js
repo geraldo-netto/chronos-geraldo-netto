@@ -893,7 +893,7 @@ test("a panel view can be substituted whole", () => {
         setAccessibleName(name) { this.name = name; }
     };
 
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(null, view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
     presenter.updateClockAndDate();
 
     assert.equal(view.label, "12 Jul 14:03 20°C");
@@ -920,7 +920,7 @@ test("a weather failure explains itself even with no world clocks", () => {
         cityWeatherProviderName: () => ""
     };
 
-    const failed = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
+    const failed = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
         weatherReading: { condition: "☀", temperatureC: 20 },
         weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE
@@ -931,7 +931,7 @@ test("a weather failure explains itself even with no world clocks", () => {
     assert.doesNotMatch(tooltip, /Sunday, 12 July 2026/, "there is no standalone date line");
 
     // the configured-nothing case: a lone ⚠ that never said what to do about it
-    const unset = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
+    const unset = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
         weatherReading: null,
         weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.NO_LOCATION
@@ -939,7 +939,7 @@ test("a weather failure explains itself even with no world clocks", () => {
     assert.match(unset.buildTooltipText([]), /Set a weather location/);
 
     // ...and the first refresh, which is an ellipsis on the panel and nothing at all aloud
-    const pending = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
+    const pending = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
         weatherReading: null,
         weatherPending: true,
         weatherUnits: "metric",
@@ -948,7 +948,7 @@ test("a weather failure explains itself even with no world clocks", () => {
     assert.match(pending.buildTooltipText([]), /loading/);
 
     // a working reading says nothing extra: the temperature is on the panel
-    const fine = new PanelStatusModule.AppletPanelStatusPresenter(null, Object.assign({}, base, {
+    const fine = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
         weatherReading: { condition: "☀", temperatureC: 20 },
         weatherUnits: "metric",
         weatherError: ""
@@ -1157,7 +1157,7 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
         setTooltip: (text) => written.push(text)
     };
 
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(null, view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
 
     presenter.updateClockAndDate();
     assert.equal(written.length, 1, "the first tick builds it");

@@ -462,7 +462,7 @@ test("the panel presenter reads and writes through a view it is given", () => {
         dateLabel: { set_text: (text) => written.push(["date", text]) }
     };
 
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(null, view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
     presenter.updateClockAndDate();
 
     // nothing is written by reaching into the applet
