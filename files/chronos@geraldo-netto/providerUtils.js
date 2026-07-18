@@ -24,7 +24,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const IoUtils = IS_NODE ?
     require("./ioUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;

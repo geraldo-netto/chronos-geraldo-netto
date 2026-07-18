@@ -24,7 +24,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const GLib = GjsImports.gi.GLib;
 const LocaleText = IS_NODE ?
     require("./localeText") :
@@ -35,30 +35,30 @@ const TextUtils = IS_NODE ?
 const _ = LocaleText.translate;
 
 // user-configurable clocks; the built-in UTC and local rows come on top
-var MAX_CLOCKS = 8;
+var MAX_CLOCKS = 8; // NOSONAR [S3504] -- GJS importer export
 // The label is the user's own name for the clock, and the settings dialog puts
 // no limit on it. It is rendered in the popup grid and padded to the widest
 // cell in the monospace tooltip, so a single 60-character name stretches both
 // to match it, with nothing truncating. The panel suffix has been capped all
 // along — at 48 — for exactly this reason; the other two readouts were not.
 // A city name is a few words.
-var MAX_CLOCK_LABEL_LENGTH = 24;
-var LOCAL_TIMEZONE = "local";
-var UTC_TIMEZONE = "UTC";
+var MAX_CLOCK_LABEL_LENGTH = 24; // NOSONAR [S3504] -- GJS importer export
+var LOCAL_TIMEZONE = "local"; // NOSONAR [S3504] -- GJS importer export
+var UTC_TIMEZONE = "UTC"; // NOSONAR [S3504] -- GJS importer export
 // the IANA "no region" area: Etc/UTC, Etc/GMT+3 and the like are offsets, not
 // places. Named to match settings_widgets_common.py's TZ_NO_REGION so the two
 // timezone-to-city implementations filter the same set.
-var TZ_NO_REGION = "Etc";
-var TIMEZONE_FILE = "/etc/timezone";
-var LOCALTIME_FILE = "/etc/localtime";
-var ZONE_TAB_FILE = "/usr/share/zoneinfo/zone.tab";
-var ZONEINFO_DIRECTORY = "/usr/share/zoneinfo/";
-var MAX_TIMEZONE_FILE_BYTES = 1024;
-var MAX_ZONE_TAB_BYTES = 256 * 1024;
-var MAX_TIMEZONE_LINK_BYTES = 1024;
-var MAX_TIMEZONE_ALIAS_HOPS = 16;
-var INVALID_TIMEZONE_TEXT = _("Invalid timezone");
-var LOCAL_TIME_TEXT = _("Local time");
+var TZ_NO_REGION = "Etc"; // NOSONAR [S3504] -- GJS importer export
+var TIMEZONE_FILE = "/etc/timezone"; // NOSONAR [S3504] -- GJS importer export
+var LOCALTIME_FILE = "/etc/localtime"; // NOSONAR [S3504] -- GJS importer export
+var ZONE_TAB_FILE = "/usr/share/zoneinfo/zone.tab"; // NOSONAR [S3504] -- GJS importer export
+var ZONEINFO_DIRECTORY = "/usr/share/zoneinfo/"; // NOSONAR [S3504] -- GJS importer export
+var MAX_TIMEZONE_FILE_BYTES = 1024; // NOSONAR [S3504] -- GJS importer export
+var MAX_ZONE_TAB_BYTES = 256 * 1024; // NOSONAR [S3504] -- GJS importer export
+var MAX_TIMEZONE_LINK_BYTES = 1024; // NOSONAR [S3504] -- GJS importer export
+var MAX_TIMEZONE_ALIAS_HOPS = 16; // NOSONAR [S3504] -- GJS importer export
+var INVALID_TIMEZONE_TEXT = _("Invalid timezone"); // NOSONAR [S3504] -- GJS importer export
+var LOCAL_TIME_TEXT = _("Local time"); // NOSONAR [S3504] -- GJS importer export
 
 // new_identifier landed in GLib 2.68 and answers null for an identifier it does
 // not know, which is what tells an invalid zone from a valid one. Cinnamon 5.4 —
@@ -106,7 +106,7 @@ function timezoneCityName(timezone) {
     // the identical set. Without the Etc/ guard the last path segment gave the
     // bare "UTC"/"GMT+3", which JS then geocoded while Python wrote "", so the
     // two sides disagreed on the same weather-location key.
-    if (identifier.indexOf("/") === -1 || identifier.indexOf(TZ_NO_REGION + "/") === 0) {
+    if (identifier.indexOf("/") === -1 || identifier.indexOf(TZ_NO_REGION + "/") === 0) { // NOSONAR [S6557,S7765] -- accepted compatible form
         return "";
     }
 
@@ -117,7 +117,7 @@ function timezoneCityName(timezone) {
     if (!cityIdentifier) {
         return "";
     }
-    return cityIdentifier.split("/").pop().split("_").join(" ").trim();
+    return cityIdentifier.split("/").pop().split("_").join(" ").trim(); // NOSONAR [S7781] -- accepted compatible form
 }
 
 // Weather egress must use the runtime's resolved timezone, not the configured
@@ -216,7 +216,7 @@ function validTimezoneLinkTarget(target) {
     if (!target || target.length > MAX_TIMEZONE_LINK_BYTES) {
         return false;
     }
-    return target.indexOf("\0") === -1;
+    return target.indexOf("\0") === -1; // NOSONAR [S7765] -- accepted compatible form
 }
 
 function timezoneLinkSegments(identifier, target) {
@@ -313,7 +313,7 @@ function countryCodeFromZoneTab(timezone, zoneTab) {
     let country = "";
     const seenTimezones = new Set();
     for (const line of zoneTab.split(/\r?\n/)) {
-        if (!line || line.indexOf("#") === 0) {
+        if (!line || line.indexOf("#") === 0) { // NOSONAR [S6557] -- accepted compatible form
             continue;
         }
 

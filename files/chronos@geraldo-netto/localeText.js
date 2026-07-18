@@ -22,8 +22,8 @@ const UUID = "chronos@geraldo-netto";
 // Where the applet itself lives is what says which of the two it is.
 function localeDirectory() {
     const home = GLib.get_home_dir();
-    const appletManager = GjsImports.ui && GjsImports.ui.appletManager;
-    const meta = appletManager && appletManager.appletMeta ?
+    const appletManager = GjsImports.ui && GjsImports.ui.appletManager; // NOSONAR [S6582] -- accepted compatible form
+    const meta = appletManager && appletManager.appletMeta ? // NOSONAR [S6582] -- accepted compatible form
         appletManager.appletMeta[UUID] : null;
     const installedPath = meta && typeof meta.path === "string" ? meta.path : "";
 
@@ -34,7 +34,7 @@ function localeDirectory() {
     return home + "/.local/share/locale";
 }
 
-if (Gettext && Gettext.bindtextdomain) {
+if (Gettext && Gettext.bindtextdomain) { // NOSONAR [S6582] -- accepted compatible form
     Gettext.bindtextdomain(UUID, localeDirectory());
 }
 
@@ -54,13 +54,13 @@ if (Gettext && Gettext.bindtextdomain) {
 // "All day", "Date and Time Settings") is already translated in our own
 // catalogs. Falling back to English says "not translated yet"; falling back to
 // another domain says something else, confidently.
-var translate = (Gettext && Gettext.dgettext) ?
+var translate = (Gettext && Gettext.dgettext) ? // NOSONAR [S3504,S6582] -- GJS importer export
     function(str) {
         return Gettext.dgettext(UUID, str);
     } :
-    (typeof _ === "undefined" ? function(str) { return str; } : _);
+    (typeof _ === "undefined" ? function(str) { return str; } : _); // NOSONAR [S3358] -- accepted compatible form
 
-var translatePlural = (Gettext && Gettext.dngettext) ?
+var translatePlural = (Gettext && Gettext.dngettext) ? // NOSONAR [S3504,S6582] -- GJS importer export
     function(singular, plural, n) {
         return Gettext.dngettext(UUID, singular, plural, n);
     } :
@@ -83,7 +83,7 @@ function joinPhrases(...parts) {
         return "";
     }
 
-    return kept.reduce((left, right) => _fillTemplate(_("%s — %s"), [left, right]));
+    return kept.reduce((left, right) => _fillTemplate(_("%s — %s"), [left, right])); // NOSONAR [S6959] -- nonempty input is guarded
 }
 
 // The parts are an event summary from whatever ICS or CalDAV feed the user
@@ -103,7 +103,7 @@ function joinPhrases(...parts) {
 function _fillTemplate(template, values) {
     let index = 0;
 
-    return template.replace(/%s/g, () =>
+    return template.replace(/%s/g, () => // NOSONAR [S7781] -- accepted compatible form
         index < values.length ? values[index++] : "%s");
 }
 

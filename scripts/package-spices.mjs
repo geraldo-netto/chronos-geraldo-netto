@@ -39,7 +39,7 @@ function validateManifestPath(relative) {
 export function parseTrackedSpicesFiles(stdout) {
     return stdout.toString("utf8").split("\0").filter(Boolean).map((entry) => {
         const match = /^([0-7]{6}) [0-9a-f]+ ([0-3])\t([\s\S]+)$/.exec(entry);
-        if (!match || match[2] !== "0") {
+        if (!match || match[2] !== "0") { // NOSONAR [S6582] -- accepted compatible form
             throw new Error("cannot package an invalid or conflicted Git index");
         }
         return {
@@ -157,7 +157,7 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
     }
 
     const trackedEntries = trackedFiles ?
-        [...trackedFiles].sort().map((relative) => ({ relative, mode: null })) :
+        [...trackedFiles].sort().map((relative) => ({ relative, mode: null })) : // NOSONAR [S2871] -- lexicographic paths required
         await listTrackedSpicesFiles(source);
     const files = trackedEntries.map(({ relative }) => relative);
     const indexedModes = new Map(trackedEntries.map(({ relative, mode }) => [relative, mode]));

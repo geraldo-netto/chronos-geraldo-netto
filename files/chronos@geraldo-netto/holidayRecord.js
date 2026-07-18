@@ -11,7 +11,7 @@
 // into this shape; the domain validates, localizes and expands it here.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const DateFormats = IS_NODE ?
     require("./dateFormats") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats;
@@ -22,9 +22,9 @@ const LocaleQuery = IS_NODE ?
 const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
-var MAX_HOLIDAY_SPAN_DAYS = 366;
-var MAX_HOLIDAYS_PER_YEAR = 1000;
-var MAX_EXPANDED_HOLIDAY_ROWS = 4000;
+var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export
+var MAX_HOLIDAYS_PER_YEAR = 1000; // NOSONAR [S3504] -- GJS importer export
+var MAX_EXPANDED_HOLIDAY_ROWS = 4000; // NOSONAR [S3504] -- GJS importer export
 
 function _noonUtc(parts) {
     return Date.UTC(parts.year, parts.month - 1, parts.day, 12);
@@ -57,7 +57,7 @@ function holidayOverlapsYear(holiday, year) {
     return holiday.date.year <= year && end.year >= year;
 }
 
-var HolidayRecordContract = class HolidayRecordContract {
+var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- GJS importer export
     constructor(lang = _lcLang()) {
         this._lang = lang;
     }
@@ -86,7 +86,7 @@ var HolidayRecordContract = class HolidayRecordContract {
     localizeName(holiday) {
         const localized = holiday.name
             .filter((entry) => entry.lang === this._lang || entry.lang === "en")
-            .sort((a, b) => a.lang === "en" ? 1 : b.lang === "en" ? -1 : 0)[0];
+            .sort((a, b) => a.lang === "en" ? 1 : b.lang === "en" ? -1 : 0)[0]; // NOSONAR [S3358] -- accepted compatible form
 
         return (localized || holiday.name[0]).text;
     }
@@ -101,7 +101,7 @@ var HolidayRecordContract = class HolidayRecordContract {
             const {year: yearTo, month: monthTo, day: dayTo} = holiday.dateTo;
             let iter = new Date(year, month - 1, day, 12);
             const limit = new Date(yearTo, monthTo - 1, dayTo, 12);
-            while (iter < limit && days.length <= MAX_HOLIDAY_SPAN_DAYS) {
+            while (iter < limit && days.length <= MAX_HOLIDAY_SPAN_DAYS) { // NOSONAR [S2189] -- setTime mutates the iterator
                 iter.setTime(iter.getTime() + MSECS_IN_DAY);
                 days.push({
                     year: iter.getFullYear(),

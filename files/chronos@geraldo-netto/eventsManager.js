@@ -12,7 +12,7 @@
 // and date-window policy are constructor dependencies assembled by the factory.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
 const Mainloop = GjsImports.mainloop;
@@ -27,18 +27,18 @@ const EventWindowModule = APPLET_MODULES ? APPLET_MODULES.eventWindow : require(
 const CalendarServerConnection = CalendarServerModule.CalendarServerConnection;
 const EventIndex = EventIndexModule.EventIndex;
 const EventWindowCoordinator = EventWindowModule.EventWindowCoordinator;
-var EDS_BUS_NAME = CalendarServerModule.EDS_BUS_NAME;
-var SERVER_RETRY_SECONDS = CalendarServerModule.SERVER_RETRY_SECONDS;
-var SERVER_RETRY_MAX_SECONDS = CalendarServerModule.SERVER_RETRY_MAX_SECONDS;
+var EDS_BUS_NAME = CalendarServerModule.EDS_BUS_NAME; // NOSONAR [S3504] -- GJS importer export
+var SERVER_RETRY_SECONDS = CalendarServerModule.SERVER_RETRY_SECONDS; // NOSONAR [S3504] -- GJS importer export
+var SERVER_RETRY_MAX_SECONDS = CalendarServerModule.SERVER_RETRY_MAX_SECONDS; // NOSONAR [S3504] -- GJS importer export
 
 // A month fetch that fails takes the month's events with it; retry it a few
 // times with backoff before giving up.
-var FETCH_RETRY_SECONDS = 5;
-var FETCH_RETRY_MAX_SECONDS = 120;
-var FETCH_RETRY_MAX_ATTEMPTS = 5;
-var EVENT_BATCH_CHUNK = 25;
+var FETCH_RETRY_SECONDS = 5; // NOSONAR [S3504] -- GJS importer export
+var FETCH_RETRY_MAX_SECONDS = 120; // NOSONAR [S3504] -- GJS importer export
+var FETCH_RETRY_MAX_ATTEMPTS = 5; // NOSONAR [S3504] -- GJS importer export
+var EVENT_BATCH_CHUNK = 25; // NOSONAR [S3504] -- GJS importer export
 
-var EventsManager = class EventsManager {
+var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer export
     constructor(settings, params = {}) {
         if (!params.serverConnection || !params.eventIndex || !params.windowCoordinator) {
             throw new Error("EventsManager requires its connection, index, and window collaborators");

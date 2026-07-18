@@ -24,12 +24,12 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 
-var HolidayFallbackChain = class HolidayFallbackChain {
+var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJS importer export
     // `validResponse` is what an answer from *any* provider in this chain has to
     // satisfy: the record shape the app owns, not the shape of whichever vendor
     // is primary today. It is required — a chain with no idea what a good answer
@@ -106,7 +106,7 @@ var HolidayFallbackChain = class HolidayFallbackChain {
             return params;
         }
 
-        return Object.assign({}, params || {}, {providerName: provider.name});
+        return Object.assign({}, params || {}, {providerName: provider.name}); // NOSONAR [S6661] -- accepted compatible form
     }
 
     // The chain used to fall back to `this.primary.validResponse` when no

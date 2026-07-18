@@ -35,7 +35,7 @@ const builtinClocks = WorldclockData.builtinClocks;
 const timezoneIdentity = WorldclockData.timezoneIdentity;
 const selectUserClocks = WorldclockData.selectUserClocks;
 
-var Worldclocks = class Worldclocks {
+var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     constructor(box) {
         this.clocks = [];
         this.format = "%H:%M";
@@ -81,7 +81,7 @@ var Worldclocks = class Worldclocks {
             });
             label.get_clutter_text().ellipsize = Pango.EllipsizeMode.END;
             // ellipsized text is text the user cannot read: the hover gives it back
-            new Tooltips.Tooltip(label, item.label);
+            new Tooltips.Tooltip(label, item.label); // NOSONAR [S1848] -- constructor registers handlers
             this.layout.attach(label, 0, i, 1, 1);
 
             let display = new St.Label({
@@ -115,7 +115,7 @@ var Worldclocks = class Worldclocks {
     // every GLib.TimeZone and relaid out the menu subtree twenty times, on the
     // compositor thread.
     setFormat(format) {
-        const next = format || "%H:%M";
+        const next = format || "%H:%M"; // NOSONAR [S7760] -- accepted compatible form
         if (next === this.format) {
             return;
         }

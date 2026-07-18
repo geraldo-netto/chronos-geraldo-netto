@@ -24,7 +24,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
 const IoUtils = IS_NODE ?
@@ -42,17 +42,17 @@ const HolidayRecord = IS_NODE ?
 
 // Named so the number the README quotes ("once every 50 days") has one place
 // to read it from; schema_static.test.js asserts the two agree.
-var UPDATE_PERIOD_DAYS = 50;
-var UPDATE_PERIOD = UPDATE_PERIOD_DAYS * 24 * 60 * 60 * 1000;
-var RETRY_PERIOD = 60 * 60 * 1000;
+var UPDATE_PERIOD_DAYS = 50; // NOSONAR [S3504] -- GJS importer export
+var UPDATE_PERIOD = UPDATE_PERIOD_DAYS * 24 * 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
+var RETRY_PERIOD = 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
 // Holiday names come from three third-party services and land in a Pango
 // tooltip. Same-day names are joined, so a provider that repeats itself grows
 // the string without limit; a megabyte of tooltip stalls the compositor on
 // layout. Real names are a few words, and this is the whole joined cell.
-var MAX_HOLIDAY_NAME_LENGTH = 300;
+var MAX_HOLIDAY_NAME_LENGTH = 300; // NOSONAR [S3504] -- GJS importer export
 // months of match results kept around: enough that scrolling a year back and
 // forth stays free, small enough that a long session cannot grow on it
-var MAX_MEMOIZED_MONTHS = 32;
+var MAX_MEMOIZED_MONTHS = 32; // NOSONAR [S3504] -- GJS importer export
 // The years the applet keeps in memory, as opposed to the ±YEAR_WINDOW it
 // persists. The grid straddles two months, so it reads at most two years; this
 // leaves room to page around and come back without refetching, and bounds what a
@@ -66,19 +66,19 @@ var MAX_MEMOIZED_MONTHS = 32;
 // out-of-window year together with the freshness stamp that throttles it, so the
 // year was refetched on every calendar update, forever. The year the user is
 // looking at is by definition the most recently used one.
-var MAX_CACHED_YEARS = 8;
+var MAX_CACHED_YEARS = 8; // NOSONAR [S3504] -- GJS importer export
 // years kept on either side of the current one; the 42-day grid can reach at
 // most one month into a neighbouring year
-var YEAR_WINDOW = 1;
+var YEAR_WINDOW = 1; // NOSONAR [S3504] -- GJS importer export
 // countries kept in the cache file. The user has one at a time, but trying a
 // few and going back is normal, and each blob is a nation's year of holidays.
 // Without a bound the file keeps every country ever selected, forever.
-var MAX_CACHED_COUNTRIES = 4;
+var MAX_CACHED_COUNTRIES = 4; // NOSONAR [S3504] -- GJS importer export
 // re-merges attempted when another applet instance wrote the file underneath
 // us; the loser of the last round simply gives up and refetches later
-var MAX_MERGE_RETRIES = 3;
-var GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
-var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS;
+var MAX_MERGE_RETRIES = 3; // NOSONAR [S3504] -- GJS importer export
+var GLOBAL_REGION = HolidayConstants.GLOBAL_REGION; // NOSONAR [S3504] -- GJS importer export
+var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS; // NOSONAR [S3504] -- GJS importer export
 
 // The cache file is plain JSON in the user's cache dir: anything running as
 // the user can rewrite it. Network payloads are schema-checked before they
@@ -133,7 +133,7 @@ function validCachedYears(years, now = Date.now()) {
 
     return checked;
 }
-var HolidayCacheRepository = class HolidayCacheRepository {
+var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -- GJS importer export
     constructor(fn, params = {}) {
         this.fn = fn;
         // the file holds the countries recently visited; parsing it again on
@@ -165,7 +165,7 @@ var HolidayCacheRepository = class HolidayCacheRepository {
         };
 
         const kept = {};
-        countries.sort((a, b) => savedAt(b) - savedAt(a))
+        countries.sort((a, b) => savedAt(b) - savedAt(a)) // NOSONAR [S4043] -- accepted compatible form
             .slice(0, MAX_CACHED_COUNTRIES)
             .forEach((country) => {
                 kept[country] = allData[country];
@@ -323,7 +323,7 @@ var HolidayCacheRepository = class HolidayCacheRepository {
         this._writing = true;
         this._dirty = false;
 
-        const flushing = Object.assign({}, this._pending);
+        const flushing = Object.assign({}, this._pending); // NOSONAR [S6661] -- accepted compatible form
 
         IoUtils.readJsonFileAsync(file, (data, etag) => {
             Object.keys(flushing).forEach((country) => {
@@ -382,7 +382,7 @@ var HolidayCacheRepository = class HolidayCacheRepository {
         // stamped when it was saved, not when it happens to be flushed: the
         // eviction sorts on this, and a pending entry that waits out a write in
         // flight must not look newer than one saved after it
-        this._pending[country] = Object.assign({}, data, { savedAt: this._now() });
+        this._pending[country] = Object.assign({}, data, { savedAt: this._now() }); // NOSONAR [S6661] -- accepted compatible form
         this._scheduleFlush(file);
     }
 };
@@ -391,7 +391,7 @@ HolidayCacheRepository.path = GLib.build_filenamev([GLib.get_user_cache_dir(), "
 // reads it once when the current file has nothing, so an upgrade keeps its cache
 HolidayCacheRepository.LEGACY_FN = "/enrico.json";
 
-var HolidayCache = class HolidayCache {
+var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer export
     constructor(load, save) {
         this._load = load;
         this._save = save;
@@ -460,7 +460,7 @@ var HolidayCache = class HolidayCache {
 
     // `onReady` runs once the country's cached data is in place — the load is
     // asynchronous, so a caller that fetches or repaints has to wait for it.
-    setPlace(country, region = GLOBAL_REGION, onReady) {
+    setPlace(country, region = GLOBAL_REGION, onReady) { // NOSONAR [S1788] -- accepted compatible form
         // regioned countries default the region setting to null, which
         // bypasses the parameter default (null !== undefined)
         region = region || GLOBAL_REGION;

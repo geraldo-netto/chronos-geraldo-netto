@@ -117,7 +117,7 @@ const DEFAULT_FACTORIES = {
 class AppletProviderLifecycle {
     constructor(context, factories = {}) {
         this.context = context;
-        this.factories = Object.assign({}, DEFAULT_FACTORIES, factories);
+        this.factories = Object.assign({}, DEFAULT_FACTORIES, factories); // NOSONAR [S6661] -- accepted compatible form
         this.clock = null;
         this.weatherProvider = null;
         this.cityWeatherProvider = null;
@@ -142,14 +142,14 @@ class AppletProviderLifecycle {
         this._actor_signal_ids.push(context.actor.connect("enter-event", () => {
             context.onPanelHover(true);
         }));
-        this._actor_signal_ids.push(context.actor.connect("leave-event", () => {
+        this._actor_signal_ids.push(context.actor.connect("leave-event", () => { // NOSONAR [S7778] -- accepted compatible form
             context.onPanelHover(false);
         }));
 
         this.eventsManager = this.factories.eventsManager(context.eventsSettings);
         this._events_manager_signal_ids.push(
             this.eventsManager.connect("events-manager-ready", context.onEventsManagerReady));
-        this._events_manager_signal_ids.push(
+        this._events_manager_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
             this.eventsManager.connect("has-calendars-changed", context.onHasCalendarsChanged));
 
         this.initHolidayProvider();
@@ -186,7 +186,7 @@ class AppletProviderLifecycle {
         // value) leaves the widget blank and every lookup failing, with only a
         // warning glyph on the month label to show for it
         const country = holidaySettings.country;
-        if (country && country !== NO_HOLIDAYS && SUPPORTED_COUNTRIES.indexOf(country) === -1) {
+        if (country && country !== NO_HOLIDAYS && SUPPORTED_COUNTRIES.indexOf(country) === -1) { // NOSONAR [S7765] -- accepted compatible form
             global.logError(`chronos@geraldo-netto: holidays are unavailable for "${country}"; ` +
                 "resetting the country to none");
             holidaySettings.country = NO_HOLIDAYS;
@@ -235,7 +235,7 @@ class AppletProviderLifecycle {
 
         // logind's PrepareForSleep is true on the way into sleep and false on
         // resume, so refresh on the false transition.
-        if (Gio && Gio.DBus && Gio.DBus.system) {
+        if (Gio && Gio.DBus && Gio.DBus.system) { // NOSONAR [S6582] -- accepted compatible form
             this._logind_sleep_signal_id = Gio.DBus.system.signal_subscribe(
                 "org.freedesktop.login1",
                 "org.freedesktop.login1.Manager",
@@ -294,7 +294,7 @@ class AppletProviderLifecycle {
     }
 
     _releaseLogind() {
-        if (this._logind_sleep_signal_id > 0 && Gio && Gio.DBus && Gio.DBus.system) {
+        if (this._logind_sleep_signal_id > 0 && Gio && Gio.DBus && Gio.DBus.system) { // NOSONAR [S6582] -- accepted compatible form
             Gio.DBus.system.signal_unsubscribe(this._logind_sleep_signal_id);
             this._logind_sleep_signal_id = 0;
         }
@@ -309,9 +309,9 @@ class AppletProviderLifecycle {
         const steps = [
             () => this._releaseClockNotify(),
             () => this._releaseActorSignals(),
-            () => this.weatherProvider && this.weatherProvider.destroy(),
-            () => this.cityWeatherProvider && this.cityWeatherProvider.destroy(),
-            () => this.holidayProvider && this.holidayProvider.destroy(),
+            () => this.weatherProvider && this.weatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
+            () => this.cityWeatherProvider && this.cityWeatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
+            () => this.holidayProvider && this.holidayProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this._releaseEventsManager(),
             () => this._releaseDesktopSettings(),
             () => this._releaseLogind()

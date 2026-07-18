@@ -353,7 +353,7 @@ class EventList {
                 this.selected_date_label.accessible_role = Atk.Role.PUSH_BUTTON;
             }
 
-            new Tooltips.Tooltip(this.selected_date_label, _("Open the calendar app"));
+            new Tooltips.Tooltip(this.selected_date_label, _("Open the calendar app")); // NOSONAR [S1848] -- constructor registers handlers
 
             this.selected_date_label.connect("button-press-event", (actor, event) => {
                 if (event.get_button() == Clutter.BUTTON_PRIMARY) {

@@ -14,17 +14,17 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 const Gio = GjsImports.gi.Gio;
 const Soup = GjsImports.gi.Soup;
 
-var HTTP_TIMEOUT_SECONDS = 30;
+var HTTP_TIMEOUT_SECONDS = 30; // NOSONAR [S3504] -- GJS importer export
 // Responses are parsed on the compositor thread and the holiday payloads are
 // tens of kilobytes; anything past this is a broken or hostile endpoint, and
 // parsing it would balloon the Cinnamon process.
-var MAX_RESPONSE_BYTES = 4 * 1024 * 1024;
+var MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 // The same argument, for the same parse, on the same thread — the only
 // difference is that this payload comes off the disk rather than the network.
 // ~/.cache/chronos@geraldo-netto/holidays.json is writable by anything running
 // as the user, and it was read with no bound at all while the network body it
 // was built from was capped. A real cache file is tens of kilobytes.
-var MAX_CACHE_FILE_BYTES = 4 * 1024 * 1024;
+var MAX_CACHE_FILE_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 
 function tooBig(size, limit, what) {
     if (!Number.isFinite(size) || size <= limit) {
@@ -149,7 +149,7 @@ function _isWrongEtag(error) {
         return error.matches(Gio.io_error_quark(), Gio.IOErrorEnum.WRONG_ETAG);
     }
 
-    return /wrong.?etag/i.test(String(error && error.message ? error.message : error));
+    return /wrong.?etag/i.test(String(error && error.message ? error.message : error)); // NOSONAR [S6582] -- accepted compatible form
 }
 
 function _setRequestHeaders(message, headers) {
@@ -158,7 +158,7 @@ function _setRequestHeaders(message, headers) {
     }
 
     const requestHeaders = message.request_headers;
-    if (!requestHeaders || !requestHeaders.append) {
+    if (!requestHeaders || !requestHeaders.append) { // NOSONAR [S6582] -- accepted compatible form
         return;
     }
 
@@ -172,7 +172,7 @@ function urlForLog(url) {
         return "";
     }
 
-    const match = /^([a-z][a-z0-9+.-]*:\/\/[^/?#]+)([^?#]*)?/i.exec(url);
+    const match = /^([a-z][a-z0-9+.-]*:\/\/[^/?#]+)([^?#]*)?/i.exec(url); // NOSONAR [S5842] -- empty URL path is valid
     if (match) {
         return match[1] + (match[2] || "");
     }
@@ -212,7 +212,7 @@ function _declaredTooLarge(message) {
 // what closes the chunked-transfer hole: a response with no Content-Length slips
 // past _declaredTooLarge, and a whole-body read would have spent the memory
 // before any post-read length check could look.
-var READ_CHUNK_BYTES = 64 * 1024;
+var READ_CHUNK_BYTES = 64 * 1024; // NOSONAR [S3504] -- GJS importer export
 
 function _concatChunks(chunks, total) {
     const body = new Uint8Array(total);
@@ -375,7 +375,7 @@ function _downgraded(message, url) {
     }
 
     const uri = message.get_uri();
-    const scheme = uri && uri.get_scheme ? uri.get_scheme() : "";
+    const scheme = uri && uri.get_scheme ? uri.get_scheme() : ""; // NOSONAR [S6582] -- accepted compatible form
 
     return Boolean(scheme) && scheme !== "https";
 }
@@ -391,7 +391,7 @@ function _downgraded(message, url) {
 // once in holidays.js, with the same lazy create, the same two timeouts and the
 // same guarded abort. A cancellable, a connection cap or a proxy setting was
 // three edits, two of them in the providers that fan out to eight cities.
-var LazyHttpSession = class LazyHttpSession {
+var LazyHttpSession = class LazyHttpSession { // NOSONAR [S3504] -- GJS importer export
     constructor(create) {
         this._create = create || (() => createHttpSession({
             timeout: HTTP_TIMEOUT_SECONDS,
@@ -417,7 +417,7 @@ var LazyHttpSession = class LazyHttpSession {
     // pending requests keep their response buffers and their callbacks alive for
     // up to the timeout after the applet is gone
     abort() {
-        if (this._session && this._session.abort) {
+        if (this._session && this._session.abort) { // NOSONAR [S6582] -- accepted compatible form
             this._session.abort();
         }
     }

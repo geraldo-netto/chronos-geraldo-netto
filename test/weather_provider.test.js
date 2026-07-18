@@ -1314,10 +1314,10 @@ test("applets bind only weather settings to debounced refresh", () => {
     const facade = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "settingsFacade.js"), "utf8");
     // the weather keys are bound as one group, so a general settings change
     // cannot drag a weather refetch along with it
-    assert.match(facade, /var WEATHER_KEYS = \[\s*\["show-weather", "show_weather"\],\s*\["weather-units", "weather_units"\]/);
+    assert.match(facade, /var WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\["show-weather", "show_weather"\],\s*\["weather-units", "weather_units"\]/);
     // ...and the location travels with them, mirrored rather than bound: its
     // widget makes its schema type "custom", which Cinnamon's bind() refuses
-    assert.match(facade, /var CUSTOM_WEATHER_KEYS = \[\s*\[WEATHER_LOCATION_KEY, "weather_location"\]/);
+    assert.match(facade, /var CUSTOM_WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\[WEATHER_LOCATION_KEY, "weather_location"\]/);
     assert.match(lifecycle, /bindWeatherKeys\(applet, this\.handlers\.onWeatherSettingsChanged\)/);
 
     const generalSettingsChanged = source.match(/_onSettingsChanged\(\) \{([\s\S]*?)\n {4}\}/);

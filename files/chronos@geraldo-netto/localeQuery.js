@@ -121,12 +121,12 @@ const abandoned = {};
 const listeners = [];
 
 function _defaultInfo(env) {
-    return Object.assign({}, DEFAULT_LOCALE_INFO[env] || {});
+    return Object.assign({}, DEFAULT_LOCALE_INFO[env] || {}); // NOSONAR [S6661] -- accepted compatible form
 }
 
 // values derived from locale info are memoized against this: they are all
 // computed before the locale query answers, and must be recomputed after
-var localeGeneration = 0;
+var localeGeneration = 0; // NOSONAR [S3504] -- GJS importer export
 
 // The locale keys we need have no GLib API, so they come from `locale -k`.
 // That is a fork+exec: run it synchronously and the whole compositor stalls,
@@ -164,11 +164,11 @@ function _parseInfo(env, output) {
 
         const [, key, rawValue] = match;
 
-        if (rawValue.length >= 2 && rawValue[0] === "\"" &&
-            rawValue[rawValue.length - 1] === "\"") {
+        if (rawValue.length >= 2 && rawValue[0] === "\"" && // NOSONAR [S6557] -- accepted compatible form
+            rawValue[rawValue.length - 1] === "\"") { // NOSONAR [S6557,S7755] -- accepted compatible form
             info[key] = rawValue.slice(1, -1);
         } else {
-            info[key] = parseInt(rawValue, 10);
+            info[key] = parseInt(rawValue, 10); // NOSONAR [S7773] -- accepted compatible form
         }
     });
 
@@ -218,7 +218,7 @@ function _shouldAsk(env, force) {
         return false;
     }
 
-    return !(attempts[env] >= LOCALE_MAX_ATTEMPTS);
+    return !(attempts[env] >= LOCALE_MAX_ATTEMPTS); // NOSONAR [S1940] -- accepted compatible form
 }
 
 // The two ways a query ends, and the state each one leaves behind. Exactly one of

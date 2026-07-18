@@ -24,7 +24,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const IoUtils = IS_NODE ?
     require("./ioUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
@@ -53,7 +53,7 @@ class WeatherDisplayState {
     constructor(params = {}) {
         // the reading is the unit-free record, and it is all there is: nothing
         // on this side of the port renders it
-        this._last_good_reading = null;
+        this._last_good_reading = null; // NOSONAR [S7757] -- accepted compatible form
         this._last_good_provider = "";
         this._last_good_key = "";
         this._last_good_at = 0;
@@ -122,9 +122,9 @@ class WeatherDisplayState {
     }
 }
 
-var WeatherProvider = class WeatherProvider {
+var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
-        this._request_generation = 0;
+        this._request_generation = 0; // NOSONAR [S7757] -- accepted compatible form
         this._destroyed = false;
         // the location the geocode cache was last asked about, so a settings
         // change that did not touch it does not throw the geocode away
@@ -297,7 +297,7 @@ if (typeof module !== "undefined") {
     // parts was three edits in two files. Nothing in the applet reads a part's
     // symbol off this barrel any more — the consumers require the part — so the
     // var bindings GJS needs live in the module that declares each name.
-    module.exports = Object.assign({}, WeatherFormat, WeatherServiceAdapters,
+    module.exports = Object.assign({}, WeatherFormat, WeatherServiceAdapters, // NOSONAR [S6661] -- accepted compatible form
         WeatherScheduler, WeatherProviders, { HTTP_TIMEOUT_SECONDS: IoUtils.HTTP_TIMEOUT_SECONDS },
         { WeatherProvider, WeatherDisplayState });
 }

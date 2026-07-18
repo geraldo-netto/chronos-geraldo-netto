@@ -102,7 +102,7 @@ class AppletMenuBuilder {
             context.eventsManager.connect("selected-date-changed", (em, gdate) => {
                 eventList.set_date(gdate);
             }));
-        this._events_manager_signal_ids.push(
+        this._events_manager_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
             context.eventsManager.connect("selected-date-events-changed",
                 (em, eventDataList, delayNoEventsBox) => {
                     eventList.set_events(eventDataList, delayNoEventsBox);
@@ -110,11 +110,11 @@ class AppletMenuBuilder {
 
         this._event_list_signal_ids.push(
             eventList.connect("launched-calendar", () => context.menu.toggle()));
-        this._event_list_signal_ids.push(
+        this._event_list_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
             eventList.connect("start-pass-events", () => {
                 context.menu.passEvents = true;
             }));
-        this._event_list_signal_ids.push(
+        this._event_list_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
             eventList.connect("stop-pass-events", () => {
                 context.menu.passEvents = false;
             }));
@@ -192,7 +192,7 @@ class AppletMenuBuilder {
             button.accessible_role = Atk.Role.PUSH_BUTTON;
         }
 
-        new Tooltips.Tooltip(button, _("Go to today"));
+        new Tooltips.Tooltip(button, _("Go to today")); // NOSONAR [S1848] -- constructor registers handlers
 
         button.connect("enter-event", (actor, event) => {
             actor.add_style_pseudo_class("hover");

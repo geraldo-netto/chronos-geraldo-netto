@@ -8,19 +8,19 @@
 // App-owned weather display and freshness rules. This module deliberately has
 // no platform, network or vendor dependency and can load in plain JavaScript.
 
-var REFRESH_SECONDS = 1800;
-var RETRY_SECONDS = 30;
-var STALE_PERIODS = 2;
-var MAX_RETRY_ATTEMPTS = 8;
-var MAX_GEOCODE_CACHE_ENTRIES = 16;
-var WEATHER_DEBOUNCE_MS = 750;
-var WEATHER_UNITS = {
+var REFRESH_SECONDS = 1800; // NOSONAR [S3504] -- GJS importer export
+var RETRY_SECONDS = 30; // NOSONAR [S3504] -- GJS importer export
+var STALE_PERIODS = 2; // NOSONAR [S3504] -- GJS importer export
+var MAX_RETRY_ATTEMPTS = 8; // NOSONAR [S3504] -- GJS importer export
+var MAX_GEOCODE_CACHE_ENTRIES = 16; // NOSONAR [S3504] -- GJS importer export
+var WEATHER_DEBOUNCE_MS = 750; // NOSONAR [S3504] -- GJS importer export
+var WEATHER_UNITS = { // NOSONAR [S3504] -- GJS importer export
     SI: "si",
     IMPERIAL: "imperial"
 };
-var WEATHER_ERROR_MARKER = "⚠";
-var WEATHER_PENDING_TEXT = "…";
-var WEATHER_ERRORS = {
+var WEATHER_ERROR_MARKER = "⚠"; // NOSONAR [S3504] -- GJS importer export
+var WEATHER_PENDING_TEXT = "…"; // NOSONAR [S3504] -- GJS importer export
+var WEATHER_ERRORS = { // NOSONAR [S3504] -- GJS importer export
     LOCATION_NOT_FOUND: "Location not found",
     SERVICE_UNAVAILABLE: "Weather service unavailable",
     NO_LOCATION: "Set a weather location"
@@ -28,7 +28,7 @@ var WEATHER_ERRORS = {
 
 // The glyph is the normalized condition class. Presenters translate the word
 // associated with it for tooltips and accessible names.
-var WEATHER_CONDITIONS = {
+var WEATHER_CONDITIONS = { // NOSONAR [S3504] -- GJS importer export
     "☀": "Clear",
     "⛅": "Partly cloudy",
     "☁": "Cloudy",

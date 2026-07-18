@@ -49,7 +49,7 @@ function measuredFiles() {
     return files;
 }
 
-const result = spawnSync("node", [
+const result = spawnSync("node", [ // NOSONAR [S4036] -- trusted test runner
     "--test",
     "--experimental-test-coverage",
     "--test-coverage-include=files/chronos@geraldo-netto/*.js",

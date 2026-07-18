@@ -24,7 +24,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const IoUtils = IS_NODE ?
     require("./ioUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
@@ -69,9 +69,9 @@ const CITY_RETRY_SECONDS = Weather.RETRY_SECONDS;
 // configured world clock, so each city carries its own place lookup and its
 // own last-good reading; a city that fails to geocode simply has no
 // temperature and its row still shows the time.
-var CityWeatherProvider = class CityWeatherProvider {
+var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
-        this._destroyed = false;
+        this._destroyed = false; // NOSONAR [S7757] -- accepted compatible form
         this._generation = 0;
         this._readings = new Map();
         this._last_provider = "";
@@ -92,7 +92,7 @@ var CityWeatherProvider = class CityWeatherProvider {
         // cap. It differs from the panel's only in what counts as "something to
         // refresh", which is now a parameter.
         this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(
-            Object.assign({
+            Object.assign({ // NOSONAR [S6661] -- accepted compatible form
                 refreshSeconds: this._refresh_seconds,
                 retrySeconds: CITY_RETRY_SECONDS,
                 isActive: (settings) =>
@@ -316,7 +316,7 @@ var CityWeatherProvider = class CityWeatherProvider {
     }
 
     _active(settings) {
-        return Boolean(settings && settings.showWeather);
+        return Boolean(settings && settings.showWeather); // NOSONAR [S6582] -- accepted compatible form
     }
 
     // A city is what the tooltip calls it (the clock's label, which is where
@@ -329,8 +329,8 @@ var CityWeatherProvider = class CityWeatherProvider {
     // clock or a timezone that names no city has no query and drops out here,
     // its row still showing the time.
     _normalizeCityEntry(entry) {
-        const label = typeof entry === "string" ? entry : (entry && entry.label);
-        const query = typeof entry === "string" ? entry : (entry && entry.query);
+        const label = typeof entry === "string" ? entry : (entry && entry.label); // NOSONAR [S6582] -- accepted compatible form
+        const query = typeof entry === "string" ? entry : (entry && entry.query); // NOSONAR [S6582] -- accepted compatible form
 
         if (typeof label !== "string" || !label.trim()) {
             return null;

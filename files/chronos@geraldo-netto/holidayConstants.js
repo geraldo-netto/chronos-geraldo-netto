@@ -9,19 +9,19 @@
 
 /* eslint camelcase: "off" */
 
-var HOLIDAY_ERRORS = {
+var HOLIDAY_ERRORS = { // NOSONAR [S3504] -- GJS importer export
     SERVICE_UNAVAILABLE: "Holiday service unavailable",
     INVALID_RESPONSE: "Holiday data unavailable"
 };
-var HOLIDAY_PROVIDER_NAMES = {
+var HOLIDAY_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
     ENRICO: "Enrico",
     OPEN_HOLIDAYS: "OpenHolidays",
     NAGER_DATE: "Nager.Date"
 };
-var GLOBAL_REGION = "global";
+var GLOBAL_REGION = "global"; // NOSONAR [S3504] -- GJS importer export
 // the countries the settings combobox offers; a value outside this list
 // cannot be picked in the UI and no provider can answer for it
-var SUPPORTED_COUNTRIES = [
+var SUPPORTED_COUNTRIES = [ // NOSONAR [S3504] -- GJS importer export
     "ago", "arg", "aus", "aut", "bel", "bih", "blr", "bgr", "bra", "can",
     "chl", "chn", "col", "hrv", "cyp", "cze", "dnk", "slv",
     "est", "esp", "fin", "fra", "deu", "grc", "hkg", "hun",
@@ -32,7 +32,7 @@ var SUPPORTED_COUNTRIES = [
     "gbr", "usa"
 ];
 
-var OPEN_HOLIDAYS_COUNTRIES = {
+var OPEN_HOLIDAYS_COUNTRIES = { // NOSONAR [S3504] -- GJS importer export
     aut: true,
     bel: true,
     blr: true,
@@ -62,7 +62,7 @@ var OPEN_HOLIDAYS_COUNTRIES = {
     swe: true,
     zaf: true
 };
-var COUNTRY_TO_ISO2 = {
+var COUNTRY_TO_ISO2 = { // NOSONAR [S3504] -- GJS importer export
     ago: "AO",
     arg: "AR",
     aus: "AU",
@@ -126,7 +126,7 @@ var COUNTRY_TO_ISO2 = {
     xkx: "XK",
     zaf: "ZA"
 };
-var ISO2_TO_COUNTRY = {};
+var ISO2_TO_COUNTRY = {}; // NOSONAR [S3504] -- GJS importer export
 for (let country of Object.keys(COUNTRY_TO_ISO2)) {
     ISO2_TO_COUNTRY[COUNTRY_TO_ISO2[country]] = country;
 }
@@ -139,7 +139,7 @@ function countryFromIso2(code) {
     return ISO2_TO_COUNTRY[code.trim().toUpperCase()] || "";
 }
 
-var REGION_TO_SUBDIVISION = {
+var REGION_TO_SUBDIVISION = { // NOSONAR [S3504] -- GJS importer export
     aus: {
         act: "AU-ACT",
         nsw: "AU-NSW",

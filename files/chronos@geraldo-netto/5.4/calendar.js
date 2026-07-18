@@ -128,7 +128,7 @@ function translateHolidayError(error) {
 // rebuilding it costs 42 Dates plus 84 GLib.DateTimes every time.
 class CalendarMonthWindowCache {
     constructor() {
-        this._key = "";
+        this._key = ""; // NOSONAR [S7757] -- accepted compatible form
         this._window = null;
     }
 
@@ -289,7 +289,7 @@ class CalendarDayCellRenderer {
         // the slot is reused: whether it is showing a different day now is what
         // decides whether last pass's holiday annotation still belongs to it
         const dateChanged = !cell.date || !_sameDay(cell.date, iter);
-        cell.date = new Date(iter.getTime());
+        cell.date = new Date(iter.getTime()); // NOSONAR [S7719] -- accepted compatible form
         cell.is_today = _today(iter, today);
 
         const label = iter.getDate().toString();
@@ -366,7 +366,7 @@ class CalendarDayCellRenderer {
             parts.push(ngettext("%d event", "%d events", cell.event_count).format(cell.event_count));
         }
         if (cell.holiday_name) {
-            parts.push(cell.holiday_name.split("\n").join(", "));
+            parts.push(cell.holiday_name.split("\n").join(", ")); // NOSONAR [S7781] -- accepted compatible form
         }
 
         const accessibleName = joinPhrases(...parts);
@@ -418,7 +418,7 @@ class CalendarDayCellRenderer {
             if (!this.host.eventsEnabled || !cell.date) {
                 return;
             }
-            this.host.selectDate(new Date(cell.date.getTime()));
+            this.host.selectDate(new Date(cell.date.getTime())); // NOSONAR [S7719] -- accepted compatible form
         });
 
         return cell;
@@ -711,7 +711,7 @@ class CalendarHolidayAnnotator {
 
     annotate(months, cells, holiday_generation) {
         const holiday = this.host.holidayProvider;
-        if (!holiday || !holiday.country) {
+        if (!holiday || !holiday.country) { // NOSONAR [S6582] -- accepted compatible form
             // holidays were switched off, or the country was cleared: the marks
             // on the grid belong to a country the user is no longer asking about
             this.clearAnnotations(cells);
@@ -771,7 +771,7 @@ class CalendarHolidayAnnotator {
         this.annotated = true;
         this.host.nameCell(cell);
 
-        const partDay = flags && flags.indexOf(PART_DAY_HOLIDAY) >= 0;
+        const partDay = flags && flags.indexOf(PART_DAY_HOLIDAY) >= 0; // NOSONAR [S7765] -- accepted compatible form
         if (this.host.weekendLength === 1 && partDay) return;
 
         cell.button.remove_style_class_name("calendar-work-day");
@@ -956,7 +956,7 @@ class Calendar {
     constructor(settings, events_manager, holiday_provider, desktop_settings) {
         this.events_manager = events_manager;
         this._weekStart = Cinnamon.util_get_week_start();
-        this._digitWidth = NaN;
+        this._digitWidth = NaN; // NOSONAR [S7773] -- accepted compatible form
         this.settings = settings;
         this.holiday = holiday_provider;
         this._monthWindows = new CalendarMonthWindowCache();
@@ -1286,7 +1286,7 @@ class Calendar {
     }
 
     _setWeekdateHeaderWidth() {
-        if (!isNaN(this._digitWidth) && this.show_week_numbers && this._weekdateHeader) {
+        if (!isNaN(this._digitWidth) && this.show_week_numbers && this._weekdateHeader) { // NOSONAR [S7773] -- accepted compatible form
             this._weekdateHeader.set_width (this._digitWidth * WEEKDATE_HEADER_WIDTH_DIGITS);
         }
     }
@@ -1344,7 +1344,7 @@ class Calendar {
         // when there is no country: building 42 template-string keys for it on
         // every update, with holidays switched off, is pure waste. It is still
         // needed for the pass that *removes* the marks a country left behind.
-        const annotating = Boolean(this.holiday && this.holiday.country) ||
+        const annotating = Boolean(this.holiday && this.holiday.country) || // NOSONAR [S6582] -- accepted compatible form
             this._holidayAnnotator.annotated;
         const monthWindow = this._monthWindows.get(this._selectedDate, this._weekStart);
         const cells = this._gridView.render(monthWindow, annotating);

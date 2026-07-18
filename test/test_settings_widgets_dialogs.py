@@ -151,7 +151,7 @@ class GettextIsolationTest(unittest.TestCase):
 
     def test_the_first_installed_gnu_catalog_is_used(self):
         class Translation(gettext.GNUTranslations):
-            def __init__(self):
+            def __init__(self): # NOSONAR [S1186] -- deliberate test seam
                 pass
 
             def gettext(self, message):

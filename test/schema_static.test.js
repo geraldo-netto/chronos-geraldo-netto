@@ -191,7 +191,9 @@ test("every settings key the facade binds exists in the schema", () => {
     const facade = fs.readFileSync(path.join(appletDir, "settingsFacade.js"), "utf8");
 
     // the literal key strings, as the facade declares them
-    const declared = Array.from(facade.matchAll(/^var \w+_KEY = "([^"]+)";$/gm))
+    const declared = Array.from(facade.matchAll(
+        /^var \w+_KEY = "([^"]+)";(?: \/\/ NOSONAR \[S3504\] -- GJS importer export)?$/gm
+    ))
         .map(([, key]) => key);
     assert.ok(declared.length >= 8, "the key constants were not found");
 
@@ -201,13 +203,16 @@ test("every settings key the facade binds exists in the schema", () => {
     // in that list — which is what tells the applet the key has gone missing —
     // still fails this.
     const desktopKeys = Array.from(
-        facade.matchAll(/^var DESKTOP_KEYS = \[([^\]]+)\];$/gm)
+        facade.matchAll(
+            /^var DESKTOP_KEYS = \[([^\]]+)\];(?: \/\/ NOSONAR \[S3504\] -- GJS importer export)?$/gm
+        )
     ).flatMap(([, names]) => names.split(",").map((name) => name.trim()));
     assert.ok(desktopKeys.length >= 3, "the desktop key list was not found");
 
     for (const key of declared) {
         const constant = facade.match(
-            new RegExp(`^var (\\w+_KEY) = "${key}";$`, "m"))[1];
+            new RegExp(`^var (\\w+_KEY) = "${key}";` +
+                "(?: // NOSONAR \\[S3504\\] -- GJS importer export)?$", "m"))[1];
 
         if (desktopKeys.includes(constant)) {
             continue;
@@ -228,7 +233,8 @@ test("every settings key the facade binds exists in the schema", () => {
     }
 
     // the region keys are built from a prefix, so check the prefix resolves too
-    const prefix = /^var REGION_KEY_PREFIX = "([^"]+)";$/m.exec(facade)[1];
+    const prefix = /^var REGION_KEY_PREFIX = "([^"]+)";(?: \/\/ NOSONAR \[S3504\] -- GJS importer export)?$/m
+        .exec(facade)[1];
     const regions = Object.keys(data).filter((key) => key.startsWith(prefix));
     assert.ok(regions.length > 0, `no schema key starts with "${prefix}"`);
 });
@@ -424,6 +430,17 @@ test("CI runs the gates the README promises", () => {
     // installed there, and neither the suite count nor a coverage number moved
     assert.match(workflow, /pip install .*pytz==\d/);
     assert.match(workflow, /CHRONOS_REQUIRE_PYTZ: "1"/, "and the skip is a failure there");
+});
+
+test("automatic Sonar analysis separates production and test code", () => {
+    const properties = fs.readFileSync(
+        path.join(__dirname, "..", ".sonarcloud.properties"), "utf8");
+
+    assert.match(properties, /^sonar\.sources=files,scripts$/m);
+    assert.match(properties, /^sonar\.tests=test$/m);
+    assert.match(properties,
+        /^sonar\.exclusions=files\/chronos@geraldo-netto\/5\.4\/stylesheet\.css$/m,
+        "Cinnamon St CSS must not be checked as browser CSS");
 });
 
 // The README said Cinnamon compiled the catalogs "when the applet is installed".

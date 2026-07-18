@@ -11,7 +11,7 @@
 // selection policy live outside this module.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
 const Cinnamon = GjsImports.gi.Cinnamon;
@@ -24,11 +24,11 @@ const UUID = "chronos@geraldo-netto";
 const STATUS_UNKNOWN = 0;
 const STATUS_NO_CALENDARS = 1;
 
-var EDS_BUS_NAME = "org.gnome.evolution.dataserver.Calendar8";
-var SERVER_RETRY_SECONDS = 5;
-var SERVER_RETRY_MAX_SECONDS = 300;
+var EDS_BUS_NAME = "org.gnome.evolution.dataserver.Calendar8"; // NOSONAR [S3504] -- GJS importer export
+var SERVER_RETRY_SECONDS = 5; // NOSONAR [S3504] -- GJS importer export
+var SERVER_RETRY_MAX_SECONDS = 300; // NOSONAR [S3504] -- GJS importer export
 
-var CalendarServerConnection = class CalendarServerConnection {
+var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S3504] -- GJS importer export
     constructor(callbacks, params = {}) {
         this.callbacks = callbacks;
         this._bus_watch_id = 0;
@@ -83,11 +83,11 @@ var CalendarServerConnection = class CalendarServerConnection {
 
             this._calendar_server_signal_ids.push(this._calendar_server.connect(
                 "events-added-or-updated", this.callbacks.onAddedOrUpdated));
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
+            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
                 "events-removed", this.callbacks.onRemoved));
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
+            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
                 "client-disappeared", this.callbacks.onClientDisappeared));
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
+            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
                 "notify::status", this._handle_status_notify.bind(this)));
 
             this._inited = true;

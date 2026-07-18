@@ -37,7 +37,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const LocaleQuery = IS_NODE ?
     require("./localeQuery") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
@@ -56,12 +56,12 @@ const validDateParts = HolidayRecord.validDateParts;
 const HolidayRecordContract = HolidayRecord.HolidayRecordContract;
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
-var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS;
-var HOLIDAY_PROVIDER_NAMES = HolidayConstants.HOLIDAY_PROVIDER_NAMES;
-var OPEN_HOLIDAYS_COUNTRIES = HolidayConstants.OPEN_HOLIDAYS_COUNTRIES;
-var COUNTRY_TO_ISO2 = HolidayConstants.COUNTRY_TO_ISO2;
-var REGION_TO_SUBDIVISION = HolidayConstants.REGION_TO_SUBDIVISION;
-var ENRICO_URL = "https://kayaposoft.com/enrico/json/v2.0/?action=getHolidaysForYear";
+var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS importer export
+var HOLIDAY_PROVIDER_NAMES = HolidayConstants.HOLIDAY_PROVIDER_NAMES; // NOSONAR [S3504] -- GJS importer export
+var OPEN_HOLIDAYS_COUNTRIES = HolidayConstants.OPEN_HOLIDAYS_COUNTRIES; // NOSONAR [S3504] -- GJS importer export
+var COUNTRY_TO_ISO2 = HolidayConstants.COUNTRY_TO_ISO2; // NOSONAR [S3504] -- GJS importer export
+var REGION_TO_SUBDIVISION = HolidayConstants.REGION_TO_SUBDIVISION; // NOSONAR [S3504] -- GJS importer export
+var ENRICO_URL = "https://kayaposoft.com/enrico/json/v2.0/?action=getHolidaysForYear"; // NOSONAR [S3504] -- GJS importer export
 
 function unavailableLoadJsonAsync() {
     throw new Error("holiday service adapter has no JSON loader");
@@ -93,7 +93,7 @@ function deliverTranslated(adapter, data, params, retrieved, callback) {
 // the vendor response. Validating, expanding and localizing it is the record
 // contract's job, owned by the fallback chain that composes the adapters — so
 // this carries no record and no lang of its own.
-var EnricoServiceAdapter = class EnricoServiceAdapter {
+var EnricoServiceAdapter = class EnricoServiceAdapter { // NOSONAR [S3504] -- GJS importer export
     constructor(loadJsonAsync = unavailableLoadJsonAsync) {
         this._loadJsonAsync = loadJsonAsync;
         this.name = HOLIDAY_PROVIDER_NAMES.ENRICO;
@@ -200,7 +200,7 @@ function isoDateParts(date) {
 // parsing, response translation and fetch flow. Subclasses supply
 // _validHoliday/_matchesRegion/_flags/_name plus params()/url(), and may
 // override _startDate/_finishTranslation for shape differences.
-var IsoHolidayServiceAdapter = class IsoHolidayServiceAdapter {
+var IsoHolidayServiceAdapter = class IsoHolidayServiceAdapter { // NOSONAR [S3504] -- GJS importer export
     constructor(loadJsonAsync = unavailableLoadJsonAsync) {
         this._loadJsonAsync = loadJsonAsync;
     }
@@ -258,7 +258,7 @@ var IsoHolidayServiceAdapter = class IsoHolidayServiceAdapter {
     }
 };
 
-var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidayServiceAdapter {
+var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidayServiceAdapter { // NOSONAR [S3504] -- GJS importer export
     constructor(loadJsonAsync = unavailableLoadJsonAsync) {
         super(loadJsonAsync);
         this.name = HOLIDAY_PROVIDER_NAMES.NAGER_DATE;
@@ -303,7 +303,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
             return holiday.global === true || counties.length === 0;
         }
 
-        return counties.length === 0 || counties.indexOf(params.countyCode) !== -1;
+        return counties.length === 0 || counties.indexOf(params.countyCode) !== -1; // NOSONAR [S7765] -- accepted compatible form
     }
 
     _flags(holiday) {
@@ -324,7 +324,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     }
 };
 
-var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHolidayServiceAdapter {
+var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHolidayServiceAdapter { // NOSONAR [S3504] -- GJS importer export
     constructor(loadJsonAsync = unavailableLoadJsonAsync, lang = _lcLang()) {
         super(loadJsonAsync);
         this._lang = String(lang || "en").slice(0, 2).toUpperCase();

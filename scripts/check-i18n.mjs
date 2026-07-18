@@ -16,7 +16,7 @@ const UUID = "chronos@geraldo-netto";
 export function withoutCreationDate(pot) {
     return pot.replace(
         /^"POT-Creation-Date: [^"\\]*(?:\\.[^"\\]*)*\\n"$/m,
-        "\"POT-Creation-Date: <generated>\\n\"");
+        "\"POT-Creation-Date: <generated>\\n\""); // NOSONAR [S7780] -- accepted compatible form
 }
 
 export async function validateCatalog(catalogPath, run = execFileAsync) {

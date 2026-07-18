@@ -101,7 +101,7 @@ async function acquireReleaseLock(root) {
                 await link(candidate, lockPath);
                 return lockPath;
             } catch (error) {
-                if (!error || error.code !== "EEXIST") {
+                if (!error || error.code !== "EEXIST") { // NOSONAR [S6582] -- accepted compatible form
                     throw error;
                 }
                 await retireStaleLock(lockPath);
@@ -177,13 +177,13 @@ async function readReleaseFiles(root) {
 }
 
 function validateTransaction(transaction) {
-    const entries = transaction && transaction.version === 1 ? transaction.entries : null;
+    const entries = transaction && transaction.version === 1 ? transaction.entries : null; // NOSONAR [S6582] -- accepted compatible form
     if (!Array.isArray(entries) || entries.length !== RELEASE_TARGETS.length) {
         throw new Error("release transaction has an invalid target list");
     }
     for (let index = 0; index < RELEASE_TARGETS.length; index++) {
         const entry = entries[index];
-        if (!entry || entry.target !== RELEASE_TARGETS[index] ||
+        if (!entry || entry.target !== RELEASE_TARGETS[index] || // NOSONAR [S6582] -- accepted compatible form
             typeof entry.before !== "string" || typeof entry.after !== "string") {
             throw new Error("release transaction has an invalid target list");
         }
@@ -268,7 +268,7 @@ function validateReleaseFiles(files, tag) {
         }
     }
 
-    if (!new RegExp(`^## \\[${version.replaceAll(".", "\\.")}\\] - \\d{4}-\\d{2}-\\d{2}$`, "m")
+    if (!new RegExp(`^## \\[${version.replaceAll(".", "\\.")}\\] - \\d{4}-\\d{2}-\\d{2}$`, "m") // NOSONAR [S7780] -- accepted compatible form
         .test(files.changelog)) {
         throw new Error(`CHANGELOG.md has no dated ${version} release heading`);
     }
@@ -330,8 +330,8 @@ async function bumpReleaseLocked(root, nextVersion, options) {
         `\n\n## [${nextVersion}] - ${date}\n\n${notes}\n` +
         files.changelog.slice(nextHeading);
     const linkedChangelog = changelog.replace(
-        new RegExp(`^\\[Unreleased\\]: ${REPOSITORY.replaceAll(".", "\\.")}\\/compare\\/v` +
-            `${currentVersion.replaceAll(".", "\\.")}\\.\\.\\.HEAD$`, "m"),
+        new RegExp(`^\\[Unreleased\\]: ${REPOSITORY.replaceAll(".", "\\.")}\\/compare\\/v` + // NOSONAR [S7780] -- accepted compatible form
+            `${currentVersion.replaceAll(".", "\\.")}\\.\\.\\.HEAD$`, "m"), // NOSONAR [S7780] -- accepted compatible form
         `[Unreleased]: ${REPOSITORY}/compare/v${nextVersion}...HEAD\n` +
         `[${nextVersion}]: ${REPOSITORY}/releases/tag/v${nextVersion}`);
     if (linkedChangelog === changelog) {

@@ -18,31 +18,31 @@
 // places and its raw keys were read in five files. DesktopSettings, below, is
 // the same boundary for it.
 
-var SHOW_EVENTS_KEY = "show-events";
-var SHOW_WEEK_NUMBERS_KEY = "show-week-numbers";
-var WEEKEND_LENGTH_KEY = "weekend-length";
-var COUNTRY_KEY = "country";
-var HAS_REGION_KEY = "has_region";
-var REGION_KEY_PREFIX = "region_";
-var WORLDCLOCKS_KEY = "worldclocks";
-var SHOW_WORLDCLOCKS_KEY = "show-worldclocks";
-var KEY_OPEN_KEY = "keyOpen";
-var WEATHER_LOCATION_KEY = "weather-location";
-var CUSTOM_FORMAT_KEY = "custom-format";
-var CUSTOM_TOOLTIP_FORMAT_KEY = "custom-tooltip-format";
-var DATE_FORMAT_DEFAULTS_MIGRATED_KEY = "date-format-defaults-migrated";
-var LEGACY_DATE_TIME_FORMAT = "%A, %B %e, %H:%M";
-var DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
-var NO_HOLIDAYS = "none";
+var SHOW_EVENTS_KEY = "show-events"; // NOSONAR [S3504] -- GJS importer export
+var SHOW_WEEK_NUMBERS_KEY = "show-week-numbers"; // NOSONAR [S3504] -- GJS importer export
+var WEEKEND_LENGTH_KEY = "weekend-length"; // NOSONAR [S3504] -- GJS importer export
+var COUNTRY_KEY = "country"; // NOSONAR [S3504] -- GJS importer export
+var HAS_REGION_KEY = "has_region"; // NOSONAR [S3504] -- GJS importer export
+var REGION_KEY_PREFIX = "region_"; // NOSONAR [S3504] -- GJS importer export
+var WORLDCLOCKS_KEY = "worldclocks"; // NOSONAR [S3504] -- GJS importer export
+var SHOW_WORLDCLOCKS_KEY = "show-worldclocks"; // NOSONAR [S3504] -- GJS importer export
+var KEY_OPEN_KEY = "keyOpen"; // NOSONAR [S3504] -- GJS importer export
+var WEATHER_LOCATION_KEY = "weather-location"; // NOSONAR [S3504] -- GJS importer export
+var CUSTOM_FORMAT_KEY = "custom-format"; // NOSONAR [S3504] -- GJS importer export
+var CUSTOM_TOOLTIP_FORMAT_KEY = "custom-tooltip-format"; // NOSONAR [S3504] -- GJS importer export
+var DATE_FORMAT_DEFAULTS_MIGRATED_KEY = "date-format-defaults-migrated"; // NOSONAR [S3504] -- GJS importer export
+var LEGACY_DATE_TIME_FORMAT = "%A, %B %e, %H:%M"; // NOSONAR [S3504] -- GJS importer export
+var DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M"; // NOSONAR [S3504] -- GJS importer export
+var NO_HOLIDAYS = "none"; // NOSONAR [S3504] -- GJS importer export
 
 // key -> applet property, grouped by the handler each one triggers
-var PANEL_KEYS = [
+var PANEL_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     [SHOW_EVENTS_KEY, "show_events"],
     ["custom-format", "custom_format"],
     ["custom-tooltip-format", "custom_tooltip_format"],
     [SHOW_WORLDCLOCKS_KEY, "show_worldclocks"]
 ];
-var WEATHER_KEYS = [
+var WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     ["show-weather", "show_weather"],
     ["weather-units", "weather_units"]
 ];
@@ -54,23 +54,23 @@ var WEATHER_KEYS = [
 // undefined for the life of the process: the location never reaches the geocoder
 // and the weather silently never loads. changed::<key> is still emitted for them,
 // so they are mirrored onto the applet by hand.
-var CUSTOM_WEATHER_KEYS = [
+var CUSTOM_WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     [WEATHER_LOCATION_KEY, "weather_location"]
 ];
 
 // Cinnamon's desktop schema, and the three keys this applet reads from it.
-var DESKTOP_SCHEMA = "org.cinnamon.desktop.interface";
-var CLOCK_USE_24H_KEY = "clock-use-24h";
-var CLOCK_SHOW_SECONDS_KEY = "clock-show-seconds";
-var FIRST_DAY_OF_WEEK_KEY = "first-day-of-week";
-var DESKTOP_KEYS = [CLOCK_USE_24H_KEY, CLOCK_SHOW_SECONDS_KEY, FIRST_DAY_OF_WEEK_KEY];
+var DESKTOP_SCHEMA = "org.cinnamon.desktop.interface"; // NOSONAR [S3504] -- GJS importer export
+var CLOCK_USE_24H_KEY = "clock-use-24h"; // NOSONAR [S3504] -- GJS importer export
+var CLOCK_SHOW_SECONDS_KEY = "clock-show-seconds"; // NOSONAR [S3504] -- GJS importer export
+var FIRST_DAY_OF_WEEK_KEY = "first-day-of-week"; // NOSONAR [S3504] -- GJS importer export
+var DESKTOP_KEYS = [CLOCK_USE_24H_KEY, CLOCK_SHOW_SECONDS_KEY, FIRST_DAY_OF_WEEK_KEY]; // NOSONAR [S3504] -- GJS importer export
 
 // Gio.Settings.get_boolean() on a key the schema does not carry answers `false`.
 // Not an error, not a warning — false. So if Cinnamon ever renames one of these,
 // the panel label, the tooltip and every event row's time all quietly switch to
 // 12-hour, seconds disappear, and nothing anywhere says why. The keys are asked
 // for once, at construction, and a missing one is reported.
-var DesktopSettings = class DesktopSettings {
+var DesktopSettings = class DesktopSettings { // NOSONAR [S3504] -- GJS importer export
     constructor(settings) {
         this._settings = settings;
         this._known = null;
@@ -121,7 +121,7 @@ var DesktopSettings = class DesktopSettings {
     }
 };
 
-var CalendarSettings = class CalendarSettings {
+var CalendarSettings = class CalendarSettings { // NOSONAR [S3504] -- GJS importer export
     constructor(settings) {
         this._settings = settings;
     }
@@ -135,7 +135,7 @@ var CalendarSettings = class CalendarSettings {
     }
 };
 
-var EventsSettings = class EventsSettings {
+var EventsSettings = class EventsSettings { // NOSONAR [S3504] -- GJS importer export
     constructor(settings) {
         this._settings = settings;
     }
@@ -145,7 +145,7 @@ var EventsSettings = class EventsSettings {
     }
 };
 
-var HolidaySettings = class HolidaySettings {
+var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer export
     constructor(settings) {
         this._settings = settings;
     }
@@ -195,7 +195,7 @@ var HolidaySettings = class HolidaySettings {
     }
 };
 
-var WorldclockSettings = class WorldclockSettings {
+var WorldclockSettings = class WorldclockSettings { // NOSONAR [S3504] -- GJS importer export
     constructor(settings) {
         this._settings = settings;
     }
@@ -209,7 +209,7 @@ var WorldclockSettings = class WorldclockSettings {
     }
 };
 
-var PanelSettings = class PanelSettings {
+var PanelSettings = class PanelSettings { // NOSONAR [S3504] -- GJS importer export
     constructor(settings) {
         this._settings = settings;
     }

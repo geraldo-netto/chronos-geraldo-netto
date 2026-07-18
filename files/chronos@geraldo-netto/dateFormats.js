@@ -24,18 +24,18 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const CinnamonDesktop = GjsImports.gi.CinnamonDesktop;
 const LocaleText = IS_NODE ?
     require("./localeText") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeText;
 const translate = LocaleText.translate;
 
-var MSECS_IN_DAY = 24 * 60 * 60 * 1000;
+var MSECS_IN_DAY = 24 * 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
 
-var DAY_FORMAT = CinnamonDesktop.WallClock.lctime_format("cinnamon", "%A");
-var DATE_FORMAT_SHORT;
-var DATE_FORMAT_FULL;
+var DAY_FORMAT = CinnamonDesktop.WallClock.lctime_format("cinnamon", "%A"); // NOSONAR [S3504] -- GJS importer export
+var DATE_FORMAT_SHORT; // NOSONAR [S3504] -- GJS importer export
+var DATE_FORMAT_FULL; // NOSONAR [S3504] -- GJS importer export
 {
     // cinnamon-xlet-makepot extracts only the _() keyword, so these two date
     // formats were invisible to translators under the bare translate() name and

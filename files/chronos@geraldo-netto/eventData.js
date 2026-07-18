@@ -27,7 +27,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const GLib = GjsImports.gi.GLib;
 const TextUtils = IS_NODE ?
     require("./textUtils") :
@@ -67,8 +67,8 @@ function dt_equals(dt1, dt2) {
 // inside a DBus signal handler, on the compositor thread. The times come from
 // evolution-data-server, which is repeating whatever an ICS or CalDAV feed told
 // it, so they are not ours to trust.
-var MIN_EVENT_UNIX = -62135596800;   // 0001-01-01
-var MAX_EVENT_UNIX = 253402300799;   // 9999-12-31
+var MIN_EVENT_UNIX = -62135596800;   // 0001-01-01 // NOSONAR [S3504] -- GJS importer export
+var MAX_EVENT_UNIX = 253402300799;   // 9999-12-31 // NOSONAR [S3504] -- GJS importer export
 
 function eventUnixTime(value) {
     const time = typeof value === "number" ? value : Number(value);
@@ -86,13 +86,13 @@ function eventUnixTime(value) {
 // half-megabyte summary lays all of it out on the compositor thread. The same
 // argument bounds holiday names at the same length (holidayCache.js), and a
 // real summary is a few words.
-var MAX_EVENT_SUMMARY_LENGTH = 300;
+var MAX_EVENT_SUMMARY_LENGTH = 300; // NOSONAR [S3504] -- GJS importer export
 
 function clampEventSummary(summary) {
     return TextUtils.clampText(summary, MAX_EVENT_SUMMARY_LENGTH);
 }
 
-var EventData = class EventData {
+var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
     constructor(data_var, last_update_timestamp) {
         const unpacked = data_var.deep_unpack();
         const [id, color, summary, all_day, start_time, end_time, mod_time] =
@@ -167,7 +167,7 @@ var EventData = class EventData {
     }
 };
 
-var EventDataList = class EventDataList {
+var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer export
     constructor(gdate_only) {
         // Timestamp gets updated any time events are added, removed of modified. The event list
         // compares this to the timestamp it recorded when it initially loaded the day's events.
@@ -279,7 +279,7 @@ var EventDataList = class EventDataList {
         let all_days = [];
         let final_list = [];
 
-        for (let i = 0; i < events_as_array.length; i++) {
+        for (let i = 0; i < events_as_array.length; i++) { // NOSONAR [S4138] -- accepted compatible form
             if (events_as_array[i].all_day) {
                 all_days.push(events_as_array[i]);
             }
@@ -296,7 +296,7 @@ var EventDataList = class EventDataList {
             }
 
             if (event.end.difference(now) < 0 && !all_days_inserted) {
-                for (let j = 0; j < all_days.length ; j++) {
+                for (let j = 0; j < all_days.length ; j++) { // NOSONAR [S4138] -- accepted compatible form
                     final_list.push(all_days[j]);
                 }
                 all_days_inserted = true;

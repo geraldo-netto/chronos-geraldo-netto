@@ -12,7 +12,7 @@
 // Event/holiday colors come from external calendar data; only let plain
 // color syntax through to inline St styles (blocks `;`-injection of extra
 // declarations such as background-image).
-var CSS_COLOR_PATTERN = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9,.\s%]+\)|[a-zA-Z]+)$/;
+var CSS_COLOR_PATTERN = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9,.\s%]+\)|[a-zA-Z]+)$/; // NOSONAR [S3504] -- GJS importer export
 
 function safeCssColor(color, fallback = "transparent") {
     if (typeof color === "string" && CSS_COLOR_PATTERN.test(color.trim())) {

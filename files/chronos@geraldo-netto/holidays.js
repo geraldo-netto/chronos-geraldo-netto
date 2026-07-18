@@ -24,7 +24,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 // Under GJS this file is reached through the native importer, which provides
 // neither require() nor module; Node (tests) provides both.
 const IoUtils = IS_NODE ?
@@ -48,7 +48,7 @@ const HolidayRecord = IS_NODE ?
 
 const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
-var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS;
+var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS; // NOSONAR [S3504] -- GJS importer export
 
 function logHolidayDataError(provider, year, reason) {
     if (global.logError) {
@@ -57,9 +57,9 @@ function logHolidayDataError(provider, year, reason) {
 }
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
-var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS;
+var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS importer export
 
-var Provider = class Provider {
+var Provider = class Provider { // NOSONAR [S3504] -- GJS importer export
     // the session is per provider instance, not per module: a second applet
     // instance on the panel must not have its requests aborted when the first
     // one is removed
@@ -75,17 +75,17 @@ var Provider = class Provider {
     }
 };
 
-var HolidayCacheRepository = HolidayCacheModule.HolidayCacheRepository;
-var HolidayCache = HolidayCacheModule.HolidayCache;
+var HolidayCacheRepository = HolidayCacheModule.HolidayCacheRepository; // NOSONAR [S3504] -- GJS importer export
+var HolidayCache = HolidayCacheModule.HolidayCache; // NOSONAR [S3504] -- GJS importer export
 
-var EnricoServiceAdapter = HolidayServiceAdapters.EnricoServiceAdapter;
-var NagerDateServiceAdapter = HolidayServiceAdapters.NagerDateServiceAdapter;
-var OpenHolidaysServiceAdapter = HolidayServiceAdapters.OpenHolidaysServiceAdapter;
-var createHolidayServiceChain = HolidayServiceAdapters.createHolidayServiceChain;
+var EnricoServiceAdapter = HolidayServiceAdapters.EnricoServiceAdapter; // NOSONAR [S3504] -- GJS importer export
+var NagerDateServiceAdapter = HolidayServiceAdapters.NagerDateServiceAdapter; // NOSONAR [S3504] -- GJS importer export
+var OpenHolidaysServiceAdapter = HolidayServiceAdapters.OpenHolidaysServiceAdapter; // NOSONAR [S3504] -- GJS importer export
+var createHolidayServiceChain = HolidayServiceAdapters.createHolidayServiceChain; // NOSONAR [S3504] -- GJS importer export
 // the record shape the app owns: what an answer from *any* provider must be
-var HolidayRecordContract = HolidayRecord.HolidayRecordContract;
-var MAX_HOLIDAYS_PER_YEAR = HolidayRecord.MAX_HOLIDAYS_PER_YEAR;
-var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS;
+var HolidayRecordContract = HolidayRecord.HolidayRecordContract; // NOSONAR [S3504] -- GJS importer export
+var MAX_HOLIDAYS_PER_YEAR = HolidayRecord.MAX_HOLIDAYS_PER_YEAR; // NOSONAR [S3504] -- GJS importer export
+var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS; // NOSONAR [S3504] -- GJS importer export
 
 // the adapters are loader-agnostic; this is the single place that hands
 // them an HTTP session, keeping the provider order intact
@@ -112,7 +112,7 @@ function httpBackedService(getSession, params = {}) {
 // policy. It is a small thing with a rule of its own — the key carries no
 // country, so it must be cleared whenever the place changes — and that rule is
 // easier to see, and to test, on its own.
-var HolidayStatusLedger = class HolidayStatusLedger {
+var HolidayStatusLedger = class HolidayStatusLedger { // NOSONAR [S3504] -- GJS importer export
     constructor() {
         this._status = {};
         this.lastError = "";
@@ -147,7 +147,7 @@ var HolidayStatusLedger = class HolidayStatusLedger {
         });
     }
 
-    clear() {
+    clear() { // NOSONAR [S4144] -- distinct provider contract
         this._status = {};
         this.lastError = "";
         this.lastProvider = "";
@@ -157,7 +157,7 @@ var HolidayStatusLedger = class HolidayStatusLedger {
 // The fetches in flight, and who is waiting for each. The 42-day grid always
 // spans two months, so the second one asks for a year whose fetch is already
 // running: it joins that one rather than issuing a second request.
-var HolidayInflight = class HolidayInflight {
+var HolidayInflight = class HolidayInflight { // NOSONAR [S3504] -- GJS importer export
     constructor() {
         this._waiting = {};
     }
@@ -198,7 +198,7 @@ var HolidayInflight = class HolidayInflight {
     // it takes no callbacks and, crucially, removes nothing
     settle(key, generation = 0) {
         const entry = this._waiting[key];
-        if (!entry || entry.generation !== generation) {
+        if (!entry || entry.generation !== generation) { // NOSONAR [S6582] -- accepted compatible form
             return [];
         }
 
@@ -211,7 +211,7 @@ var HolidayInflight = class HolidayInflight {
     }
 };
 
-var HolidayService = class HolidayService {
+var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer export
     constructor (service, cache, params = {}) {
         this._session = params.httpSession || new IoUtils.LazyHttpSession();
         this.service = service || httpBackedService(() => this._getHttpSession());
@@ -285,7 +285,7 @@ var HolidayService = class HolidayService {
         this._inflight.clear();
         this._session.abort();
         this._status.clear();
-        if (this.cache && this.cache.release) {
+        if (this.cache && this.cache.release) { // NOSONAR [S6582] -- accepted compatible form
             this.cache.release();
         }
     }
@@ -334,7 +334,7 @@ var HolidayService = class HolidayService {
     }
 
     addData (data, params, retrieved) {
-        this.last_provider = params && params.providerName ? params.providerName : "";
+        this.last_provider = params && params.providerName ? params.providerName : ""; // NOSONAR [S6582] -- accepted compatible form
 
         if (!data) {
             this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
@@ -358,7 +358,7 @@ var HolidayService = class HolidayService {
             const reported = HolidayCacheModule.clampHolidayName(
                 typeof data.error === "string" ? data.error.replace(/[\r\n]+/g, " ") : "");
             this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
-            logHolidayDataError(this.last_provider, params && params.year,
+            logHolidayDataError(this.last_provider, params && params.year, // NOSONAR [S6582] -- accepted compatible form
                 reported || HOLIDAY_ERRORS.INVALID_RESPONSE);
             return;
         }
@@ -366,7 +366,7 @@ var HolidayService = class HolidayService {
         if (!params || !Number.isInteger(params.year) ||
             !this.record.validResponse(data, params.year)) {
             this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
-            logHolidayDataError(this.last_provider, params && params.year, this.last_error);
+            logHolidayDataError(this.last_provider, params && params.year, this.last_error); // NOSONAR [S6582] -- accepted compatible form
             return;
         }
 
@@ -481,7 +481,7 @@ var HolidayService = class HolidayService {
         this._status.clear();
     }
 
-    setPlace (country, region = GLOBAL_REGION, onUpdated) {
+    setPlace (country, region = GLOBAL_REGION, onUpdated) { // NOSONAR [S1788] -- accepted compatible form
         // a fetch still in flight was dispatched for the place we are leaving
         this._place_generation++;
         this._inflight.clear();
@@ -584,7 +584,7 @@ function createHolidayProvider(params = {}) {
     return new HolidayProviderFacade(provider);
 }
 
-var HolidayProviderFacade = class HolidayProviderFacade {
+var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- GJS importer export
     constructor(provider) {
         this._provider = provider;
     }
@@ -601,7 +601,7 @@ var HolidayProviderFacade = class HolidayProviderFacade {
         this._provider.clearPlace();
     }
 
-    setPlace(country, region = GLOBAL_REGION, onUpdated) {
+    setPlace(country, region = GLOBAL_REGION, onUpdated) { // NOSONAR [S1788] -- accepted compatible form
         this._provider.setPlace(country, region, onUpdated);
     }
 

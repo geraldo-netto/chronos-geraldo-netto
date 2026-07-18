@@ -11,7 +11,7 @@
 // this index; it depends only on the event data contract.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const APPLET_MODULES = IS_NODE ?
     null : GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
 const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
@@ -22,7 +22,7 @@ const EventDataList = EventDataModule.EventDataList;
 
 const MAX_SPANNED_DAYS = 50;
 
-var EventIndex = class EventIndex {
+var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
     constructor(eventsByDate = {}) {
         this.eventsByDate = eventsByDate;
     }

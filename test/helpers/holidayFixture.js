@@ -175,7 +175,7 @@ function holiday(name, year, month, day, flags = ["public_holiday"]) {
 }
 
 function anyRecord(overrides = {}) {
-    return Object.assign({
+    return Object.assign({ // NOSONAR [S6661] -- deliberate test seam
         validResponse: (data) => Array.isArray(data),
         expandHoliday: (entry, region) => [{ holiday: entry, region }]
     }, overrides);

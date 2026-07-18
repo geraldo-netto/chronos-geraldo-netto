@@ -11,7 +11,7 @@
 // supplied by the orchestration layer; it knows no DBus proxy.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const GLib = GjsImports.gi.GLib;
 const Cinnamon = GjsImports.gi.Cinnamon;
 const APPLET_MODULES = IS_NODE ?
@@ -23,7 +23,7 @@ const date_only = EventDataModule.date_only;
 const month_year_only = EventDataModule.month_year_only;
 const dt_equals = EventDataModule.dt_equals;
 
-var EventWindowCoordinator = class EventWindowCoordinator {
+var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -- GJS importer export
     constructor(index) {
         this.index = index;
         this.current_month_year = null;

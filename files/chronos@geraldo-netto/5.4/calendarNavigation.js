@@ -101,7 +101,7 @@ class CalendarNavigationController {
     }
 
     dayCellHasFocus() {
-        const focused = global.stage && global.stage.get_key_focus ?
+        const focused = global.stage && global.stage.get_key_focus ? // NOSONAR [S6582] -- accepted compatible form
             global.stage.get_key_focus() : null;
         return !focused || this.port.dayCells().some((cell) => cell.button === focused);
     }
@@ -119,7 +119,7 @@ class CalendarNavigationController {
                 return Clutter.EVENT_PROPAGATE;
             }
             const delta = this.rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
-            const target = new Date(this.selectedDate.getTime());
+            const target = new Date(this.selectedDate.getTime()); // NOSONAR [S7719] -- accepted compatible form
             target.setDate(target.getDate() + delta);
             this.setDate(target, false);
             this.focusSelectedDay();

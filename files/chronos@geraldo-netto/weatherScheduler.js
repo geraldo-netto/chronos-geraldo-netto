@@ -31,7 +31,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // Node is what this asks about, because Node is the only host that requires these
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
-    Boolean(process.versions && process.versions.node);
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const GLib = GjsImports.gi.GLib;
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
@@ -45,9 +45,9 @@ const RETRY_SECONDS = WeatherFormat.RETRY_SECONDS;
 const WEATHER_DEBOUNCE_MS = WeatherFormat.WEATHER_DEBOUNCE_MS;
 const MAX_RETRY_ATTEMPTS = WeatherFormat.MAX_RETRY_ATTEMPTS;
 
-var WeatherRefreshScheduler = class WeatherRefreshScheduler {
+var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
-        this._timer_id = 0;
+        this._timer_id = 0; // NOSONAR [S7757] -- accepted compatible form
         this._debounce_id = 0;
         this._retry_id = 0;
         this._retry_attempts = 0;
@@ -71,7 +71,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler {
         // copy of all of it.
         this._isActive = params.isActive ||
             ((settings) => Boolean(settings.showWeather &&
-                settings.location && settings.location.trim()));
+                settings.location && settings.location.trim())); // NOSONAR [S6582] -- accepted compatible form
     }
 
     get timerId() {

@@ -259,25 +259,25 @@ class GtkStub:
     def pack_start(self, child, *args):
         self.children.append(child)
 
-    def show_all(self):
+    def show_all(self): # NOSONAR [S1186] -- deliberate test seam
         pass
 
-    def set_margin_right(self, value):
+    def set_margin_right(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
-    def set_margin_left(self, value):
+    def set_margin_left(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
-    def set_margin_top(self, value):
+    def set_margin_top(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
-    def set_margin_bottom(self, value):
+    def set_margin_bottom(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
-    def set_shadow_type(self, value):
+    def set_shadow_type(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
-    def set_selection_mode(self, value):
+    def set_selection_mode(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
 
@@ -293,7 +293,7 @@ class GtkLabel(GtkStub):
         self.line_wrap = False
         self.max_width_chars = -1
 
-    def set_xalign(self, value):
+    def set_xalign(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
 
     def set_line_wrap(self, wrap):
@@ -433,11 +433,11 @@ class FakeSettings:
     def listen(self, key, callback):
         self.listeners.append((key, callback))
 
-    def bind(self, key, bind_object, bind_prop, bind_dir, map_get, map_set):
+    def bind(self, key, bind_object, bind_prop, bind_dir, map_get, map_set): # NOSONAR [S1172] -- deliberate test seam
         self.bound = (key, bind_object, bind_prop)
         bind_object.set_property(bind_prop, self.get_value(key))
 
-    def has_property(self, key, prop):
+    def has_property(self, key, prop): # NOSONAR [S1172] -- deliberate test seam
         return False
 
 
@@ -558,7 +558,7 @@ class GtkComboBoxWithEntry:
                 callback(self)
 
 
-STUBBED_MODULES = ("JsonSettingsWidgets", "xapp", "xapp.SettingsWidgets", "gi", "gi.repository")
+STUBBED_MODULES = ("JsonSettingsWidgets", "xapp", "xapp.SettingsWidgets", "gi", "gi.repository") # NOSONAR [S1192] -- deliberate test seam
 _original_modules = {}
 
 

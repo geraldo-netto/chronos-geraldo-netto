@@ -14,9 +14,9 @@
 // interface and injected formatting options, so Node tests can drive the
 // full matrix of date permutations without Clutter or GLib.
 
-var EVENT_PHASE_PAST = "past";
-var EVENT_PHASE_UPCOMING = "upcoming";
-var EVENT_PHASE_CURRENT = "current";
+var EVENT_PHASE_PAST = "past"; // NOSONAR [S3504] -- GJS importer export
+var EVENT_PHASE_UPCOMING = "upcoming"; // NOSONAR [S3504] -- GJS importer export
+var EVENT_PHASE_CURRENT = "current"; // NOSONAR [S3504] -- GJS importer export
 
 function dtEquals(dt1, dt2) {
     return dt1.to_unix() === dt2.to_unix();
@@ -68,7 +68,7 @@ function localeCap(str) {
 
 // Recent/near dates show a weekday name instead of a full date; the
 // original code uses a +/-4 day window around the reference day.
-var NEARBY_DAY_WINDOW = 4;
+var NEARBY_DAY_WINDOW = 4; // NOSONAR [S3504] -- GJS importer export
 
 function _prefixForTodaySelected(event, selected_date, opts) {
     const _ = opts.translate;
@@ -127,7 +127,7 @@ function formatRangePrefix(event, selected_date, today, opts) {
 
 // U+2192 has the Unicode Bidi_Mirrored property, so the compositor flips the
 // direction cue with the surrounding event range in an RTL layout.
-var ARROW_SEPARATOR = "  →  ";
+var ARROW_SEPARATOR = "  →  "; // NOSONAR [S3504] -- GJS importer export
 
 function _suffixForTodaySelected(event, selected_date, opts) {
     const _ = opts.translate;

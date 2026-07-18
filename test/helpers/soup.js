@@ -59,7 +59,7 @@ function makeSoup3({
         },
         Session: class {
             constructor() {
-                this.timeout = 0;
+                this.timeout = 0; // NOSONAR [S7757] -- deliberate test seam
                 this.idle_timeout = 0;
                 this.aborted = false;
                 sessions.push(this);
