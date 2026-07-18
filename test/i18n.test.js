@@ -1,9 +1,41 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const fs = require("node:fs/promises");
+const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
 const ROOT = path.join(__dirname, "..");
+const UUID = "chronos@geraldo-netto";
+
+function potWith(dateStamp, extraEntry = "") {
+    return 'msgid ""\n' +
+        'msgstr ""\n' +
+        `"Project-Id-Version: ${UUID} 0.0.1\\n"\n` +
+        `"POT-Creation-Date: ${dateStamp}\\n"\n` +
+        '"Content-Type: text/plain; charset=UTF-8\\n"\n' +
+        "\n" +
+        'msgid "Hello"\n' +
+        'msgstr ""\n' +
+        extraEntry;
+}
+
+// A project tree whose po/makepot is a stub that "regenerates" a fixed pot, so
+// the composed copy-regenerate-compare flow runs for real without Cinnamon's
+// extraction tooling; no .po catalogs keeps gettext out of it too.
+async function makeFixtureProject(t, committedPot, regeneratedPot) {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-i18n-fixture-"));
+    t.after(() => fs.rm(root, { recursive: true, force: true }));
+    const poDir = path.join(root, "files", UUID, "po");
+    await fs.mkdir(poDir, { recursive: true });
+    await fs.writeFile(path.join(poDir, `${UUID}.pot`), committedPot);
+    await fs.writeFile(path.join(poDir, "makepot"),
+        "#!/bin/bash\n" +
+        `cat > "$(dirname "$0")/${UUID}.pot" <<'POTEOF'\n` +
+        regeneratedPot +
+        "POTEOF\n");
+    return root;
+}
 
 test("the catalog gate rejects combined active fuzzy flags", async () => {
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
@@ -61,4 +93,41 @@ test("the catalog gate accepts a catalog msgcmp finds complete", async () => {
 
     await assert.doesNotReject(
         checkCatalogCurrent("/catalogs/de.po", "/catalogs/chronos.pot", async () => ({})));
+});
+
+// The freshness check is the repo's one fail-open gate: a bug that makes the
+// committed-vs-regenerated comparison always equal ships a stale template
+// forever while CI stays green. These run the composed flow for real.
+test("the freshness gate rejects a committed template that trails the source", async (t) => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkI18n } = await import(scriptUrl);
+    const root = await makeFixtureProject(t,
+        potWith("2026-07-01 00:00+0000"),
+        potWith("2026-07-18 00:00+0000", '\nmsgid "New source string"\nmsgstr ""\n'));
+
+    await assert.rejects(checkI18n(root), /translation template is stale/);
+});
+
+test("the freshness gate accepts a template differing only in creation date", async (t) => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkI18n } = await import(scriptUrl);
+    const root = await makeFixtureProject(t,
+        potWith("2026-07-01 00:00+0000"),
+        potWith("2026-07-18 00:00+0000"));
+
+    assert.equal(await checkI18n(root), 0);
+});
+
+test("withoutCreationDate masks the creation date and nothing else", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { withoutCreationDate } = await import(scriptUrl);
+    const july1 = potWith("2026-07-01 00:00+0000");
+    const july18 = potWith("2026-07-18 00:00+0000");
+    const drifted = potWith("2026-07-01 00:00+0000", '\nmsgid "Drifted"\nmsgstr ""\n');
+
+    assert.match(withoutCreationDate(july1), /"POT-Creation-Date: <generated>\\n"/);
+    assert.equal(withoutCreationDate(july1), withoutCreationDate(july18),
+        "a regeneration that changes nothing but the stamp is not staleness");
+    assert.notEqual(withoutCreationDate(july1), withoutCreationDate(drifted),
+        "the normalization must not swallow real content differences");
 });

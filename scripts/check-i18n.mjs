@@ -13,7 +13,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const execFileAsync = promisify(execFile);
 const UUID = "chronos@geraldo-netto";
 
-function withoutCreationDate(pot) {
+export function withoutCreationDate(pot) {
     return pot.replace(
         /^"POT-Creation-Date: [^"\\]*(?:\\.[^"\\]*)*\\n"$/m,
         "\"POT-Creation-Date: <generated>\\n\"");
