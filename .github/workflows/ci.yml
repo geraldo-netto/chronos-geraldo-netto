@@ -84,6 +84,17 @@ jobs:
       - run: npm run i18n:check
       - run: npm run package:spices
 
+      # upload-artifact normalizes modes when it archives a directory. Put the
+      # validated tree and its checksum manifest inside one tar first, so the
+      # three tracked executables remain executable after download.
+      - name: Archive validated Spices package
+        working-directory: dist
+        run: |
+          find chronos@geraldo-netto -type f -print0 \
+            | sort -z \
+            | xargs -0 sha256sum > chronos-spices.sha256
+          tar -cf chronos-spices.tar chronos-spices.sha256 chronos@geraldo-netto
+
       # Preserve the exact tree that passed the package and catalog gates. The
       # tag job and the maintainer both consume this artifact; neither rebuilds
       # release bytes from a potentially dirty local checkout.
@@ -91,9 +102,10 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: chronos-spices-${{ github.sha }}
-          path: dist/chronos@geraldo-netto/
+          path: dist/chronos-spices.tar
           if-no-files-found: error
           overwrite: true
+          compression-level: 0
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
@@ -115,7 +127,14 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: chronos-spices-${{ github.sha }}
-          path: dist/chronos@geraldo-netto/
+          path: dist/
 
-      - name: Verify downloaded package layout
-        run: test -f dist/chronos@geraldo-netto/files/chronos@geraldo-netto/metadata.json
+      - name: Verify downloaded Spices package
+        working-directory: dist
+        run: |
+          tar -xf chronos-spices.tar
+          sha256sum -c chronos-spices.sha256
+          test -f chronos@geraldo-netto/files/chronos@geraldo-netto/metadata.json
+          test "$(stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/5.4/settings_widgets.py)" = 755
+          test "$(stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/settings_widgets_common.py)" = 755
+          test "$(stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/po/makepot)" = 755

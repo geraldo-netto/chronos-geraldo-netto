@@ -4,9 +4,9 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 **Findings verified by running or mutating the code are marked [verified]**, each naming the experiment. Live provider responses or policies were consulted only where the current external contract was itself under review; source conclusions were checked locally.
 
-Baseline: `npm test` green (792 JS tests, JS coverage per-file 98/90/100; Python 118 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
+Baseline: `npm test` green (793 JS tests, JS coverage per-file 98/90/100; Python 118 tests, coverage per-file 98/90/100), including the JS suite under UTC, Pacific/Auckland and America/Sao_Paulo; `npm run lint`, `npm run release:check`, `npm run i18n:check` and `npm run package:spices` are green. Full `npm audit` reports zero vulnerabilities. CI runs lint and both suites on every push and PR.
 
-Open items: 1 (Critical 0, High 0, Medium 0, Low 1).
+Open items: 0 (Critical 0, High 0, Medium 0, Low 0).
 
 ## Findings
 
@@ -24,7 +24,6 @@ Open items: 1 (Critical 0, High 0, Medium 0, Low 1).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T553 | release artifact integrity | Low | open | M | CI says it preserves and hands off the “exact” gated Spices tree, but `upload-artifact@v7`'s default zipped upload resets every file to mode `0644`. The tracked package contains three executable `100755` files (`5.4/settings_widgets.py`, `settings_widgets_common.py`, `po/makepot`), and the release job checks only that metadata exists after download. Wrap the tree in a tar archive (or another mode-preserving format), upload it without a second archive layer, extract it in the release job, and verify the manifest and executable modes before publication. | **[verified]** Git records all three files as `100755`; the official action README's “Permission Loss” contract says zipped uploads return all files as `644` and recommends tar when permissions matter. This is fail-closed for CI execution but contradicts the documented exact-artifact handoff and can strip modes from a submitted tree. |
 
 ## Clean categories
 

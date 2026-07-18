@@ -36,13 +36,26 @@ function validateManifestPath(relative) {
     }
 }
 
+export function parseTrackedSpicesFiles(stdout) {
+    return stdout.toString("utf8").split("\0").filter(Boolean).map((entry) => {
+        const match = /^([0-7]{6}) [0-9a-f]+ ([0-3])\t([\s\S]+)$/.exec(entry);
+        if (!match || match[2] !== "0") {
+            throw new Error("cannot package an invalid or conflicted Git index");
+        }
+        return {
+            relative: match[3],
+            mode: Number.parseInt(match[1], 8) & 0o777
+        };
+    }).sort((left, right) => left.relative.localeCompare(right.relative));
+}
+
 export async function listTrackedSpicesFiles(sourceRoot) {
     const { stdout } = await execFileAsync("git", [
-        "-C", sourceRoot, "ls-files", "-z", "--",
+        "-C", sourceRoot, "ls-files", "--stage", "-z", "--",
         "README.md", "files", "info.json", "screenshot.png"
     ], { encoding: "buffer", maxBuffer: 4 * 1024 * 1024 });
 
-    return stdout.toString("utf8").split("\0").filter(Boolean).sort();
+    return parseTrackedSpicesFiles(stdout);
 }
 
 export async function rejectSymlinks(root) {
@@ -64,7 +77,7 @@ export async function resolveSourceFile(source, sourcePath, relative, manifest) 
         throw new Error(`package manifest names a directory, not a file: ${relative}`);
     }
     if (!stats.isSymbolicLink()) {
-        return { sourcePath, stats };
+        return { sourcePath, stats, modeRelative: relative };
     }
 
     // Inspect the link before copying any bytes. The tracked tree has no links,
@@ -90,7 +103,7 @@ export async function resolveSourceFile(source, sourcePath, relative, manifest) 
     if (!stats.isFile()) {
         throw new Error(`source symlink does not resolve to a regular file: ${relative}`);
     }
-    return { sourcePath: resolvedTarget, stats };
+    return { sourcePath: resolvedTarget, stats, modeRelative: targetRelative };
 }
 
 function validateManifest(files) {
@@ -143,7 +156,11 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
         throw new Error("package output cannot replace the source tree or one of its parents");
     }
 
-    const files = trackedFiles ? [...trackedFiles].sort() : await listTrackedSpicesFiles(source);
+    const trackedEntries = trackedFiles ?
+        [...trackedFiles].sort().map((relative) => ({ relative, mode: null })) :
+        await listTrackedSpicesFiles(source);
+    const files = trackedEntries.map(({ relative }) => relative);
+    const indexedModes = new Map(trackedEntries.map(({ relative, mode }) => [relative, mode]));
     const manifest = validateManifest(files);
 
     // Validate every input, including symlink confinement, before replacing an
@@ -157,7 +174,8 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
         const destination = path.join(output, ...file.relative.split("/"));
         await mkdir(path.dirname(destination), { recursive: true });
         await copyFile(file.sourcePath, destination);
-        await chmod(destination, file.stats.mode & 0o777);
+        await chmod(destination,
+            indexedModes.get(file.modeRelative) ?? (file.stats.mode & 0o777));
     }
 
     await validatePackageLayout(output);

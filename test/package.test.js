@@ -61,6 +61,14 @@ test("the packaging command stages only the Cinnamon Spices applet tree", async 
         .sort();
     assert.deepEqual(actualFiles, expectedFiles,
         "the package is exactly the tracked Spices manifest");
+    for (const executable of [
+        "files/chronos@geraldo-netto/5.4/settings_widgets.py",
+        "files/chronos@geraldo-netto/settings_widgets_common.py",
+        "files/chronos@geraldo-netto/po/makepot"
+    ]) {
+        const mode = (await fs.stat(path.join(output, ...executable.split("/")))).mode & 0o777;
+        assert.equal(mode, 0o755, `${executable} keeps its executable index mode`);
+    }
     await assert.rejects(fs.access(path.join(output, path.relative(ROOT, junk))),
         "ignored bytecode cannot enter the package");
 
@@ -88,6 +96,9 @@ async function makeSpicesFixture(t) {
         "-C", source, "add", "README.md", "info.json", "screenshot.png",
         "files/" + UUID + "/applet.js"
     ]);
+    // The package is an index artifact, so group-writable checkout permissions
+    // must not leak into the submission's tracked 0644 mode.
+    await fs.chmod(path.join(applet, "applet.js"), 0o664);
     return { temporary, source, output, applet };
 }
 
@@ -95,6 +106,16 @@ async function importPackager() {
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "package-spices.mjs")).href;
     return import(scriptUrl);
 }
+
+test("packaging rejects malformed and conflicted Git index entries", async () => {
+    const { parseTrackedSpicesFiles } = await importPackager();
+
+    assert.throws(() => parseTrackedSpicesFiles(Buffer.from("not an index entry\0")),
+        /invalid or conflicted Git index/);
+    assert.throws(() => parseTrackedSpicesFiles(
+        Buffer.from("100644 deadbeef 2\tREADME.md\0")),
+    /invalid or conflicted Git index/);
+});
 
 test("packaging rejects a tracked symlink that escapes the source tree", async (t) => {
     const { temporary, source, output, applet } = await makeSpicesFixture(t);
@@ -236,4 +257,6 @@ test("the packaging command builds and reports its artifact", async (t) => {
     assert.equal(await fs.readFile(
         path.join(source, "dist", UUID, "files", UUID, "applet.js"), "utf8"),
     "tracked applet");
+    assert.equal((await fs.stat(
+        path.join(source, "dist", UUID, "files", UUID, "applet.js"))).mode & 0o777, 0o644);
 });

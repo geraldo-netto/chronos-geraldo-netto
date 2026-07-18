@@ -152,11 +152,14 @@ git push origin v0.0.2
 Tag CI reruns both runtime pairs, packages on the supported Node floor, then
 rejects any tag that does not match all three manifests and the dated changelog
 entry. The packaging job
-uploads the exact gated tree as `chronos-spices-<commit SHA>`, replacing that
-same deterministic artifact when all jobs are rerun, and the release job
-downloads it. After the release job is green, download that artifact from the
-workflow run and publish or submit its contents; do not rebuild the release
-from a local checkout.
+puts the exact gated tree and its SHA-256 manifest in a mode-preserving
+`chronos-spices.tar`, then uploads it as `chronos-spices-<commit SHA>`, replacing
+that same deterministic artifact when all jobs are rerun. The release job
+downloads the tar, verifies every checksum and executable mode, and extracts the
+Spices tree. After the release job is green, download that artifact from the
+workflow run, extract `chronos-spices.tar`, and publish or submit the
+`chronos@geraldo-netto/` directory; do not rebuild the release from a local
+checkout.
 
 ### Configuration
 

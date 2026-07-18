@@ -365,9 +365,17 @@ test("CI runs the gates the README promises", () => {
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,
         "the exact tracked-file package is built in CI");
+    assert.match(packagingJob,
+        /find chronos@geraldo-netto -type f -print0[\s\S]*xargs -0 sha256sum > chronos-spices\.sha256/,
+        "the uploaded tree carries a checksum manifest");
+    assert.match(packagingJob,
+        /tar -cf chronos-spices\.tar chronos-spices\.sha256 chronos@geraldo-netto/,
+        "the tree is wrapped before upload so file modes survive");
     assert.match(packagingJob, /uses: actions\/upload-artifact@[0-9a-f]{40} # v\d/);
     assert.match(packagingJob, artifactName, "the gated package is retained under its commit SHA");
-    assert.match(packagingJob, /path: dist\/chronos@geraldo-netto\//);
+    assert.match(packagingJob, /path: dist\/chronos-spices\.tar/);
+    assert.match(packagingJob, /compression-level: 0/,
+        "the mode-preserving tar is uploaded without redundant compression");
     assert.match(packagingJob, /overwrite: true/,
         "rerunning every job replaces the deterministic artifact instead of conflicting");
     assert.match(workflow, /tags: \['v\*'\]/, "release tags trigger CI");
@@ -378,9 +386,22 @@ test("CI runs the gates the README promises", () => {
         "the release job consumes the package built by its dependency");
     assert.doesNotMatch(workflow, /github\.run_attempt/,
         "a failed-job retry must still find the artifact from the successful packaging job");
-    assert.match(releaseJob, /path: dist\/chronos@geraldo-netto\//);
-    assert.match(releaseJob, /test -f dist\/chronos@geraldo-netto\/files\//,
+    assert.match(releaseJob, /path: dist\/$/m);
+    assert.match(releaseJob, /tar -xf chronos-spices\.tar/);
+    assert.match(releaseJob, /sha256sum -c chronos-spices\.sha256/,
+        "every downloaded file must still match the gated tree");
+    assert.match(releaseJob, /test -f chronos@geraldo-netto\/files\//,
         "the downloaded artifact must have the expected package root");
+    for (const executable of [
+        "5.4/settings_widgets.py",
+        "settings_widgets_common.py",
+        "po/makepot"
+    ]) {
+        assert.match(releaseJob,
+            new RegExp(`stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/${executable
+                .replaceAll(".", "\\.")}\\)" = 755`),
+            `${executable} must retain its tracked executable mode`);
+    }
     assert.match(workflow, /release:check -- "\$GITHUB_REF_NAME"/,
         "the tag must match every version owner and the changelog");
     // pyflakes is what lint:py runs, and lint:py now fails when it is missing:
@@ -395,8 +416,9 @@ test("CI runs the gates the README promises", () => {
     assert.equal(pkg.scripts["i18n:check"], "node scripts/check-i18n.mjs");
     assert.equal(pkg.scripts["release:check"], "node scripts/release.mjs check");
     assert.match(readme,
-        /replacing that\s+same deterministic artifact when all jobs are rerun/);
-    assert.match(readme, /do not rebuild the release\s+from a local checkout/);
+        /replacing\s+that\s+same deterministic artifact when all jobs are rerun/);
+    assert.match(readme, /verifies every checksum and executable mode/);
+    assert.match(readme, /do not rebuild the release\s+from a local\s+checkout/);
 
     // sixteen timezone tests skipped themselves in CI because pytz was never
     // installed there, and neither the suite count nor a coverage number moved
