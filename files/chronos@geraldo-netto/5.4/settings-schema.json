@@ -3,7 +3,8 @@
         "type": "layout",
         "pages": [
             "page1",
-            "page2"
+            "page2",
+            "page3"
         ],
         "page1": {
             "type": "page",
@@ -21,6 +22,12 @@
             "sections": [
                 "section4"
             ]
+        },
+        "page3": {
+            "type": "custom",
+            "title": "About",
+            "file": "settings_about.py",
+            "widget": "AboutPage"
         },
         "section1": {
             "type": "section",

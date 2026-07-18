@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-07-18 13:09+0200\n"
+"POT-Creation-Date: 2026-07-18 18:06+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -106,7 +106,7 @@ msgid "Fair"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:428
-#: 5.4/appletPanelStatus.js:573
+#: 5.4/appletPanelStatus.js:592
 msgid "Weather: loading…"
 msgstr ""
 
@@ -294,12 +294,101 @@ msgstr ""
 msgid "Edit entry"
 msgstr ""
 
+#. 5.4->settings-schema.json->openstreetmap-attribution->description
+#: 5.4/settings_about.py:29
+msgid "© OpenStreetMap contributors"
+msgstr ""
+
+#: 5.4/settings_about.py:37
+msgid "Primary place search and weather forecast service."
+msgstr ""
+
+#: 5.4/settings_about.py:44
+msgid ""
+"Fallback place search using OpenStreetMap data. Chronos does not download "
+"map tiles or other map assets."
+msgstr ""
+
+#: 5.4/settings_about.py:52
+msgid "First fallback weather service, using nearby METAR observations."
+msgstr ""
+
+#: 5.4/settings_about.py:58
+msgid "Final fallback weather forecast service."
+msgstr ""
+
+#: 5.4/settings_about.py:67
+msgid "Primary public-holiday service."
+msgstr ""
+
+#: 5.4/settings_about.py:73
+msgid "First fallback public-holiday service."
+msgstr ""
+
+#: 5.4/settings_about.py:79
+msgid "Final fallback public-holiday service."
+msgstr ""
+
+#: 5.4/settings_about.py:131
+msgid "Weather and location services"
+msgstr ""
+
+#: 5.4/settings_about.py:133
+msgid ""
+"Used only when weather is enabled. A place name is sent to a geocoder, then "
+"its coordinates are sent to a weather provider."
+msgstr ""
+
+#: 5.4/settings_about.py:139
+msgid "Holiday services"
+msgstr ""
+
+#: 5.4/settings_about.py:141
+msgid ""
+"Used only when holidays are enabled. The selected country, region, and "
+"requested year may be sent to these providers."
+msgstr ""
+
+#: 5.4/settings_about.py:148
+msgid "About Chronos"
+msgstr ""
+
+#: 5.4/settings_about.py:152
+#, python-format
+msgid "Version %s"
+msgstr ""
+
+#: 5.4/settings_about.py:154
+#, python-format
+msgid "License: %s"
+msgstr ""
+
+#: 5.4/settings_about.py:160
+msgid "Project website and source code"
+msgstr ""
+
+#: 5.4/settings_about.py:164
+msgid "Authors and credits"
+msgstr ""
+
 #. metadata.json->name
 msgid "Chronos Calendar"
 msgstr ""
 
 #. metadata.json->description
 msgid "Calendar with holidays, events, weather, and world clocks"
+msgstr ""
+
+#. metadata.json->contributors
+msgid "Geraldo Netto"
+msgstr ""
+
+#. metadata.json->contributors
+msgid "Claus Colloseus (ccprog)"
+msgstr ""
+
+#. metadata.json->contributors
+msgid "Simon Wiles (simonwiles)"
 msgstr ""
 
 #. 5.4->settings-schema.json->page1->title
@@ -309,6 +398,10 @@ msgstr ""
 #. 5.4->settings-schema.json->page2->title
 #. 5.4->settings-schema.json->worldclocks->description
 msgid "World Clocks"
+msgstr ""
+
+#. 5.4->settings-schema.json->page3->title
+msgid "About"
 msgstr ""
 
 #. 5.4->settings-schema.json->section1->title
@@ -408,10 +501,6 @@ msgid ""
 "of a reading. It is sent to a third-party geocoding service to find its "
 "coordinates, and then to a third-party forecast service, about every 30 "
 "minutes."
-msgstr ""
-
-#. 5.4->settings-schema.json->openstreetmap-attribution->description
-msgid "© OpenStreetMap contributors"
 msgstr ""
 
 #. 5.4->settings-schema.json->openstreetmap-attribution->tooltip

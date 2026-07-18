@@ -5,6 +5,7 @@
     "max-instances": -1,
     "version": "0.0.1",
     "license": "GPL-2.0-or-later",
+    "contributors": "Geraldo Netto, Claus Colloseus (ccprog), Simon Wiles (simonwiles)",
     "multiversion": true,
     "cinnamon-version": ["5.4"]
 }

@@ -287,11 +287,12 @@ class GtkLabel(GtkStub):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         GtkLabel.instances.append(self)
-        self.text = ""
+        self.text = kwargs.get("label", args[0] if args else "")
         # a real Gtk.Label does not wrap unless told to, and a dialog sized to
         # its content is as wide as its widest unwrapped line
         self.line_wrap = False
         self.max_width_chars = -1
+        self.selectable = False
 
     def set_xalign(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
@@ -302,8 +303,29 @@ class GtkLabel(GtkStub):
     def set_max_width_chars(self, chars):
         self.max_width_chars = chars
 
+    def set_selectable(self, selectable):
+        self.selectable = selectable
+
     def set_text(self, text):
         self.text = text
+
+
+class GtkLinkButton(GtkStub):
+    instances = []
+
+    def __init__(self, uri, label):
+        super().__init__()
+        self.uri = uri
+        self.label = label
+        self.halign = None
+        GtkLinkButton.instances.append(self)
+
+    @classmethod
+    def new_with_label(cls, uri, label):
+        return cls(uri, label)
+
+    def set_halign(self, alignment):
+        self.halign = alignment
 
 
 class GtkMessageDialog(GtkStub):
@@ -510,6 +532,26 @@ class SettingsWidget:
         self.tooltip = text
 
 
+class SettingsSection:
+    def __init__(self, title=None, subtitle=None):
+        self.title = title
+        self.subtitle = subtitle
+        self.rows = []
+
+    def add_row(self, row):
+        self.rows.append(row)
+
+
+class SettingsPage:
+    def __init__(self):
+        self.sections = []
+
+    def add_section(self, title=None, subtitle=None):
+        section = SettingsSection(title, subtitle)
+        self.sections.append(section)
+        return section
+
+
 class GtkComboBoxWithEntry:
     """Gtk.ComboBox.new_with_model_and_entry: a combo whose child is an entry."""
 
@@ -580,6 +622,7 @@ def install_stubs():
     settings_widgets.ComboBox = ComboBox
     settings_widgets.Entry = Entry
     settings_widgets.SettingsLabel = SettingsLabel
+    settings_widgets.SettingsPage = SettingsPage
     settings_widgets.SettingsWidget = SettingsWidget
     sys.modules["xapp"] = xapp
     sys.modules["xapp.SettingsWidgets"] = settings_widgets
@@ -602,7 +645,9 @@ def install_stubs():
         Separator=GtkStub,
         ListBox=GtkStub,
         SelectionMode=types.SimpleNamespace(NONE=0),
+        Align=types.SimpleNamespace(START=0),
         Label=GtkLabel,
+        LinkButton=GtkLinkButton,
         ListStore=GtkListStore,
         EntryCompletion=GtkEntryCompletion,
         ComboBox=GtkComboBoxWithEntry,
@@ -692,7 +737,8 @@ __all__ = [
     "APPLET_DIR", "COMMON_PATH", "RESERVED_TIMEZONES", "requires_pytz",
     "BindObject", "GtkEntryCompletion", "GtkDialog", "GtkMessageDialog",
     "GtkLabel", "BaseWidget", "ComboBox", "Entry", "Model", "DialogSettings",
-    "FakeSettings", "GLibError", "GLibStub", "GtkStub", "FIXED_LOCAL_TIMEZONE",
+    "FakeSettings", "GLibError", "GLibStub", "GtkStub",
+    "GtkLinkButton", "FIXED_LOCAL_TIMEZONE",
     "load_module", "install_stubs", "tearDownModule", "FUZZ_SEED",
     "unittest", "types", "json", "random", "re", "sys", "importlib", "Path",
     "_pytz"
