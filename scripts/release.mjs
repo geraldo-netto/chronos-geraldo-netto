@@ -3,13 +3,15 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-import { mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { link, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const UUID = "chronos@geraldo-netto";
 const REPOSITORY = "https://github.com/geraldo-netto/cinnamon-chronos";
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const LOCK_FILE = ".chronos-release-lock";
 const TRANSACTION_DIR = ".chronos-release-transaction";
 const TRANSACTION_MANIFEST = "manifest.json";
 const RELEASE_TARGETS = [
@@ -18,6 +20,77 @@ const RELEASE_TARGETS = [
     `files/${UUID}/metadata.json`,
     "CHANGELOG.md"
 ];
+
+function processIsAlive(pid) {
+    try {
+        process.kill(pid, 0);
+        return true;
+    } catch (error) {
+        return !error || error.code !== "ESRCH";
+    }
+}
+
+async function retireStaleLock(lockPath) {
+    const owner = JSON.parse(await readFile(lockPath, "utf8"));
+    if (!Number.isInteger(owner.pid) || owner.pid <= 0) {
+        throw new Error("release lock has an invalid owner");
+    }
+    if (processIsAlive(owner.pid)) {
+        throw new Error(`another release command is running as process ${owner.pid}`);
+    }
+
+    const retired = `${lockPath}.stale-${randomUUID()}`;
+    try {
+        await rename(lockPath, retired);
+    } catch (error) {
+        if (error && error.code === "ENOENT") {
+            return;
+        }
+        throw error;
+    }
+    await rm(retired, { force: true });
+}
+
+async function acquireReleaseLock(root) {
+    const lockPath = path.join(root, LOCK_FILE);
+    const candidate = path.join(root, `${LOCK_FILE}-${process.pid}-${randomUUID()}`);
+    await writeFile(candidate, JSON.stringify({ pid: process.pid }), { flag: "wx" });
+    try {
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                await link(candidate, lockPath);
+                return lockPath;
+            } catch (error) {
+                if (!error || error.code !== "EEXIST") {
+                    throw error;
+                }
+                await retireStaleLock(lockPath);
+            }
+        }
+        throw new Error("could not acquire the release lock after concurrent recovery");
+    } finally {
+        await rm(candidate, { force: true });
+    }
+}
+
+async function cleanupReleaseStaging(root) {
+    const entries = await readdir(root, { withFileTypes: true });
+    for (const entry of entries) {
+        if (entry.isDirectory() && entry.name.startsWith(`${TRANSACTION_DIR}-`)) {
+            await rm(path.join(root, entry.name), { recursive: true, force: true });
+        }
+    }
+}
+
+async function withReleaseLock(root, action) {
+    const lockPath = await acquireReleaseLock(root);
+    try {
+        await cleanupReleaseStaging(root);
+        return await action();
+    } finally {
+        await rm(lockPath, { force: true });
+    }
+}
 
 function parseVersion(version) {
     const match = VERSION_PATTERN.exec(version);
@@ -177,13 +250,14 @@ function validateReleaseFiles(files, tag) {
 }
 
 export async function checkRelease(projectRoot, tag) {
-    const files = await readReleaseFiles(path.resolve(projectRoot));
-    return validateReleaseFiles(files, tag);
+    const root = path.resolve(projectRoot);
+    return withReleaseLock(root, async () => {
+        const files = await readReleaseFiles(root);
+        return validateReleaseFiles(files, tag);
+    });
 }
 
-export async function bumpRelease(projectRoot, nextVersion, options = {}) {
-    parseVersion(nextVersion);
-    const root = path.resolve(projectRoot);
+async function bumpReleaseLocked(root, nextVersion, options) {
     const files = await readReleaseFiles(root);
     const currentVersion = validateReleaseFiles(files);
     if (compareVersions(nextVersion, currentVersion) <= 0) {
@@ -242,6 +316,12 @@ export async function bumpRelease(projectRoot, nextVersion, options = {}) {
     });
 
     return nextVersion;
+}
+
+export async function bumpRelease(projectRoot, nextVersion, options = {}) {
+    parseVersion(nextVersion);
+    const root = path.resolve(projectRoot);
+    return withReleaseLock(root, () => bumpReleaseLocked(root, nextVersion, options));
 }
 
 const scriptPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";

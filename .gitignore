@@ -164,6 +164,10 @@ venv/
 # Coverage reports emitted by the test helpers
 coverage.json
 
+# Crash-recovery state for the release transaction
+.chronos-release-lock*
+.chronos-release-transaction*
+
 # Compiled gettext catalogs (generated at install time from po/*.po)
 *.mo
 

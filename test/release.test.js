@@ -219,6 +219,51 @@ test("a failed transaction publish removes its staging directory", async (t) => 
         []);
 });
 
+test("release startup removes staging left before journal publication", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const staging = path.join(root, ".chronos-release-transaction-abandoned");
+    await fs.mkdir(staging);
+    await fs.writeFile(path.join(staging, "manifest.json"), "incomplete");
+
+    assert.equal(await checkRelease(root), "0.0.1");
+    await assert.rejects(fs.access(staging));
+});
+
+test("release cleanup never crosses a live command lock", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const lock = path.join(root, ".chronos-release-lock");
+    const staging = path.join(root, ".chronos-release-transaction-active");
+    await fs.writeFile(lock, JSON.stringify({ pid: process.pid }));
+    await fs.mkdir(staging);
+
+    await assert.rejects(checkRelease(root),
+        new RegExp(`another release command is running as process ${process.pid}`));
+    await fs.access(staging);
+    await fs.rm(lock);
+
+    assert.equal(await checkRelease(root), "0.0.1");
+    await assert.rejects(fs.access(staging));
+});
+
+test("release startup retires dead locks and rejects corrupt owners", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const lock = path.join(root, ".chronos-release-lock");
+    await fs.writeFile(lock, JSON.stringify({ pid: 99_999_999 }));
+
+    assert.equal(await checkRelease(root), "0.0.1");
+    await assert.rejects(fs.access(lock));
+
+    await fs.writeFile(lock, JSON.stringify({ pid: "unknown" }));
+    await assert.rejects(checkRelease(root), /release lock has an invalid owner/);
+    await fs.access(lock);
+});
+
 test("an interrupted release transaction is completed before the next check", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease, checkRelease } = await import(releaseUrl);
