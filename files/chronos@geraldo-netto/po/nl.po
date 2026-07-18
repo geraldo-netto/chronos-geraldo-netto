@@ -1460,81 +1460,84 @@ msgstr "Tijdzone"
 
 #: 5.4/settings_about.py:37
 msgid "Primary place search and weather forecast service."
-msgstr "Primary place search and weather forecast service."
+msgstr "Primaire service voor het zoeken van plaatsen en weersverwachtingen."
 
 #: 5.4/settings_about.py:44
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
 msgstr ""
-"Fallback place search using OpenStreetMap data. Chronos does not download "
-"map tiles or other map assets."
+"Alternatieve plaatszoekservice met OpenStreetMap-gegevens. Chronos downloadt "
+"geen kaarttegels of andere kaartbronnen."
 
 #: 5.4/settings_about.py:52
 msgid "First fallback weather service, using nearby METAR observations."
-msgstr "First fallback weather service, using nearby METAR observations."
+msgstr ""
+"Eerste alternatieve weerservice, met nabijgelegen METAR-waarnemingen."
 
 #: 5.4/settings_about.py:58
 msgid "Final fallback weather forecast service."
-msgstr "Final fallback weather forecast service."
+msgstr "Laatste alternatieve weersverwachtingsservice."
 
 #: 5.4/settings_about.py:67
 msgid "Primary public-holiday service."
-msgstr "Primary public-holiday service."
+msgstr "Primaire feestdagenservice."
 
 #: 5.4/settings_about.py:73
 msgid "First fallback public-holiday service."
-msgstr "First fallback public-holiday service."
+msgstr "Eerste alternatieve feestdagenservice."
 
 #: 5.4/settings_about.py:79
 msgid "Final fallback public-holiday service."
-msgstr "Final fallback public-holiday service."
+msgstr "Laatste alternatieve feestdagenservice."
 
 #: 5.4/settings_about.py:131
 msgid "Weather and location services"
-msgstr "Weather and location services"
+msgstr "Weer- en locatieservices"
 
 #: 5.4/settings_about.py:133
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
 msgstr ""
-"Used only when weather is enabled. A place name is sent to a geocoder, then "
-"its coordinates are sent to a weather provider."
+"Wordt alleen gebruikt wanneer weer is ingeschakeld. Een plaatsnaam wordt "
+"naar een geocoder gestuurd, waarna de coördinaten naar een weeraanbieder "
+"worden gestuurd."
 
 #: 5.4/settings_about.py:139
 msgid "Holiday services"
-msgstr "Holiday services"
+msgstr "Feestdagenservices"
 
 #: 5.4/settings_about.py:141
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
 msgstr ""
-"Used only when holidays are enabled. The selected country, region, and "
-"requested year may be sent to these providers."
+"Wordt alleen gebruikt wanneer feestdagen zijn ingeschakeld. Het geselecteerde "
+"land, de regio en het gevraagde jaar kunnen naar deze aanbieders worden "
+"verzonden."
 
 #: 5.4/settings_about.py:148
 msgid "About Chronos"
-msgstr "About Chronos"
+msgstr "Over Chronos"
 
 #: 5.4/settings_about.py:152
 #, python-format
 msgid "Version %s"
-msgstr "Version %s"
+msgstr "Versie %s"
 
 #: 5.4/settings_about.py:154
 #, python-format
 msgid "License: %s"
-msgstr "License: %s"
+msgstr "Licentie: %s"
 
 #: 5.4/settings_about.py:160
 msgid "Project website and source code"
-msgstr "Project website and source code"
+msgstr "Projectwebsite en broncode"
 
 #: 5.4/settings_about.py:164
 msgid "Authors and credits"
-msgstr "Authors and credits"
+msgstr "Auteurs en dankbetuigingen"
 
 #. metadata.json->contributors
 msgid "Geraldo Netto"
@@ -1550,11 +1553,11 @@ msgstr "Simon Wiles (simonwiles)"
 
 #. 5.4->settings-schema.json->page3->title
 msgid "About"
-msgstr "About"
+msgstr "Over"
 
 #: 5.4/settings_about.py:137
 msgid "License: GPL 2.0 or later"
-msgstr "License: GPL 2.0 or later"
+msgstr "Licentie: GPL 2.0 of hoger"
 
 #~ msgid "%b %-e"
 #~ msgstr "%-e %b"

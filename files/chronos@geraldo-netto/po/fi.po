@@ -1460,81 +1460,82 @@ msgstr "Aikavyöhyke"
 
 #: 5.4/settings_about.py:37
 msgid "Primary place search and weather forecast service."
-msgstr "Primary place search and weather forecast service."
+msgstr "Ensisijainen paikkahaku- ja sääennustepalvelu."
 
 #: 5.4/settings_about.py:44
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
 msgstr ""
-"Fallback place search using OpenStreetMap data. Chronos does not download "
-"map tiles or other map assets."
+"Varapaikkahaku OpenStreetMap-tietojen avulla. Chronos ei lataa karttatiiliä "
+"tai muita karttaresursseja."
 
 #: 5.4/settings_about.py:52
 msgid "First fallback weather service, using nearby METAR observations."
-msgstr "First fallback weather service, using nearby METAR observations."
+msgstr ""
+"Ensimmäinen varasääpalvelu, joka käyttää lähellä tehtyjä METAR-havaintoja."
 
 #: 5.4/settings_about.py:58
 msgid "Final fallback weather forecast service."
-msgstr "Final fallback weather forecast service."
+msgstr "Viimeinen varasääennustepalvelu."
 
 #: 5.4/settings_about.py:67
 msgid "Primary public-holiday service."
-msgstr "Primary public-holiday service."
+msgstr "Ensisijainen arkipyhäpalvelu."
 
 #: 5.4/settings_about.py:73
 msgid "First fallback public-holiday service."
-msgstr "First fallback public-holiday service."
+msgstr "Ensimmäinen vara-arkipyhäpalvelu."
 
 #: 5.4/settings_about.py:79
 msgid "Final fallback public-holiday service."
-msgstr "Final fallback public-holiday service."
+msgstr "Viimeinen vara-arkipyhäpalvelu."
 
 #: 5.4/settings_about.py:131
 msgid "Weather and location services"
-msgstr "Weather and location services"
+msgstr "Sää- ja sijaintipalvelut"
 
 #: 5.4/settings_about.py:133
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
 msgstr ""
-"Used only when weather is enabled. A place name is sent to a geocoder, then "
-"its coordinates are sent to a weather provider."
+"Käytetään vain, kun sää on käytössä. Paikannimi lähetetään "
+"geokoodauspalvelulle, minkä jälkeen sen koordinaatit lähetetään sääpalvelulle."
 
 #: 5.4/settings_about.py:139
 msgid "Holiday services"
-msgstr "Holiday services"
+msgstr "Arkipyhäpalvelut"
 
 #: 5.4/settings_about.py:141
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
 msgstr ""
-"Used only when holidays are enabled. The selected country, region, and "
-"requested year may be sent to these providers."
+"Käytetään vain, kun arkipyhät ovat käytössä. Valittu maa, alue ja pyydetty "
+"vuosi voidaan lähettää näille palveluntarjoajille."
 
 #: 5.4/settings_about.py:148
 msgid "About Chronos"
-msgstr "About Chronos"
+msgstr "Tietoja Chronosista"
 
 #: 5.4/settings_about.py:152
 #, python-format
 msgid "Version %s"
-msgstr "Version %s"
+msgstr "Versio %s"
 
 #: 5.4/settings_about.py:154
 #, python-format
 msgid "License: %s"
-msgstr "License: %s"
+msgstr "Lisenssi: %s"
 
 #: 5.4/settings_about.py:160
 msgid "Project website and source code"
-msgstr "Project website and source code"
+msgstr "Projektin verkkosivusto ja lähdekoodi"
 
 #: 5.4/settings_about.py:164
 msgid "Authors and credits"
-msgstr "Authors and credits"
+msgstr "Tekijät ja kiitokset"
 
 #. metadata.json->contributors
 msgid "Geraldo Netto"
@@ -1550,11 +1551,11 @@ msgstr "Simon Wiles (simonwiles)"
 
 #. 5.4->settings-schema.json->page3->title
 msgid "About"
-msgstr "About"
+msgstr "Tietoja"
 
 #: 5.4/settings_about.py:137
 msgid "License: GPL 2.0 or later"
-msgstr "License: GPL 2.0 or later"
+msgstr "Lisenssi: GPL 2.0 tai uudempi"
 
 #~ msgid "%b %-e"
 #~ msgstr "%-e. %b"

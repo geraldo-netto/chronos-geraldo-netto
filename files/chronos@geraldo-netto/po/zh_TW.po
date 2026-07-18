@@ -1442,81 +1442,81 @@ msgstr "時區"
 
 #: 5.4/settings_about.py:37
 msgid "Primary place search and weather forecast service."
-msgstr "Primary place search and weather forecast service."
+msgstr "主要地點搜尋與天氣預報服務。"
 
 #: 5.4/settings_about.py:44
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
 msgstr ""
-"Fallback place search using OpenStreetMap data. Chronos does not download "
-"map tiles or other map assets."
+"使用 OpenStreetMap 資料的備用地點搜尋服務。Chronos 不會下載地圖圖磚或其他"
+"地圖資源。"
 
 #: 5.4/settings_about.py:52
 msgid "First fallback weather service, using nearby METAR observations."
-msgstr "First fallback weather service, using nearby METAR observations."
+msgstr "第一個備用天氣服務，使用附近的 METAR 觀測資料。"
 
 #: 5.4/settings_about.py:58
 msgid "Final fallback weather forecast service."
-msgstr "Final fallback weather forecast service."
+msgstr "最終備用天氣預報服務。"
 
 #: 5.4/settings_about.py:67
 msgid "Primary public-holiday service."
-msgstr "Primary public-holiday service."
+msgstr "主要國定假日服務。"
 
 #: 5.4/settings_about.py:73
 msgid "First fallback public-holiday service."
-msgstr "First fallback public-holiday service."
+msgstr "第一個備用國定假日服務。"
 
 #: 5.4/settings_about.py:79
 msgid "Final fallback public-holiday service."
-msgstr "Final fallback public-holiday service."
+msgstr "最終備用國定假日服務。"
 
 #: 5.4/settings_about.py:131
 msgid "Weather and location services"
-msgstr "Weather and location services"
+msgstr "天氣與位置服務"
 
 #: 5.4/settings_about.py:133
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
 msgstr ""
-"Used only when weather is enabled. A place name is sent to a geocoder, then "
-"its coordinates are sent to a weather provider."
+"僅在啟用天氣功能時使用。地點名稱會傳送至地理編碼服務，接著其座標會傳送至"
+"天氣供應商。"
 
 #: 5.4/settings_about.py:139
 msgid "Holiday services"
-msgstr "Holiday services"
+msgstr "國定假日服務"
 
 #: 5.4/settings_about.py:141
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
 msgstr ""
-"Used only when holidays are enabled. The selected country, region, and "
-"requested year may be sent to these providers."
+"僅在啟用國定假日時使用。所選國家、地區與要求的年份可能會傳送至這些供應"
+"商。"
 
 #: 5.4/settings_about.py:148
 msgid "About Chronos"
-msgstr "About Chronos"
+msgstr "關於 Chronos"
 
 #: 5.4/settings_about.py:152
 #, python-format
 msgid "Version %s"
-msgstr "Version %s"
+msgstr "版本 %s"
 
 #: 5.4/settings_about.py:154
 #, python-format
 msgid "License: %s"
-msgstr "License: %s"
+msgstr "授權條款：%s"
 
 #: 5.4/settings_about.py:160
 msgid "Project website and source code"
-msgstr "Project website and source code"
+msgstr "專案網站與原始碼"
 
 #: 5.4/settings_about.py:164
 msgid "Authors and credits"
-msgstr "Authors and credits"
+msgstr "作者與致謝"
 
 #. metadata.json->contributors
 msgid "Geraldo Netto"
@@ -1532,11 +1532,11 @@ msgstr "Simon Wiles (simonwiles)"
 
 #. 5.4->settings-schema.json->page3->title
 msgid "About"
-msgstr "About"
+msgstr "關於"
 
 #: 5.4/settings_about.py:137
 msgid "License: GPL 2.0 or later"
-msgstr "License: GPL 2.0 or later"
+msgstr "授權條款：GPL 2.0 或更新版本"
 
 #~ msgid "%b %-e"
 #~ msgstr "%-m月%-e日"

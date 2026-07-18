@@ -23,6 +23,15 @@ function potWith(dateStamp, extraEntry = "") {
         extraEntry;
 }
 
+function catalogWith(msgid, msgstr) {
+    return 'msgid ""\n' +
+        'msgstr ""\n' +
+        '"Content-Type: text/plain; charset=UTF-8\\n"\n' +
+        "\n" +
+        `msgid ${JSON.stringify(msgid)}\n` +
+        `msgstr ${JSON.stringify(msgstr)}\n`;
+}
+
 // A project tree whose po/makepot is a stub that "regenerates" a fixed pot, so
 // the composed copy-regenerate-compare flow runs for real without Cinnamon's
 // extraction tooling; no .po catalogs keeps gettext out of it too.
@@ -96,6 +105,38 @@ test("the catalog gate accepts a catalog msgcmp finds complete", async () => {
 
     await assert.doesNotReject(
         checkCatalogCurrent("/catalogs/de.po", "/catalogs/chronos.pot", async () => ({})));
+});
+
+test("the composed catalog gate rejects a source sentence copied by every locale", async (t) => {
+    const root = await makeFixtureProject(t,
+        potWith("2026-07-01 00:00+0000"),
+        potWith("2026-07-18 00:00+0000"));
+    const poDir = path.join(root, "files", UUID, "po");
+    const sentence = "This sentence was copied from the source.";
+    await Promise.all(["de.po", "fr.po"].map((name) =>
+        fs.writeFile(path.join(poDir, name), catalogWith(sentence, sentence))));
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkI18n } = await import(scriptUrl);
+    const run = async (command) => command === "msgattrib" ? { stdout: "" } : {};
+
+    await assert.rejects(
+        checkI18n(root, run),
+        /every catalog copies these source messages verbatim.*This sentence/s
+    );
+});
+
+test("the source-copy gate allows names and locale-specific invariants", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { unexpectedCommonSourceCopies } = await import(scriptUrl);
+    const german = catalogWith("Chronos Calendar", "Chronos Calendar") +
+        "\n" + catalogWith("Version %s", "Version %s");
+    const french = catalogWith("Chronos Calendar", "Chronos Calendar") +
+        "\n" + catalogWith("Version %s", "Version %s");
+    const italian = catalogWith("Chronos Calendar", "Chronos Calendar") +
+        "\n" + catalogWith("Version %s", "Versione %s");
+
+    assert.deepEqual(unexpectedCommonSourceCopies([]), []);
+    assert.deepEqual(unexpectedCommonSourceCopies([german, french, italian]), []);
 });
 
 // The freshness check is the repo's one fail-open gate: a bug that makes the

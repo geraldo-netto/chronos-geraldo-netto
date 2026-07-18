@@ -1466,81 +1466,84 @@ msgstr "Zona horaria"
 
 #: 5.4/settings_about.py:37
 msgid "Primary place search and weather forecast service."
-msgstr "Primary place search and weather forecast service."
+msgstr "Servicio principal de búsqueda de lugares y previsión meteorológica."
 
 #: 5.4/settings_about.py:44
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
 msgstr ""
-"Fallback place search using OpenStreetMap data. Chronos does not download "
-"map tiles or other map assets."
+"Búsqueda alternativa de lugares mediante datos de OpenStreetMap. Chronos no "
+"descarga teselas de mapas ni otros recursos cartográficos."
 
 #: 5.4/settings_about.py:52
 msgid "First fallback weather service, using nearby METAR observations."
-msgstr "First fallback weather service, using nearby METAR observations."
+msgstr ""
+"Primer servicio meteorológico alternativo, que utiliza observaciones METAR "
+"cercanas."
 
 #: 5.4/settings_about.py:58
 msgid "Final fallback weather forecast service."
-msgstr "Final fallback weather forecast service."
+msgstr "Servicio final alternativo de previsión meteorológica."
 
 #: 5.4/settings_about.py:67
 msgid "Primary public-holiday service."
-msgstr "Primary public-holiday service."
+msgstr "Servicio principal de días festivos."
 
 #: 5.4/settings_about.py:73
 msgid "First fallback public-holiday service."
-msgstr "First fallback public-holiday service."
+msgstr "Primer servicio alternativo de días festivos."
 
 #: 5.4/settings_about.py:79
 msgid "Final fallback public-holiday service."
-msgstr "Final fallback public-holiday service."
+msgstr "Servicio final alternativo de días festivos."
 
 #: 5.4/settings_about.py:131
 msgid "Weather and location services"
-msgstr "Weather and location services"
+msgstr "Servicios meteorológicos y de ubicación"
 
 #: 5.4/settings_about.py:133
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
 msgstr ""
-"Used only when weather is enabled. A place name is sent to a geocoder, then "
-"its coordinates are sent to a weather provider."
+"Solo se utilizan cuando el tiempo está activado. Se envía el nombre de un "
+"lugar a un geocodificador y, después, sus coordenadas a un proveedor "
+"meteorológico."
 
 #: 5.4/settings_about.py:139
 msgid "Holiday services"
-msgstr "Holiday services"
+msgstr "Servicios de días festivos"
 
 #: 5.4/settings_about.py:141
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
 msgstr ""
-"Used only when holidays are enabled. The selected country, region, and "
-"requested year may be sent to these providers."
+"Solo se utilizan cuando los días festivos están activados. El país, la "
+"región y el año solicitado seleccionados pueden enviarse a estos proveedores."
 
 #: 5.4/settings_about.py:148
 msgid "About Chronos"
-msgstr "About Chronos"
+msgstr "Acerca de Chronos"
 
 #: 5.4/settings_about.py:152
 #, python-format
 msgid "Version %s"
-msgstr "Version %s"
+msgstr "Versión %s"
 
 #: 5.4/settings_about.py:154
 #, python-format
 msgid "License: %s"
-msgstr "License: %s"
+msgstr "Licencia: %s"
 
 #: 5.4/settings_about.py:160
 msgid "Project website and source code"
-msgstr "Project website and source code"
+msgstr "Sitio web y código fuente del proyecto"
 
 #: 5.4/settings_about.py:164
 msgid "Authors and credits"
-msgstr "Authors and credits"
+msgstr "Autores y créditos"
 
 #. metadata.json->contributors
 msgid "Geraldo Netto"
@@ -1556,11 +1559,11 @@ msgstr "Simon Wiles (simonwiles)"
 
 #. 5.4->settings-schema.json->page3->title
 msgid "About"
-msgstr "About"
+msgstr "Acerca de"
 
 #: 5.4/settings_about.py:137
 msgid "License: GPL 2.0 or later"
-msgstr "License: GPL 2.0 or later"
+msgstr "Licencia: GPL 2.0 o posterior"
 
 #~ msgid "%b %-e"
 #~ msgstr "%-e %b"

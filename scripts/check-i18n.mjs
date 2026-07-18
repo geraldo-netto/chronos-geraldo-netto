@@ -12,6 +12,74 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const UUID = "chronos@geraldo-netto";
+const SOURCE_COPY_ALLOWLIST = new Set([
+    "%s — %s",
+    "Chronos Calendar",
+    "Claus Colloseus (ccprog)",
+    "Geraldo Netto",
+    "Simon Wiles (simonwiles)"
+]);
+
+function poField(block, name) {
+    const lines = block.split("\n");
+    const start = lines.findIndex((line) => line.startsWith(`${name} "`));
+    if (start < 0) {
+        return null;
+    }
+
+    const fragments = [lines[start].slice(name.length + 1)];
+    for (let index = start + 1; index < lines.length && lines[index].startsWith("\""); index++) {
+        fragments.push(lines[index]);
+    }
+    return fragments.map((fragment) => JSON.parse(fragment)).join("");
+}
+
+function sourceCopies(catalog) {
+    const copies = new Set();
+    for (const block of catalog.split(/\n{2,}/)) {
+        if (/^#,.*\bfuzzy\b/m.test(block)) {
+            continue;
+        }
+
+        const msgid = poField(block, "msgid");
+        const msgstr = poField(block, "msgstr");
+        if (msgid && msgstr === msgid) {
+            copies.add(msgid);
+        }
+    }
+    return copies;
+}
+
+export function unexpectedCommonSourceCopies(catalogs) {
+    if (catalogs.length === 0) {
+        return [];
+    }
+
+    const common = sourceCopies(catalogs[0]);
+    for (const catalog of catalogs.slice(1)) {
+        const copies = sourceCopies(catalog);
+        for (const msgid of common) {
+            if (!copies.has(msgid)) {
+                common.delete(msgid);
+            }
+        }
+    }
+
+    return Array.from(common)
+        .filter((msgid) => !SOURCE_COPY_ALLOWLIST.has(msgid))
+        .sort();
+}
+
+export async function checkCatalogSourceCopies(catalogPaths, read = readFile) {
+    const catalogs = await Promise.all(
+        catalogPaths.map((catalogPath) => read(catalogPath, "utf8")));
+    const copied = unexpectedCommonSourceCopies(catalogs);
+    if (copied.length > 0) {
+        throw new Error(
+            "every catalog copies these source messages verbatim:\n  " +
+            copied.join("\n  "));
+    }
+}
 
 export function withoutCreationDate(pot) {
     return pot.replace(
@@ -53,10 +121,12 @@ export async function checkI18n(projectRoot, run = execFileAsync) {
     const catalogs = (await readdir(poDir))
         .filter((name) => name.endsWith(".po"))
         .sort();
+    const catalogPaths = catalogs.map((name) => path.join(poDir, name));
 
-    await Promise.all(catalogs.map((name) => validateCatalog(path.join(poDir, name), run)));
-    await Promise.all(catalogs.map((name) =>
-        checkCatalogCurrent(path.join(poDir, name), path.join(poDir, potName), run)));
+    await Promise.all(catalogPaths.map((catalogPath) => validateCatalog(catalogPath, run)));
+    await Promise.all(catalogPaths.map((catalogPath) =>
+        checkCatalogCurrent(catalogPath, path.join(poDir, potName), run)));
+    await checkCatalogSourceCopies(catalogPaths);
 
     const temporary = await mkdtemp(path.join(os.tmpdir(), "chronos-i18n-"));
     try {
