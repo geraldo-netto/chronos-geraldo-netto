@@ -1138,6 +1138,13 @@ class Calendar {
         this._queue_update();
     }
 
+    // Local midnight passed: the data is unchanged but the "today" highlight is
+    // a day behind. render() recomputes today on every pass, so a queued update
+    // is the whole move.
+    refreshToday() {
+        this._queue_update();
+    }
+
     // Sets the calendar to show a specific date
     setDate(date, forceReload) {
         this._navigation.setDate(date, forceReload);

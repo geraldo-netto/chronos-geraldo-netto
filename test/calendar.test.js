@@ -1747,8 +1747,9 @@ test("calendar wrappers cover scroll, style, holiday refresh, and selected-date 
     let queued = 0;
     cal._queue_update = () => queued++;
     cal.refreshHolidays();
+    cal.refreshToday();
     cal._update_events_enabled();
-    assert.equal(queued, 2);
+    assert.equal(queued, 3);
     assert.equal(cal.events_enabled, true);
 
     cal._selectedDate = new Date();

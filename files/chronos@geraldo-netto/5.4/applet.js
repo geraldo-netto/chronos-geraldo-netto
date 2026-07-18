@@ -77,6 +77,10 @@ function createPanelPort(applet) {
         getClockEntries: () => applet._worldclocks.getClockEntries(),
         todaySelected: () => applet._calendar.todaySelected(),
         selectEventsDate: () => applet.events_manager.select_date(applet._calendar.getSelectedDate()),
+        dayChanged: () => {
+            applet._calendar.refreshToday();
+            applet.events_manager.queue_reload_today(false);
+        },
         homeButton: () => applet.go_home_button,
         focusSelectedDay: () => applet._calendar && applet._calendar.focusSelectedDay &&
             applet._calendar.focusSelectedDay()

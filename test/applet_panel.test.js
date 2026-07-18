@@ -150,16 +150,23 @@ test("the home button leaves an unfocused calendar alone", () => {
 });
 
 // T27a/T27b: day-of-year cache
+// T534 regression: the key rollover is the applet's only time-driven notion of
+// "the day changed" — it refreshed the header labels while the 42-cell grid and
+// the events list kept yesterday as today until something else repainted them.
 test("getFormattedToday caches by day and invalidates at rollover", () => {
     let formats = 0;
+    const rolled = [];
     const stub = {
-        clock: clockStub({ get_clock_for_format: (fmt) => (formats++, "v:" + fmt) })
+        clock: clockStub({ get_clock_for_format: (fmt) => (formats++, "v:" + fmt) }),
+        _calendar: { refreshToday: () => rolled.push("grid") },
+        events_manager: { queue_reload_today: (force) => rolled.push(["events", force]) }
     };
     const presenter = panelStatus(stub);
 
     const first = presenter.getFormattedToday();
     assert.equal(formats, 3, "three formats computed once");
     assert.equal(first.full, ("v:" + DateFormats.DATE_FORMAT_FULL).capitalize());
+    assert.deepEqual(rolled, [], "the first render of the day is not a day change");
 
     const second = presenter.getFormattedToday();
     assert.equal(second, first, "same day: cache hit");
@@ -170,6 +177,8 @@ test("getFormattedToday caches by day and invalidates at rollover", () => {
     const third = presenter.getFormattedToday();
     assert.notEqual(third.key, "1999:1");
     assert.equal(formats, 6, "recomputed after day change");
+    assert.deepEqual(rolled, ["grid", ["events", false]],
+        "midnight repaints the grid's today and moves the events list with it");
 });
 
 // T27d: suffix building and ellipsizing
