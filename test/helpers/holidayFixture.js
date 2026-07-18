@@ -31,7 +31,6 @@ const OPENHOLIDAYS_STAMP = "Wed, 08 Jul 2026 08:00:00 GMT";
 
 const modulePath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidays.js");
 const ioUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "ioUtils.js");
-const localeUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "localeUtils.js");
 const holidayCachePath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayCache.js");
 const holidayConstantsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayConstants.js");
 const holidayRecordPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayRecord.js");
@@ -92,7 +91,6 @@ function cachePath(...parts) {
 function loadHolidays(options = {}) {
     delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(ioUtilsPath)];
-    delete require.cache[require.resolve(localeUtilsPath)];
     delete require.cache[require.resolve(holidayCachePath)];
     delete require.cache[require.resolve(holidayConstantsPath)];
     delete require.cache[require.resolve(holidayRecordPath)];
@@ -209,7 +207,7 @@ afterEach(() => {
 module.exports = {
     assert, test, vm, fs, os, path, makeRandom, makeSoup3, FIXED_YEAR,
     STAMP, NAGER_STAMP, OPENHOLIDAYS_STAMP,
-    modulePath, ioUtilsPath, localeUtilsPath, holidayCachePath, holidayConstantsPath,
+    modulePath, ioUtilsPath, holidayCachePath, holidayConstantsPath,
     holidayRecordPath, holidayServiceAdaptersPath, shimPath,
     loadCountry, loadJson, cachePath, loadHolidays, holiday, anyRecord
 };

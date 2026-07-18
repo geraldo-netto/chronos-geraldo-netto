@@ -12,7 +12,6 @@ const providersPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo
 const serviceAdaptersPath = path.join(
     __dirname, "..", "..", "files", "chronos@geraldo-netto", "weatherServiceAdapters.js");
 const ioUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "ioUtils.js");
-const localeUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "localeUtils.js");
 const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "5.4", "weather.js");
 const schema52Path = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "5.4", "settings-schema.json");
 
@@ -51,7 +50,6 @@ function loadWeather(soupOverrides = {}) {
     // weather delegates its HTTP path to ioUtils; reload it so it captures
     // this call's Soup mock instead of a previous test's
     delete require.cache[require.resolve(ioUtilsPath)];
-    delete require.cache[require.resolve(localeUtilsPath)];
 
     const soup = Object.assign(makeSoup3({ data: "{}" }), soupOverrides);
 
@@ -105,6 +103,6 @@ afterEach(() => {
 module.exports = {
     assert, test, vm, fs, path, makeRandom, makeSoup3,
     modulePath, schedulerPath, providersPath, serviceAdaptersPath, ioUtilsPath,
-    localeUtilsPath, shimPath, schema52Path,
+    shimPath, schema52Path,
     shown, immediateNominatimQueue, loadWeather
 };

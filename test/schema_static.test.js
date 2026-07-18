@@ -409,7 +409,7 @@ test("the documented install compiles the catalogs the applet reads", () => {
     assert.doesNotMatch(readme, /which Cinnamon builds from `po\/\*\.po`/,
         "Cinnamon does not build them, and saying so is what hid this");
 
-    // it must land where the applet looks: localeUtils binds the textdomain to
+    // it must land where the applet looks: localeText binds the textdomain to
     // ~/.local/share/locale for a per-user install, and that is where
     // cinnamon-xlet-makepot -i writes
     const localeText = fs.readFileSync(path.join(appletDir, "localeText.js"), "utf8");

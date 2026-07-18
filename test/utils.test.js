@@ -6,13 +6,18 @@ const path = require("node:path");
 const { makeRandom } = require("./helpers/prng");
 const { makeSoup3 } = require("./helpers/soup");
 
-const localeModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeUtils.js");
-// localeUtils is a barrel over these three: the gettext runtime, the `locale -k`
-// state machine and the strftime constants. The state machine's caches, timers
-// and consumer count are module-global by design, so a reload has to drop all of
-// them or a test inherits the last one's locale.
-const localePartPaths = ["localeText.js", "localeQuery.js", "dateFormats.js"].map(
-    (part) => path.join(__dirname, "..", "files", "chronos@geraldo-netto", part));
+const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
+const localeTextModulePath = path.join(appletDir, "localeText.js");
+const localeQueryModulePath = path.join(appletDir, "localeQuery.js");
+const dateFormatsModulePath = path.join(appletDir, "dateFormats.js");
+// The locale state machine's caches, timers and consumer count are module-global
+// by design, so a reload has to drop all three collaborating modules or a test
+// inherits the last one's locale and translated date formats.
+const localePartPaths = [
+    localeTextModulePath,
+    localeQueryModulePath,
+    dateFormatsModulePath
+];
 const ioModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const styleModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "styleUtils.js");
 const providerModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "providerUtils.js");
@@ -24,7 +29,6 @@ let originalLog;
 let originalLogError;
 
 function loadUtils(options = "") {
-    delete require.cache[require.resolve(localeModulePath)];
     for (const part of localePartPaths) {
         delete require.cache[require.resolve(part)];
     }
@@ -141,15 +145,21 @@ function loadUtils(options = "") {
     return Object.assign(
         {},
         require(textModulePath),
-        require(localeModulePath),
+        require(localeTextModulePath),
+        require(localeQueryModulePath),
+        require(dateFormatsModulePath),
         require(ioModulePath),
         require(styleModulePath),
         require(providerModulePath));
 }
 
-function loadLocaleUtils(options = "") {
+function loadLocaleModules(options = "") {
     loadUtils(options);
-    return require(localeModulePath);
+    return Object.assign(
+        {},
+        require(localeTextModulePath),
+        require(localeQueryModulePath),
+        require(dateFormatsModulePath));
 }
 
 function loadIoUtils(options = "") {
@@ -247,7 +257,7 @@ test("the locale output is parsed from communicate_utf8 text", () => {
     const payload = 'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\nfirst_workday=1\n';
     const expected = { abday: "Dom;Seg;Ter;Qua;Qui;Sex;Sáb", first_workday: 1 };
 
-    const utils = loadLocaleUtils({ spawnOutput: payload });
+    const utils = loadLocaleModules({ spawnOutput: payload });
     assert.deepEqual(localeInfo(utils, "LC_TIME"), expected);
 });
 
@@ -287,15 +297,12 @@ test("a locale query that never answers is abandoned instead of hanging", () => 
         }
     };
 
-    delete require.cache[require.resolve(localeModulePath)];
-    for (const part of localePartPaths) {
-        delete require.cache[require.resolve(part)];
-    }
-    const localeUtils = require(localeModulePath);
+    delete require.cache[require.resolve(localeQueryModulePath)];
+    const localeQuery = require(localeQueryModulePath);
 
     const heard = [];
-    localeUtils.onLocaleInfoChanged("LC_TIME", () => heard.push(true));
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => heard.push(true));
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
 
     assert.deepEqual(heard, [], "the hung query tells nobody anything");
     assert.equal(timeouts.length, 1, "but a deadline is armed");
@@ -305,7 +312,7 @@ test("a locale query that never answers is abandoned instead of hanging", () => 
     assert.equal(reaped.length, 1, "the wedged locale process is killed, not just abandoned");
     assert.match(logged.at(-1), /did not answer/);
     assert.deepEqual(heard, [true], "whatever waits on the locale is finally told");
-    assert.equal(localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+    assert.equal(localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
         "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
         "and the applet falls back to the defaults rather than waiting forever");
 
@@ -331,7 +338,7 @@ test("a locale query that never answers is abandoned instead of hanging", () => 
     };
     retry.callback();
 
-    assert.equal(localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+    assert.equal(localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
         "Dom;Seg;Ter;Qua;Qui;Sex;Sáb",
         "the locale that answers a minute later is the locale the applet uses");
 });
@@ -362,14 +369,14 @@ test("a locale that never recovers is retried a few times and then left alone", 
         }
     };
 
-    delete require.cache[require.resolve(localeModulePath)];
-    const localeUtils = require(localeModulePath);
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    delete require.cache[require.resolve(localeQueryModulePath)];
+    const localeQuery = require(localeQueryModulePath);
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
 
     // fire every deadline and every retry the module arms, until it stops arming
     for (let i = 0; i < timeouts.length && i < 20; i++) {
         timeouts[i].callback();
-        localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+        localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
     }
 
     assert.equal(spawns.length, 3, "three attempts, then it stops asking");
@@ -407,12 +414,12 @@ test("a locale answer that arrives after the deadline is dropped", () => {
         }
     };
 
-    delete require.cache[require.resolve(localeModulePath)];
-    const localeUtils = require(localeModulePath);
+    delete require.cache[require.resolve(localeQueryModulePath)];
+    const localeQuery = require(localeQueryModulePath);
 
     const heard = [];
-    localeUtils.onLocaleInfoChanged("LC_TIME", () => heard.push(true));
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => heard.push(true));
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
 
     // the deadline fires first: the defaults are stored
     timeouts[0].callback();
@@ -422,7 +429,7 @@ test("a locale answer that arrives after the deadline is dropped", () => {
     deferred();
 
     assert.equal(heard.length, 1, "the late answer does not wake everyone a second time");
-    assert.equal(localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+    assert.equal(localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
         "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
         "and it does not overwrite the answer already given");
 });
@@ -450,7 +457,7 @@ test("a failing locale query falls back to the defaults instead of throwing", ()
     global.logError = (message) => logged.push(String(message));
 
     // the response cannot be read
-    const broken = loadLocaleUtils({
+    const broken = loadLocaleModules({
         spawn() {
             throw new Error("locale died");
         }
@@ -458,7 +465,7 @@ test("a failing locale query falls back to the defaults instead of throwing", ()
     assert.deepEqual(localeInfo(broken, "LC_ADDRESS"), { country_ab3: "usa", lang_ab: "en" });
 
     // the subprocess cannot even be spawned
-    const unspawnable = loadLocaleUtils({
+    const unspawnable = loadLocaleModules({
         spawnFails() {
             throw new Error("locale is not installed");
         }
@@ -472,13 +479,13 @@ test("a failing locale query falls back to the defaults instead of throwing", ()
 });
 
 test("an old Gio without Subprocess still yields the locale defaults", () => {
-    const utils = loadLocaleUtils({ noSubprocess: true });
+    const utils = loadLocaleModules({ noSubprocess: true });
 
     assert.deepEqual(localeInfo(utils, "LC_ADDRESS"), { country_ab3: "usa", lang_ab: "en" });
 });
 
 test("a locale query that answers with nothing falls back to the defaults", () => {
-    const utils = loadLocaleUtils({
+    const utils = loadLocaleModules({
         spawn() {
             return [false, null];
         }
@@ -491,7 +498,7 @@ test("a locale query that answers with nothing falls back to the defaults", () =
 });
 
 test("locale listeners are notified when the query lands, and can unsubscribe", () => {
-    const utils = loadLocaleUtils('first_workday=3\n');
+    const utils = loadLocaleModules('first_workday=3\n');
     let notified = 0;
     const unsubscribe = utils.onLocaleInfoChanged("LC_TIME", () => notified++);
 
@@ -501,7 +508,7 @@ test("locale listeners are notified when the query lands, and can unsubscribe", 
     assert.equal(notified, 1);
 
     unsubscribe();
-    loadLocaleUtils('first_workday=1\n');
+    loadLocaleModules('first_workday=1\n');
     assert.equal(notified, 1, "an unsubscribed listener stops hearing about it");
 });
 
@@ -972,7 +979,7 @@ afterEach(() => {
 });
 
 test("lazy locale values parse quoted strings and numeric locale values", () => {
-    const utils = loadLocaleUtils([
+    const utils = loadLocaleModules([
         'abday="Sun;Mon;Tue"',
         "first_workday=2",
         "malformed",
@@ -989,7 +996,7 @@ test("lazy locale values parse quoted strings and numeric locale values", () => 
 test("lazy locale values decode locale output through ByteArray when TextDecoder is absent", () => {
     const originalTextDecoder = global.TextDecoder;
     global.TextDecoder = undefined;
-    const Utils = loadLocaleUtils('country_ab3="ita"\nfirst_workday=1\n');
+    const Utils = loadLocaleModules('country_ab3="ita"\nfirst_workday=1\n');
     const info = localeInfo(Utils, "LC_TIME");
     global.TextDecoder = originalTextDecoder;
 
@@ -999,7 +1006,7 @@ test("lazy locale values decode locale output through ByteArray when TextDecoder
 
 test("lazy locale values cache locale values by category", () => {
     let calls = 0;
-    const utils = loadLocaleUtils({
+    const utils = loadLocaleModules({
         spawn(command) {
             calls++;
             if (command.endsWith("LC_ADDRESS")) {
@@ -1019,14 +1026,14 @@ test("lazy locale values cache locale values by category", () => {
 });
 
 test("lazy locale values return defaults for missing keys and spawn failures", () => {
-    const partial = loadLocaleUtils('country_ab3="FRA"\n');
+    const partial = loadLocaleModules('country_ab3="FRA"\n');
 
     assert.deepEqual(localeInfo(partial, "LC_ADDRESS"), {
         country_ab3: "FRA",
         lang_ab: "en"
     });
 
-    const failed = loadLocaleUtils({
+    const failed = loadLocaleModules({
         spawn() {
             return [false, Buffer.alloc(0), Buffer.from("locale missing"), 1];
         }
@@ -1043,7 +1050,7 @@ test("lazy locale values return defaults for missing keys and spawn failures", (
 });
 
 test("exports localized date format constants", () => {
-    const utils = loadLocaleUtils();
+    const utils = loadLocaleModules();
 
     assert.equal(utils.DAY_FORMAT, "localized:%A");
     assert.equal(utils.DATE_FORMAT_SHORT, "localized:%B %-e, %Y");
@@ -1051,7 +1058,7 @@ test("exports localized date format constants", () => {
 });
 
 test("translatePlural falls back without gettext plural support", () => {
-    const utils = loadLocaleUtils();
+    const utils = loadLocaleModules();
 
     assert.equal(utils.translatePlural("one", "many", 1), "one");
     assert.equal(utils.translatePlural("one", "many", 2), "many");
@@ -1060,7 +1067,7 @@ test("translatePlural falls back without gettext plural support", () => {
 test("lazy locale values fuzz mixed locale key/value payloads", () => {
     for (let round = 0; round < 20; round++) {
         const payload = randomLocalePayload(0x10ca1e + round * 997, 24);
-        const utils = loadLocaleUtils(payload.lines.join("\n"));
+        const utils = loadLocaleModules(payload.lines.join("\n"));
         const info = localeInfo(utils, "LC_ADDRESS");
 
         for (const [key, value] of Object.entries(payload.expected)) {
@@ -1212,11 +1219,10 @@ test("the translations are looked for where the applet is installed", () => {
                 appletMeta: { "chronos@geraldo-netto": { path: appletPath } }
             }
         };
-        delete require.cache[require.resolve(localeModulePath)];
         for (const part of localePartPaths) {
             delete require.cache[require.resolve(part)];
         }
-        require(localeModulePath);
+        require(localeTextModulePath);
         return domains[0];
     };
 
@@ -1241,31 +1247,31 @@ test("date formats prefer the applet's own gettext domain", () => {
         }
     };
     global.imports.gi.GLib.get_home_dir = () => "/home/test";
-    delete require.cache[require.resolve(localeModulePath)];
     for (const part of localePartPaths) {
         delete require.cache[require.resolve(part)];
     }
 
-    const localeUtils = require(localeModulePath);
+    const localeText = require(localeTextModulePath);
+    const dateFormats = require(dateFormatsModulePath);
 
     assert.deepEqual(domains, [{
         domain: "chronos@geraldo-netto",
         localeDir: "/home/test/.local/share/locale"
     }]);
     // translated in the UUID domain
-    assert.equal(localeUtils.DATE_FORMAT_SHORT, "localized:%-e. %B %Y");
+    assert.equal(dateFormats.DATE_FORMAT_SHORT, "localized:%-e. %B %Y");
     // Untranslated in our domain stays English — it never asks Cinnamon's.
     // That lookup matches on the English word rather than the meaning: "Fair"
     // is untranslated in all 15 of our catalogs, and Cinnamon's translates it
     // as a quality rating (de "Ausreichend", fr "Moyen", es "Normal"), so a
     // German user with weather on was told the sky was adequate.
-    assert.equal(localeUtils.DATE_FORMAT_FULL, "localized:%A, %B %-e, %Y");
-    assert.equal(localeUtils.translate("Fair"), "Fair");
-    assert.equal(localeUtils.translatePlural("%d event", "%d events", 2), "%d events");
+    assert.equal(dateFormats.DATE_FORMAT_FULL, "localized:%A, %B %-e, %Y");
+    assert.equal(localeText.translate("Fair"), "Fair");
+    assert.equal(localeText.translatePlural("%d event", "%d events", 2), "%d events");
 });
 
 test("month window offset reaches week start for every day and locale", () => {
-    const utils = loadLocaleUtils();
+    const utils = loadLocaleModules();
 
     // exhaustive: ISO day of month's first day (1=Mon..7=Sun) x locale
     // week start (0=Sun..6=Sat)
@@ -1400,15 +1406,15 @@ test("a provider with no name is logged by a stripped URL, or not at all", () =>
 });
 
 test("joinPhrases drops the parts that are not there", () => {
-    const localeUtils = loadLocaleUtils();
+    const localeText = loadLocaleModules();
 
-    assert.equal(localeUtils.joinPhrases(), "");
-    assert.equal(localeUtils.joinPhrases("", null, undefined), "",
+    assert.equal(localeText.joinPhrases(), "");
+    assert.equal(localeText.joinPhrases("", null, undefined), "",
         "an accessible name with nothing in it is not a separator on its own");
-    assert.equal(localeUtils.joinPhrases("Tokyo"), "Tokyo");
-    assert.equal(localeUtils.joinPhrases("Tokyo", "", "07:51"), "Tokyo — 07:51");
+    assert.equal(localeText.joinPhrases("Tokyo"), "Tokyo");
+    assert.equal(localeText.joinPhrases("Tokyo", "", "07:51"), "Tokyo — 07:51");
     // 0 is a value, not an absence
-    assert.equal(localeUtils.joinPhrases(0, "events"), "0 — events");
+    assert.equal(localeText.joinPhrases(0, "events"), "0 — events");
 });
 
 test("orderProvidersByLastSuccess prefers the last successful provider", () => {
@@ -1499,7 +1505,7 @@ test("fuzz: tryProvidersInOrder always terminates with success or exhaustion", (
 });
 
 test("lazyLocaleValue defers getInfo until first use and memoizes", () => {
-    const Utils = loadLocaleUtils();
+    const Utils = loadLocaleModules();
     let calls = 0;
     // exercise through a wrapped pick to observe evaluation timing
     const lazy = Utils.lazyLocaleValue("LC_TIME", (info) => {
@@ -1639,7 +1645,6 @@ function gjsImportsMock() {
             appletManager: {
                 applets: {
                     "chronos@geraldo-netto": {
-                        localeUtils: stub,
                         localeText: stub,
                         localeQuery: stub,
                         dateFormats: stub,
@@ -1654,30 +1659,27 @@ function gjsImportsMock() {
     };
 }
 
-// localeUtils is a barrel now — the gettext runtime, the `locale -k` state
-// machine and the strftime constants each have their own module — and a barrel is
-// nothing but its two loaders. Under Cinnamon it takes the GJS arm of every one
-// of them, which Node never runs: without this, half the file is a branch no test
-// has ever taken, in the module every other module reads its translator from.
-test("localeUtils re-exports its three parts under the GJS importer and under Node", () => {
+// Each locale module bridges the GJS importer and Node directly. Run both arms
+// so a symbol that is exported under Node but not declared at top level for GJS
+// cannot break only on a real desktop.
+test("the locale modules expose their APIs under the GJS importer and Node", () => {
     loadUtils();
-    const hosts = runInBothHosts(localeModulePath);
-
-    for (const symbol of Object.keys(hosts.node)) {
-        assert.notEqual(hosts.gjs[symbol], undefined,
-            `localeUtils.${symbol} is missing when loaded through imports.ui.appletManager`);
+    for (const [name, modulePath] of [
+        ["localeText", localeTextModulePath],
+        ["localeQuery", localeQueryModulePath],
+        ["dateFormats", dateFormatsModulePath]
+    ]) {
+        const hosts = runInBothHosts(modulePath);
+        for (const symbol of Object.keys(hosts.node)) {
+            assert.notEqual(hosts.gjs[symbol], undefined,
+                `${name}.${symbol} is missing through the GJS importer`);
+        }
     }
 
-    // one name from each part, so a dropped require cannot pass
-    assert.equal(typeof hosts.gjs.translate, "function", "from localeText");
-    assert.equal(typeof hosts.gjs.lazyLocaleValue, "function", "from localeQuery");
-    assert.equal(typeof hosts.gjs.monthWindowStartOffset, "function", "from dateFormats");
-
-    // and the parts themselves load under both hosts: dateFormats reaches the
+    // dateFormats reaches the
     // translator through the importer under Cinnamon and through require() here,
     // and the formats it builds are what every date in the applet is rendered with
-    const dates = runInBothHosts(path.join(
-        __dirname, "..", "files", "chronos@geraldo-netto", "dateFormats.js"));
+    const dates = runInBothHosts(dateFormatsModulePath);
     assert.equal(dates.gjs.MSECS_IN_DAY, 86400000);
     assert.equal(dates.gjs.monthWindowStartOffset(7, 0), 0, "Sunday, week starting Sunday");
     assert.equal(dates.node.monthWindowStartOffset(1, 0), 1, "Monday, week starting Sunday");
@@ -1783,21 +1785,21 @@ test("a %s inside a phrase is text, not a placeholder", () => {
 // provider's language, and nothing in the header depends on it — yet its arrival
 // tore the whole grid down.
 test("a locale listener hears about its own env and no other", () => {
-    const localeUtils = loadLocaleUtils("abday=\"Sun;Mon;Tue;Wed;Thu;Fri;Sat\"");
+    const localeQuery = loadLocaleModules("abday=\"Sun;Mon;Tue;Wed;Thu;Fri;Sat\"");
     const heard = { LC_TIME: 0, LC_ADDRESS: 0 };
 
-    localeUtils.onLocaleInfoChanged("LC_TIME", () => heard.LC_TIME++);
-    localeUtils.onLocaleInfoChanged("LC_ADDRESS", () => heard.LC_ADDRESS++);
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => heard.LC_TIME++);
+    localeQuery.onLocaleInfoChanged("LC_ADDRESS", () => heard.LC_ADDRESS++);
 
     // the holiday provider's language: LC_ADDRESS answers
-    localeUtils.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab)();
+    localeQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab)();
 
     assert.equal(heard.LC_ADDRESS, 1, "the listener that asked about it is told");
     assert.equal(heard.LC_TIME, 0,
         "and the grid is not rebuilt for an env nothing in it depends on");
 
     // ...and the one the header does depend on still lands
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
     assert.equal(heard.LC_TIME, 1);
 });
 
@@ -1808,7 +1810,7 @@ test("a locale listener hears about its own env and no other", () => {
 test("the locale query's timers can be reaped when the applet goes away", () => {
     const removed = [];
     const armed = [];
-    const localeUtils = loadLocaleUtils({
+    const localeQuery = loadLocaleModules({
         spawn: () => [false, new Uint8Array(0), new Uint8Array(0), 1]
     });
     global.imports.gi.GLib.timeout_add_seconds = (priority, seconds, callback) => {
@@ -1818,16 +1820,16 @@ test("the locale query's timers can be reaped when the applet goes away", () => 
     global.imports.gi.GLib.source_remove = (id) => removed.push(id);
 
     // asking for the locale arms the deadline; the query fails and arms the retry
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
     assert.ok(armed.length > 0, "the deadline is armed");
 
-    localeUtils.cancelPendingLocaleQueries();
+    localeQuery.cancelPendingLocaleQueries();
 
     assert.deepEqual(removed, armed.map((_unused, index) => index + 1),
         "every timer the locale query armed is removed");
 
     // ...and a second teardown is not an error
-    assert.doesNotThrow(() => localeUtils.cancelPendingLocaleQueries());
+    assert.doesNotThrow(() => localeQuery.cancelPendingLocaleQueries());
 });
 
 // A timer that has already fired is not there to remove, and Cinnamon may have
@@ -1838,7 +1840,7 @@ test("a timer that will not be removed does not strand the ones behind it", () =
     global.logError = (error) => errors.push(error);
 
     const removed = [];
-    const localeUtils = loadLocaleUtils({
+    const localeQuery = loadLocaleModules({
         spawn: () => [false, new Uint8Array(0), new Uint8Array(0), 1]
     });
     let armed = 0;
@@ -1850,10 +1852,10 @@ test("a timer that will not be removed does not strand the ones behind it", () =
         removed.push(id);
     };
 
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
     assert.ok(armed >= 2, "the deadline and the retry are both armed");
 
-    localeUtils.cancelPendingLocaleQueries();
+    localeQuery.cancelPendingLocaleQueries();
 
     assert.equal(errors.length, 1, "the one that would not go is reported");
     assert.deepEqual(removed, [2], "and the rest are still removed");
@@ -1862,14 +1864,14 @@ test("a timer that will not be removed does not strand the ones behind it", () =
 // The subprocess itself is still running when the applet goes away: the deadline
 // that would have cancelled it is gone too, so the teardown cancels it directly.
 test("the teardown cancels the locale subprocess still in flight", () => {
-    const localeUtils = loadLocaleUtils({ neverAnswers: true });
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    const localeQuery = loadLocaleModules({ neverAnswers: true });
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
 
     const cancellable = global.imports.gi.Gio.Cancellable.last;
     assert.ok(cancellable, "a query is in flight");
     assert.equal(cancellable.cancelled, false);
 
-    localeUtils.cancelPendingLocaleQueries();
+    localeQuery.cancelPendingLocaleQueries();
 
     assert.equal(cancellable.cancelled, true,
         "the subprocess is not left running after the applet is gone");
@@ -1879,23 +1881,23 @@ test("the teardown cancels the locale subprocess still in flight", () => {
 // teardown that cancelled it was neither: removing one of two calendar applets
 // cancelled the query the *other* one was still waiting on.
 test("removing one applet does not cancel the locale query another is waiting on", () => {
-    const localeUtils = loadLocaleUtils({ neverAnswers: true });
+    const localeQuery = loadLocaleModules({ neverAnswers: true });
 
     // two calendar applets on the panel
-    localeUtils.registerLocaleConsumer();
-    localeUtils.registerLocaleConsumer();
+    localeQuery.registerLocaleConsumer();
+    localeQuery.registerLocaleConsumer();
 
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
     const cancellable = global.imports.gi.Gio.Cancellable.last;
     assert.equal(cancellable.cancelled, false, "a query is in flight");
 
     // the user removes one of them
-    localeUtils.cancelPendingLocaleQueries();
+    localeQuery.cancelPendingLocaleQueries();
     assert.equal(cancellable.cancelled, false,
         "the applet that stayed is still waiting on this answer");
 
     // ...and when the last one goes, the query goes with it
-    localeUtils.cancelPendingLocaleQueries();
+    localeQuery.cancelPendingLocaleQueries();
     assert.equal(cancellable.cancelled, true);
 });
 
@@ -1906,14 +1908,14 @@ test("removing one applet does not cancel the locale query another is waiting on
 // the US work week for the rest of the session, with the retry ladder used up.
 test("a locale query we cancelled ourselves does not spend a retry attempt", () => {
     global.logError = () => {};
-    const localeUtils = loadLocaleUtils({ neverAnswers: true });
+    const localeQuery = loadLocaleModules({ neverAnswers: true });
     const Subprocess = global.imports.gi.Gio.Subprocess;
 
-    localeUtils.registerLocaleConsumer();
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.registerLocaleConsumer();
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
 
     const first = global.imports.gi.Gio.Cancellable.last;
-    localeUtils.cancelPendingLocaleQueries();
+    localeQuery.cancelPendingLocaleQueries();
     assert.equal(first.cancelled, true);
 
     // GJS calls back on the cancelled query; finish() raises, and that used to be
@@ -1921,7 +1923,7 @@ test("a locale query we cancelled ourselves does not spend a retry attempt", () 
     Subprocess.settle();
 
     // the next applet asks, and gets a fresh query rather than the defaults
-    localeUtils.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
 
     assert.notEqual(global.imports.gi.Gio.Cancellable.last, first,
         "the question is asked again, not written off as answered");

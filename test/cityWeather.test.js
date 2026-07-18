@@ -10,7 +10,6 @@ const weatherPath = path.join(APPLET_DIR, "weather.js");
 const schedulerPath = path.join(APPLET_DIR, "weatherScheduler.js");
 const providersPath = path.join(APPLET_DIR, "weatherProviders.js");
 const ioUtilsPath = path.join(APPLET_DIR, "ioUtils.js");
-const localeUtilsPath = path.join(APPLET_DIR, "localeUtils.js");
 
 // Seeded PRNG so fuzz failures reproduce; change FUZZ_SEED to explore
 const FUZZ_SEED = 20260712;
@@ -22,7 +21,7 @@ let soup;
 function loadCityWeather(soupOptions = {}) {
     // the HTTP path lives in ioUtils, which captures Soup at load time: reload
     // it so the default (uninjected) session speaks to this call's mock
-    [modulePath, weatherPath, schedulerPath, providersPath, ioUtilsPath, localeUtilsPath].forEach(
+    [modulePath, weatherPath, schedulerPath, providersPath, ioUtilsPath].forEach(
         (file) => delete require.cache[require.resolve(file)]);
 
     soup = makeSoup3(Object.assign({ data: "{}" }, soupOptions));

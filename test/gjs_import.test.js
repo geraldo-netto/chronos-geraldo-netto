@@ -102,27 +102,6 @@ function gjsImportsMock() {
                             DATE_FORMAT_FULL: "%A, %B %-e, %Y",
                             monthWindowStartOffset() {}
                         },
-                        localeUtils: {
-                            MSECS_IN_DAY: 86400000,
-                            DAY_FORMAT: "%A",
-                            DATE_FORMAT_SHORT: "%B %-e, %Y",
-                            DATE_FORMAT_FULL: "%A, %B %-e, %Y",
-                            translate(str) { return str; },
-                            translatePlural(s, p, n) { return n === 1 ? s : p; },
-                            getInfo() {
-                                return {
-                                    lang_ab: "en",
-                                    country_ab3: "usa",
-                                    abday: "Sun;Mon;Tue;Wed;Thu;Fri;Sat",
-                                    first_workday: 2
-                                };
-                            },
-                            monthWindowStartOffset() {},
-                            lazyLocaleValue() {},
-                            onLocaleInfoChanged() {},
-                            cancelPendingLocaleQueries() {},
-                            registerLocaleConsumer() {}
-                        },
                         ioUtils: {
                             createHttpSession() {},
                             decodeUtf8() {},
@@ -269,9 +248,6 @@ function nativeImport(moduleName) {
 }
 
 const EXPORTS = {
-    localeUtils: ["MSECS_IN_DAY", "DAY_FORMAT", "DATE_FORMAT_SHORT",
-        "DATE_FORMAT_FULL", "translate", "translatePlural", "monthWindowStartOffset",
-        "lazyLocaleValue", "onLocaleInfoChanged", "cancelPendingLocaleQueries", "registerLocaleConsumer"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
     textUtils: ["clampText", "TEXT_ELLIPSIS"],
@@ -364,7 +340,7 @@ test("the barrel carries its parts to Node, and nothing reads a part off it in G
     const originalImports = global.imports;
     global.imports = gjsImportsMock();
     for (const file of ["weather.js", "weatherScheduler.js", "weatherProviders.js", "weatherFormat.js",
-        "localeUtils.js", "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
+        "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
         delete require.cache[require.resolve(path.join(APPLET_DIR, file))];
     }
     const parts = ["weatherFormat", "weatherScheduler", "weatherProviders"]
