@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-07-18 18:35+0200\n"
+"POT-Creation-Date: 2026-07-18 18:44+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -329,44 +329,44 @@ msgstr ""
 msgid "Final fallback public-holiday service."
 msgstr ""
 
-#: 5.4/settings_about.py:125
+#: 5.4/settings_about.py:133
 #, python-format
 msgid "Version %s"
 msgstr ""
 
-#: 5.4/settings_about.py:131
+#: 5.4/settings_about.py:140
 msgid "Project website and source code"
 msgstr ""
 
-#: 5.4/settings_about.py:137
+#: 5.4/settings_about.py:141
 msgid "License: GPL 2.0 or later"
 msgstr ""
 
-#: 5.4/settings_about.py:172
+#: 5.4/settings_about.py:177
 msgid "Weather and location services"
 msgstr ""
 
-#: 5.4/settings_about.py:174
+#: 5.4/settings_about.py:179
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
 msgstr ""
 
-#: 5.4/settings_about.py:180
+#: 5.4/settings_about.py:185
 msgid "Holiday services"
 msgstr ""
 
-#: 5.4/settings_about.py:182
+#: 5.4/settings_about.py:187
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
 msgstr ""
 
-#: 5.4/settings_about.py:189
+#: 5.4/settings_about.py:194
 msgid "About Chronos"
 msgstr ""
 
-#: 5.4/settings_about.py:193
+#: 5.4/settings_about.py:198
 msgid "Authors and credits"
 msgstr ""
 

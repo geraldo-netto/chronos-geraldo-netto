@@ -104,7 +104,7 @@ def text_label(text):
 
 def content_row(*children):
     row = SettingsWidget()
-    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+    content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
     for child in children:
         content.pack_start(child, False, False, 0)
 
@@ -113,12 +113,20 @@ def content_row(*children):
     return row
 
 
+def horizontal_group(*children):
+    group = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+    for child in children:
+        group.pack_start(child, False, False, 0)
+
+    return group
+
+
 def identity_row(metadata):
     row = SettingsWidget()
-    content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=16)
+    content = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
     icon = Gtk.Image.new_from_file(str(APPLET_DIR / "icon.png"))
     icon.set_valign(Gtk.Align.START)
-    details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+    details = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
     identity = "\n".join(
         (
             "%s (%s)" % (_(metadata["name"]), metadata["uuid"]),
@@ -128,13 +136,10 @@ def identity_row(metadata):
     )
     details.pack_start(text_label(identity), False, False, 0)
     details.pack_start(
-        link_button(_("Project website and source code"), PROJECT_URL),
-        False,
-        False,
-        0,
-    )
-    details.pack_start(
-        link_button(_("License: GPL 2.0 or later"), LICENSE_URL),
+        horizontal_group(
+            link_button(_("Project website and source code"), PROJECT_URL),
+            link_button(_("License: GPL 2.0 or later"), LICENSE_URL),
+        ),
         False,
         False,
         0,
@@ -153,10 +158,10 @@ def link_button(label, uri):
 
 
 def service_row(name, uri, description, attribution):
-    children = [
-        link_button(name, uri),
-        text_label(description),
-    ]
+    summary = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+    summary.pack_start(link_button(name, uri), False, False, 0)
+    summary.pack_start(text_label("— %s" % description), True, True, 0)
+    children = [summary]
     if attribution:
         children.append(link_button(*attribution))
 
@@ -191,9 +196,11 @@ class AboutPage(SettingsPage):
         section.add_row(
             content_row(
                 text_label(_("Authors and credits")),
-                *(
-                    link_button(name, uri)
-                    for name, uri in CONTRIBUTOR_LINKS
+                horizontal_group(
+                    *(
+                        link_button(name, uri)
+                        for name, uri in CONTRIBUTOR_LINKS
+                    )
                 ),
             )
         )

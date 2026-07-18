@@ -108,6 +108,23 @@ class AboutPageTests(unittest.TestCase):
                 if isinstance(child, GtkLabel)
             ),
         )
+        identity_links = identity.children[1].children[1]
+        self.assertEqual(identity_links.kwargs["orientation"], 2)
+        self.assertEqual(
+            [child.label for child in identity_links.children],
+            [
+                "Project website and source code",
+                "License: GPL 2.0 or later",
+            ],
+        )
+        credits = page.sections[0].rows[1].content_widget
+        self.assertEqual(len(credits.children), 2)
+        contributor_links = credits.children[1]
+        self.assertEqual(contributor_links.kwargs["orientation"], 2)
+        self.assertEqual(
+            [child.label for child in contributor_links.children],
+            [name for name, _uri in self.module.CONTRIBUTOR_LINKS],
+        )
         self.assertEqual(
             [name for name, _uri in self.module.CONTRIBUTOR_LINKS],
             [
@@ -115,6 +132,20 @@ class AboutPageTests(unittest.TestCase):
                 for contributor in metadata["contributors"].split(",")
             ],
         )
+
+        for section, services in (
+            (page.sections[1], self.module.WEATHER_SERVICES),
+            (page.sections[2], self.module.HOLIDAY_SERVICES),
+        ):
+            for row, (name, _uri, description, attribution) in zip(
+                section.rows, services
+            ):
+                children = row.content_widget.children
+                summary = children[0]
+                self.assertEqual(summary.kwargs["orientation"], 2)
+                self.assertEqual(summary.children[0].label, name)
+                self.assertEqual(summary.children[1].text, "— %s" % description)
+                self.assertEqual(len(children), 2 if attribution else 1)
 
     def test_about_inventory_matches_the_live_service_adapters(self):
         weather = (APPLET_DIR / "weatherServiceAdapters.js").read_text()
