@@ -21,6 +21,9 @@ var TEXT_ELLIPSIS = "…";
 // ellipsis: "Rome …" reads as a broken word, "Rome…" as a truncated one.
 function clampText(text, maxLength) {
     const source = typeof text === "string" ? text : "";
+    if (source.length <= maxLength) {
+        return source;
+    }
     const chars = Array.from(source);
     if (chars.length <= maxLength) {
         return source;
