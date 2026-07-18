@@ -6,7 +6,7 @@ Audit ledger for this applet. Full-source rescan on 2026-07-16 against every `ag
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 2 (Critical 0, High 0, Medium 0, Low 2).
+Open items: 1 (Critical 0, High 0, Medium 0, Low 1).
 
 ## Findings
 
@@ -24,13 +24,11 @@ Open items: 2 (Critical 0, High 0, Medium 0, Low 2).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T522 | CI / supply chain | Low | open | S | **[verified]** Three hardening gaps in `.github/workflows/ci.yml`: no `permissions:` block anywhere (`grep -c permissions` → `0`), so `GITHUB_TOKEN` inherits the repo default, which on many repos is `contents: write` — and the job runs `npm ci` + `npm test`, i.e. repository and dependency code; `:32` installs pyflakes with `--upgrade` and no pin or hash, while the JS side is lockfile-pinned; `:16,20,25` pin `actions/checkout@v4`, `setup-node@v4`, `setup-python@v5` to mutable major tags. | Fork PRs are safe (GitHub forces a read-only token), which is what keeps this Low. Fix: `permissions: contents: read`, pin pyflakes, pin the actions to SHAs. |
 | T343 | packaging | Low | open | S | **[verified]** `calendar.png` is a tracked 48×48 orphan at the repo root; nothing references it (grep across js/json/md/py/css is empty) and it is not the icon (different md5 from `files/chronos@geraldo-netto/icon.png`). It would ship in a Spices submission as dead weight. | Inherited from `calendar@ccprog`. Fix: delete. |
 
 ## Suggested order
 
-1. **T522** — reduce and pin the CI supply-chain authority.
-2. **T343** — remove the orphaned root image.
+1. **T343** — remove the orphaned root image.
 
 ## Clean categories
 

@@ -342,6 +342,14 @@ test("CI runs the gates the README promises", () => {
         /name: chronos-spices-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}/;
 
     assert.match(workflow, /on:[\s\S]*push:[\s\S]*pull_request:/, "on push and on pull request");
+    // every job runs repository and dependency code; the token must not be
+    // able to write back, and a mutable action tag must not be able to move
+    assert.match(workflow, /^permissions:\n {2}contents: read$/m,
+        "the workflow token is read-only");
+    for (const uses of workflow.match(/uses: .*/g)) {
+        assert.match(uses, /@[0-9a-f]{40} # v\d/,
+            `${uses} must be pinned to a full commit SHA`);
+    }
     assert.match(workflow, /run: npm ci/);
     assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
     assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
@@ -353,13 +361,13 @@ test("CI runs the gates the README promises", () => {
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,
         "the exact tracked-file package is built in CI");
-    assert.match(packagingJob, /uses: actions\/upload-artifact@v4/);
+    assert.match(packagingJob, /uses: actions\/upload-artifact@[0-9a-f]{40} # v\d/);
     assert.match(packagingJob, artifactName, "the gated package is retained under its commit SHA");
     assert.match(packagingJob, /path: dist\/chronos@geraldo-netto\//);
     assert.match(workflow, /tags: \['v\*'\]/, "release tags trigger CI");
     assert.match(workflow, /release:[\s\S]*needs: packaging/,
         "a release tag is accepted only after gates and packaging");
-    assert.match(releaseJob, /uses: actions\/download-artifact@v4/);
+    assert.match(releaseJob, /uses: actions\/download-artifact@[0-9a-f]{40} # v\d/);
     assert.match(releaseJob, artifactName,
         "the release job consumes the package built by its dependency");
     assert.match(releaseJob, /path: dist\/chronos@geraldo-netto\//);
@@ -369,7 +377,8 @@ test("CI runs the gates the README promises", () => {
         "the tag must match every version owner and the changelog");
     // pyflakes is what lint:py runs, and lint:py now fails when it is missing:
     // a workflow that does not install it cannot pass
-    assert.match(workflow, /pip install .*pyflakes/);
+    assert.match(workflow, /pip install .*pyflakes==\d/,
+        "pinned: the JS side is lockfile-pinned, the Python side must be too");
 
     // and the script it runs is a gate, not a skip: it used to be
     // `if import pyflakes; then …; else echo skipping; fi` — exit 0 either way
@@ -382,7 +391,7 @@ test("CI runs the gates the README promises", () => {
 
     // sixteen timezone tests skipped themselves in CI because pytz was never
     // installed there, and neither the suite count nor a coverage number moved
-    assert.match(workflow, /pip install .*pytz/);
+    assert.match(workflow, /pip install .*pytz==\d/);
     assert.match(workflow, /CHRONOS_REQUIRE_PYTZ: "1"/, "and the skip is a failure there");
 });
 

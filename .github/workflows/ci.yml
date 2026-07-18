@@ -3,6 +3,12 @@ name: CI
 # The README says "a lint failure is a build failure" — this is the build that
 # makes that true. Nothing enforced eslint, pyflakes, either suite or either
 # coverage gate before: the green baseline was one maintainer's machine.
+
+# Every job runs repository and dependency code (npm ci, npm test); none of
+# them writes to the repo, so none of them gets a token that can.
+permissions:
+  contents: read
+
 on:
   push:
     branches: [develop, main]
@@ -18,16 +24,16 @@ jobs:
         node: [22]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       # Exercise the declared development runtime; node:test coverage behavior
       # is part of the gate.
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
           cache: npm
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: '3.12'
 
@@ -39,7 +45,7 @@ jobs:
       # install it: sixteen tests skipped themselves here and the coverage gate
       # printed byte-identical numbers, so the line that wires pytz into the
       # dialog was verified on a maintainer's laptop and nowhere else.
-      - run: python3 -m pip install --upgrade pyflakes pytz
+      - run: python3 -m pip install pyflakes==3.4.0 pytz==2026.2
 
       - run: npm ci
 
@@ -57,9 +63,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -78,7 +84,7 @@ jobs:
       # tag job and the maintainer both consume this artifact; neither rebuilds
       # release bytes from a potentially dirty local checkout.
       - name: Upload validated Spices package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: chronos-spices-${{ github.sha }}-${{ github.run_attempt }}
           path: dist/chronos@geraldo-netto/
@@ -90,9 +96,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -101,7 +107,7 @@ jobs:
       - run: npm run release:check -- "$GITHUB_REF_NAME"
 
       - name: Download validated Spices package
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: chronos-spices-${{ github.sha }}-${{ github.run_attempt }}
           path: dist/chronos@geraldo-netto/
