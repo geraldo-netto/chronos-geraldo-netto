@@ -294,7 +294,7 @@ const EXPORTS = {
         "countryFromIso2", "REGION_TO_SUBDIVISION"],
     worldclockData: ["MAX_CLOCKS", "LOCAL_TIMEZONE", "INVALID_TIMEZONE_TEXT",
         "LOCAL_TIME_TEXT", "timezoneFromIdentifier", "builtinClocks",
-        "timezoneIdentity", "timezoneCityName", "regionalTimezoneIdentifier",
+        "timezoneIdentity", "timezoneCityName", "timezoneWeatherCity", "regionalTimezoneIdentifier",
         "localTimezoneFromSources",
         "countryCodeFromZoneTab", "localCountryCode", "builtInTimezoneKeys"],
     eventData: ["js_date_to_gdatetime", "date_only", "month_year_only", "dt_equals",

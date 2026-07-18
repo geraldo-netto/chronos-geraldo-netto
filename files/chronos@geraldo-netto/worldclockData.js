@@ -113,6 +113,13 @@ function timezoneCityName(timezone) {
     return identifier.split("/").pop().replace(/_/g, " ").trim();
 }
 
+// Weather egress must use the runtime's resolved timezone, not the configured
+// text. The settings fallback can validate only an Area/City shape when no
+// timezone database is available; GLib is authoritative in the applet.
+function timezoneWeatherCity(timezone) {
+    return timezoneCityName(timezoneIdentity(timezoneFromIdentifier(timezone)));
+}
+
 // The city the machine's own timezone names, for a weather location nobody has
 // filled in. Nothing is asked of the network to find out where the user is: the
 // zone is already on disk, and it is the same answer the local clock row uses.
@@ -438,6 +445,7 @@ if (typeof module !== "undefined") {
         builtinClocks,
         timezoneIdentity,
         timezoneCityName,
+        timezoneWeatherCity,
         regionalTimezoneIdentifier,
         localTimezoneFromSources,
         timezoneAliasTarget,

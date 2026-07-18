@@ -54,7 +54,7 @@ class AppletWeatherCoordinator {
         const clocks = settings.showWorldclocks === false ? [] :
             WorldclockData.selectUserClocks(this.worldclocks()).map((clock) => ({
                 label: clock.label,
-                query: WorldclockData.timezoneCityName(clock.timezone)
+                query: WorldclockData.timezoneWeatherCity(clock.timezone)
             }));
         this.cityWeatherProvider.schedule({
             showWeather: settings.showWeather,

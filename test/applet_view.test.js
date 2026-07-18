@@ -68,6 +68,39 @@ test("city weather is asked about the timezone's city, not the clock's name", ()
     assert.doesNotThrow(() => Proto._scheduleCityWeatherRefresh.call(partial));
 });
 
+test("an invalid runtime timezone never reaches a weather geocoder", () => {
+    const original = global.imports.gi.GLib.TimeZone.new_identifier;
+    const requests = [];
+    global.imports.gi.GLib.TimeZone.new_identifier = (timezone) =>
+        timezone === "Company/Secret_Project" ? null : original(timezone);
+    const provider = new rootModules.cityWeather.CityWeatherProvider({
+        httpGetJson(url, callback) {
+            requests.push(url);
+            callback(null);
+        }
+    });
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: true,
+        show_worldclocks: true,
+        weather_units: "si",
+        worldclocks: [{ label: "Private", timezone: "Company/Secret_Project" }],
+        _cityWeatherProvider: provider,
+        _updateClockAndDate() {}
+    });
+
+    try {
+        Proto._scheduleCityWeatherRefresh.call(stub);
+        assert.deepEqual(requests, [], "neither configured geocoder receives the invalid text");
+        assert.deepEqual(provider._cities({
+            cities: [{ label: "Private", query: rootModules.worldclockData.timezoneWeatherCity(
+                "Company/Secret_Project") }]
+        }), []);
+    } finally {
+        provider.destroy();
+        global.imports.gi.GLib.TimeZone.new_identifier = original;
+    }
+});
+
 test("city weather readings and provider name come from the city provider", () => {
     const stub = Object.assign(Object.create(Proto), {
         _cityWeatherProvider: {

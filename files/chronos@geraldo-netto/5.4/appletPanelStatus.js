@@ -442,7 +442,7 @@ class AppletPanelStatusPresenter {
         // the reading is of the city the timezone names, which is also what was
         // geocoded; the label is the user's name for the row and two rows may
         // share one
-        const city = WorldclockData.timezoneCityName(entry.timezone);
+        const city = WorldclockData.timezoneWeatherCity(entry.timezone);
 
         // An offset-only zone (Etc/GMT+3) names no city, so there is nothing to
         // forecast and there never will be. Blank cells said exactly what a fetch
