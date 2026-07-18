@@ -51,34 +51,37 @@ function logicalCost(node, parentOperator) {
     return node.operator === parentOperator ? 0 : 1;
 }
 
-function score(node, nesting, parentLogical) {
-    let cost = 0;
-
-    if (node.type === "IfStatement") {
-        cost += 1 + nesting;
-        // `else if` is not nested under the `if` it follows: it is a continuation
-        if (node.alternate && node.alternate.type !== "IfStatement") {
-            cost += 1;
-        }
-    } else if (NESTING.has(node.type)) {
-        cost += 1 + nesting;
-    } else if (node.type === "LogicalExpression") {
-        cost += logicalCost(node, parentLogical);
-    } else if (node.type === "BreakStatement" || node.type === "ContinueStatement") {
+function directCost(node, nesting, parentLogical) {
+    switch (node.type) {
+    case "IfStatement":
+        return 1 + nesting +
+            (node.alternate && node.alternate.type !== "IfStatement" ? 1 : 0);
+    case "LogicalExpression":
+        return logicalCost(node, parentLogical);
+    case "BreakStatement":
+    case "ContinueStatement":
         // only a labelled jump breaks the flow enough to count
-        cost += node.label ? 1 : 0;
+        return node.label ? 1 : 0;
+    default:
+        return NESTING.has(node.type) ? 1 + nesting : 0;
     }
+}
 
-    const inner = NESTING.has(node.type) || FUNCTIONS.has(node.type) ? nesting + 1 : nesting;
+function childNesting(node, child, nesting) {
+    // an `else if` continues the chain rather than nesting inside it
+    if (node.type === "IfStatement" && child === node.alternate &&
+        child.type === "IfStatement") {
+        return nesting;
+    }
+    return NESTING.has(node.type) || FUNCTIONS.has(node.type) ? nesting + 1 : nesting;
+}
+
+function score(node, nesting, parentLogical) {
+    let cost = directCost(node, nesting, parentLogical);
     const logical = node.type === "LogicalExpression" ? node.operator : null;
-
     for (const child of childNodes(node)) {
-        // an `else if` continues the chain rather than nesting inside it
-        const childNesting = node.type === "IfStatement" && child === node.alternate &&
-            child.type === "IfStatement" ? nesting : inner;
-        cost += score(child, childNesting, logical);
+        cost += score(child, childNesting(node, child, nesting), logical);
     }
-
     return cost;
 }
 

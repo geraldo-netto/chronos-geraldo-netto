@@ -8,7 +8,7 @@ Baseline: `npm test` green with the JS and Python per-file coverage gates satisf
 
 The 2026-07-18 SonarCloud pass was also triaged against the source and Cinnamon runtime rather than accepting analyzer severities at face value. Its GitHub decoration called every open issue "new", while the Web API's current leak-period query returned only the newly introduced subset. Framework, compatibility, test-double and bounded-input findings are recorded under Rejected; actionable analysis/gate gaps remain below.
 
-Open items: 3 (Critical 0, High 0, Medium 2, Low 1).
+Open items: 2 (Critical 0, High 0, Medium 2, Low 0).
 
 ## Findings
 
@@ -28,7 +28,6 @@ Open items: 3 (Critical 0, High 0, Medium 2, Low 1).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T560 | code complexity; process & delivery governance; test coverage | Low | open | L | Extend cognitive-complexity enforcement to named JavaScript test helpers and Python settings/test code, not only JavaScript production functions and `test(...)` callbacks. | **[verified]** Running the existing `functionBodies` walker across `test/` found three named helpers scoring 16–18 (`loadUtils`, `score`, and `installLocalCountryFuzzMocks`) that the current callback-only test gate never visits; all Python is outside the gate as well. Refactor the over-15 helpers, scan every JavaScript function without double-reporting callbacks, add a language-appropriate Python check, and prove both gates reject an injected offender before T561 lowers the shared target. |
 
 ## Clean categories
 
@@ -44,7 +43,7 @@ Verified on the 2026-07-16 rescan and re-traced on 2026-07-18 (weather scheduler
 - **Settings-schema → runtime parity.** All 17 keys are bound and acted on; all 60 locally declared countries agree across schema, `SUPPORTED_COUNTRIES` and `COUNTRY_TO_ISO2`; `has_region`'s 10 entries match `REGION_TO_SUBDIVISION`; every region option has a subdivision mapping and there are no orphan table entries; `MAX_CLOCKS = 8` agrees across `worldclockData.js`, `cityWeather.js` and `settings_widgets_common.py`; every `dependency` in the schema is honoured by Cinnamon for custom widgets too.
 - **Keyboard navigation of the day grid.** Roving focus (one tab stop), arrows/PageUp/PageDown/Home, RTL mirroring of Left/Right, focus moved into the grid on menu open, focus rings for every focusable actor. Genuinely good.
 - **Wiring, scope and dead code.** Every version shim is consumed, every root-module name another module reads is a GJS-visible `var` or function, and no production top-level JS/Python declaration occurs only at its definition. The widened test seam remains the deliberate D02 choice. No `Lang.bind`, `imports.byteArray`, `toLocaleFormat`, `Soup.SessionAsync` or `queue_message` exists.
-- **The remaining gates.** The JS coverage gate holds every shipped applet file and safety-critical Node tool to 98/90/100 and fails a measured source no test loads; the eslint mutation tests prove `no-unreachable`/`no-dupe-keys`/`no-cond-assign` fire across production and test code; `lint:py` genuinely exits 1 when pyflakes is missing. The `.pot` msgid set is complete, all 15 catalogs structurally validate, the regenerated template is byte-current apart from its creation date and the common source-copy check allows only named invariants. The complexity walker's scope and threshold gaps are recorded in T560–T561. CI exercises the supported Node/Python floors and current development runtimes.
+- **The remaining gates.** The JS coverage gate holds every shipped applet file and safety-critical Node tool to 98/90/100 and fails a measured source no test loads; the eslint mutation tests prove `no-unreachable`/`no-dupe-keys`/`no-cond-assign` fire across production and test code; `lint:py` genuinely exits 1 when pyflakes is missing. The `.pot` msgid set is complete, all 15 catalogs structurally validate, the regenerated template is byte-current apart from its creation date and the common source-copy check allows only named invariants. The complexity walkers cover every JavaScript production, tooling, test and helper function plus all Python settings and test functions; T561 records the remaining threshold ratchet. CI exercises the supported Node/Python floors and current development runtimes.
 - **Not applicable**: database / migrations, multi-tenancy, Electron, Rust, ML / retrieval / RAG, vectorization, SQL injection, CORS/CSRF, prompt injection.
 
 ## Rejected

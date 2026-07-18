@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const fs = require("node:fs");
 const path = require("node:path");
-const { testBodies, functionBodies } = require("./helpers/cognitive");
+const { functionBodies } = require("./helpers/cognitive");
 
 // The limit the project holds its code to, and the rule applies to tests: a test
 // nobody can follow is not a specification of anything, and a fuzz body that
@@ -21,23 +21,6 @@ const FORBIDDEN_COGNITIVE_COMPLEXITY = 15;
 const TEST_DIR = __dirname;
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const SCRIPTS_DIR = path.join(__dirname, "..", "scripts");
-
-test("no test body is too complex to follow", () => {
-    const offenders = [];
-
-    for (const file of fs.readdirSync(TEST_DIR).filter((name) => name.endsWith(".test.js"))) {
-        const source = fs.readFileSync(path.join(TEST_DIR, file), "utf8");
-        for (const body of testBodies(source)) {
-            if (body.complexity >= FORBIDDEN_COGNITIVE_COMPLEXITY) {
-                offenders.push(`${file}:${body.line} — ${body.complexity} — ${body.name}`);
-            }
-        }
-    }
-
-    assert.deepEqual(offenders, [],
-        "hoist the tables to module scope and pull the per-round expectation into a " +
-        "named helper, so the body is a loop and an assert:\n  " + offenders.join("\n  "));
-});
 
 // The walker is the gate, so the walker is checked: a shape it under-counts is a
 // body it would let through. Nesting is what separates this from a path count —
@@ -97,7 +80,17 @@ function appletSources(dir = APPLET_DIR) {
     });
 }
 
-function measuredSources() {
+function testSources(dir = TEST_DIR) {
+    return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+            return testSources(full);
+        }
+        return entry.isFile() && entry.name.endsWith(".js") ? [[full, "script"]] : [];
+    });
+}
+
+function productionSources() {
     return [
         ...appletSources().map((file) => [file, "script"]),
         ...fs.readdirSync(SCRIPTS_DIR)
@@ -106,11 +99,14 @@ function measuredSources() {
     ];
 }
 
-test("no function in production tooling is too complex to follow", () => {
-    const offenders = [];
+function sourceText(file) {
+    return fs.readFileSync(file, "utf8").replace(/^#![^\n]*(?:\n|$)/, "");
+}
 
-    for (const [file, sourceType] of measuredSources()) {
-        const source = fs.readFileSync(file, "utf8");
+function complexityOffenders(sources, read = sourceText) {
+    const offenders = [];
+    for (const [file, sourceType] of sources) {
+        const source = read(file);
         for (const body of functionBodies(source, sourceType)) {
             if (body.complexity >= FORBIDDEN_COGNITIVE_COMPLEXITY) {
                 offenders.push(
@@ -119,7 +115,28 @@ test("no function in production tooling is too complex to follow", () => {
             }
         }
     }
+    return offenders;
+}
 
+test("every JavaScript test function stays below the forbidden line", () => {
+    const offenders = complexityOffenders(testSources());
+    assert.deepEqual(offenders, [],
+        "extract the test's decisions into named helpers:\n  " + offenders.join("\n  "));
+});
+
+test("the JavaScript gate rejects a named helper at the forbidden line", () => {
+    const source = "function hidden(value) {" +
+        "if (value) { for (;;) { if (value) { while (value) { if (value) {} } } } }" +
+        "}";
+
+    assert.deepEqual(
+        complexityOffenders([["test/injected-helper.js", "script"]], () => source),
+        ["test/injected-helper.js:1 — 15 — hidden"]
+    );
+});
+
+test("no function in production tooling is too complex to follow", () => {
+    const offenders = complexityOffenders(productionSources());
     assert.deepEqual(offenders, [],
         "extract the steps into named helpers; the limit is the same one the tests " +
         "are held to:\n  " + offenders.join("\n  "));

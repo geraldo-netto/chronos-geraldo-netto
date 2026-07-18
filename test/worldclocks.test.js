@@ -1466,26 +1466,33 @@ const TIMEZONE_FILE_FUZZ_CASES = [
     { value: null, state: null }
 ];
 
+function readLocalCountryFuzzLink(state, filename) {
+    if (filename !== "/etc/localtime" || state.localtime.link === null) {
+        throw new Error("not a usable link");
+    }
+    return state.localtime.link;
+}
+
+function localCountryFuzzTimezone(state) {
+    return state.glib.value === null ? null : fakeTimeZone(state.glib.value);
+}
+
+function readLocalCountryFuzzFile(state, filename) {
+    if (filename === "/usr/share/zoneinfo/zone.tab") {
+        return [true, state.textFiles ?
+            LOCAL_COUNTRY_FUZZ_ZONE_TAB : Buffer.from(LOCAL_COUNTRY_FUZZ_ZONE_TAB)];
+    }
+    if (filename === "/etc/timezone" && state.timezoneFile.value !== null) {
+        const value = `${state.timezoneFile.value}\n`;
+        return [true, state.textFiles ? value : Buffer.from(value)];
+    }
+    return [false, null];
+}
+
 function installLocalCountryFuzzMocks(GLib, state) {
-    GLib.file_read_link = (filename) => {
-        if (filename !== "/etc/localtime" || state.localtime.link === null) {
-            throw new Error("not a usable link");
-        }
-        return state.localtime.link;
-    };
-    GLib.TimeZone.new_local = () => state.glib.value === null ?
-        null : fakeTimeZone(state.glib.value);
-    GLib.file_get_contents = (filename) => {
-        if (filename === "/usr/share/zoneinfo/zone.tab") {
-            return [true, state.textFiles ?
-                LOCAL_COUNTRY_FUZZ_ZONE_TAB : Buffer.from(LOCAL_COUNTRY_FUZZ_ZONE_TAB)];
-        }
-        if (filename === "/etc/timezone" && state.timezoneFile.value !== null) {
-            const value = `${state.timezoneFile.value}\n`;
-            return [true, state.textFiles ? value : Buffer.from(value)];
-        }
-        return [false, null];
-    };
+    GLib.file_read_link = readLocalCountryFuzzLink.bind(null, state);
+    GLib.TimeZone.new_local = localCountryFuzzTimezone.bind(null, state);
+    GLib.file_get_contents = readLocalCountryFuzzFile.bind(null, state);
 }
 
 function nextLocalCountryFuzzState(random) {

@@ -30,6 +30,12 @@ class AboutPageTests(unittest.TestCase):
         GtkWindow.instances.clear()
         self.module = load_module(ABOUT_PATH, "settings_about_test")
 
+    def page_and_metadata(self):
+        return (
+            self.module.AboutPage({}, object()),
+            json.loads((APPLET_DIR / "metadata.json").read_text()),
+        )
+
     def test_schema_loads_a_complete_about_page(self):
         schema = json.loads(SCHEMA_PATH.read_text())
 
@@ -44,9 +50,7 @@ class AboutPageTests(unittest.TestCase):
             },
         )
 
-        page = self.module.AboutPage({}, object())
-        metadata = json.loads((APPLET_DIR / "metadata.json").read_text())
-
+        page, _metadata = self.page_and_metadata()
         self.assertEqual(
             [section.title for section in page.sections],
             [
@@ -56,6 +60,8 @@ class AboutPageTests(unittest.TestCase):
             ],
         )
 
+    def test_page_shows_identity_and_all_service_links(self):
+        _page, metadata = self.page_and_metadata()
         visible_text = "\n".join(label.text for label in GtkLabel.instances)
         for expected in (
             metadata["name"],
@@ -92,13 +98,20 @@ class AboutPageTests(unittest.TestCase):
         self.assertNotIn(metadata["license"], visible_text)
         self.assertIn("does not download map tiles or other map assets", visible_text)
         self.assertTrue(all(label.line_wrap for label in GtkLabel.instances))
+
+    def test_only_copyable_identity_text_enters_the_label_tab_order(self):
+        _page, metadata = self.page_and_metadata()
         selectable = [label for label in GtkLabel.instances if label.selectable]
+
         self.assertEqual(len(selectable), 1)
         self.assertIn(metadata["uuid"], selectable[0].text)
         self.assertEqual(
             [label.can_focus for label in GtkLabel.instances],
             [label is selectable[0] for label in GtkLabel.instances],
         )
+
+    def test_identity_and_credits_use_compact_horizontal_layout(self):
+        page, metadata = self.page_and_metadata()
         self.assertEqual(
             [image.path for image in GtkImage.instances],
             [str(APPLET_DIR / "icon.png")],
@@ -139,6 +152,8 @@ class AboutPageTests(unittest.TestCase):
             ],
         )
 
+    def test_service_rows_pair_links_with_descriptions(self):
+        page, _metadata = self.page_and_metadata()
         for section, services in (
             (page.sections[1], self.module.WEATHER_SERVICES),
             (page.sections[2], self.module.HOLIDAY_SERVICES),

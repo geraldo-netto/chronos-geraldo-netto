@@ -27,6 +27,58 @@ const versionDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto", 
 let originalImports;
 let originalLog;
 let originalLogError;
+let subprocessFixture;
+
+class LocaleCancellable {
+    constructor() {
+        this.cancelled = false;
+        // the query in flight, so a test can check the teardown actually
+        // cancels the subprocess
+        this.constructor.last = this;
+    }
+
+    cancel() {
+        this.cancelled = true;
+    }
+}
+
+class LocaleSubprocess {
+    constructor(options) {
+        if (typeof subprocessFixture.spawnFails === "function") {
+            subprocessFixture.spawnFails();
+        }
+        this.argv = options.argv;
+    }
+
+    init() {}
+
+    communicate_utf8_async(_stdin, cancellable, callback) {
+        this._cancellable = cancellable;
+        // GJS still calls back when the cancellable is cancelled — finish()
+        // below is what raises. A test cancels, then settles, to walk the path a
+        // real teardown walks.
+        this.constructor.settle = () => callback(this, "result");
+
+        // a wedged NSS or nscd lookup: the callback never fires
+        if (!subprocessFixture.neverAnswers) {
+            callback(this, "result");
+        }
+    }
+
+    communicate_utf8_finish() {
+        if (this._cancellable && this._cancellable.cancelled) {
+            throw new Error("Operation was cancelled");
+        }
+        const [ok, stdout] = subprocessFixture.spawn(this.argv.join(" "));
+        if (!ok) {
+            return [ok, null];
+        }
+        // the real communicate_utf8_finish answers with a decoded string, as
+        // its name says; returning bytes here hid a TypeError that only ever
+        // fired in Cinnamon
+        return [ok, Buffer.from(stdout).toString("utf8")];
+    }
+}
 
 function loadUtils(options = "") {
     for (const part of localePartPaths) {
@@ -48,6 +100,7 @@ function loadUtils(options = "") {
             assert.equal(command.startsWith("locale -k "), true);
             return [true, new Uint8Array(Buffer.from(spawnOutput)), new Uint8Array(0), 0];
         };
+    subprocessFixture = { neverAnswers, spawn, spawnFails };
 
     global.imports = {
         gi: {
@@ -68,17 +121,7 @@ function loadUtils(options = "") {
             },
             Gio: {
                 FileCreateFlags: { NONE: 0, REPLACE_DESTINATION: 2 },
-                Cancellable: class {
-                    constructor() {
-                        this.cancelled = false;
-                        // the query in flight, so a test can check the teardown
-                        // actually cancels the subprocess
-                        this.constructor.last = this;
-                    }
-                    cancel() {
-                        this.cancelled = true;
-                    }
-                },
+                Cancellable: LocaleCancellable,
                 BufferedOutputStream: {
                     new_sized(raw) {
                         return raw;
@@ -87,41 +130,7 @@ function loadUtils(options = "") {
                 SubprocessFlags: { STDOUT_PIPE: 1 },
                 // `locale -k` runs asynchronously; the double answers straight
                 // away so the tests stay deterministic
-                Subprocess: class {
-                    constructor(options) {
-                        if (typeof spawnFails === "function") {
-                            spawnFails();
-                        }
-                        this.argv = options.argv;
-                    }
-                    init() {}
-                    communicate_utf8_async(_stdin, cancellable, callback) {
-                        this._cancellable = cancellable;
-                        // GJS still calls back when the cancellable is cancelled —
-                        // the finish() below is what raises. A test cancels, then
-                        // settles, to walk the path a real teardown walks.
-                        this.constructor.settle = () => callback(this, "result");
-
-                        // a wedged NSS or nscd lookup: the callback never fires
-                        if (neverAnswers) {
-                            return;
-                        }
-                        callback(this, "result");
-                    }
-                    communicate_utf8_finish() {
-                        if (this._cancellable && this._cancellable.cancelled) {
-                            throw new Error("Operation was cancelled");
-                        }
-                        const [ok, stdout] = spawn(this.argv.join(" "));
-                        if (!ok) {
-                            return [ok, null];
-                        }
-                        // the real communicate_utf8_finish answers with a
-                        // decoded string, as its name says; returning bytes
-                        // here hid a TypeError that only ever fired in Cinnamon
-                        return [ok, Buffer.from(stdout).toString("utf8")];
-                    }
-                }
+                Subprocess: LocaleSubprocess
             },
             Soup: makeSoup3(),
             GLib: {
