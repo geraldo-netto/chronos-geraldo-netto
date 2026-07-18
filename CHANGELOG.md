@@ -10,6 +10,13 @@ All notable changes to Cinnamon Chronos are recorded here. The format follows
 
 - Development tooling and CI now require Node.js 22; Node.js 20 is no longer
   supported.
+- The applet now uses original Chronos artwork instead of the inherited
+  calendar@ccprog icon.
+
+### Fixed
+
+- Zip-based installs now receive the complete applet icon instead of a corrupt
+  12-byte symlink payload.
 
 ## [0.0.1] - 2026-07-17
 
