@@ -42,7 +42,7 @@ test("no test body is too complex to follow", () => {
 // body it would let through. Nesting is what separates this from a path count —
 // three ifs in a row cost 3, but an if inside an if inside a loop costs 6.
 test("the cognitive-complexity walker counts nesting, not just branches", () => {
-    const { complexityOf, PARSE_OPTIONS } = require("./helpers/cognitive");
+    const { complexityOf, testBodies: bodies, PARSE_OPTIONS } = require("./helpers/cognitive");
     const espree = require("espree");
     const complexity = (source) =>
         complexityOf(espree.parse(source, PARSE_OPTIONS).body[0]);
@@ -60,6 +60,19 @@ test("the cognitive-complexity walker counts nesting, not just branches", () => 
         "one sequence of && costs 1, plus the if");
     assert.equal(complexity("function f(a, b) { if (a && b || a) {} }"), 3,
         "alternating operators cost one each");
+    assert.equal(complexity("function f(a = b ? c ? d : e : f, g = h && i || j) {}"), 5,
+        "default parameter branches count like branches in the body");
+
+    const members = bodies([
+        'test.skip("skip", () => { if (a) {} });',
+        'test.only("only", () => { while (a) {} });',
+        't.test("subtest", () => { a && b; });'
+    ].join("\n"));
+    assert.deepEqual(members.map(({ name, complexity: value }) => [name, value]), [
+        ["skip", 1],
+        ["only", 1],
+        ["subtest", 1]
+    ], "member-expression test bodies are measured too");
 });
 
 // The limit was scoped to TEST_DIR, so the rule the tests are held to did not

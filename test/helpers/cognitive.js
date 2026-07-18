@@ -86,6 +86,9 @@ function score(node, nesting, parentLogical) {
 // costs nothing, what it does costs.
 function complexityOf(functionNode) {
     let cost = 0;
+    for (const parameter of functionNode.params) {
+        cost += score(parameter, 0, null);
+    }
     for (const child of childNodes(functionNode.body)) {
         cost += score(child, 0, null);
     }
@@ -93,14 +96,26 @@ function complexityOf(functionNode) {
     return cost;
 }
 
-// Every test(...) body in a file, with the name it was given.
+function isTestCallee(callee) {
+    if (callee.type === "Identifier") {
+        return callee.name === "test";
+    }
+    if (callee.type !== "MemberExpression" || callee.computed ||
+        callee.object.type !== "Identifier" || callee.property.type !== "Identifier") {
+        return false;
+    }
+    return callee.object.name === "test" || callee.property.name === "test";
+}
+
+// Every test(...), test.skip(...), test.only(...) and t.test(...) body in a file,
+// with the name it was given.
 function testBodies(source) {
     const tree = espree.parse(source, PARSE_OPTIONS);
     const found = [];
 
     const visit = (node) => {
-        if (node.type === "CallExpression" && node.callee.type === "Identifier" &&
-            node.callee.name === "test" && node.arguments.length >= 2 &&
+        if (node.type === "CallExpression" && isTestCallee(node.callee) &&
+            node.arguments.length >= 2 &&
             node.arguments[0].type === "Literal" &&
             FUNCTIONS.has(node.arguments[1].type)) {
             found.push({
