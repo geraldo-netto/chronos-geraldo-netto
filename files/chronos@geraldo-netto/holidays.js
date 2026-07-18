@@ -410,7 +410,7 @@ var HolidayService = class HolidayService {
     _acceptYear(year, region, inflightKey, generation, data, params, date) {
         this.cache.recordAttempt(year, region);
 
-        let callbacks = [];
+        let callbacks;
         try {
             this.addData(data, params, date);
         } catch (e) {

@@ -313,7 +313,7 @@ test("fuzz: a hostile DBus event either builds or is refused, and never half-bui
         const payload = rand() < 0.1 ? unpacked.slice(0, Math.floor(rand() * 7)) : unpacked;
         const variant = { deep_unpack: () => (rand() < 0.05 ? null : payload) };
 
-        let event = null;
+        let event;
         try {
             event = new EventData(variant, 1);
         } catch (e) {

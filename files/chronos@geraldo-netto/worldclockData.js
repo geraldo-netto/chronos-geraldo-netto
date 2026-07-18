@@ -338,8 +338,8 @@ function readTextFile(filename, maximumBytes) {
 // Read on every call rather than memoizing: changing the operating-system
 // timezone must change the next automatic holiday default too.
 function localCountryCode() {
-    let localtimeLink = "";
-    let glibIdentifier = "";
+    let localtimeLink;
+    let glibIdentifier;
 
     try {
         localtimeLink = GLib.file_read_link(LOCALTIME_FILE);

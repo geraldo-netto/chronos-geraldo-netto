@@ -236,7 +236,7 @@ function _readCapped(stream, cancellable, url, deliver) {
     let total = 0;
     const readMore = () => {
         stream.read_bytes_async(READ_CHUNK_BYTES, 0, cancellable, (source, result) => {
-            let chunk = null;
+            let chunk;
             try {
                 chunk = source.read_bytes_finish(result).get_data();
             } catch (e) {
@@ -322,7 +322,7 @@ function _cancelOnDowngrade(message, url, cancellable) {
 // length is guarded before the read, and the body is bounded as it arrives.
 function _sendStreaming(session, message, url, cancellable, deliver, fail) {
     session.send_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
-        let stream = null;
+        let stream;
         try {
             _refuseDeclaredTooLarge(message, url);
             stream = source.send_finish(result);

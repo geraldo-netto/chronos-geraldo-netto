@@ -6,7 +6,7 @@ Audit ledger for this applet. Latest full-source rescan on 2026-07-18 against ev
 
 Baseline: `npm test` green (748 JS tests, JS coverage per-file 98/90/100; Python 115 tests, 98 %+ lines), `npm run lint` clean, CI runs both on every push and PR. `npm audit --omit=dev` reports zero vulnerabilities. The gates are real — what this pass found is largely what they do not look at.
 
-Open items: 11 (Critical 0, High 0, Medium 0, Low 11).
+Open items: 10 (Critical 0, High 0, Medium 0, Low 10).
 
 ## Findings
 
@@ -34,7 +34,6 @@ Open items: 11 (Critical 0, High 0, Medium 0, Low 11).
 | T542 | release & deploy engineering | Low | open | S | The CI gates matrix tests Node 22 only (`ci.yml:24`) while `package.json` engines declares an unbounded `>=22` and development runs Node 24 — `70a5f12` dropped the dual-version matrix whose stated purpose was exercising both the floor and the dev runtime, and node:test coverage semantics differ across majors, so local-green vs CI-green can diverge silently. Add 24 to the matrix, or bound engines and document 22 as the sole supported tooling runtime. | The removed comment in `70a5f12`'s diff documents the lost intent. |
 | T543 | release & deploy engineering | Low | open | S | The artifact handoff name embeds `github.run_attempt` (`ci.yml:89` upload, `:112` download), so after a transient release-job failure "Re-run failed jobs" requests `chronos-spices-<sha>-<N+1>` — a name never uploaded, since the succeeded packaging job is not re-executed. The natural recovery path for a flaky release job is guaranteed to fail; only "Re-run all jobs" works. Drop `run_attempt` from the name, or document the constraint. | Fail-closed (never ships a wrong artifact), hence Low. |
 | T544 | release & deploy engineering | Low | open | S | `bumpRelease` has a validator/rewriter asymmetry plus non-atomic output: validation accepts the `[Unreleased]` compare link via unanchored `String.includes` (`release.mjs:68-71`) but the bump rewrites it with a line-anchored regex (124–128) whose miss is a silent no-op — a line that passes validation but misses the anchor (trailing whitespace) yields a half-bumped changelog written with exit 0; the four sequential `writeFile` calls also leave version owners disagreeing on a mid-bump crash. Re-validate the rewritten content before writing (throw when the link regex does not match) and add the silent-no-op regression test. | Downstream `release:check` catches both states (fail-closed), but the bump itself reports success on inconsistent output. The T530 denied-path suite covers the validators around it; this row needs the anchored-link regression case and the atomicity fix. |
-| T545 | dependency | Low | open | S | Both devDependencies are one major behind: eslint 9.39.5 (latest 10.7.0) and @eslint/js 9.39.5 (latest 10.0.1); the `^9` carets never pick up 10.x, and an out-of-support major eventually stops receiving rule and fix updates for the ruleset the eslint-gate test proves fires. Plan the upgrade (flat config already in use, migration should be small) or record a deliberate pin decision here. | `npm audit` reports 0 vulnerabilities and the lockfile is healthy (v3, registry.npmjs.org only, integrity on all 86 entries) — maintenance drift, not exposure. |
 
 ## Clean categories
 
