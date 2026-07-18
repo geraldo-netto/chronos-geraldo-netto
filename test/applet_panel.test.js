@@ -1,5 +1,5 @@
 const {
-    assert, test, AppletModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS,
+    assert, test, AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS,
     Proto, panelStatus, DateFormats, St,
     clockStub, readingFrom, suffixStub, updateStub, tooltipEntry
 } = require("./helpers/appletFixture");
@@ -27,8 +27,19 @@ test("city weather is not fetched for world clocks that are switched off", () =>
         show_worldclocks: false,
         weather_units: "si",
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
-        _cityWeatherProvider: { schedule: (settings) => scheduled.push(settings) },
         _updateClockAndDate: () => {}
+    });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: { schedule: (settings) => scheduled.push(settings) },
+        settings: () => ({
+            showWeather: stub.show_weather,
+            showWorldclocks: stub.show_worldclocks,
+            units: stub.weather_units
+        }),
+        worldclocks: () => stub.worldclocks,
+        onChanged: stub._updateClockAndDate,
+        guard: (fn) => fn()
     });
 
     Proto._scheduleCityWeatherRefresh.call(stub);
@@ -52,16 +63,24 @@ test("turning world clocks off stops the city weather that was fetched for them"
         weather_units: "si",
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
         show_events: false,
-        _applied_show_events: false,
         orientation: St.Side.TOP,
         custom_format: "",
         desktop_settings: { use24h: true, showSeconds: false },
-        _cityWeatherProvider: { schedule: (settings) => scheduled.push(settings) },
         _updateFormatString: () => {},
         _updateClockAndDate: () => {},
-        _updateEventListState: () => {},
-        events_manager: { select_date() {} },
-        _calendar: { getSelectedDate: () => new Date() }
+        _eventListCoordinator: { apply() {} }
+    });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: { schedule: (settings) => scheduled.push(settings) },
+        settings: () => ({
+            showWeather: stub.show_weather,
+            showWorldclocks: stub.show_worldclocks,
+            units: stub.weather_units
+        }),
+        worldclocks: () => stub.worldclocks,
+        onChanged: stub._updateClockAndDate,
+        guard: (fn) => fn()
     });
 
     Proto._onSettingsChanged.call(stub);
@@ -91,12 +110,15 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
         show_weather: true,
         show_worldclocks: true,
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
-        _weather_reading: { condition: "\u2600", temperatureC: 20 },
-        _weather_provider: "Open-Meteo",
-        cityWeatherReading: (city) => (city === "Tokyo" ? { condition: "\ud83c\udf27", temperatureC: 12 } : null),
-        cityWeatherStale: () => false,
-        cityWeatherProviderName: () => "Open-Meteo",
         _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
+    });
+    Object.assign(stub._weatherCoordinator, {
+        reading: { condition: "\u2600", temperatureC: 20 },
+        providerName: "Open-Meteo",
+        cityReading: (city) => (city === "Tokyo" ?
+            { condition: "\ud83c\udf27", temperatureC: 12 } : null),
+        cityStale: () => false,
+        cityProviderName: () => "Open-Meteo"
     });
 
     Proto._updateClockAndDate.call(stub);
@@ -189,22 +211,25 @@ test("buildLabelSuffix is the temperature on every panel orientation", () => {
     for (const orientation of [St.Side.TOP, St.Side.BOTTOM, St.Side.LEFT, St.Side.RIGHT]) {
         assert.equal(panelStatus(suffixStub({
             orientation,
-            _weather_reading: readingFrom("☀ 20°C")
+            weatherReading: readingFrom("☀ 20°C")
         })).buildLabelSuffix(), "20°C");
     }
 
     // world clocks never reach the panel, however many are configured: they are
     // a table, and the panel is one line the date and the weather already share
     const withClocks = suffixStub({
-        _weather_reading: readingFrom("☀ 20°C"),
+        weatherReading: readingFrom("☀ 20°C"),
         worldclocks: [{ label: "NY" }, { label: "Tokyo" }]
     });
     assert.equal(panelStatus(withClocks).buildLabelSuffix(), "20°C");
 
-    const stale = suffixStub({ _weather_reading: readingFrom("☀ 20°C"), _weather_error: "boom" });
+    const stale = suffixStub({
+        weatherReading: readingFrom("☀ 20°C"),
+        weatherError: "boom"
+    });
     assert.equal(panelStatus(stale).buildLabelSuffix(), "⚠ 20°C");
     // an error with no reading yet is the marker alone
-    assert.equal(panelStatus(suffixStub({ _weather_error: "boom" })).buildLabelSuffix(), "⚠");
+    assert.equal(panelStatus(suffixStub({ weatherError: "boom" })).buildLabelSuffix(), "⚠");
 });
 
 test("ellipsizeLabelSuffix truncates long suffixes on a word-safe boundary", () => {
@@ -267,8 +292,8 @@ test("the panel readout is announced with its condition", () => {
     const { stub } = updateStub({ menuOpen: false });
     stub.actor = { names: [], set_accessible_name(name) { this.names.push(name); } };
     stub.show_weather = true;
-    stub._weather_error = "";
-    stub._weather_reading = { condition: "🌧", temperatureC: 8 };
+    stub._weatherCoordinator.error = "";
+    stub._weatherCoordinator.reading = { condition: "🌧", temperatureC: 8 };
 
     Proto._updateClockAndDate.call(stub);
 
@@ -281,15 +306,15 @@ test("a weather failure on the panel is announced in words", () => {
     void calls;
     stub.actor = { names: [], set_accessible_name(name) { this.names.push(name); } };
     stub.show_weather = true;
-    stub._weather_error = "Weather service unavailable";
-    stub._weather_reading = null;
+    stub._weatherCoordinator.error = "Weather service unavailable";
+    stub._weatherCoordinator.reading = null;
 
     Proto._updateClockAndDate.call(stub);
 
     // the panel label carries only the warning glyph; the name carries the words
     assert.match(stub.actor.names.at(-1), /Weather service unavailable/);
 
-    stub._weather_error = "";
+    stub._weatherCoordinator.error = "";
     Proto._updateClockAndDate.call(stub);
     assert.doesNotMatch(stub.actor.names.at(-1), /unavailable/);
 });
@@ -399,9 +424,9 @@ test("_updateClockAndDate appends the weather reading to the clock", () => {
     const { stub, calls } = updateStub({ menuOpen: false });
     Object.assign(stub, {
         show_weather: true,
-        _weather_reading: { condition: "☀", temperatureC: 20 },
         clock: clockStub({ get_clock: () => "04 Jul 09:05" })
     });
+    stub._weatherCoordinator.reading = { condition: "☀", temperatureC: 20 };
     Proto._updateClockAndDate.call(stub);
     // the clock and the reading run together; the panel suffix is the
     // temperature and nothing else — the sky glyph and the world clocks are not
@@ -509,9 +534,9 @@ test("a tooltip row is location, fixed-order timestamp, temperature, and weather
         custom_tooltip_format: "%d %b %H:%M",
         show_weather: true,
         weather_units: "si",
-        _weather_reading: { condition: "☀", temperatureC: 20 },
-        _weather_pending: false,
-        _weather_error: ""
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherPending: false,
+        weatherError: ""
     };
     const entry = {
         label: "Local time",
@@ -538,9 +563,9 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         weather_units: "si",
-        _weather_reading: { condition: "☀", temperatureC: 20 },
-        _weather_error: "",
-        _weather_provider: "Open-Meteo",
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherError: "",
+        weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
         panel_clocks: 0,
         cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : null),
@@ -560,7 +585,7 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
     assert.ok(lines[2].includes("New York") && lines[2].endsWith("12°C  Rain"));
     assert.equal(lines.length, 3, "one line per location and no standalone header");
 
-    Proto._weatherCoordinatorForCurrentState.call(stub).error = "boom";
+    stub._weatherCoordinator.error = "boom";
     const errText = panelStatus(stub).buildTooltipText(entries);
     assert.ok(errText.includes("⚠ Weather service unavailable") || errText.includes("⚠ boom"));
     // a failed refresh keeps the last reading: the marker takes the condition's
@@ -584,6 +609,14 @@ test("_setWeatherStatus stores state and refreshes the clock line", () => {
     const stub = Object.assign(Object.create(Proto), {
         _updateClockAndDate: () => updated++
     });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: null,
+        settings: () => ({}),
+        worldclocks: () => [],
+        onChanged: stub._updateClockAndDate,
+        guard: (fn) => fn()
+    });
     Proto._setWeatherStatus.call(stub, { condition: "☀", temperatureC: 20 }, "err", "prov");
     assert.deepEqual(stub._weatherCoordinator.reading, { condition: "☀", temperatureC: 20 });
     assert.equal(stub._weatherCoordinator.pending, false);
@@ -604,11 +637,22 @@ test("weather refresh scheduling forwards the settings snapshot", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         weather_location: "Rome",
-        weather_units: "si",
-        _weatherProvider: {
+        weather_units: "si"
+    });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {
             schedule: (settings) => scheduled.push(settings),
             queue: (settings) => queued.push(settings)
-        }
+        },
+        cityWeatherProvider: null,
+        settings: () => ({
+            showWeather: stub.show_weather,
+            location: stub.weather_location,
+            units: stub.weather_units
+        }),
+        worldclocks: () => [],
+        onChanged: () => {},
+        guard: (fn) => fn()
     });
     Proto._scheduleWeatherRefresh.call(stub);
     Proto._queueWeatherRefresh.call(stub);
@@ -635,6 +679,12 @@ test("event-manager readiness toggles the event list and reselects", () => {
         },
         _calendar: { getSelectedDate: () => new Date() }
     });
+    stub._eventListCoordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: stub.events_manager,
+        eventList: () => stub.event_list,
+        selectedDate: () => stub._calendar.getSelectedDate(),
+        guard: (fn) => fn()
+    });
     Proto._events_manager_ready.call(stub);
     assert.equal(stub.event_list.actor.visible, true);
     assert.equal(selected, 1);
@@ -657,6 +707,12 @@ test("events enabled without a calendar service says so instead of vanishing", (
             set_unavailable: (flag) => unavailable.push(flag)
         },
         _calendar: { getSelectedDate: () => new Date() }
+    });
+    stub._eventListCoordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: stub.events_manager,
+        eventList: () => stub.event_list,
+        selectedDate: () => stub._calendar.getSelectedDate(),
+        guard: (fn) => fn()
     });
 
     Proto._has_calendars_changed.call(stub);

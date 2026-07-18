@@ -1,7 +1,8 @@
 const {
     assert, test, fs, path, makeRandom, APPLET_DIR, rootModules,
-    AppletModule, PanelStatusModule, MAX_SUFFIX, Proto, panelStatus, Weather, St, FUZZ_SEED,
-    clockStub, readingFrom, suffixStub, updateStub, tooltipEntry
+    AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, Proto, panelStatus,
+    Weather, St, FUZZ_SEED, clockStub, readingFrom, weatherCoordinator, suffixStub,
+    updateStub, tooltipEntry
 } = require("./helpers/appletFixture");
 
 test("_styleTooltip marks the tooltip so the clock table stays left-aligned", () => {
@@ -33,13 +34,24 @@ test("city weather is asked about the timezone's city, not the clock's name", ()
             // the label is whatever the user typed; only the timezone is a place
             { label: "Mom's place", timezone: "America/Argentina/Buenos_Aires" }
         ],
-        _cityWeatherProvider: {
+        _updateClockAndDate: () => ticks.push(true)
+    });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: {
             schedule: (settings, callback) => {
                 scheduled.push(settings);
                 callback();
             }
         },
-        _updateClockAndDate: () => ticks.push(true)
+        settings: () => ({
+            showWeather: stub.show_weather,
+            showWorldclocks: stub.show_worldclocks,
+            units: stub.weather_units
+        }),
+        worldclocks: () => stub.worldclocks,
+        onChanged: stub._updateClockAndDate,
+        guard: (fn) => fn()
     });
 
     Proto._scheduleCityWeatherRefresh.call(stub);
@@ -62,10 +74,6 @@ test("city weather is asked about the timezone's city, not the clock's name", ()
     Proto._scheduleCityWeatherRefresh.call(stub);
     assert.deepEqual(scheduled[1].cities, []);
 
-    // a construction that failed before the providers existed must not throw
-    // on the next settings change
-    const partial = Object.assign(Object.create(Proto), { _cityWeatherProvider: null });
-    assert.doesNotThrow(() => Proto._scheduleCityWeatherRefresh.call(partial));
 });
 
 test("an invalid runtime timezone never reaches a weather geocoder", () => {
@@ -84,8 +92,19 @@ test("an invalid runtime timezone never reaches a weather geocoder", () => {
         show_worldclocks: true,
         weather_units: "si",
         worldclocks: [{ label: "Private", timezone: "Company/Secret_Project" }],
-        _cityWeatherProvider: provider,
         _updateClockAndDate() {}
+    });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: provider,
+        settings: () => ({
+            showWeather: stub.show_weather,
+            showWorldclocks: stub.show_worldclocks,
+            units: stub.weather_units
+        }),
+        worldclocks: () => stub.worldclocks,
+        onChanged: stub._updateClockAndDate,
+        guard: (fn) => fn()
     });
 
     try {
@@ -102,24 +121,34 @@ test("an invalid runtime timezone never reaches a weather geocoder", () => {
 });
 
 test("city weather readings and provider name come from the city provider", () => {
-    const stub = Object.assign(Object.create(Proto), {
-        _cityWeatherProvider: {
+    const coordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: {
             recordFor: (city) => (city === "Tokyo" ? { condition: "☀", temperatureC: 30 } : null),
             staleFor: (city) => city === "Tokyo",
             lastProvider: "Open-Meteo"
-        }
+        },
+        settings: () => ({}),
+        worldclocks: () => [],
+        onChanged: () => {},
+        guard: (fn) => fn()
     });
-    assert.deepEqual(Proto.cityWeatherReading.call(stub, "Tokyo"), { condition: "☀", temperatureC: 30 });
-    assert.equal(Proto.cityWeatherReading.call(stub, "Nowhere"), null);
-    assert.equal(Proto.cityWeatherStale.call(stub, "Tokyo"), true);
-    assert.equal(Proto.cityWeatherProviderName.call(stub), "Open-Meteo");
+    assert.deepEqual(coordinator.cityReading("Tokyo"), { condition: "☀", temperatureC: 30 });
+    assert.equal(coordinator.cityReading("Nowhere"), null);
+    assert.equal(coordinator.cityStale("Tokyo"), true);
+    assert.equal(coordinator.cityProviderName(), "Open-Meteo");
 
-    // the tooltip asks for these on every hover, including on a half-built
-    // applet: no provider means no reading, not a crash
-    const partial = Object.assign(Object.create(Proto), { _cityWeatherProvider: null });
-    assert.equal(Proto.cityWeatherReading.call(partial, "Tokyo"), null);
-    assert.equal(Proto.cityWeatherStale.call(partial, "Tokyo"), false);
-    assert.equal(Proto.cityWeatherProviderName.call(partial), "");
+    const withoutCityProvider = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: null,
+        settings: () => ({}),
+        worldclocks: () => [],
+        onChanged: () => {},
+        guard: (fn) => fn()
+    });
+    assert.equal(withoutCityProvider.cityReading("Tokyo"), null);
+    assert.equal(withoutCityProvider.cityStale("Tokyo"), false);
+    assert.equal(withoutCityProvider.cityProviderName(), "");
 });
 
 test("the weather being fetched is said in words, not as an ellipsis", () => {
@@ -127,9 +156,9 @@ test("the weather being fetched is said in words, not as an ellipsis", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         // no reading has landed yet: the state the provider reserves the slot with
-        _weather_reading: null,
-        _weather_pending: true,
-        _weather_error: "",
+        weatherReading: null,
+        weatherPending: true,
+        weatherError: "",
         worldclocks: [{ label: "Tokyo" }],
         // a city not read yet has no record; unlike the panel it reserves no slot
         cityWeatherReading: () => null,
@@ -149,8 +178,8 @@ test("the weather being fetched is said in words, not as an ellipsis", () => {
 test("the tooltip says when a city's temperature is no longer current", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        _weather_reading: { condition: "☀", temperatureC: 20 },
-        _weather_error: "",
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherError: "",
         worldclocks: [{ label: "Tokyo" }],
         cityWeatherReading: () => ({ condition: "☀", temperatureC: 30 }),
         cityWeatherStale: (city) => city === "Tokyo"
@@ -166,9 +195,17 @@ test("the tooltip says when a city's temperature is no longer current", () => {
 
 test("_setWeatherStatus clears the provider name when a refresh reports none", () => {
     const stub = Object.assign(Object.create(Proto), {
-        _weather_provider: "Open-Meteo",
         _updateClockAndDate: () => {}
     });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: null,
+        settings: () => ({}),
+        worldclocks: () => [],
+        onChanged: stub._updateClockAndDate,
+        guard: (fn) => fn()
+    });
+    stub._weatherCoordinator.providerName = "Open-Meteo";
 
     // a failed refresh carries no provider: the tooltip must not keep naming
     // the source of a reading that is gone
@@ -231,8 +268,8 @@ test("the panel's spoken name is the one describeWeather builds", () => {
     const names = [];
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        _weather_reading: { condition: "🌧", temperatureC: 8 },
-        _weather_error: "",
+        weatherReading: { condition: "🌧", temperatureC: 8 },
+        weatherError: "",
         actor: { set_accessible_name: (name) => names.push(name) }
     });
 
@@ -256,8 +293,8 @@ test("a condition with no translation of its own is still spoken", () => {
 
         const stub = Object.assign(Object.create(Proto), {
             show_weather: true,
-            _weather_reading: { condition: "🧊", temperatureC: 0 },
-            _weather_error: "",
+            weatherReading: { condition: "🧊", temperatureC: 0 },
+            weatherError: "",
             actor: { names: [], set_accessible_name(name) { this.names.push(name); } }
         });
         const presenter = panelStatus(stub);
@@ -279,8 +316,8 @@ test("a condition with no translation of its own is still spoken", () => {
 test("a clock row with no zoned time falls back to the preformatted time", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        _weather_reading: null,
-        _weather_error: "",
+        weatherReading: null,
+        weatherError: "",
         // an applet that never built a city provider: no cityWeatherReading at all
         worldclocks: [{ label: "Rome" }]
     });
@@ -320,8 +357,8 @@ test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", (
     // second for a byte-identical string
     const stub = {
         show_weather: false,
-        _weather_reading: null,
-        _weather_error: "",
+        weatherReading: null,
+        weatherError: "",
         worldclocks: []
     };
     const presenter = panelStatus(stub);
@@ -341,9 +378,9 @@ test("the tooltip names no source when neither provider has answered", () => {
     // methods at all
     const stub = {
         show_weather: true,
-        _weather_reading: null,
-        _weather_error: "",
-        _weather_provider: "",
+        weatherReading: null,
+        weatherError: "",
+        weatherProvider: "",
         worldclocks: []
     };
     // a half-built applet has no city provider to ask, and the panel provider
@@ -405,7 +442,7 @@ test("the configured panel format applies on every panel orientation", () => {
 // the one glyph that stays - it is the only sign on the panel that the reading
 // may be stale.
 test("the panel suffix carries the temperature alone, and the failure marker when stale", () => {
-    const withReading = suffixStub({ _weather_reading: readingFrom("⛅ 20°C") });
+    const withReading = suffixStub({ weatherReading: readingFrom("⛅ 20°C") });
     const suffix = panelStatus(withReading).buildLabelSuffix();
 
     assert.equal(suffix, "20°C");
@@ -415,17 +452,23 @@ test("the panel suffix carries the temperature alone, and the failure marker whe
     // every glyph the providers can emit leaves the panel showing the number alone
     for (const glyph of Object.keys(Weather.WEATHER_CONDITIONS)) {
         assert.equal(panelStatus(suffixStub({
-            _weather_reading: { condition: glyph, temperatureC: -3 }
+            weatherReading: { condition: glyph, temperatureC: -3 }
         })).buildLabelSuffix(), "-3°C");
     }
 
     // a failed lookup keeps the last good reading behind the warning marker
-    const stale = suffixStub({ _weather_reading: readingFrom("⛅ 20°C"), _weather_error: "Weather service unavailable" });
+    const stale = suffixStub({
+        weatherReading: readingFrom("⛅ 20°C"),
+        weatherError: "Weather service unavailable"
+    });
     assert.equal(panelStatus(stale).buildLabelSuffix(), `${Weather.WEATHER_ERROR_MARKER} 20°C`);
     assert.equal(Weather.WEATHER_ERROR_MARKER, "⚠");
 
     // and the reading is alone up there: a configured clock adds nothing
-    const withClocks = suffixStub({ _weather_reading: readingFrom("⛅ 20°C"), worldclocks: [{ label: "NY" }] });
+    const withClocks = suffixStub({
+        weatherReading: readingFrom("⛅ 20°C"),
+        worldclocks: [{ label: "NY" }]
+    });
     assert.equal(panelStatus(withClocks).buildLabelSuffix(), "20°C");
 });
 
@@ -437,9 +480,9 @@ test("the tooltip is exactly the UTC/local/city table", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         weather_units: "si",
-        _weather_reading: { condition: "☀", temperatureC: 20 },
-        _weather_error: "",
-        _weather_provider: "Open-Meteo",
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherError: "",
+        weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }, { label: "Tokyo" }],
         panel_clocks: 1,
         cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : { condition: "🌨", temperatureC: -1 }),
@@ -486,9 +529,9 @@ test("the tooltip is exactly the UTC/local/city table", () => {
 test("nothing hangs off the bottom of the tooltip table", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
-        _weather_reading: { condition: "☀", temperatureC: 20 },
-        _weather_error: "",
-        _weather_provider: "Open-Meteo",
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherError: "",
+        weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
         panel_clocks: 1,
         cityWeatherReading: () => ({ condition: "🌧", temperatureC: 12 }),
@@ -510,7 +553,7 @@ test("nothing hangs off the bottom of the tooltip table", () => {
     });
 
     // ...and it stays a table when the provider is the only thing that changed
-    stub._weather_provider = "MET Norway";
+    stub._weatherCoordinator.providerName = "MET Norway";
     const relabelled = panelStatus(stub).buildTooltipText(entries).split("\n");
     assert.deepEqual(relabelled, lines, "the tooltip does not depend on who answered");
 });
@@ -532,9 +575,9 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         weather_units: "si",
-        _weather_reading: null,
-        _weather_error: "",
-        _weather_provider: "",
+        weatherReading: null,
+        weatherError: "",
+        weatherProvider: "",
         worldclocks: rows.map(({ label, timezone }) => ({ label, timezone })),
         cityWeatherReading: (city) => (readings[city] ? readingFrom(readings[city]) : null),
         cityWeatherProviderName: () => ""
@@ -658,8 +701,11 @@ test("fuzz: the panel label builder never throws on any weather state", () => {
         const stub = suffixStub({
             orientation,
             show_weather: rand() < 0.8,
-            _weather_reading: { condition: glyph, temperatureC: readings[Math.floor(rand() * readings.length)] },
-            _weather_error: errors[Math.floor(rand() * errors.length)],
+            weatherReading: {
+                condition: glyph,
+                temperatureC: readings[Math.floor(rand() * readings.length)]
+            },
+            weatherError: errors[Math.floor(rand() * errors.length)],
             worldclocks: Array.from({ length: Math.floor(rand() * 9) }, () => ({}))
         });
         const clockTexts = stub.worldclocks.map((clock, i) => ({
@@ -672,7 +718,7 @@ test("fuzz: the panel label builder never throws on any weather state", () => {
         assert.doesNotThrow(() => { suffix = presenter.buildLabelSuffix(clockTexts); });
         assert.equal(typeof suffix, "string");
 
-        if (stub.show_weather && stub._weather_error) {
+        if (stub.show_weather && stub._weatherCoordinator.error) {
             assert.ok(suffix.startsWith(Weather.WEATHER_ERROR_MARKER),
                 "a stale reading always says so first");
         }
@@ -719,7 +765,10 @@ test("no clock list, however shaped, puts a clock on the panel", () => {
     for (const worldclocks of [undefined, null, [], [{ label: "NY" }]]) {
         assert.equal(panelStatus(suffixStub({ worldclocks })).buildLabelSuffix(), "");
         assert.equal(
-            panelStatus(suffixStub({ worldclocks, _weather_reading: readingFrom("☀ 20°C") })).buildLabelSuffix(),
+            panelStatus(suffixStub({
+                worldclocks,
+                weatherReading: readingFrom("☀ 20°C")
+            })).buildLabelSuffix(),
             "20°C");
     }
 });
@@ -741,8 +790,8 @@ test("a suffix exactly at the length cap is kept whole, one past it is cut", () 
 test("the tooltip never adds a standalone date/time header", () => {
     const base = {
         show_weather: false,
-        _weather_reading: null,
-        _weather_error: "",
+        weatherReading: null,
+        weatherError: "",
         worldclocks: [],
         panel_clocks: 0,
         cityWeatherReading: () => null,
@@ -766,8 +815,8 @@ test("the accessible name speaks the error, or the condition, or neither", () =>
         const stub = Object.assign({
             actor: { set_accessible_name: (name) => spoken.push(name) },
             show_weather: true,
-            _weather_reading: { condition: "🌧", temperatureC: 8 },
-            _weather_error: ""
+            weatherReading: { condition: "🌧", temperatureC: 8 },
+            weatherError: ""
         }, overrides);
         panelStatus(stub)._announce("10:00");
         return spoken[0];
@@ -775,12 +824,12 @@ test("the accessible name speaks the error, or the condition, or neither", () =>
 
     assert.equal(announce({}), "10:00 — Rain", "the condition is spoken in words");
     // an error wins over a stale reading: the name must not claim it is raining
-    assert.equal(announce({ _weather_error: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE }),
+    assert.equal(announce({ weatherError: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE }),
         "10:00 — " + PanelStatusModule.translateWeatherError(Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE));
     // weather off: neither the error nor the condition is anyone's business
-    assert.equal(announce({ show_weather: false, _weather_error: "boom" }), "10:00");
+    assert.equal(announce({ show_weather: false, weatherError: "boom" }), "10:00");
     assert.equal(announce({ show_weather: false }), "10:00");
-    assert.equal(announce({ _weather_reading: null }), "10:00");
+    assert.equal(announce({ weatherReading: null }), "10:00");
 });
 
 test("getClockEntries reads the complete clock list through the view", () => {
@@ -860,7 +909,9 @@ test("the panel presenter goes through the view for every read", () => {
 // T442d, so for now the view just exposes it
 test("the panel view exposes the weather reading record", () => {
     const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort({
-        _weather_reading: { condition: "☀", temperatureC: 20 }
+        _weatherCoordinator: weatherCoordinator({
+            reading: { condition: "☀", temperatureC: 20 }
+        })
     }));
     assert.deepEqual(view.weatherReading, { condition: "☀", temperatureC: 20 });
 });
@@ -960,9 +1011,9 @@ test("a keyboard-opened popup shows weather status without world clocks", () => 
     const { stub, calls } = updateStub({ menuOpen: true });
     Object.assign(stub, {
         show_weather: true,
-        show_worldclocks: false,
-        _weather_error: Weather.WEATHER_ERRORS.NO_LOCATION
+        show_worldclocks: false
     });
+    stub._weatherCoordinator.error = Weather.WEATHER_ERRORS.NO_LOCATION;
 
     Proto._updateClockAndDate.call(stub);
 
@@ -987,12 +1038,22 @@ test("resuming forces the city weather past its unchanged-settings guard", () =>
         weather_units: "si",
         weather_location: "Lisbon",
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
-        _weatherProvider: { schedule: () => scheduled.push(["panel"]) },
-        _cityWeatherProvider: {
+        _updateClockAndDate: () => {}
+    });
+    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: { schedule: () => scheduled.push(["panel"]) },
+        cityWeatherProvider: {
             schedule: (settings, callback, force) => scheduled.push(["cities", force])
         },
-        _updateClockAndDate: () => {},
-        _setWeatherStatus: () => {}
+        settings: () => ({
+            showWeather: stub.show_weather,
+            showWorldclocks: stub.show_worldclocks,
+            location: stub.weather_location,
+            units: stub.weather_units
+        }),
+        worldclocks: () => stub.worldclocks,
+        onChanged: stub._updateClockAndDate,
+        guard: (fn) => fn()
     });
 
     Proto._onResume.call(stub);

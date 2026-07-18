@@ -180,12 +180,11 @@ rootModules.worldclocks = require(path.join(APPLET_DIR, "5.4", "worldclocks.js")
 rootModules.settingsFacade = require(path.join(APPLET_DIR, "settingsFacade.js"));
 
 const AppletModule = require(path.join(APPLET_DIR, "5.4", "applet.js"));
+const CoordinatorModule = require(path.join(APPLET_DIR, "5.4", "appletCoordinators.js"));
 const PanelStatusModule = require(path.join(APPLET_DIR, "5.4", "appletPanelStatus.js"));
 const MAX_SUFFIX = PanelStatusModule.LABEL_SUFFIX_MAX_LENGTH;
 const ELLIPSIS = PanelStatusModule.LABEL_ELLIPSIS;
 const Proto = AppletModule.CinnamonCalendarApplet.prototype;
-const panelStatus = (applet) => new AppletModule.AppletPanelStatusPresenter(
-    new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet)));
 const DateFormats = rootModules.dateFormats;
 const Weather = rootModules.weather;
 const St = global.imports.gi.St;
@@ -205,15 +204,66 @@ function readingFrom(text) {
     return { condition: chars[0], temperatureC: parseFloat(chars.slice(1).join("")) };
 }
 
+function weatherCoordinator(overrides = {}) {
+    return Object.assign({
+        reading: null,
+        pending: false,
+        error: "",
+        providerName: "",
+        schedule() {},
+        queue() {},
+        scheduleCities() {},
+        cityReading: () => null,
+        cityStale: () => false,
+        cityProviderName: () => "",
+        setStatus(reading = null, error = "", providerName = "", pending = false) {
+            this.reading = reading || null;
+            this.pending = pending;
+            this.error = error;
+            this.providerName = providerName || "";
+        }
+    }, overrides);
+}
+
+function panelStatus(applet) {
+    if (!applet._weatherCoordinator) {
+        applet._weatherCoordinator = weatherCoordinator({
+            reading: applet.weatherReading || null,
+            pending: Boolean(applet.weatherPending),
+            error: applet.weatherError || "",
+            providerName: applet.weatherProvider || "",
+            cityReading: (city) => applet.cityWeatherReading ?
+                applet.cityWeatherReading(city) : null,
+            cityStale: (city) => Boolean(applet.cityWeatherStale &&
+                applet.cityWeatherStale(city)),
+            cityProviderName: () => applet.cityWeatherProviderName ?
+                applet.cityWeatherProviderName() : ""
+        });
+    }
+    return new AppletModule.AppletPanelStatusPresenter(
+        new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet)));
+}
+
 function suffixStub(overrides = {}) {
+    const {
+        weatherReading = null,
+        weatherPending = false,
+        weatherError = "",
+        weatherProvider = "",
+        ...appletOverrides
+    } = overrides;
     return Object.assign({
         orientation: St.Side.TOP,
         show_weather: true,
         weather_units: "si",
-        _weather_reading: null,
-        _weather_error: "",
+        _weatherCoordinator: weatherCoordinator({
+            reading: weatherReading,
+            pending: weatherPending,
+            error: weatherError,
+            providerName: weatherProvider
+        }),
         worldclocks: []
-    }, overrides);
+    }, appletOverrides);
 }
 
 function updateStub({ menuOpen = false } = {}) {
@@ -231,9 +281,7 @@ function updateStub({ menuOpen = false } = {}) {
         _todayFormatCache: null,
         show_weather: false,
         weather_units: "si",
-        _weather_reading: null,
-        _weather_error: "",
-        _weather_provider: "",
+        _weatherCoordinator: weatherCoordinator(),
         worldclocks: [{ label: "NY", timezone: "America/New_York" }],
         panel_clocks: 1,
         orientation: St.Side.TOP,
@@ -279,9 +327,9 @@ function tooltipEntry(label, timezone, stamp, builtin) {
 
 module.exports = {
     assert, test, fs, path, makeRandom, APPLET_DIR, rootModules,
-    AppletModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS, Proto, panelStatus,
+    AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS, Proto, panelStatus,
     DateFormats, Weather, St, FUZZ_SEED,
-    clockStub, readingFrom, suffixStub, updateStub, tooltipEntry
+    clockStub, readingFrom, weatherCoordinator, suffixStub, updateStub, tooltipEntry
 };
 
 // show_worldclocks used to do exactly one thing: hide the popup grid. Every

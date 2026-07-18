@@ -1,6 +1,6 @@
 const {
     assert, test, path, APPLET_DIR, rootModules,
-    AppletModule, PanelStatusModule, Proto, Weather, St
+    AppletModule, CoordinatorModule, PanelStatusModule, Proto, Weather, St
 } = require("./helpers/appletFixture");
 
 test("_clockNotify updates once per notify", () => {
@@ -736,6 +736,12 @@ test("settings and weather changes update dependent views", () => {
         },
         _calendar: { getSelectedDate: () => new Date(2026, 6, 9) }
     });
+    stub._eventListCoordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: stub.events_manager,
+        eventList: () => stub.event_list,
+        selectedDate: () => stub._calendar.getSelectedDate(),
+        guard: (fn) => fn()
+    });
     Proto._onSettingsChanged.call(stub);
     Proto._onWeatherSettingsChanged.call(stub);
     assert.equal(stub.event_list.actor.visible, true);
@@ -759,6 +765,12 @@ test("an unrelated settings keystroke costs no refetch and no clock rebuild", ()
             select_date: (date, force) => calls.push(["select", force])
         },
         _calendar: { getSelectedDate: () => new Date(2026, 6, 9) }
+    });
+    stub._eventListCoordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: stub.events_manager,
+        eventList: () => stub.event_list,
+        selectedDate: () => stub._calendar.getSelectedDate(),
+        guard: (fn) => fn()
     });
 
     Proto._onSettingsChanged.call(stub);

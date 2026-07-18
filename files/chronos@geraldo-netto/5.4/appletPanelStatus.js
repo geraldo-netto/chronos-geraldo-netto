@@ -110,7 +110,7 @@ function badFormatFallback(view, message) {
 // Everything the presenter reads and writes, behind one seam.
 //
 // It was the writes only, and the presenter went on reading about fifteen applet
-// privates straight through it — _weather_text, _weather_error, _panel_hovered,
+// privates straight through it — weather state, hover state,
 // _worldclocks, _calendar, events_manager — and wrote one field around it
 // (applet.worldclock_format). PanelView broke its own seam too, reaching for
 // applet._calendar. So the applet's private shape was still the presenter's API:

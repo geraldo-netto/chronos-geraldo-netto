@@ -8,7 +8,7 @@ Baseline: `npm test` green with the JS and Python per-file coverage gates satisf
 
 The 2026-07-18 SonarCloud pass was also triaged against the source and Cinnamon runtime rather than accepting analyzer severities at face value. Its GitHub decoration called every open issue "new", while the Web API's current leak-period query returned only the newly introduced subset. Framework, compatibility, test-double and bounded-input findings are recorded under Rejected; actionable analysis/gate gaps remain below.
 
-Open items: 3 (Critical 0, High 0, Medium 2, Low 1).
+Open items: 2 (Critical 0, High 0, Medium 2, Low 0).
 
 ## Findings
 
@@ -28,7 +28,6 @@ Open items: 3 (Critical 0, High 0, Medium 2, Low 1).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T559 | architecture / modularity / SOLID; decoupling | Low | open | M | Remove the test-only legacy weather/event state fallbacks from the production applet and require the coordinators built by `_initProviders`. | **[verified]** Production always constructs both coordinators in `_initProviders`, and no production path writes `_weather_reading`, `_weather_pending`, `_weather_error`, `_weather_provider` or `_applied_show_events`; those shapes exist only in prototype-driven tests. Nevertheless `createPanelPort`, `_weatherCoordinatorForCurrentState` and `_eventListCoordinatorForCurrentState` silently reconstruct state from them, coupling production to obsolete test doubles and masking missing wiring—the inverse explicitly forbidden by D02. Keep one construction path, update fixtures to supply coordinators/ports, and retain a regression for partial-construction teardown rather than runtime fallback assembly. |
 
 ## Clean categories
 

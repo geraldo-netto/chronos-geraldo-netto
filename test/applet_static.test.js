@@ -263,7 +263,7 @@ test("applets surface weather provider failures", () => {
     assert.match(coordinators, /this\.error = "";/);
     assert.match(coordinators, /this\.providerName = "";/);
     assert.match(coordinators, /setStatus\(reading = null, error = "", providerName = "", pending = false\) \{[\s\S]*?this\.reading = reading \|\| null;[\s\S]*?this\.pending = pending;[\s\S]*?this\.error = error;[\s\S]*?this\.providerName = providerName \|\| "";/);
-    assert.match(code, /this\._weatherCoordinatorForCurrentState\(\)\.setStatus/);
+    assert.match(code, /this\._weatherCoordinator\.setStatus/);
     assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER\);\n/);
     assert.match(panelStatus, /function markedWeatherError\(error\)/);
     assert.match(panelStatus, /return text \? Weather\.WEATHER_ERROR_MARKER \+ " " \+ text : "";/);
@@ -274,6 +274,16 @@ test("applets surface weather provider failures", () => {
     assert.doesNotMatch(panelStatus, /_\("Source: %s"\)/);
     assert.match(coordinators, /this\.weatherProvider\.schedule\(this\._request\(\), this\.setStatus\.bind\(this\)\);/);
     assert.match(coordinators, /this\.weatherProvider\.queue\(this\._request\(\), this\.setStatus\.bind\(this\)\);/);
+});
+
+test("production applets require their initialized coordinators", () => {
+    const code = appletSource("5.4");
+
+    assert.doesNotMatch(code,
+        /_weather_reading|_weather_pending|_weather_error|_weather_provider|_applied_show_events/);
+    assert.doesNotMatch(code, /CoordinatorForCurrentState/);
+    assert.match(code, /this\._weatherCoordinator = new AppletWeatherCoordinator/);
+    assert.match(code, /this\._eventListCoordinator = new AppletEventListCoordinator/);
 });
 
 test("event fetch window uses the shared week-start offset", () => {
