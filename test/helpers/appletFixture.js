@@ -64,7 +64,7 @@ global.imports = {
                     "/usr/share/zoneinfo/Canada/Eastern": "../America/Toronto",
                     "/usr/share/zoneinfo/Brazil/East": "../America/Sao_Paulo"
                 };
-                if (Object.prototype.hasOwnProperty.call(links, filename)) {
+                if (Object.hasOwn(links, filename)) {
                     return links[filename];
                 }
                 throw new Error("regular zoneinfo file");

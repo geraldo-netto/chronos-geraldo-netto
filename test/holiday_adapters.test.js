@@ -289,6 +289,14 @@ test("OpenHolidaysServiceAdapter maps countries, regions, and localized holidays
         dateTo: { year: 2026, month: 5, day: 3 }
     }]);
 
+    const inheritedEndpoint = Object.assign(
+        Object.create({ endDate: "2026-05-03" }),
+        {
+            startDate: "2026-05-01",
+            type: "Public",
+            name: [{ language: "EN", text: "Inherited endpoint" }],
+            nationwide: true
+        });
     const endpointRows = adapter.translateResponse([
         {
             startDate: "2026-05-01",
@@ -302,11 +310,14 @@ test("OpenHolidaysServiceAdapter maps countries, regions, and localized holidays
             type: "Public",
             name: [{ language: "EN", text: "Same-day endpoint" }],
             nationwide: true
-        }
+        },
+        inheritedEndpoint
     ], globalParams);
-    assert.equal(endpointRows.length, 2);
+    assert.equal(endpointRows.length, 3);
     assert.equal(Object.hasOwn(endpointRows[0], "dateTo"), false);
     assert.equal(Object.hasOwn(endpointRows[1], "dateTo"), false);
+    assert.equal(Object.hasOwn(endpointRows[2], "dateTo"), false,
+        "an inherited endpoint is not part of the provider row");
 });
 
 test("OpenHolidaysServiceAdapter translates dates and subdivisions", () => {

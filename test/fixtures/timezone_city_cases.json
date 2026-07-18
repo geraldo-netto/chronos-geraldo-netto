@@ -4,6 +4,7 @@
     { "timezone": "Europe/Rome", "city": "Rome" },
     { "timezone": "America/New_York", "city": "New York" },
     { "timezone": "America/Argentina/Buenos_Aires", "city": "Buenos Aires" },
+    { "timezone": "America/Port_of_Spain", "city": "Port of Spain" },
     { "timezone": "US/Eastern", "city": "New York" },
     { "timezone": "Canada/Eastern", "city": "Toronto" },
     { "timezone": "Brazil/East", "city": "Sao Paulo" },

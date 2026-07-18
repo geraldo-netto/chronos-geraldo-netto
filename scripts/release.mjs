@@ -43,7 +43,7 @@ export async function readProcessStartTime(pid, readStat = readFile) {
         }
         return startTime;
     } catch (error) {
-        if (error && error.code === "ENOENT") {
+        if (error?.code === "ENOENT") {
             return null;
         }
         throw error;
@@ -55,7 +55,7 @@ export async function retireStaleLock(lockPath) {
     try {
         contents = await readFile(lockPath, "utf8");
     } catch (error) {
-        if (error && error.code === "ENOENT") {
+        if (error?.code === "ENOENT") {
             return;
         }
         throw error;
@@ -79,7 +79,7 @@ export async function retireStaleLock(lockPath) {
     try {
         await rename(lockPath, retired);
     } catch (error) {
-        if (error && error.code === "ENOENT") {
+        if (error?.code === "ENOENT") {
             return;
         }
         throw error;
@@ -225,7 +225,7 @@ async function recoverReleaseTransaction(root) {
     try {
         manifest = JSON.parse(await readFile(path.join(transaction, TRANSACTION_MANIFEST), "utf8"));
     } catch (error) {
-        if (error && error.code === "ENOENT") {
+        if (error?.code === "ENOENT") {
             return;
         }
         throw error;

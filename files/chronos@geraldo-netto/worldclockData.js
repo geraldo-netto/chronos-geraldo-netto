@@ -117,7 +117,7 @@ function timezoneCityName(timezone) {
     if (!cityIdentifier) {
         return "";
     }
-    return cityIdentifier.split("/").pop().replace(/_/g, " ").trim();
+    return cityIdentifier.split("/").pop().split("_").join(" ").trim();
 }
 
 // Weather egress must use the runtime's resolved timezone, not the configured
