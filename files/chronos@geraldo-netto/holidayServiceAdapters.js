@@ -286,7 +286,8 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
             typeof holiday.name === "string" &&
             (!holiday.localName || typeof holiday.localName === "string") &&
             (!holiday.counties || Array.isArray(holiday.counties)) &&
-            (!holiday.types || Array.isArray(holiday.types));
+            (!holiday.types || (Array.isArray(holiday.types) &&
+                holiday.types.every((type) => typeof type === "string")));
     }
 
     _matchesRegion(holiday, params) {

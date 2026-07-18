@@ -132,7 +132,14 @@ test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
                 localName: "Cesar Chavez Day",
                 name: "Cesar Chavez Day",
                 counties: ["US-CA"],
-                types: ["Public"]
+                types: ["Optional", "Bank"]
+            },
+            {
+                date: "2026-07-04",
+                localName: "Malformed types",
+                name: "Malformed types",
+                counties: ["US-CA"],
+                types: [null]
             },
             {
                 date: "2026-11-03",
@@ -166,6 +173,8 @@ test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
         flags: ["public_holiday"]
     });
     assert.deepEqual(result.data[1].date, { year: 2026, month: 3, day: 31 });
+    assert.deepEqual(result.data[1].flags, ["optional", "bank"],
+        "valid type strings keep their normalization");
     assert.equal(new HolidayRecordContract().validResponse(result.data), true);
 
     const globalRows = adapter.translateResponse([
@@ -631,6 +640,7 @@ function fuzzNagerRow(rand, index) {
     const month = 1 + Math.floor(rand() * 14);      // 13/14 are invalid
     const day = 1 + Math.floor(rand() * 33);        // up to 33: overflow days
     const countyRoll = rand();
+    const typeRoll = rand();
 
     return {
         date: rand() < 0.15 ?
@@ -642,7 +652,10 @@ function fuzzNagerRow(rand, index) {
         counties: countyRoll < 0.4 ? ["US-CA"] :
             countyRoll < 0.6 ? ["US-TX"] :
                 countyRoll < 0.8 ? [] : ["US-TX", "US-CA"],
-        types: rand() < 0.5 ? ["Public"] : (rand() < 0.5 ? ["Optional"] : [])
+        types: typeRoll < 0.45 ? ["Public"] :
+            typeRoll < 0.7 ? ["Optional", "Bank"] :
+                typeRoll < 0.8 ? [] :
+                    [pickFrom(rand, [null, undefined, 42, true, {}, []])]
     };
 }
 
@@ -681,7 +694,8 @@ test("NagerDateServiceAdapter fuzzes date, county and type translation", () => {
     // calendar date and it is not another county's holiday. The count has to agree
     // both ways — nothing keepable is dropped, and nothing else is kept.
     const keepable = payload.filter((row) => isRealCalendarDate(row.date) &&
-        (row.counties.length === 0 || row.counties.includes("US-CA")));
+        (row.counties.length === 0 || row.counties.includes("US-CA")) &&
+        row.types.every((type) => typeof type === "string"));
 
     assert.equal(translated.length, keepable.length);
     assert.ok(keepable.length > 0, "fuzz corpus keeps some valid rows");
