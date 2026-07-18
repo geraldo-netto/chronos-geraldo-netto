@@ -338,8 +338,7 @@ test("CI runs the gates the README promises", () => {
     const releaseStart = workflow.indexOf("  release:");
     const packagingJob = workflow.slice(packagingStart, releaseStart);
     const releaseJob = workflow.slice(releaseStart);
-    const artifactName =
-        /name: chronos-spices-\$\{\{ github\.sha \}\}-\$\{\{ github\.run_attempt \}\}/;
+    const artifactName = /^ {10}name: chronos-spices-\$\{\{ github\.sha \}\}$/m;
 
     assert.match(workflow, /on:[\s\S]*push:[\s\S]*pull_request:/, "on push and on pull request");
     // every job runs repository and dependency code; the token must not be
@@ -370,6 +369,8 @@ test("CI runs the gates the README promises", () => {
     assert.match(releaseJob, /uses: actions\/download-artifact@[0-9a-f]{40} # v\d/);
     assert.match(releaseJob, artifactName,
         "the release job consumes the package built by its dependency");
+    assert.doesNotMatch(workflow, /github\.run_attempt/,
+        "a failed-job retry must still find the artifact from the successful packaging job");
     assert.match(releaseJob, /path: dist\/chronos@geraldo-netto\//);
     assert.match(releaseJob, /test -f dist\/chronos@geraldo-netto\/files\//,
         "the downloaded artifact must have the expected package root");
