@@ -81,6 +81,7 @@ var HolidayCache = HolidayCacheModule.HolidayCache;
 var EnricoServiceAdapter = HolidayServiceAdapters.EnricoServiceAdapter;
 var NagerDateServiceAdapter = HolidayServiceAdapters.NagerDateServiceAdapter;
 var OpenHolidaysServiceAdapter = HolidayServiceAdapters.OpenHolidaysServiceAdapter;
+var CalDaysServiceAdapter = HolidayServiceAdapters.CalDaysServiceAdapter;
 var createHolidayServiceChain = HolidayServiceAdapters.createHolidayServiceChain;
 // the record shape the app owns: what an answer from *any* provider must be
 var HolidayRecordContract = HolidayRecord.HolidayRecordContract;
@@ -98,7 +99,8 @@ function httpBackedService(getSession, params = {}) {
         new EnricoServiceAdapter(load),
         [
             new OpenHolidaysServiceAdapter(load, lang),
-            new NagerDateServiceAdapter(load)
+            new NagerDateServiceAdapter(load),
+            new CalDaysServiceAdapter(load)
         ],
         record
     );
@@ -214,7 +216,7 @@ var HolidayService = class HolidayService {
         this._session = params.httpSession || new IoUtils.LazyHttpSession();
         this.service = service || httpBackedService(() => this._getHttpSession());
         // What a payload has to look like, and what a holiday expands to, is one
-        // rule for all three providers — so it is held here, not asked of the
+        // rule for all providers — so it is held here, not asked of the
         // chain. The chain used to forward validResponse/expandHoliday to a
         // record it privately owned, which made "what an adapter must implement"
         // a different answer for every adapter in the tree.
@@ -544,7 +546,7 @@ HolidayService.fn = "/holidays.json";
 //
 // It used to assemble itself through default arguments across three files — new
 // HolidayProviderFacade() reached for new HolidayService(), which reached for
-// httpBackedService(), which built the three adapters and the chain, and then
+// httpBackedService(), which built the adapters and the chain, and then
 // the repository and the cache. Nothing could substitute anything, and the
 // wiring lived in four constructors' parameter lists.
 //
@@ -597,5 +599,5 @@ var HolidayProviderFacade = class HolidayProviderFacade {
 
 if (typeof module !== "undefined") {
     module.exports = {
-        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
+        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, CalDaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
 }

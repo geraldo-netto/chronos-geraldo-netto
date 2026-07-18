@@ -188,6 +188,111 @@ test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
     assert.deepEqual(globalRows.map((holiday) => holiday.name[0].text), ["Independence Day"]);
 });
 
+test("CalDaysServiceAdapter maps and normalizes nationwide holidays", () => {
+    const {
+        CalDaysServiceAdapter, HolidayRecordContract, HOLIDAY_ERRORS
+    } = loadHolidays();
+    const requests = [];
+    const adapter = new CalDaysServiceAdapter((url, params, callback) => {
+        requests.push(url);
+        callback([
+            { date: "2026-01-01", name: "New Year's Day", type: "national" },
+            { date: "2026-05-18", name: "Joint Leave", type: "joint" },
+            { date: "2026-06-01", name: "Unknown Region Day", type: "regional" },
+            { date: "not-a-date", name: "Bad Date", type: "national" },
+            { date: "2026-07-01", name: "", type: "national" },
+            { date: "2026-08-01", name: "Observance", type: "optional" },
+            { date: 20260802, name: "Numeric Date", type: "national" },
+            { date: "2026-08-03", name: 42, type: "national" },
+            [], "not an object", null
+        ], params, STAMP);
+    });
+    let result = null;
+
+    adapter.fetchYear("usa", "global", 2026, (data, params, retrieved) => {
+        result = { data, params, retrieved };
+    });
+
+    assert.deepEqual(adapter.params("usa", "global", 2026), {
+        year: 2026,
+        country: "usa",
+        region: "global",
+        countryCode: "us"
+    });
+    assert.equal(adapter.url(adapter.params("usa", "global", 2026)),
+        "https://api.caldays.com/v1/us/holidays/2026");
+    assert.deepEqual(result.data, [
+        {
+            date: { year: 2026, month: 1, day: 1 },
+            name: [{ lang: "en", text: "New Year's Day" }],
+            flags: ["public_holiday"]
+        },
+        {
+            date: { year: 2026, month: 5, day: 18 },
+            name: [{ lang: "en", text: "Joint Leave" }],
+            flags: ["public_holiday"]
+        }
+    ]);
+    assert.equal(result.params.providerName, "caldays");
+    assert.equal(result.retrieved, STAMP);
+    assert.equal(new HolidayRecordContract().validResponse(result.data), true);
+    assert.equal(requests.length, 1);
+
+    const unavailable = [];
+    adapter.fetchYear("usa", "ca", 2026, (data, params) => {
+        unavailable.push([data, params]);
+    });
+    adapter.fetchYear("nowhere", "global", 2026, (data, params) => {
+        unavailable.push([data, params]);
+    });
+
+    assert.equal(requests.length, 1, "ambiguous or unsupported places never reach caldays");
+    assert.equal(unavailable[0][0].error, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE);
+    assert.equal(unavailable[0][1].countryCode, null);
+    assert.equal(unavailable[1][0].error, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE);
+    assert.equal(adapter.countryCode("usa", "ca"), null);
+    assert.equal(adapter.countryCode("nowhere", "global"), null);
+});
+
+test("fuzz: CalDays translation accepts only placeable nationwide rows", () => {
+    const { CalDaysServiceAdapter, HolidayRecordContract } = loadHolidays();
+    const adapter = new CalDaysServiceAdapter(() => {});
+    const contract = new HolidayRecordContract("en");
+    const params = adapter.params("usa", "global", 2030);
+    const rand = makeRandom(0xca1da7);
+    const junk = [
+        null, [], "row", 42, {},
+        { date: "2030-02-30", name: "Bad date", type: "national" },
+        { date: "2030-01-01", name: "", type: "national" },
+        { date: "2030-01-01", name: 42, type: "national" },
+        { date: "2030-01-01", name: "Wrong type", type: "optional" },
+        { date: "2030-01-01", name: "Local only", type: "regional" }
+    ];
+    let kept = 0;
+    let dropped = 0;
+
+    for (let round = 0; round < 300; round++) {
+        const valid = {
+            date: `2030-${String(1 + Math.floor(rand() * 12)).padStart(2, "0")}` +
+                `-${String(1 + Math.floor(rand() * 28)).padStart(2, "0")}`,
+            name: `Holiday ${round}`,
+            type: rand() < 0.5 ? "national" : "joint"
+        };
+        const payload = [valid, junk[Math.floor(rand() * junk.length)]];
+        const translated = adapter.translateResponse(payload, params);
+
+        assert.equal(contract.validResponse(translated), true);
+        assert.equal(translated.length, 1);
+        assert.equal(translated[0].name[0].text, valid.name);
+        assert.deepEqual(adapter.translateResponse(payload, params), translated);
+        kept += translated.length;
+        dropped += payload.length - translated.length;
+    }
+
+    assert.equal(kept, 300);
+    assert.equal(dropped, 300);
+});
+
 test("OpenHolidaysServiceAdapter maps countries, regions, and localized holidays", () => {
     const { HolidayRecordContract, OpenHolidaysServiceAdapter } = loadHolidays();
     const { OPEN_HOLIDAYS_COUNTRIES } = require(holidayConstantsPath);
@@ -873,14 +978,15 @@ test("expandHoliday spans month boundaries without corrupting dates", () => {
         ["2026-7-9"]);
 });
 
-test("both fallback adapters share one default provider order", () => {
+test("both composition exports share one default provider order", () => {
     const holidays = loadHolidays();
     const ServiceAdapters = require(holidayServiceAdaptersPath);
     const { HOLIDAY_PROVIDER_NAMES } = require(holidayConstantsPath);
     const expected = [
         HOLIDAY_PROVIDER_NAMES.ENRICO,
         HOLIDAY_PROVIDER_NAMES.OPEN_HOLIDAYS,
-        HOLIDAY_PROVIDER_NAMES.NAGER_DATE
+        HOLIDAY_PROVIDER_NAMES.NAGER_DATE,
+        HOLIDAY_PROVIDER_NAMES.CALDAYS
     ];
 
     for (const chain of [holidays.createHolidayServiceChain(),

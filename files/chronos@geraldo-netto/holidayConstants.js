@@ -16,7 +16,8 @@ var HOLIDAY_ERRORS = {
 var HOLIDAY_PROVIDER_NAMES = {
     ENRICO: "Enrico",
     OPEN_HOLIDAYS: "OpenHolidays",
-    NAGER_DATE: "Nager.Date"
+    NAGER_DATE: "Nager.Date",
+    CALDAYS: "caldays"
 };
 var GLOBAL_REGION = "global";
 // the countries the settings combobox offers; a value outside this list

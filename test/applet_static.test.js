@@ -125,7 +125,7 @@ test("nothing in the applet blocks the compositor on a subprocess or a socket", 
 
 // The weather and holiday features were each split into a pure half and a
 // networked half; the UI kept requiring the barrels, so the day grid linked the
-// cache repository, the three vendor adapters and a Soup session in order to read
+// cache repository, all vendor adapters and a Soup session in order to read
 // two error identifiers, and the panel presenter linked the provider chains and
 // the refresh scheduler to read six constants and a formatter. The split is only
 // real if the import graph honours it, and only the imports say whether it does.

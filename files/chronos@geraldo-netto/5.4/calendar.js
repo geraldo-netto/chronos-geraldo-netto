@@ -26,7 +26,7 @@ const LocaleText = AppletModules.localeText;
 const StyleUtils = AppletModules.styleUtils;
 const SettingsFacade = require("./settingsFacade");
 // only HOLIDAY_ERRORS is read here, and it is declared in holidayConstants;
-// requiring the holidays barrel linked the cache repository, the three vendor
+// requiring the holidays barrel linked the cache repository, every vendor
 // adapters and the HTTP session into the day grid
 const Holidays = require("./holidayConstants");
 const EventDataModule = require("./eventData");

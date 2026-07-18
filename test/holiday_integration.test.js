@@ -12,6 +12,7 @@ test("the version shim forwards the shared provider module", () => {
         EnricoServiceAdapter: class {},
         NagerDateServiceAdapter: class {},
         OpenHolidaysServiceAdapter: class {},
+        CalDaysServiceAdapter: class {},
         HolidayFallbackChain: class {},
         HolidayService: class {},
         HolidayProviderFacade: class {},
@@ -81,11 +82,13 @@ test("HolidayProviderFacade exposes only place and holiday retrieval", () => {
 // the domain's behalf. This is the port, and it is one method wide.
 test("an adapter is a fetchYear and nothing else", () => {
     const {
-        EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter
+        EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter,
+        CalDaysServiceAdapter
     } = loadHolidays();
 
     const adapters = [
-        new EnricoServiceAdapter(), new NagerDateServiceAdapter(), new OpenHolidaysServiceAdapter()
+        new EnricoServiceAdapter(), new NagerDateServiceAdapter(),
+        new OpenHolidaysServiceAdapter(), new CalDaysServiceAdapter()
     ];
 
     for (const adapter of adapters) {
@@ -444,7 +447,7 @@ test("a response for a place the user has left settles nothing", () => {
 });
 
 // ...and with nothing replaced at all, the root builds the real thing: one HTTP
-// session, built on first fetch, shared by the three adapters and aborted on
+// session, built on first fetch, shared by all adapters and aborted on
 // destroy.
 test("the composition root builds one session, lazily, and aborts it", () => {
     const soup = makeSoup3({ data: JSON.stringify([]) });
@@ -486,12 +489,15 @@ test("the holiday composition root wires the shipped graph", () => {
         },
         cache: makeMemoryCache()
     });
+    const chain = provider._provider.service;
 
     const answers = [];
     provider.setPlace("fra", "global", () => answers.push("updated"));
 
     assert.ok(requested[0].startsWith("https://kayaposoft.com/enrico/"),
         "Enrico is still the primary");
+    assert.deepEqual(chain.fallbacks.map((fallback) => fallback.name),
+        ["OpenHolidays", "Nager.Date", "caldays"]);
     assert.deepEqual(answers, ["updated"]);
 
     const months = [];

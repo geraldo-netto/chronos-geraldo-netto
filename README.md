@@ -335,12 +335,16 @@ as the city its timezone names, and the name you typed never leaves the machine.
 
 The holiday data are obtained from the webservice [Enrico](https://kayaposoft.com/enrico/)
 by Kayaposoft.com, with [OpenHolidays](https://www.openholidaysapi.org/) and
-[Nager.Date](https://date.nager.at/) as fallback providers (in that order) for
-supported countries. When the operating-system timezone supplies the initial
-holiday country, lookup starts automatically; otherwise nothing is sent until
-you pick one. The selected country and region are sent to those services, at most
-once every 50 days per year of data (sooner after a failure), and the response
-is cached under `~/.cache/chronos@geraldo-netto/`.
+[Nager.Date](https://date.nager.at/) as fallbacks, followed by
+[caldays](https://caldays.com/api) for nationwide holidays via
+`api.caldays.com`. caldays regional rows are not used because its response does
+not identify the subdivision to which a row applies. When the operating-system
+timezone supplies the initial holiday country, lookup starts automatically;
+otherwise nothing is sent until you pick one. The selected country, and the
+region where a provider supports it, are sent to those services at most once
+every 50 days per year of data (sooner after a failure), and the response is
+cached under
+`~/.cache/chronos@geraldo-netto/`.
 
 ### Third-party data
 
@@ -350,6 +354,10 @@ operating-system timezone maps to a supported country. Responses are treated as 
 are size-capped, shape-checked, and colors or text taken from them are never
 interpolated into markup. No account, API key, or personal data beyond the
 location or country you configure is involved.
+
+caldays holiday data is provided under
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Holiday data:
+[caldays.com](https://caldays.com/).
 
 > Enrico Service 2.0 is a free service written in PHP providing public holidays for several 
   countries. You can use Enrico Service to display public holidays on your website or in your 
