@@ -6,11 +6,6 @@ All notable changes to Cinnamon Chronos are recorded here. The format follows
 
 ## [Unreleased]
 
-### Added
-
-- caldays as a nationwide public-holiday fallback provider, with strict response
-  normalization and attribution.
-
 ### Changed
 
 - Development tooling and CI now require Node.js 22; Node.js 20 is no longer

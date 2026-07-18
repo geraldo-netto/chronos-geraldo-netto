@@ -247,7 +247,6 @@ function gjsImportsMock() {
                             EnricoServiceAdapter: class {},
                             NagerDateServiceAdapter: class {},
                             OpenHolidaysServiceAdapter: class {},
-                            CalDaysServiceAdapter: class {},
                             createHolidayServiceChain: () => ({})
                         }
                     }
@@ -301,7 +300,7 @@ const EXPORTS = {
     // declares the symbol they want, and each part's own row above pins those.
     weather: ["WeatherProvider"],
     holidays: ["Provider", "HolidayCacheRepository", "HolidayCache", "EnricoServiceAdapter",
-        "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter", "CalDaysServiceAdapter",
+        "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
         "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
         "HOLIDAY_ERRORS"],
     holidayAdapters: ["HolidayFallbackChain"],
@@ -313,7 +312,7 @@ const EXPORTS = {
         "HolidayRecordContract"],
     holidayServiceAdapters: ["regionSubdivisionCode", "isoDateParts",
         "IsoHolidayServiceAdapter", "EnricoServiceAdapter", "NagerDateServiceAdapter",
-        "OpenHolidaysServiceAdapter", "CalDaysServiceAdapter", "createHolidayServiceChain"],
+        "OpenHolidaysServiceAdapter", "createHolidayServiceChain"],
     holidayConstants: ["HOLIDAY_ERRORS", "HOLIDAY_PROVIDER_NAMES", "GLOBAL_REGION",
         "OPEN_HOLIDAYS_COUNTRIES", "COUNTRY_TO_ISO2", "ISO2_TO_COUNTRY",
         "countryFromIso2", "REGION_TO_SUBDIVISION"],

@@ -12,7 +12,6 @@ test("the version shim forwards the shared provider module", () => {
         EnricoServiceAdapter: class {},
         NagerDateServiceAdapter: class {},
         OpenHolidaysServiceAdapter: class {},
-        CalDaysServiceAdapter: class {},
         HolidayFallbackChain: class {},
         HolidayService: class {},
         HolidayProviderFacade: class {},
@@ -82,13 +81,12 @@ test("HolidayProviderFacade exposes only place and holiday retrieval", () => {
 // the domain's behalf. This is the port, and it is one method wide.
 test("an adapter is a fetchYear and nothing else", () => {
     const {
-        EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter,
-        CalDaysServiceAdapter
+        EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter
     } = loadHolidays();
 
     const adapters = [
         new EnricoServiceAdapter(), new NagerDateServiceAdapter(),
-        new OpenHolidaysServiceAdapter(), new CalDaysServiceAdapter()
+        new OpenHolidaysServiceAdapter()
     ];
 
     for (const adapter of adapters) {
@@ -497,7 +495,7 @@ test("the holiday composition root wires the shipped graph", () => {
     assert.ok(requested[0].startsWith("https://kayaposoft.com/enrico/"),
         "Enrico is still the primary");
     assert.deepEqual(chain.fallbacks.map((fallback) => fallback.name),
-        ["OpenHolidays", "Nager.Date", "caldays"]);
+        ["OpenHolidays", "Nager.Date"]);
     assert.deepEqual(answers, ["updated"]);
 
     const months = [];

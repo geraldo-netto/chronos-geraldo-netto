@@ -81,7 +81,6 @@ var HolidayCache = HolidayCacheModule.HolidayCache;
 var EnricoServiceAdapter = HolidayServiceAdapters.EnricoServiceAdapter;
 var NagerDateServiceAdapter = HolidayServiceAdapters.NagerDateServiceAdapter;
 var OpenHolidaysServiceAdapter = HolidayServiceAdapters.OpenHolidaysServiceAdapter;
-var CalDaysServiceAdapter = HolidayServiceAdapters.CalDaysServiceAdapter;
 var createHolidayServiceChain = HolidayServiceAdapters.createHolidayServiceChain;
 // the record shape the app owns: what an answer from *any* provider must be
 var HolidayRecordContract = HolidayRecord.HolidayRecordContract;
@@ -99,8 +98,7 @@ function httpBackedService(getSession, params = {}) {
         new EnricoServiceAdapter(load),
         [
             new OpenHolidaysServiceAdapter(load, lang),
-            new NagerDateServiceAdapter(load),
-            new CalDaysServiceAdapter(load)
+            new NagerDateServiceAdapter(load)
         ],
         record
     );
@@ -599,5 +597,5 @@ var HolidayProviderFacade = class HolidayProviderFacade {
 
 if (typeof module !== "undefined") {
     module.exports = {
-        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, CalDaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
+        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
 }

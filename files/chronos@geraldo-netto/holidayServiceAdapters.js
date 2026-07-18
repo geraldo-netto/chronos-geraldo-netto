@@ -316,63 +316,6 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     }
 };
 
-var CalDaysServiceAdapter = class CalDaysServiceAdapter extends IsoHolidayServiceAdapter {
-    constructor(loadJsonAsync = unavailableLoadJsonAsync) {
-        super(loadJsonAsync);
-        this.name = HOLIDAY_PROVIDER_NAMES.CALDAYS;
-    }
-
-    countryCode(country, region) {
-        if (region !== GLOBAL_REGION) {
-            return null;
-        }
-
-        const code = COUNTRY_TO_ISO2[country];
-        return code ? code.toLowerCase() : null;
-    }
-
-    params(country, region, year) {
-        const normalizedRegion = region || GLOBAL_REGION;
-        return {
-            year,
-            country,
-            region: normalizedRegion,
-            countryCode: this.countryCode(country, normalizedRegion)
-        };
-    }
-
-    url(params) {
-        return "https://api.caldays.com/v1/" +
-            encodeURIComponent(params.countryCode) + "/holidays/" +
-            encodeURIComponent(params.year);
-    }
-
-    _validHoliday(holiday) {
-        return holiday &&
-            typeof holiday === "object" &&
-            !Array.isArray(holiday) &&
-            typeof holiday.date === "string" &&
-            typeof holiday.name === "string" &&
-            holiday.name.length > 0 &&
-            ["national", "joint", "regional"].indexOf(holiday.type) !== -1;
-    }
-
-    _matchesRegion(holiday) {
-        // The API identifies regional rows but does not say which subdivision
-        // they belong to. Including one would mark it for every user in the
-        // country, so only the unambiguous nationwide rows are usable.
-        return holiday.type !== "regional";
-    }
-
-    _flags() {
-        return ["public_holiday"];
-    }
-
-    _name(holiday) {
-        return [{lang: "en", text: holiday.name}];
-    }
-};
-
 var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHolidayServiceAdapter {
     constructor(loadJsonAsync = unavailableLoadJsonAsync, lang = _lcLang()) {
         super(loadJsonAsync);
@@ -477,7 +420,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
 };
 
 // The one place that fixes the default provider order: Enrico primary, then
-// OpenHolidays, Nager.Date and CalDays. A caller that wants a live HTTP
+// OpenHolidays and Nager.Date. A caller that wants a live HTTP
 // loader injects the adapters; the defaults here stay loader-less.
 //
 // The chain uses the record contract for one thing — deciding whether a
@@ -495,8 +438,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
 function createHolidayServiceChain(primary = new EnricoServiceAdapter(),
     fallbacks = [
         new OpenHolidaysServiceAdapter(),
-        new NagerDateServiceAdapter(),
-        new CalDaysServiceAdapter()
+        new NagerDateServiceAdapter()
     ],
     record = new HolidayRecordContract()) {
     return new HolidayAdapters.HolidayFallbackChain(
@@ -507,7 +449,6 @@ if (typeof module !== "undefined") {
     module.exports = {
         regionSubdivisionCode, isoDateParts, IsoHolidayServiceAdapter,
         EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter,
-        CalDaysServiceAdapter,
         createHolidayServiceChain
     };
 }
