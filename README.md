@@ -50,14 +50,15 @@ with the applet:
 | --- | --- | --- | --- |
 | Node.js | **≥ 22** | the JS suite and its coverage gate | `sudo apt install nodejs npm` |
 | Python 3 | ≥ 3.8 | the settings-widget suite | already present |
-| eslint | `^9` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
+| eslint | `^10` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
 | gettext | any | compiling catalogs (`msgfmt`) and rejecting active fuzzy entries (`msgattrib`) | `sudo apt install gettext` |
 
-`npm install` pulls exactly one direct dependency, eslint, into `node_modules/`.
-The test suites themselves need no packages at all — they run on Node's built-in
-test runner and Python's `unittest`.
+Run `npm ci` (or `npm install` when changing dependencies) before the JavaScript
+suite or linter. It installs the three direct development dependencies declared
+in `package.json`; the applet itself does not ship them. The suites run on
+Node's built-in test runner and Python's `unittest`.
 
 ## Installation
 
@@ -217,8 +218,8 @@ PageUp/PageDown by month, Home returns to today.
 
 ### Running the tests and linters (development)
 
-From the repository root. The test suites need no dependencies — Node ≥ 22 for
-the JS suite, Python 3 for the settings suite:
+From the repository root, after `npm ci`. The suites require Node ≥ 22 for the
+JavaScript tests and Python 3 for the settings tests:
 
 ```sh
 npm test          # both suites, behind the coverage gate
@@ -232,7 +233,7 @@ pyflakes is missing rather than skipping itself, because a lint step that passes
 by not running is worse than no lint step at all.
 
 ```sh
-npm install                      # once: installs eslint into node_modules/
+npm ci                           # installs the locked JavaScript tooling
 python3 -m pip install pyflakes   # required: the Python lint step is a gate
 
 npm run lint      # eslint over the applet and the tests, pyflakes over the Python

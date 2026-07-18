@@ -6,7 +6,7 @@
 // The audit that found the five over-limit test bodies ran a walker like this one
 // by hand. Hand-run means it drifts, so it lives here and the suite runs it.
 //
-// espree is eslint's parser, so it is already installed.
+// espree is a direct development dependency because this helper imports it.
 const espree = require("espree");
 
 const PARSE_OPTIONS = { ecmaVersion: 2022, sourceType: "script", loc: true };
