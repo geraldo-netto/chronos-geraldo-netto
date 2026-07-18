@@ -11,6 +11,7 @@ const St = imports.gi.St;
 const Mainloop = imports.mainloop;
 
 const SMOOTH_SCROLL_NOTCH = 1;
+const MAX_SMOOTH_SCROLL_MONTHS = 12;
 const DAY_KEY_DELTAS = {
     [Clutter.KEY_Left]: -1,
     [Clutter.KEY_Right]: 1,
@@ -26,16 +27,11 @@ function sameDay(dateA, dateB) {
 }
 
 function browsedDate(oldDate, yearChange, monthChange) {
-    let newMonth = oldDate.getMonth() + monthChange;
-    if (newMonth > 11) {
-        yearChange++;
-        newMonth = 0;
-    } else if (newMonth < 0) {
-        yearChange--;
-        newMonth = 11;
-    }
+    const monthIndex = oldDate.getMonth() + monthChange;
+    const monthYearChange = Math.floor(monthIndex / 12);
+    const newMonth = ((monthIndex % 12) + 12) % 12;
 
-    const newYear = oldDate.getFullYear() + yearChange;
+    const newYear = oldDate.getFullYear() + yearChange + monthYearChange;
     const daysInMonth = 32 - new Date(newYear, newMonth, 32).getDate();
     const date = new Date();
     date.setFullYear(newYear, newMonth, Math.min(oldDate.getDate(), daysInMonth));
@@ -172,13 +168,12 @@ class CalendarNavigationController {
             this.scrollAccumulator = 0;
         }
         this.scrollAccumulator += delta;
-        while (this.scrollAccumulator <= -SMOOTH_SCROLL_NOTCH) {
-            this.scrollAccumulator += SMOOTH_SCROLL_NOTCH;
-            this.port.browse(0, -1);
-        }
-        while (this.scrollAccumulator >= SMOOTH_SCROLL_NOTCH) {
-            this.scrollAccumulator -= SMOOTH_SCROLL_NOTCH;
-            this.port.browse(0, 1);
+        const notches = Math.trunc(this.scrollAccumulator / SMOOTH_SCROLL_NOTCH);
+        this.scrollAccumulator -= notches * SMOOTH_SCROLL_NOTCH;
+        if (notches !== 0) {
+            const months = Math.max(-MAX_SMOOTH_SCROLL_MONTHS,
+                Math.min(MAX_SMOOTH_SCROLL_MONTHS, notches));
+            this.port.browse(0, months);
         }
     }
 

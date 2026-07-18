@@ -1851,10 +1851,10 @@ test("a touchpad's smooth scroll walks the months, a notch at a time", () => {
     scroll(0, -0.5);
     assert.deepEqual(actions, [[0, -1]]);
 
-    // a flick: several notches in one event, and every one of them counts
+    // a flick: several notches in one event are coalesced into one browse
     actions.length = 0;
     scroll(0, 3);
-    assert.deepEqual(actions, [[0, 1], [0, 1], [0, 1]]);
+    assert.deepEqual(actions, [[0, 3]]);
 
     // a horizontal touchpad scroll walks the months too, and a 0 delta is not a
     // scroll at all — Clutter sends those to end a gesture
@@ -1862,6 +1862,29 @@ test("a touchpad's smooth scroll walks the months, a notch at a time", () => {
     scroll(-1, 0);
     scroll(0, 0);
     assert.deepEqual(actions, [[0, -1]]);
+
+    // Driver glitches cannot multiply into an unbounded number of synchronous
+    // compositor-thread calls, and non-finite deltas are ignored.
+    for (const delta of [100000, -100000, Number.MAX_VALUE, -Number.MAX_VALUE]) {
+        actions.length = 0;
+        scroll(0, delta);
+        assert.equal(actions.length, 1);
+        assert.ok(Math.abs(actions[0][1]) <= 12);
+    }
+    actions.length = 0;
+    for (const delta of [0, NaN, Infinity, -Infinity]) {
+        scroll(delta, delta);
+    }
+    assert.deepEqual(actions, []);
+
+    const rand = makeRandom(0x5c7011);
+    for (let i = 0; i < 200; i++) {
+        actions.length = 0;
+        const delta = (rand() - 0.5) * Number.MAX_SAFE_INTEGER;
+        scroll(0, delta);
+        assert.ok(actions.length <= 1);
+        assert.ok(actions.length === 0 || Math.abs(actions[0][1]) <= 12);
+    }
 });
 
 test("fuzz: navigation wrappers preserve valid queued dates", () => {
