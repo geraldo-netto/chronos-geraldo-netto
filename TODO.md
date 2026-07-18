@@ -8,7 +8,7 @@ Baseline: `npm test` green with the JS and Python per-file coverage gates satisf
 
 The 2026-07-18 SonarCloud pass was also triaged against the source and Cinnamon runtime rather than accepting analyzer severities at face value. Its GitHub decoration called every open issue "new", while the Web API's current leak-period query returned only the newly introduced subset. Framework, compatibility, test-double and bounded-input findings are recorded under Rejected; actionable analysis/gate gaps remain below.
 
-Open items: 4 (Critical 0, High 0, Medium 2, Low 2).
+Open items: 3 (Critical 0, High 0, Medium 2, Low 1).
 
 ## Findings
 
@@ -28,7 +28,6 @@ Open items: 4 (Critical 0, High 0, Medium 2, Low 2).
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T559 | accessibility; UI / UX; test coverage | Low | open | S | Keep static About descriptions out of the keyboard tab order while preserving focus for actionable links. | **[verified]** An actual GTK widget-tree probe found 9 static labels with both `selectable` and `can_focus` enabled, in addition to 13 focusable links, because `text_label()` unconditionally calls `set_selectable(True)`. Make ordinary headings and descriptions non-selectable, retain selection only for metadata intentionally meant to be copied, and add a real-widget regression for focusability. |
 | T560 | code complexity; process & delivery governance; test coverage | Low | open | L | Extend cognitive-complexity enforcement to named JavaScript test helpers and Python settings/test code, not only JavaScript production functions and `test(...)` callbacks. | **[verified]** Running the existing `functionBodies` walker across `test/` found three named helpers scoring 16–18 (`loadUtils`, `score`, and `installLocalCountryFuzzMocks`) that the current callback-only test gate never visits; all Python is outside the gate as well. Refactor the over-15 helpers, scan every JavaScript function without double-reporting callbacks, add a language-appropriate Python check, and prove both gates reject an injected offender before T561 lowers the shared target. |
 
 ## Clean categories

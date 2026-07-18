@@ -296,6 +296,7 @@ class GtkLabel(GtkStub):
         self.line_wrap = False
         self.max_width_chars = -1
         self.selectable = False
+        self.can_focus = False
 
     def set_xalign(self, value): # NOSONAR [S1186] -- deliberate test seam
         pass
@@ -308,6 +309,10 @@ class GtkLabel(GtkStub):
 
     def set_selectable(self, selectable):
         self.selectable = selectable
+        # Gtk.Label makes selectable text keyboard-focusable. Mirror that
+        # coupling so a test cannot accidentally add static prose to the tab
+        # order while asserting only the selection state.
+        self.can_focus = selectable
 
     def set_text(self, text):
         self.text = text

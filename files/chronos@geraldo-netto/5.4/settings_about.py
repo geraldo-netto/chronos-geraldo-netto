@@ -94,11 +94,11 @@ def read_metadata():
     return json.loads((APPLET_DIR / "metadata.json").read_text(encoding="utf-8"))
 
 
-def text_label(text):
+def text_label(text, selectable=False):
     label = Gtk.Label(label=text, xalign=0)
     label.set_line_wrap(True)
     label.set_max_width_chars(72)
-    label.set_selectable(True)
+    label.set_selectable(selectable)
     return label
 
 
@@ -134,7 +134,7 @@ def identity_row(metadata):
             _(metadata["description"]),
         )
     )
-    details.pack_start(text_label(identity), False, False, 0)
+    details.pack_start(text_label(identity, selectable=True), False, False, 0)
     details.pack_start(
         horizontal_group(
             link_button(_("Project website and source code"), PROJECT_URL),

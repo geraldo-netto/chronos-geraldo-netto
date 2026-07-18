@@ -92,7 +92,13 @@ class AboutPageTests(unittest.TestCase):
         self.assertNotIn(metadata["license"], visible_text)
         self.assertIn("does not download map tiles or other map assets", visible_text)
         self.assertTrue(all(label.line_wrap for label in GtkLabel.instances))
-        self.assertTrue(all(label.selectable for label in GtkLabel.instances))
+        selectable = [label for label in GtkLabel.instances if label.selectable]
+        self.assertEqual(len(selectable), 1)
+        self.assertIn(metadata["uuid"], selectable[0].text)
+        self.assertEqual(
+            [label.can_focus for label in GtkLabel.instances],
+            [label is selectable[0] for label in GtkLabel.instances],
+        )
         self.assertEqual(
             [image.path for image in GtkImage.instances],
             [str(APPLET_DIR / "icon.png")],
