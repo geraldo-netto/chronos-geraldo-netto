@@ -137,8 +137,8 @@ function testBodies(source) {
 // so the closures inside it count towards it and are not also reported alone:
 // that is what makes an eight-arm table of arrow steps read as one function, and
 // it is the number the limit is about.
-function functionBodies(source) {
-    const tree = espree.parse(source, PARSE_OPTIONS);
+function functionBodies(source, sourceType = "script") {
+    const tree = espree.parse(source, { ...PARSE_OPTIONS, sourceType });
     const found = [];
 
     const visit = (node, parent) => {

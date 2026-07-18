@@ -155,6 +155,34 @@ test("packaging rejects a tracked symlink to an in-tree untracked file", async (
         /symlink points to an untracked file/);
 });
 
+test("packaging rejects invalid output shapes and symlink targets", async (t) => {
+    const { temporary, source } = await makeSpicesFixture(t);
+    const {
+        rejectSymlinks, resolveSourceFile, validatePackageLayout
+    } = await importPackager();
+    const directory = path.join(source, "directory");
+    const link = path.join(source, "directory-link");
+    await fs.mkdir(directory);
+    await fs.symlink("directory", link);
+
+    await assert.rejects(
+        resolveSourceFile(source, link, "directory-link", new Set(["directory"])),
+        /does not resolve to a regular file/);
+
+    const output = path.join(temporary, "invalid-output");
+    await fs.mkdir(output);
+    await fs.symlink(directory, path.join(output, "link"));
+    await assert.rejects(rejectSymlinks(output), /packaged output contains a symlink/);
+    await assert.rejects(validatePackageLayout(output), /unexpected Spices package layout/);
+
+    for (const name of ["README.md", "info.json", "screenshot.png", "files"]) {
+        await fs.rm(path.join(output, name), { recursive: true, force: true });
+        await fs.mkdir(path.join(output, name));
+    }
+    await fs.rm(path.join(output, "link"));
+    await assert.rejects(validatePackageLayout(output), /files\/ must contain only/);
+});
+
 const REQUIRED = ["README.md", "info.json", "screenshot.png"];
 const INVALID_MANIFESTS = [
     ["a parent-traversal segment", [...REQUIRED, `files/${UUID}/../escape.js`],
@@ -198,4 +226,14 @@ test("the catalogue screenshot is the current Chronos popup capture", async () =
     assert.deepEqual([png.readUInt32BE(16), png.readUInt32BE(20)], [650, 595],
         "the inherited 640×420 calendar@ccprog capture is gone");
     assert.ok(png.length > 30000, "the capture contains the rendered popup, not an empty frame");
+});
+
+test("the packaging command builds and reports its artifact", async (t) => {
+    const { source } = await makeSpicesFixture(t);
+    const { runPackageCommand } = await importPackager();
+
+    assert.match(await runPackageCommand(source), /Spices package staged at/);
+    assert.equal(await fs.readFile(
+        path.join(source, "dist", UUID, "files", UUID, "applet.js"), "utf8"),
+    "tracked applet");
 });

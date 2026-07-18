@@ -31,16 +31,17 @@ const APPLET_DIR = path.join(__dirname, "..", "..");
 // test require()s never appears in the coverage report, so the per-file loop
 // below cannot hold it to anything — it is silently exempt from the gate. Glob
 // the shipped files from disk and demand each one was actually measured.
-const SHIPPED_DIRS = [
-    path.join(APPLET_DIR, "files", "chronos@geraldo-netto"),
-    path.join(APPLET_DIR, "files", "chronos@geraldo-netto", "5.4")
+const MEASURED_DIRS = [
+    [path.join(APPLET_DIR, "files", "chronos@geraldo-netto"), ".js"],
+    [path.join(APPLET_DIR, "files", "chronos@geraldo-netto", "5.4"), ".js"],
+    [path.join(APPLET_DIR, "scripts"), ".mjs"]
 ];
 
-function shippedFiles() {
+function measuredFiles() {
     const files = [];
-    for (const dir of SHIPPED_DIRS) {
+    for (const [dir, extension] of MEASURED_DIRS) {
         for (const entry of fs.readdirSync(dir)) {
-            if (entry.endsWith(".js")) {
+            if (entry.endsWith(extension)) {
                 files.push(path.join(dir, entry));
             }
         }
@@ -53,6 +54,7 @@ const result = spawnSync("node", [
     "--experimental-test-coverage",
     "--test-coverage-include=files/chronos@geraldo-netto/*.js",
     "--test-coverage-include=files/chronos@geraldo-netto/5.4/*.js",
+    "--test-coverage-include=scripts/*.mjs",
     `--test-coverage-lines=${LINES}`,
     `--test-coverage-branches=${BRANCHES}`,
     `--test-coverage-functions=${FUNCTIONS}`,
@@ -71,7 +73,7 @@ const summary = require(path.join(APPLET_DIR, "coverage.json"));
 const failures = [];
 
 const measured = new Set(summary.files.map((file) => path.resolve(file.path)));
-for (const file of shippedFiles()) {
+for (const file of measuredFiles()) {
     if (!measured.has(path.resolve(file))) {
         failures.push(
             `${path.relative(APPLET_DIR, file)}: no test loads it, so its coverage was never measured`);

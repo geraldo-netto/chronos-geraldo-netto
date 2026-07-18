@@ -67,6 +67,19 @@ export default [
         }
     },
     {
+        files: ["scripts/**/*.mjs"],
+        ...js.configs.recommended,
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: "module",
+            globals: { process: "readonly" }
+        },
+        rules: {
+            ...js.configs.recommended.rules,
+            "no-unused-vars": ["error", { args: "none" }]
+        }
+    },
+    {
         files: ["test/**/*.js"],
         ...js.configs.recommended,
         languageOptions: {

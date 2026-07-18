@@ -45,7 +45,7 @@ export async function listTrackedSpicesFiles(sourceRoot) {
     return stdout.toString("utf8").split("\0").filter(Boolean).sort();
 }
 
-async function rejectSymlinks(root) {
+export async function rejectSymlinks(root) {
     for (const entry of await readdir(root, { withFileTypes: true })) {
         const target = path.join(root, entry.name);
         const stats = await lstat(target);
@@ -58,7 +58,7 @@ async function rejectSymlinks(root) {
     }
 }
 
-async function resolveSourceFile(source, sourcePath, relative, manifest) {
+export async function resolveSourceFile(source, sourcePath, relative, manifest) {
     let stats = await lstat(sourcePath);
     if (stats.isDirectory()) {
         throw new Error(`package manifest names a directory, not a file: ${relative}`);
@@ -93,15 +93,7 @@ async function resolveSourceFile(source, sourcePath, relative, manifest) {
     return { sourcePath: resolvedTarget, stats };
 }
 
-export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles }) {
-    const source = await realpath(path.resolve(sourceRoot));
-    const output = path.resolve(outputRoot);
-
-    if (output === source || source.startsWith(output + path.sep)) {
-        throw new Error("package output cannot replace the source tree or one of its parents");
-    }
-
-    const files = trackedFiles ? [...trackedFiles].sort() : await listTrackedSpicesFiles(source);
+function validateManifest(files) {
     const manifest = new Set(files);
     if (files.length !== manifest.size) {
         throw new Error("package manifest contains duplicate paths");
@@ -114,31 +106,22 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
     for (const relative of files) {
         validateManifestPath(relative);
     }
+    return manifest;
+}
 
-    // Validate every input, including symlink confinement, before replacing an
-    // existing package. A bad source must not destroy the last good artifact.
+async function resolveManifestFiles(source, files, manifest) {
     const resolvedFiles = [];
     for (const relative of files) {
         const sourcePath = path.resolve(source, ...relative.split("/"));
-        if (!isInside(source, sourcePath)) {
-            throw new Error(`package manifest escapes the source tree: ${relative}`);
-        }
         resolvedFiles.push({
             relative,
             ...await resolveSourceFile(source, sourcePath, relative, manifest)
         });
     }
+    return resolvedFiles;
+}
 
-    await rm(output, { recursive: true, force: true });
-    await mkdir(output, { recursive: true });
-
-    for (const file of resolvedFiles) {
-        const destination = path.join(output, ...file.relative.split("/"));
-        await mkdir(path.dirname(destination), { recursive: true });
-        await copyFile(file.sourcePath, destination);
-        await chmod(destination, file.stats.mode & 0o777);
-    }
-
+export async function validatePackageLayout(output) {
     const packagedEntries = (await readdir(output)).sort();
     if (JSON.stringify(packagedEntries) !== JSON.stringify(SPICES_ROOT_ENTRIES)) {
         throw new Error(`unexpected Spices package layout: ${packagedEntries.join(", ")}`);
@@ -150,13 +133,45 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
     }
 
     await rejectSymlinks(output);
+}
+
+export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles }) {
+    const source = await realpath(path.resolve(sourceRoot));
+    const output = path.resolve(outputRoot);
+
+    if (output === source || source.startsWith(output + path.sep)) {
+        throw new Error("package output cannot replace the source tree or one of its parents");
+    }
+
+    const files = trackedFiles ? [...trackedFiles].sort() : await listTrackedSpicesFiles(source);
+    const manifest = validateManifest(files);
+
+    // Validate every input, including symlink confinement, before replacing an
+    // existing package. A bad source must not destroy the last good artifact.
+    const resolvedFiles = await resolveManifestFiles(source, files, manifest);
+
+    await rm(output, { recursive: true, force: true });
+    await mkdir(output, { recursive: true });
+
+    for (const file of resolvedFiles) {
+        const destination = path.join(output, ...file.relative.split("/"));
+        await mkdir(path.dirname(destination), { recursive: true });
+        await copyFile(file.sourcePath, destination);
+        await chmod(destination, file.stats.mode & 0o777);
+    }
+
+    await validatePackageLayout(output);
     return output;
+}
+
+export async function runPackageCommand(sourceRoot) {
+    const outputRoot = path.join(sourceRoot, "dist", UUID);
+    await buildSpicesPackage({ sourceRoot, outputRoot });
+    return `Spices package staged at ${outputRoot}\n`;
 }
 
 const scriptPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
 if (import.meta.url === scriptPath) {
     const sourceRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-    const outputRoot = path.join(sourceRoot, "dist", UUID);
-    await buildSpicesPackage({ sourceRoot, outputRoot });
-    process.stdout.write(`Spices package staged at ${outputRoot}\n`);
+    process.stdout.write(await runPackageCommand(sourceRoot));
 }

@@ -175,6 +175,44 @@ test("the release bump rejects bad input before touching any file", async (t) =>
     }
 });
 
+test("release recovery rejects malformed transaction journals", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease } = await import(releaseUrl);
+
+    for (const [name, manifest, expected] of [
+        ["wrong target count", JSON.stringify([]), /invalid target list/],
+        ["wrong target name", JSON.stringify(RELEASE_FILES.map((relative, index) =>
+            [index === 0 ? "wrong.json" : relative.split(path.sep).join("/"), ""])),
+        /invalid target list/],
+        ["invalid JSON", "{", /JSON|property name/]
+    ]) {
+        const root = await makeReleaseFixture(t);
+        const transaction = path.join(root, ".chronos-release-transaction");
+        await fs.mkdir(transaction);
+        await fs.writeFile(path.join(transaction, "manifest.json"), manifest);
+        await assert.rejects(checkRelease(root), expected, `accepted ${name}`);
+    }
+});
+
+test("a failed transaction publish removes its staging directory", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { bumpRelease } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t, (fixture) =>
+        editText(fixture, "CHANGELOG.md", (text) =>
+            text.replace("## [Unreleased]\n", "## [Unreleased]\n\n- Ready.\n")));
+    const transaction = path.join(root, ".chronos-release-transaction");
+    await fs.mkdir(transaction);
+    await fs.writeFile(path.join(transaction, "incomplete"), "");
+
+    await assert.rejects(
+        bumpRelease(root, "0.0.2", { date: "2026-07-18" }),
+        (error) => error.code === "EEXIST" || error.code === "ENOTEMPTY");
+    assert.deepEqual(
+        (await fs.readdir(root)).filter((name) =>
+            name.startsWith(".chronos-release-transaction-")),
+        []);
+});
+
 test("an interrupted release transaction is completed before the next check", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease, checkRelease } = await import(releaseUrl);

@@ -20,6 +20,7 @@ const FORBIDDEN_COGNITIVE_COMPLEXITY = 15;
 
 const TEST_DIR = __dirname;
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
+const SCRIPTS_DIR = path.join(__dirname, "..", "scripts");
 
 test("no test body is too complex to follow", () => {
     const offenders = [];
@@ -42,7 +43,9 @@ test("no test body is too complex to follow", () => {
 // body it would let through. Nesting is what separates this from a path count —
 // three ifs in a row cost 3, but an if inside an if inside a loop costs 6.
 test("the cognitive-complexity walker counts nesting, not just branches", () => {
-    const { complexityOf, testBodies: bodies, PARSE_OPTIONS } = require("./helpers/cognitive");
+    const {
+        complexityOf, functionBodies: functions, testBodies: bodies, PARSE_OPTIONS
+    } = require("./helpers/cognitive");
     const espree = require("espree");
     const complexity = (source) =>
         complexityOf(espree.parse(source, PARSE_OPTIONS).body[0]);
@@ -73,6 +76,9 @@ test("the cognitive-complexity walker counts nesting, not just branches", () => 
         ["only", 1],
         ["subtest", 1]
     ], "member-expression test bodies are measured too");
+    assert.deepEqual(functions("export function f(a) { if (a) {} }", "module")
+        .map(({ name, complexity: value }) => [name, value]), [["f", 1]],
+    "module functions are measured too");
 });
 
 // The limit was scoped to TEST_DIR, so the rule the tests are held to did not
@@ -91,15 +97,25 @@ function appletSources(dir = APPLET_DIR) {
     });
 }
 
-test("no function in the applet is too complex to follow", () => {
+function measuredSources() {
+    return [
+        ...appletSources().map((file) => [file, "script"]),
+        ...fs.readdirSync(SCRIPTS_DIR)
+            .filter((name) => name.endsWith(".mjs"))
+            .map((name) => [path.join(SCRIPTS_DIR, name), "module"])
+    ];
+}
+
+test("no function in production tooling is too complex to follow", () => {
     const offenders = [];
 
-    for (const file of appletSources()) {
+    for (const [file, sourceType] of measuredSources()) {
         const source = fs.readFileSync(file, "utf8");
-        for (const body of functionBodies(source)) {
+        for (const body of functionBodies(source, sourceType)) {
             if (body.complexity >= FORBIDDEN_COGNITIVE_COMPLEXITY) {
                 offenders.push(
-                    `${path.relative(APPLET_DIR, file)}:${body.line} — ${body.complexity} — ${body.name}`);
+                    `${path.relative(path.join(__dirname, ".."), file)}:${body.line} — ` +
+                    `${body.complexity} — ${body.name}`);
             }
         }
     }

@@ -1,12 +1,15 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const { execFile } = require("node:child_process");
 const fs = require("node:fs/promises");
 const os = require("node:os");
 const path = require("node:path");
+const { promisify } = require("node:util");
 const { pathToFileURL } = require("node:url");
 
 const ROOT = path.join(__dirname, "..");
 const UUID = "chronos@geraldo-netto";
+const execFileAsync = promisify(execFile);
 
 function potWith(dateStamp, extraEntry = "") {
     return 'msgid ""\n' +
@@ -130,4 +133,43 @@ test("withoutCreationDate masks the creation date and nothing else", async () =>
         "a regeneration that changes nothing but the stamp is not staleness");
     assert.notEqual(withoutCreationDate(july1), withoutCreationDate(drifted),
         "the normalization must not swallow real content differences");
+});
+
+test("the i18n command checks catalogs and reports their count", async (t) => {
+    const root = await makeFixtureProject(t,
+        potWith("2026-07-01 00:00+0000"),
+        potWith("2026-07-18 00:00+0000"));
+    const catalog = path.join(root, "files", UUID, "po", "de.po");
+    await fs.writeFile(catalog, 'msgid "Hello"\nmsgstr "Hallo"\n');
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkI18n, runI18nCommand } = await import(scriptUrl);
+    const run = async (command, args, options) => {
+        if (command === "bash") {
+            return execFileAsync(command, args, options);
+        }
+        return command === "msgattrib" ? { stdout: "" } : {};
+    };
+
+    assert.equal(await checkI18n(root, run), 1);
+    const emptyRoot = await makeFixtureProject(t,
+        potWith("2026-07-01 00:00+0000"),
+        potWith("2026-07-18 00:00+0000"));
+    assert.match(await runI18nCommand(emptyRoot),
+        /0 catalogs valid; translation template is current/);
+});
+
+test("the i18n CLI dispatches the checked project", async (t) => {
+    const bin = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-i18n-bin-"));
+    t.after(() => fs.rm(bin, { recursive: true, force: true }));
+    for (const command of ["msgfmt", "msgattrib", "msgcmp", "cinnamon-xlet-makepot"]) {
+        const executable = path.join(bin, command);
+        await fs.writeFile(executable, "#!/bin/sh\nexit 0\n");
+        await fs.chmod(executable, 0o755);
+    }
+
+    const script = path.join(ROOT, "scripts", "check-i18n.mjs");
+    const { stdout } = await execFileAsync(process.execPath, [script], {
+        env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` }
+    });
+    assert.match(stdout, /\d+ catalogs valid; translation template is current/);
 });

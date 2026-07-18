@@ -45,7 +45,7 @@ export async function checkCatalogCurrent(catalogPath, potPath, run = execFileAs
     }
 }
 
-export async function checkI18n(projectRoot) {
+export async function checkI18n(projectRoot, run = execFileAsync) {
     const root = path.resolve(projectRoot);
     const applet = path.join(root, "files", UUID);
     const poDir = path.join(applet, "po");
@@ -54,15 +54,15 @@ export async function checkI18n(projectRoot) {
         .filter((name) => name.endsWith(".po"))
         .sort();
 
-    await Promise.all(catalogs.map((name) => validateCatalog(path.join(poDir, name))));
+    await Promise.all(catalogs.map((name) => validateCatalog(path.join(poDir, name), run)));
     await Promise.all(catalogs.map((name) =>
-        checkCatalogCurrent(path.join(poDir, name), path.join(poDir, potName))));
+        checkCatalogCurrent(path.join(poDir, name), path.join(poDir, potName), run)));
 
     const temporary = await mkdtemp(path.join(os.tmpdir(), "chronos-i18n-"));
     try {
         const copiedApplet = path.join(temporary, UUID);
         await cp(applet, copiedApplet, { recursive: true, dereference: false });
-        await execFileAsync("bash", [path.join(copiedApplet, "po", "makepot")], {
+        await run("bash", [path.join(copiedApplet, "po", "makepot")], {
             cwd: copiedApplet
         });
 
@@ -90,9 +90,13 @@ export async function checkI18n(projectRoot) {
     return catalogs.length;
 }
 
+export async function runI18nCommand(projectRoot) {
+    const count = await checkI18n(projectRoot);
+    return `${count} catalogs valid; translation template is current\n`;
+}
+
 const scriptPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";
 if (import.meta.url === scriptPath) {
     const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-    const count = await checkI18n(projectRoot);
-    process.stdout.write(`${count} catalogs valid; translation template is current\n`);
+    process.stdout.write(await runI18nCommand(projectRoot));
 }
