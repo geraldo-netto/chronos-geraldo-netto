@@ -386,13 +386,13 @@ test("destroying the provider drops the holidays it was holding", () => {
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
 
     cache.setPlace("ita", "global");
-    for (let year = 1990; year < 2030; year++) {
+    for (let year = 2022; year < 2030; year++) {
         for (let day = 1; day <= 12; day++) {
             cache.addUnique({ year, month: 1, day, region: "global", name: "Holiday", flags: [] });
         }
         cache.recordAttempt(year, "global");
     }
-    assert.ok(cache.data.length > 400, "the session's browsing, as the cache holds it");
+    assert.ok(cache.data.length > 90, "the session's browsing, as the cache holds it");
     assert.ok(cache.matchMonth(2026, 1).size > 0, "and the derived month index");
 
     cache.release();
@@ -1154,6 +1154,31 @@ test("a failure under one country is not reported under the next", () => {
     assert.equal(seen, "", "Germany's holidays must not carry France's failure");
 });
 
+// T533 regression: _acceptYear recorded the failure and then pruned the status
+// ledger by the ±1-year persist window, deleting the record it had just written
+// for any year further out — while recordAttempt's stamp lived on in the LRU
+// and suppressed the refetch. Paging two years ahead while offline rendered a
+// bare month with no warning, indistinguishable from a country without holidays.
+test("a failed fetch outside the persist window still reports its error", () => {
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const service = {
+        validResponse: () => false,
+        fetchYear(_country, _region, requested, callback) {
+            callback({ error: "Holiday service unavailable" },
+                { year: requested, region: "global", providerName: "Enrico" }, null);
+        }
+    };
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    const enrico = new HolidayService(service, cache, { record: service });
+    enrico.setPlace("fra", "global");
+
+    let seen = null;
+    enrico.getHolidays(FIXED_YEAR + 2, 7, (_dates, error) => { seen = error; });
+
+    assert.equal(seen, HOLIDAY_ERRORS.INVALID_RESPONSE,
+        "a far year's failure must survive the ledger prune that follows it");
+});
+
 // Not a fuzz test: a for-loop over i % 12 and i % 27, building perfectly
 // well-formed rows with no PRNG anywhere. It is a good example test and it is
 // named as one now. (The real fuzz over this cache is "only well-formed rows
@@ -1311,8 +1336,9 @@ test("a fetch that lands after the country changed does not write to the new cou
         "and they are not written to disk under Japan either");
 });
 
-test("the per-year status record does not outlive the years the grid can reach", () => {
+test("the per-year status record does not outlive the years the cache holds", () => {
     const { HolidayService, HolidayCache } = loadHolidays();
+    const { MAX_CACHED_YEARS } = require(holidayCachePath);
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
     const service = {
         fetchYear(_country, _region, year, callback) {
@@ -1325,14 +1351,16 @@ test("the per-year status record does not outlive the years the grid can reach",
     enrico.setPlace("usa", "global");
 
     const current = FIXED_YEAR;
-    for (const year of [current - 6, current - 1, current, current + 1, current + 7]) {
-        enrico.retrieveForYear(year);
+    for (let offset = 0; offset <= MAX_CACHED_YEARS; offset++) {
+        enrico.retrieveForYear(current + offset);
     }
 
     // _inflight cleans up after itself; the status beside it used to grow one
-    // entry per year+region ever browsed
+    // entry per year+region ever browsed. It follows the cache's LRU: the one
+    // year the LRU evicted takes its status record with it, the rest stay.
     assert.deepEqual(Object.keys(enrico._status._status).sort(),
-        [`${current - 1}/global`, `${current + 1}/global`, `${current}/global`].sort());
+        Array.from({ length: MAX_CACHED_YEARS },
+            (_, i) => `${current + i + 1}/global`).sort());
 });
 
 // T525 regression: Cinnamon runs the first grid update in the same call stack

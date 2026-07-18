@@ -113,9 +113,8 @@ function httpBackedService(getSession, params = {}) {
 // country, so it must be cleared whenever the place changes — and that rule is
 // easier to see, and to test, on its own.
 var HolidayStatusLedger = class HolidayStatusLedger {
-    constructor(yearWindow = HolidayCacheModule.YEAR_WINDOW) {
+    constructor() {
         this._status = {};
-        this._year_window = yearWindow;
         this.lastError = "";
         this.lastProvider = "";
     }
@@ -131,15 +130,18 @@ var HolidayStatusLedger = class HolidayStatusLedger {
         };
     }
 
-    // the inflight entry deletes itself when the fetch lands; the status beside
-    // it stays, one entry per year+region ever browsed. The cache keeps only the
-    // years the grid can reach, so the status follows it.
-    prune(now = new Date()) {
-        const current = now.getFullYear();
+    // The inflight entry deletes itself when the fetch lands; the status beside
+    // it stays, one entry per year+region ever browsed. The cache evicts years
+    // LRU-style, so the status follows the years the cache still stamps: pruning
+    // by calendar distance instead deleted the record the moment it was written
+    // for any year past the persist window, while the attempt stamp it belonged
+    // to lived on and suppressed the refetch — a failure two years out rendered
+    // a bare month with no warning at all.
+    prune(liveYears) {
+        const keep = new Set(liveYears.map(Number));
 
         Object.keys(this._status).forEach((key) => {
-            const year = Number(key.split("/")[0]);
-            if (Math.abs(year - current) > this._year_window) {
+            if (!keep.has(Number(key.split("/")[0]))) {
                 delete this._status[key];
             }
         });
@@ -422,7 +424,7 @@ var HolidayService = class HolidayService {
         } finally {
             this._status.record(inflightKey);
             callbacks = this._inflight.settle(inflightKey, generation);
-            this._status.prune();
+            this._status.prune(this.cache.cachedYears());
         }
 
         for (let waiting of callbacks) {

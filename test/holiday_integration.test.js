@@ -356,7 +356,7 @@ test("a provider given a cache does not build a repository it cannot use", () =>
 
 test("the status ledger keeps one record per year and region, and prunes", () => {
     const { HolidayStatusLedger } = loadHolidays();
-    const ledger = new HolidayStatusLedger(1);
+    const ledger = new HolidayStatusLedger();
 
     assert.deepEqual(ledger.for("2026/global"), { error: "", provider: "" });
 
@@ -368,9 +368,9 @@ test("the status ledger keeps one record per year and region, and prunes", () =>
 
     ledger.lastError = "";
     ledger.record("2019/global");
-    ledger.prune(new Date(2026, 0, 1));
+    ledger.prune([2026]);
     assert.deepEqual(ledger.for("2019/global"), { error: "", provider: "" },
-        "a year the grid can no longer reach is not worth a status record");
+        "a year the cache no longer stamps is not worth a status record");
     assert.equal(ledger.for("2026/global").provider, "Enrico");
 
     ledger.clear();

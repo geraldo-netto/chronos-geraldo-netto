@@ -699,6 +699,19 @@ var HolidayCache = class HolidayCache {
         } else {
             this.attempts[year] = {[region]: attempted};
         }
+
+        // a failed fetch stores no rows, so nothing else registers the year:
+        // without this its attempt stamp is invisible to the LRU and outlives
+        // every year that actually holds data
+        this._touchYear(year);
+        this._pruneYears();
+    }
+
+    // the years the LRU holds, oldest first: the status ledger prunes in step
+    // with this, so a year's error record lives exactly as long as the attempt
+    // stamp that suppresses its refetch
+    cachedYears() {
+        return Array.from(this._yearUse.keys());
     }
 
     // `now` is injectable so staleness math is testable with a fixed clock
