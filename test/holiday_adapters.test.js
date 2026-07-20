@@ -548,6 +548,92 @@ function fuzzHolidayRecord(rand) {
     return holiday;
 }
 
+test("holiday span validation accepts only forward bounded ranges", () => {
+    const { HolidayRecordContract } = loadHolidays();
+    const {
+        MAX_HOLIDAY_SPAN_DAYS,
+        holidaySpanDays,
+        validHolidaySpan
+    } = require(holidayRecordPath);
+    const dayMs = 24 * 60 * 60 * 1000;
+    const start = { year: 2026, month: 1, day: 1 };
+    const sameDay = { ...start };
+    const reversed = { year: 2025, month: 12, day: 31 };
+    const maximumDate = new Date(
+        Date.UTC(start.year, start.month - 1, start.day) +
+            MAX_HOLIDAY_SPAN_DAYS * dayMs);
+    const maximum = {
+        year: maximumDate.getUTCFullYear(),
+        month: maximumDate.getUTCMonth() + 1,
+        day: maximumDate.getUTCDate()
+    };
+    const tooLongDate = new Date(maximumDate.getTime() + dayMs);
+    const tooLong = {
+        year: tooLongDate.getUTCFullYear(),
+        month: tooLongDate.getUTCMonth() + 1,
+        day: tooLongDate.getUTCDate()
+    };
+    const contract = new HolidayRecordContract();
+    const record = {
+        date: start,
+        name: [{ lang: "en", text: "Bounded holiday" }],
+        flags: ["public"]
+    };
+
+    assert.equal(holidaySpanDays(start, reversed), -1);
+    assert.equal(validHolidaySpan(start, reversed), false);
+    assert.equal(validHolidaySpan(start, sameDay), true);
+    assert.equal(validHolidaySpan(start, maximum), true);
+    assert.equal(validHolidaySpan(start, tooLong), false);
+    assert.equal(contract.validHoliday({ ...record, dateTo: reversed }), false);
+    assert.equal(contract.validHoliday({ ...record, dateTo: sameDay }), true);
+    assert.equal(contract.validHoliday({ ...record, dateTo: maximum }), true);
+    assert.equal(contract.validHoliday({ ...record, dateTo: tooLong }), false);
+});
+
+test("fuzz: holiday span validation follows signed calendar distance", () => {
+    const { HolidayRecordContract } = loadHolidays();
+    const {
+        MAX_HOLIDAY_SPAN_DAYS,
+        holidaySpanDays,
+        validHolidaySpan
+    } = require(holidayRecordPath);
+    const rand = makeRandom(0x559);
+    const contract = new HolidayRecordContract();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const originMs = Date.UTC(2020, 0, 1, 12);
+
+    for (let round = 0; round < 500; round++) {
+        const startDate = new Date(
+            originMs + Math.floor(rand() * 3650) * dayMs);
+        const signedDays =
+            Math.floor(rand() * (MAX_HOLIDAY_SPAN_DAYS * 3 + 1)) -
+            MAX_HOLIDAY_SPAN_DAYS;
+        const endDate = new Date(startDate.getTime() + signedDays * dayMs);
+        const date = {
+            year: startDate.getUTCFullYear(),
+            month: startDate.getUTCMonth() + 1,
+            day: startDate.getUTCDate()
+        };
+        const dateTo = {
+            year: endDate.getUTCFullYear(),
+            month: endDate.getUTCMonth() + 1,
+            day: endDate.getUTCDate()
+        };
+        const expected =
+            signedDays >= 0 && signedDays <= MAX_HOLIDAY_SPAN_DAYS;
+
+        assert.equal(holidaySpanDays(date, dateTo), signedDays);
+        assert.equal(validHolidaySpan(date, dateTo), expected);
+        assert.equal(contract.validHoliday({
+            date,
+            dateTo,
+            name: [{ lang: "en", text: "Fuzz holiday" }],
+            flags: ["public"]
+        }), expected);
+    }
+});
+
 // The interlock: whatever validHoliday let through, expandHoliday has to expand
 // without running away — its `while (iter < limit)` is bounded only because
 // validHoliday is supposed to have rejected the oversized spans first. Returns the

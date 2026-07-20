@@ -35,7 +35,8 @@ function holidaySpanDays(date, dateTo) {
 }
 
 function validHolidaySpan(date, dateTo) {
-    return holidaySpanDays(date, dateTo) <= MAX_HOLIDAY_SPAN_DAYS;
+    const days = holidaySpanDays(date, dateTo);
+    return days >= 0 && days <= MAX_HOLIDAY_SPAN_DAYS;
 }
 
 function validDateParts(parts) {
