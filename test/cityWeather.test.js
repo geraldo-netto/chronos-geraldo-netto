@@ -258,6 +258,38 @@ test("typing the panel location does not re-read the world-clock cities", () => 
     assert.equal(calls.forecasts.length, 4, "a new clock is: the round runs again");
 });
 
+test("delimiter-bearing labels cannot hide a changed city list", () => {
+    const CityWeather = loadCityWeather();
+    const rounds = [];
+    const provider = new CityWeather.CityWeatherProvider({
+        httpGetJson() {},
+        scheduler: {
+            timerId: 7,
+            schedule: (settings) => rounds.push(settings),
+            stop() {},
+            succeeded() {},
+            retry() {},
+            retriesExhausted: () => false
+        },
+        locationResolver: { resolve() {} },
+        forecastResolver: { refresh() {} }
+    });
+
+    provider.schedule({
+        showWeather: true,
+        cities: [{ label: "a@Tokyo,b", query: "Rome" }]
+    }, () => {});
+    provider.schedule({
+        showWeather: true,
+        cities: [
+            { label: "a", query: "Tokyo" },
+            { label: "b", query: "Rome" }
+        ]
+    }, () => {});
+
+    assert.equal(rounds.length, 2, "a structurally different city list is scheduled");
+});
+
 // Regression: schedule() used to arm the 30-minute timer unconditionally, so a
 // popup with only built-in clocks — or with weather switched off — woke the
 // applet up every half hour to read nothing at all.
@@ -654,6 +686,34 @@ test("city lists fuzz junk, blanks and duplicates into a capped unique list", ()
     assert.deepEqual(provider._cities(null), []);
     assert.deepEqual(provider._cities({}), []);
     assert.deepEqual(provider._cities({ cities: "Rome" }), []);
+});
+
+test("fuzz: city signatures ignore hostile labels without merging queries", () => {
+    const CityWeather = loadCityWeather();
+    const rand = makeRandom(FUZZ_SEED ^ 0x51a);
+    const provider = new CityWeather.CityWeatherProvider({ httpGetJson() {} });
+    const delimiters = ["@", ",", "|", "@,|", "home@Tokyo,b"];
+
+    for (let i = 0; i < 300; i++) {
+        const label = delimiters[Math.floor(rand() * delimiters.length)] + i;
+        const reversed = rand() < 0.5;
+        const sameQueries = reversed ?
+            [{ label, query: "Tokyo" }, { label: "x", query: "Rome" }] :
+            [{ label: "x", query: "Rome" }, { label, query: "Tokyo" }];
+        const baseline = {
+            showWeather: true,
+            cities: [{ label: "first", query: "Rome" }, { label: "second", query: "Tokyo" }]
+        };
+        const changed = {
+            showWeather: true,
+            cities: sameQueries.concat({ label, query: "Oslo" + i })
+        };
+
+        assert.equal(provider._signature({ showWeather: true, cities: sameQueries }),
+            provider._signature(baseline), "labels and ordering are not network inputs");
+        assert.notEqual(provider._signature(changed), provider._signature(baseline),
+            "a distinct normalized query cannot collide");
+    }
 });
 
 function randomCityWeatherSettings(rand, cities) {

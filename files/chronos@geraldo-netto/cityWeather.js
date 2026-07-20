@@ -196,10 +196,14 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     // records now, so switching °C to °F re-renders the tooltip from what is
     // already held instead of geocoding and refetching every city again.
     _signature(settings) {
-        return [
-            this._active(settings) ? "on" : "off",
-            this._cities(settings).map((city) => city.label + "@" + city.query).join(",")
-        ].join("|");
+        const queries = this._cities(settings)
+            .map((city) => locationCacheKey(city.query))
+            .sort();
+
+        // Labels are local presentation and clock order does not change the
+        // readings. JSON keeps arbitrary query text structurally distinct:
+        // delimiter concatenation let one label/query pair impersonate two.
+        return JSON.stringify([this._active(settings), queries]);
     }
 
     // `force` says the settings have not changed but the world has: it is the
