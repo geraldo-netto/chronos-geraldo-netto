@@ -5,7 +5,6 @@
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
 | T557 | process & delivery governance; test coverage | Medium | open | L | Replace SonarCloud automatic analysis with a scoped CI analysis that imports the existing JS and Python coverage results and distinguishes tests from production sources. | The live API exposes no overall coverage measure and reports `new_lines_to_cover = 0`; automatic analysis cannot import coverage, yet the GitHub decoration displays `0.0%`. It also counts `test/` as production, creating both reported vulnerabilities and most critical test-stub smells. Add standard LCOV/XML output without weakening the local 98/90/100 and Python 98 gates, declare source/test paths, disable automatic analysis, run the scanner after tests, and require the resulting check if it is meant to gate delivery. SonarCloud administration and a GitHub secret are external prerequisites. |
-| T558 | localization/i18n; CI; release engineering | Medium | open | S | Regenerate and commit the translation template so the i18n and CI gates are green. | **[verified]** `npm run i18n:check` fails its byte-current comparison; running `po/makepot` in a temporary copy changed only the POT creation timestamp and current source references, not the msgid set. The stale references block every packaging CI run even though all 15 catalogs still validate. |
 
 ## Rejected
 
