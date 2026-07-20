@@ -33,6 +33,19 @@ const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 
+// EventListRenderer uses equality to distinguish a changing event's countdown
+// from a structurally different list that must rebuild its rows. Monotonic time
+// is ordered but not unique: two mutations (or two day lists) may receive the
+// same microsecond value. A process-wide sequence gives every structural state
+// a distinct identity; at one revision per microsecond it would still take
+// centuries to approach Number.MAX_SAFE_INTEGER.
+let lastEventListRevision = 0;
+
+function nextEventListRevision() {
+    lastEventListRevision++;
+    return lastEventListRevision;
+}
+
 
 function js_date_to_gdatetime(js_date) {
     let unix = js_date.getTime() / 1000; // getTime returns ms
@@ -169,14 +182,13 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
 
 var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer export
     constructor(gdate_only) {
-        // Timestamp gets updated any time events are added, removed of modified. The event list
-        // compares this to the timestamp it recorded when it initially loaded the day's events.
-        // is changed. It updates any time the events of this day are added, modified or removed.
-        // This prompts the event list to completely reload the re-sorted event list.
+        // The revision changes whenever events are added, removed or modified.
+        // The event list compares it with the revision recorded when it loaded
+        // the day's events, prompting a full rebuild of the re-sorted rows.
         //
-        // If the event list is updated and the timestamps haven't changed, only the variable details
-        // of the events are updated - time till start, style changes, etc...
-        this.timestamp = GLib.get_monotonic_time();
+        // If the revision has not changed, only variable details are refreshed:
+        // time until start, style changes, and similar clock-driven state.
+        this.timestamp = nextEventListRevision();
         this.gdate_only = gdate_only;
         this.length = 0;
         // Keyed by event UID, which comes off whatever ICS or CalDAV feed the
@@ -192,7 +204,7 @@ var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _mark_changed() {
-        this.timestamp = GLib.get_monotonic_time();
+        this.timestamp = nextEventListRevision();
         this._cachedColors = null;
         this._cachedColorsTimestamp = 0;
     }

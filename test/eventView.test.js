@@ -287,11 +287,12 @@ function rowParams(overrides = {}) {
         overrides);
 }
 const EventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
-const { EventData } = require(path.join(APPLET_DIR, "eventData.js"));
+const { EventData, EventDataList } = require(path.join(APPLET_DIR, "eventData.js"));
 
-function makeRowEvent({ startUnix, endUnix, allDay = false, color = "#123456" }) {
+function makeRowEvent({ id = "id1", summary = "Team sync",
+    startUnix, endUnix, allDay = false, color = "#123456" }) {
     return new EventData({
-        deep_unpack: () => ["id1", color, "Team sync", allDay, startUnix, endUnix, 1]
+        deep_unpack: () => [id, color, summary, allDay, startUnix, endUnix, 1]
     }, 0);
 }
 
@@ -745,6 +746,33 @@ test("EventList set_events covers empty, delayed, reuse, and scroll paths", () =
     assert.ok(removed.includes(31));
     assert.ok(removed.includes(32));
     assert.ok(removed.includes(33));
+});
+
+test("same-tick list mutations rebuild all event rows", () => {
+    // This suite's monotonic clock is deliberately frozen at 1. The renderer
+    // and data list must still agree that adding a second event is a new
+    // structural state, rather than taking the equal-revision refresh path.
+    const dataList = new EventDataList(TODAY);
+    dataList.add_or_update(makeRowEvent({
+        id: "first",
+        startUnix: 50 * DAY_S + 14 * 3600,
+        endUnix: 50 * DAY_S + 15 * 3600
+    }), 1);
+
+    const list = new EventView.EventList(desktopSettings());
+    list.set_events(dataList, false);
+    const firstRevision = dataList.timestamp;
+    assert.equal(list._rows.length, 1);
+
+    dataList.add_or_update(makeRowEvent({
+        id: "second",
+        startUnix: 50 * DAY_S + 16 * 3600,
+        endUnix: 50 * DAY_S + 17 * 3600
+    }), 2);
+    assert.ok(dataList.timestamp > firstRevision);
+
+    list.set_events(dataList, false);
+    assert.deepEqual(list._rows.map((row) => row.event.id), ["first", "second"]);
 });
 
 // A row is ~6 actors plus a separator, and the count is whatever the user's
