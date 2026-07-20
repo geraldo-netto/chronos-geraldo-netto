@@ -1257,6 +1257,44 @@ test("HolidayCache memoizes derived month matches until data changes", () => {
     assert.deepEqual(third.get("1/2"), ["Two", []]);
 });
 
+test("same-date holiday flags merge independently of provider row order", () => {
+    const { HolidayCache } = loadHolidays();
+    const partial = { flags: ["PART_DAY_HOLIDAY", "optional"], name: "Partial" };
+    const full = { flags: ["public_holiday", "bank"], name: "Full" };
+
+    for (const rows of [[partial, full], [full, partial]]) {
+        const cache = new HolidayCache((_country, done) =>
+            done({ years: {}, holidays: [] }), () => {});
+        rows.forEach((row) => cache.addUnique({
+            year: 2031, month: 1, day: 1, region: "global", ...row
+        }));
+
+        assert.deepEqual(cache.matchMonth(2031, 1).get("1/1")[1],
+            ["bank", "optional", "public_holiday"]);
+    }
+});
+
+test("a duplicate holiday refreshes a memoized month", () => {
+    const { HolidayCache } = loadHolidays();
+    const cache = new HolidayCache((_country, done) =>
+        done({ years: {}, holidays: [] }), () => {});
+    cache.addUnique({
+        year: 2031, month: 1, day: 1, region: "global",
+        name: "One", flags: ["PART_DAY_HOLIDAY"]
+    });
+    const before = cache.matchMonth(2031, 1);
+
+    cache.addUnique({
+        year: 2031, month: 1, day: 1, region: "global",
+        name: "Uno", flags: ["PART_DAY_HOLIDAY", "optional"]
+    });
+    const after = cache.matchMonth(2031, 1);
+
+    assert.notEqual(after, before);
+    assert.deepEqual(after.get("1/1"),
+        ["One\nUno", ["PART_DAY_HOLIDAY", "optional"]]);
+});
+
 test("HolidayCache backs off after a failed fetch attempt", () => {
     const { HolidayCache } = loadHolidays();
     const cache = new HolidayCache(

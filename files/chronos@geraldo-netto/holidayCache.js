@@ -77,6 +77,7 @@ var MAX_CACHED_COUNTRIES = 4; // NOSONAR [S3504] -- GJS importer export
 // re-merges attempted when another applet instance wrote the file underneath
 // us; the loser of the last round simply gives up and refetches later
 var MAX_MERGE_RETRIES = 3; // NOSONAR [S3504] -- GJS importer export
+var PART_DAY_HOLIDAY = "PART_DAY_HOLIDAY"; // NOSONAR [S3504] -- GJS importer export
 var GLOBAL_REGION = HolidayConstants.GLOBAL_REGION; // NOSONAR [S3504] -- GJS importer export
 var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS; // NOSONAR [S3504] -- GJS importer export
 
@@ -94,6 +95,14 @@ function validCachedHoliday(single) {
 
 function clampHolidayName(name) {
     return TextUtils.clampText(name, MAX_HOLIDAY_NAME_LENGTH);
+}
+
+function mergeHolidayFlags(current, incoming) {
+    const bothPartDay = current.includes(PART_DAY_HOLIDAY) &&
+        incoming.includes(PART_DAY_HOLIDAY);
+    return Array.from(new Set(current.concat(incoming)))
+        .filter((flag) => bothPartDay || flag !== PART_DAY_HOLIDAY)
+        .sort();
 }
 
 // The rows are checked; the freshness record has to be too. stale() only asks
@@ -590,6 +599,11 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         return `${year}/${month}/${region}`;
     }
 
+    _invalidateMonth(single) {
+        this._matchedMonthCache.delete(
+            this._monthKey(single.year, single.month, single.region));
+    }
+
     _indexHoliday(single) {
         this._holidayIndex.set(this._holidayKey(single), single);
 
@@ -619,13 +633,26 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         const known = this._holidayIndex.get(this._holidayKey(single));
 
         if (known) {
+            let changed = false;
             if (!known.name.split('\n').includes(single.name)) {
                 known.name = clampHolidayName(known.name + '\n' + single.name);
+                changed = true;
+            }
+
+            const flags = mergeHolidayFlags(known.flags, single.flags);
+            if (flags.length !== known.flags.length ||
+                flags.some((flag, index) => flag !== known.flags[index])) {
+                known.flags = flags;
+                changed = true;
+            }
+
+            if (changed) {
+                this._invalidateMonth(known);
             }
         } else {
             this.data.push(single);
             this._indexHoliday(single);
-            this._matchedMonthCache.clear();
+            this._invalidateMonth(single);
         }
 
         this._touchYear(single.year);
