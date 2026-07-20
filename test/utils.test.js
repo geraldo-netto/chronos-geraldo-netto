@@ -1942,3 +1942,35 @@ test("a locale query we cancelled ourselves does not spend a retry attempt", () 
     assert.notEqual(global.imports.gi.Gio.Cancellable.last, first,
         "the question is asked again, not written off as answered");
 });
+
+test("re-adding an applet restarts a cancellation still settling", () => {
+    const localeQuery = loadLocaleModules({
+        neverAnswers: true,
+        spawnOutput: 'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\nfirst_workday=1\n'
+    });
+    const Subprocess = global.imports.gi.Gio.Subprocess;
+    const heard = [];
+
+    localeQuery.registerLocaleConsumer();
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => heard.push(true));
+    const value = localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday);
+    assert.equal(value(), "Sun;Mon;Tue;Wed;Thu;Fri;Sat");
+
+    const cancelled = global.imports.gi.Gio.Cancellable.last;
+    localeQuery.cancelPendingLocaleQueries();
+    localeQuery.registerLocaleConsumer();
+    assert.equal(value(), "Sun;Mon;Tue;Wed;Thu;Fri;Sat");
+    assert.equal(global.imports.gi.Gio.Cancellable.last, cancelled,
+        "the cancelled request still owns the env until its callback settles");
+
+    Subprocess.settle();
+    const replacement = global.imports.gi.Gio.Cancellable.last;
+    assert.notEqual(replacement, cancelled, "the replacement consumer gets a fresh query");
+    assert.deepEqual(heard, [], "cancellation itself does not publish defaults");
+
+    Subprocess.settle();
+    assert.deepEqual(heard, [true], "the replacement query wakes its listener");
+    assert.equal(value(), "Dom;Seg;Ter;Qua;Qui;Sex;Sáb");
+
+    localeQuery.cancelPendingLocaleQueries();
+});

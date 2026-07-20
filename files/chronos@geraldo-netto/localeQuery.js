@@ -261,6 +261,13 @@ function _settlers(env) {
                 abandoned[env] = false;
                 requested[env] = false;
                 delete _cancellables[env];
+                // The last consumer left, but another applet can be added before
+                // Gio delivers the cancellation callback. Its getInfo() sees the
+                // old request in flight and cannot restart it; once this callback
+                // clears that request, resume it for the replacement consumer.
+                if (_consumers > 0) {
+                    _requestInfo(env);
+                }
                 return;
             }
 
