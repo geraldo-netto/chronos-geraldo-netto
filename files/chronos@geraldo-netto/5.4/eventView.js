@@ -42,6 +42,12 @@ const EVENT_ROW_CHUNK = 20;
 // Retaining the full bounded index keeps navigation and event launching useful,
 // but a single selected day must not manufacture thousands of St actors.
 const MAX_RENDERED_EVENT_ROWS = 200;
+const EVENTS_OVERFLOW_TEXT =
+    _("Some calendar events were hidden to keep the desktop responsive.");
+const EVENTS_UNAVAILABLE_TEXT =
+    _("Calendar events are unavailable — no calendar service is running. Install or enable Evolution Data Server.");
+const EVENTS_REFRESH_FAILED_TEXT =
+    _("Calendar events could not be refreshed.");
 
 const EventDataModule = require("./eventData");
 const date_only = EventDataModule.date_only;
@@ -324,13 +330,18 @@ class EventListRenderer {
 }
 
 class EventList {
-    constructor(desktop_settings, launcher = new CalendarLauncher()) {
+    constructor(desktop_settings, launcher = new CalendarLauncher(),
+        reportIssue = () => {}) {
         this.selected_date = GLib.DateTime.new_now_local();
         this.desktop_settings = desktop_settings;
         this._calendar_launcher = launcher;
         this._rows = [];
         this._current_event_data_list_timestamp = 0;
         this._unavailable = false;
+        this._overflowed = false;
+        this._refreshFailed = false;
+        this._reportingEnabled = true;
+        this._reportIssue = reportIssue;
         this._renderer = new EventListRenderer(this);
 
         this.actor = new St.BoxLayout(
@@ -381,7 +392,7 @@ class EventList {
     _buildOverflowView() {
         this.events_overflow_label = new St.Label({
             style_class: "calendar-events-overflow-label",
-            text: _("Some calendar events were hidden to keep the desktop responsive."),
+            text: EVENTS_OVERFLOW_TEXT,
             visible: false
         });
         this.events_overflow_label.get_clutter_text().line_wrap = true;
@@ -622,11 +633,35 @@ class EventList {
     }
 
     setOverflowed(overflowed) {
-        if (overflowed) {
+        this._overflowed = Boolean(overflowed);
+        if (this._overflowed) {
             this.events_overflow_label.show();
         } else {
             this.events_overflow_label.hide();
         }
+        this._syncIssues();
+    }
+
+    set_refresh_failed(failed) {
+        this._refreshFailed = Boolean(failed);
+        this._syncIssues();
+    }
+
+    set_reporting_enabled(enabled) {
+        this._reportingEnabled = Boolean(enabled);
+        this._syncIssues();
+    }
+
+    _syncIssues() {
+        const reporting = this._reportingEnabled;
+        this._reportIssue(
+            "events-overflow", reporting && this._overflowed ? EVENTS_OVERFLOW_TEXT : "");
+        this._reportIssue(
+            "events-refresh", reporting && this._refreshFailed ?
+                EVENTS_REFRESH_FAILED_TEXT : "");
+        this._reportIssue(
+            "calendar-service", reporting && this._unavailable ?
+                EVENTS_UNAVAILABLE_TEXT : "");
     }
 
     emitLaunched() {
@@ -649,6 +684,7 @@ class EventList {
             return;
         }
         this._unavailable = unavailable;
+        this._syncIssues();
 
         // In the unavailable state the button announced only the error sentence —
         // while staying focusable, hoverable, themed as a button and still wired
@@ -670,7 +706,7 @@ class EventList {
         // "unavailable" on its own leaves the user with nothing to do about it:
         // say what is missing and what would fix it
         this.set_no_events_text(
-            _("Calendar events are unavailable — no calendar service is running. Install or enable Evolution Data Server."));
+            EVENTS_UNAVAILABLE_TEXT);
         this.no_events_box.show();
     }
 
@@ -678,6 +714,8 @@ class EventList {
     // renderer that removes them
     destroy() {
         this._renderer.destroy();
+        this._reportingEnabled = false;
+        this._syncIssues();
     }
 }
 Signals.addSignalMethods(EventList.prototype);
@@ -925,5 +963,6 @@ Signals.addSignalMethods(EventRow.prototype);
 
 if (typeof module !== "undefined") {
     module.exports = { CalendarLauncher, EventList, EventListRenderer, EventRow,
-        EventRowPresenter, format_timespan, MAX_RENDERED_EVENT_ROWS };
+        EventRowPresenter, format_timespan, MAX_RENDERED_EVENT_ROWS,
+        EVENTS_OVERFLOW_TEXT, EVENTS_UNAVAILABLE_TEXT, EVENTS_REFRESH_FAILED_TEXT };
 }

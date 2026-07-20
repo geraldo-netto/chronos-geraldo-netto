@@ -39,7 +39,7 @@ test("city weather is not fetched for world clocks that are switched off", () =>
         }),
         worldclocks: () => stub.worldclocks,
         onChanged: stub._updateClockAndDate,
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
 
     Proto._scheduleCityWeatherRefresh.call(stub);
@@ -80,7 +80,7 @@ test("turning world clocks off stops the city weather that was fetched for them"
         }),
         worldclocks: () => stub.worldclocks,
         onChanged: stub._updateClockAndDate,
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
 
     Proto._onSettingsChanged.call(stub);
@@ -653,7 +653,7 @@ test("_setWeatherStatus stores state and refreshes the clock line", () => {
         settings: () => ({}),
         worldclocks: () => [],
         onChanged: stub._updateClockAndDate,
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
     Proto._setWeatherStatus.call(stub, { condition: "☀", temperatureC: 20 }, "err", "prov");
     assert.deepEqual(stub._weatherCoordinator.reading, { condition: "☀", temperatureC: 20 });
@@ -690,7 +690,7 @@ test("weather refresh scheduling forwards the settings snapshot", () => {
         }),
         worldclocks: () => [],
         onChanged: () => {},
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
     Proto._scheduleWeatherRefresh.call(stub);
     Proto._queueWeatherRefresh.call(stub);
@@ -713,6 +713,7 @@ test("event-manager readiness toggles the event list and reselects", () => {
         },
         event_list: {
             actor: { visible: false },
+            set_reporting_enabled: () => {},
             set_unavailable: (flag) => unavailable.push(flag)
         },
         _calendar: { getSelectedDate: () => new Date() }
@@ -721,7 +722,7 @@ test("event-manager readiness toggles the event list and reselects", () => {
         manager: stub.events_manager,
         eventList: () => stub.event_list,
         selectedDate: () => stub._calendar.getSelectedDate(),
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
     Proto._events_manager_ready.call(stub);
     assert.equal(stub.event_list.actor.visible, true);
@@ -742,6 +743,7 @@ test("events enabled without a calendar service says so instead of vanishing", (
         events_manager: { is_active: () => false, select_date: () => {} },
         event_list: {
             actor: { visible: false },
+            set_reporting_enabled: () => {},
             set_unavailable: (flag) => unavailable.push(flag)
         },
         _calendar: { getSelectedDate: () => new Date() }
@@ -750,7 +752,7 @@ test("events enabled without a calendar service says so instead of vanishing", (
         manager: stub.events_manager,
         eventList: () => stub.event_list,
         selectedDate: () => stub._calendar.getSelectedDate(),
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
 
     Proto._has_calendars_changed.call(stub);

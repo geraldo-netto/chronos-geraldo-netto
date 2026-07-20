@@ -28,7 +28,7 @@ global.logError = () => {};
 global.imports = {
     gi: {
         Atk: { Role: { PUSH_BUTTON: 3, LIST: 1, LIST_ITEM: 2 } },
-        Clutter: { ActorAlign: { CENTER: 0 }, BUTTON_PRIMARY: 1, EVENT_STOP: true,
+        Clutter: { ActorAlign: { CENTER: 0, START: 1, END: 2 }, BUTTON_PRIMARY: 1, EVENT_STOP: true,
             EVENT_PROPAGATE: false, KEY_Return: 65293, KEY_KP_Enter: 65421, KEY_space: 32 },
         Gio: { Settings: class { connect() { return 1; } } },
         GLib: {
@@ -70,7 +70,9 @@ global.imports = {
                 throw new Error("regular zoneinfo file");
             }
         },
+        Pango: { EllipsizeMode: { NONE: 0, END: 3 } },
         St: {
+            Align: { START: 0, END: 1 },
             Side: { LEFT: 0, RIGHT: 1, TOP: 2, BOTTOM: 3 },
             BoxLayout: class {
                 constructor() {} // NOSONAR [S6647] -- deliberate test seam
@@ -78,8 +80,15 @@ global.imports = {
                 add_actor() {} // NOSONAR [S1186] -- deliberate test seam
             },
             Label: class {
-                constructor() {} // NOSONAR [S6647] -- deliberate test seam
+                constructor(options = {}) {
+                    this.text = options.text || "";
+                    this.visible = options.visible !== false;
+                    this.clutterText = {};
+                }
                 add_actor() {} // NOSONAR [S1186] -- deliberate test seam
+                get_clutter_text() { return this.clutterText; }
+                set_text(text) { this.text = text; }
+                set_accessible_name(name) { this.accessible_name = name; }
             },
             Widget: class {
                 constructor(opts = {}) {
@@ -135,7 +144,10 @@ global.imports = {
         },
         popupMenu: {
             PopupMenuManager: class {}, // NOSONAR [S2094] -- deliberate test seam
-            PopupMenuItem: class { connect() {} }, // NOSONAR [S1186] -- deliberate test seam
+            PopupMenuItem: class {
+                connect() {} // NOSONAR [S1186] -- deliberate test seam
+                addActor() {} // NOSONAR [S1186] -- deliberate test seam
+            },
             PopupSeparatorMenuItem: class {}, // NOSONAR [S2094] -- deliberate test seam
             // Cinnamon's PopupMenuSection is a PopupMenuBase whose actor *is* its
             // box, and addActor() puts a plain actor inside it — that is the seam

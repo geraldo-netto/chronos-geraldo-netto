@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-20 20:31+0200\n"
+"POT-Creation-Date: 2026-07-20 21:20+0200\n"
 "PO-Revision-Date: 2021-02-27 16:18+0100\n"
 "Last-Translator: Åke Engelbrektson <eson@svenskasprakfiler.se>\n"
 "Language-Team: Svenska Språkfiler <contactform@svenskasprakfiler.se>\n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A %-e %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:373
+#: 5.4/calendar.js:377
 msgid "Today"
 msgstr "Idag"
 
@@ -54,72 +54,76 @@ msgstr "Ogiltig tidszon"
 msgid "Local time"
 msgstr "Lokal tid"
 
-#: 5.4/appletMenuBuilder.js:194 5.4/appletMenuBuilder.js:200
+#: 5.4/applet.js:35
+msgid "Calendar applet encountered an error. Check the system log."
+msgstr "Kalenderappleten stötte på ett fel. Kontrollera systemloggen."
+
+#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
 msgid "Go to today"
 msgstr "Gå till i dag"
 
-#: 5.4/appletMenuBuilder.js:281
+#: 5.4/appletMenuBuilder.js:358
 msgid "Date and Time Settings"
 msgstr "Inställningar för datum och tid"
 
-#: 5.4/appletPanelStatus.js:70
-msgid "Location not found"
-msgstr "Platsen hittades inte"
-
-#: 5.4/appletPanelStatus.js:71
-msgid "Weather service unavailable"
-msgstr "Vädertjänsten är inte tillgänglig"
-
-#: 5.4/appletPanelStatus.js:72
-msgid "Set a weather location"
-msgstr "Ange en väderplats"
-
-#: 5.4/appletPanelStatus.js:81
-msgid "Clear"
-msgstr "Klart"
-
-#: 5.4/appletPanelStatus.js:82
-msgid "Partly cloudy"
-msgstr "Delvis molnigt"
-
-#: 5.4/appletPanelStatus.js:83
-msgid "Cloudy"
-msgstr "Molnigt"
-
-#: 5.4/appletPanelStatus.js:84
-msgid "Rain"
-msgstr "Regn"
-
-#: 5.4/appletPanelStatus.js:85
-msgid "Snow"
-msgstr "Snö"
-
-#: 5.4/appletPanelStatus.js:86
-msgid "Showers"
-msgstr "Skurar"
-
-#: 5.4/appletPanelStatus.js:87
-msgid "Thunderstorm"
-msgstr "Åska"
-
-#: 5.4/appletPanelStatus.js:88
-msgid "Fair"
-msgstr "Fint väder"
-
-#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:449
-#: 5.4/appletPanelStatus.js:593
-msgid "Weather: loading…"
-msgstr "Väder: läser in…"
-
-#: 5.4/appletPanelStatus.js:320
+#: 5.4/appletPanelStatus.js:47
 msgid "Invalid time format; edit it in Settings"
 msgstr "Ogiltigt tidsformat; ändra det i Inställningar"
 
-#: 5.4/appletPanelStatus.js:473
+#: 5.4/appletPanelStatus.js:71
+msgid "Location not found"
+msgstr "Platsen hittades inte"
+
+#: 5.4/appletPanelStatus.js:72
+msgid "Weather service unavailable"
+msgstr "Vädertjänsten är inte tillgänglig"
+
+#: 5.4/appletPanelStatus.js:73
+msgid "Set a weather location"
+msgstr "Ange en väderplats"
+
+#: 5.4/appletPanelStatus.js:82
+msgid "Clear"
+msgstr "Klart"
+
+#: 5.4/appletPanelStatus.js:83
+msgid "Partly cloudy"
+msgstr "Delvis molnigt"
+
+#: 5.4/appletPanelStatus.js:84
+msgid "Cloudy"
+msgstr "Molnigt"
+
+#: 5.4/appletPanelStatus.js:85
+msgid "Rain"
+msgstr "Regn"
+
+#: 5.4/appletPanelStatus.js:86
+msgid "Snow"
+msgstr "Snö"
+
+#: 5.4/appletPanelStatus.js:87
+msgid "Showers"
+msgstr "Skurar"
+
+#: 5.4/appletPanelStatus.js:88
+msgid "Thunderstorm"
+msgstr "Åska"
+
+#: 5.4/appletPanelStatus.js:89
+msgid "Fair"
+msgstr "Fint väder"
+
+#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:461
+#: 5.4/appletPanelStatus.js:622
+msgid "Weather: loading…"
+msgstr "Väder: läser in…"
+
+#: 5.4/appletPanelStatus.js:485
 msgid "No weather for this timezone"
 msgstr "Inget väder för den här tidszonen"
 
-#: 5.4/appletPanelStatus.js:485
+#: 5.4/appletPanelStatus.js:496 5.4/appletPanelStatus.js:497
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Senast kända avläsning"
@@ -132,104 +136,57 @@ msgstr "Helgdagstjänsten är inte tillgänglig"
 msgid "Holiday data unavailable"
 msgstr "Helgdagsdata är inte tillgängliga"
 
-#: 5.4/calendar.js:376
+#: 5.4/calendar.js:380
 msgid "Selected"
 msgstr "Vald"
 
-#: 5.4/calendar.js:380
+#: 5.4/calendar.js:384
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d händelse"
 msgstr[1] "%d händelser"
 
-#: 5.4/calendar.js:651
+#: 5.4/calendar.js:662
 msgid "Holiday data: loading…"
 msgstr "Helgdagsdata: läser in…"
 
-#: 5.4/calendar.js:691
+#: 5.4/calendar.js:703
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Helgdagsdata: %s"
 
-#: 5.4/calendar.js:860
+#: 5.4/calendar.js:873
 #, javascript-format
 msgid "Week %s"
 msgstr "Vecka %s"
 
-#: 5.4/calendar.js:1208
+#: 5.4/calendar.js:1224
 msgid "Previous month"
 msgstr "Föregående månad"
 
-#: 5.4/calendar.js:1238
+#: 5.4/calendar.js:1254
 msgid "Next month"
 msgstr "Nästa månad"
 
-#: 5.4/calendar.js:1242
+#: 5.4/calendar.js:1258
 msgid "Previous year"
 msgstr "Föregående år"
 
-#: 5.4/calendar.js:1249
+#: 5.4/calendar.js:1269
 msgid "Next year"
 msgstr "Nästa år"
 
-#: 5.4/calendar.js:1262
+#: 5.4/calendar.js:1282
 msgid "Week"
 msgstr "Vecka"
 
-#: 5.4/eventView.js:54
-msgid "Starting in a few minutes"
-msgstr "Startar om några minuter"
-
-#: 5.4/eventView.js:61
-#, javascript-format
-msgid "Starting in %d minute"
-msgid_plural "Starting in %d minutes"
-msgstr[0] "Börjar om %d minut"
-msgstr[1] "Börjar om %d minuter"
-
-#: 5.4/eventView.js:71
-msgid "This evening"
-msgstr "Ikväll"
-
-#: 5.4/eventView.js:74
-msgid "Starting later today"
-msgstr "Senare idag"
-
-#: 5.4/eventView.js:77
-#, javascript-format
-msgid "In %d hour"
-msgid_plural "In %d hours"
-msgstr[0] "Om %d timme"
-msgstr[1] "Om %d timmar"
-
-#: 5.4/eventView.js:202
-msgid "Loading…"
-msgstr "Läser in…"
-
-#: 5.4/eventView.js:206 5.4/eventView.js:216 5.4/eventView.js:352
-#: 5.4/eventView.js:665
-msgid "No Events"
-msgstr "Inga händelser"
-
-#: 5.4/eventView.js:374 5.4/eventView.js:556
-msgid "Open the calendar app"
-msgstr "Öppna kalenderprogrammet"
-
-#: 5.4/eventView.js:384
+#: 5.4/eventView.js:46
 msgid "Some calendar events were hidden to keep the desktop responsive."
 msgstr ""
 "Vissa kalenderhändelser doldes för att skrivbordet skulle förbli responsivt."
 
-#: 5.4/eventView.js:487
-msgid "Events for the selected day"
-msgstr "Händelser för den valda dagen"
-
-#: 5.4/eventView.js:540
-msgid "Add an event"
-msgstr "Lägg till en händelse"
-
-#: 5.4/eventView.js:673
+#: 5.4/eventView.js:48
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -237,11 +194,62 @@ msgstr ""
 "Kalenderhändelser är inte tillgängliga — ingen kalendertjänst körs. "
 "Installera eller aktivera Evolution Data Server."
 
-#: 5.4/eventView.js:759
+#: 5.4/eventView.js:50
+msgid "Calendar events could not be refreshed."
+msgstr "Kalenderhändelserna kunde inte uppdateras."
+
+#: 5.4/eventView.js:60
+msgid "Starting in a few minutes"
+msgstr "Startar om några minuter"
+
+#: 5.4/eventView.js:67
+#, javascript-format
+msgid "Starting in %d minute"
+msgid_plural "Starting in %d minutes"
+msgstr[0] "Börjar om %d minut"
+msgstr[1] "Börjar om %d minuter"
+
+#: 5.4/eventView.js:77
+msgid "This evening"
+msgstr "Ikväll"
+
+#: 5.4/eventView.js:80
+msgid "Starting later today"
+msgstr "Senare idag"
+
+#: 5.4/eventView.js:83
+#, javascript-format
+msgid "In %d hour"
+msgid_plural "In %d hours"
+msgstr[0] "Om %d timme"
+msgstr[1] "Om %d timmar"
+
+#: 5.4/eventView.js:208
+msgid "Loading…"
+msgstr "Läser in…"
+
+#: 5.4/eventView.js:212 5.4/eventView.js:222 5.4/eventView.js:363
+#: 5.4/eventView.js:701
+msgid "No Events"
+msgstr "Inga händelser"
+
+#: 5.4/eventView.js:385 5.4/eventView.js:567
+msgid "Open the calendar app"
+msgstr "Öppna kalenderprogrammet"
+
+#: 5.4/eventView.js:498
+msgid "Events for the selected day"
+msgstr "Händelser för den valda dagen"
+
+#: 5.4/eventView.js:551
+msgid "Add an event"
+msgstr "Lägg till en händelse"
+
+#: 5.4/eventView.js:797
 msgid "Ended"
 msgstr "Avslutad"
 
-#: 5.4/eventView.js:790
+#: 5.4/eventView.js:828
 msgid "In progress"
 msgstr "Pågår"
 

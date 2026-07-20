@@ -860,6 +860,34 @@ test("an ingest overflow is visible even when the selected day is empty", () => 
     assert.equal(list.no_events_box.visible, true);
 });
 
+test("event failures share the footer and disabled events clear their issues", () => {
+    const issues = new Map();
+    const list = new EventView.EventList(
+        desktopSettings(), undefined,
+        (source, message) => issues.set(source, message));
+
+    list.setOverflowed(true);
+    list.set_refresh_failed(true);
+    assert.match(issues.get("events-overflow"), /events were hidden/);
+    assert.match(issues.get("events-refresh"), /could not be refreshed/);
+
+    list.set_unavailable(true);
+    assert.match(issues.get("calendar-service"), /no calendar service/);
+    assert.equal(issues.get("events-overflow"), "",
+        "service loss clears the stale rendered-data warning");
+
+    list.set_reporting_enabled(false);
+    assert.deepEqual([...issues.values()], ["", "", ""],
+        "a feature the user switched off reports no issue");
+
+    list.set_reporting_enabled(true);
+    list.setOverflowed(false);
+    list.set_refresh_failed(false);
+    list.set_unavailable(false);
+    assert.deepEqual([...issues.values()], ["", "", ""],
+        "bounded data, a successful fetch and a live service clear every source");
+});
+
 test("a day that changes mid-build abandons the build", () => {
     const idles = [];
     const removed = [];

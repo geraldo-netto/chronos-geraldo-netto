@@ -64,7 +64,7 @@ class AppletWeatherCoordinator {
     }
 
     setStatus(reading = null, error = "", providerName = "", pending = false) {
-        this.guard(() => {
+        this.guard("weather-status", () => {
             this.reading = reading || null;
             this.pending = pending;
             this.error = error;
@@ -79,6 +79,11 @@ class AppletWeatherCoordinator {
 
     cityStale(city) {
         return this.cityWeatherProvider ? this.cityWeatherProvider.staleFor(city) : false;
+    }
+
+    cityError(city) {
+        return this.cityWeatherProvider && this.cityWeatherProvider.errorFor ?
+            this.cityWeatherProvider.errorFor(city) : "";
     }
 
     cityProviderName() {
@@ -103,8 +108,10 @@ class AppletEventListCoordinator {
             return;
         }
         const active = this.manager.is_active();
-        list.actor.visible = Boolean(showEvents);
-        list.set_unavailable(Boolean(showEvents) && !active);
+        const enabled = Boolean(showEvents);
+        list.actor.visible = enabled;
+        list.set_reporting_enabled(enabled);
+        list.set_unavailable(enabled && !active);
     }
 
     apply(showEvents) {
@@ -116,14 +123,14 @@ class AppletEventListCoordinator {
     }
 
     ready(showEvents) {
-        this.guard(() => {
+        this.guard("events-ready", () => {
             this.update(showEvents());
             this.manager.select_date(this.selectedDate(), true);
         });
     }
 
     calendarsChanged(showEvents) {
-        this.guard(() => this.update(showEvents()));
+        this.guard("calendars-changed", () => this.update(showEvents()));
     }
 }
 

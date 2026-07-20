@@ -430,6 +430,7 @@ test("recordFor answers null for anything that is not a city name", () => {
 
     for (const input of ["", "   ", null, undefined, 42, {}, [], true, NaN]) {
         assert.equal(provider.recordFor(input), null);
+        assert.equal(provider.errorFor(input), "");
     }
 
     assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
@@ -464,13 +465,20 @@ test("a forecast that fails or comes back empty keeps the previous reading", () 
     provider.refresh(settings, () => updates++);
     assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
     assert.equal(provider.lastProvider, "Open-Meteo");
-    assert.equal(updates, 1, "a failed round redraws nothing");
+    assert.equal(provider.errorFor("Rome"), "Weather service unavailable");
+    assert.equal(updates, 2, "a new failure redraws once so the footer can report it");
 
     // every provider answered, none had a reading for the place
     answer = ["", "", ""];
     provider.refresh(settings, () => updates++);
     assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
-    assert.equal(updates, 1);
+    assert.equal(provider.errorFor("Rome"), "Weather service unavailable");
+    assert.equal(updates, 2, "the same failure is not redrawn on every retry");
+
+    answer = ["☀ 21°C", "", "MET.no"];
+    provider.refresh(settings, () => updates++);
+    assert.equal(provider.errorFor("Rome"), "", "a successful refresh clears the issue");
+    assert.equal(updates, 3);
 });
 
 test("the geocoder is asked about the timezone's city, never the user's label", () => {

@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-20 20:31+0200\n"
+"POT-Creation-Date: 2026-07-20 21:20+0200\n"
 "PO-Revision-Date: 2024-11-20 18:59+0100\n"
 "Last-Translator: Claus Colloseus <ccprog@gmx.de>\n"
 "Language-Team: German\n"
@@ -24,7 +24,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e. %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:373
+#: 5.4/calendar.js:377
 msgid "Today"
 msgstr "Heute"
 
@@ -50,72 +50,78 @@ msgstr "Ungültige Zeitzone"
 msgid "Local time"
 msgstr "Ortszeit"
 
-#: 5.4/appletMenuBuilder.js:194 5.4/appletMenuBuilder.js:200
+#: 5.4/applet.js:35
+msgid "Calendar applet encountered an error. Check the system log."
+msgstr ""
+"Das Kalender-Applet hat einen Fehler festgestellt. Prüfen Sie das "
+"Systemprotokoll."
+
+#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
 msgid "Go to today"
 msgstr "Zu heute springen"
 
-#: 5.4/appletMenuBuilder.js:281
+#: 5.4/appletMenuBuilder.js:358
 msgid "Date and Time Settings"
 msgstr "Datums- und Zeiteinstellungen"
 
-#: 5.4/appletPanelStatus.js:70
-msgid "Location not found"
-msgstr "Standort nicht gefunden"
-
-#: 5.4/appletPanelStatus.js:71
-msgid "Weather service unavailable"
-msgstr "Wetterdienst nicht verfügbar"
-
-#: 5.4/appletPanelStatus.js:72
-msgid "Set a weather location"
-msgstr "Wetterstandort festlegen"
-
-#: 5.4/appletPanelStatus.js:81
-msgid "Clear"
-msgstr "Klar"
-
-#: 5.4/appletPanelStatus.js:82
-msgid "Partly cloudy"
-msgstr "Teilweise bewölkt"
-
-#: 5.4/appletPanelStatus.js:83
-msgid "Cloudy"
-msgstr "Bewölkt"
-
-#: 5.4/appletPanelStatus.js:84
-msgid "Rain"
-msgstr "Regen"
-
-#: 5.4/appletPanelStatus.js:85
-msgid "Snow"
-msgstr "Schnee"
-
-#: 5.4/appletPanelStatus.js:86
-msgid "Showers"
-msgstr "Schauer"
-
-#: 5.4/appletPanelStatus.js:87
-msgid "Thunderstorm"
-msgstr "Gewitter"
-
-#: 5.4/appletPanelStatus.js:88
-msgid "Fair"
-msgstr "Heiter"
-
-#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:449
-#: 5.4/appletPanelStatus.js:593
-msgid "Weather: loading…"
-msgstr "Wetter: wird geladen …"
-
-#: 5.4/appletPanelStatus.js:320
+#: 5.4/appletPanelStatus.js:47
 msgid "Invalid time format; edit it in Settings"
 msgstr "Ungültiges Zeitformat; in den Einstellungen bearbeiten"
 
-#: 5.4/appletPanelStatus.js:473
+#: 5.4/appletPanelStatus.js:71
+msgid "Location not found"
+msgstr "Standort nicht gefunden"
+
+#: 5.4/appletPanelStatus.js:72
+msgid "Weather service unavailable"
+msgstr "Wetterdienst nicht verfügbar"
+
+#: 5.4/appletPanelStatus.js:73
+msgid "Set a weather location"
+msgstr "Wetterstandort festlegen"
+
+#: 5.4/appletPanelStatus.js:82
+msgid "Clear"
+msgstr "Klar"
+
+#: 5.4/appletPanelStatus.js:83
+msgid "Partly cloudy"
+msgstr "Teilweise bewölkt"
+
+#: 5.4/appletPanelStatus.js:84
+msgid "Cloudy"
+msgstr "Bewölkt"
+
+#: 5.4/appletPanelStatus.js:85
+msgid "Rain"
+msgstr "Regen"
+
+#: 5.4/appletPanelStatus.js:86
+msgid "Snow"
+msgstr "Schnee"
+
+#: 5.4/appletPanelStatus.js:87
+msgid "Showers"
+msgstr "Schauer"
+
+#: 5.4/appletPanelStatus.js:88
+msgid "Thunderstorm"
+msgstr "Gewitter"
+
+#: 5.4/appletPanelStatus.js:89
+msgid "Fair"
+msgstr "Heiter"
+
+#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:461
+#: 5.4/appletPanelStatus.js:622
+msgid "Weather: loading…"
+msgstr "Wetter: wird geladen …"
+
+#: 5.4/appletPanelStatus.js:485
 msgid "No weather for this timezone"
 msgstr "Kein Wetter für diese Zeitzone"
 
-#: 5.4/appletPanelStatus.js:485
+#: 5.4/appletPanelStatus.js:496 5.4/appletPanelStatus.js:497
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Letzte bekannte Messung"
@@ -128,105 +134,58 @@ msgstr "Feiertagsdienst nicht verfügbar"
 msgid "Holiday data unavailable"
 msgstr "Feiertagsdaten nicht verfügbar"
 
-#: 5.4/calendar.js:376
+#: 5.4/calendar.js:380
 msgid "Selected"
 msgstr "Ausgewählt"
 
-#: 5.4/calendar.js:380
+#: 5.4/calendar.js:384
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d Termin"
 msgstr[1] "%d Termine"
 
-#: 5.4/calendar.js:651
+#: 5.4/calendar.js:662
 msgid "Holiday data: loading…"
 msgstr "Feiertagsdaten: wird geladen …"
 
-#: 5.4/calendar.js:691
+#: 5.4/calendar.js:703
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Feiertagsdaten: %s"
 
-#: 5.4/calendar.js:860
+#: 5.4/calendar.js:873
 #, javascript-format
 msgid "Week %s"
 msgstr "Woche %s"
 
-#: 5.4/calendar.js:1208
+#: 5.4/calendar.js:1224
 msgid "Previous month"
 msgstr "Voriger Monat"
 
-#: 5.4/calendar.js:1238
+#: 5.4/calendar.js:1254
 msgid "Next month"
 msgstr "Nächster Monat"
 
-#: 5.4/calendar.js:1242
+#: 5.4/calendar.js:1258
 msgid "Previous year"
 msgstr "Voriges Jahr"
 
-#: 5.4/calendar.js:1249
+#: 5.4/calendar.js:1269
 msgid "Next year"
 msgstr "Nächstes Jahr"
 
-#: 5.4/calendar.js:1262
+#: 5.4/calendar.js:1282
 msgid "Week"
 msgstr "Woche"
 
-#: 5.4/eventView.js:54
-msgid "Starting in a few minutes"
-msgstr "Beginnt in wenigen Minuten"
-
-#: 5.4/eventView.js:61
-#, javascript-format
-msgid "Starting in %d minute"
-msgid_plural "Starting in %d minutes"
-msgstr[0] "Beginnt in %d Minute"
-msgstr[1] "Beginnt in %d Minuten"
-
-#: 5.4/eventView.js:71
-msgid "This evening"
-msgstr "Heute Abend"
-
-#: 5.4/eventView.js:74
-msgid "Starting later today"
-msgstr "Beginnt heute später"
-
-#: 5.4/eventView.js:77
-#, javascript-format
-msgid "In %d hour"
-msgid_plural "In %d hours"
-msgstr[0] "In %d Stunde"
-msgstr[1] "In %d Stunden"
-
-#: 5.4/eventView.js:202
-msgid "Loading…"
-msgstr "Wird geladen …"
-
-#: 5.4/eventView.js:206 5.4/eventView.js:216 5.4/eventView.js:352
-#: 5.4/eventView.js:665
-msgid "No Events"
-msgstr "Keine Termine"
-
-#: 5.4/eventView.js:374 5.4/eventView.js:556
-msgid "Open the calendar app"
-msgstr "Kalenderanwendung öffnen"
-
-#: 5.4/eventView.js:384
+#: 5.4/eventView.js:46
 msgid "Some calendar events were hidden to keep the desktop responsive."
 msgstr ""
-"Einige Kalendertermine wurden ausgeblendet, damit der Desktop "
-"reaktionsfähig bleibt."
+"Einige Kalendertermine wurden ausgeblendet, damit der Desktop reaktionsfähig "
+"bleibt."
 
-#: 5.4/eventView.js:487
-msgid "Events for the selected day"
-msgstr "Termine des ausgewählten Tages"
-
-#: 5.4/eventView.js:540
-msgid "Add an event"
-msgstr "Termin hinzufügen"
-
-#: 5.4/eventView.js:673
+#: 5.4/eventView.js:48
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -234,11 +193,62 @@ msgstr ""
 "Kalendertermine sind nicht verfügbar – es läuft kein Kalenderdienst. "
 "Installieren oder aktivieren Sie den Evolution Data Server."
 
-#: 5.4/eventView.js:759
+#: 5.4/eventView.js:50
+msgid "Calendar events could not be refreshed."
+msgstr "Kalendertermine konnten nicht aktualisiert werden."
+
+#: 5.4/eventView.js:60
+msgid "Starting in a few minutes"
+msgstr "Beginnt in wenigen Minuten"
+
+#: 5.4/eventView.js:67
+#, javascript-format
+msgid "Starting in %d minute"
+msgid_plural "Starting in %d minutes"
+msgstr[0] "Beginnt in %d Minute"
+msgstr[1] "Beginnt in %d Minuten"
+
+#: 5.4/eventView.js:77
+msgid "This evening"
+msgstr "Heute Abend"
+
+#: 5.4/eventView.js:80
+msgid "Starting later today"
+msgstr "Beginnt heute später"
+
+#: 5.4/eventView.js:83
+#, javascript-format
+msgid "In %d hour"
+msgid_plural "In %d hours"
+msgstr[0] "In %d Stunde"
+msgstr[1] "In %d Stunden"
+
+#: 5.4/eventView.js:208
+msgid "Loading…"
+msgstr "Wird geladen …"
+
+#: 5.4/eventView.js:212 5.4/eventView.js:222 5.4/eventView.js:363
+#: 5.4/eventView.js:701
+msgid "No Events"
+msgstr "Keine Termine"
+
+#: 5.4/eventView.js:385 5.4/eventView.js:567
+msgid "Open the calendar app"
+msgstr "Kalenderanwendung öffnen"
+
+#: 5.4/eventView.js:498
+msgid "Events for the selected day"
+msgstr "Termine des ausgewählten Tages"
+
+#: 5.4/eventView.js:551
+msgid "Add an event"
+msgstr "Termin hinzufügen"
+
+#: 5.4/eventView.js:797
 msgid "Ended"
 msgstr "Beendet"
 
-#: 5.4/eventView.js:790
+#: 5.4/eventView.js:828
 msgid "In progress"
 msgstr "Zur Zeit"
 

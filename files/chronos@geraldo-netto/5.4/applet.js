@@ -17,7 +17,9 @@ const PopupMenu = imports.ui.popupMenu;
 const AppletLifecycle = require("./appletLifecycle");
 const AppletCoordinators = require("./appletCoordinators");
 const SettingsFacade = require("./settingsFacade");
-const LocaleQuery = imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
+const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const LocaleQuery = AppletModules.localeQuery;
+const LocaleText = AppletModules.localeText;
 const AppletPanelStatus = require("./appletPanelStatus");
 const AppletMenu = require("./appletMenuBuilder");
 const Main = imports.ui.main;
@@ -28,6 +30,9 @@ const PanelView = AppletPanelStatus.PanelView;
 const AppletMenuBuilder = AppletMenu.AppletMenuBuilder;
 const AppletWeatherCoordinator = AppletCoordinators.AppletWeatherCoordinator;
 const AppletEventListCoordinator = AppletCoordinators.AppletEventListCoordinator;
+const _ = LocaleText.translate;
+const RUNTIME_ERROR_TEXT =
+    _("Calendar applet encountered an error. Check the system log.");
 
 function destroyIfPresent(collaborator) {
     if (collaborator) {
@@ -75,6 +80,8 @@ function createPanelPort(applet) {
         weatherProvider: () => applet._weatherCoordinator.providerName,
         cityWeatherReading: (city) => applet._weatherCoordinator.cityReading(city),
         cityWeatherStale: (city) => applet._weatherCoordinator.cityStale(city),
+        cityWeatherError: (city) => applet._weatherCoordinator.cityError ?
+            applet._weatherCoordinator.cityError(city) : "",
         cityWeatherProviderName: () => applet._weatherCoordinator.cityProviderName(),
         formattedClock: () => applet.clock.get_clock(),
         formatClock: (format) => applet.clock.get_clock_for_format(format),
@@ -92,8 +99,12 @@ function createPanelPort(applet) {
         updateWorldclocks: (entries) => applet._worldclocks.updateClocks(entries),
         setWeatherSource: (source) => applet._worldclocks.setWeatherSource(source),
         setWeatherStatus: (text) => {
-            applet._weather_status.set_text(text);
-            applet._weather_status.visible = Boolean(text);
+            if (applet._issueReporter) {
+                applet._issueReporter.set("panel", text);
+            } else {
+                applet._weather_status.set_text(text);
+                applet._weather_status.visible = Boolean(text);
+            }
         },
         getClockEntries: () => applet._worldclocks.getClockEntries(),
         todaySelected: () => applet._calendar.todaySelected(),
@@ -168,18 +179,20 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             eventsSettings: this.events_settings,
             holidaySettings: this.holiday_settings,
             onPanelHover: (hovered) => {
-                this._panel_hovered = hovered;
-                if (hovered) {
-                    this._updateClockAndDate();
-                }
+                this._guarded("panel-hover", () => {
+                    this._panel_hovered = hovered;
+                    if (hovered) {
+                        this._updateClockAndDate();
+                    }
+                });
             },
             onEventsManagerReady: () => this._events_manager_ready(),
             onHasCalendarsChanged: () => this._has_calendars_changed(),
-            onHolidayPlaceChanged: () => {
+            onHolidayPlaceChanged: () => this._guarded("holiday-place", () => {
                 if (this._calendar) {
                     this._calendar.refreshHolidays();
                 }
-            },
+            }),
             onSettingsChanged: () => this._onSettingsChanged(),
             onResume: () => this._onResume()
         });
@@ -201,14 +214,15 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
                 units: this.weather_units
             }),
             worldclocks: () => this.worldclocks,
-            onChanged: () => this._updateClockAndDate(),
-            guard: (fn) => this._guarded(fn)
+            onChanged: () => this._guarded(
+                "weather-view", () => this._updateClockAndDate()),
+            guard: (source, fn) => this._guarded(source, fn)
         });
         this._eventListCoordinator = new AppletEventListCoordinator({
             manager: this.events_manager,
             eventList: () => this.event_list,
             selectedDate: () => this._calendar.getSelectedDate(),
-            guard: (fn) => this._guarded(fn)
+            guard: (source, fn) => this._guarded(source, fn)
         });
     }
 
@@ -220,8 +234,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             calendarSettings: this.calendar_settings,
             eventsManager: this.events_manager,
             holidayProvider: this.holiday_provider,
-            onGoHome: () => this._resetCalendar(),
-            onSelectedDateChanged: () => this._updateClockAndDate(true),
+            onGoHome: () => this._guarded(
+                "go-home", () => this._resetCalendar()),
+            onSelectedDateChanged: () => this._guarded(
+                "selected-date", () => this._updateClockAndDate(true)),
             onLaunchSettings: () => this._onLaunchSettings()
         });
 
@@ -229,6 +245,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this.event_list = ui.eventList;
         this._calendar = ui.calendar;
         this._worldclocks = ui.worldclocks;
+        this._issueReporter = ui.issueReporter;
         this._weather_status = ui.weatherStatus;
         this.go_home_button = ui.goHomeButton;
         this._day = ui.dayLabel;
@@ -248,7 +265,8 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._settingsBinder = new AppletSettingsBinder(this, {
             onSettingsChanged: this._onSettingsChanged.bind(this),
             onWeatherSettingsChanged: this._onWeatherSettingsChanged.bind(this),
-            onKeybindingChanged: this._setKeybinding.bind(this)
+            onKeybindingChanged: () => this._guarded(
+                "keybinding-settings", () => this._setKeybinding())
         });
 
         const bound = this._settingsBinder.bind();
@@ -277,18 +295,26 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     // nobody's to catch: the applet stops updating and stays that way until
     // Cinnamon restarts. The construction and teardown paths have been guarded
     // like this all along; the paths that run once a second were not.
-    _guarded(fn) {
+    _guarded(source, fn) {
+        const issueSource = "runtime:" + source;
         try {
-            return fn();
+            const result = fn();
+            if (this._issueReporter) {
+                this._issueReporter.set(issueSource, "");
+            }
+            return result;
         } catch (e) {
             global.logError(e);
+            if (this._issueReporter) {
+                this._issueReporter.set(issueSource, RUNTIME_ERROR_TEXT);
+            }
             return undefined;
         }
     }
 
     // settings emit (emitter, key, oldValue, newValue)
     _onWorldclocksChanged(setting_provider, key, oldval, newval) {
-        this._guarded(() => {
+        this._guarded("worldclocks-settings", () => {
             this.worldclocks = newval;
             this._worldclocks.buildClocks(this.worldclocks, this.worldclock_format);
             this._worldclocks.updateClocks();
@@ -297,12 +323,15 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _setKeybinding() {
-        Main.keybindingManager.addHotKey("calendar-open-" + this.instance_id, this.keyOpen, this._openMenu.bind(this));
+        Main.keybindingManager.addHotKey(
+            "calendar-open-" + this.instance_id,
+            this.keyOpen,
+            () => this._guarded("keybinding-open", () => this._openMenu()));
     }
 
     // the hottest path in the applet: WallClock's notify::clock
     _clockNotify() {
-        this._guarded(() => this._updateClockAndDate());
+        this._guarded("clock", () => this._updateClockAndDate());
     }
 
     // A suspend does not advance CLOCK_MONOTONIC, which is what GLib's timers
@@ -311,14 +340,14 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     // its "nothing changed" guard — the settings have not changed, but the world
     // has.
     _onResume() {
-        this._guarded(() => {
+        this._guarded("resume", () => {
             this._updateClockAndDate();
             this._scheduleWeatherRefresh({ force: true });
         });
     }
 
     on_applet_clicked() {
-        this._openMenu();
+        this._guarded("applet-click", () => this._openMenu());
     }
     
     _openMenu() {
@@ -340,7 +369,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _onSettingsChanged() {
-        this._guarded(() => this._applySettings());
+        this._guarded("settings", () => this._applySettings());
     }
 
     _applySettings() {
@@ -367,22 +396,27 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _onWeatherSettingsChanged() {
-        this._guarded(() => {
+        this._guarded("weather-settings", () => {
             this._updateClockAndDate();
             this._queueWeatherRefresh();
         });
     }
 
     on_custom_format_button_pressed() {
-        Util.spawnCommandLine("xdg-open https://cinnamon-spices.linuxmint.com/strftime.php");
+        this._guarded("format-help", () => {
+            Util.spawnCommandLine(
+                "xdg-open https://cinnamon-spices.linuxmint.com/strftime.php");
+        });
     }
 
     on_openstreetmap_attribution_pressed() {
-        Util.spawnCommandLine("xdg-open https://www.openstreetmap.org/copyright");
+        this._guarded("weather-attribution", () => {
+            Util.spawnCommandLine("xdg-open https://www.openstreetmap.org/copyright");
+        });
     }
 
     openAbout() {
-        this._guarded(() => {
+        this._guarded("about", () => {
             const process = new Gio.Subprocess({
                 argv: ["python3", this._meta.path + "/settings_about.py"],
                 flags: Gio.SubprocessFlags.NONE
@@ -392,8 +426,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _onLaunchSettings() {
-        this.menu.close();
-        Util.spawnCommandLine("cinnamon-settings calendar");
+        this._guarded("date-settings", () => {
+            this.menu.close();
+            Util.spawnCommandLine("cinnamon-settings calendar");
+        });
     }
 
     _panelStatus() {
@@ -462,7 +498,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         // Cinnamon calls this from its own applet-loading loop, where a throw is
         // nobody's to catch — the same loop the _constructed guard above exists
         // to survive
-        this._guarded(() => {
+        this._guarded("added-to-panel", () => {
             this._onSettingsChanged();
             this._settingsBinder.deferInitialHolidayCountry();
 
@@ -524,17 +560,19 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         // Whenever the menu is opened, select today
         this.menu.connect('open-state-changed', (menu, isOpen) => {
             if (isOpen) {
-                this._resetCalendar();
-                this._updateClockAndDate(true);
-                // The menu manager grabs key focus onto the menu actor as the
-                // menu opens, and it is connected to this signal before we are,
-                // so it has already run: moving focus down into the day grid
-                // here is what puts the calendar's key handler on the event
-                // path. Without it the arrows, PageUp/PageDown and Home only
-                // ever worked after a mouse click on a cell.
-                if (this._calendar) {
-                    this._calendar.focusSelectedDay();
-                }
+                this._guarded("menu-open", () => {
+                    this._resetCalendar();
+                    this._updateClockAndDate(true);
+                    // The menu manager grabs key focus onto the menu actor as the
+                    // menu opens, and it is connected to this signal before we are,
+                    // so it has already run: moving focus down into the day grid
+                    // here is what puts the calendar's key handler on the event
+                    // path. Without it the arrows, PageUp/PageDown and Home only
+                    // ever worked after a mouse click on a cell.
+                    if (this._calendar) {
+                        this._calendar.focusSelectedDay();
+                    }
+                });
             }
         });
     }
@@ -544,7 +582,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     on_orientation_changed (orientation) {
-        this._guarded(() => {
+        this._guarded("orientation", () => {
             this.orientation = orientation;
             this.menu.setOrientation(orientation);
             this._onSettingsChanged();

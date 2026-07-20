@@ -51,7 +51,7 @@ test("city weather is asked about the timezone's city, not the clock's name", ()
         }),
         worldclocks: () => stub.worldclocks,
         onChanged: stub._updateClockAndDate,
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
 
     Proto._scheduleCityWeatherRefresh.call(stub);
@@ -104,7 +104,7 @@ test("an invalid runtime timezone never reaches a weather geocoder", () => {
         }),
         worldclocks: () => stub.worldclocks,
         onChanged: stub._updateClockAndDate,
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
 
     try {
@@ -126,16 +126,19 @@ test("city weather readings and provider name come from the city provider", () =
         cityWeatherProvider: {
             recordFor: (city) => (city === "Tokyo" ? { condition: "☀", temperatureC: 30 } : null),
             staleFor: (city) => city === "Tokyo",
+            errorFor: (city) => city === "Tokyo" ? "service-unavailable" : "",
             lastProvider: "Open-Meteo"
         },
         settings: () => ({}),
         worldclocks: () => [],
         onChanged: () => {},
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
     assert.deepEqual(coordinator.cityReading("Tokyo"), { condition: "☀", temperatureC: 30 });
     assert.equal(coordinator.cityReading("Nowhere"), null);
     assert.equal(coordinator.cityStale("Tokyo"), true);
+    assert.equal(coordinator.cityError("Tokyo"), "service-unavailable");
+    assert.equal(coordinator.cityError("Nowhere"), "");
     assert.equal(coordinator.cityProviderName(), "Open-Meteo");
 
     const withoutCityProvider = new CoordinatorModule.AppletWeatherCoordinator({
@@ -144,10 +147,11 @@ test("city weather readings and provider name come from the city provider", () =
         settings: () => ({}),
         worldclocks: () => [],
         onChanged: () => {},
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
     assert.equal(withoutCityProvider.cityReading("Tokyo"), null);
     assert.equal(withoutCityProvider.cityStale("Tokyo"), false);
+    assert.equal(withoutCityProvider.cityError("Tokyo"), "");
     assert.equal(withoutCityProvider.cityProviderName(), "");
 });
 
@@ -203,7 +207,7 @@ test("_setWeatherStatus clears the provider name when a refresh reports none", (
         settings: () => ({}),
         worldclocks: () => [],
         onChanged: stub._updateClockAndDate,
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
     stub._weatherCoordinator.providerName = "Open-Meteo";
 
@@ -1029,13 +1033,95 @@ test("a keyboard-opened popup shows weather status without world clocks", () => 
     Proto._updateClockAndDate.call(stub);
 
     assert.equal(stub._weather_status.visible, true);
-    assert.equal(calls.weatherStatus.at(-1), "⚠ Set a weather location");
+    assert.equal(calls.weatherStatus.at(-1), "Set a weather location");
 
     stub._weatherCoordinator.error = "";
     stub._weatherCoordinator.reading = { condition: "☀", temperatureC: 20 };
     Proto._updateClockAndDate.call(stub);
     assert.equal(stub._weather_status.visible, false,
         "a successful reading leaves no redundant status row");
+});
+
+test("the shared footer deduplicates issues and disappears after recovery", () => {
+    const { AppletIssueReporter } = require(
+        path.join(APPLET_DIR, "5.4", "appletMenuBuilder.js"));
+    const label = {
+        text: "stale",
+        visible: true,
+        writes: 0,
+        set_text(text) {
+            this.text = text;
+            this.writes++;
+        },
+        set_accessible_name(name) { this.accessible_name = name; }
+    };
+    const reporter = new AppletIssueReporter(label);
+
+    assert.equal(label.text, "");
+    assert.equal(label.visible, false, "healthy applet leaves the footer empty");
+    const initialWrites = label.writes;
+
+    reporter.set("", "ignored");
+    reporter.set("already-healthy", "");
+    assert.equal(label.writes, initialWrites,
+        "healthy callback ticks do not rewrite the footer");
+    reporter.set("weather", "Weather service unavailable");
+    const weatherWrites = label.writes;
+    reporter.set("weather", "Weather service unavailable");
+    assert.equal(label.writes, weatherWrites,
+        "repeated failures with the same text are idempotent");
+    reporter.set("holidays", "Weather service unavailable");
+    reporter.set("events", "Calendar events could not be refreshed.");
+    assert.equal(label.text,
+        "⚠ Weather service unavailable\n⚠ Calendar events could not be refreshed.");
+    assert.equal(label.accessible_name, label.text);
+    assert.equal(label.visible, true);
+
+    reporter.set("weather", "");
+    assert.match(label.text, /Weather service unavailable/,
+        "another source still owns the deduplicated message");
+    reporter.set("holidays", "");
+    reporter.set("events", "");
+    assert.equal(label.text, "");
+    assert.equal(label.visible, false);
+});
+
+test("the footer aggregates weather, clocks, city readings, and format errors", () => {
+    let footer = null;
+    const view = {
+        showWeather: true,
+        weatherError: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE,
+        cityWeatherReading: () => null,
+        cityWeatherError: (city) => city === "Tokyo" ?
+            Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND : "",
+        cityWeatherStale: (city) => city === "Lisbon",
+        desktopSettings: { use24h: true },
+        setClockFormatString: () => false,
+        setWorldclockFormat() {},
+        setWorldclocksVisible() {},
+        setWeatherStatus: (text) => { footer = text; }
+    };
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    presenter.updateFormatString();
+    const entries = [
+        { label: "Broken", timezone: "Invalid/Zone", localTime: null, builtin: false },
+        { label: "Tokyo", timezone: "Asia/Tokyo", localTime: {}, builtin: false },
+        { label: "Lisbon", timezone: "Europe/Lisbon", localTime: {}, builtin: false }
+    ];
+
+    assert.match(presenter.issueStatus(entries), /Invalid time format/);
+    assert.match(presenter.issueStatus(entries), /Weather service unavailable/);
+    assert.match(presenter.issueStatus(entries), /Invalid timezone.*Broken/);
+    assert.match(presenter.issueStatus(entries), /Tokyo.*Location not found/);
+    assert.match(presenter.issueStatus(entries), /Lisbon.*Last known reading/);
+
+    view.setClockFormatString = () => true;
+    presenter.updateFormatString();
+    view.showWeather = false;
+    view.weatherError = "";
+    assert.equal(presenter.issueStatus([]), "");
+    view.setWeatherStatus(presenter.issueStatus([]));
+    assert.equal(footer, "", "the aggregate clears when every source recovers");
 });
 
 // The applet's resume path drives both readouts. The city half needs to be forced
@@ -1064,7 +1150,7 @@ test("resuming forces the city weather past its unchanged-settings guard", () =>
         }),
         worldclocks: () => stub.worldclocks,
         onChanged: stub._updateClockAndDate,
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
 
     Proto._onResume.call(stub);
@@ -1076,7 +1162,7 @@ test("resuming forces the city weather past its unchanged-settings guard", () =>
     assert.deepEqual(scheduled.at(-1), ["cities", false]);
 });
 
-// The menu builder connects five signals — two on the events manager, three on the
+// The menu builder connects six signals — three on the events manager, three on the
 // event list — and discarded every handler id. There was no teardown path from
 // on_applet_removed_from_panel that could have used them: they were the only set
 // of connects in the applet with no owner.
@@ -1125,6 +1211,7 @@ test("the menu builder disconnects the signals it connected", () => {
         assert.deepEqual(disconnected.sort(), [
             "em:selected-date-changed",
             "em:selected-date-events-changed",
+            "em:refresh-error-changed",
             "list:launched-calendar",
             "list:start-pass-events",
             "list:stop-pass-events"

@@ -402,7 +402,8 @@ function makeHost(overrides = {}) {
         selectDate() {},
         allocateDotBox() {},
         renderDots() {},
-        nameCell() {}
+        nameCell() {},
+        reportIssue() {}
     }, overrides);
 }
 
@@ -518,7 +519,9 @@ test("the calendar rebuilds when the locale query answers", () => {
     };
 
     const cal = makeCalendar();
-        localeQuery.onLocaleInfoChanged = original;
+    localeQuery.onLocaleInfoChanged = original;
+    cal.setDate(new Date(2026, 6, 9), true);
+    const oldYearLabel = cal._yearLabel;
 
     assert.equal(listeners.length, 1, "the calendar listens for the locale info");
     // ...for LC_TIME, and only LC_TIME: the header depends on the weekday
@@ -537,6 +540,9 @@ test("the calendar rebuilds when the locale query answers", () => {
     listeners[0].callback();
     void queue;
     assert.equal(updates, 1);
+    assert.notEqual(cal._yearLabel, oldYearLabel, "the locale rebuild replaces the label");
+    assert.equal(cal._yearLabel.text, "2026",
+        "the replacement label receives the current year");
     assert.equal(dayButtons(cal).length, 42, "the rebuilt header still carries a full grid");
 
     cal.destroy();
@@ -557,6 +563,33 @@ test("a holiday failure is announced in words, not just a glyph", () => {
 
     annotator.setStatus("");
     assert.doesNotMatch(label.accessible_name, /Holiday data/);
+});
+
+test("holiday failures reach the shared footer and recovery clears them", () => {
+    const issues = [];
+    const label = new MockActor();
+    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+        reportIssue: (source, message) => issues.push([source, message])
+    }));
+    annotator.attachLabel(label, new MockActor());
+
+    annotator.setStatus("Holiday service unavailable", "Enrico");
+    assert.deepEqual(issues.at(-1),
+        ["holidays", "Holiday service unavailable — Enrico"]);
+
+    annotator.setPending();
+    assert.deepEqual(issues.at(-1),
+        ["holidays", "Holiday service unavailable — Enrico"],
+        "another month still loading cannot erase a known visible error");
+
+    annotator.beginUpdate();
+    annotator.setPending();
+    assert.deepEqual(issues.at(-1), ["holidays", ""],
+        "a retry in flight is not reported as a current error");
+
+    annotator.setStatus("", "Enrico");
+    assert.deepEqual(issues.at(-1), ["holidays", ""],
+        "a successful provider answer keeps the footer clear");
 });
 
 // REGRESSION: the provider's own JSON error string was stored as the applet's

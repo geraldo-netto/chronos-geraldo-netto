@@ -137,6 +137,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
         this._fetch_retry_id = 0;
         this._fetch_retry_attempts = 0;
+        this._refresh_failed = false;
         // Calendar-server signals are one ordered mutation stream. A large
         // add/update occupies several idle turns, so later updates, removals
         // and client disappearance must wait behind its tail.
@@ -502,8 +503,20 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _handle_status_changed() {
+        if (!this.is_active()) {
+            this._setRefreshFailed(false);
+        }
         this.queue_reload_today(true);
         this.emit("has-calendars-changed");
+    }
+
+    _setRefreshFailed(failed) {
+        const next = Boolean(failed);
+        if (next === this._refresh_failed) {
+            return;
+        }
+        this._refresh_failed = next;
+        this.emit("refresh-error-changed", next);
     }
 
     fetch_month_events(month_year, force) {
@@ -531,11 +544,13 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         try {
             this._server_connection.finishSetTimeRange(res);
             this._fetch_retry_attempts = 0;
+            this._setRefreshFailed(false);
         } catch (e) {
             // the month's events never arrived. Without a retry the grid keeps
             // the previous month's events and shows nothing for this one, and
             // no other path ever asks again.
             log(e);
+            this._setRefreshFailed(true);
             this._queue_fetch_retry();
         }
     }

@@ -14,6 +14,72 @@ test("_clockNotify updates once per notify", () => {
     }
 });
 
+test("callback failures recover by source without clearing independent errors", () => {
+    const issues = new Map();
+    const writes = [];
+    const stub = Object.assign(Object.create(Proto), {
+        _issueReporter: {
+            set(source, message) {
+                writes.push([source, message]);
+                if (message) {
+                    issues.set(source, message);
+                } else {
+                    issues.delete(source);
+                }
+            }
+        }
+    });
+
+    const result = Proto._guarded.call(stub, "clock", () => {
+        throw new Error("private diagnostic");
+    });
+    Proto._guarded.call(stub, "menu-open", () => {
+        throw new Error("another private diagnostic");
+    });
+
+    assert.equal(result, undefined);
+    assert.match(issues.get("runtime:clock"), /system log/);
+    assert.match(issues.get("runtime:menu-open"), /system log/);
+    assert.doesNotMatch(issues.get("runtime:clock"), /private diagnostic/,
+        "raw exception text is diagnostic data, not safe UI");
+
+    assert.equal(Proto._guarded.call(stub, "clock", () => 42), 42);
+    assert.equal(issues.has("runtime:clock"), false,
+        "a successful retry clears its own failure");
+    assert.equal(issues.has("runtime:menu-open"), true,
+        "one recovered callback cannot erase another callback's failure");
+    assert.deepEqual(writes.at(-1), ["runtime:clock", ""]);
+});
+
+test("click failures reach the footer and clear on the next successful click", () => {
+    const issues = new Map();
+    let fail = true;
+    const stub = Object.assign(Object.create(Proto), {
+        menu: {
+            toggle() {
+                if (fail) {
+                    fail = false;
+                    throw new Error("menu actor is temporarily unavailable");
+                }
+            }
+        },
+        _issueReporter: {
+            set(source, message) {
+                if (message) {
+                    issues.set(source, message);
+                } else {
+                    issues.delete(source);
+                }
+            }
+        }
+    });
+
+    assert.doesNotThrow(() => Proto.on_applet_clicked.call(stub));
+    assert.match(issues.get("runtime:applet-click"), /system log/);
+    Proto.on_applet_clicked.call(stub);
+    assert.equal(issues.has("runtime:applet-click"), false);
+});
+
 test("teardown of a partially constructed applet is a safe no-op", () => {
     const stub = Object.assign(Object.create(Proto), { instance_id: 3 });
     assert.doesNotThrow(() => Proto.on_applet_removed_from_panel.call(stub));
@@ -343,6 +409,7 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
 
 test("settings binding wires schema keys and creates settings facades", () => {
     const binds = [];
+    let keybindingChanged = null;
     const original = global.imports.ui.settings.AppletSettings;
     global.imports.ui.settings.AppletSettings = class {
         constructor(owner, uuid, instanceId) {
@@ -350,6 +417,9 @@ test("settings binding wires schema keys and creates settings facades", () => {
         }
         bind(key, prop, cb) {
             binds.push(["bind", key, prop, typeof cb]);
+            if (key === "keyOpen") {
+                keybindingChanged = cb;
+            }
         }
         connect() {}
         getValue() { return []; }
@@ -361,6 +431,7 @@ test("settings binding wires schema keys and creates settings facades", () => {
         _setKeybinding: () => binds.push(["hotkey"])
     });
     Proto._bindSettings.call(stub);
+    keybindingChanged();
     global.imports.ui.settings.AppletSettings = original;
 
     assert.ok(stub.calendar_settings);
@@ -370,7 +441,8 @@ test("settings binding wires schema keys and creates settings facades", () => {
     assert.ok(binds.some((row) => row[1] === "custom-format"));
     assert.ok(binds.some((row) => row[1] === "custom-tooltip-format"));
     assert.ok(!binds.some((row) => row[1] === "use-custom-format"));
-    assert.ok(binds.some((row) => row[0] === "hotkey"));
+    assert.equal(binds.filter((row) => row[0] === "hotkey").length, 2,
+        "initial binding and a changed accelerator both install the hotkey");
 
     // REGRESSION: weather-location is drawn by a custom widget, and Cinnamon
     // binds only the types in its SETTINGS_TYPES table — "custom" is not one.
@@ -631,8 +703,18 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     assert.equal(calls.filter((row) => row[0] === "refresh").length, before + 1);
 });
 
-test("applet wrappers open menus, launch settings, and refresh on resume", () => {
+test("applet wrappers open menus, launch settings, and refresh on resume", (t) => {
     const calls = [];
+    let hotkeyCallback = null;
+    const keybindings = global.imports.ui.main.keybindingManager;
+    const originalAddHotKey = keybindings.addHotKey;
+    keybindings.addHotKey = (name, accelerator, callback) => {
+        calls.push(["hotkey", name, accelerator]);
+        hotkeyCallback = callback;
+    };
+    t.after(() => {
+        keybindings.addHotKey = originalAddHotKey;
+    });
     const stub = Object.assign(Object.create(Proto), {
         instance_id: 5,
         keyOpen: "Ctrl Space",
@@ -649,6 +731,7 @@ test("applet wrappers open menus, launch settings, and refresh on resume", () =>
     });
 
     Proto._setKeybinding.call(stub);
+    hotkeyCallback();
     Proto.on_applet_clicked.call(stub);
     Proto._openMenu.call(stub);
     Proto._onResume.call(stub);
@@ -657,7 +740,7 @@ test("applet wrappers open menus, launch settings, and refresh on resume", () =>
     Proto.on_openstreetmap_attribution_pressed.call(stub);
     Proto.on_orientation_changed.call(stub, St.Side.BOTTOM);
 
-    assert.equal(stub.menu.toggled, 2);
+    assert.equal(stub.menu.toggled, 3);
     assert.equal(stub.menu.closed, 1);
     assert.ok(calls.some((row) => row[0] === "clock"));
     assert.ok(calls.some((row) => row[0] === "weather"));
@@ -766,7 +849,11 @@ test("settings and weather changes update dependent views", () => {
         _updateFormatString: () => calls.push(["format"]),
         _updateClockAndDate: () => calls.push(["clock"]),
         _queueWeatherRefresh: () => calls.push(["weather"]),
-        event_list: { actor: { visible: false }, set_unavailable: () => {} },
+        event_list: {
+            actor: { visible: false },
+            set_reporting_enabled: () => {},
+            set_unavailable: () => {}
+        },
         events_manager: {
             is_active: () => true,
             select_date: (date, force) => calls.push(["select", force])
@@ -777,7 +864,7 @@ test("settings and weather changes update dependent views", () => {
         manager: stub.events_manager,
         eventList: () => stub.event_list,
         selectedDate: () => stub._calendar.getSelectedDate(),
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
     Proto._onSettingsChanged.call(stub);
     Proto._onWeatherSettingsChanged.call(stub);
@@ -796,7 +883,11 @@ test("an unrelated settings keystroke costs no refetch and no clock rebuild", ()
         desktop_settings: { use24h: false, showSeconds: false },
         _updateFormatString: () => calls.push(["format"]),
         _updateClockAndDate: () => calls.push(["clock"]),
-        event_list: { actor: { visible: false }, set_unavailable: () => {} },
+        event_list: {
+            actor: { visible: false },
+            set_reporting_enabled: () => {},
+            set_unavailable: () => {}
+        },
         events_manager: {
             is_active: () => true,
             select_date: (date, force) => calls.push(["select", force])
@@ -807,7 +898,7 @@ test("an unrelated settings keystroke costs no refetch and no clock rebuild", ()
         manager: stub.events_manager,
         eventList: () => stub.event_list,
         selectedDate: () => stub._calendar.getSelectedDate(),
-        guard: (fn) => fn()
+        guard: (source, fn) => fn()
     });
 
     Proto._onSettingsChanged.call(stub);
@@ -880,11 +971,13 @@ test("provider initialization wires hover and event manager signals", () => {
     assert.equal(stub._weatherCoordinator.settings().location, "Rome");
     assert.deepEqual(stub._weatherCoordinator.worldclocks(), []);
     stub._weatherCoordinator.onChanged();
-    stub._weatherCoordinator.guard(() => calls.push(["weather-guard"]));
+    stub._weatherCoordinator.guard(
+        "weather-test", () => calls.push(["weather-guard"]));
     assert.equal(stub._eventListCoordinator.eventList(), undefined);
     stub._calendar = { getSelectedDate: () => "selected" };
     assert.equal(stub._eventListCoordinator.selectedDate(), "selected");
-    stub._eventListCoordinator.guard(() => calls.push(["events-guard"]));
+    stub._eventListCoordinator.guard(
+        "events-test", () => calls.push(["events-guard"]));
     // _panel_hovered gates the expensive path: a tooltip-sized entry list every
     // second. A fresh applet must not think the pointer is already on it.
     assert.equal(stub._panel_hovered, false, "no hover before an enter-event");
@@ -975,6 +1068,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
         }
         set_date() {}
         set_events(...args) { calls.push(["event-list-set-events", ...args]); }
+        set_refresh_failed(failed) { calls.push(["event-list-refresh-failed", failed]); }
     };
     rootModules.worldclocks.Worldclocks = class {
         constructor(box) { calls.push(["worldclocks", !!box]); }
@@ -985,6 +1079,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
             calls.push(["item-connect", name]);
             this.handlers[name] = cb;
         }
+        addActor(actor) { calls.push(["item-actor", actor]); }
     };
 
     const menuItems = [];
@@ -1021,8 +1116,11 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
     stub.events_manager.handlers["selected-date-changed"](null, "gdate");
     stub.events_manager.handlers["selected-date-events-changed"](
         null, "events", true, true);
+    stub.events_manager.handlers["refresh-error-changed"](null, true);
     assert.deepEqual(calls.find(([name]) => name === "event-list-set-events"),
         ["event-list-set-events", "events", true, true]);
+    assert.deepEqual(calls.find(([name]) => name === "event-list-refresh-failed"),
+        ["event-list-refresh-failed", true]);
     stub.event_list.handlers["launched-calendar"]();
     stub.event_list.handlers["start-pass-events"]();
     stub.event_list.handlers["stop-pass-events"]();
@@ -1035,6 +1133,9 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
               "the calendar body is one section, not a loose actor beside the item list");
     assert.equal(mainMenuItems[0].children.length, 1);
     assert.ok(mainMenuItems[1] instanceof PopupSeparatorMenuItem);
+    const footerActors = calls.filter(([name]) => name === "item-actor");
+    assert.equal(footerActors.length, 1, "only the popup menu owns the footer label");
+    assert.equal(footerActors[0][1], stub._issueReporter.label);
 
     // both menus get their own settings item, and activating one launches the settings
     const settingsItems = menuItems
@@ -1104,6 +1205,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
 
 test("context menu, add-to-panel, reset, and main entrypoint are covered", () => {
     const calls = [];
+    const issues = new Map();
     global.imports.ui.applet.AppletPopupMenu = class {
         constructor(owner, orientation) {
             calls.push(["popup", orientation]);
@@ -1123,11 +1225,31 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
         orientation: St.Side.TOP,
         menuManager: manager,
         _calendar: { focusSelectedDay: () => calls.push(["focus-day"]) },
-        _resetCalendar: () => calls.push(["reset"]),
-        _updateClockAndDate: (force) => calls.push(["clock", force])
+        _resetCalendar: () => {
+            calls.push(["reset"]);
+            if (!issues.has("tried-open")) {
+                issues.set("tried-open", true);
+                throw new Error("calendar actor is temporarily unavailable");
+            }
+        },
+        _updateClockAndDate: (force) => calls.push(["clock", force]),
+        _issueReporter: {
+            set(source, message) {
+                if (message) {
+                    issues.set(source, message);
+                } else {
+                    issues.delete(source);
+                }
+            }
+        }
     });
     Proto._initContextMenu.call(stub);
     stub.menu.handlers["open-state-changed"](stub.menu, true);
+    assert.match(issues.get("runtime:menu-open"), /system log/,
+        "menu signal failures reach the shared footer");
+    stub.menu.handlers["open-state-changed"](stub.menu, true);
+    assert.equal(issues.has("runtime:menu-open"), false,
+        "the next successful menu open clears only its source");
     assert.ok(calls.some((row) => row[0] === "reset"));
     assert.ok(calls.some((row) => row[0] === "clock" && row[1] === true));
     // Cinnamon focuses the menu actor on open, and the day grid is a descendant
@@ -1265,6 +1387,8 @@ test("constructor registers desktop and lifecycle callbacks", () => {
         destroy() {}
         set_date() {}
         set_events() {}
+        set_reporting_enabled() {}
+        set_unavailable() {}
     };
     Calendar52.Calendar = class {
         constructor() { this.actor = {}; }

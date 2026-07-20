@@ -1086,6 +1086,9 @@ test("a failed month fetch is retried with backoff", () => {
     const initialCalls = server.set_time_range_calls.length;
     assert.ok(initialCalls > 0);
     assert.ok(manager._fetch_retry_id > 0, "a failed fetch schedules a retry");
+    assert.deepEqual(
+        emitted(manager, "refresh-error-changed").map((signal) => signal.args[0]),
+        [true], "the footer is told as soon as the refresh fails");
 
     fireTimer(manager._fetch_retry_id);
     assert.equal(server.set_time_range_calls.length, initialCalls + 1, "the month is refetched");
@@ -1095,6 +1098,9 @@ test("a failed month fetch is retried with backoff", () => {
     fireTimer(manager._fetch_retry_id);
     assert.equal(manager._fetch_retry_attempts, 0);
     assert.equal(manager._fetch_retry_id, 0);
+    assert.deepEqual(
+        emitted(manager, "refresh-error-changed").map((signal) => signal.args[0]),
+        [true, false], "a successful retry clears the footer issue");
 });
 
 test("destroy cancels one queued fetch retry and duplicate queues are ignored", () => {

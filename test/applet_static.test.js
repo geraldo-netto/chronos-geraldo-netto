@@ -226,7 +226,8 @@ test("date changes force a menu update explicitly", () => {
     assert.match(appletCode, /require\("\.\/appletMenuBuilder"\)/);
     assert.match(code, /class AppletMenuBuilder \{/);
     assert.match(code, /connect\("selected-date-changed", \(\) => context\.onSelectedDateChanged\(\)\)/);
-    assert.match(appletCode, /onSelectedDateChanged: \(\) => this\._updateClockAndDate\(true\)/);
+    assert.match(appletCode,
+        /onSelectedDateChanged: \(\) => this\._guarded\([\s\S]*?"selected-date", \(\) => this\._updateClockAndDate\(true\)\)/);
 });
 
 test("date settings menu items are not shared between menus", () => {
@@ -464,6 +465,7 @@ test("text-bound popup sizes follow the desktop text scale", () => {
     const selectors = [
         ".calendar-world-label",
         ".calendar-holiday-reason",
+        ".calendar-issue-status",
         ".calendar-events-no-events-label"
     ];
 

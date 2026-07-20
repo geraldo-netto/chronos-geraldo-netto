@@ -82,13 +82,15 @@
     text-align: center;
 }
 
-/* Weather failures must remain readable in a keyboard-opened popup even when
- * the optional world-clock table is hidden. */
-.calendar-weather-status {
+/* Every current issue is routed to the footer beside Settings. It inherits the
+ * theme's foreground colour, wraps instead of widening the popup, and takes no
+ * space at all while the applet is healthy. */
+.calendar-issue-status {
     font-size: 0.8em;
-    max-width: 18em;
-    padding-top: 0.5em;
-    text-align: center;
+    max-width: 30em;
+    padding-left: 1em;
+    font-style: italic;
+    text-align: left;
 }
 
 /*

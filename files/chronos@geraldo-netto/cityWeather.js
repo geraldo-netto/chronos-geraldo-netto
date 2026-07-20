@@ -74,6 +74,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._destroyed = false; // NOSONAR [S7757] -- accepted compatible form
         this._generation = 0;
         this._readings = new Map();
+        this._errors = new Map();
         this._last_provider = "";
         this._applied_signature = null;
         this._now = params.now || (() => Date.now());
@@ -139,6 +140,28 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         return reading ? reading.record : null;
     }
 
+    errorFor(city) {
+        if (typeof city !== "string" || !city.trim()) {
+            return "";
+        }
+        return this._errors.get(locationCacheKey(city)) || "";
+    }
+
+    _setError(city, error) {
+        const key = locationCacheKey(city);
+        const next = error || "";
+        const previous = this._errors.get(key) || "";
+        if (next === previous) {
+            return false;
+        }
+        if (next) {
+            this._errors.set(key, next);
+        } else {
+            this._errors.delete(key);
+        }
+        return true;
+    }
+
     // ...but a reading nobody has managed to refresh for two whole periods is
     // not the weather any more, and saying so is the difference between a
     // temperature and a temperature from this morning
@@ -186,6 +209,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._destroyed = true;
         this.stop();
         this._readings.clear();
+        this._errors.clear();
 
         this._session.abort();
     }
@@ -251,6 +275,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             // weather off, or every clock is a built-in: drop what was read
             // for a city the user has since removed
             this._readings.clear();
+            this._errors.clear();
             this._last_provider = "";
             this._scheduler.succeeded();
             callback(this);
@@ -261,6 +286,11 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         for (const key of Array.from(this._readings.keys())) {
             if (!wanted.has(key)) {
                 this._readings.delete(key);
+            }
+        }
+        for (const key of Array.from(this._errors.keys())) {
+            if (!wanted.has(key)) {
+                this._errors.delete(key);
             }
         }
 
@@ -399,7 +429,9 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         }
         if (!place) {
             // An unknown name will not improve on retry; a service outage may.
-            const ok = error !== Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
+            const cityError = error || Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND;
+            round.changed = this._setError(city.query, cityError) || round.changed;
+            const ok = cityError !== Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
             this._cityDone(generation, round, round.settings, callback, ok);
             return;
         }
@@ -418,10 +450,13 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         if (forecastError || !reading) {
             // the city keeps the reading it had; it is now aging, and staleFor()
             // says so once it is two periods old
+            const cityError = forecastError || Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
+            round.changed = this._setError(city.query, cityError) || round.changed;
             this._cityDone(generation, round, round.settings, callback, false);
             return;
         }
 
+        this._setError(city.query, "");
         this._readings.set(
             locationCacheKey(city.query),
             { record: reading, at: this._now() });

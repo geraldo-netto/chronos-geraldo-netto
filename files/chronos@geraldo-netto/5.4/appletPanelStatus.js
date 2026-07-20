@@ -44,6 +44,7 @@ const LABEL_ELLIPSIS = TextUtils.TEXT_ELLIPSIS;
 const DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
 // label, date and time, temperature, condition: only the numbers are right-aligned
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
+const INVALID_TIME_FORMAT_TEXT = _("Invalid time format; edit it in Settings");
 
 function tooltipColumnWidths(rows) {
     const widths = [];
@@ -202,6 +203,10 @@ class PanelView {
         return this.port.cityWeatherStale(city);
     }
 
+    cityWeatherError(city) {
+        return this.port.cityWeatherError(city);
+    }
+
     cityWeatherProviderName() {
         return this.port.cityWeatherProviderName();
     }
@@ -308,6 +313,8 @@ class AppletPanelStatusPresenter {
         this.view = view;
         this._todayFormatCache = null;
         this._invalidTooltipFormat = null;
+        this._formatIssue = "";
+        this._tooltipFormatIssue = "";
     }
 
     updateFormatString() {
@@ -317,7 +324,10 @@ class AppletPanelStatusPresenter {
 
         if (!view.setClockFormatString(world_string)) {
             global.logError("Calendar applet: bad time format string - check your string.");
-            world_string = main_string = badFormatFallback(view, _("Invalid time format; edit it in Settings"));
+            this._formatIssue = INVALID_TIME_FORMAT_TEXT;
+            world_string = main_string = badFormatFallback(view, INVALID_TIME_FORMAT_TEXT);
+        } else {
+            this._formatIssue = "";
         }
 
         view.setClockFormatString(main_string);
@@ -398,11 +408,13 @@ class AppletPanelStatusPresenter {
         const stamp = entry.localTime.format(format);
         if (stamp) {
             this._invalidTooltipFormat = null;
+            this._tooltipFormatIssue = "";
             return stamp;
         }
 
         if (this._invalidTooltipFormat !== format) {
             this._invalidTooltipFormat = format;
+            this._tooltipFormatIssue = INVALID_TIME_FORMAT_TEXT;
             global.logError("Calendar applet: bad tooltip time format string - check your string.");
         }
 
@@ -458,7 +470,7 @@ class AppletPanelStatusPresenter {
     // would read as the weather now. A city with no reading yet shows a blank
     // cell rather than a placeholder: unlike the panel, the city provider reserves
     // no slot, so there is no "loading" state to report.
-    _cityWeatherCells(entry) {
+    _cityWeatherModel(entry) {
         const view = this.view;
         // the reading is of the city the timezone names, which is also what was
         // geocoded; the label is the user's name for the row and two rows may
@@ -470,26 +482,56 @@ class AppletPanelStatusPresenter {
         // still in flight and a fetch that failed said, so the row looked broken
         // rather than inapplicable.
         if (!city) {
-            return ["", _("No weather for this timezone")];
+            return { cells: ["", _("No weather for this timezone")], issue: "" };
         }
 
         const record = view.cityWeatherReading(city);
-        if (!record) {
-            return ["", ""];
-        }
-
-        let error = "";
-        if (view.cityWeatherStale(city)) {
+        const currentError = view.cityWeatherError(city);
+        let rowError = currentError ? markedWeatherError(currentError) : "";
+        let issue = currentError ?
+            joinPhrases(entry.label, translateWeatherError(currentError)) : "";
+        if (!rowError && view.cityWeatherStale(city)) {
             // one msgid: the marker is a glyph the phrase is built around, and a
             // translator has to be able to put it where it belongs
-            error = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
+            rowError = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
+            const stale = _("%s Last known reading").replace("%s", "").trim();
+            issue = joinPhrases(entry.label, stale);
         }
 
-        return this._readingCells(record, error);
+        return {
+            cells: record ? this._readingCells(record, rowError) : ["", rowError],
+            issue
+        };
+    }
+
+    _cityWeatherCells(entry) {
+        return this._cityWeatherModel(entry).cells;
     }
 
     tooltipWeatherCells(entry) {
         return entry.builtin ? this._builtinWeatherCells(entry) : this._cityWeatherCells(entry);
+    }
+
+    _clockRenderRow(entry, showWeather) {
+        const cells = [entry.label, this.tooltipClockStamp(entry)];
+        const cityModel = showWeather && !entry.builtin ?
+            this._cityWeatherModel(entry) : null;
+        const weatherCells = !showWeather ? [] :
+            (cityModel ? cityModel.cells : this._builtinWeatherCells(entry));
+        const weather = weatherCells.filter((cell) => cell).join(", "); // NOSONAR [S7770] -- accepted compatible form
+
+        return {
+            cells: cells.concat(weatherCells),
+            issue: cityModel ? cityModel.issue : "",
+            popupEntry: weather ? Object.assign({}, entry, { weather }) : entry // NOSONAR [S6661] -- accepted compatible form
+        };
+    }
+
+    _clockModelKey(rows, status) {
+        return [
+            rows.map((row) => row.cells.join("\u0001")).join("\u0002"),
+            status
+        ].join("\u0003");
     }
 
     // Derive the clock stamp and weather cells once. The tooltip key, tooltip
@@ -497,28 +539,15 @@ class AppletPanelStatusPresenter {
     // resolution can synchronously inspect zoneinfo, so repeating it on every
     // consumer is expensive on the compositor thread.
     _clockRenderModel(clockEntries = []) {
-        const showWeather = this.view.showWeather;
-        const rows = clockEntries.map((entry) => {
-            const cells = [entry.label, this.tooltipClockStamp(entry)];
-            const weatherCells = showWeather ? this.tooltipWeatherCells(entry) : [];
-            const renderedCells = cells.concat(weatherCells);
-            const weather = weatherCells.filter((cell) => cell).join(", "); // NOSONAR [S7770] -- accepted compatible form
-
-            return {
-                cells: renderedCells,
-                popupEntry: weather ? Object.assign({}, entry, { weather }) : entry // NOSONAR [S6661] -- accepted compatible form
-            };
-        });
+        const rows = clockEntries.map(
+            (entry) => this._clockRenderRow(entry, this.view.showWeather));
         const status = rows.length ? "" : this.weatherStatusLine();
-        const key = [
-            rows.map((row) => row.cells.join("\u0001")).join("\u0002"),
-            status
-        ].join("\u0003");
 
         return {
-            key,
+            key: this._clockModelKey(rows, status),
             popupEntries: rows.map((row) => row.popupEntry),
             rows: rows.map((row) => row.cells),
+            issues: rows.map((row) => row.issue).filter((issue) => issue),
             status
         };
     }
@@ -594,6 +623,45 @@ class AppletPanelStatusPresenter {
         }
 
         return "";
+    }
+
+    _clockIssues(clockEntries) {
+        const labels = clockEntries
+            .filter((entry) => entry.localTime === null)
+            .map((entry) => entry.label);
+        return labels.length ?
+            joinPhrases(WorldclockData.INVALID_TIMEZONE_TEXT, labels.join(", ")) : "";
+    }
+
+    _cityWeatherIssues(clockEntries) {
+        if (!this.view.showWeather) {
+            return [];
+        }
+
+        const issues = [];
+        for (const entry of clockEntries) {
+            if (entry.builtin) {
+                continue;
+            }
+            const issue = this._cityWeatherModel(entry).issue;
+            if (issue) {
+                issues.push(issue);
+            }
+        }
+        return issues;
+    }
+
+    issueStatus(clockEntries, cityIssues = null) {
+        const view = this.view;
+        const issues = [
+            this._formatIssue,
+            this._tooltipFormatIssue,
+            view.showWeather && view.weatherError ?
+                translateWeatherError(view.weatherError) : "",
+            this._clockIssues(clockEntries),
+            ...(cityIssues || this._cityWeatherIssues(clockEntries))
+        ];
+        return [...new Set(issues.filter((issue) => issue))].join("\n");
     }
 
     weatherSourceName() {
@@ -704,7 +772,7 @@ class AppletPanelStatusPresenter {
         this._setTooltipModel(clockModel);
         // Unlike a tooltip, this actor is reachable from a keyboard-opened menu
         // and remains present when the world-clock block is switched off.
-        view.setWeatherStatus(this.weatherStatusLine());
+        view.setWeatherStatus(this.issueStatus(clockEntries, clockModel.issues));
 
         view.selectEventsDate();
 

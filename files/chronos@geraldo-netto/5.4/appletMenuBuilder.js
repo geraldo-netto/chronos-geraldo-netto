@@ -12,6 +12,7 @@
 
 const Atk = imports.gi.Atk;
 const Clutter = imports.gi.Clutter;
+const Pango = imports.gi.Pango;
 const St = imports.gi.St;
 const PopupMenu = imports.ui.popupMenu;
 const Tooltips = imports.ui.tooltips;
@@ -27,6 +28,67 @@ const HOME_KEY_SYMBOLS = new Set([
     Clutter.KEY_KP_Enter,
     Clutter.KEY_space
 ]);
+const ISSUE_MARKER = "⚠";
+
+// One footer owns every current user-facing problem. Sources update their own
+// key, so a recovered weather request cannot erase a simultaneous calendar
+// failure, and repeated ticks cannot duplicate the same sentence.
+class AppletIssueReporter {
+    constructor(label) {
+        this.label = label;
+        this._issues = new Map();
+        this._rendered = null;
+        this._render();
+    }
+
+    set(source, message) {
+        const key = String(source || "").trim();
+        if (!key) {
+            return;
+        }
+
+        const text = typeof message === "string" ? message.trim() : "";
+        if (text) {
+            if (this._issues.get(key) === text) {
+                return;
+            }
+            this._issues.set(key, text);
+        } else if (!this._issues.delete(key)) {
+            return;
+        }
+        this._render();
+    }
+
+    _messages() {
+        const seen = new Set();
+        const messages = [];
+        for (const issue of this._issues.values()) {
+            for (const line of issue.split(/\n+/)) {
+                const message = line.trim();
+                if (message && !seen.has(message)) {
+                    seen.add(message);
+                    messages.push(message);
+                }
+            }
+        }
+        return messages;
+    }
+
+    _render() {
+        const text = this._messages()
+            .map((message) => ISSUE_MARKER + " " + message)
+            .join("\n");
+        if (text === this._rendered) {
+            return;
+        }
+        this._rendered = text;
+        this.label.set_text(text);
+        this.label.visible = Boolean(text);
+        if (this.label.set_accessible_name) {
+            this.label.set_accessible_name(text);
+        }
+    }
+}
 
 // Builds the menu contents and hands them back; the applet is the only
 // writer of its own fields. The context carries the collaborators the UI
@@ -44,6 +106,8 @@ class AppletMenuBuilder {
 
     build() {
         const context = this.context;
+        const issueReporter = this._buildIssueReporter();
+        const reportIssue = issueReporter.set.bind(issueReporter);
         let box = new St.BoxLayout(
             {
                 style_class: 'calendar-main-box',
@@ -61,7 +125,7 @@ class AppletMenuBuilder {
         body.addActor(box);
         context.menu.addMenuItem(body);
 
-        const eventList = this._buildEventList(box);
+        const eventList = this._buildEventList(box, reportIssue);
 
         let calbox = new St.BoxLayout(
             {
@@ -70,38 +134,50 @@ class AppletMenuBuilder {
         );
 
         const home = this._buildHomeButton(calbox);
-        const calendar = this._buildCalendar(calbox);
+        const calendar = this._buildCalendar(calbox, reportIssue);
 
         box.add_actor(calbox);
-        this._addSettingsMenuItems();
 
         const worldclocks = new Worldclocks.Worldclocks(calbox);
-        const weatherStatus = new St.Label({
-            style_class: "calendar-weather-status",
-            visible: false
-        });
-        calbox.add_actor(weatherStatus);
+        this._addSettingsMenuItems(issueReporter.label);
+        this._issueReporter = issueReporter;
 
         return {
             eventList,
             calendar,
             worldclocks,
-            weatherStatus,
+            issueReporter,
+            // Kept as a compatibility alias for callers while the former
+            // weather-only label becomes the shared footer.
+            weatherStatus: issueReporter.label,
             goHomeButton: home.button,
             dayLabel: home.day,
             dateLabel: home.date
         };
     }
 
-    // These five connections used to discard their handler ids, and there was no
+    _buildIssueReporter() {
+        const label = new St.Label({
+            style_class: "calendar-issue-status",
+            visible: false,
+            x_expand: true,
+            x_align: Clutter.ActorAlign.START
+        });
+        label.get_clutter_text().line_wrap = true;
+        label.get_clutter_text().ellipsize = Pango.EllipsizeMode.NONE;
+        return new AppletIssueReporter(label);
+    }
+
+    // These connections used to discard their handler ids, and there was no
     // teardown path from on_applet_removed_from_panel that could have used them.
     // Nothing emits after EventsManager.destroy() today, so they do not fire on
     // dead actors — but they were the only set of connects in the applet with no
     // owner, which makes them the ones that break when something upstream starts
     // emitting a little later than it used to.
-    _buildEventList(box) {
+    _buildEventList(box, reportIssue) {
         const context = this.context;
-        const eventList = new EventView.EventList(context.desktopSettings);
+        const eventList = new EventView.EventList(
+            context.desktopSettings, undefined, reportIssue);
 
         this._events_manager_signal_ids.push(
             context.eventsManager.connect("selected-date-changed", (em, gdate) => {
@@ -113,6 +189,10 @@ class AppletMenuBuilder {
                     eventList.set_events(
                         eventDataList, delayNoEventsBox, overflowed);
                 }));
+        this._events_manager_signal_ids.push(
+            context.eventsManager.connect("refresh-error-changed", (em, failed) => {
+                eventList.set_refresh_failed(failed);
+            }));
 
         this._event_list_signal_ids.push(
             eventList.connect("launched-calendar", () => context.menu.toggle()));
@@ -254,11 +334,11 @@ class AppletMenuBuilder {
         return Clutter.EVENT_STOP;
     }
 
-    _buildCalendar(calbox) {
+    _buildCalendar(calbox, reportIssue) {
         const context = this.context;
         const calendar = new Calendar.Calendar(
             context.calendarSettings, context.eventsManager, context.holidayProvider,
-            context.desktopSettings);
+            context.desktopSettings, reportIssue);
 
         // this id used to be discarded — the one connect in the applet with no
         // owner, in the file whose comment above says why that is not acceptable
@@ -270,7 +350,7 @@ class AppletMenuBuilder {
         return calendar;
     }
 
-    _addSettingsMenuItems() {
+    _addSettingsMenuItems(issueLabel) {
         const context = this.context;
 
         // the body is a section now, so the settings entry can be fenced off from
@@ -280,6 +360,13 @@ class AppletMenuBuilder {
         for (let menu of [context.contextMenu, context.menu]) {
             let item = new PopupMenu.PopupMenuItem(_("Date and Time Settings"));
             item.connect("activate", () => context.onLaunchSettings());
+            if (menu === context.menu) {
+                item.addActor(issueLabel, {
+                    expand: true,
+                    span: -1,
+                    align: St.Align.END
+                });
+            }
             menu.addMenuItem(item);
             // Cinnamon's AppletContextMenu is not the applet's to destroy, and it
             // holds every item ever added to it — including this one, whose
@@ -291,5 +378,5 @@ class AppletMenuBuilder {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { AppletMenuBuilder };
+    module.exports = { AppletIssueReporter, AppletMenuBuilder };
 }

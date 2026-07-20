@@ -15,6 +15,9 @@ All notable changes to Cinnamon Chronos are recorded here. The format follows
 
 ### Fixed
 
+- Calendar, weather, clock, and runtime failures now share a visible popup
+  footer, clear independently after recovery, and leave the current year visible
+  in the calendar header.
 - Zip-based installs now receive the complete applet icon instead of a corrupt
   12-byte symlink payload.
 

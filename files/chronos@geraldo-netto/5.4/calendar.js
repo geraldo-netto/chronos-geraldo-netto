@@ -278,6 +278,10 @@ class CalendarGridHost {
     nameCell(cell) {
         this.port.nameCell(cell);
     }
+
+    reportIssue(source, message) {
+        this.port.reportIssue(source, message);
+    }
 }
 
 class CalendarDayCellRenderer {
@@ -641,6 +645,13 @@ class CalendarHolidayAnnotator {
     // a slow or hanging holiday service must not look the same as a month
     // with no holidays; weather has the same pending marker
     setPending() {
+        // One visible month can span three provider months. A cached failure
+        // from one remains a current issue while another is still in flight;
+        // "loading" must not erase the error already known.
+        if (this.error) {
+            return;
+        }
+        this.host.reportIssue("holidays", "");
         if (!this.monthLabel) {
             return;
         }
@@ -654,6 +665,8 @@ class CalendarHolidayAnnotator {
     setStatus(error, providerName = "") {
         this.error = error || "";
         this.provider = providerName || "";
+        const status = this._statusText();
+        this.host.reportIssue("holidays", this.error ? status : "");
 
         if (!this.monthLabel) {
             return;
@@ -668,7 +681,6 @@ class CalendarHolidayAnnotator {
         // the parentheses around the provider name never reached a translator at
         // all. joinPhrases and "%s Last known reading" are single msgids for this
         // exact reason.
-        const status = this._statusText();
         // the reason is shown as text only when something is wrong; the provider
         // credit on a good month belongs in the tooltip and the accessible name,
         // not as a permanent line under the month
@@ -729,6 +741,7 @@ class CalendarHolidayAnnotator {
             // holidays were switched off, or the country was cleared: the marks
             // on the grid belong to a country the user is no longer asking about
             this.clearAnnotations(cells);
+            this.host.reportIssue("holidays", "");
             this._report("");
             return;
         }
@@ -967,7 +980,8 @@ class Calendar {
     get _dot_metrics() { return this._gridView.dotMetrics; }
     set _dot_metrics(metrics) { this._gridView.dotMetrics = metrics; }
 
-    constructor(settings, events_manager, holiday_provider, desktop_settings) {
+    constructor(settings, events_manager, holiday_provider, desktop_settings,
+        reportIssue = () => {}) {
         this.events_manager = events_manager;
         this._weekStart = Cinnamon.util_get_week_start();
         this._digitWidth = NaN; // NOSONAR [S7773] -- accepted compatible form
@@ -1039,7 +1053,8 @@ class Calendar {
             allocateDotBox: (actor, box, flags) =>
                 this._gridView.allocateDotBox(actor, box, flags),
             renderDots: (cell, iter, key) => this._eventDotRenderer.update(cell, iter, key),
-            nameCell: (cell) => this._dayCellRenderer.applyAccessibleName(cell)
+            nameCell: (cell) => this._dayCellRenderer.applyAccessibleName(cell),
+            reportIssue
         });
         this._eventDotRenderer = new CalendarEventDotRenderer(this._gridHost);
         this._dayCellRenderer = new CalendarDayCellRenderer(this._gridHost);
@@ -1126,6 +1141,7 @@ class Calendar {
         // the actors go with the menu, but these arrays are the grid's own, and
         // the applet that holds the grid outlives its removal from the panel
         this._gridView.reset();
+        this._gridHost.reportIssue("holidays", "");
     }
 
     _update_events_enabled(em) {
@@ -1244,6 +1260,10 @@ class Calendar {
         back.connect('clicked', this._onPrevYearButtonClicked.bind(this));
 
         this._yearLabel = new St.Label({style_class: 'calendar-month-label'});
+        // The rendered value belongs to this actor. A locale or week-number
+        // change replaces the label, so keeping the old actor's cache makes
+        // _update() believe the new, empty label already contains this year.
+        this._rendered_year = null;
         this._topBoxYear.add(this._yearLabel, {expand: true, x_fill: false, x_align: St.Align.MIDDLE});
 
         forward = this._navButton('calendar-change-month-forward', _("Next year"));
