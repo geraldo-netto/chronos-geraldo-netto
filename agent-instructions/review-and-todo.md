@@ -25,6 +25,9 @@ id | status | severity | effort | description | notes
 
 - If the table has `impact`, use `H` / `M` / `L` or the local vocabulary.
 - If the table has `severity`, keep it in its own column, not buried in prose.
+- Keep open findings in one table when severity and category already have their own columns. Do not create separate Critical/High/Medium/Low tables or headings.
+- Start the ledger directly with its findings. Do not add a scan/methodology introduction, verification legend, baseline or gate report, analyzer narrative, or open-item count preamble; put durable evidence in each row's notes and report transient scan/gate results outside the ledger.
+- Do not add "clean categories", "no findings", or equivalent sections. An absent finding already means the reviewed area produced no actionable item.
 - For Portuguese tables, common severity values are `Critico`, `Alto`, `Medio`, `Baixo`, or `-` only when genuinely unclassifiable.
 - Keep Markdown table rows as one logical row on one physical line when the project uses long TODO rows. Do not introduce prose wrapping that breaks row integrity.
 - If the project has an open-item summary, recompute it whenever rows are added, removed, or reclassified. Derive counts mechanically from the rows and exclude statuses the project defines as closed, rejected, invalid, vendor, false-positive, or not-applicable.
