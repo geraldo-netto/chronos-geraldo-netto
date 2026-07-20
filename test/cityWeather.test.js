@@ -141,9 +141,17 @@ test("readings are dropped when weather is off or the city is removed", () => {
     assert.equal(provider.recordFor("Lisbon"), null, "a removed clock leaves no stale temperature");
     assert.deepEqual(provider.recordFor("Tokyo"), R("☀ 31°C"));
 
+    provider.refresh({ showWeather: true, units: "si", cities: [] }, () => {});
+    assert.equal(provider.recordFor("Tokyo"), null, "an empty clock list clears its reading");
+    assert.equal(provider.lastProvider, "", "an empty clock list clears its attribution");
+
+    provider.refresh({ showWeather: true, units: "si", cities: ["Tokyo"] }, () => {});
+    assert.equal(provider.lastProvider, "Open-Meteo");
+
     // weather is opt-in: with it off, no city is read and nothing is kept
     provider.refresh({ showWeather: false, units: "si", cities: ["Tokyo"] }, () => {});
     assert.equal(provider.recordFor("Tokyo"), null);
+    assert.equal(provider.lastProvider, "", "disabled weather carries no stale attribution");
 });
 
 test("duplicate and blank cities are asked for once, and only eight at most", () => {

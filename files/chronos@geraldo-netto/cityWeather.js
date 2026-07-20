@@ -251,6 +251,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             // weather off, or every clock is a built-in: drop what was read
             // for a city the user has since removed
             this._readings.clear();
+            this._last_provider = "";
             this._scheduler.succeeded();
             callback(this);
             return;
