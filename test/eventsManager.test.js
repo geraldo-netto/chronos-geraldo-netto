@@ -1,6 +1,7 @@
 const assert = require("node:assert/strict");
 const { beforeEach, test } = require("node:test");
 const path = require("node:path");
+const { makeRandom } = require("./helpers/prng");
 
 const DAY_US = 24 * 3600 * 1000 * 1000;
 const DAY_S = 24 * 3600;
@@ -253,6 +254,19 @@ function makeEventData(spec) {
 function registerDays(manager, data) {
     return manager._event_index.register(
         data, manager.last_update_timestamp, manager.current_selected_date);
+}
+
+function drainEventMutations(manager, limit = 1000) {
+    for (let turn = 0; turn < limit && manager._event_batch_ids.length > 0; turn++) {
+        fireTimer(manager._event_batch_ids[0]);
+    }
+    assert.deepEqual(manager._event_batch_ids, [], "the mutation queue must settle");
+}
+
+function eventSummaries(manager) {
+    const events = manager._event_index.get(new FakeDateTime(10 * DAY_US));
+    return new Map(events ?
+        events.get_event_list().map((event) => [event.id, event.summary]) : []);
 }
 
 beforeEach(() => {
@@ -563,6 +577,113 @@ test("a chunked delivery repaints once, not once per chunk", () => {
         "and one event-column rebuild");
 });
 
+test("a newer update waits for the older chunked delivery", () => {
+    const manager = readyManager();
+    const fillers = Array.from({ length: 25 }, (_unused, index) => eventVariant({
+        id: `filler-${index}`,
+        startUnix: 10 * DAY_S,
+        endUnix: 10 * DAY_S + 60
+    }));
+    const older = eventVariant({
+        id: "same", summary: "old", modTime: 1,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+    });
+    const newer = eventVariant({
+        id: "same", summary: "new", modTime: 2,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+    });
+
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => fillers.concat(older)
+    });
+    proxy.instance.signal("events-added-or-updated", { unpack: () => [newer] });
+    drainEventMutations(manager);
+
+    assert.equal(eventSummaries(manager).get("same"), "new");
+});
+
+test("a removal waits for an event in a deferred batch tail", () => {
+    const manager = readyManager();
+    const fillers = Array.from({ length: 25 }, (_unused, index) => eventVariant({
+        id: `filler-${index}`,
+        startUnix: 10 * DAY_S,
+        endUnix: 10 * DAY_S + 60
+    }));
+    const doomed = eventVariant({
+        id: "doomed", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+    });
+
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => fillers.concat(doomed)
+    });
+    proxy.instance.signal("events-removed", "doomed");
+    drainEventMutations(manager);
+
+    assert.equal(eventSummaries(manager).has("doomed"), false);
+});
+
+function randomAddMutation(random, sequence, minimum = 1) {
+    const count = minimum + Math.floor(random() * 10);
+    const events = [];
+    const summaries = [];
+    for (let index = 0; index < count; index++) {
+        const id = `random-${Math.floor(random() * 12)}`;
+        const summary = `value-${sequence.value}`;
+        events.push(eventVariant({
+            id, summary, modTime: sequence.value++,
+            startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        }));
+        summaries.push([id, summary]);
+    }
+    return { type: "add", events, summaries };
+}
+
+function randomMutation(random, sequence) {
+    const roll = random();
+    if (roll < 0.65) {
+        return randomAddMutation(random, sequence);
+    }
+    if (roll < 0.9) {
+        return { type: "remove", id: `random-${Math.floor(random() * 12)}` };
+    }
+    return { type: "clear" };
+}
+
+function applyMutationSignal(instance, reference, mutation) {
+    if (mutation.type === "add") {
+        instance.signal("events-added-or-updated", { unpack: () => mutation.events });
+        mutation.summaries.forEach(([id, summary]) => reference.set(id, summary));
+        return;
+    }
+    if (mutation.type === "remove") {
+        instance.signal("events-removed", mutation.id);
+        reference.delete(mutation.id);
+        return;
+    }
+    instance.signal("client-disappeared", "calendar");
+    reference.clear();
+}
+
+test("fuzz: queued calendar mutations match synchronous FIFO application", () => {
+    const manager = readyManager();
+    const random = makeRandom(0x565);
+    const sequence = { value: 1 };
+    const reference = new Map();
+
+    for (let round = 0; round < 50; round++) {
+        const burst = [randomAddMutation(random, sequence, 26)];
+        const tail = Array.from(
+            { length: 1 + Math.floor(random() * 7) },
+            () => randomMutation(random, sequence));
+
+        burst.concat(tail).forEach((mutation) =>
+            applyMutationSignal(proxy.instance, reference, mutation));
+        drainEventMutations(manager);
+
+        assert.deepEqual(eventSummaries(manager), reference, `FIFO burst ${round}`);
+    }
+});
+
 // ...and a batch abandoned half-way through must not repaint a menu that is gone
 test("a delivery cut short by teardown repaints nothing", () => {
     const manager = readyManager();
@@ -599,6 +720,23 @@ test("a chunked delivery still in flight is cancelled on teardown", () => {
     for (const id of queued) {
         assert.equal(timers.pending.has(id), false, "the queued chunk was removed");
     }
+});
+
+test("the mutation queue arms once and becomes terminal on teardown", () => {
+    const manager = readyManager();
+    manager._apply_next_event_mutation();
+    assert.deepEqual(manager._event_batch_ids, [], "an empty queue arms nothing");
+
+    manager._event_batch_ids.push(999);
+    manager._schedule_event_mutation();
+    assert.deepEqual(manager._event_batch_ids, [999], "an armed queue gets no duplicate idle");
+    manager._event_batch_ids = [];
+
+    manager.destroy();
+    manager._enqueue_event_mutation({ type: "client-disappeared" });
+    manager._schedule_event_mutation();
+    assert.deepEqual(manager._event_mutations, []);
+    assert.deepEqual(manager._event_batch_ids, []);
 });
 
 // one unusable event out of a feed costs that event, not the whole month — and

@@ -59,7 +59,11 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
         this._fetch_retry_id = 0;
         this._fetch_retry_attempts = 0;
-        // idles still to run for a batch that is being applied in chunks
+        // Calendar-server signals are one ordered mutation stream. A large
+        // add/update occupies several idle turns, so later updates, removals
+        // and client disappearance must wait behind its tail.
+        this._event_mutations = [];
+        // At most one idle advances that stream.
         this._event_batch_ids = [];
         this._pending_emit = null;
         // handed to every call_set_time_range so a reply that is still in
@@ -136,32 +140,70 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     // What changed is accumulated across the chunks and said once, at the end.
     _handle_added_or_updated_events(server, varray) {
         const events = varray.unpack();
+        this._enqueue_event_mutation({ type: "add", events, index: 0 });
+    }
 
-        if (events.length <= EVENT_BATCH_CHUNK) {
-            this._apply_added_or_updated(events, true);
+    _enqueue_event_mutation(mutation) {
+        if (this._destroyed) {
             return;
         }
 
-        this._queue_event_batch(events, 0);
+        this._event_mutations.push(mutation);
+        if (this._event_mutations.length === 1 &&
+            this._event_batch_ids.length === 0) {
+            this._apply_next_event_mutation();
+        }
     }
 
-    _queue_event_batch(events, index) {
-        const end = Math.min(index + EVENT_BATCH_CHUNK, events.length);
-        const last = end >= events.length;
-        this._apply_added_or_updated(events.slice(index, end), last);
+    _apply_add_mutation(mutation) {
+        const end = Math.min(
+            mutation.index + EVENT_BATCH_CHUNK, mutation.events.length);
+        const last = end >= mutation.events.length;
+        this._apply_added_or_updated(
+            mutation.events.slice(mutation.index, end), last);
+        mutation.index = end;
+        return last;
+    }
 
-        if (last || this._destroyed) {
+    _apply_event_mutation(mutation) {
+        if (mutation.type === "add") {
+            return this._apply_add_mutation(mutation);
+        }
+        if (mutation.type === "remove") {
+            this._apply_removed_events(mutation.uids);
+            return true;
+        }
+        this._apply_client_disappeared();
+        return true;
+    }
+
+    _apply_next_event_mutation() {
+        const mutation = this._event_mutations[0];
+        if (!mutation || this._destroyed) {
+            return;
+        }
+
+        if (this._apply_event_mutation(mutation)) {
+            this._event_mutations.shift();
+        }
+
+        if (this._event_mutations.length > 0) {
+            this._schedule_event_mutation();
+        }
+    }
+
+    _schedule_event_mutation() {
+        if (this._destroyed || this._event_batch_ids.length > 0) {
             return;
         }
 
         this._event_batch_ids.push(Mainloop.idle_add(() => {
             this._event_batch_ids.shift();
             if (this._destroyed) {
-                // the applet is going away mid-batch: there is nothing left to
-                // repaint, and nobody to tell
+                this._event_mutations = [];
                 this._pending_emit = null;
             } else {
-                this._queue_event_batch(events, end);
+                this._apply_next_event_mutation();
             }
             return GLib.SOURCE_REMOVE;
         }));
@@ -199,6 +241,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _handle_removed_events(server, uids_string) {
+        this._enqueue_event_mutation({ type: "remove", uids: uids_string });
+    }
+
+    _apply_removed_events(uids_string) {
         // cinnamon-calendar-server batches IDs with "::", but an iCalendar
         // component UID is TEXT and may contain that exact sequence. A string
         // with the delimiter therefore cannot be decoded losslessly: clear the
@@ -229,6 +275,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _handle_client_disappeared(server, uid) {
+        this._enqueue_event_mutation({ type: "client-disappeared" });
+    }
+
+    _apply_client_disappeared() {
         // A calendar was removed/disabled. Instead of picking
         // specific matching events to remove, just rebuild the
         // entire list.
@@ -358,6 +408,8 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             Mainloop.source_remove(id);
         }
         this._event_batch_ids = [];
+        this._event_mutations = [];
+        this._pending_emit = null;
 
         this._server_connection.destroy();
         this._stop_gc_timer();
