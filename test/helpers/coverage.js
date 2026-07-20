@@ -12,6 +12,7 @@
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
+const { createCoverageReport } = require("./coverageReport");
 
 const LINES = 98;
 const BRANCHES = 90;
@@ -49,38 +50,50 @@ function measuredFiles() {
     return files;
 }
 
-const result = spawnSync("node", [ // NOSONAR [S4036] -- trusted test runner
-    "--test",
-    "--experimental-test-coverage",
-    "--test-coverage-include=files/chronos@geraldo-netto/*.js",
-    "--test-coverage-include=files/chronos@geraldo-netto/5.4/*.js",
-    "--test-coverage-include=scripts/*.mjs",
-    `--test-coverage-lines=${LINES}`,
-    `--test-coverage-branches=${BRANCHES}`,
-    `--test-coverage-functions=${FUNCTIONS}`,
-    "--test-reporter=spec",
-    "--test-reporter-destination=stdout",
-    "--test-reporter=./test/helpers/coverage-reporter.js",
-    "--test-reporter-destination=./coverage.json",
-    "test/*.test.js"
-], { cwd: APPLET_DIR, stdio: "inherit", shell: false });
+function runCoverage() {
+    const report = createCoverageReport();
+    try {
+        const result = spawnSync("node", [ // NOSONAR [S4036] -- trusted test runner
+            "--test",
+            "--experimental-test-coverage",
+            "--test-coverage-include=files/chronos@geraldo-netto/*.js",
+            "--test-coverage-include=files/chronos@geraldo-netto/5.4/*.js",
+            "--test-coverage-include=scripts/*.mjs",
+            `--test-coverage-lines=${LINES}`,
+            `--test-coverage-branches=${BRANCHES}`,
+            `--test-coverage-functions=${FUNCTIONS}`,
+            "--test-reporter=spec",
+            "--test-reporter-destination=stdout",
+            "--test-reporter=./test/helpers/coverage-reporter.js",
+            `--test-reporter-destination=${report.path}`,
+            "test/*.test.js"
+        ], { cwd: APPLET_DIR, stdio: "inherit", shell: false });
 
-if (result.status !== 0) {
-    process.exit(result.status === null ? 1 : result.status);
-}
+        if (result.status !== 0) {
+            return result.status === null ? 1 : result.status;
+        }
 
-const summary = require(path.join(APPLET_DIR, "coverage.json"));
-const failures = [];
-
-const measured = new Set(summary.files.map((file) => path.resolve(file.path)));
-for (const file of measuredFiles()) {
-    if (!measured.has(path.resolve(file))) {
-        failures.push(
-            `${path.relative(APPLET_DIR, file)}: no test loads it, so its coverage was never measured`);
+        const summary = JSON.parse(fs.readFileSync(report.path, "utf8"));
+        return evaluateCoverage(summary);
+    } finally {
+        report.cleanup();
     }
 }
 
-for (const file of summary.files) {
+function missingCoverageFailures(summary) {
+    const failures = [];
+    const measured = new Set(summary.files.map((file) => path.resolve(file.path)));
+    for (const file of measuredFiles()) {
+        if (!measured.has(path.resolve(file))) {
+            failures.push(
+                `${path.relative(APPLET_DIR, file)}: no test loads it, so its coverage was never measured`);
+        }
+    }
+    return failures;
+}
+
+function thresholdFailures(file) {
+    const failures = [];
     const name = path.relative(APPLET_DIR, file.path);
     const lineThreshold = LINE_OVERRIDES.get(name) || LINES;
     const checks = [
@@ -96,9 +109,10 @@ for (const file of summary.files) {
                 `${name}: ${what} ${actual.toFixed(2)} % is under the ${threshold} % gate`);
         }
     }
+    return failures;
 }
 
-if (failures.length > 0) {
+function reportCoverageFailures(failures) {
     console.error("\nper-file coverage below the thresholds the suite claims:\n");
     for (const failure of failures) {
         console.error("  " + failure);
@@ -106,7 +120,18 @@ if (failures.length > 0) {
     console.error(
         "\nThe aggregate gate passed. It always will: one file at 50 % disappears " +
         "into the average of 34.\n");
-    process.exit(1);
 }
 
-console.log(`\nper-file coverage: every file meets ${LINES}/${BRANCHES}/${FUNCTIONS}`);
+function evaluateCoverage(summary) {
+    const failures = missingCoverageFailures(summary)
+        .concat(summary.files.flatMap(thresholdFailures));
+    if (failures.length > 0) {
+        reportCoverageFailures(failures);
+        return 1;
+    }
+
+    console.log(`\nper-file coverage: every file meets ${LINES}/${BRANCHES}/${FUNCTIONS}`);
+    return 0;
+}
+
+process.exitCode = runCoverage();
