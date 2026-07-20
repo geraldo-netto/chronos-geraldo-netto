@@ -40,6 +40,12 @@ class BuildDialogContentTest(unittest.TestCase):
 
         self.assertEqual(dialog.sensitivity[-1], (1, False))
 
+        widgets["label"] = types.SimpleNamespace(get_widget_value=lambda: " \t ")
+        presenter.update(widgets)
+
+        self.assertEqual(preview.text, self.module.LABEL_MISSING_PREVIEW)
+        self.assertEqual(dialog.sensitivity[-1], (1, False))
+
     def test_builder_returns_widgets_and_wires_preview(self):
         clocks = self.module.ClocksList({
             "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
@@ -68,7 +74,7 @@ class BuildDialogContentTest(unittest.TestCase):
         clocks.timezone_resolver = self.module.TimezoneResolver(fake_pytz, None)
         dialog = GtkDialog()
         widgets = clocks._build_dialog_content(
-            dialog, {"label": "Home", "timezone": "europe/rome"})
+            dialog, {"label": " Home ", "timezone": "europe/rome"})
 
         label, timezone = clocks._collect_dialog_values(widgets)
         self.assertEqual(label, "Home")

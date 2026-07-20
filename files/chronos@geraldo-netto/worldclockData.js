@@ -420,17 +420,28 @@ function builtInTimezoneKeys(builtins) {
 // against two third-party services every half hour, forever, and still consumed
 // one of the eight weather slots, which silently cost the last real clock its
 // temperature. Two selection algorithms for one list will keep diverging.
+function normalizedClockEntry(clock) {
+    if (!clock || typeof clock !== "object" || Array.isArray(clock)) {
+        return null;
+    }
+
+    const label = clockDisplayLabel(clock.label);
+    const timezone = typeof clock.timezone === "string" ? clock.timezone.trim() : "";
+    return label && timezone ? { label, timezone } : null;
+}
+
 function selectUserClocks(clocks) {
     const configured = Array.isArray(clocks) ? clocks : [];
     const builtinKeys = builtInTimezoneKeys(builtinClocks());
     const selected = [];
 
     for (const clock of configured) {
-        if (!clock) {
+        const normalized = normalizedClockEntry(clock);
+        if (!normalized) {
             continue;
         }
 
-        const tz = timezoneFromIdentifier(clock.timezone);
+        const tz = timezoneFromIdentifier(normalized.timezone);
         const identity = timezoneIdentity(tz);
         if (builtinKeys.has(identity)) {
             continue;
@@ -438,7 +449,7 @@ function selectUserClocks(clocks) {
 
         // clamped here, where the clocks are chosen, so the popup, the tooltip
         // and the weather readings all key off the same string
-        selected.push({ label: clockDisplayLabel(clock.label), timezone: clock.timezone });
+        selected.push(normalized);
         if (selected.length >= MAX_CLOCKS) {
             break;
         }
@@ -448,7 +459,8 @@ function selectUserClocks(clocks) {
 }
 
 function clockDisplayLabel(label) {
-    return TextUtils.clampText(label, MAX_CLOCK_LABEL_LENGTH);
+    const normalized = typeof label === "string" ? label.trim() : "";
+    return TextUtils.clampText(normalized, MAX_CLOCK_LABEL_LENGTH);
 }
 
 if (typeof module !== "undefined") {

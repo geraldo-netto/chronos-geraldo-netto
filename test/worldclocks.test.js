@@ -552,6 +552,23 @@ test("a very long clock name is cut down to size", () => {
         long.label);
 });
 
+test("configured clocks require visible normalized labels", () => {
+    loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const selected = WorldclockData.selectUserClocks([
+        { label: "   ", timezone: "Asia/Tokyo" },
+        { label: "", timezone: "America/New_York" },
+        { label: 42, timezone: "Australia/Sydney" },
+        { label: "Missing timezone" },
+        { label: " Rome ", timezone: " Europe/Rome " }
+    ]);
+
+    assert.deepEqual(selected, [{ label: "Rome", timezone: "Europe/Rome" }]);
+    assert.equal(WorldclockData.clockDisplayLabel(" Tokyo "), "Tokyo");
+    assert.equal(WorldclockData.clockDisplayLabel("\t\n"), "");
+});
+
 // Cinnamon fires a text entry's changed signal on every keystroke, and
 // updateFormatString used to call buildClocks: typing a 20-character custom
 // format destroyed and rebuilt every label, re-resolved every GLib.TimeZone and
@@ -929,6 +946,12 @@ function randomLabel(random, alphabet) {
 function randomClockEntries(random, alphabet) {
     const count = Math.floor(random() * 26);
     return Array.from({ length: count }, (_, index) => {
+        if (random() < 0.15) {
+            return pickRandom(random, [
+                null, "clock", {}, { label: "Missing zone" },
+                { label: 42, timezone: zoneAt(index) }
+            ]);
+        }
         const invalid = random() < 0.4;
         return {
             label: randomLabel(random, alphabet),
@@ -938,20 +961,22 @@ function randomClockEntries(random, alphabet) {
     });
 }
 
-function assertClockMatchesEntry(clock, entry, index) {
+function assertClockMatchesEntry(clock, entry) {
     assert.equal(clock.label, entry.label);
-    if (entry.invalid) {
+    if (!knownTimeZone(entry.timezone)) {
         assert.equal(clock.display.text, "Invalid timezone");
         assert.equal(clock.display.options.style_class,
             "calendar-world-time calendar-world-time-invalid");
     } else {
-        assert.equal(clock.display.text, timeIn(zoneAt(index)));
+        assert.equal(clock.display.text, timeIn(entry.timezone));
         assert.equal(clock.display.options.style_class, "calendar-world-time");
     }
 }
 
 test("fuzzed clock lists never crash and always respect the cap and invalid marking", () => {
     const { Worldclocks, MAX_CLOCKS } = loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
     const random = makeRandom();
     const labelAlphabet = "abcXYZ0189 -_/中東€é​";
 
@@ -962,16 +987,17 @@ test("fuzzed clock lists never crash and always respect the cap and invalid mark
         worldclocks.buildClocks(entries, random() < 0.5 ? "%H:%M" : undefined);
         worldclocks.updateClocks();
 
-        const shown = entries.slice(0, MAX_CLOCKS);
+        const shown = WorldclockData.selectUserClocks(entries);
         // built-ins keep the list visible even with nothing configured
         assert.equal(worldclocks.actor.visible, true);
+        assert.ok(shown.length <= MAX_CLOCKS);
         assert.equal(worldclocks.clocks.length, BUILTIN_ROWS + shown.length);
 
         // every row attaches a label, a time display and a temperature cell
         assert.equal(worldclocks.layout.children.length, (BUILTIN_ROWS + shown.length) * 3);
 
         shown.forEach((entry, index) =>
-            assertClockMatchesEntry(worldclocks.clocks[BUILTIN_ROWS + index], entry, index));
+            assertClockMatchesEntry(worldclocks.clocks[BUILTIN_ROWS + index], entry));
 
         const texts = worldclocks.getClockEntries()
             .filter((entry) => !entry.builtin)

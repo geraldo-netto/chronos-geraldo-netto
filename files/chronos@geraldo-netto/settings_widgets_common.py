@@ -528,6 +528,10 @@ def list_edit_factory(params):
     return ListEditEntry(completions=params.get('completions'),
                          placeholder=params.get('placeholder'), **kwargs)
 
+def normalize_clock_label(value):
+    return value.strip() if isinstance(value, str) else ""
+
+
 class ClockEntrySerializer:
     def initial_dialog_data(
         self,
@@ -536,10 +540,13 @@ class ClockEntrySerializer:
         if info is None:
             return { "label": None, "timezone": None }, _("Add new entry")
 
-        return { "label": info[0], "timezone": info[1] }, _("Edit entry")
+        return {
+            "label": normalize_clock_label(info[0]),
+            "timezone": info[1]
+        }, _("Edit entry")
 
     def serialize(self, label: str, timezone: str) -> list[str]:
-        return [label, timezone]
+        return [normalize_clock_label(label), timezone]
 
 # The dialog is modal and sized to its content, so a label that will not wrap is
 # a label that decides how wide the window is.
@@ -633,7 +640,7 @@ class ClockDialogStatePresenter:
 
     def update(self, widgets):
         values = self.values_from_widgets(widgets)
-        has_label = bool(values.get('label'))
+        has_label = bool(normalize_clock_label(values.get('label')))
         choice = self.clocks_list.resolve_timezone_choice(values)
 
         # OK stays insensitive until both fields are right, and the preview only

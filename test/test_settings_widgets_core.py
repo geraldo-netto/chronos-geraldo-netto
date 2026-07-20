@@ -141,7 +141,8 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(data, {"label": "Tokyo", "timezone": "Asia/Tokyo"})
         self.assertEqual(title, "Edit entry")
 
-        self.assertEqual(serializer.serialize("Home", "Europe/Rome"), ["Home", "Europe/Rome"])
+        self.assertEqual(serializer.serialize(" Home ", "Europe/Rome"), ["Home", "Europe/Rome"])
+        self.assertEqual(serializer.serialize(" \t ", "Europe/Rome"), ["", "Europe/Rome"])
 
     def test_clock_entry_serializer_matches_schema_column_order(self):
         schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
