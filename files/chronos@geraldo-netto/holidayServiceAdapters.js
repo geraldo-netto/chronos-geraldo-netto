@@ -53,6 +53,7 @@ const HolidayRecord = IS_NODE ?
 
 const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 const validDateParts = HolidayRecord.validDateParts;
+const nonBlankText = HolidayRecord.nonBlankText;
 const HolidayRecordContract = HolidayRecord.HolidayRecordContract;
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
@@ -290,7 +291,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     _validHoliday(holiday) {
         return holiday &&
             typeof holiday.date === "string" &&
-            typeof holiday.name === "string" &&
+            nonBlankText(holiday.name) &&
             (!holiday.localName || typeof holiday.localName === "string") &&
             (!holiday.counties || Array.isArray(holiday.counties)) &&
             (!holiday.types || (Array.isArray(holiday.types) &&
@@ -313,14 +314,17 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     }
 
     _name(holiday) {
-        if (holiday.localName && holiday.localName !== holiday.name) {
+        const name = holiday.name.trim();
+        const localName = typeof holiday.localName === "string" ?
+            holiday.localName.trim() : "";
+        if (localName && localName !== name) {
             return [
-                {lang: "local", text: holiday.localName},
-                {lang: "en", text: holiday.name}
+                {lang: "local", text: localName},
+                {lang: "en", text: name}
             ];
         }
 
-        return [{lang: "en", text: holiday.name}];
+        return [{lang: "en", text: name}];
     }
 };
 
@@ -381,6 +385,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
             Array.isArray(holiday.name) &&
             holiday.name.length > 0 &&
             holiday.name.every((entry) => entry && typeof entry.language === "string" && typeof entry.text === "string") &&
+            holiday.name.some((entry) => nonBlankText(entry.text)) &&
             (!holiday.subdivisions || Array.isArray(holiday.subdivisions));
     }
 
@@ -406,10 +411,12 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     }
 
     _name(holiday) {
-        return holiday.name.map((entry) => ({
-            lang: entry.language.toLowerCase(),
-            text: entry.text
-        }));
+        return holiday.name
+            .filter((entry) => nonBlankText(entry.text))
+            .map((entry) => ({
+                lang: entry.language.toLowerCase(),
+                text: entry.text.trim()
+            }));
     }
 
     _startDate(holiday) {

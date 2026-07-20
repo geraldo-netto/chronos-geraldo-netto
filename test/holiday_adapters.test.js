@@ -369,7 +369,8 @@ const OPEN_HOLIDAYS_JUNK_DATES = [
 ];
 const OPEN_HOLIDAYS_JUNK_NAMES = [
     [], null, undefined, "a string", [{}], [{ language: "EN" }],
-    [{ text: "no language" }], 42
+    [{ text: "no language" }], [{ language: "EN", text: "" }],
+    [{ language: "EN", text: "   " }], 42
 ];
 
 function pickFrom(rand, list) {
@@ -440,7 +441,8 @@ function assertPlaceableHoliday(holiday) {
     assert.ok(holiday.date.day >= 1 && holiday.date.day <= 31,
         `day out of range: ${holiday.date.day}`);
     assert.ok(Array.isArray(holiday.name) && holiday.name.length > 0);
-    assert.ok(holiday.name.every((entry) => typeof entry.text === "string" && entry.text),
+    assert.ok(holiday.name.every((entry) =>
+        typeof entry.text === "string" && entry.text.trim()),
         "a holiday with no name cannot be shown");
     assert.ok(Array.isArray(holiday.flags) && holiday.flags.length > 0);
     assert.ok(holiday.flags.every((flag) => typeof flag === "string"));
@@ -517,7 +519,8 @@ const RECORD_JUNK_DATES = [
 ];
 const RECORD_JUNK_NAMES = [
     null, undefined, [], "text", 42, [{}], [{ lang: "de" }], [{ text: "no lang" }],
-    [{ lang: 42, text: "wrong type" }], [{ lang: "de", text: "Tag der Arbeit" }]
+    [{ lang: 42, text: "wrong type" }], [{ lang: "en", text: "" }],
+    [{ lang: "en", text: "   " }], [{ lang: "de", text: "Tag der Arbeit" }]
 ];
 const RECORD_JUNK_FLAGS = [null, "text", 42, {}];
 
@@ -769,13 +772,15 @@ function fuzzNagerRow(rand, index) {
     const day = 1 + Math.floor(rand() * 33);        // up to 33: overflow days
     const countyRoll = rand();
     const typeRoll = rand();
+    const names = [`Holiday ${index}`, "", "   "];
+    const name = rand() < 0.8 ? names[0] : pickFrom(rand, names.slice(1));
 
     return {
         date: rand() < 0.15 ?
             `2030/${month}/${day}` :
             `2030-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-        name: `Holiday ${index}`,
-        localName: rand() < 0.5 ? `Feriado ${index}` : `Holiday ${index}`,
+        name,
+        localName: rand() < 0.5 ? `Feriado ${index}` : name,
         global: rand() < 0.2,
         counties: fuzzNagerCounties(countyRoll),
         types: fuzzNagerTypes(rand, typeRoll)
@@ -818,7 +823,8 @@ test("NagerDateServiceAdapter fuzzes date, county and type translation", () => {
     // both ways — nothing keepable is dropped, and nothing else is kept.
     const keepable = payload.filter((row) => isRealCalendarDate(row.date) &&
         (row.counties.length === 0 || row.counties.includes("US-CA")) &&
-        row.types.every((type) => typeof type === "string"));
+        row.types.every((type) => typeof type === "string") &&
+        row.name.trim());
 
     assert.equal(translated.length, keepable.length);
     assert.ok(keepable.length > 0, "fuzz corpus keeps some valid rows");
@@ -1260,4 +1266,40 @@ test("the record contract falls back to the first holiday name", () => {
             { lang: "de", text: "Feiertag" }
         ]
     }), "Fete");
+});
+
+test("holiday names require text and skip blank preferred translations", () => {
+    const {
+        HolidayRecordContract, NagerDateServiceAdapter, OpenHolidaysServiceAdapter
+    } = loadHolidays();
+    const record = new HolidayRecordContract("it");
+    const base = { date: { year: 2026, month: 1, day: 1 }, flags: [] };
+    const names = [
+        { lang: "it", text: "   " },
+        { lang: "en", text: " New Year " }
+    ];
+
+    assert.equal(record.validHoliday({ ...base, name: [{ lang: "en", text: "" }] }), false);
+    assert.equal(record.validHoliday({ ...base, name: [{ lang: "en", text: " \t " }] }), false);
+    assert.equal(record.validHoliday({ ...base, name: names }), true);
+    assert.equal(record.localizeName({ name: names }), "New Year");
+
+    const nager = new NagerDateServiceAdapter(() => {});
+    const nagerRows = nager.translateResponse([
+        { date: "2026-01-01", name: "   ", types: ["Public"] },
+        { date: "2026-01-02", name: " New Year ", localName: " ", types: ["Public"] }
+    ], nager.params("usa", "global", 2026));
+    assert.deepEqual(nagerRows.map((holiday) => holiday.name),
+        [[{ lang: "en", text: "New Year" }]]);
+
+    const open = new OpenHolidaysServiceAdapter(() => {}, "it");
+    const openRows = open.translateResponse([
+        { startDate: "2026-01-01", name: [{ language: "IT", text: " " }] },
+        { startDate: "2026-01-02", name: [
+            { language: "IT", text: "" },
+            { language: "EN", text: " New Year " }
+        ] }
+    ], open.params("ita", "global", 2026));
+    assert.deepEqual(openRows.map((holiday) => holiday.name),
+        [[{ lang: "en", text: "New Year" }]]);
 });

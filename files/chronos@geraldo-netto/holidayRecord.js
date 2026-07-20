@@ -58,6 +58,10 @@ function holidayOverlapsYear(holiday, year) {
     return holiday.date.year <= year && end.year >= year;
 }
 
+function nonBlankText(value) {
+    return typeof value === "string" && value.trim().length > 0;
+}
+
 var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- GJS importer export
     constructor(lang = _lcLang()) {
         this._lang = lang;
@@ -72,6 +76,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
             holiday.name.length > 0 &&
             holiday.name.every((entry) => entry && typeof entry.lang === "string" &&
                 typeof entry.text === "string") &&
+            holiday.name.some((entry) => nonBlankText(entry.text)) &&
             Array.isArray(holiday.flags);
     }
 
@@ -85,11 +90,12 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
     }
 
     localizeName(holiday) {
-        const localized = holiday.name
+        const usable = holiday.name.filter((entry) => nonBlankText(entry.text));
+        const localized = usable
             .filter((entry) => entry.lang === this._lang || entry.lang === "en")
             .sort((a, b) => a.lang === "en" ? 1 : b.lang === "en" ? -1 : 0)[0]; // NOSONAR [S3358] -- accepted compatible form
 
-        return (localized || holiday.name[0]).text;
+        return (localized || usable[0] || { text: "" }).text.trim();
     }
 
     expandHoliday(holiday, region) {
@@ -120,7 +126,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { validDateParts, validHolidaySpan, holidaySpanDays, holidayOverlapsYear,
+    module.exports = { validDateParts, validHolidaySpan, holidaySpanDays, holidayOverlapsYear, nonBlankText,
         MAX_HOLIDAY_SPAN_DAYS, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
         HolidayRecordContract };
 }

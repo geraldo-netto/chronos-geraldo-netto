@@ -1765,9 +1765,18 @@ test("fuzz: only well-formed rows survive the cache's own validator", () => {
         2024, 2026, 1, 2, 28, 29, 30, 31, 99, 0, -1, 1.5, NaN, Infinity,
         "2026", null, undefined, {}, []
     ];
-    const names = ["New Year", "", "x".repeat(500), 42, null, undefined, {}, ["a"]];
+    const names = [
+        "New Year", "", "   ", "\t\n", "x".repeat(500),
+        42, null, undefined, {}, ["a"]
+    ];
     const flagSets = [[], ["public_holiday"], "public_holiday", null, undefined, {}, 7];
     const regions = ["global", "ca", "", 42, null, undefined, {}];
+
+    for (const name of ["", " ", "\t\n"]) {
+        assert.equal(validCachedHoliday({
+            year: 2026, month: 1, day: 1, name, flags: [], region: "global"
+        }), false);
+    }
 
     for (let round = 0; round < 500; round++) {
         const row = {
@@ -1795,6 +1804,7 @@ test("fuzz: only well-formed rows survive the cache's own validator", () => {
         assert.ok(Number.isInteger(candidate.day));
         assert.ok(validDateParts(candidate), "accepted parts form a real calendar date");
         assert.equal(typeof candidate.name, "string");
+        assert.ok(candidate.name.trim(), "accepted names remain visible");
         assert.ok(Array.isArray(candidate.flags));
         assert.ok(candidate.region === undefined || typeof candidate.region === "string");
     }
@@ -1912,6 +1922,8 @@ test("a tampered cache file cannot inject malformed holidays", () => {
                 { year: 2026, month: 1, day: 1, name: "New Year", flags: [], region: "global" },
                 { year: 2026, month: 1, day: 2, name: 123, flags: [], region: "global" },
                 { year: 2026, month: 1, day: 3, name: "No flags", region: "global" },
+                { year: 2026, month: 1, day: 4, name: "", flags: [], region: "global" },
+                { year: 2026, month: 1, day: 5, name: "   ", flags: [], region: "global" },
                 "not even an object"
             ]
         }

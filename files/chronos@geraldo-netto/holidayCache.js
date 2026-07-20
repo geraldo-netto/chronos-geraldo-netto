@@ -88,7 +88,7 @@ function validCachedHoliday(single) {
     return Boolean(single) &&
         typeof single === "object" &&
         HolidayRecord.validDateParts(single) &&
-        typeof single.name === "string" &&
+        HolidayRecord.nonBlankText(single.name) &&
         Array.isArray(single.flags) &&
         (single.region === undefined || typeof single.region === "string");
 }
