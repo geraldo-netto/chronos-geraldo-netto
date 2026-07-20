@@ -75,7 +75,10 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
 
         this.current_selected_date = gdate_only;
         this.current_selected_signature = selectedSignature;
-        emit("selected-date-events-changed", this.index.get(gdate_only), delay_no_events_box);
+        emit("selected-date-events-changed",
+            this.index.get(gdate_only),
+            delay_no_events_box,
+            Boolean(this.index.overflowed));
     }
 };
 

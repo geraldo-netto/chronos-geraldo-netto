@@ -109,8 +109,9 @@ class AppletMenuBuilder {
             }));
         this._events_manager_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
             context.eventsManager.connect("selected-date-events-changed",
-                (em, eventDataList, delayNoEventsBox) => {
-                    eventList.set_events(eventDataList, delayNoEventsBox);
+                (em, eventDataList, delayNoEventsBox, overflowed) => {
+                    eventList.set_events(
+                        eventDataList, delayNoEventsBox, overflowed);
                 }));
 
         this._event_list_signal_ids.push(

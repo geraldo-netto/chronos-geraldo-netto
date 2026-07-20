@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-18 18:06+0200\n"
+"POT-Creation-Date: 2026-07-20 20:31+0200\n"
 "PO-Revision-Date: 2026-04-30 16:49+0200\n"
 "Last-Translator: Alan Mortensen <over.tackiness223@passinbox.com>\n"
 "Language-Team: \n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A den %-e. %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:359
+#: 5.4/calendar.js:373
 msgid "Today"
 msgstr "I dag"
 
@@ -46,7 +46,7 @@ msgstr "Hele dagen"
 msgid "%s — %s"
 msgstr "%s — %s"
 
-#: worldclockData.js:60 settings_widgets_common.py:69
+#: worldclockData.js:60 settings_widgets_common.py:58
 msgid "Invalid timezone"
 msgstr "Ugyldig tidszone"
 
@@ -54,72 +54,72 @@ msgstr "Ugyldig tidszone"
 msgid "Local time"
 msgstr "Lokal tid"
 
-#: 5.4/appletMenuBuilder.js:189 5.4/appletMenuBuilder.js:195
+#: 5.4/appletMenuBuilder.js:194 5.4/appletMenuBuilder.js:200
 msgid "Go to today"
 msgstr "Gå til i dag"
 
-#: 5.4/appletMenuBuilder.js:278
+#: 5.4/appletMenuBuilder.js:281
 msgid "Date and Time Settings"
 msgstr "Indstillinger for dato og tid"
 
-#: 5.4/appletPanelStatus.js:49
+#: 5.4/appletPanelStatus.js:70
 msgid "Location not found"
 msgstr "Placering ikke fundet"
 
-#: 5.4/appletPanelStatus.js:50
+#: 5.4/appletPanelStatus.js:71
 msgid "Weather service unavailable"
 msgstr "Vejrtjenesten er ikke tilgængelig"
 
-#: 5.4/appletPanelStatus.js:51
+#: 5.4/appletPanelStatus.js:72
 msgid "Set a weather location"
 msgstr "Angiv en vejrplacering"
 
-#: 5.4/appletPanelStatus.js:60
+#: 5.4/appletPanelStatus.js:81
 msgid "Clear"
 msgstr "Klart"
 
-#: 5.4/appletPanelStatus.js:61
+#: 5.4/appletPanelStatus.js:82
 msgid "Partly cloudy"
 msgstr "Delvist skyet"
 
-#: 5.4/appletPanelStatus.js:62
+#: 5.4/appletPanelStatus.js:83
 msgid "Cloudy"
 msgstr "Skyet"
 
-#: 5.4/appletPanelStatus.js:63
+#: 5.4/appletPanelStatus.js:84
 msgid "Rain"
 msgstr "Regn"
 
-#: 5.4/appletPanelStatus.js:64
+#: 5.4/appletPanelStatus.js:85
 msgid "Snow"
 msgstr "Sne"
 
-#: 5.4/appletPanelStatus.js:65
+#: 5.4/appletPanelStatus.js:86
 msgid "Showers"
 msgstr "Byger"
 
-#: 5.4/appletPanelStatus.js:66
+#: 5.4/appletPanelStatus.js:87
 msgid "Thunderstorm"
 msgstr "Tordenvejr"
 
-#: 5.4/appletPanelStatus.js:67
+#: 5.4/appletPanelStatus.js:88
 msgid "Fair"
 msgstr "Pænt vejr"
 
-#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:428
-#: 5.4/appletPanelStatus.js:592
+#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:449
+#: 5.4/appletPanelStatus.js:593
 msgid "Weather: loading…"
 msgstr "Vejr: indlæser…"
 
-#: 5.4/appletPanelStatus.js:299
+#: 5.4/appletPanelStatus.js:320
 msgid "Invalid time format; edit it in Settings"
 msgstr "Ugyldigt tidsformat; rediger det i Indstillinger"
 
-#: 5.4/appletPanelStatus.js:452
+#: 5.4/appletPanelStatus.js:473
 msgid "No weather for this timezone"
 msgstr "Ingen vejrudsigt for denne tidszone"
 
-#: 5.4/appletPanelStatus.js:464
+#: 5.4/appletPanelStatus.js:485
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Seneste kendte måling"
@@ -132,99 +132,105 @@ msgstr "Helligdagstjenesten er ikke tilgængelig"
 msgid "Holiday data unavailable"
 msgstr "Helligdagsdata er ikke tilgængelige"
 
-#: 5.4/calendar.js:362
+#: 5.4/calendar.js:376
 msgid "Selected"
 msgstr "Valgt"
 
-#: 5.4/calendar.js:366
+#: 5.4/calendar.js:380
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d begivenhed"
 msgstr[1] "%d begivenheder"
 
-#: 5.4/calendar.js:637
+#: 5.4/calendar.js:651
 msgid "Holiday data: loading…"
 msgstr "Helligdagsdata: indlæser…"
 
-#: 5.4/calendar.js:677
+#: 5.4/calendar.js:691
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Helligdagsdata: %s"
 
-#: 5.4/calendar.js:846
+#: 5.4/calendar.js:860
 #, javascript-format
 msgid "Week %s"
 msgstr "Uge %s"
 
-#: 5.4/calendar.js:1194
+#: 5.4/calendar.js:1208
 msgid "Previous month"
 msgstr "Forrige måned"
 
-#: 5.4/calendar.js:1224
+#: 5.4/calendar.js:1238
 msgid "Next month"
 msgstr "Næste måned"
 
-#: 5.4/calendar.js:1228
+#: 5.4/calendar.js:1242
 msgid "Previous year"
 msgstr "Forrige år"
 
-#: 5.4/calendar.js:1235
+#: 5.4/calendar.js:1249
 msgid "Next year"
 msgstr "Næste år"
 
-#: 5.4/calendar.js:1248
+#: 5.4/calendar.js:1262
 msgid "Week"
 msgstr "Uge"
 
-#: 5.4/eventView.js:51
+#: 5.4/eventView.js:54
 msgid "Starting in a few minutes"
 msgstr "Starter om få minutter"
 
-#: 5.4/eventView.js:58
+#: 5.4/eventView.js:61
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Begynder om %d minut"
 msgstr[1] "Begynder om %d minutter"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:71
 msgid "This evening"
 msgstr "I aften"
 
-#: 5.4/eventView.js:71
+#: 5.4/eventView.js:74
 msgid "Starting later today"
 msgstr "Starter senere i dag"
 
-#: 5.4/eventView.js:74
+#: 5.4/eventView.js:77
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Om %d time"
 msgstr[1] "Om %d timer"
 
-#: 5.4/eventView.js:196
+#: 5.4/eventView.js:202
 msgid "Loading…"
 msgstr "Indlæser…"
 
-#: 5.4/eventView.js:200 5.4/eventView.js:210 5.4/eventView.js:441
-#: 5.4/eventView.js:622
+#: 5.4/eventView.js:206 5.4/eventView.js:216 5.4/eventView.js:352
+#: 5.4/eventView.js:665
 msgid "No Events"
 msgstr "Ingen begivenheder"
 
-#: 5.4/eventView.js:356 5.4/eventView.js:522
+#: 5.4/eventView.js:374 5.4/eventView.js:556
 msgid "Open the calendar app"
 msgstr "Åbn kalenderprogrammet"
 
-#: 5.4/eventView.js:453
+#: 5.4/eventView.js:384
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr ""
+"Nogle kalenderbegivenheder blev skjult for at holde skrivebordet "
+"responsivt."
+
+#: 5.4/eventView.js:487
 msgid "Events for the selected day"
 msgstr "Begivenheder på den valgte dag"
 
-#: 5.4/eventView.js:506
+#: 5.4/eventView.js:540
 msgid "Add an event"
 msgstr "Tilføj en begivenhed"
 
-#: 5.4/eventView.js:630
+#: 5.4/eventView.js:673
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -232,11 +238,11 @@ msgstr ""
 "Kalenderbegivenheder er ikke tilgængelige — der kører ingen "
 "kalendertjeneste. Installér eller aktivér Evolution Data Server."
 
-#: 5.4/eventView.js:716
+#: 5.4/eventView.js:759
 msgid "Ended"
 msgstr "Afsluttet"
 
-#: 5.4/eventView.js:747
+#: 5.4/eventView.js:790
 msgid "In progress"
 msgstr "I gang"
 
@@ -249,33 +255,33 @@ msgstr "Verdensure"
 msgid "Source: %s"
 msgstr "Kilde: %s"
 
-#: settings_widgets_common.py:67
+#: settings_widgets_common.py:56
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "By eller tidszone (f.eks. Buenos Aires)"
 
-#: settings_widgets_common.py:68
+#: settings_widgets_common.py:57
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Tidszone der gemmes: %s"
 
-#: settings_widgets_common.py:70
+#: settings_widgets_common.py:59
 msgid "No timezone selected"
 msgstr "Ingen tidszone valgt"
 
-#: settings_widgets_common.py:71
+#: settings_widgets_common.py:60
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC og lokal tid vises allerede som indbyggede ure"
 
-#: settings_widgets_common.py:72
+#: settings_widgets_common.py:61
 msgid "Enter a display name for this clock"
 msgstr "Indtast et visningsnavn til dette ur"
 
-#: settings_widgets_common.py:76
+#: settings_widgets_common.py:65
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "Der kan ikke tilføjes mere end %d ure."
 
-#: settings_widgets_common.py:79
+#: settings_widgets_common.py:68
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -284,26 +290,104 @@ msgstr ""
 "bynavn; uden den accepteres kun en fuld identifikator såsom America/"
 "Sao_Paulo."
 
-#: settings_widgets_common.py:83
+#: settings_widgets_common.py:72
 msgid "City or town (e.g. Lisbon)"
 msgstr "By eller landsby (f.eks. Lissabon)"
 
-#: settings_widgets_common.py:84
+#: settings_widgets_common.py:73
 msgid "Type a country name"
 msgstr "Indtast et landenavn"
 
-#: settings_widgets_common.py:548
+#: settings_widgets_common.py:541
 msgid "Add new entry"
 msgstr "Tilføj ny indgang"
 
-#: settings_widgets_common.py:550
+#: settings_widgets_common.py:546
 msgid "Edit entry"
 msgstr "Redigér indgang"
 
 #. 5.4->settings-schema.json->openstreetmap-attribution->description
-#: 5.4/settings_about.py:29
+#: 5.4/settings_about.py:37
 msgid "© OpenStreetMap contributors"
 msgstr "© OpenStreetMap-bidragydere"
+
+#: 5.4/settings_about.py:45
+msgid "Primary place search and weather forecast service."
+msgstr "Primær tjeneste til stedsøgning og vejrudsigter."
+
+#: 5.4/settings_about.py:52
+msgid ""
+"Fallback place search using OpenStreetMap data. Chronos does not download "
+"map tiles or other map assets."
+msgstr ""
+"Alternativ stedsøgning med data fra OpenStreetMap. Chronos henter ikke "
+"kortfliser eller andre kortressourcer."
+
+#: 5.4/settings_about.py:60
+msgid "First fallback weather service, using nearby METAR observations."
+msgstr ""
+"Første alternative vejrtjeneste, som bruger nærliggende METAR-observationer."
+
+#: 5.4/settings_about.py:66
+msgid "Final fallback weather forecast service."
+msgstr "Sidste alternative vejrudsigttjeneste."
+
+#: 5.4/settings_about.py:75
+msgid "Primary public-holiday service."
+msgstr "Primær helligdagstjeneste."
+
+#: 5.4/settings_about.py:81
+msgid "First fallback public-holiday service."
+msgstr "Første alternative helligdagstjeneste."
+
+#: 5.4/settings_about.py:87
+msgid "Final fallback public-holiday service."
+msgstr "Sidste alternative helligdagstjeneste."
+
+#: 5.4/settings_about.py:133
+#, python-format
+msgid "Version %s"
+msgstr "Version %s"
+
+#: 5.4/settings_about.py:140
+msgid "Project website and source code"
+msgstr "Projektets websted og kildekode"
+
+#: 5.4/settings_about.py:141
+msgid "License: GPL 2.0 or later"
+msgstr "Licens: GPL 2.0 eller senere"
+
+#: 5.4/settings_about.py:177
+msgid "Weather and location services"
+msgstr "Vejr- og placeringstjenester"
+
+#: 5.4/settings_about.py:179
+msgid ""
+"Used only when weather is enabled. A place name is sent to a geocoder, then "
+"its coordinates are sent to a weather provider."
+msgstr ""
+"Bruges kun, når vejret er aktiveret. Et stednavn sendes til en "
+"geokodningstjeneste, hvorefter dets koordinater sendes til en vejrudbyder."
+
+#: 5.4/settings_about.py:185
+msgid "Holiday services"
+msgstr "Helligdagstjenester"
+
+#: 5.4/settings_about.py:187
+msgid ""
+"Used only when holidays are enabled. The selected country, region, and "
+"requested year may be sent to these providers."
+msgstr ""
+"Bruges kun, når helligdage er aktiveret. Det valgte land, område og ønskede "
+"år kan blive sendt til disse udbydere."
+
+#: 5.4/settings_about.py:194
+msgid "About Chronos"
+msgstr "Om Chronos"
+
+#: 5.4/settings_about.py:198
+msgid "Authors and credits"
+msgstr "Forfattere og bidragydere"
 
 #. metadata.json->name
 msgid "Chronos Calendar"
@@ -313,6 +397,18 @@ msgstr "Chronos Calendar"
 msgid "Calendar with holidays, events, weather, and world clocks"
 msgstr "Kalender med helligdage, begivenheder, vejr og verdensure"
 
+#. metadata.json->contributors
+msgid "Geraldo Netto"
+msgstr "Geraldo Netto"
+
+#. metadata.json->contributors
+msgid "Claus Colloseus (ccprog)"
+msgstr "Claus Colloseus (ccprog)"
+
+#. metadata.json->contributors
+msgid "Simon Wiles (simonwiles)"
+msgstr "Simon Wiles (simonwiles)"
+
 #. 5.4->settings-schema.json->page1->title
 msgid "Calendar"
 msgstr "Kalender"
@@ -321,6 +417,10 @@ msgstr "Kalender"
 #. 5.4->settings-schema.json->worldclocks->description
 msgid "World Clocks"
 msgstr "Verdensure"
+
+#. 5.4->settings-schema.json->page3->title
+msgid "About"
+msgstr "Om"
 
 #. 5.4->settings-schema.json->section1->title
 msgid "Display"
@@ -1457,104 +1557,9 @@ msgstr "Vist navn"
 msgid "Timezone"
 msgstr "Tidszone"
 
-#: 5.4/settings_about.py:37
-msgid "Primary place search and weather forecast service."
-msgstr "Primær tjeneste til stedsøgning og vejrudsigter."
-
-#: 5.4/settings_about.py:44
-msgid ""
-"Fallback place search using OpenStreetMap data. Chronos does not download "
-"map tiles or other map assets."
-msgstr ""
-"Alternativ stedsøgning med data fra OpenStreetMap. Chronos henter ikke "
-"kortfliser eller andre kortressourcer."
-
-#: 5.4/settings_about.py:52
-msgid "First fallback weather service, using nearby METAR observations."
-msgstr ""
-"Første alternative vejrtjeneste, som bruger nærliggende METAR-observationer."
-
-#: 5.4/settings_about.py:58
-msgid "Final fallback weather forecast service."
-msgstr "Sidste alternative vejrudsigttjeneste."
-
-#: 5.4/settings_about.py:67
-msgid "Primary public-holiday service."
-msgstr "Primær helligdagstjeneste."
-
-#: 5.4/settings_about.py:73
-msgid "First fallback public-holiday service."
-msgstr "Første alternative helligdagstjeneste."
-
-#: 5.4/settings_about.py:79
-msgid "Final fallback public-holiday service."
-msgstr "Sidste alternative helligdagstjeneste."
-
-#: 5.4/settings_about.py:131
-msgid "Weather and location services"
-msgstr "Vejr- og placeringstjenester"
-
-#: 5.4/settings_about.py:133
-msgid ""
-"Used only when weather is enabled. A place name is sent to a geocoder, then "
-"its coordinates are sent to a weather provider."
-msgstr ""
-"Bruges kun, når vejret er aktiveret. Et stednavn sendes til en "
-"geokodningstjeneste, hvorefter dets koordinater sendes til en vejrudbyder."
-
-#: 5.4/settings_about.py:139
-msgid "Holiday services"
-msgstr "Helligdagstjenester"
-
-#: 5.4/settings_about.py:141
-msgid ""
-"Used only when holidays are enabled. The selected country, region, and "
-"requested year may be sent to these providers."
-msgstr ""
-"Bruges kun, når helligdage er aktiveret. Det valgte land, område og ønskede "
-"år kan blive sendt til disse udbydere."
-
-#: 5.4/settings_about.py:148
-msgid "About Chronos"
-msgstr "Om Chronos"
-
-#: 5.4/settings_about.py:152
 #, python-format
-msgid "Version %s"
-msgstr "Version %s"
-
-#: 5.4/settings_about.py:154
-#, python-format
-msgid "License: %s"
-msgstr "Licens: %s"
-
-#: 5.4/settings_about.py:160
-msgid "Project website and source code"
-msgstr "Projektets websted og kildekode"
-
-#: 5.4/settings_about.py:164
-msgid "Authors and credits"
-msgstr "Forfattere og bidragydere"
-
-#. metadata.json->contributors
-msgid "Geraldo Netto"
-msgstr "Geraldo Netto"
-
-#. metadata.json->contributors
-msgid "Claus Colloseus (ccprog)"
-msgstr "Claus Colloseus (ccprog)"
-
-#. metadata.json->contributors
-msgid "Simon Wiles (simonwiles)"
-msgstr "Simon Wiles (simonwiles)"
-
-#. 5.4->settings-schema.json->page3->title
-msgid "About"
-msgstr "Om"
-
-#: 5.4/settings_about.py:137
-msgid "License: GPL 2.0 or later"
-msgstr "Licens: GPL 2.0 eller senere"
+#~ msgid "License: %s"
+#~ msgstr "Licens: %s"
 
 #~ msgid "%b %-e"
 #~ msgstr "%-e. %b"

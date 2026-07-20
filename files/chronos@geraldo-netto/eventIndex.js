@@ -21,14 +21,49 @@ const EventData = EventDataModule.EventData;
 const EventDataList = EventDataModule.EventDataList;
 
 const MAX_SPANNED_DAYS = 50;
+// A fetched window normally contains tens of events. Two thousand still leaves
+// ample headroom for large shared calendars while bounding the EventData
+// objects and the per-day references retained inside Cinnamon.
+var MAX_INDEXED_EVENTS = 2000; // NOSONAR [S3504] -- GJS importer export
 
 var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
-    constructor(eventsByDate = {}) {
+    constructor(eventsByDate = {}, maxEvents = MAX_INDEXED_EVENTS) {
         this.eventsByDate = eventsByDate;
+        this._maxEvents = maxEvents;
+        this._eventIds = new Set();
+        this._eventsById = new Map();
+        this._overflowed = false;
+        this._rebuildEventState();
     }
 
     clear() {
         this.eventsByDate = {};
+        this._eventIds.clear();
+        this._eventsById.clear();
+        this._overflowed = false;
+    }
+
+    get overflowed() {
+        return this._overflowed;
+    }
+
+    markOverflow() {
+        if (this._overflowed) {
+            return false;
+        }
+        this._overflowed = true;
+        return true;
+    }
+
+    _rebuildEventState() {
+        this._eventIds.clear();
+        this._eventsById.clear();
+        for (const eventList of Object.values(this.eventsByDate)) {
+            for (const event of eventList.get_event_list()) {
+                this._eventIds.add(event.id);
+                this._eventsById.set(event.id, event);
+            }
+        }
     }
 
     get(date) {
@@ -45,23 +80,74 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return event_data_list !== undefined ? event_data_list.get_colors() : null;
     }
 
+    _admitEvent(id) {
+        if (this._eventIds.has(id)) {
+            return null;
+        }
+        if (this._eventIds.size >= this._maxEvents) {
+            return {
+                changed: false,
+                selected_changed: false,
+                overflow_changed: this.markOverflow()
+            };
+        }
+
+        this._eventIds.add(id);
+        return null;
+    }
+
+    _removeFromBuckets(uids) {
+        for (const [hash, eventList] of Object.entries(this.eventsByDate)) {
+            for (const uid of uids) {
+                eventList.delete(uid);
+            }
+            if (eventList.length === 0) {
+                delete this.eventsByDate[hash];
+            }
+        }
+    }
+
+    _prepareEvent(data) {
+        const existing = this._eventsById.get(data.id);
+        const refused = this._admitEvent(data.id);
+        if (refused) {
+            return refused;
+        }
+        if (existing && !data.equal(existing)) {
+            this._removeFromBuckets([data.id]);
+        }
+        this._eventsById.set(data.id, data);
+        return null;
+    }
+
+    _registerOnDate(data, timestamp, date, currentSelectedDate) {
+        const hash = date.to_unix();
+        if (this.eventsByDate[hash] === undefined) {
+            this.eventsByDate[hash] = new EventDataList(date);
+        }
+
+        const changed = this.eventsByDate[hash].add_or_update(data, timestamp);
+        return {
+            changed,
+            selected_changed: changed && dt_equals(date, currentSelectedDate)
+        };
+    }
+
     register(data, timestamp, currentSelectedDate) {
+        const refused = this._prepareEvent(data);
+        if (refused) {
+            return refused;
+        }
+
         let changed = false;
         let selected_changed = false;
         let date_iter = date_only(data.start);
 
         for (let escape = 0; escape <= MAX_SPANNED_DAYS; escape++) {
-            const hash = date_iter.to_unix();
-            if (this.eventsByDate[hash] === undefined) {
-                this.eventsByDate[hash] = new EventDataList(date_iter);
-            }
-
-            if (this.eventsByDate[hash].add_or_update(data, timestamp)) {
-                changed = true;
-                if (dt_equals(date_iter, currentSelectedDate)) {
-                    selected_changed = true;
-                }
-            }
+            const result = this._registerOnDate(
+                data, timestamp, date_iter, currentSelectedDate);
+            changed = changed || result.changed;
+            selected_changed = selected_changed || result.selected_changed;
 
             if (data.ends_on_date_only(date_iter)) {
                 break;
@@ -75,6 +161,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
     addOrUpdate(events, timestamp, currentSelectedDate) {
         let events_changed = false;
         let selected_date_changed = false;
+        let overflow_changed = false;
 
         for (let event of events) {
             let data;
@@ -90,17 +177,22 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
             const result = this.register(data, timestamp, currentSelectedDate);
             events_changed = events_changed || result.changed;
             selected_date_changed = selected_date_changed || result.selected_changed;
+            overflow_changed = overflow_changed || Boolean(result.overflow_changed);
         }
 
-        return { events_changed, selected_date_changed };
+        const result = { events_changed, selected_date_changed };
+        if (overflow_changed) {
+            result.overflow_changed = true;
+        }
+        return result;
     }
 
     remove(uids) {
-        for (let hash in this.eventsByDate) {
-            for (let uid of uids) {
-                this.eventsByDate[hash].delete(uid);
-            }
-        }
+        this._removeFromBuckets(uids);
+        uids.forEach((uid) => {
+            this._eventIds.delete(uid);
+            this._eventsById.delete(uid);
+        });
     }
 
     cull(timestamp) {
@@ -113,10 +205,11 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
                 delete this.eventsByDate[date];
             }
         }
+        this._rebuildEventState();
         return any_removed;
     }
 };
 
 if (typeof module !== "undefined") {
-    module.exports = { EventIndex, MAX_SPANNED_DAYS };
+    module.exports = { EventIndex, MAX_SPANNED_DAYS, MAX_INDEXED_EVENTS };
 }

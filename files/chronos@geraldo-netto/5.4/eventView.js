@@ -39,6 +39,9 @@ const locale_cap = EventFormat.localeCap;
 // events) is drawn in one go, small enough that a 200-event feed cannot stall
 // the compositor
 const EVENT_ROW_CHUNK = 20;
+// Retaining the full bounded index keeps navigation and event launching useful,
+// but a single selected day must not manufacture thousands of St actors.
+const MAX_RENDERED_EVENT_ROWS = 200;
 
 const EventDataModule = require("./eventData");
 const date_only = EventDataModule.date_only;
@@ -137,8 +140,11 @@ class EventListRenderer {
         this._cancelRowBuild();
     }
 
-    setEvents(event_data_list, delay_no_events_box) {
+    setEvents(event_data_list, delay_no_events_box, overflowed = false) {
         this._cancelScroll();
+        this.list.setOverflowed(Boolean(overflowed) ||
+            Boolean(event_data_list &&
+                event_data_list.length > MAX_RENDERED_EVENT_ROWS));
 
         if (event_data_list != null &&
             event_data_list.timestamp === this.list.currentTimestamp) {
@@ -214,10 +220,8 @@ class EventListRenderer {
     }
 
     // One EventRow is ~6 actors plus a separator and a couple of signal
-    // connections, and the count is whatever the user's CalDAV or ICS feeds put
-    // on the day — it is not ours to bound. A 200-event day built ~1,400 actors
-    // in a single main-loop turn, on the thread that draws every window on the
-    // desktop, and a streaming EDS load did it again per delivered batch.
+    // connections. Keep the first 200 ordered events and say when the rest were
+    // omitted: idles bound per-turn work, while this cap bounds total actors.
     //
     // The first chunk is built straight away, so the column is never empty while
     // something is there to show; the rest follow on idles, a chunk at a time.
@@ -225,7 +229,11 @@ class EventListRenderer {
         this.list.hideNoEvents();
         this.list.setCurrentTimestamp(event_data_list.timestamp);
 
-        const events = event_data_list.get_event_list();
+        const allEvents = event_data_list.get_event_list();
+        const events = allEvents.slice(0, MAX_RENDERED_EVENT_ROWS);
+        if (allEvents.length > events.length) {
+            this.list.setOverflowed(true);
+        }
         this._cancelRowBuild();
 
         const state = {
@@ -339,6 +347,7 @@ class EventList {
         const canLaunch = this._calendar_launcher.isAvailable();
         this.selected_date_label = this._buildSelectedDateLabel(canLaunch);
         this.actor.add_actor(this.selected_date_label);
+        this._buildOverflowView();
         this._buildNoEventsView(canLaunch);
         this.set_no_events_text(_("No Events"));
         this._buildEventsView();
@@ -367,6 +376,18 @@ class EventList {
             label.connect("key-press-event", this._onDateKeyPress.bind(this));
         }
         return label;
+    }
+
+    _buildOverflowView() {
+        this.events_overflow_label = new St.Label({
+            style_class: "calendar-events-overflow-label",
+            text: _("Some calendar events were hidden to keep the desktop responsive."),
+            visible: false
+        });
+        this.events_overflow_label.get_clutter_text().line_wrap = true;
+        this.events_overflow_label.get_clutter_text().ellipsize =
+            Pango.EllipsizeMode.NONE;
+        this.actor.add_actor(this.events_overflow_label);
     }
 
     _onDateButtonPress(_actor, event) {
@@ -600,16 +621,25 @@ class EventList {
         this.no_events_box.hide();
     }
 
+    setOverflowed(overflowed) {
+        if (overflowed) {
+            this.events_overflow_label.show();
+        } else {
+            this.events_overflow_label.hide();
+        }
+    }
+
     emitLaunched() {
         this.emit("launched-calendar");
     }
 
-    set_events(event_data_list, delay_no_events_box) {
+    set_events(event_data_list, delay_no_events_box, overflowed = false) {
         if (this._unavailable) {
             return;
         }
 
-        this._renderer.setEvents(event_data_list, delay_no_events_box);
+        this._renderer.setEvents(
+            event_data_list, delay_no_events_box, overflowed);
     }
 
     // events are on but no calendar service answered: hiding the column made
@@ -894,5 +924,6 @@ class EventRow {
 Signals.addSignalMethods(EventRow.prototype);
 
 if (typeof module !== "undefined") {
-    module.exports = { CalendarLauncher, EventList, EventListRenderer, EventRow, EventRowPresenter, format_timespan };
+    module.exports = { CalendarLauncher, EventList, EventListRenderer, EventRow,
+        EventRowPresenter, format_timespan, MAX_RENDERED_EVENT_ROWS };
 }

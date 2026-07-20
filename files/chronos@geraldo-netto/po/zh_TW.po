@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-18 18:06+0200\n"
+"POT-Creation-Date: 2026-07-20 20:31+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -26,7 +26,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%Y年%-m月%-e日 %A"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:359
+#: 5.4/calendar.js:373
 msgid "Today"
 msgstr "今天"
 
@@ -44,7 +44,7 @@ msgstr "全天"
 msgid "%s — %s"
 msgstr "%s — %s"
 
-#: worldclockData.js:60 settings_widgets_common.py:69
+#: worldclockData.js:60 settings_widgets_common.py:58
 msgid "Invalid timezone"
 msgstr "無效的時區"
 
@@ -52,72 +52,72 @@ msgstr "無效的時區"
 msgid "Local time"
 msgstr "當地時間"
 
-#: 5.4/appletMenuBuilder.js:189 5.4/appletMenuBuilder.js:195
+#: 5.4/appletMenuBuilder.js:194 5.4/appletMenuBuilder.js:200
 msgid "Go to today"
 msgstr "跳到今天"
 
-#: 5.4/appletMenuBuilder.js:278
+#: 5.4/appletMenuBuilder.js:281
 msgid "Date and Time Settings"
 msgstr "日期與時間設定"
 
-#: 5.4/appletPanelStatus.js:49
+#: 5.4/appletPanelStatus.js:70
 msgid "Location not found"
 msgstr "找不到位置"
 
-#: 5.4/appletPanelStatus.js:50
+#: 5.4/appletPanelStatus.js:71
 msgid "Weather service unavailable"
 msgstr "天氣服務無法使用"
 
-#: 5.4/appletPanelStatus.js:51
+#: 5.4/appletPanelStatus.js:72
 msgid "Set a weather location"
 msgstr "設定天氣位置"
 
-#: 5.4/appletPanelStatus.js:60
+#: 5.4/appletPanelStatus.js:81
 msgid "Clear"
 msgstr "晴朗"
 
-#: 5.4/appletPanelStatus.js:61
+#: 5.4/appletPanelStatus.js:82
 msgid "Partly cloudy"
 msgstr "多雲時晴"
 
-#: 5.4/appletPanelStatus.js:62
+#: 5.4/appletPanelStatus.js:83
 msgid "Cloudy"
 msgstr "陰天"
 
-#: 5.4/appletPanelStatus.js:63
+#: 5.4/appletPanelStatus.js:84
 msgid "Rain"
 msgstr "雨"
 
-#: 5.4/appletPanelStatus.js:64
+#: 5.4/appletPanelStatus.js:85
 msgid "Snow"
 msgstr "雪"
 
-#: 5.4/appletPanelStatus.js:65
+#: 5.4/appletPanelStatus.js:86
 msgid "Showers"
 msgstr "陣雨"
 
-#: 5.4/appletPanelStatus.js:66
+#: 5.4/appletPanelStatus.js:87
 msgid "Thunderstorm"
 msgstr "雷雨"
 
-#: 5.4/appletPanelStatus.js:67
+#: 5.4/appletPanelStatus.js:88
 msgid "Fair"
 msgstr "晴時多雲"
 
-#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:428
-#: 5.4/appletPanelStatus.js:592
+#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:449
+#: 5.4/appletPanelStatus.js:593
 msgid "Weather: loading…"
 msgstr "天氣：載入中…"
 
-#: 5.4/appletPanelStatus.js:299
+#: 5.4/appletPanelStatus.js:320
 msgid "Invalid time format; edit it in Settings"
 msgstr "時間格式無效；請在設定中編輯"
 
-#: 5.4/appletPanelStatus.js:452
+#: 5.4/appletPanelStatus.js:473
 msgid "No weather for this timezone"
 msgstr "此時區沒有天氣資訊"
 
-#: 5.4/appletPanelStatus.js:464
+#: 5.4/appletPanelStatus.js:485
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s 最後已知的讀數"
@@ -130,96 +130,100 @@ msgstr "假日服務無法使用"
 msgid "Holiday data unavailable"
 msgstr "假日資料無法使用"
 
-#: 5.4/calendar.js:362
+#: 5.4/calendar.js:376
 msgid "Selected"
 msgstr "已選取"
 
-#: 5.4/calendar.js:366
+#: 5.4/calendar.js:380
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d 個活動"
 
-#: 5.4/calendar.js:637
+#: 5.4/calendar.js:651
 msgid "Holiday data: loading…"
 msgstr "假日資料：載入中…"
 
-#: 5.4/calendar.js:677
+#: 5.4/calendar.js:691
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "假日資料：%s"
 
-#: 5.4/calendar.js:846
+#: 5.4/calendar.js:860
 #, javascript-format
 msgid "Week %s"
 msgstr "第 %s 週"
 
-#: 5.4/calendar.js:1194
+#: 5.4/calendar.js:1208
 msgid "Previous month"
 msgstr "上個月"
 
-#: 5.4/calendar.js:1224
+#: 5.4/calendar.js:1238
 msgid "Next month"
 msgstr "下個月"
 
-#: 5.4/calendar.js:1228
+#: 5.4/calendar.js:1242
 msgid "Previous year"
 msgstr "上一年"
 
-#: 5.4/calendar.js:1235
+#: 5.4/calendar.js:1249
 msgid "Next year"
 msgstr "下一年"
 
-#: 5.4/calendar.js:1248
+#: 5.4/calendar.js:1262
 msgid "Week"
 msgstr "週"
 
-#: 5.4/eventView.js:51
+#: 5.4/eventView.js:54
 msgid "Starting in a few minutes"
 msgstr "將在幾分鐘後開始"
 
-#: 5.4/eventView.js:58
+#: 5.4/eventView.js:61
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "%d 分鐘後開始"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:71
 msgid "This evening"
 msgstr "今晚"
 
-#: 5.4/eventView.js:71
+#: 5.4/eventView.js:74
 msgid "Starting later today"
 msgstr "今天稍晚開始"
 
-#: 5.4/eventView.js:74
+#: 5.4/eventView.js:77
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "%d 小時後"
 
-#: 5.4/eventView.js:196
+#: 5.4/eventView.js:202
 msgid "Loading…"
 msgstr "載入中…"
 
-#: 5.4/eventView.js:200 5.4/eventView.js:210 5.4/eventView.js:441
-#: 5.4/eventView.js:622
+#: 5.4/eventView.js:206 5.4/eventView.js:216 5.4/eventView.js:352
+#: 5.4/eventView.js:665
 msgid "No Events"
 msgstr "沒有任何活動"
 
-#: 5.4/eventView.js:356 5.4/eventView.js:522
+#: 5.4/eventView.js:374 5.4/eventView.js:556
 msgid "Open the calendar app"
 msgstr "開啟行事曆應用程式"
 
-#: 5.4/eventView.js:453
+#: 5.4/eventView.js:384
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr "部分行事曆事件已隱藏，以保持桌面回應順暢。"
+
+#: 5.4/eventView.js:487
 msgid "Events for the selected day"
 msgstr "所選日期的活動"
 
-#: 5.4/eventView.js:506
+#: 5.4/eventView.js:540
 msgid "Add an event"
 msgstr "新增活動"
 
-#: 5.4/eventView.js:630
+#: 5.4/eventView.js:673
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -227,11 +231,11 @@ msgstr ""
 "無法取得行事曆活動 — 沒有執行中的行事曆服務。請安裝或啟用 Evolution Data "
 "Server。"
 
-#: 5.4/eventView.js:716
+#: 5.4/eventView.js:759
 msgid "Ended"
 msgstr "已結束"
 
-#: 5.4/eventView.js:747
+#: 5.4/eventView.js:790
 msgid "In progress"
 msgstr "進行中"
 
@@ -244,33 +248,33 @@ msgstr "世界時鐘"
 msgid "Source: %s"
 msgstr "來源：%s"
 
-#: settings_widgets_common.py:67
+#: settings_widgets_common.py:56
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "城市或時區（例如 Buenos Aires）"
 
-#: settings_widgets_common.py:68
+#: settings_widgets_common.py:57
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "要儲存的時區：%s"
 
-#: settings_widgets_common.py:70
+#: settings_widgets_common.py:59
 msgid "No timezone selected"
 msgstr "未選取時區"
 
-#: settings_widgets_common.py:71
+#: settings_widgets_common.py:60
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC 與當地時間已內建顯示"
 
-#: settings_widgets_common.py:72
+#: settings_widgets_common.py:61
 msgid "Enter a display name for this clock"
 msgstr "請輸入這個時鐘的顯示名稱"
 
-#: settings_widgets_common.py:76
+#: settings_widgets_common.py:65
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "最多只能新增 %d 個時鐘。"
 
-#: settings_widgets_common.py:79
+#: settings_widgets_common.py:68
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -278,26 +282,102 @@ msgstr ""
 "找不到時區資料庫。請安裝 python3-pytz 以便輸入城市名稱；若沒有安裝，只接受 "
 "America/Sao_Paulo 這類完整識別碼。"
 
-#: settings_widgets_common.py:83
+#: settings_widgets_common.py:72
 msgid "City or town (e.g. Lisbon)"
 msgstr "城市或城鎮（例如里斯本）"
 
-#: settings_widgets_common.py:84
+#: settings_widgets_common.py:73
 msgid "Type a country name"
 msgstr "輸入國家名稱"
 
-#: settings_widgets_common.py:548
+#: settings_widgets_common.py:541
 msgid "Add new entry"
 msgstr "新增項目"
 
-#: settings_widgets_common.py:550
+#: settings_widgets_common.py:546
 msgid "Edit entry"
 msgstr "編輯項目"
 
 #. 5.4->settings-schema.json->openstreetmap-attribution->description
-#: 5.4/settings_about.py:29
+#: 5.4/settings_about.py:37
 msgid "© OpenStreetMap contributors"
 msgstr "© OpenStreetMap 貢獻者"
+
+#: 5.4/settings_about.py:45
+msgid "Primary place search and weather forecast service."
+msgstr "主要地點搜尋與天氣預報服務。"
+
+#: 5.4/settings_about.py:52
+msgid ""
+"Fallback place search using OpenStreetMap data. Chronos does not download "
+"map tiles or other map assets."
+msgstr ""
+"使用 OpenStreetMap 資料的備用地點搜尋服務。Chronos 不會下載地圖圖磚或其他地圖"
+"資源。"
+
+#: 5.4/settings_about.py:60
+msgid "First fallback weather service, using nearby METAR observations."
+msgstr "第一個備用天氣服務，使用附近的 METAR 觀測資料。"
+
+#: 5.4/settings_about.py:66
+msgid "Final fallback weather forecast service."
+msgstr "最終備用天氣預報服務。"
+
+#: 5.4/settings_about.py:75
+msgid "Primary public-holiday service."
+msgstr "主要國定假日服務。"
+
+#: 5.4/settings_about.py:81
+msgid "First fallback public-holiday service."
+msgstr "第一個備用國定假日服務。"
+
+#: 5.4/settings_about.py:87
+msgid "Final fallback public-holiday service."
+msgstr "最終備用國定假日服務。"
+
+#: 5.4/settings_about.py:133
+#, python-format
+msgid "Version %s"
+msgstr "版本 %s"
+
+#: 5.4/settings_about.py:140
+msgid "Project website and source code"
+msgstr "專案網站與原始碼"
+
+#: 5.4/settings_about.py:141
+msgid "License: GPL 2.0 or later"
+msgstr "授權條款：GPL 2.0 或更新版本"
+
+#: 5.4/settings_about.py:177
+msgid "Weather and location services"
+msgstr "天氣與位置服務"
+
+#: 5.4/settings_about.py:179
+msgid ""
+"Used only when weather is enabled. A place name is sent to a geocoder, then "
+"its coordinates are sent to a weather provider."
+msgstr ""
+"僅在啟用天氣功能時使用。地點名稱會傳送至地理編碼服務，接著其座標會傳送至天氣"
+"供應商。"
+
+#: 5.4/settings_about.py:185
+msgid "Holiday services"
+msgstr "國定假日服務"
+
+#: 5.4/settings_about.py:187
+msgid ""
+"Used only when holidays are enabled. The selected country, region, and "
+"requested year may be sent to these providers."
+msgstr ""
+"僅在啟用國定假日時使用。所選國家、地區與要求的年份可能會傳送至這些供應商。"
+
+#: 5.4/settings_about.py:194
+msgid "About Chronos"
+msgstr "關於 Chronos"
+
+#: 5.4/settings_about.py:198
+msgid "Authors and credits"
+msgstr "作者與致謝"
 
 #. metadata.json->name
 msgid "Chronos Calendar"
@@ -307,6 +387,18 @@ msgstr "Chronos Calendar"
 msgid "Calendar with holidays, events, weather, and world clocks"
 msgstr "整合假日、事件、天氣和世界時鐘的行事曆"
 
+#. metadata.json->contributors
+msgid "Geraldo Netto"
+msgstr "Geraldo Netto"
+
+#. metadata.json->contributors
+msgid "Claus Colloseus (ccprog)"
+msgstr "Claus Colloseus (ccprog)"
+
+#. metadata.json->contributors
+msgid "Simon Wiles (simonwiles)"
+msgstr "Simon Wiles (simonwiles)"
+
 #. 5.4->settings-schema.json->page1->title
 msgid "Calendar"
 msgstr "行事曆"
@@ -315,6 +407,10 @@ msgstr "行事曆"
 #. 5.4->settings-schema.json->worldclocks->description
 msgid "World Clocks"
 msgstr "世界時鐘"
+
+#. 5.4->settings-schema.json->page3->title
+msgid "About"
+msgstr "關於"
 
 #. 5.4->settings-schema.json->section1->title
 msgid "Display"
@@ -1440,103 +1536,9 @@ msgstr "顯示名稱"
 msgid "Timezone"
 msgstr "時區"
 
-#: 5.4/settings_about.py:37
-msgid "Primary place search and weather forecast service."
-msgstr "主要地點搜尋與天氣預報服務。"
-
-#: 5.4/settings_about.py:44
-msgid ""
-"Fallback place search using OpenStreetMap data. Chronos does not download "
-"map tiles or other map assets."
-msgstr ""
-"使用 OpenStreetMap 資料的備用地點搜尋服務。Chronos 不會下載地圖圖磚或其他"
-"地圖資源。"
-
-#: 5.4/settings_about.py:52
-msgid "First fallback weather service, using nearby METAR observations."
-msgstr "第一個備用天氣服務，使用附近的 METAR 觀測資料。"
-
-#: 5.4/settings_about.py:58
-msgid "Final fallback weather forecast service."
-msgstr "最終備用天氣預報服務。"
-
-#: 5.4/settings_about.py:67
-msgid "Primary public-holiday service."
-msgstr "主要國定假日服務。"
-
-#: 5.4/settings_about.py:73
-msgid "First fallback public-holiday service."
-msgstr "第一個備用國定假日服務。"
-
-#: 5.4/settings_about.py:79
-msgid "Final fallback public-holiday service."
-msgstr "最終備用國定假日服務。"
-
-#: 5.4/settings_about.py:131
-msgid "Weather and location services"
-msgstr "天氣與位置服務"
-
-#: 5.4/settings_about.py:133
-msgid ""
-"Used only when weather is enabled. A place name is sent to a geocoder, then "
-"its coordinates are sent to a weather provider."
-msgstr ""
-"僅在啟用天氣功能時使用。地點名稱會傳送至地理編碼服務，接著其座標會傳送至"
-"天氣供應商。"
-
-#: 5.4/settings_about.py:139
-msgid "Holiday services"
-msgstr "國定假日服務"
-
-#: 5.4/settings_about.py:141
-msgid ""
-"Used only when holidays are enabled. The selected country, region, and "
-"requested year may be sent to these providers."
-msgstr ""
-"僅在啟用國定假日時使用。所選國家、地區與要求的年份可能會傳送至這些供應"
-"商。"
-
-#: 5.4/settings_about.py:148
-msgid "About Chronos"
-msgstr "關於 Chronos"
-
-#: 5.4/settings_about.py:152
 #, python-format
-msgid "Version %s"
-msgstr "版本 %s"
-
-#: 5.4/settings_about.py:154
-#, python-format
-msgid "License: %s"
-msgstr "授權條款：%s"
-
-#: 5.4/settings_about.py:160
-msgid "Project website and source code"
-msgstr "專案網站與原始碼"
-
-#: 5.4/settings_about.py:164
-msgid "Authors and credits"
-msgstr "作者與致謝"
-
-#. metadata.json->contributors
-msgid "Geraldo Netto"
-msgstr "Geraldo Netto"
-
-#. metadata.json->contributors
-msgid "Claus Colloseus (ccprog)"
-msgstr "Claus Colloseus (ccprog)"
-
-#. metadata.json->contributors
-msgid "Simon Wiles (simonwiles)"
-msgstr "Simon Wiles (simonwiles)"
-
-#. 5.4->settings-schema.json->page3->title
-msgid "About"
-msgstr "關於"
-
-#: 5.4/settings_about.py:137
-msgid "License: GPL 2.0 or later"
-msgstr "授權條款：GPL 2.0 或更新版本"
+#~ msgid "License: %s"
+#~ msgstr "授權條款：%s"
 
 #~ msgid "%b %-e"
 #~ msgstr "%-m月%-e日"

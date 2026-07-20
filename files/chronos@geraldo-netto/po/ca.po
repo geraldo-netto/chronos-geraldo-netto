@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-18 18:06+0200\n"
+"POT-Creation-Date: 2026-07-20 20:31+0200\n"
 "PO-Revision-Date: 2025-02-13 20:56+0100\n"
 "Last-Translator: Odyssey <odysseyhyd@gmail.com>\n"
 "Language-Team: \n"
@@ -27,7 +27,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e de %B de %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:359
+#: 5.4/calendar.js:373
 msgid "Today"
 msgstr "Avui"
 
@@ -45,7 +45,7 @@ msgstr "Tot el dia"
 msgid "%s — %s"
 msgstr "%s — %s"
 
-#: worldclockData.js:60 settings_widgets_common.py:69
+#: worldclockData.js:60 settings_widgets_common.py:58
 msgid "Invalid timezone"
 msgstr "Zona horària no vàlida"
 
@@ -53,72 +53,72 @@ msgstr "Zona horària no vàlida"
 msgid "Local time"
 msgstr "Hora local"
 
-#: 5.4/appletMenuBuilder.js:189 5.4/appletMenuBuilder.js:195
+#: 5.4/appletMenuBuilder.js:194 5.4/appletMenuBuilder.js:200
 msgid "Go to today"
 msgstr "Vés a avui"
 
-#: 5.4/appletMenuBuilder.js:278
+#: 5.4/appletMenuBuilder.js:281
 msgid "Date and Time Settings"
 msgstr "Configuració de data i hora"
 
-#: 5.4/appletPanelStatus.js:49
+#: 5.4/appletPanelStatus.js:70
 msgid "Location not found"
 msgstr "No s'ha trobat la ubicació"
 
-#: 5.4/appletPanelStatus.js:50
+#: 5.4/appletPanelStatus.js:71
 msgid "Weather service unavailable"
 msgstr "El servei meteorològic no està disponible"
 
-#: 5.4/appletPanelStatus.js:51
+#: 5.4/appletPanelStatus.js:72
 msgid "Set a weather location"
 msgstr "Definiu una ubicació del temps"
 
-#: 5.4/appletPanelStatus.js:60
+#: 5.4/appletPanelStatus.js:81
 msgid "Clear"
 msgstr "Serè"
 
-#: 5.4/appletPanelStatus.js:61
+#: 5.4/appletPanelStatus.js:82
 msgid "Partly cloudy"
 msgstr "Parcialment ennuvolat"
 
-#: 5.4/appletPanelStatus.js:62
+#: 5.4/appletPanelStatus.js:83
 msgid "Cloudy"
 msgstr "Ennuvolat"
 
-#: 5.4/appletPanelStatus.js:63
+#: 5.4/appletPanelStatus.js:84
 msgid "Rain"
 msgstr "Pluja"
 
-#: 5.4/appletPanelStatus.js:64
+#: 5.4/appletPanelStatus.js:85
 msgid "Snow"
 msgstr "Neu"
 
-#: 5.4/appletPanelStatus.js:65
+#: 5.4/appletPanelStatus.js:86
 msgid "Showers"
 msgstr "Ruixats"
 
-#: 5.4/appletPanelStatus.js:66
+#: 5.4/appletPanelStatus.js:87
 msgid "Thunderstorm"
 msgstr "Tempesta"
 
-#: 5.4/appletPanelStatus.js:67
+#: 5.4/appletPanelStatus.js:88
 msgid "Fair"
 msgstr "Bon temps"
 
-#: 5.4/appletPanelStatus.js:87 5.4/appletPanelStatus.js:428
-#: 5.4/appletPanelStatus.js:592
+#: 5.4/appletPanelStatus.js:108 5.4/appletPanelStatus.js:449
+#: 5.4/appletPanelStatus.js:593
 msgid "Weather: loading…"
 msgstr "Temps: s’està carregant…"
 
-#: 5.4/appletPanelStatus.js:299
+#: 5.4/appletPanelStatus.js:320
 msgid "Invalid time format; edit it in Settings"
 msgstr "Format d'hora no vàlid; editeu-lo a Configuració"
 
-#: 5.4/appletPanelStatus.js:452
+#: 5.4/appletPanelStatus.js:473
 msgid "No weather for this timezone"
 msgstr "Sense meteorologia per a aquesta zona horària"
 
-#: 5.4/appletPanelStatus.js:464
+#: 5.4/appletPanelStatus.js:485
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última lectura coneguda"
@@ -131,99 +131,105 @@ msgstr "El servei de festius no està disponible"
 msgid "Holiday data unavailable"
 msgstr "Les dades de festius no estan disponibles"
 
-#: 5.4/calendar.js:362
+#: 5.4/calendar.js:376
 msgid "Selected"
 msgstr "Seleccionat"
 
-#: 5.4/calendar.js:366
+#: 5.4/calendar.js:380
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d esdeveniment"
 msgstr[1] "%d esdeveniments"
 
-#: 5.4/calendar.js:637
+#: 5.4/calendar.js:651
 msgid "Holiday data: loading…"
 msgstr "Dades de festius: s’està carregant…"
 
-#: 5.4/calendar.js:677
+#: 5.4/calendar.js:691
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dades de festius: %s"
 
-#: 5.4/calendar.js:846
+#: 5.4/calendar.js:860
 #, javascript-format
 msgid "Week %s"
 msgstr "Setmana %s"
 
-#: 5.4/calendar.js:1194
+#: 5.4/calendar.js:1208
 msgid "Previous month"
 msgstr "Mes anterior"
 
-#: 5.4/calendar.js:1224
+#: 5.4/calendar.js:1238
 msgid "Next month"
 msgstr "Mes següent"
 
-#: 5.4/calendar.js:1228
+#: 5.4/calendar.js:1242
 msgid "Previous year"
 msgstr "Any anterior"
 
-#: 5.4/calendar.js:1235
+#: 5.4/calendar.js:1249
 msgid "Next year"
 msgstr "Any següent"
 
-#: 5.4/calendar.js:1248
+#: 5.4/calendar.js:1262
 msgid "Week"
 msgstr "Setmana"
 
-#: 5.4/eventView.js:51
+#: 5.4/eventView.js:54
 msgid "Starting in a few minutes"
 msgstr "Començant d'aquí a uns minuts"
 
-#: 5.4/eventView.js:58
+#: 5.4/eventView.js:61
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Comença d’aquí a %d minut"
 msgstr[1] "Comença d’aquí a %d minuts"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:71
 msgid "This evening"
 msgstr "Aquesta tarda"
 
-#: 5.4/eventView.js:71
+#: 5.4/eventView.js:74
 msgid "Starting later today"
 msgstr "Començant avui"
 
-#: 5.4/eventView.js:74
+#: 5.4/eventView.js:77
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "En %d hora"
 msgstr[1] "En %d hores"
 
-#: 5.4/eventView.js:196
+#: 5.4/eventView.js:202
 msgid "Loading…"
 msgstr "S’està carregant…"
 
-#: 5.4/eventView.js:200 5.4/eventView.js:210 5.4/eventView.js:441
-#: 5.4/eventView.js:622
+#: 5.4/eventView.js:206 5.4/eventView.js:216 5.4/eventView.js:352
+#: 5.4/eventView.js:665
 msgid "No Events"
 msgstr "No hi ha events"
 
-#: 5.4/eventView.js:356 5.4/eventView.js:522
+#: 5.4/eventView.js:374 5.4/eventView.js:556
 msgid "Open the calendar app"
 msgstr "Obre l’aplicació de calendari"
 
-#: 5.4/eventView.js:453
+#: 5.4/eventView.js:384
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr ""
+"Alguns esdeveniments del calendari s'han amagat per mantenir l'escriptori "
+"àgil."
+
+#: 5.4/eventView.js:487
 msgid "Events for the selected day"
 msgstr "Esdeveniments del dia seleccionat"
 
-#: 5.4/eventView.js:506
+#: 5.4/eventView.js:540
 msgid "Add an event"
 msgstr "Afegeix un esdeveniment"
 
-#: 5.4/eventView.js:630
+#: 5.4/eventView.js:673
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -231,11 +237,11 @@ msgstr ""
 "Els esdeveniments del calendari no estan disponibles: no hi ha cap servei de "
 "calendari en execució. Instal·leu o activeu l’Evolution Data Server."
 
-#: 5.4/eventView.js:716
+#: 5.4/eventView.js:759
 msgid "Ended"
 msgstr "Finalitzat"
 
-#: 5.4/eventView.js:747
+#: 5.4/eventView.js:790
 msgid "In progress"
 msgstr "En procés"
 
@@ -248,33 +254,33 @@ msgstr "Rellotges mundials"
 msgid "Source: %s"
 msgstr "Font: %s"
 
-#: settings_widgets_common.py:67
+#: settings_widgets_common.py:56
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Ciutat o zona horària (p. ex. Buenos Aires)"
 
-#: settings_widgets_common.py:68
+#: settings_widgets_common.py:57
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Zona horària a desar: %s"
 
-#: settings_widgets_common.py:70
+#: settings_widgets_common.py:59
 msgid "No timezone selected"
 msgstr "No s'ha seleccionat cap zona horària"
 
-#: settings_widgets_common.py:71
+#: settings_widgets_common.py:60
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC i l’hora local ja es mostren com a rellotges integrats"
 
-#: settings_widgets_common.py:72
+#: settings_widgets_common.py:61
 msgid "Enter a display name for this clock"
 msgstr "Introduïu un nom per a aquest rellotge"
 
-#: settings_widgets_common.py:76
+#: settings_widgets_common.py:65
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "No es poden afegir més de %d rellotges."
 
-#: settings_widgets_common.py:79
+#: settings_widgets_common.py:68
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -283,26 +289,105 @@ msgstr ""
 "per escriure el nom d’una ciutat; sense aquesta, només s’accepta un "
 "identificador complet com ara America/Sao_Paulo."
 
-#: settings_widgets_common.py:83
+#: settings_widgets_common.py:72
 msgid "City or town (e.g. Lisbon)"
 msgstr "Ciutat o poble (p. ex. Lisboa)"
 
-#: settings_widgets_common.py:84
+#: settings_widgets_common.py:73
 msgid "Type a country name"
 msgstr "Escriviu el nom d'un país"
 
-#: settings_widgets_common.py:548
+#: settings_widgets_common.py:541
 msgid "Add new entry"
 msgstr "Afegir una nova entrada"
 
-#: settings_widgets_common.py:550
+#: settings_widgets_common.py:546
 msgid "Edit entry"
 msgstr "Editar entrada"
 
 #. 5.4->settings-schema.json->openstreetmap-attribution->description
-#: 5.4/settings_about.py:29
+#: 5.4/settings_about.py:37
 msgid "© OpenStreetMap contributors"
 msgstr "© Col·laboradors d’OpenStreetMap"
+
+#: 5.4/settings_about.py:45
+msgid "Primary place search and weather forecast service."
+msgstr "Servei principal de cerca de llocs i de previsió meteorològica."
+
+#: 5.4/settings_about.py:52
+msgid ""
+"Fallback place search using OpenStreetMap data. Chronos does not download "
+"map tiles or other map assets."
+msgstr ""
+"Cerca alternativa de llocs mitjançant dades d'OpenStreetMap. Chronos no "
+"baixa tessel·les de mapa ni altres recursos cartogràfics."
+
+#: 5.4/settings_about.py:60
+msgid "First fallback weather service, using nearby METAR observations."
+msgstr ""
+"Primer servei meteorològic alternatiu, que utilitza observacions METAR "
+"properes."
+
+#: 5.4/settings_about.py:66
+msgid "Final fallback weather forecast service."
+msgstr "Servei final alternatiu de previsió meteorològica."
+
+#: 5.4/settings_about.py:75
+msgid "Primary public-holiday service."
+msgstr "Servei principal de dies festius."
+
+#: 5.4/settings_about.py:81
+msgid "First fallback public-holiday service."
+msgstr "Primer servei alternatiu de dies festius."
+
+#: 5.4/settings_about.py:87
+msgid "Final fallback public-holiday service."
+msgstr "Servei final alternatiu de dies festius."
+
+#: 5.4/settings_about.py:133
+#, python-format
+msgid "Version %s"
+msgstr "Versió %s"
+
+#: 5.4/settings_about.py:140
+msgid "Project website and source code"
+msgstr "Lloc web i codi font del projecte"
+
+#: 5.4/settings_about.py:141
+msgid "License: GPL 2.0 or later"
+msgstr "Llicència: GPL 2.0 o posterior"
+
+#: 5.4/settings_about.py:177
+msgid "Weather and location services"
+msgstr "Serveis meteorològics i d'ubicació"
+
+#: 5.4/settings_about.py:179
+msgid ""
+"Used only when weather is enabled. A place name is sent to a geocoder, then "
+"its coordinates are sent to a weather provider."
+msgstr ""
+"Només s'utilitzen quan la meteorologia està activada. S'envia un nom de lloc "
+"a un geocodificador i, després, les coordenades a un proveïdor meteorològic."
+
+#: 5.4/settings_about.py:185
+msgid "Holiday services"
+msgstr "Serveis de dies festius"
+
+#: 5.4/settings_about.py:187
+msgid ""
+"Used only when holidays are enabled. The selected country, region, and "
+"requested year may be sent to these providers."
+msgstr ""
+"Només s'utilitzen quan els dies festius estan activats. El país, la regió i "
+"l'any sol·licitat seleccionats es poden enviar a aquests proveïdors."
+
+#: 5.4/settings_about.py:194
+msgid "About Chronos"
+msgstr "Quant al Chronos"
+
+#: 5.4/settings_about.py:198
+msgid "Authors and credits"
+msgstr "Autors i crèdits"
 
 #. metadata.json->name
 msgid "Chronos Calendar"
@@ -312,6 +397,18 @@ msgstr "Chronos Calendar"
 msgid "Calendar with holidays, events, weather, and world clocks"
 msgstr "Calendari amb dies festius, esdeveniments, temps i rellotges mundials"
 
+#. metadata.json->contributors
+msgid "Geraldo Netto"
+msgstr "Geraldo Netto"
+
+#. metadata.json->contributors
+msgid "Claus Colloseus (ccprog)"
+msgstr "Claus Colloseus (ccprog)"
+
+#. metadata.json->contributors
+msgid "Simon Wiles (simonwiles)"
+msgstr "Simon Wiles (simonwiles)"
+
 #. 5.4->settings-schema.json->page1->title
 msgid "Calendar"
 msgstr "Calendari"
@@ -320,6 +417,10 @@ msgstr "Calendari"
 #. 5.4->settings-schema.json->worldclocks->description
 msgid "World Clocks"
 msgstr "Rellotge mundial"
+
+#. 5.4->settings-schema.json->page3->title
+msgid "About"
+msgstr "Quant a"
 
 #. 5.4->settings-schema.json->section1->title
 msgid "Display"
@@ -1458,105 +1559,9 @@ msgstr "Nom a mostrar"
 msgid "Timezone"
 msgstr "Zona horària"
 
-#: 5.4/settings_about.py:37
-msgid "Primary place search and weather forecast service."
-msgstr "Servei principal de cerca de llocs i de previsió meteorològica."
-
-#: 5.4/settings_about.py:44
-msgid ""
-"Fallback place search using OpenStreetMap data. Chronos does not download "
-"map tiles or other map assets."
-msgstr ""
-"Cerca alternativa de llocs mitjançant dades d'OpenStreetMap. Chronos no "
-"baixa tessel·les de mapa ni altres recursos cartogràfics."
-
-#: 5.4/settings_about.py:52
-msgid "First fallback weather service, using nearby METAR observations."
-msgstr ""
-"Primer servei meteorològic alternatiu, que utilitza observacions METAR "
-"properes."
-
-#: 5.4/settings_about.py:58
-msgid "Final fallback weather forecast service."
-msgstr "Servei final alternatiu de previsió meteorològica."
-
-#: 5.4/settings_about.py:67
-msgid "Primary public-holiday service."
-msgstr "Servei principal de dies festius."
-
-#: 5.4/settings_about.py:73
-msgid "First fallback public-holiday service."
-msgstr "Primer servei alternatiu de dies festius."
-
-#: 5.4/settings_about.py:79
-msgid "Final fallback public-holiday service."
-msgstr "Servei final alternatiu de dies festius."
-
-#: 5.4/settings_about.py:131
-msgid "Weather and location services"
-msgstr "Serveis meteorològics i d'ubicació"
-
-#: 5.4/settings_about.py:133
-msgid ""
-"Used only when weather is enabled. A place name is sent to a geocoder, then "
-"its coordinates are sent to a weather provider."
-msgstr ""
-"Només s'utilitzen quan la meteorologia està activada. S'envia un nom de lloc "
-"a un geocodificador i, després, les coordenades a un proveïdor meteorològic."
-
-#: 5.4/settings_about.py:139
-msgid "Holiday services"
-msgstr "Serveis de dies festius"
-
-#: 5.4/settings_about.py:141
-msgid ""
-"Used only when holidays are enabled. The selected country, region, and "
-"requested year may be sent to these providers."
-msgstr ""
-"Només s'utilitzen quan els dies festius estan activats. El país, la regió i "
-"l'any sol·licitat seleccionats es poden enviar a aquests proveïdors."
-
-#: 5.4/settings_about.py:148
-msgid "About Chronos"
-msgstr "Quant al Chronos"
-
-#: 5.4/settings_about.py:152
 #, python-format
-msgid "Version %s"
-msgstr "Versió %s"
-
-#: 5.4/settings_about.py:154
-#, python-format
-msgid "License: %s"
-msgstr "Llicència: %s"
-
-#: 5.4/settings_about.py:160
-msgid "Project website and source code"
-msgstr "Lloc web i codi font del projecte"
-
-#: 5.4/settings_about.py:164
-msgid "Authors and credits"
-msgstr "Autors i crèdits"
-
-#. metadata.json->contributors
-msgid "Geraldo Netto"
-msgstr "Geraldo Netto"
-
-#. metadata.json->contributors
-msgid "Claus Colloseus (ccprog)"
-msgstr "Claus Colloseus (ccprog)"
-
-#. metadata.json->contributors
-msgid "Simon Wiles (simonwiles)"
-msgstr "Simon Wiles (simonwiles)"
-
-#. 5.4->settings-schema.json->page3->title
-msgid "About"
-msgstr "Quant a"
-
-#: 5.4/settings_about.py:137
-msgid "License: GPL 2.0 or later"
-msgstr "Llicència: GPL 2.0 o posterior"
+#~ msgid "License: %s"
+#~ msgstr "Llicència: %s"
 
 #~ msgid "%b %-e"
 #~ msgstr "%-e %b"

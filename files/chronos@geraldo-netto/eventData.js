@@ -285,6 +285,10 @@ var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer exp
         return this._orderTodayWithAllDays(events_as_array, now);
     }
 
+    get_ids() {
+        return Object.keys(this._events);
+    }
+
     // for the current day keep all-day events just above the current or
     // first pending event
     _orderTodayWithAllDays(events_as_array, now) {

@@ -220,7 +220,12 @@ const {
     SERVER_RETRY_SECONDS,
     SERVER_RETRY_MAX_SECONDS,
     FETCH_RETRY_MAX_SECONDS,
-    FETCH_RETRY_MAX_ATTEMPTS
+    FETCH_RETRY_MAX_ATTEMPTS,
+    MAX_EVENT_SIGNAL_BYTES,
+    MAX_QUEUED_EVENT_RECORDS,
+    MAX_QUEUED_EVENT_BYTES,
+    MAX_QUEUED_EVENT_MUTATIONS,
+    boundedEventVariants
 } = require(modulePath);
 
 function emitted(manager, name) {
@@ -241,6 +246,17 @@ function readyManager() {
 
 function eventVariant({ id = "ev1", color = "#abc", summary = "s", allDay = false, startUnix, endUnix, modTime = 1 }) {
     return { deep_unpack: () => [id, color, summary, allDay, startUnix, endUnix, modTime] };
+}
+
+function eventArrayVariant(events, bytes = events.length * 128) {
+    return {
+        get_size: () => bytes,
+        n_children: () => events.length,
+        get_child_value: (index) => events[index],
+        unpack: () => {
+            throw new Error("production-shaped variants must not unpack the full array");
+        }
+    };
 }
 
 const { EventData: RealEventData } = require(
@@ -545,6 +561,164 @@ test("a huge event delivery is spread across turns", () => {
 
     assert.equal(built(), events.length, "every event arrives");
     assert.deepEqual(manager._event_batch_ids, [], "and nothing is left armed");
+});
+
+test("an oversized event message is rejected before any child is materialized", () => {
+    const manager = readyManager();
+    let childReads = 0;
+    const logged = [];
+    const originalLog = global.log;
+    global.log = (message) => logged.push(String(message));
+
+    proxy.instance.signal("events-added-or-updated", {
+        get_size: () => MAX_EVENT_SIGNAL_BYTES + 1,
+        n_children: () => 100000,
+        get_child_value: () => {
+            childReads++;
+            return null;
+        }
+    });
+
+    global.log = originalLog;
+    assert.equal(childReads, 0, "the byte ceiling is checked before children");
+    assert.equal(manager._event_index.overflowed, true);
+    assert.equal(manager._queued_event_records, 0);
+    assert.equal(manager._queued_event_bytes, 0);
+    assert.equal(emitted(manager, "selected-date-events-changed").at(-1).args[2],
+        true, "the UI receives an explicit overflow state");
+    assert.ok(logged.some((line) => /safety limit/.test(line)));
+});
+
+test("a large signal retains and indexes only the bounded prefix", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date =
+        new FakeDateTime(10 * DAY_US);
+    const events = Array.from(
+        { length: MAX_QUEUED_EVENT_RECORDS + 100 },
+        (_unused, index) => eventVariant({
+            id: `bounded-${index}`,
+            startUnix: 10 * DAY_S + index,
+            endUnix: 10 * DAY_S + index + 1
+        }));
+
+    proxy.instance.signal(
+        "events-added-or-updated", eventArrayVariant(events, 1024 * 1024));
+
+    const retained = manager._event_mutations
+        .filter((mutation) => mutation.type === "add")
+        .reduce((count, mutation) =>
+            count + mutation.events.filter(Boolean).length, 0);
+    assert.equal(retained, MAX_QUEUED_EVENT_RECORDS - 25);
+    assert.equal(manager._queued_event_records, retained);
+    assert.equal(manager._queued_event_bytes, 1024 * 1024);
+
+    drainEventMutations(manager);
+    const day = manager._event_index.get(new FakeDateTime(10 * DAY_US));
+    assert.equal(day.length, MAX_QUEUED_EVENT_RECORDS);
+    assert.equal(manager._event_index.overflowed, true);
+    assert.equal(manager._queued_event_records, 0);
+    assert.equal(manager._queued_event_bytes, 0);
+});
+
+test("fuzz: queued signal bursts stay within record and byte budgets", () => {
+    const manager = readyManager();
+    const random = makeRandom(0x570);
+    let sequence = 0;
+
+    for (let round = 0; round < 60; round++) {
+        const count = 1 + Math.floor(random() * 300);
+        const bytes = 1024 + Math.floor(random() * 512 * 1024);
+        const events = Array.from({ length: count }, () => eventVariant({
+            id: `burst-${sequence++}`,
+            startUnix: 10 * DAY_S + sequence,
+            endUnix: 10 * DAY_S + sequence + 1
+        }));
+        proxy.instance.signal(
+            "events-added-or-updated", eventArrayVariant(events, bytes));
+
+        const retained = manager._event_mutations
+            .filter((mutation) => mutation.type === "add")
+            .reduce((total, mutation) =>
+                total + mutation.events.filter(Boolean).length, 0);
+        assert.ok(retained <= MAX_QUEUED_EVENT_RECORDS);
+        assert.equal(retained, manager._queued_event_records);
+        assert.ok(manager._queued_event_bytes <= MAX_QUEUED_EVENT_BYTES);
+        assert.ok(manager._event_mutations
+            .filter((mutation) => mutation.type === "overflow").length <= 1);
+    }
+
+    drainEventMutations(manager);
+    const day = manager._event_index.get(new FakeDateTime(10 * DAY_US));
+    assert.ok(day.length <= MAX_QUEUED_EVENT_RECORDS);
+    assert.equal(manager._event_index.overflowed, true);
+    assert.equal(manager._queued_event_records, 0);
+    assert.equal(manager._queued_event_bytes, 0);
+});
+
+test("a mutation flood collapses to one bounded authoritative resync", () => {
+    const manager = readyManager();
+    const events = Array.from({ length: 60 }, (_unused, index) => eventVariant({
+        id: `before-resync-${index}`,
+        startUnix: 10 * DAY_S + index,
+        endUnix: 10 * DAY_S + index + 1
+    }));
+    proxy.instance.signal(
+        "events-added-or-updated", eventArrayVariant(events));
+
+    for (let index = 0; index < MAX_QUEUED_EVENT_MUTATIONS + 20; index++) {
+        proxy.instance.signal("events-removed", `removed-${index}`);
+    }
+
+    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+        ["add", "resync"]);
+    assert.equal(manager._queued_event_records, 35);
+    assert.equal(manager._resync_mutation_queued, true);
+
+    let inspected = false;
+    proxy.instance.signal("events-added-or-updated", {
+        get_size: () => {
+            inspected = true;
+            return 1;
+        }
+    });
+    assert.equal(inspected, false,
+        "signals behind an authoritative resync are not materialized");
+
+    drainEventMutations(manager);
+    assert.equal(manager._event_index.get(new FakeDateTime(10 * DAY_US)), null);
+    assert.equal(manager._event_index.overflowed, true);
+    assert.equal(manager._force_reload_pending, true);
+    assert.equal(manager._queued_event_records, 0);
+    assert.equal(manager._resync_mutation_queued, false);
+});
+
+test("bounded event decoding rejects malformed adapters", () => {
+    assert.throws(() => boundedEventVariants(null, 1), /invalid/);
+    assert.throws(() => boundedEventVariants({}, 1), /cannot be unpacked/);
+    assert.throws(() => boundedEventVariants({ unpack: () => null }, 1),
+        /not an array/);
+    assert.throws(() => boundedEventVariants({
+        get_size: () => NaN,
+        unpack: () => []
+    }, 1), /byte size/);
+    assert.throws(() => boundedEventVariants({
+        n_children: () => -1,
+        get_child_value: () => null
+    }, 1), /child count/);
+});
+
+test("a malformed event-array adapter is reported and becomes overflow", () => {
+    const manager = readyManager();
+    const errors = [];
+    const originalLogError = global.logError;
+    global.logError = (error) => errors.push(String(error));
+
+    proxy.instance.signal("events-added-or-updated", {});
+
+    global.logError = originalLogError;
+    assert.ok(errors.some((line) => /cannot be unpacked/.test(line)));
+    assert.equal(manager._event_index.overflowed, true);
+    assert.equal(manager._event_mutations.length, 0);
 });
 
 // The chunking is there to keep the compositor responsive. Emitting per chunk
@@ -1092,12 +1266,69 @@ test("EventIndex owns event bucket mutation, removal, culling, and colors", () =
     assert.deepEqual(update, { events_changed: true, selected_date_changed: false });
 
     index.remove(["index"]);
-    assert.equal(index.eventsByDate[10 * DAY_S].length, 0);
+    assert.equal(index.getByUnixKey(10 * DAY_S), null);
     assert.equal(index.cull(10 ** 9), true);
     index.clear();
     assert.deepEqual(index.eventsByDate, {});
     assert.equal(index.get(selected), null);
     assert.equal(index.getColorsByUnixKey(11 * DAY_S), null);
+});
+
+test("EventIndex bounds distinct window events and recovers capacity", () => {
+    const index = new EventIndex({}, 3);
+    const selected = new FakeDateTime(10 * DAY_US);
+    const events = Array.from({ length: 5 }, (_unused, id) => eventVariant({
+        id: `cap-${id}`,
+        startUnix: 10 * DAY_S + id,
+        endUnix: 10 * DAY_S + id + 1
+    }));
+
+    const first = index.addOrUpdate(events, 1, selected);
+    assert.deepEqual(first, {
+        events_changed: true,
+        selected_date_changed: true,
+        overflow_changed: true
+    });
+    assert.equal(index.get(selected).length, 3);
+    assert.equal(index.overflowed, true);
+
+    index.remove(["cap-0"]);
+    assert.equal(index.addOrUpdate([eventVariant({
+        id: "replacement",
+        startUnix: 10 * DAY_S + 10,
+        endUnix: 10 * DAY_S + 11
+    })], 2, selected).events_changed, true);
+    assert.deepEqual(index.get(selected).get_ids().sort(),
+        ["cap-1", "cap-2", "replacement"]);
+
+    index.clear();
+    assert.equal(index.overflowed, false);
+    assert.equal(index.get(selected), null);
+});
+
+test("fuzz: moving one event cannot accumulate stale day buckets", () => {
+    const index = new EventIndex({}, 1);
+    const random = makeRandom(0x5701);
+    let finalDay = 0;
+
+    for (let revision = 1; revision <= 300; revision++) {
+        finalDay = 10 + Math.floor(random() * 3000);
+        const event = makeEventData({
+            id: "moving",
+            modTime: revision,
+            startUnix: finalDay * DAY_S,
+            endUnix: finalDay * DAY_S + 60
+        });
+        assert.equal(index.register(
+            event, revision, new FakeDateTime(finalDay * DAY_US)).changed, true);
+        assert.ok(Object.keys(index.eventsByDate).length <= 1,
+            "replaced locations are released immediately");
+        assert.equal(index._eventIds.size, 1);
+    }
+
+    assert.deepEqual(Object.keys(index.eventsByDate).map(Number),
+        [finalDay * DAY_S]);
+    assert.equal(index.overflowed, false);
 });
 
 test("EventWindowCoordinator owns fetch-window and selected-date coordination", () => {
@@ -1252,6 +1483,10 @@ test("EDS retry ceilings stay within the shipped outage budget", () => {
     assert.equal(SERVER_RETRY_MAX_SECONDS, 300);
     assert.equal(FETCH_RETRY_MAX_SECONDS, 120);
     assert.equal(FETCH_RETRY_MAX_ATTEMPTS, 5);
+    assert.equal(MAX_EVENT_SIGNAL_BYTES, 4 * 1024 * 1024);
+    assert.equal(MAX_QUEUED_EVENT_RECORDS, 2000);
+    assert.equal(MAX_QUEUED_EVENT_BYTES, 8 * 1024 * 1024);
+    assert.equal(MAX_QUEUED_EVENT_MUTATIONS, 256);
 
     const manager = createEventsManager({ showEvents: true }, { random: () => 0 });
     manager._server_connection._server_retry_attempts = 8;

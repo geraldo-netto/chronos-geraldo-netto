@@ -37,6 +37,84 @@ var FETCH_RETRY_SECONDS = 5; // NOSONAR [S3504] -- GJS importer export
 var FETCH_RETRY_MAX_SECONDS = 120; // NOSONAR [S3504] -- GJS importer export
 var FETCH_RETRY_MAX_ATTEMPTS = 5; // NOSONAR [S3504] -- GJS importer export
 var EVENT_BATCH_CHUNK = 25; // NOSONAR [S3504] -- GJS importer export
+// The DBus daemon has a much larger message ceiling. Chronos needs a lower
+// product limit because this payload lands inside the desktop compositor.
+var MAX_EVENT_SIGNAL_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
+var MAX_QUEUED_EVENT_RECORDS = 2000; // NOSONAR [S3504] -- GJS importer export
+var MAX_QUEUED_EVENT_BYTES = 8 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
+var MAX_QUEUED_EVENT_MUTATIONS = 256; // NOSONAR [S3504] -- GJS importer export
+
+function validateEventVariantLimits(varray, recordLimit, byteLimit) {
+    if (!varray || !Number.isInteger(recordLimit) || recordLimit < 0 ||
+        !Number.isInteger(byteLimit) || byteLimit < 0) {
+        throw new Error("calendar event array or limit is invalid");
+    }
+}
+
+function eventVariantBytes(varray, byteLimit) {
+    if (typeof varray.get_size !== "function") {
+        return { retainedBytes: 0, overflowed: false };
+    }
+
+    const retainedBytes = varray.get_size();
+    if (!Number.isFinite(retainedBytes) || retainedBytes < 0) {
+        throw new Error("calendar event array has an invalid byte size");
+    }
+    return {
+        retainedBytes,
+        overflowed: retainedBytes > MAX_EVENT_SIGNAL_BYTES ||
+            retainedBytes > byteLimit
+    };
+}
+
+function boundedVariantChildren(varray, recordLimit, retainedBytes) {
+    const count = varray.n_children();
+    if (!Number.isInteger(count) || count < 0) {
+        throw new Error("calendar event array has an invalid child count");
+    }
+
+    const accepted = Math.min(count, recordLimit);
+    const events = [];
+    for (let index = 0; index < accepted; index++) {
+        events.push(varray.get_child_value(index));
+    }
+    return { events, overflowed: count > accepted, retainedBytes };
+}
+
+function boundedUnpackedEvents(varray, recordLimit, retainedBytes) {
+    // Test doubles and older proxy wrappers expose only unpack(). The retained
+    // prefix is still bounded even though those non-production adapters have
+    // already materialized their array.
+    if (typeof varray.unpack !== "function") {
+        throw new Error("calendar event array cannot be unpacked");
+    }
+    const unpacked = varray.unpack();
+    if (!Array.isArray(unpacked)) {
+        throw new Error("calendar event payload is not an array");
+    }
+    return {
+        events: unpacked.slice(0, recordLimit),
+        overflowed: unpacked.length > recordLimit,
+        retainedBytes
+    };
+}
+
+function boundedEventVariants(varray, recordLimit, byteLimit = MAX_EVENT_SIGNAL_BYTES) {
+    validateEventVariantLimits(varray, recordLimit, byteLimit);
+    const bytes = eventVariantBytes(varray, byteLimit);
+    if (bytes.overflowed) {
+        return { events: [], overflowed: true, retainedBytes: 0 };
+    }
+
+    // Production receives a GLib.Variant. Inspect and copy only the prefix that
+    // fits instead of unpacking an attacker-sized array in one compositor turn.
+    if (typeof varray.n_children === "function" &&
+        typeof varray.get_child_value === "function") {
+        return boundedVariantChildren(
+            varray, recordLimit, bytes.retainedBytes);
+    }
+    return boundedUnpackedEvents(varray, recordLimit, bytes.retainedBytes);
+}
 
 var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer export
     constructor(settings, params = {}) {
@@ -65,6 +143,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._event_mutations = [];
         // At most one idle advances that stream.
         this._event_batch_ids = [];
+        this._queued_event_records = 0;
+        this._queued_event_bytes = 0;
+        this._overflow_mutation_queued = false;
+        this._resync_mutation_queued = false;
         this._pending_emit = null;
         // handed to every call_set_time_range so a reply that is still in
         // flight when the applet goes away is cancelled rather than delivered
@@ -108,9 +190,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         let any_removed = this._event_index.cull(this.last_update_timestamp);
 
         if (any_removed) {
-            this.emit("selected-date-events-changed",
-                this._event_index.get(this.current_selected_date),
-                false);
+            this._emit_selected_date_events_changed(false);
             this.emit("events-updated");
         }
 
@@ -139,15 +219,56 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     //
     // What changed is accumulated across the chunks and said once, at the end.
     _handle_added_or_updated_events(server, varray) {
-        const events = varray.unpack();
-        this._enqueue_event_mutation({ type: "add", events, index: 0 });
-    }
-
-    _enqueue_event_mutation(mutation) {
-        if (this._destroyed) {
+        if (this._resync_mutation_queued) {
             return;
         }
 
+        const available = Math.max(
+            0, MAX_QUEUED_EVENT_RECORDS - this._queued_event_records);
+        const availableBytes = Math.max(
+            0, MAX_QUEUED_EVENT_BYTES - this._queued_event_bytes);
+        let decoded;
+        try {
+            decoded = boundedEventVariants(varray, available, availableBytes);
+        } catch (e) {
+            if (global.logError) {
+                global.logError(e);
+            }
+            decoded = { events: [], overflowed: true, retainedBytes: 0 };
+        }
+
+        if (decoded.events.length > 0) {
+            this._enqueue_event_mutation({
+                type: "add",
+                events: decoded.events,
+                index: 0,
+                overflowed: decoded.overflowed,
+                retainedBytes: decoded.retainedBytes
+            });
+        } else if (decoded.overflowed) {
+            this._enqueue_event_mutation({ type: "overflow" });
+        }
+    }
+
+    _enqueue_event_mutation(mutation) {
+        if (this._destroyed || this._resync_mutation_queued) {
+            return;
+        }
+
+        if (this._event_mutations.length >= MAX_QUEUED_EVENT_MUTATIONS) {
+            this._collapse_event_mutations_to_resync();
+            return;
+        }
+
+        if (mutation.type === "add") {
+            this._queued_event_records += mutation.events.length - mutation.index;
+            this._queued_event_bytes += mutation.retainedBytes;
+        } else if (mutation.type === "overflow") {
+            if (this._overflow_mutation_queued) {
+                return;
+            }
+            this._overflow_mutation_queued = true;
+        }
         this._event_mutations.push(mutation);
         if (this._event_mutations.length === 1 &&
             this._event_batch_ids.length === 0) {
@@ -155,13 +276,47 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
     }
 
+    _recount_queued_event_payload() {
+        this._queued_event_records = 0;
+        this._queued_event_bytes = 0;
+        for (const mutation of this._event_mutations) {
+            if (mutation.type === "add") {
+                this._queued_event_records += mutation.events.filter(Boolean).length;
+                this._queued_event_bytes += mutation.retainedBytes;
+            }
+        }
+    }
+
+    _collapse_event_mutations_to_resync() {
+        // Keep only the mutation already being applied. Everything behind it
+        // can be replaced by one authoritative reload, releasing all retained
+        // variants and preserving eventual server state.
+        const current = this._event_mutations[0];
+        this._event_mutations = current ?
+            [current, { type: "resync" }] : [{ type: "resync" }];
+        this._overflow_mutation_queued =
+            Boolean(current && current.type === "overflow");
+        this._resync_mutation_queued = true;
+        this._recount_queued_event_payload();
+    }
+
     _apply_add_mutation(mutation) {
+        const start = mutation.index;
         const end = Math.min(
-            mutation.index + EVENT_BATCH_CHUNK, mutation.events.length);
+            start + EVENT_BATCH_CHUNK, mutation.events.length);
         const last = end >= mutation.events.length;
         this._apply_added_or_updated(
-            mutation.events.slice(mutation.index, end), last);
+            mutation.events.slice(start, end), last, mutation.overflowed);
+        // Release processed child variants while the rest of this signal waits.
+        // Otherwise the array itself keeps the already-indexed payload alive.
+        for (let index = start; index < end; index++) {
+            mutation.events[index] = null;
+        }
+        this._queued_event_records -= end - start;
         mutation.index = end;
+        if (last) {
+            this._queued_event_bytes -= mutation.retainedBytes;
+        }
         return last;
     }
 
@@ -171,6 +326,14 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
         if (mutation.type === "remove") {
             this._apply_removed_events(mutation.uids);
+            return true;
+        }
+        if (mutation.type === "overflow") {
+            this._apply_event_overflow();
+            return true;
+        }
+        if (mutation.type === "resync") {
+            this._apply_event_resync();
             return true;
         }
         this._apply_client_disappeared();
@@ -184,6 +347,11 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
 
         if (this._apply_event_mutation(mutation)) {
+            if (mutation.type === "overflow") {
+                this._overflow_mutation_queued = false;
+            } else if (mutation.type === "resync") {
+                this._resync_mutation_queued = false;
+            }
             this._event_mutations.shift();
         }
 
@@ -201,6 +369,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             this._event_batch_ids.shift();
             if (this._destroyed) {
                 this._event_mutations = [];
+                this._queued_event_records = 0;
+                this._queued_event_bytes = 0;
+                this._overflow_mutation_queued = false;
+                this._resync_mutation_queued = false;
                 this._pending_emit = null;
             } else {
                 this._apply_next_event_mutation();
@@ -210,15 +382,55 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     // `flush` is true on the last chunk of a batch
-    _apply_added_or_updated(events, flush) {
+    _mark_event_overflow() {
+        const changed = this._event_index.markOverflow();
+        if (changed) {
+            log("calendar events: safety limit reached; some events are hidden");
+        }
+        return changed;
+    }
+
+    _apply_event_overflow() {
+        if (!this._mark_event_overflow()) {
+            return;
+        }
+        this._emit_selected_date_events_changed(false);
+        this.emit("events-updated");
+    }
+
+    _apply_event_resync() {
+        this._event_index.clear();
+        this._mark_event_overflow();
+        this._emit_selected_date_events_changed(false);
+        this.emit("events-updated");
+        this.queue_reload_today(true);
+    }
+
+    _accumulate_event_overflow(pending, result, flush, inputOverflowed) {
+        if (result.overflow_changed) {
+            log("calendar events: safety limit reached; some events are hidden");
+            pending.overflow_changed = true;
+        }
+        if (flush && inputOverflowed && this._mark_event_overflow()) {
+            pending.overflow_changed = true;
+        }
+    }
+
+    _apply_added_or_updated(events, flush, inputOverflowed = false) {
         const result = this._event_index.addOrUpdate(
             events, this.last_update_timestamp, this.current_selected_date);
 
         const pending = this._pending_emit ||
-            { selected_date_changed: false, events_changed: false };
+            {
+                selected_date_changed: false,
+                events_changed: false,
+                overflow_changed: false
+            };
         pending.selected_date_changed =
             pending.selected_date_changed || result.selected_date_changed;
         pending.events_changed = pending.events_changed || result.events_changed;
+        this._accumulate_event_overflow(
+            pending, result, flush, inputOverflowed);
 
         this._start_gc_timer();
 
@@ -229,15 +441,20 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
         this._pending_emit = null;
 
-        if (pending.selected_date_changed) {
-            this.emit("selected-date-events-changed",
-                this._event_index.get(this.current_selected_date),
-                false);
+        if (pending.selected_date_changed || pending.overflow_changed) {
+            this._emit_selected_date_events_changed(false);
         }
 
-        if (pending.events_changed) {
+        if (pending.events_changed || pending.overflow_changed) {
             this.emit("events-updated");
         }
+    }
+
+    _emit_selected_date_events_changed(delayNoEventsBox) {
+        this.emit("selected-date-events-changed",
+            this._event_index.get(this.current_selected_date),
+            delayNoEventsBox,
+            Boolean(this._event_index.overflowed));
     }
 
     _handle_removed_events(server, uids_string) {
@@ -260,9 +477,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // the reload below re-selects today, but selectDate early-returns on an
         // unchanged date, so the removed event's row would stay on screen until
         // the user picked another day: re-feed the open list here
-        this.emit("selected-date-events-changed",
-            this._event_index.get(this.current_selected_date),
-            false);
+        this._emit_selected_date_events_changed(false);
 
         const currentMonth = this._window_coordinator.current_month_year;
         if (ambiguous && currentMonth) {
@@ -409,6 +624,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
         this._event_batch_ids = [];
         this._event_mutations = [];
+        this._queued_event_records = 0;
+        this._queued_event_bytes = 0;
+        this._overflow_mutation_queued = false;
+        this._resync_mutation_queued = false;
         this._pending_emit = null;
 
         this._server_connection.destroy();
@@ -495,5 +714,7 @@ if (typeof module !== "undefined") {
     module.exports = { EventsManager, createEventsManager, CalendarServerConnection,
         EventIndex, EventWindowCoordinator, SERVER_RETRY_SECONDS,
         SERVER_RETRY_MAX_SECONDS, FETCH_RETRY_SECONDS, FETCH_RETRY_MAX_SECONDS,
-        FETCH_RETRY_MAX_ATTEMPTS, EDS_BUS_NAME };
+        FETCH_RETRY_MAX_ATTEMPTS, EDS_BUS_NAME, MAX_EVENT_SIGNAL_BYTES,
+        MAX_QUEUED_EVENT_RECORDS, MAX_QUEUED_EVENT_BYTES,
+        MAX_QUEUED_EVENT_MUTATIONS, boundedEventVariants };
 }

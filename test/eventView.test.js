@@ -808,6 +808,58 @@ test("a huge day is built across turns, not in one burst", () => {
     assert.equal(list._renderer._build_rows_idle_id, 0, "and nothing is left armed");
 });
 
+test("an oversized day renders a bounded prefix and explains the omission", () => {
+    const idles = [];
+    const originalIdle = global.imports.mainloop.idle_add;
+    global.imports.mainloop.idle_add = (cb) => {
+        idles.push(cb);
+        return idles.length;
+    };
+
+    const list = new EventView.EventList(desktopSettings());
+    const limit = EventView.MAX_RENDERED_EVENT_ROWS;
+    const events = Array.from({ length: limit + 25 }, (_unused, index) =>
+        makeRowEvent({
+            id: `visible-${index}`,
+            startUnix: 50 * DAY_S + index * 60,
+            endUnix: 50 * DAY_S + index * 60 + 30
+        }));
+
+    list.set_events({
+        timestamp: 700,
+        length: events.length,
+        get_event_list: () => events
+    }, false);
+    for (let index = 0; index < idles.length && list._rows.length < limit; index++) {
+        idles[index]();
+    }
+    global.imports.mainloop.idle_add = originalIdle;
+
+    assert.equal(limit, 200, "the actor ceiling is a pinned product limit");
+    assert.equal(list._rows.length, limit);
+    assert.equal(list.events_overflow_label.visible, true);
+    assert.match(list.events_overflow_label.text, /events were hidden/);
+    assert.equal(
+        list.events_overflow_label.get_clutter_text().ellipsize,
+        global.imports.gi.Pango.EllipsizeMode.NONE);
+
+    list.set_events({
+        timestamp: 701,
+        length: 1,
+        get_event_list: () => events.slice(0, 1)
+    }, false);
+    assert.equal(list.events_overflow_label.visible, false,
+        "a later bounded result clears the warning");
+});
+
+test("an ingest overflow is visible even when the selected day is empty", () => {
+    const list = new EventView.EventList(desktopSettings());
+    list.set_events(null, false, true);
+
+    assert.equal(list.events_overflow_label.visible, true);
+    assert.equal(list.no_events_box.visible, true);
+});
+
 test("a day that changes mid-build abandons the build", () => {
     const idles = [];
     const removed = [];

@@ -103,6 +103,12 @@
     max-width: 25em;
 }
 
+.calendar-events-overflow-label {
+    max-width: 25em;
+    padding: 0.5em;
+    font-style: italic;
+}
+
 /* Keep the empty-state illustration in proportion when the user enlarges text. */
 .calendar-events-no-events-icon {
     icon-size: 4em;

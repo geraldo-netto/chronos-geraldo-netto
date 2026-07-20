@@ -974,7 +974,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
             return 1;
         }
         set_date() {}
-        set_events() {}
+        set_events(...args) { calls.push(["event-list-set-events", ...args]); }
     };
     rootModules.worldclocks.Worldclocks = class {
         constructor(box) { calls.push(["worldclocks", !!box]); }
@@ -1019,7 +1019,10 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
     Proto._buildUi.call(stub);
     stub._calendar.handlers["selected-date-changed"]();
     stub.events_manager.handlers["selected-date-changed"](null, "gdate");
-    stub.events_manager.handlers["selected-date-events-changed"](null, "events", true);
+    stub.events_manager.handlers["selected-date-events-changed"](
+        null, "events", true, true);
+    assert.deepEqual(calls.find(([name]) => name === "event-list-set-events"),
+        ["event-list-set-events", "events", true, true]);
     stub.event_list.handlers["launched-calendar"]();
     stub.event_list.handlers["start-pass-events"]();
     stub.event_list.handlers["stop-pass-events"]();
