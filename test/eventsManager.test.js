@@ -74,6 +74,8 @@ class ProxyInstance {
         this.disconnected = [];
         this.next_signal_id = 1;
         this.set_time_range_calls = [];
+        this.finished_time_ranges = [];
+        this.defer_time_ranges = false;
     }
 
     connect(name, cb) {
@@ -101,13 +103,26 @@ class ProxyInstance {
     }
 
     call_set_time_range(start, end, force, cancellable, cb) {
-        this.set_time_range_calls.push({ start, end, force, cancellable });
-        if (cb) {
+        this.set_time_range_calls.push({ start, end, force, cancellable, cb });
+        if (cb && !this.defer_time_ranges) {
             cb(this, "res");
         }
     }
 
-    call_set_time_range_finish(res) {}
+    call_set_time_range_finish(res) {
+        this.finished_time_ranges.push(res);
+        if (res && res.error) {
+            throw res.error;
+        }
+    }
+
+    complete_time_range(index, res) {
+        const call = this.set_time_range_calls[index];
+        const cb = call && call.cb;
+        assert.equal(typeof cb, "function", `range ${index} has one pending callback`);
+        call.cb = null;
+        cb(this, res);
+    }
 }
 
 function makeProxyInstance() {
@@ -298,7 +313,7 @@ beforeEach(() => {
 test("start_events watches the EDS bus once", () => {
     const manager = makeManager();
     assert.doesNotThrow(() => manager._server_connection.setTimeRange(1, 2, false, null, () => {}));
-    assert.throws(() => manager._server_connection.finishSetTimeRange("reply"), /proxy is gone/);
+    assert.throws(() => manager._server_connection.finishSetTimeRange(null, "reply"), /proxy is gone/);
     manager.start_events();
     manager.start_events();
     assert.equal(gio.watches.length, 1);
@@ -453,6 +468,7 @@ test("a month fetch in flight is cancelled when the applet goes away", () => {
     const logged = [];
     const originalLog = global.log;
     const manager = readyManager();
+    proxy.instance.defer_time_ranges = true;
 
     manager.select_date(new Date(50 * DAY_S * 1000), true);
     const call = proxy.instance.set_time_range_calls.at(-1);
@@ -463,8 +479,9 @@ test("a month fetch in flight is cancelled when the applet goes away", () => {
     assert.equal(call.cancellable.cancelled, true);
 
     // and if the reply arrives anyway, it is dropped in silence rather than
-    // logged as an EDS failure
-    assert.doesNotThrow(() => manager.call_finished(proxy.instance, "res"));
+    // logged as an EDS failure; Gio still receives its mandatory finish call
+    assert.doesNotThrow(() => call.cb(proxy.instance, { id: "late-after-destroy" }));
+    assert.equal(proxy.instance.finished_time_ranges.at(-1).id, "late-after-destroy");
     global.log = originalLog;
 
     assert.equal(logged.length, 0, "a removed applet does not report a fetch failure");
@@ -1103,6 +1120,98 @@ test("a failed month fetch is retried with backoff", () => {
         [true, false], "a successful retry clears the footer issue");
 });
 
+test("only the latest month completion owns refresh and retry state", () => {
+    const manager = readyManager();
+    const server = proxy.instance;
+    server.defer_time_ranges = true;
+
+    manager.fetch_month_events(new FakeDateTime(40 * DAY_US), true);
+    manager.fetch_month_events(new FakeDateTime(80 * DAY_US), true);
+    server.complete_time_range(1, { id: "new-failure", error: new Error("new failed") });
+    const retryId = manager._fetch_retry_id;
+    assert.equal(manager._refresh_failed, true);
+    assert.ok(retryId > 0);
+    assert.equal(manager._fetch_retry_attempts, 1);
+
+    server.complete_time_range(0, { id: "old-success" });
+    assert.equal(manager._refresh_failed, true,
+        "an older success cannot hide the current failure");
+    assert.equal(manager._fetch_retry_id, retryId,
+        "an older success cannot cancel the current retry");
+    assert.equal(manager._fetch_retry_attempts, 1);
+
+    manager.fetch_month_events(new FakeDateTime(120 * DAY_US), true);
+    assert.equal(manager._fetch_retry_id, 0,
+        "a fresh request replaces the previous month's retry");
+    manager.fetch_month_events(new FakeDateTime(160 * DAY_US), true);
+    server.complete_time_range(3, { id: "new-success" });
+    server.complete_time_range(2, { id: "old-failure", error: new Error("old failed") });
+    assert.equal(manager._refresh_failed, false,
+        "an older failure cannot replace the current success");
+    assert.equal(manager._fetch_retry_id, 0);
+    assert.equal(manager._fetch_retry_attempts, 0);
+    assert.deepEqual(
+        server.finished_time_ranges.map((result) => result.id),
+        ["new-failure", "old-success", "new-success", "old-failure"],
+        "every Gio result is finished even when its state effects are stale");
+});
+
+function shuffledIndices(length, random) {
+    const remaining = Array.from({ length }, (_, index) => index);
+    const result = [];
+    while (remaining.length > 0) {
+        result.push(remaining.splice(
+            Math.floor(random() * remaining.length), 1)[0]);
+    }
+    return result;
+}
+
+function dispatchFuzzRanges(manager, count) {
+    for (let request = 0; request < count; request++) {
+        manager.fetch_month_events(
+            new FakeDateTime((40 + request * 40) * DAY_US), true);
+    }
+}
+
+function completeFuzzRanges(manager, server, failures, order, round) {
+    let expectedFailure = false;
+    for (const completed of order) {
+        server.complete_time_range(completed, {
+            id: `${round}:${completed}`,
+            error: failures[completed] ? new Error("range failed") : null
+        });
+        if (completed === failures.length - 1) {
+            expectedFailure = failures[completed];
+        }
+        assert.equal(manager._refresh_failed, expectedFailure);
+        assert.equal(manager._fetch_retry_id > 0, expectedFailure);
+        assert.equal(manager._fetch_retry_attempts, expectedFailure ? 1 : 0);
+    }
+}
+
+function fuzzRangeCompletionRound(round, random) {
+    const manager = readyManager();
+    const server = proxy.instance;
+    server.defer_time_ranges = true;
+    const count = 2 + Math.floor(random() * 6);
+    const failures = Array.from({ length: count }, () => random() < 0.5);
+
+    dispatchFuzzRanges(manager, count);
+    completeFuzzRanges(
+        manager, server, failures, shuffledIndices(count, random), round);
+
+    assert.equal(server.finished_time_ranges.length, count);
+    manager.destroy();
+}
+
+test("fuzz: range completion permutations follow the latest request", () => {
+    const random = makeRandom(0x572);
+
+    for (let round = 0; round < 80; round++) {
+        fuzzRangeCompletionRound(round, random);
+    }
+});
+
 test("destroy cancels one queued fetch retry and duplicate queues are ignored", () => {
     const manager = readyManager();
 
@@ -1344,20 +1453,19 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     const emittedEvents = [];
     // the coordinator is handed a setTimeRange function now, not the proxy: the
     // connection owns the proxy and exposes this bound method
-    const setTimeRange = (start, end, force, cancellable, cb) => {
+    const setTimeRange = (start, end, force) => {
         calls.push({ start, end, force });
-        cb(null, "res");
     };
     let timestamp = 40;
     const month = new FakeDateTime(40 * DAY_US);
 
     assert.equal(coordinator.fetchMonthEvents(
-        month, false, setTimeRange, () => emittedEvents.push(["finished"]), () => ++timestamp), 41);
+        month, false, setTimeRange, () => ++timestamp), 41);
     assert.equal(calls[0].end - calls[0].start, 42 * DAY_S - 1);
     assert.equal(coordinator.fetchMonthEvents(
-        month, false, setTimeRange, () => {}, () => ++timestamp), null);
+        month, false, setTimeRange, () => ++timestamp), null);
     assert.equal(coordinator.fetchMonthEvents(
-        month, true, setTimeRange, () => {}, () => ++timestamp), 42);
+        month, true, setTimeRange, () => ++timestamp), 42);
     assert.equal(calls.length, 2);
 
     const selected = new FakeDateTime(50 * DAY_US);

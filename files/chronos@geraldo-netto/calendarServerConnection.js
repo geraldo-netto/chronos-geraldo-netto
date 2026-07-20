@@ -171,11 +171,15 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         this._calendar_server.call_set_time_range(start, end, force, cancellable, callFinished);
     }
 
-    finishSetTimeRange(res) {
-        if (this._calendar_server === null) {
-            throw new Error("calendar server proxy is gone");
+    finishSetTimeRange(server, res) {
+        // Finish on the proxy that produced the result, not whichever proxy is
+        // current now. A reconnect can replace _calendar_server while an older
+        // D-Bus call is still completing, and Gio requires every result to be
+        // finished by its originating object.
+        if (!server || typeof server.call_set_time_range_finish !== "function") {
+            throw new Error("calendar server callback proxy is gone");
         }
-        this._calendar_server.call_set_time_range_finish(res);
+        server.call_set_time_range_finish(res);
     }
 
     isActive(showEvents) {

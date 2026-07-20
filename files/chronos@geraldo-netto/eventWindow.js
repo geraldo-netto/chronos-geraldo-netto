@@ -31,7 +31,7 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         this.current_selected_signature = null;
     }
 
-    fetchMonthEvents(month_year, force, setTimeRange, callFinished, timestampNow, cancellable = null) {
+    fetchMonthEvents(month_year, force, setTimeRange, timestampNow, cancellable = null) {
         const changed_month = this.current_month_year === null ||
             !dt_equals(month_year, this.current_month_year);
         if (!changed_month && !force) {
@@ -47,7 +47,7 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         const start = day_one.add_days(-DateFormats.monthWindowStartOffset(
             day_one.get_day_of_week(), Cinnamon.util_get_week_start()));
         const end = start.add_days(42).add_seconds(-1);
-        setTimeRange(start.to_unix(), end.to_unix(), force, cancellable, callFinished);
+        setTimeRange(start.to_unix(), end.to_unix(), force, cancellable);
         return timestampNow();
     }
 

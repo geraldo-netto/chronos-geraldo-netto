@@ -138,6 +138,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._fetch_retry_id = 0;
         this._fetch_retry_attempts = 0;
         this._refresh_failed = false;
+        this._fetch_generation = 0;
         // Calendar-server signals are one ordered mutation stream. A large
         // add/update occupies several idle turns, so later updates, removals
         // and client disappearance must wait behind its tail.
@@ -504,6 +505,12 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
     _handle_status_changed() {
         if (!this.is_active()) {
+            // No request remains authoritative once the service has no usable
+            // calendars. A late cancellation/failure must not resurrect the
+            // footer warning after this state transition cleared it.
+            this._fetch_generation++;
+            this._cancel_fetch_retry();
+            this._fetch_retry_attempts = 0;
             this._setRefreshFailed(false);
         }
         this.queue_reload_today(true);
@@ -519,12 +526,12 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this.emit("refresh-error-changed", next);
     }
 
-    fetch_month_events(month_year, force) {
+    fetch_month_events(month_year, force, retry = false) {
         const timestamp = this._window_coordinator.fetchMonthEvents(
             month_year,
             force,
-            this._server_connection.setTimeRange.bind(this._server_connection),
-            this.call_finished.bind(this),
+            (start, end, forceReload, cancellable) => this._dispatchMonthFetch(
+                retry, start, end, forceReload, cancellable),
             GLib.get_monotonic_time,
             this._fetch_cancellable
         );
@@ -534,22 +541,48 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
     }
 
-    call_finished(server, res) {
-        // the applet was removed while this call was in flight: the proxy is
-        // gone, and there is nobody left to hand events to
-        if (this._destroyed) {
+    _dispatchMonthFetch(retry, start, end, force, cancellable) {
+        if (!retry) {
+            // A fresh user/server-driven request supersedes the old retry chain.
+            // Do this only after EventWindowCoordinator decides to dispatch:
+            // selecting another day in the same month can legitimately skip a
+            // fetch and must not cancel the retry that month still needs.
+            this._cancel_fetch_retry();
+            this._fetch_retry_attempts = 0;
+        }
+
+        const generation = ++this._fetch_generation;
+        this._server_connection.setTimeRange(
+            start, end, force, cancellable,
+            (server, res) => this.call_finished(generation, server, res));
+    }
+
+    call_finished(generation, server, res) {
+        let failure = null;
+        try {
+            // Gio requires every result to be finished, including stale and
+            // cancelled ones. The connection uses the originating callback
+            // proxy so a reconnect cannot finish an old result on a new proxy.
+            this._server_connection.finishSetTimeRange(server, res);
+        } catch (e) {
+            failure = e;
+        }
+
+        // Only the latest dispatched range owns current UI/retry state. The
+        // result above is already drained, so ignoring its state effects leaks
+        // neither Gio resources nor an obsolete failure into the active month.
+        if (this._destroyed || generation !== this._fetch_generation) {
             return;
         }
 
-        try {
-            this._server_connection.finishSetTimeRange(res);
+        if (!failure) {
             this._fetch_retry_attempts = 0;
             this._setRefreshFailed(false);
-        } catch (e) {
+        } else {
             // the month's events never arrived. Without a retry the grid keeps
             // the previous month's events and shows nothing for this one, and
             // no other path ever asks again.
-            log(e);
+            log(failure);
             this._setRefreshFailed(true);
             this._queue_fetch_retry();
         }
@@ -614,7 +647,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
                 return GLib.SOURCE_REMOVE;
             }
 
-            this.fetch_month_events(month_year, true);
+            this.fetch_month_events(month_year, true, true);
 
             return GLib.SOURCE_REMOVE;
         });
