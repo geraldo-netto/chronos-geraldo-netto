@@ -199,8 +199,17 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _handle_removed_events(server, uids_string) {
-        let uids = uids_string.split("::");
-        this._event_index.remove(uids);
+        // cinnamon-calendar-server batches IDs with "::", but an iCalendar
+        // component UID is TEXT and may contain that exact sequence. A string
+        // with the delimiter therefore cannot be decoded losslessly: clear the
+        // window and ask the authoritative source again. A delimiter-free
+        // single ID is unambiguous and keeps the fast targeted path.
+        const ambiguous = uids_string.indexOf("::") !== -1;
+        if (ambiguous) {
+            this._event_index.clear();
+        } else {
+            this._event_index.remove([uids_string]);
+        }
 
         // the reload below re-selects today, but selectDate early-returns on an
         // unchanged date, so the removed event's row would stay on screen until
@@ -209,7 +218,12 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             this._event_index.get(this.current_selected_date),
             false);
 
-        this.queue_reload_today(false);
+        const currentMonth = this._window_coordinator.current_month_year;
+        if (ambiguous && currentMonth) {
+            this.fetch_month_events(currentMonth, true);
+        } else {
+            this.queue_reload_today(ambiguous);
+        }
 
         this.emit("events-updated");
     }

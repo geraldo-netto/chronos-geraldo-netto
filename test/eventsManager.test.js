@@ -624,14 +624,25 @@ test("an event with no usable times is skipped, not fatal", () => {
         "and the one that was dropped says why");
 });
 
-test("removed events delete uids everywhere and emit", () => {
+test("ambiguous removed-event IDs clear and force-refetch the window", () => {
     const manager = readyManager();
+    const ambiguousUid = "calendar-source:meeting::2026";
+    manager._window_coordinator.current_month_year = new FakeDateTime(10 * DAY_US);
     const varray = {
-        unpack: () => [eventVariant({ id: "a", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 })]
+        unpack: () => [eventVariant({
+            id: ambiguousUid,
+            startUnix: 10 * DAY_S,
+            endUnix: 10 * DAY_S + 60
+        })]
     };
     proxy.instance.signal("events-added-or-updated", varray);
-    proxy.instance.signal("events-removed", "a::b");
-    assert.equal(manager._event_index.eventsByDate[10 * DAY_S].length, 0);
+    proxy.instance.signal("events-removed", ambiguousUid);
+
+    assert.deepEqual(manager._event_index.eventsByDate, {},
+        "a lossy delimiter payload cannot leave the intended event behind");
+    assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true,
+        "the currently browsed window is repopulated from the calendar server");
+    assert.equal(manager._reload_today_id, 0, "the user's selection is not moved back to today");
     assert.ok(emitted(manager, "events-updated").length >= 2);
 });
 
