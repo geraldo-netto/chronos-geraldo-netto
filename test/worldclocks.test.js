@@ -162,6 +162,15 @@ function makeZonedTime(tz) {
         },
         get_minute() {
             return Number(numeric({ minute: "2-digit" }));
+        },
+        get_year() {
+            return Number(numeric({ year: "numeric" }));
+        },
+        get_month() {
+            return Number(numeric({ month: "2-digit" }));
+        },
+        get_day_of_month() {
+            return Number(numeric({ day: "2-digit" }));
         }
     };
 }
@@ -202,6 +211,25 @@ function knownTimeZone(timezone) {
 // double is — an assertion that hard-codes "20:45" is a second clock to get wrong
 function timeIn(timezone, fmt = "%H:%M") {
     return makeZonedTime(fakeTimeZone(timezone)).format(fmt);
+}
+
+function localTimeStamp(localTime) {
+    return Date.UTC(
+        localTime.get_year(),
+        localTime.get_month() - 1,
+        localTime.get_day_of_month(),
+        localTime.get_hour(),
+        localTime.get_minute());
+}
+
+function assertClockEntryOrder(entries, context) {
+    assert.ok(entries.every((entry) => entry.localTime), `${context}: every timezone must resolve`);
+    const stamps = entries.map((entry) => localTimeStamp(entry.localTime));
+
+    for (let i = 1; i < stamps.length; i++) {
+        assert.ok(stamps[i - 1] > stamps[i],
+            `${context}: ${entries[i - 1].timezone} must be ahead of ${entries[i].timezone}`);
+    }
 }
 
 test("the zoned-time double refuses strftime fields it cannot render", () => {
@@ -628,6 +656,138 @@ test("each row reads its own zone's wall clock, not the applet's", () => {
         ["New York", "07:45"],
         ["Kolkata", "17:15"]
     ]);
+});
+
+test("regional clocks stay ordered from Japan through Europe to the Americas", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    const saved = NOW_MS;
+    const cases = [
+        {
+            name: "winter",
+            instant: Date.UTC(2026, 0, 15, 12, 0, 0),
+            expected: ["21:00", "17:30", "13:00", "07:00", "04:00"]
+        },
+        {
+            name: "summer",
+            instant: Date.UTC(2026, 6, 15, 12, 0, 0),
+            expected: ["21:00", "17:30", "14:00", "08:00", "05:00"]
+        },
+        {
+            name: "UTC midnight rollover",
+            instant: Date.UTC(2026, 6, 15, 23, 30, 0),
+            expected: ["08:30", "05:00", "01:30", "19:30", "16:30"]
+        }
+    ];
+
+    const clocks = [
+        { label: "Tokyo", timezone: "Asia/Tokyo" },
+        { label: "Kolkata", timezone: "Asia/Kolkata" },
+        { label: "Rome", timezone: "Europe/Rome" },
+        { label: "New York", timezone: "America/New_York" },
+        { label: "Los Angeles", timezone: "America/Los_Angeles" }
+    ];
+    worldclocks.buildClocks(clocks, "%H:%M");
+
+    try {
+        for (const current of cases) {
+            NOW_MS = current.instant;
+            const entries = worldclocks.getClockEntries().slice(BUILTIN_ROWS);
+            worldclocks.updateClocks(entries);
+            const displayed = worldclocks.clocks
+                .slice(BUILTIN_ROWS)
+                .map((clock) => clock.display.text);
+
+            assert.deepEqual(displayed, current.expected, `${current.name} offsets`);
+            assertClockEntryOrder(entries, current.name);
+        }
+    } finally {
+        NOW_MS = saved;
+    }
+});
+
+test("date-line, fractional-offset, and southern-DST clocks render exactly", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    const saved = NOW_MS;
+    const cases = [
+        {
+            name: "January",
+            instant: Date.UTC(2026, 0, 15, 12, 0, 0),
+            expected: ["02:00", "01:45", "23:00", "22:30", "21:00", "17:45", "08:30", "01:00"]
+        },
+        {
+            name: "July",
+            instant: Date.UTC(2026, 6, 15, 12, 0, 0),
+            expected: ["02:00", "00:45", "22:00", "21:30", "21:00", "17:45", "09:30", "01:00"]
+        }
+    ];
+    const clocks = [
+        { label: "Kiritimati", timezone: "Pacific/Kiritimati" },
+        { label: "Chatham", timezone: "Pacific/Chatham" },
+        { label: "Sydney", timezone: "Australia/Sydney" },
+        { label: "Adelaide", timezone: "Australia/Adelaide" },
+        { label: "Tokyo", timezone: "Asia/Tokyo" },
+        { label: "Kathmandu", timezone: "Asia/Kathmandu" },
+        { label: "St. John's", timezone: "America/St_Johns" },
+        { label: "Pago Pago", timezone: "Pacific/Pago_Pago" }
+    ];
+    worldclocks.buildClocks(clocks, "%H:%M");
+
+    try {
+        for (const current of cases) {
+            NOW_MS = current.instant;
+            const entries = worldclocks.getClockEntries().slice(BUILTIN_ROWS);
+            worldclocks.updateClocks(entries);
+            const displayed = worldclocks.clocks
+                .slice(BUILTIN_ROWS)
+                .map((clock) => clock.display.text);
+
+            assert.deepEqual(displayed, current.expected, `${current.name} offsets`);
+            assertClockEntryOrder(entries, current.name);
+        }
+    } finally {
+        NOW_MS = saved;
+    }
+});
+
+test("fuzz: timezone order and rendering hold across random instants", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    const random = makeRandom(FUZZ_SEED + 1);
+    const saved = NOW_MS;
+    const start = Date.UTC(2000, 0, 1);
+    const span = Date.UTC(2040, 0, 1) - start;
+    const clocks = [
+        { label: "Kiritimati", timezone: "Pacific/Kiritimati" },
+        { label: "Chatham", timezone: "Pacific/Chatham" },
+        { label: "Tokyo", timezone: "Asia/Tokyo" },
+        { label: "Kathmandu", timezone: "Asia/Kathmandu" },
+        { label: "Rome", timezone: "Europe/Rome" },
+        { label: "St. John's", timezone: "America/St_Johns" },
+        { label: "Los Angeles", timezone: "America/Los_Angeles" },
+        { label: "Pago Pago", timezone: "Pacific/Pago_Pago" }
+    ];
+    worldclocks.buildClocks(clocks, "%H:%M");
+
+    try {
+        for (let round = 0; round < 100; round++) {
+            NOW_MS = start + Math.floor(random() * span);
+            const context = `seed ${FUZZ_SEED + 1}, round ${round}`;
+            const entries = worldclocks.getClockEntries().slice(BUILTIN_ROWS);
+            const expected = clocks.map((clock) => timeIn(clock.timezone));
+            worldclocks.updateClocks(entries);
+
+            assert.deepEqual(entries.map((entry) => entry.time), expected, context);
+            assert.deepEqual(
+                worldclocks.clocks.slice(BUILTIN_ROWS).map((clock) => clock.display.text),
+                expected,
+                context);
+            assertClockEntryOrder(entries, context);
+        }
+    } finally {
+        NOW_MS = saved;
+    }
 });
 
 // The applet anchors its date arithmetic at noon precisely so a transition day
