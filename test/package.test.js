@@ -115,6 +115,46 @@ test("packaging rejects malformed and conflicted Git index entries", async () =>
     assert.throws(() => parseTrackedSpicesFiles(
         Buffer.from("100644 deadbeef 2\tREADME.md\0")),
     /invalid or conflicted Git index/);
+    assert.throws(() => parseTrackedSpicesFiles(
+        Buffer.from(`160000 deadbeef 0\tfiles/${UUID}/submodule\0`)),
+    /unsupported Git index entry/);
+    assert.deepEqual(parseTrackedSpicesFiles(
+        Buffer.from("100755 deadbeef 0\tREADME.md\0")), [{
+        relative: "README.md",
+        mode: 0o755,
+        indexMode: 0o100755,
+        objectId: "deadbeef"
+    }]);
+});
+
+test("packaging reads staged bytes instead of dirty worktree bytes", async (t) => {
+    const { source, output, applet } = await makeSpicesFixture(t);
+    await fs.writeFile(path.join(source, "README.md"), "unstaged readme");
+    await fs.writeFile(path.join(applet, "applet.js"), "unstaged applet");
+
+    const { buildSpicesPackage } = await importPackager();
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
+
+    assert.equal(await fs.readFile(path.join(output, "README.md"), "utf8"), "readme");
+    assert.equal(await fs.readFile(
+        path.join(output, "files", UUID, "applet.js"), "utf8"), "tracked applet");
+});
+
+test("the explicit manifest seam copies validated worktree files", async (t) => {
+    const { source, output } = await makeSpicesFixture(t);
+    const trackedFiles = [
+        "README.md",
+        `files/${UUID}/applet.js`,
+        "info.json",
+        "screenshot.png"
+    ];
+
+    const { buildSpicesPackage } = await importPackager();
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output, trackedFiles });
+
+    assert.equal(await fs.readFile(path.join(output, "README.md"), "utf8"), "readme");
+    assert.equal(await fs.readFile(
+        path.join(output, "files", UUID, "applet.js"), "utf8"), "tracked applet");
 });
 
 test("packaging rejects a tracked symlink that escapes the source tree", async (t) => {
@@ -154,14 +194,17 @@ test("packaging rejects a link chain that resolves outside through an in-tree ho
     const secret = path.join(temporary, "host-secret");
     await fs.writeFile(secret, "must not ship");
     const hop = path.join(applet, "hop");
-    await fs.symlink(path.relative(path.dirname(hop), secret), hop);
+    await fs.symlink(secret, hop);
     await fs.symlink("hop", path.join(applet, "chained.txt"));
-    await execFileAsync("git", ["-C", source, "add", "files/" + UUID + "/chained.txt"]);
+    await execFileAsync("git", [
+        "-C", source, "add",
+        "files/" + UUID + "/chained.txt", "files/" + UUID + "/hop"
+    ]);
 
     const { buildSpicesPackage } = await importPackager();
     await assert.rejects(
         buildSpicesPackage({ sourceRoot: source, outputRoot: output }),
-        /symlink resolves outside the source tree/);
+        /symlink points outside the source tree/);
 });
 
 test("packaging rejects a tracked symlink to an in-tree untracked file", async (t) => {
@@ -174,6 +217,21 @@ test("packaging rejects a tracked symlink to an in-tree untracked file", async (
     await assert.rejects(
         buildSpicesPackage({ sourceRoot: source, outputRoot: output }),
         /symlink points to an untracked file/);
+});
+
+test("packaging rejects tracked symlink cycles", async (t) => {
+    const { source, output, applet } = await makeSpicesFixture(t);
+    await fs.symlink("cycle-b", path.join(applet, "cycle-a"));
+    await fs.symlink("cycle-a", path.join(applet, "cycle-b"));
+    await execFileAsync("git", [
+        "-C", source, "add",
+        "files/" + UUID + "/cycle-a", "files/" + UUID + "/cycle-b"
+    ]);
+
+    const { buildSpicesPackage } = await importPackager();
+    await assert.rejects(
+        buildSpicesPackage({ sourceRoot: source, outputRoot: output }),
+        /source symlink cycle in Git index/);
 });
 
 test("packaging rejects invalid output shapes and symlink targets", async (t) => {
@@ -202,6 +260,45 @@ test("packaging rejects invalid output shapes and symlink targets", async (t) =>
     }
     await fs.rm(path.join(output, "link"));
     await assert.rejects(validatePackageLayout(output), /files\/ must contain only/);
+});
+
+test("the explicit manifest seam confines and dereferences source symlinks", async (t) => {
+    const { temporary, source, applet } = await makeSpicesFixture(t);
+    const { resolveSourceFile } = await importPackager();
+    const targetRelative = `files/${UUID}/target.txt`;
+    const target = path.join(applet, "target.txt");
+    const safeLink = path.join(applet, "safe-link.txt");
+    await fs.writeFile(target, "safe");
+    await fs.symlink("target.txt", safeLink);
+
+    const resolved = await resolveSourceFile(
+        source, safeLink, `files/${UUID}/safe-link.txt`, new Set([targetRelative]));
+    assert.equal(resolved.sourcePath, target);
+    assert.equal(resolved.modeRelative, targetRelative);
+
+    const secret = path.join(temporary, "host-secret");
+    const outsideLink = path.join(applet, "outside-link.txt");
+    await fs.writeFile(secret, "secret");
+    await fs.symlink(secret, outsideLink);
+    await assert.rejects(
+        resolveSourceFile(source, outsideLink, "outside-link.txt", new Set()),
+        /symlink points outside the source tree/);
+
+    const hop = path.join(applet, "hop");
+    const chained = path.join(applet, "chained");
+    await fs.symlink(secret, hop);
+    await fs.symlink("hop", chained);
+    await assert.rejects(
+        resolveSourceFile(source, chained, "chained", new Set(["hop"])),
+        /symlink resolves outside the source tree/);
+
+    const untracked = path.join(applet, "untracked.txt");
+    const untrackedLink = path.join(applet, "untracked-link.txt");
+    await fs.writeFile(untracked, "untracked");
+    await fs.symlink("untracked.txt", untrackedLink);
+    await assert.rejects(
+        resolveSourceFile(source, untrackedLink, "untracked-link.txt", new Set()),
+        /symlink points to an untracked file/);
 });
 
 const REQUIRED = ["README.md", "info.json", "screenshot.png"];

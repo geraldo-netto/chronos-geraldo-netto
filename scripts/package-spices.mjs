@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { execFile } from "node:child_process";
-import { chmod, copyFile, lstat, mkdir, readlink, readdir, realpath, rm } from "node:fs/promises";
+import {
+    chmod, copyFile, lstat, mkdir, readlink, readdir, realpath, rm, writeFile
+} from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -38,13 +40,19 @@ function validateManifestPath(relative) {
 
 export function parseTrackedSpicesFiles(stdout) {
     return stdout.toString("utf8").split("\0").filter(Boolean).map((entry) => {
-        const match = /^([0-7]{6}) [0-9a-f]+ ([0-3])\t([\s\S]+)$/.exec(entry);
-        if (!match || match[2] !== "0") { // NOSONAR [S6582] -- accepted compatible form
+        const match = /^([0-7]{6}) ([0-9a-f]+) ([0-3])\t([\s\S]+)$/.exec(entry);
+        if (!match || match[3] !== "0") { // NOSONAR [S6582] -- accepted compatible form
             throw new Error("cannot package an invalid or conflicted Git index");
         }
+        const indexMode = Number.parseInt(match[1], 8);
+        if (![0o100644, 0o100755, 0o120000].includes(indexMode)) {
+            throw new Error("cannot package an unsupported Git index entry");
+        }
         return {
-            relative: match[3],
-            mode: Number.parseInt(match[1], 8) & 0o777
+            relative: match[4],
+            mode: indexMode & 0o777,
+            indexMode,
+            objectId: match[2]
         };
     }).sort((left, right) => left.relative.localeCompare(right.relative));
 }
@@ -134,6 +142,59 @@ async function resolveManifestFiles(source, files, manifest) {
     return resolvedFiles;
 }
 
+async function readIndexBlob(source, objectId, cache) {
+    if (!cache.has(objectId)) {
+        const pending = execFileAsync("git", [
+            "-C", source, "cat-file", "blob", objectId
+        ], { encoding: "buffer", maxBuffer: 16 * 1024 * 1024 })
+            .then(({ stdout }) => stdout);
+        cache.set(objectId, pending);
+    }
+    return cache.get(objectId);
+}
+
+async function resolveIndexFile(source, entry, entries, cache, seen = new Set()) {
+    if (entry.indexMode !== 0o120000) {
+        return {
+            contents: await readIndexBlob(source, entry.objectId, cache),
+            modeRelative: entry.relative
+        };
+    }
+    if (seen.has(entry.relative)) {
+        throw new Error(`source symlink cycle in Git index: ${entry.relative}`);
+    }
+
+    const linkTarget = (await readIndexBlob(source, entry.objectId, cache)).toString("utf8");
+    const targetRelative = path.posix.normalize(
+        path.posix.join(path.posix.dirname(entry.relative), linkTarget));
+    if (path.posix.isAbsolute(linkTarget) ||
+        targetRelative === ".." ||
+        targetRelative.startsWith("../")) {
+        throw new Error(`source symlink points outside the source tree: ${entry.relative}`);
+    }
+
+    const target = entries.get(targetRelative);
+    if (!target) {
+        throw new Error(`source symlink points to an untracked file: ${entry.relative}`);
+    }
+    const nextSeen = new Set(seen);
+    nextSeen.add(entry.relative);
+    return resolveIndexFile(source, target, entries, cache, nextSeen);
+}
+
+async function resolveIndexFiles(source, trackedEntries) {
+    const entries = new Map(trackedEntries.map((entry) => [entry.relative, entry]));
+    const cache = new Map();
+    const resolvedFiles = [];
+    for (const entry of trackedEntries) {
+        resolvedFiles.push({
+            relative: entry.relative,
+            ...await resolveIndexFile(source, entry, entries, cache)
+        });
+    }
+    return resolvedFiles;
+}
+
 export async function validatePackageLayout(output) {
     const packagedEntries = (await readdir(output)).sort();
     if (JSON.stringify(packagedEntries) !== JSON.stringify(SPICES_ROOT_ENTRIES)) {
@@ -165,7 +226,9 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
 
     // Validate every input, including symlink confinement, before replacing an
     // existing package. A bad source must not destroy the last good artifact.
-    const resolvedFiles = await resolveManifestFiles(source, files, manifest);
+    const resolvedFiles = trackedFiles ?
+        await resolveManifestFiles(source, files, manifest) :
+        await resolveIndexFiles(source, trackedEntries);
 
     await rm(output, { recursive: true, force: true });
     await mkdir(output, { recursive: true });
@@ -173,7 +236,11 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
     for (const file of resolvedFiles) {
         const destination = path.join(output, ...file.relative.split("/"));
         await mkdir(path.dirname(destination), { recursive: true });
-        await copyFile(file.sourcePath, destination);
+        if (file.contents) {
+            await writeFile(destination, file.contents);
+        } else {
+            await copyFile(file.sourcePath, destination);
+        }
         await chmod(destination,
             indexedModes.get(file.modeRelative) ?? (file.stats.mode & 0o777));
     }
