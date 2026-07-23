@@ -156,6 +156,20 @@ const OBSERVANCES = {
     ]
 };
 
+// the catalogue is shared module state every consumer reads for the applet's
+// lifetime; frozen, an accidental write is a no-op or TypeError instead of
+// silently corrupting every later month
+function _deepFreeze(value) {
+    if (value && typeof value === "object") {
+        Object.values(value).forEach(_deepFreeze);
+        Object.freeze(value);
+    }
+    return value;
+}
+_deepFreeze(RELIGIONS);
+_deepFreeze(TABLES);
+_deepFreeze(OBSERVANCES);
+
 function religionIds() {
     return RELIGIONS.map((religion) => religion.id);
 }

@@ -219,6 +219,32 @@ function randomBaseMap(rand) {
     return map;
 }
 
+test("adversarial: the catalogue cannot be tampered with", () => {
+    assert.ok(Object.isFrozen(ReligiousHolidays.RELIGIONS));
+    assert.ok(Object.isFrozen(ReligiousHolidays.RELIGIONS[0]));
+    assert.throws(() => ReligiousHolidays.RELIGIONS.push({ id: "x", label: "X" }),
+        TypeError);
+
+    const before = ReligiousHolidays.holidaysForYear(2026)[0].name;
+    ReligiousHolidays.RELIGIONS[0].label = "tampered";
+    assert.equal(ReligiousHolidays.holidaysForYear(2026)[0].name, before);
+});
+
+// the calendar splits its "year/month" keys and hands the pieces over as
+// strings: the string path must be the number path, byte for byte
+test("adversarial: split string keys reach the same map as numbers", () => {
+    const numeric = ReligiousHolidays.monthMap(2026, 12);
+    assert.ok(numeric.size > 0);
+    assert.deepEqual([...ReligiousHolidays.monthMap("2026", "12")], [...numeric]);
+});
+
+test("adversarial: an oversized selection cannot amplify the output", () => {
+    const ids = Array.from({ length: 50000 },
+        (_, i) => (i % 2 ? "islam" : `bogus-${i}`));
+    assert.deepEqual(ReligiousHolidays.holidaysForYear(2026, ids),
+        ReligiousHolidays.holidaysForYear(2026, ["islam"]));
+});
+
 test("fuzz: merging keeps base names first and mutates neither input", () => {
     const rand = makeRandom(0x3e6e);
     for (let i = 0; i < 200; i++) {
