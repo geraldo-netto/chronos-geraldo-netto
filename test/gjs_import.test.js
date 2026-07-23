@@ -80,6 +80,10 @@ function gjsImportsMock() {
                         },
                         textUtils: {
                             clampText(text, max) { return String(text).slice(0, max); },
+                            textWithinLimit(text, max) {
+                                return Array.from(String(text)).length <= max;
+                            },
+                            normalizeBoundedText(text) { return String(text).trim(); },
                             TEXT_ELLIPSIS: "…"
                         },
                         localeText: {
@@ -100,7 +104,12 @@ function gjsImportsMock() {
                             DAY_FORMAT: "%A",
                             DATE_FORMAT_SHORT: "%B %-e, %Y",
                             DATE_FORMAT_FULL: "%A, %B %-e, %Y",
-                            monthWindowStartOffset() {}
+                            MAX_DATE_FORMAT_LENGTH: 256,
+                            MAX_CLOCK_STAMP_LENGTH: 256,
+                            monthWindowStartOffset() {},
+                            dateFormatWithinLimit() { return true; },
+                            dateFormatOrDefault(format) { return format; },
+                            clampClockStamp(stamp) { return stamp; }
                         },
                         ioUtils: {
                             createHttpSession() {},
@@ -250,12 +259,14 @@ function nativeImport(moduleName) {
 const EXPORTS = {
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
-    textUtils: ["clampText", "TEXT_ELLIPSIS"],
+    textUtils: ["clampText", "textWithinLimit", "normalizeBoundedText", "TEXT_ELLIPSIS"],
     localeText: ["translate", "translatePlural", "joinPhrases", "localeDirectory"],
     localeQuery: ["registerLocaleConsumer", "cancelPendingLocaleQueries",
         "onLocaleInfoChanged", "lazyLocaleValue", "getInfo"],
-    dateFormats: ["MSECS_IN_DAY", "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
-        "monthWindowStartOffset"],
+    dateFormats: ["MSECS_IN_DAY", "MAX_DATE_FORMAT_LENGTH", "MAX_CLOCK_STAMP_LENGTH",
+        "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
+        "monthWindowStartOffset", "dateFormatWithinLimit", "dateFormatOrDefault",
+        "clampClockStamp"],
     providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale",

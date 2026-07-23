@@ -29,9 +29,16 @@ const CinnamonDesktop = GjsImports.gi.CinnamonDesktop;
 const LocaleText = IS_NODE ?
     require("./localeText") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeText;
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const translate = LocaleText.translate;
 
 var MSECS_IN_DAY = 24 * 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
+// Product limits for settings-controlled strftime input and any text it
+// renders into compositor actors or accessibility metadata.
+var MAX_DATE_FORMAT_LENGTH = 256; // NOSONAR [S3504] -- GJS importer export
+var MAX_CLOCK_STAMP_LENGTH = 256; // NOSONAR [S3504] -- GJS importer export
 
 var DAY_FORMAT = CinnamonDesktop.WallClock.lctime_format("cinnamon", "%A"); // NOSONAR [S3504] -- GJS importer export
 var DATE_FORMAT_SHORT; // NOSONAR [S3504] -- GJS importer export
@@ -54,12 +61,29 @@ function monthWindowStartOffset (isoWeekDay, weekStart) {
     return ((isoWeekDay % 7) - weekStart + 7) % 7;
 }
 
+function dateFormatWithinLimit(format) {
+    return TextUtils.textWithinLimit(format, MAX_DATE_FORMAT_LENGTH);
+}
+
+function dateFormatOrDefault(format, fallback) {
+    return dateFormatWithinLimit(format) ? format : fallback;
+}
+
+function clampClockStamp(stamp) {
+    return TextUtils.clampText(stamp, MAX_CLOCK_STAMP_LENGTH);
+}
+
 if (typeof module !== "undefined") {
     module.exports = {
         MSECS_IN_DAY,
+        MAX_DATE_FORMAT_LENGTH,
+        MAX_CLOCK_STAMP_LENGTH,
         DAY_FORMAT,
         DATE_FORMAT_SHORT,
         DATE_FORMAT_FULL,
-        monthWindowStartOffset
+        monthWindowStartOffset,
+        dateFormatWithinLimit,
+        dateFormatOrDefault,
+        clampClockStamp
     };
 }

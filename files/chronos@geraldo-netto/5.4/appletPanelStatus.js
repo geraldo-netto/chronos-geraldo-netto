@@ -313,6 +313,7 @@ class AppletPanelStatusPresenter {
         this.view = view;
         this._todayFormatCache = null;
         this._invalidTooltipFormat = null;
+        this._tooltipFormatWasRejected = false;
         this._formatIssue = "";
         this._tooltipFormatIssue = "";
     }
@@ -322,7 +323,8 @@ class AppletPanelStatusPresenter {
         let world_string = view.customFormat;
         let main_string = view.customFormat;
 
-        if (!view.setClockFormatString(world_string)) {
+        if (!DateFormats.dateFormatWithinLimit(world_string) ||
+            !view.setClockFormatString(world_string)) {
             global.logError("Calendar applet: bad time format string - check your string.");
             this._formatIssue = INVALID_TIME_FORMAT_TEXT;
             world_string = main_string = badFormatFallback(view, INVALID_TIME_FORMAT_TEXT);
@@ -393,7 +395,20 @@ class AppletPanelStatusPresenter {
     }
 
     tooltipClockFormat() {
-        return this.view.customTooltipFormat || DEFAULT_DATE_TIME_FORMAT;
+        const configured = this.view.customTooltipFormat || DEFAULT_DATE_TIME_FORMAT;
+        this._tooltipFormatWasRejected =
+            !DateFormats.dateFormatWithinLimit(configured);
+
+        if (!this._tooltipFormatWasRejected) {
+            return configured;
+        }
+
+        if (this._invalidTooltipFormat !== "overlong") {
+            this._invalidTooltipFormat = "overlong";
+            this._tooltipFormatIssue = INVALID_TIME_FORMAT_TEXT;
+            global.logError("Calendar applet: tooltip time format exceeds the safe limit.");
+        }
+        return DEFAULT_DATE_TIME_FORMAT;
     }
 
     // The change-detection key and the rendered row both use this stamp. An
@@ -401,15 +416,17 @@ class AppletPanelStatusPresenter {
     // separate error/header line that breaks the table shape.
     tooltipClockStamp(entry) {
         if (!(entry.localTime && entry.localTime.format)) { // NOSONAR [S6582] -- accepted compatible form
-            return entry.time;
+            return DateFormats.clampClockStamp(entry.time);
         }
 
         const format = this.tooltipClockFormat();
         const stamp = entry.localTime.format(format);
         if (stamp) {
-            this._invalidTooltipFormat = null;
-            this._tooltipFormatIssue = "";
-            return stamp;
+            if (!this._tooltipFormatWasRejected) {
+                this._invalidTooltipFormat = null;
+                this._tooltipFormatIssue = "";
+            }
+            return DateFormats.clampClockStamp(stamp);
         }
 
         if (this._invalidTooltipFormat !== format) {
@@ -418,7 +435,8 @@ class AppletPanelStatusPresenter {
             global.logError("Calendar applet: bad tooltip time format string - check your string.");
         }
 
-        return entry.localTime.format(DEFAULT_DATE_TIME_FORMAT) || entry.time;
+        return DateFormats.clampClockStamp(
+            entry.localTime.format(DEFAULT_DATE_TIME_FORMAT) || entry.time);
     }
 
     // the panel shows one time and one temperature; the tooltip is where the
@@ -730,7 +748,7 @@ class AppletPanelStatusPresenter {
 
     updateClockAndDate(forceMenuUpdate = false) {
         const view = this.view;
-        let label_string = view.formattedClock();
+        let label_string = DateFormats.clampClockStamp(view.formattedClock());
 
         let refreshMenu = forceMenuUpdate || view.menuOpen;
         const clocksOn = this.worldclocksEnabled();
@@ -747,11 +765,12 @@ class AppletPanelStatusPresenter {
             // divides them; any world clocks after it keep theirs
             label_string += " " + this.ellipsizeLabelSuffix(label_suffix);
         }
+        label_string = DateFormats.clampClockStamp(label_string);
 
         this.view.setLabel(TextUtils.clampText(label_string, LABEL_MAX_LENGTH));
-        // the panel label carries the weather failure as a bare glyph; a screen
-        // reader needs the words — and it gets them in full: the cap is about the
-        // width of a shared panel, and a screen reader has no width
+        // The screen reader gets more than the narrow visible label, but the
+        // configured clock portion is still bounded before accessibility and
+        // layout consumers receive it.
         this._announce(label_string);
 
         if (!refreshMenu) {

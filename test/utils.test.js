@@ -1311,6 +1311,23 @@ test("month window offset reaches week start for every day and locale", () => {
     assert.equal(utils.monthWindowStartOffset(7, 1), 6);
 });
 
+test("date-format boundaries count code points and clamp rendered stamps", () => {
+    const formats = loadUtils();
+    const maxFormat = formats.MAX_DATE_FORMAT_LENGTH;
+    const maxStamp = formats.MAX_CLOCK_STAMP_LENGTH;
+
+    assert.equal(formats.dateFormatWithinLimit("x".repeat(maxFormat)), true);
+    assert.equal(formats.dateFormatWithinLimit("x".repeat(maxFormat + 1)), false);
+    assert.equal(formats.dateFormatWithinLimit("🎉".repeat(maxFormat)), true);
+    assert.equal(formats.dateFormatWithinLimit("🎉".repeat(maxFormat + 1)), false);
+    assert.equal(formats.dateFormatOrDefault("x".repeat(maxFormat + 1), "%H:%M"),
+        "%H:%M");
+
+    const stamp = formats.clampClockStamp("x".repeat(200000));
+    assert.equal(Array.from(stamp).length, maxStamp);
+    assert.ok(stamp.endsWith(formats.TEXT_ELLIPSIS));
+});
+
 // A shim only earns its place if a 5.4 module requires it: the root modules
 // reach their siblings through the applet importer, never through 5.4/.
 test("every version shim is required by a 5.4 module", () => {
@@ -1639,6 +1656,8 @@ function gjsImportsMock() {
         urlForLog() {},
         safeCssColor() {},
         clampText() {},
+        textWithinLimit(text, max) { return Array.from(String(text)).length <= max; },
+        normalizeBoundedText(text) { return String(text).trim(); },
         TEXT_ELLIPSIS: "…",
         joinPhrases(...parts) { return parts.join(" — "); },
         getInfo() { return {}; },

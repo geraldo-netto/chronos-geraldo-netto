@@ -5,13 +5,16 @@ const path = require("node:path");
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 
 
-const { clampText, TEXT_ELLIPSIS } = require(path.join(APPLET_DIR, "textUtils.js"));
+const { clampText, textWithinLimit, normalizeBoundedText, TEXT_ELLIPSIS } =
+    require(path.join(APPLET_DIR, "textUtils.js"));
 
 test("clampText counts code points and keeps what it cuts readable", () => {
     assert.equal(clampText("Rome", 10), "Rome", "shorter than the cap is untouched");
     assert.equal(clampText("Rome", 4), "Rome", "exactly the cap is untouched");
     assert.equal(clampText(undefined, 4), "", "a non-string is the empty string");
     assert.equal(clampText(null, 4), "");
+    assert.equal(clampText("Rome", 0), "");
+    assert.equal(clampText("Rome", NaN), "");
 
     assert.equal(clampText("abcdef", 4), "abc" + TEXT_ELLIPSIS,
         "the ellipsis is one of the code points the cap allows");
@@ -19,6 +22,26 @@ test("clampText counts code points and keeps what it cuts readable", () => {
 
     // the space before the cut goes with it: "Rome …" reads as a broken word
     assert.equal(clampText("ab   cdef", 6), "ab" + TEXT_ELLIPSIS);
+});
+
+test("bounded text checks and normalization count Unicode code points", () => {
+    assert.equal(textWithinLimit("x".repeat(4), 4), true);
+    assert.equal(textWithinLimit("x".repeat(5), 4), false);
+    assert.equal(textWithinLimit("🎉".repeat(4), 4), true);
+    assert.equal(textWithinLimit("🎉".repeat(5), 4), false);
+    assert.equal(textWithinLimit(null, 4), false);
+    assert.equal(textWithinLimit("text", -1), false);
+
+    assert.equal(normalizeBoundedText("  São Paulo  ", 13), "São Paulo");
+    assert.equal(normalizeBoundedText("  São Paulo  ", 9), "",
+        "the cheap raw bound runs before trim");
+    assert.equal(normalizeBoundedText("🎉".repeat(4), 4), "🎉".repeat(4));
+    assert.equal(normalizeBoundedText("🎉".repeat(5), 4), "");
+    assert.equal(normalizeBoundedText(null, 4), "");
+
+    const huge = clampText("x".repeat(200000), 32);
+    assert.equal(Array.from(huge).length, 32);
+    assert.ok(huge.endsWith(TEXT_ELLIPSIS));
 });
 
 // REGRESSION: two of the four copies of this rule sliced UTF-16 units. A string

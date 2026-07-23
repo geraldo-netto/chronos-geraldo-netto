@@ -8,6 +8,7 @@ const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", 
 const dataModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "worldclockData.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "worldclockData.js");
 const localeTextPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeText.js");
+const textUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "textUtils.js");
 const style52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "stylesheet.css");
 
 // two built-in rows (UTC and local time) always precede the configured clocks
@@ -307,20 +308,35 @@ function clearWorldclockCaches() {
     delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(shimPath)];
     delete require.cache[require.resolve(dataModulePath)];
+    delete require.cache[require.resolve(textUtilsPath)];
 }
 
 // 5.4/worldclocks.js reaches the shared data module through the 5.4 shim,
 // which reads it off the applet importer
 function reloadWorldclocks() {
     clearWorldclockCaches();
-    global.imports.ui.appletManager = {
-        applets: {
-            "chronos@geraldo-netto": {
-                worldclockData: require(dataModulePath),
-                localeText: require(localeTextPath)
+    const textUtils = require(textUtilsPath);
+    const appletModules = {
+        localeText: require(localeTextPath),
+        textUtils,
+        dateFormats: {
+            MAX_DATE_FORMAT_LENGTH: 256,
+            MAX_CLOCK_STAMP_LENGTH: 256,
+            dateFormatOrDefault(format, fallback) {
+                return textUtils.textWithinLimit(format, this.MAX_DATE_FORMAT_LENGTH) ?
+                    format : fallback;
+            },
+            clampClockStamp(stamp) {
+                return textUtils.clampText(stamp, this.MAX_CLOCK_STAMP_LENGTH);
             }
         }
     };
+    global.imports.ui.appletManager = {
+        applets: {
+            "chronos@geraldo-netto": appletModules
+        }
+    };
+    appletModules.worldclockData = require(dataModulePath);
 
     return require(modulePath);
 }
@@ -594,6 +610,30 @@ test("changing the format re-renders the clocks without rebuilding them", () => 
     worldclocks.clocks.forEach((clock) => { clock.rendered_time = "sentinel"; });
     worldclocks.setFormat("%H:%M:%S");
     assert.ok(worldclocks.clocks.every((clock) => clock.rendered_time === "sentinel"));
+});
+
+test("world-clock formats and rendered stamps stay within shared bounds", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const DateFormats =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats;
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    const maxFormat = DateFormats.MAX_DATE_FORMAT_LENGTH;
+    const maxStamp = DateFormats.MAX_CLOCK_STAMP_LENGTH;
+
+    worldclocks.buildClocks([], " ".repeat(maxFormat + 1));
+    assert.equal(worldclocks.format, "%H:%M",
+        "overlong whitespace falls back before GLib formats it");
+
+    worldclocks.setFormat("x".repeat(maxFormat + 1));
+    assert.equal(worldclocks.format, "%H:%M",
+        "overlong non-whitespace is rejected too");
+
+    worldclocks.setFormat("%Z".repeat(Math.floor(maxFormat / 2)));
+    worldclocks.updateClocks();
+    assert.ok(worldclocks.clocks.every(
+        (clock) => Array.from(clock.display.text).length <= maxStamp));
+    assert.ok(worldclocks.clocks.every(
+        (clock) => clock.display.text.endsWith("…")));
 });
 
 // the service that answered was named only in the panel's mouse tooltip

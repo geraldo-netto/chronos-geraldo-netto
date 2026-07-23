@@ -835,6 +835,13 @@ test("_updateFormatString always applies the configured format and handles inval
     Proto._updateFormatString.call(stub);
     assert.ok(errors.length > 0);
     assert.ok(stub.worldclock_format.includes("Invalid time format"));
+
+    const overlong = "x".repeat(rootModules.dateFormats.MAX_DATE_FORMAT_LENGTH + 1);
+    stub.custom_format = overlong;
+    Proto._updateFormatString.call(stub);
+    assert.ok(!stub.clock.formats.includes(overlong),
+        "an overlong setting never reaches CinnamonDesktop.WallClock");
+    assert.ok(stub.worldclock_format.includes("Invalid time format"));
     assert.ok(builds.length >= 4);
     global.logError = originalLogError;
 });

@@ -21,6 +21,7 @@ const St = GjsImports.gi.St;
 const WorldclockData = require("./worldclockData");
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
+const DateFormats = AppletModules.dateFormats;
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
@@ -50,11 +51,11 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     }
 
     _formatTime(time) {
-        return time.format(this.format).trim();
+        return DateFormats.clampClockStamp(time.format(this.format) || "").trim();
     }
 
     buildClocks(clocks, format) {
-        this.format = format || "%H:%M";
+        this.format = DateFormats.dateFormatOrDefault(format || "%H:%M", "%H:%M");
         this.actor.destroy_all_children();
         this.clocks = [];
 
@@ -115,7 +116,7 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // every GLib.TimeZone and relaid out the menu subtree twenty times, on the
     // compositor thread.
     setFormat(format) {
-        const next = format || "%H:%M"; // NOSONAR [S7760] -- accepted compatible form
+        const next = DateFormats.dateFormatOrDefault(format || "%H:%M", "%H:%M"); // NOSONAR [S7760] -- accepted compatible form
         if (next === this.format) {
             return;
         }

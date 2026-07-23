@@ -302,13 +302,14 @@ test("ellipsizeLabelSuffix never splits surrogate pairs", () => {
 // applet did it.
 test("a long custom format cannot push the panel's other applets off it", () => {
     const MAX = PanelStatusModule.LABEL_MAX_LENGTH;
+    const MAX_STAMP = DateFormats.MAX_CLOCK_STAMP_LENGTH;
     const { stub, calls } = updateStub();
     Object.assign(stub, {
         show_weather: false,
         custom_format: "ignored — the clock double answers with the string below",
         // the label is whatever WallClock renders the user's format into
         clock: Object.assign(clockStub(), {
-            get_clock: () => "Wednesday, 15 October 2025 — 14:52:07 Central European Summer Time"
+            get_clock: () => "x".repeat(200000)
         }),
         actor: { names: [], set_accessible_name(name) { this.names.push(name); } }
     });
@@ -319,10 +320,11 @@ test("a long custom format cannot push the panel's other applets off it", () => 
     assert.equal(Array.from(label).length, MAX, "the label is bounded");
     assert.ok(label.endsWith(ELLIPSIS), "and it says it was cut");
 
-    // the screen reader still hears the whole thing: the cap is about the width of
-    // a shared panel, and a name has no width
-    assert.ok(stub.actor.names.at(-1).startsWith("Wednesday, 15 October 2025"));
+    // Accessibility gets more than the narrow panel can draw, but not the
+    // unbounded output of a hand-edited format.
     assert.ok(stub.actor.names.at(-1).length > MAX);
+    assert.equal(Array.from(stub.actor.names.at(-1)).length, MAX_STAMP);
+    assert.ok(stub.actor.names.at(-1).endsWith(ELLIPSIS));
 });
 
 test("the panel readout is announced with its condition", () => {
@@ -564,6 +566,47 @@ test("the tooltip clock uses its configured day-month 24-hour format", () => {
 
     assert.equal(panelStatus(twelveHour).tooltipClockFormat(), "%d %b %H:%M");
     assert.equal(panelStatus(twentyFour).tooltipClockFormat(), "%d %b %H:%M");
+});
+
+test("tooltip formats and rendered stamps use shared Unicode bounds", () => {
+    const maxFormat = DateFormats.MAX_DATE_FORMAT_LENGTH;
+    const maxStamp = DateFormats.MAX_CLOCK_STAMP_LENGTH;
+    const formats = [];
+    const stub = { show_weather: false, custom_tooltip_format: "" };
+    const entry = {
+        label: "Local time", builtin: true, timezone: "local", time: "fallback",
+        localTime: {
+            format(format) {
+                formats.push(format);
+                return format === "%d %b %H:%M" ? "x".repeat(200000) : "stamp";
+            }
+        }
+    };
+    const presenter = panelStatus(stub);
+    const originalLogError = global.logError;
+    global.logError = () => {};
+
+    for (const overlong of [" ".repeat(maxFormat + 1), "x".repeat(maxFormat + 1)]) {
+        stub.custom_tooltip_format = overlong;
+        const stamp = presenter.tooltipClockStamp(entry);
+        assert.equal(formats.at(-1), "%d %b %H:%M");
+        assert.equal(Array.from(stamp).length, maxStamp);
+        assert.ok(stamp.endsWith(ELLIPSIS));
+    }
+
+    for (const accepted of [
+        "%S".repeat(Math.floor(maxFormat / 2)),
+        "🎉".repeat(maxFormat)
+    ]) {
+        stub.custom_tooltip_format = accepted;
+        presenter.tooltipClockStamp(entry);
+        assert.equal(formats.at(-1), accepted);
+    }
+    stub.custom_tooltip_format = "🎉".repeat(maxFormat + 1);
+    presenter.tooltipClockStamp(entry);
+    assert.equal(formats.at(-1), "%d %b %H:%M");
+    assert.match(presenter.issueStatus([entry], []), /Invalid time format/);
+    global.logError = originalLogError;
 });
 
 test("a tooltip row is location, fixed-order timestamp, temperature, and weather", () => {

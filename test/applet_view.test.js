@@ -1095,6 +1095,7 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
         cityWeatherError: (city) => city === "Tokyo" ?
             Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND : "",
         cityWeatherStale: (city) => city === "Lisbon",
+        customFormat: "%H:%M",
         desktopSettings: { use24h: true },
         setClockFormatString: () => false,
         setWorldclockFormat() {},
