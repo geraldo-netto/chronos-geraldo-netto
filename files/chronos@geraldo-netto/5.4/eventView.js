@@ -48,10 +48,18 @@ const EVENTS_UNAVAILABLE_TEXT =
     _("Calendar events are unavailable — no calendar service is running. Install or enable Evolution Data Server.");
 const EVENTS_REFRESH_FAILED_TEXT =
     _("Calendar events could not be refreshed.");
+// Linux limits each argv entry independently. Keeping the externally supplied
+// UID well below that kernel limit also leaves room for stricter launchers and
+// avoids ever handing the compositor a spawn request it knows can fail.
+var MAX_EVENT_UID_LENGTH = 4096; // NOSONAR [S3504] -- exported for boundary tests
 
 const EventDataModule = require("./eventData");
 const date_only = EventDataModule.date_only;
 const dt_equals = EventDataModule.dt_equals;
+
+function eventUidCanLaunch(uuid) {
+    return typeof uuid === "string" && uuid.length <= MAX_EVENT_UID_LENGTH;
+}
 
 function format_timespan(timespan) {
     let minutes = Math.floor(timespan / GLib.TIME_SPAN_MINUTE);
@@ -115,13 +123,25 @@ class CalendarLauncher {
             return false;
         }
 
+        if (!eventUidCanLaunch(uuid)) {
+            global.log("Chronos: refused a calendar event identifier that exceeds the launch limit");
+            return false;
+        }
+
         // The uid comes off whatever ICS or CalDAV feed the user subscribed to.
         // This is the argv form, so there is no shell and no command injection
         // — but as a separate argument, a uid beginning with a dash reaches
         // gnome-calendar's option parser as an option. Attaching it to the
         // switch keeps it a value.
-        Util.trySpawn(["gnome-calendar", "--uuid=" + String(uuid)], false);
-        return true;
+        try {
+            Util.trySpawn(["gnome-calendar", "--uuid=" + uuid], false);
+            return true;
+        } catch {
+            // Do not echo the feed-controlled UID (or an error that may contain
+            // argv) into the shell log.
+            global.log("Chronos: gnome-calendar could not open the requested event");
+            return false;
+        }
     }
 }
 
@@ -730,7 +750,8 @@ class EventRowPresenter {
     }
 
     connectActivation() {
-        if (!this.row._calendar_launcher.isAvailable()) {
+        if (!this.row._calendar_launcher.isAvailable() ||
+            !eventUidCanLaunch(this.row.event.id)) {
             return;
         }
 
@@ -849,7 +870,8 @@ class EventRow {
         // one that does nothing on Enter, Space or click. The empty-state
         // button and the date heading were both already guarded this way; the
         // rows were the ones that got missed.
-        const canActivate = this._calendar_launcher.isAvailable();
+        const canActivate = this._calendar_launcher.isAvailable() &&
+            eventUidCanLaunch(this.event.id);
 
         this.actor = new St.BoxLayout(
             {
@@ -964,5 +986,6 @@ Signals.addSignalMethods(EventRow.prototype);
 if (typeof module !== "undefined") {
     module.exports = { CalendarLauncher, EventList, EventListRenderer, EventRow,
         EventRowPresenter, format_timespan, MAX_RENDERED_EVENT_ROWS,
-        EVENTS_OVERFLOW_TEXT, EVENTS_UNAVAILABLE_TEXT, EVENTS_REFRESH_FAILED_TEXT };
+        MAX_EVENT_UID_LENGTH, eventUidCanLaunch, EVENTS_OVERFLOW_TEXT,
+        EVENTS_UNAVAILABLE_TEXT, EVENTS_REFRESH_FAILED_TEXT };
 }

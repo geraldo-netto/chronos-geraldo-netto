@@ -460,6 +460,8 @@ test("EventList launches calendar only when available", () => {
 test("CalendarLauncher owns date and uuid launch commands", () => {
     const spawned = [];
     global.imports.misc.util.trySpawn = (args) => spawned.push(args);
+    const logged = [];
+    global.log = (message) => logged.push(message);
 
     // gnome-calendar does not come and go while the shell runs, so a launcher
     // asks $PATH once and keeps the answer: a launcher built without it stays
@@ -491,6 +493,37 @@ test("CalendarLauncher owns date and uuid launch commands", () => {
 
     present.launchUuid("--version");
     assert.deepEqual(spawned.at(-1), ["gnome-calendar", "--uuid=--version"]);
+
+    const max = EventView.MAX_EVENT_UID_LENGTH;
+    assert.equal(present.launchUuid("x".repeat(max)), true);
+    assert.equal(spawned.at(-1)[1].length, "--uuid=".length + max);
+    assert.equal(present.launchUuid("x".repeat(max + 1)), false);
+    assert.equal(present.launchUuid(null), false);
+    assert.equal(logged.length, 2);
+    assert.ok(logged.every((message) => !message.includes("x".repeat(100))));
+
+    global.imports.misc.util.trySpawn = () => {
+        throw new Error("E2BIG with feed-controlled argv");
+    };
+    assert.equal(present.launchUuid("still-safe"), false);
+    assert.doesNotMatch(logged.at(-1), /feed-controlled|still-safe/);
+    global.log = () => {};
+});
+
+test("an oversized event UID cannot make a row look activatable", () => {
+    global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    const event = makeRowEvent({
+        id: "x".repeat(EventView.MAX_EVENT_UID_LENGTH + 1),
+        startUnix: 50 * DAY_S + 14 * 3600,
+        endUnix: 50 * DAY_S + 15 * 3600
+    });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+    global.imports.gi.GLib.find_program_in_path = () => null;
+
+    assert.equal(EventView.eventUidCanLaunch(event.id), false);
+    assert.equal(row.actor.options.reactive, false);
+    assert.equal(row.actor.options.can_focus, false);
+    assert.equal(Object.keys(row.actor.handlers).length, 0);
 });
 
 test("the selected-date label is reachable from the keyboard and explains itself", () => {
