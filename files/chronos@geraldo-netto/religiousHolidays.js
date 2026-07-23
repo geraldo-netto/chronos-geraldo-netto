@@ -206,18 +206,17 @@ function _dateOf(entry, year) {
 // part of the display name, which is what "split by religion" means on a grid
 // cell that shows one tooltip
 function holidaysForYear(year, enabledIds = religionIds()) {
-    const numericYear = year;
-    if (!_validYear(numericYear)) {
+    if (!_validYear(year)) {
         return [];
     }
 
     const rows = [];
     for (const id of _enabledReligionIds(enabledIds)) {
         for (const entry of OBSERVANCES[id] || []) {
-            const date = _dateOf(entry, numericYear);
+            const date = _dateOf(entry, year);
             if (date) {
                 rows.push({
-                    year: numericYear,
+                    year,
                     month: date[0],
                     day: date[1],
                     name: `${entry.name} (${_religionLabel(id)})`,
@@ -245,10 +244,7 @@ function monthMap(year, month, enabledIds = religionIds()) {
         }
 
         const key = `${row.month}/${row.day}`;
-        const known = map.get(key);
-        map.set(key, known ?
-            [known[0] + "\n" + row.name, _mergeFlags(known[1], row.flags)] :
-            [row.name, row.flags]);
+        map.set(key, _joinEntry(map.get(key), row.name, row.flags));
     }
 
     return map;
@@ -258,15 +254,20 @@ function _mergeFlags(known, extra) {
     return known.concat(extra.filter((flag) => known.indexOf(flag) === -1)); // NOSONAR [S7765] -- accepted compatible form
 }
 
+// joined the way the holiday cache joins same-day rows: earlier names first,
+// duplicate flags dropped
+function _joinEntry(known, name, flags) {
+    return known ?
+        [known[0] + "\n" + name, _mergeFlags(known[1], flags)] :
+        [name, flags];
+}
+
 // merge locally-computed rows into a provider month map without mutating
 // either: the provider's names come first, as they do in the cache
 function mergeMonthMaps(base, extra) {
     const merged = new Map(base);
     for (const [key, [name, flags]] of extra.entries()) {
-        const known = merged.get(key);
-        merged.set(key, known ?
-            [known[0] + "\n" + name, _mergeFlags(known[1], flags)] :
-            [name, flags]);
+        merged.set(key, _joinEntry(merged.get(key), name, flags));
     }
 
     return merged;
