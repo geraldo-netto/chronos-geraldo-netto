@@ -361,6 +361,21 @@ test("a huge event summary is clamped, not laid out", () => {
     assert.doesNotMatch(astral.summary, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
 });
 
+test("calendar colors are validated before EventData retains them", () => {
+    const times = { startUnix: 50 * DAY_S, endUnix: 50 * DAY_S + 3600 };
+    const max = require(path.join(__dirname, "..", "files", "chronos@geraldo-netto",
+        "styleUtils.js")).MAX_CSS_COLOR_LENGTH;
+
+    assert.equal(new EventData(makeVariant(Object.assign(
+        { color: " rgb(1, 2, 3) " }, times)), 1).color, "rgb(1, 2, 3)");
+    assert.equal(new EventData(makeVariant(Object.assign(
+        { color: "a".repeat(max) }, times)), 1).color, "a".repeat(max));
+    assert.equal(new EventData(makeVariant(Object.assign(
+        { color: "a".repeat(max + 1) }, times)), 1).color, "");
+    assert.equal(new EventData(makeVariant(Object.assign(
+        { color: "a".repeat(200000) }, times)), 1).color, "");
+});
+
 // A day's worth of events as the calendar server might deliver them. All-day
 // events always start at midnight — that is the server's shape, and the
 // today-ordering early-break depends on it.

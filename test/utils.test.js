@@ -1332,6 +1332,7 @@ test("every version shim is required by a 5.4 module", () => {
 
 test("safeCssColor allows plain color syntax and blocks style injection", () => {
     const StyleUtils = loadStyleUtils();
+    const max = StyleUtils.MAX_CSS_COLOR_LENGTH;
     assert.equal(StyleUtils.safeCssColor("#abc"), "#abc");
     assert.equal(StyleUtils.safeCssColor("#AABBCCDD"), "#AABBCCDD");
     assert.equal(StyleUtils.safeCssColor("rgb(1, 2, 3)"), "rgb(1, 2, 3)");
@@ -1342,6 +1343,9 @@ test("safeCssColor allows plain color syntax and blocks style injection", () => 
     assert.equal(StyleUtils.safeCssColor(null), "transparent");
     assert.equal(StyleUtils.safeCssColor("#abc", "#000"), "#abc");
     assert.equal(StyleUtils.safeCssColor("}; *{color:red}", "#000"), "#000");
+    assert.equal(StyleUtils.safeCssColor("a".repeat(max)), "a".repeat(max));
+    assert.equal(StyleUtils.safeCssColor("a".repeat(max + 1), "#000"), "#000");
+    assert.equal(StyleUtils.safeCssColor(" ".repeat(200000) + "red", "#000"), "#000");
 });
 
 test("fuzz: safeCssColor output never carries declaration separators", () => {

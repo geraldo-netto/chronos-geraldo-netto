@@ -13,16 +13,26 @@
 // color syntax through to inline St styles (blocks `;`-injection of extra
 // declarations such as background-image).
 var CSS_COLOR_PATTERN = /^(#[0-9a-fA-F]{3,8}|rgba?\([0-9,.\s%]+\)|[a-zA-Z]+)$/; // NOSONAR [S3504] -- GJS importer export
+var MAX_CSS_COLOR_LENGTH = 64; // NOSONAR [S3504] -- GJS importer export
 
 function safeCssColor(color, fallback = "transparent") {
-    if (typeof color === "string" && CSS_COLOR_PATTERN.test(color.trim())) {
-        return color.trim();
+    // Check the cheap, allocation-free bound before trim() and the regex.
+    // Valid CSS color tokens are ASCII, so UTF-16 length is deliberately the
+    // strictest useful measure here.
+    if (typeof color !== "string" || color.length > MAX_CSS_COLOR_LENGTH) {
+        return fallback;
+    }
+
+    const normalized = color.trim();
+    if (CSS_COLOR_PATTERN.test(normalized)) {
+        return normalized;
     }
     return fallback;
 }
 
 if (typeof module !== "undefined") {
     module.exports = {
+        MAX_CSS_COLOR_LENGTH,
         safeCssColor
     };
 }

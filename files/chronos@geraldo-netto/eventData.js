@@ -32,6 +32,9 @@ const GLib = GjsImports.gi.GLib;
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+const StyleUtils = IS_NODE ?
+    require("./styleUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].styleUtils;
 
 // EventListRenderer uses equality to distinguish a changing event's countdown
 // from a structurally different list that must rebuild its rows. Monotonic time
@@ -141,7 +144,7 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
         // both go straight into St actors; the summary is a label and the
         // colour is filtered again before it reaches an inline style
         this.summary = clampEventSummary(summary);
-        this.color = typeof color === "string" ? color : "";
+        this.color = StyleUtils.safeCssColor(color, "");
         // This is the time_t for when event was last modified by e-d-s
         this.modified = mod_time;
         // This is the last monotonic time we contacted our server to update our events. This
