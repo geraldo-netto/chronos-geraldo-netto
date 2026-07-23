@@ -88,7 +88,6 @@ function baseProvider(country = "") {
     return {
         country,
         destroyed: false,
-        _provider: { service: "underlying service" },
         clearPlace() { this.country = ""; },
         destroy() { this.destroyed = true; },
         setPlace(nextCountry, _region, onUpdated) {
@@ -116,7 +115,6 @@ test("provider serves local observances while public holidays are disabled", () 
     assert.deepEqual(answer[0].get("12/25"),
         ["Christmas Day (Christianity)", ["religious_holiday", "christianity"]]);
     assert.deepEqual(answer.slice(1), ["", ""]);
-    assert.equal(provider._provider.service, "underlying service");
 });
 
 test("provider merges public results and preserves provider status", () => {

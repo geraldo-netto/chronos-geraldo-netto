@@ -489,7 +489,7 @@ test("the composition root builds one session, lazily, and aborts it", () => {
     const { createHolidayProvider } = loadHolidays({ soup });
 
     const provider = createHolidayProvider({ lang: "en", cache: makeMemoryCache() });
-    const enrico = provider._provider;
+    const enrico = provider._base._provider;
 
     assert.equal(soup.sessions.length, 0,
         "holidays may never be shown: no session until something asks");
@@ -524,7 +524,7 @@ test("the holiday composition root wires the shipped graph", () => {
         },
         cache: makeMemoryCache()
     });
-    const chain = provider._provider.service;
+    const chain = provider._base._provider.service;
 
     const answers = [];
     provider.setPlace("fra", "global", () => answers.push("updated"));
@@ -568,7 +568,7 @@ test("a response from the country the user just left does not silence the new on
         cache: makeMemoryCache(),
         load: (url, params, callback) => pending.push({ params, callback })
     });
-    const enrico = provider._provider;
+    const enrico = provider._base._provider;
 
     const repaints = [];
     provider.setPlace("bra", "global", () => repaints.push("bra"));

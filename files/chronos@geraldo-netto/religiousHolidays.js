@@ -275,7 +275,6 @@ function mergeMonthMaps(base, extra) {
 var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S3504] -- GJS importer export
     constructor(provider, enabledIds = []) {
         this._base = provider;
-        this._provider = provider._provider;
         this.setEnabledIds(enabledIds);
     }
 
