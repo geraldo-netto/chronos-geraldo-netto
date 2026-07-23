@@ -1378,7 +1378,7 @@ test("every version shim is required by a 5.4 module", () => {
 
     for (const name of files) {
         const source = fs.readFileSync(path.join(versionDir, name), "utf8");
-        const isShim = /applets\["chronos@geraldo-netto"\]\.\w+;/.test(source) && source.split("\n").length < 10;
+        const isShim = /applets\["chronos@geraldo-netto"\]\.\w+;/.test(source) && source.split("\n").length < 20;
         if (!isShim) {
             continue;
         }
