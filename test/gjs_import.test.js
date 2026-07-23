@@ -235,6 +235,9 @@ function gjsImportsMock() {
                                 }
                             }
                         },
+                        religiousHolidays: {
+                            ReligiousHolidayProvider: class {}
+                        },
                         holidayServiceAdapters: {
                             EnricoServiceAdapter: class {},
                             NagerDateServiceAdapter: class {},
@@ -294,7 +297,10 @@ const EXPORTS = {
     holidays: ["Provider", "HolidayCacheRepository", "HolidayCache", "EnricoServiceAdapter",
         "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
         "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
-        "HOLIDAY_ERRORS"],
+        "ReligiousHolidayProvider", "HOLIDAY_ERRORS"],
+    religiousHolidays: ["RELIGIOUS_HOLIDAY_FLAG", "RELIGIONS", "gregorianEaster",
+        "religionIds", "holidaysForYear", "monthMap", "mergeMonthMaps",
+        "ReligiousHolidayProvider"],
     holidayAdapters: ["HolidayFallbackChain"],
     holidayCache: ["HolidayCacheRepository", "HolidayCache", "validCachedHoliday",
         "validCachedStamp", "validCachedYears", "clampHolidayName", "MAX_HOLIDAY_NAME_LENGTH", "MAX_MEMOIZED_MONTHS",

@@ -45,6 +45,10 @@ const HolidayServiceAdapters = IS_NODE ?
 const HolidayRecord = IS_NODE ?
     require("./holidayRecord") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
+const ReligiousHolidays = IS_NODE ?
+    require("./religiousHolidays") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].religiousHolidays;
+var ReligiousHolidayProvider = ReligiousHolidays.ReligiousHolidayProvider; // NOSONAR [S3504] -- GJS importer export
 
 const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
@@ -596,7 +600,8 @@ function createHolidayProvider(params = {}) {
         inflight: params.inflight
     });
 
-    return new HolidayProviderFacade(provider);
+    return new ReligiousHolidayProvider(
+        new HolidayProviderFacade(provider), params.religiousIds);
 }
 
 var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- GJS importer export
@@ -627,5 +632,5 @@ var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- 
 
 if (typeof module !== "undefined") {
     module.exports = {
-        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, HOLIDAY_ERRORS };
+        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, ReligiousHolidayProvider, HOLIDAY_ERRORS };
 }
