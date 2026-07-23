@@ -62,6 +62,14 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return true;
     }
 
+    clearOverflow() {
+        if (!this._overflowed) {
+            return false;
+        }
+        this._overflowed = false;
+        return true;
+    }
+
     _rebuildEventState() {
         this._eventIds.clear();
         this._eventsById.clear();

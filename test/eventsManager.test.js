@@ -705,8 +705,25 @@ test("a mutation flood collapses to one bounded authoritative resync", () => {
     assert.equal(manager._event_index.get(new FakeDateTime(10 * DAY_US)), null);
     assert.equal(manager._event_index.overflowed, true);
     assert.equal(manager._force_reload_pending, true);
+    assert.equal(manager._resync_overflow_pending, true);
     assert.equal(manager._queued_event_records, 0);
     assert.equal(manager._resync_mutation_queued, false);
+
+    fireTimer(manager._reload_today_id);
+    assert.equal(manager._resync_overflow_pending, false);
+    assert.equal(manager._event_index.overflowed, false);
+    assert.equal(emitted(manager, "selected-date-events-changed").at(-1).args[2],
+        false, "the replacement range starts with a clean warning state");
+
+    proxy.instance.signal("events-added-or-updated", {
+        get_size: () => MAX_EVENT_SIGNAL_BYTES + 1,
+        n_children: () => 1,
+        get_child_value: () => {
+            throw new Error("an oversized payload must not be read");
+        }
+    });
+    assert.equal(manager._event_index.overflowed, true,
+        "a replacement payload can raise its own independent warning");
 });
 
 test("bounded event decoding rejects malformed adapters", () => {
@@ -1406,6 +1423,9 @@ test("EventIndex bounds distinct window events and recovers capacity", () => {
     });
     assert.equal(index.get(selected).length, 3);
     assert.equal(index.overflowed, true);
+    assert.equal(index.clearOverflow(), true);
+    assert.equal(index.clearOverflow(), false);
+    assert.equal(index.markOverflow(), true);
 
     index.remove(["cap-0"]);
     assert.equal(index.addOrUpdate([eventVariant({

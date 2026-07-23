@@ -150,6 +150,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._overflow_mutation_queued = false;
         this._resync_mutation_queued = false;
         this._pending_emit = null;
+        // A mutation-flood resync uses overflow as a temporary warning until
+        // its authoritative replacement request has actually been dispatched.
+        // Payload limits reached after that boundary are independent warnings.
+        this._resync_overflow_pending = false;
         // handed to every call_set_time_range so a reply that is still in
         // flight when the applet goes away is cancelled rather than delivered
         // to a torn-down manager
@@ -402,6 +406,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
     _apply_event_resync() {
         this._event_index.clear();
+        this._resync_overflow_pending = true;
         this._mark_event_overflow();
         this._emit_selected_date_events_changed(false);
         this.emit("events-updated");
@@ -555,6 +560,15 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._server_connection.setTimeRange(
             start, end, force, cancellable,
             (server, res) => this.call_finished(generation, server, res));
+
+        // Keep the warning if dispatch itself throws. Once a range call has
+        // started, however, the old mutation-flood marker no longer describes
+        // the replacement payload. selectDate emits the newly cleared state
+        // immediately after this synchronous dispatch boundary.
+        if (this._resync_overflow_pending) {
+            this._resync_overflow_pending = false;
+            this._event_index.clearOverflow();
+        }
     }
 
     call_finished(generation, server, res) {
@@ -677,6 +691,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._overflow_mutation_queued = false;
         this._resync_mutation_queued = false;
         this._pending_emit = null;
+        this._resync_overflow_pending = false;
 
         this._server_connection.destroy();
         this._stop_gc_timer();
