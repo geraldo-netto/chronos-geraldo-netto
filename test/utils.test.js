@@ -893,6 +893,48 @@ test("httpGetJson invokes a throwing callback exactly once", () => {
     assert.equal(calls, 1);
 });
 
+test("httpGetJson settles when Soup cannot construct a message", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (error) => logged.push(String(error.message || error));
+    let sends = 0;
+
+    for (const constructionFailure of [
+        () => null,
+        () => {
+            throw new Error("URI contains Private Place");
+        }
+    ]) {
+        global.imports.gi.Soup.Message.new = constructionFailure;
+        let calls = 0;
+        utils.httpGetJson({
+            send_async() {
+                sends++;
+            }
+        }, "https://example.test/geocode?name=Private%20Place", (data, message) => {
+            calls++;
+            assert.equal(data, null);
+            assert.equal(message, null);
+        });
+        assert.equal(calls, 1);
+    }
+
+    assert.equal(sends, 0);
+    assert.equal(logged.length, 2);
+    assert.ok(logged.every((message) =>
+        message === "could not construct HTTP request for https://example.test/geocode"));
+
+    global.imports.gi.Soup.Message.new = () => null;
+    let throwingCalls = 0;
+    assert.throws(() => {
+        utils.httpGetJson({}, "https://example.test/geocode", () => {
+            throwingCalls++;
+            throw new Error("consumer exploded during construction failure");
+        });
+    }, /consumer exploded during construction failure/);
+    assert.equal(throwingCalls, 1);
+});
+
 test("httpGetJson applies request headers when provided", () => {
     const utils = loadIoUtils();
     const recorded = [];

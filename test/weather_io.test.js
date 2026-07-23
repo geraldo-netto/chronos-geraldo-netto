@@ -1,5 +1,6 @@
 const {
-    assert, test, vm, fs, shimPath, shown, loadWeather, makeSoup3
+    assert, test, vm, fs, shimPath, shown, loadWeather, makeSoup3,
+    immediateNominatimQueue
 } = require("./helpers/weatherFixture");
 
 test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
@@ -63,6 +64,29 @@ test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
     });
 
     assert.equal(failed, null);
+});
+
+test("Soup message construction failures become the normal provider error", () => {
+    const Weather = loadWeather({
+        Message: {
+            new() {
+                throw new Error("invalid URI");
+            }
+        }
+    });
+    const provider = new Weather.WeatherProvider({
+        nominatimQueue: immediateNominatimQueue()
+    });
+    const results = [];
+
+    provider.refresh(
+        { showWeather: true, location: "Rome", units: "si" },
+        (reading, error) => results.push({ reading, error }));
+
+    assert.deepEqual(results, [{
+        reading: null,
+        error: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE
+    }]);
 });
 
 test("built-in Soup 3 JSON loader does not catch callback errors", () => {

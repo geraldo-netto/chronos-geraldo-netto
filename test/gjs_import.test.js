@@ -152,6 +152,7 @@ function gjsImportsMock() {
                             readingIsStale() {},
                             MAX_RETRY_ATTEMPTS: 8,
                             MAX_GEOCODE_CACHE_ENTRIES: 16,
+                            MAX_WEATHER_LOCATION_LENGTH: 256,
                             WEATHER_DEBOUNCE_MS: 750,
                             WEATHER_UNITS: { SI: "si", IMPERIAL: "imperial" },
                             WEATHER_ERROR_MARKER: "⚠",
@@ -159,6 +160,9 @@ function gjsImportsMock() {
                             WEATHER_ERRORS: {},
                             WEATHER_CONDITIONS: {},
                             normalizeUnits() {},
+                            normalizeWeatherLocation(location) {
+                                return String(location || "").trim();
+                            },
                             formatTemperature() {}
                         },
                         weatherServiceAdapters: {
@@ -270,6 +274,7 @@ const EXPORTS = {
     providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale",
+        "MAX_WEATHER_LOCATION_LENGTH", "normalizeWeatherLocation",
         "WEATHER_ERROR_MARKER", "WEATHER_PENDING_TEXT", "WEATHER_ERRORS",
         "WEATHER_CONDITIONS", "normalizeUnits", "formatTemperature"],
     weatherServiceAdapters: ["GEOCODE_CANDIDATE_COUNT", "GEOCODE_LANGUAGE_FALLBACK",

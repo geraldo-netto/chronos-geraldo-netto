@@ -574,6 +574,16 @@ test("weather location resolver owns geocode fallback and cache", () => {
         ["provider Open-Meteo failed; trying next provider"]);
     assert.ok(exhaustedLogs.every((message) => !message.includes("Nowhere")),
         "the searched-for location never reaches the log");
+
+    const rejected = [];
+    unresolvedResolver.resolve(
+        "x".repeat(Weather.MAX_WEATHER_LOCATION_LENGTH + 1),
+        () => true,
+        (place, error) => rejected.push({ place, error }));
+    assert.deepEqual(rejected, [{
+        place: null,
+        error: Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND
+    }]);
 });
 
 test("Nominatim requests are single-flight and start at least one second apart", () => {
@@ -1082,7 +1092,12 @@ test("schedule skips the repeat timer while weather is disabled or blank", () =>
     for (const settings of [
         { showWeather: false, location: "Oslo", units: "metric" },
         { showWeather: true, location: "", units: "metric" },
-        { showWeather: true, location: "   ", units: "metric" }
+        { showWeather: true, location: "   ", units: "metric" },
+        {
+            showWeather: true,
+            location: "🎉".repeat(Weather.MAX_WEATHER_LOCATION_LENGTH + 1),
+            units: "metric"
+        }
     ]) {
         const values = [];
         provider.schedule(settings, (reading, error, name) => values.push([reading, error, name]));

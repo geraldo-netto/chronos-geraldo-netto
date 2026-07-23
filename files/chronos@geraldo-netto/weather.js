@@ -178,7 +178,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             return;
         }
 
-        const location = settings.location ? settings.location.trim() : "";
+        const location = WeatherFormat.normalizeWeatherLocation(settings.location);
         // the reading on the panel belongs to the place it was fetched for; if
         // that is not the place being asked about now, it is not the weather
         this._display_state.forgetUnless(this._staleKey(settings));
@@ -206,9 +206,10 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     // on an Open-Meteo outage the geocode falls through to Nominatim, whose usage
     // policy is one request a second.
     _forgetIfLocationChanged(location) {
-        const key = location ? WeatherProviders.locationCacheKey(location) : "";
+        const normalized = WeatherFormat.normalizeWeatherLocation(location);
+        const key = normalized ? WeatherProviders.locationCacheKey(normalized) : "";
         if (key && key !== this._resolved_location_key) {
-            this._location_resolver.forget(location);
+            this._location_resolver.forget(normalized);
         }
 
         this._resolved_location_key = key;
@@ -230,7 +231,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         }
 
         const generation = ++this._request_generation;
-        const location = settings.location ? settings.location.trim() : "";
+        const location = WeatherFormat.normalizeWeatherLocation(settings.location);
         if (!settings.showWeather) {
             callback(null, "", "");
             return;
@@ -287,7 +288,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     // and refetched. The record is unit-free, so the same reading serves both
     // and only a change of place invalidates it.
     _staleKey(settings) {
-        const location = settings.location ? settings.location.trim() : "";
+        const location = WeatherFormat.normalizeWeatherLocation(settings.location);
         return WeatherProviders.locationCacheKey(location);
     }
 

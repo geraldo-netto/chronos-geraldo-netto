@@ -337,10 +337,33 @@ function _sendStreaming(session, message, url, cancellable, deliver, fail) {
     });
 }
 
-function httpGetJson(session, url, callback, options = {}) {
-    const message = Soup.Message.new("GET", url);
-    _setRequestHeaders(message, options.headers);
+function _newRequestMessage(url, headers) {
+    try {
+        const message = Soup.Message.new("GET", url);
+        if (!message) {
+            throw new Error("Soup returned no message");
+        }
+        _setRequestHeaders(message, headers);
+        return message;
+    } catch {
+        if (global.logError) {
+            global.logError(new Error(
+                "could not construct HTTP request for " + urlForLog(url)));
+        }
+        return null;
+    }
+}
 
+function httpGetJson(session, url, callback, options = {}) {
+    const message = _newRequestMessage(url, options.headers);
+
+    // Soup rejects an invalid or excessive URI before a session owns the
+    // request. Report that through the same null-data port as every later
+    // network failure so provider failover and scheduler settlement still run.
+    if (!message) {
+        callback(null, null);
+        return;
+    }
     const cancellable = Gio.Cancellable ? new Gio.Cancellable() : null;
     _cancelOnDowngrade(message, url, cancellable);
 

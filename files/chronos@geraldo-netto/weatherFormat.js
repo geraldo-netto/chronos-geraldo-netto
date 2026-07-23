@@ -5,14 +5,23 @@
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-// App-owned weather display and freshness rules. This module deliberately has
-// no platform, network or vendor dependency and can load in plain JavaScript.
+/* global imports */
+
+// App-owned weather display, freshness and input rules. This module deliberately
+// has no platform, network or vendor dependency and can load in plain JavaScript.
+const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 
 var REFRESH_SECONDS = 1800; // NOSONAR [S3504] -- GJS importer export
 var RETRY_SECONDS = 30; // NOSONAR [S3504] -- GJS importer export
 var STALE_PERIODS = 2; // NOSONAR [S3504] -- GJS importer export
 var MAX_RETRY_ATTEMPTS = 8; // NOSONAR [S3504] -- GJS importer export
 var MAX_GEOCODE_CACHE_ENTRIES = 16; // NOSONAR [S3504] -- GJS importer export
+var MAX_WEATHER_LOCATION_LENGTH = 256; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_DEBOUNCE_MS = 750; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_UNITS = { // NOSONAR [S3504] -- GJS importer export
     SI: "si",
@@ -52,6 +61,10 @@ function normalizeUnits(units) {
         WEATHER_UNITS.IMPERIAL : WEATHER_UNITS.SI;
 }
 
+function normalizeWeatherLocation(location) {
+    return TextUtils.normalizeBoundedText(location, MAX_WEATHER_LOCATION_LENGTH);
+}
+
 function formatTemperature(celsius, units) {
     const imperial = normalizeUnits(units) === WEATHER_UNITS.IMPERIAL;
     const value = imperial ? celsius * 9 / 5 + 32 : celsius;
@@ -61,7 +74,9 @@ function formatTemperature(celsius, units) {
 if (typeof module !== "undefined") {
     module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS,
         staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS,
-        MAX_GEOCODE_CACHE_ENTRIES, WEATHER_DEBOUNCE_MS, WEATHER_UNITS,
+        MAX_GEOCODE_CACHE_ENTRIES, MAX_WEATHER_LOCATION_LENGTH,
+        WEATHER_DEBOUNCE_MS, WEATHER_UNITS,
         WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS,
-        WEATHER_CONDITIONS, normalizeUnits, formatTemperature };
+        WEATHER_CONDITIONS, normalizeUnits, normalizeWeatherLocation,
+        formatTemperature };
 }

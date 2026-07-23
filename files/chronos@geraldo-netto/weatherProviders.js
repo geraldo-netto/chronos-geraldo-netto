@@ -58,7 +58,7 @@ const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
 const metNoWeatherReading = WeatherServiceAdapters.metNoWeatherReading;
 
 function locationCacheKey(location) {
-    return location.trim().toLowerCase();
+    return WeatherFormat.normalizeWeatherLocation(location).toLowerCase();
 }
 
 var NOMINATIM_MIN_INTERVAL_MS = 1000; // NOSONAR [S3504] -- GJS importer export
@@ -192,14 +192,20 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
     }
 
     resolve(location, isCurrent, callback) {
-        const cacheKey = locationCacheKey(location);
+        const normalized = WeatherFormat.normalizeWeatherLocation(location);
+        if (!normalized) {
+            callback(null, WEATHER_ERRORS.LOCATION_NOT_FOUND);
+            return;
+        }
+
+        const cacheKey = locationCacheKey(normalized);
         const cachedPlace = this._geocode_cache.get(cacheKey);
         if (cachedPlace) {
             callback(cachedPlace, "");
             return;
         }
 
-        this._geocodeLocation(location, isCurrent, (place, error) => {
+        this._geocodeLocation(normalized, isCurrent, (place, error) => {
             if (!place) {
                 callback(null, error);
                 return;

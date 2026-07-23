@@ -70,7 +70,16 @@ NO_TIMEZONE_DATA_HINT = _(
 )
 
 WEATHER_LOCATION_HINT = _("City or town (e.g. Lisbon)")
+MAX_WEATHER_LOCATION_LENGTH = 256
 COUNTRY_HINT = _("Type a country name")
+
+
+def normalize_weather_location(text) -> str:
+    """Trim a location only when its untrimmed value fits the network bound."""
+    source = text if isinstance(text, str) else ""
+    if len(source) > MAX_WEATHER_LOCATION_LENGTH:
+        return ""
+    return source.strip()
 
 def center_window(window) -> bool:
     """Put a settings window in the middle of the monitor it opened on.
@@ -309,6 +318,8 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
 
         if hasattr(self.content_widget, "set_placeholder_text"):
             self.content_widget.set_placeholder_text(WEATHER_LOCATION_HINT)
+        if hasattr(self.content_widget, "set_max_length"):
+            self.content_widget.set_max_length(MAX_WEATHER_LOCATION_LENGTH)
 
         self.completion = attach_city_completion(self.content_widget, weather_cities())
 
@@ -318,7 +329,7 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
     def on_setting_changed(self, *args):
         # the key changed under the dialog — another instance of the applet, or
         # the applet's own timezone prefill
-        text = self.get_value() or ""
+        text = normalize_weather_location(self.get_value())
         if self.content_widget.get_text() != text:
             self.content_widget.set_text(text)
 
@@ -347,7 +358,10 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         return False
 
     def commit(self, text) -> str:
-        location = (text or "").strip()
+        if isinstance(text, str) and len(text) > MAX_WEATHER_LOCATION_LENGTH:
+            return ""
+
+        location = normalize_weather_location(text)
         if location == (self.get_value() or ""):
             return ""
 

@@ -88,6 +88,9 @@ class BindObject:
     def set_placeholder_text(self, text):
         self.placeholder = text
 
+    def set_max_length(self, max_length):
+        self.max_length = max_length
+
     def set_position(self, position):
         self.position = position
 

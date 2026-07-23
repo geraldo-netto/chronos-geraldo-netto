@@ -17,6 +17,9 @@
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const WeatherFormat = IS_NODE ?
+    require("./weatherFormat") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
 
 // Open-Meteo may return an exact-name hamlet for a large city it knows only by
 // an exonym. A population below this is a candidate, not a confident answer:
@@ -95,14 +98,22 @@ function geocodeLanguage(locale) {
 // is the first hit. A user types a city in the language their session runs in,
 // so that is the language to ask in.
 function geocodeUrl(location, locale) {
+    const normalized = WeatherFormat.normalizeWeatherLocation(location);
+    if (!normalized) {
+        return "";
+    }
     return "https://geocoding-api.open-meteo.com/v1/search?name=" +
-        encodeURIComponent(location.trim()) + "&count=" + GEOCODE_CANDIDATE_COUNT +
+        encodeURIComponent(normalized) + "&count=" + GEOCODE_CANDIDATE_COUNT +
         "&language=" + geocodeLanguage(locale) + "&format=json";
 }
 
 function nominatimGeocodeUrl(location) {
+    const normalized = WeatherFormat.normalizeWeatherLocation(location);
+    if (!normalized) {
+        return "";
+    }
     return "https://nominatim.openstreetmap.org/search?q=" +
-        encodeURIComponent(location.trim()) + "&format=json&limit=1";
+        encodeURIComponent(normalized) + "&format=json&limit=1";
 }
 
 function forecastUrl(place) {

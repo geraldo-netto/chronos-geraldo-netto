@@ -92,6 +92,25 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
         "https://nominatim.openstreetmap.org/search?q=New%20York&format=json&limit=1"
     );
     assert.equal(Weather.locationCacheKey(" New York "), "new york");
+    const maximum = Weather.MAX_WEATHER_LOCATION_LENGTH;
+    const exact = "x".repeat(maximum);
+    const unicodeExact = "🎉".repeat(maximum);
+    for (const location of [exact, unicodeExact]) {
+        assert.equal(Weather.normalizeWeatherLocation(location), location);
+        assert.notEqual(Weather.geocodeUrl(location, "en"), "");
+        assert.notEqual(Weather.nominatimGeocodeUrl(location), "");
+        assert.equal(Weather.locationCacheKey(location), location.toLowerCase());
+    }
+    for (const location of [
+        "x".repeat(maximum + 1),
+        "🎉".repeat(maximum + 1),
+        " " + exact
+    ]) {
+        assert.equal(Weather.normalizeWeatherLocation(location), "");
+        assert.equal(Weather.geocodeUrl(location, "en"), "");
+        assert.equal(Weather.nominatimGeocodeUrl(location), "");
+        assert.equal(Weather.locationCacheKey(location), "");
+    }
     // always Celsius now, whatever the units: formatTemperature does the
     // imperial conversion so all three providers share one rule
     assert.equal(

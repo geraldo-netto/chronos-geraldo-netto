@@ -71,7 +71,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         // copy of all of it.
         this._isActive = params.isActive ||
             ((settings) => Boolean(settings.showWeather &&
-                settings.location && settings.location.trim())); // NOSONAR [S6582] -- accepted compatible form
+                WeatherFormat.normalizeWeatherLocation(settings.location)));
     }
 
     get timerId() {

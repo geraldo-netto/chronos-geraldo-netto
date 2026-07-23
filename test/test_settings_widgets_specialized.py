@@ -98,6 +98,49 @@ class WeatherLocationCompletionTest(unittest.TestCase):
 
         self.assertEqual(widget.content_widget.get_text(), "Lisbon")
 
+    def test_the_field_and_runtime_share_one_location_limit(self):
+        widget, _settings = self.entry({"weather-location": "Lisbon"})
+        maximum = self.module.MAX_WEATHER_LOCATION_LENGTH
+        runtime_source = (APPLET_DIR / "weatherFormat.js").read_text()
+
+        self.assertEqual(widget.content_widget.max_length, maximum)
+        self.assertRegex(
+            runtime_source,
+            r"var MAX_WEATHER_LOCATION_LENGTH = %d;" % maximum)
+
+    def test_exact_and_over_limit_locations_are_distinguished_before_trimming(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+        settings.writes.clear()
+        maximum = self.module.MAX_WEATHER_LOCATION_LENGTH
+        exact = "x" * maximum
+
+        self.assertEqual(widget.commit(exact), exact)
+        self.assertEqual(settings.values["weather-location"], exact)
+        self.assertEqual(widget.commit("y" * (maximum + 1)), "")
+        self.assertEqual(widget.commit(" " + exact), "",
+                         "whitespace must not hide an over-limit raw value")
+        self.assertEqual(settings.writes, [("weather-location", exact)])
+
+    def test_the_location_limit_counts_unicode_characters(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+        settings.writes.clear()
+        maximum = self.module.MAX_WEATHER_LOCATION_LENGTH
+        exact = "🎉" * maximum
+
+        self.assertEqual(widget.commit(exact), exact)
+        self.assertEqual(widget.commit(exact + "🎉"), "")
+        self.assertEqual(settings.writes, [("weather-location", exact)])
+
+    def test_an_over_limit_hand_edited_value_is_not_shown_in_the_widget(self):
+        maximum = self.module.MAX_WEATHER_LOCATION_LENGTH
+        hand_edited = "z" * (maximum + 1)
+        widget, settings = self.entry({"weather-location": hand_edited})
+
+        self.assertEqual(widget.content_widget.get_text(), "")
+        self.assertEqual(settings.values["weather-location"], hand_edited,
+                         "opening settings does not silently rewrite the file")
+        self.assertEqual(settings.writes, [])
+
     def test_typing_writes_nothing_until_the_edit_is_finished(self):
         widget, settings = self.entry({"weather-location": "Lisbon"})
 
