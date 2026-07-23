@@ -737,7 +737,7 @@ class CalendarHolidayAnnotator {
 
     annotate(months, cells, holiday_generation) {
         const holiday = this.host.holidayProvider;
-        if (!holiday || !holiday.country) { // NOSONAR [S6582] -- accepted compatible form
+        if (!holiday || !holiday.active) { // NOSONAR [S6582] -- accepted compatible form
             // holidays were switched off, or the country was cleared: the marks
             // on the grid belong to a country the user is no longer asking about
             this.clearAnnotations(cells);
@@ -1375,10 +1375,10 @@ class Calendar {
 
         const holiday_generation = ++this._holiday_update_generation;
         // The annotator is the only consumer of this map, and it answers early
-        // when there is no country: building 42 template-string keys for it on
+        // for an inactive provider: building 42 template-string keys for it on
         // every update, with holidays switched off, is pure waste. It is still
         // needed for the pass that *removes* the marks a country left behind.
-        const annotating = Boolean(this.holiday && this.holiday.country) || // NOSONAR [S6582] -- accepted compatible form
+        const annotating = Boolean(this.holiday && this.holiday.active) || // NOSONAR [S6582] -- accepted compatible form
             this._holidayAnnotator.annotated;
         const monthWindow = this._monthWindows.get(this._selectedDate, this._weekStart);
         const cells = this._gridView.render(monthWindow, annotating);

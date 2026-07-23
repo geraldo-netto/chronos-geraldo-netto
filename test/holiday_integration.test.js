@@ -39,6 +39,7 @@ test("the version shim forwards the shared provider module", () => {
 function religiousBase(country = "") {
     return {
         country,
+        get active() { return Boolean(this.country); },
         destroyed: false,
         clearPlace() { this.country = ""; },
         destroy() { this.destroyed = true; },
@@ -63,7 +64,8 @@ test("religious provider serves local observances while public holidays are disa
 
     provider.getHolidays(2026, 12, (...args) => { answer = args; });
 
-    assert.equal(provider.country, "religious");
+    assert.equal(provider.active, true);
+    assert.equal(provider.country, "", "country stays honest: no place is set");
     assert.deepEqual(answer[0].get("12/25"),
         ["Christmas Day (Christianity)", ["religious_holiday", "christianity"]]);
     assert.deepEqual(answer.slice(1), ["", ""]);
@@ -90,13 +92,15 @@ test("religious provider forwards lifecycle and accepts changed selections", () 
     const provider = new ReligiousHolidayProvider(base);
     let updated = false;
 
-    assert.equal(provider.country, "");
+    assert.equal(provider.active, false, "no religions, no country: inactive");
     provider.setEnabledIds(["shinto"]);
+    assert.equal(provider.active, true);
     provider.setPlace("jpn", "global", () => { updated = true; });
     assert.equal(updated, true);
     assert.equal(provider.country, "jpn");
     provider.clearPlace();
-    assert.equal(provider.country, "religious");
+    assert.equal(provider.country, "");
+    assert.equal(provider.active, true, "clearing the place keeps the religions");
     provider.destroy();
     assert.equal(base.destroyed, true);
 });
@@ -120,6 +124,7 @@ test("HolidayProviderFacade exposes only place and holiday retrieval", () => {
     let holidays = null;
 
     assert.equal(facade.country, "ita");
+    assert.equal(facade.active, true);
     facade.setPlace("usa", "ca");
     facade.clearPlace();
     facade.getHolidays(2026, 7, (value) => { holidays = value; });

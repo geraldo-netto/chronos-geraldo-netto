@@ -612,6 +612,12 @@ var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- 
         return this._provider.country;
     }
 
+    // whether this provider has anything to annotate: the calendar gates on
+    // this, never on country-truthiness
+    get active() {
+        return Boolean(this._provider.country);
+    }
+
     destroy() {
         this._provider.destroy();
     }
@@ -640,7 +646,11 @@ var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S350
     }
 
     get country() {
-        return this._base.country || (this._enabledIds.length ? "religious" : "");
+        return this._base.country;
+    }
+
+    get active() {
+        return this._base.active || this._enabledIds.length > 0;
     }
 
     setEnabledIds(enabledIds) {
@@ -661,7 +671,7 @@ var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S350
 
     getHolidays(year, month, callback) {
         const religious = ReligiousHolidays.monthMap(year, month, this._enabledIds);
-        if (!this._base.country) {
+        if (!this._base.active) {
             callback(religious, "", "");
             return;
         }

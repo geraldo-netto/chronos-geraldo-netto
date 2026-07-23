@@ -552,7 +552,7 @@ test("the calendar rebuilds when the locale query answers", () => {
 test("a holiday failure is announced in words, not just a glyph", () => {
     const label = new MockActor();
     const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
-        holidayProvider: { country: "ita", getHolidays() {} }
+        holidayProvider: { active: true, getHolidays() {} }
     }));
     annotator.attachLabel(label);
 
@@ -600,7 +600,7 @@ test("holiday failures reach the shared footer and recovery clears them", () => 
 test("a provider's own error sentence is never shown to the user", () => {
     const label = new MockActor();
     const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
-        holidayProvider: { country: "fra", getHolidays() {} }
+        holidayProvider: { active: true, getHolidays() {} }
     }));
     annotator.attachLabel(label);
 
@@ -1020,7 +1020,7 @@ test("selected day carries the selected pseudo class and dots render colors", ()
 // T07c: holiday annotation via a stubbed provider
 function makeHolidayStub(datesByMonth, error = "") {
     return {
-        country: "ita",
+        active: true,
         calls: [],
         getHolidays(y, m, cb) {
             this.calls.push([y, m]);
@@ -1063,7 +1063,7 @@ test("a holiday fetch that has not answered yet shows a pending marker", () => {
     const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
         holidayGeneration: 3,
         holidayProvider: {
-            country: "ita",
+            active: true,
             // a real network round-trip: the callback lands later
             getHolidays(y, m, cb) {
                 pending = cb;
@@ -1095,7 +1095,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
     const host = makeHost({
         holidayGeneration: 7,
         holidayProvider: {
-            country: "ita",
+            active: true,
             getHolidays(y, m, cb) {
                 assert.equal(`${y}/${m}`, "2026/7");
                 cb(new Map([["7/14", ["Bastille Day", []]]]), "", "stub-provider");
@@ -1149,7 +1149,7 @@ test("holiday annotation: errors surface in the month label marker", () => {
 test("stale holiday generations are ignored", () => {
     let savedCb = null;
     const holiday = {
-        country: "ita",
+        active: true,
         getHolidays(y, m, cb) {
             savedCb = cb;
         }
@@ -1730,9 +1730,9 @@ test("fuzz: in-place dot updates always match the color source", () => {
     }
 });
 
-test("a provider without a country is never queried", () => {
+test("an inactive provider is never queried", () => {
     const holiday = makeHolidayStub({ "2026/7": { "7/14": ["X", []] } });
-    holiday.country = null;
+    holiday.active = false;
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
     assert.equal(holiday.calls.length, 0, "holidays disabled: no fetches");
@@ -2078,7 +2078,7 @@ test("switching holidays off clears the marks they left", () => {
     assert.match(day14.button.accessible_name, /Bastille Day/);
 
     // the user picks "None (disable holidays)"
-    holiday.country = null;
+    holiday.active = false;
     cal.refreshHolidays();
     cal._update();
 
