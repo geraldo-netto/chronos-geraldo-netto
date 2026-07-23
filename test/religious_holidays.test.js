@@ -15,10 +15,31 @@ test("catalogue exposes ten stable religion ids in adherent order", () => {
     assert.equal(new Set(ReligiousHolidays.religionIds()).size, 10);
 });
 
-test("Gregorian computus covers known early and late Easter dates", () => {
-    assert.deepEqual(ReligiousHolidays.gregorianEaster(2024), { month: 3, day: 31 });
-    assert.deepEqual(ReligiousHolidays.gregorianEaster(2025), { month: 4, day: 20 });
-    assert.deepEqual(ReligiousHolidays.gregorianEaster(2038), { month: 4, day: 25 });
+// written against surviving mutants: the century terms (b, d, f, g) only
+// differ across centuries, and the /451 correction (m) fires in 2076 -- three
+// same-century anchors left every one of those constants free to drift.
+// 151, 1700 and 3165 are the witness years a whole-domain search found for
+// the month/451/25 constants: proleptic or future, they pin the published
+// algorithm, not a documented observance.
+test("Gregorian computus matches documented dates across five centuries", () => {
+    const anchors = {
+        151: [4, 18], 1583: [4, 10], 1700: [4, 11], 1818: [3, 22],
+        1886: [4, 25], 1943: [4, 25], 2000: [4, 23], 2016: [3, 27],
+        2024: [3, 31], 2025: [4, 20], 2038: [4, 25], 2076: [4, 19],
+        2100: [3, 28], 2200: [4, 6], 3165: [4, 18]
+    };
+    for (const [year, [month, day]] of Object.entries(anchors)) {
+        assert.deepEqual(ReligiousHolidays.gregorianEaster(Number(year)),
+            { month, day }, `Easter ${year}`);
+    }
+});
+
+// written against surviving mutants: both window edges were only ever tested
+// from the outside, so >= could tighten to > without a test noticing
+test("the supported year window is inclusive at both ends", () => {
+    assert.ok(ReligiousHolidays.holidaysForYear(1).length > 0);
+    assert.ok(ReligiousHolidays.holidaysForYear(9999).length > 0);
+    assert.deepEqual(ReligiousHolidays.holidaysForYear(10000), []);
 });
 
 test("fixed, Easter-relative and table-backed observances expand", () => {
