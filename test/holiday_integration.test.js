@@ -36,6 +36,71 @@ test("the version shim forwards the shared provider module", () => {
     assert.equal(context.module.exports, shared);
 });
 
+function religiousBase(country = "") {
+    return {
+        country,
+        destroyed: false,
+        clearPlace() { this.country = ""; },
+        destroy() { this.destroyed = true; },
+        setPlace(nextCountry, _region, onUpdated) {
+            this.country = nextCountry;
+            if (onUpdated) {
+                onUpdated();
+            }
+        },
+        getHolidays(_year, _month, callback) {
+            callback(new Map([["12/25", ["Public Christmas", ["public_holiday"]]]]),
+                "provider warning", "Public Provider");
+        }
+    };
+}
+
+test("religious provider serves local observances while public holidays are disabled", () => {
+    const { ReligiousHolidayProvider } = loadHolidays();
+    const base = religiousBase();
+    const provider = new ReligiousHolidayProvider(base, ["christianity", "unknown"]);
+    let answer;
+
+    provider.getHolidays(2026, 12, (...args) => { answer = args; });
+
+    assert.equal(provider.country, "religious");
+    assert.deepEqual(answer[0].get("12/25"),
+        ["Christmas Day (Christianity)", ["religious_holiday", "christianity"]]);
+    assert.deepEqual(answer.slice(1), ["", ""]);
+});
+
+test("religious provider merges public results and preserves provider status", () => {
+    const { ReligiousHolidayProvider } = loadHolidays();
+    const base = religiousBase("ita");
+    const provider = new ReligiousHolidayProvider(base, ["christianity"]);
+    let answer;
+
+    provider.getHolidays(2026, 12, (...args) => { answer = args; });
+
+    assert.deepEqual(answer[0].get("12/25"), [
+        "Public Christmas\nChristmas Day (Christianity)",
+        ["public_holiday", "religious_holiday", "christianity"]
+    ]);
+    assert.deepEqual(answer.slice(1), ["provider warning", "Public Provider"]);
+});
+
+test("religious provider forwards lifecycle and accepts changed selections", () => {
+    const { ReligiousHolidayProvider } = loadHolidays();
+    const base = religiousBase();
+    const provider = new ReligiousHolidayProvider(base);
+    let updated = false;
+
+    assert.equal(provider.country, "");
+    provider.setEnabledIds(["shinto"]);
+    provider.setPlace("jpn", "global", () => { updated = true; });
+    assert.equal(updated, true);
+    assert.equal(provider.country, "jpn");
+    provider.clearPlace();
+    assert.equal(provider.country, "religious");
+    provider.destroy();
+    assert.equal(base.destroyed, true);
+});
+
 test("HolidayProviderFacade exposes only place and holiday retrieval", () => {
     const { HolidayProviderFacade } = loadHolidays();
     const calls = [];

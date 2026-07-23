@@ -164,7 +164,9 @@ function _validYear(year) {
     return Number.isInteger(year) && year >= 1 && year <= 9999;
 }
 
-function _enabledReligionIds(enabledIds) {
+// the known, deduplicated subset of the requested ids, in request order —
+// the one validation gate between stored settings and the catalogue
+function enabledReligionIds(enabledIds) {
     if (!Array.isArray(enabledIds)) {
         return [];
     }
@@ -211,7 +213,7 @@ function holidaysForYear(year, enabledIds = religionIds()) {
     }
 
     const rows = [];
-    for (const id of _enabledReligionIds(enabledIds)) {
+    for (const id of enabledReligionIds(enabledIds)) {
         for (const entry of OBSERVANCES[id] || []) {
             const date = _dateOf(entry, year);
             if (date) {
@@ -273,54 +275,15 @@ function mergeMonthMaps(base, extra) {
     return merged;
 }
 
-var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S3504] -- GJS importer export
-    constructor(provider, enabledIds = []) {
-        this._base = provider;
-        this.setEnabledIds(enabledIds);
-    }
-
-    get country() {
-        return this._base.country || (this._enabledIds.length ? "religious" : "");
-    }
-
-    setEnabledIds(enabledIds) {
-        this._enabledIds = _enabledReligionIds(enabledIds);
-    }
-
-    destroy() {
-        this._base.destroy();
-    }
-
-    clearPlace() {
-        this._base.clearPlace();
-    }
-
-    setPlace(country, region, onUpdated) {
-        this._base.setPlace(country, region, onUpdated);
-    }
-
-    getHolidays(year, month, callback) {
-        const religious = monthMap(year, month, this._enabledIds);
-        if (!this._base.country) {
-            callback(religious, "", "");
-            return;
-        }
-
-        this._base.getHolidays(year, month, (publicHolidays, error, providerName) => {
-            callback(mergeMonthMaps(publicHolidays, religious), error, providerName);
-        });
-    }
-};
-
 if (typeof module !== "undefined") {
     module.exports = {
         RELIGIOUS_HOLIDAY_FLAG,
         RELIGIONS,
         gregorianEaster,
         religionIds,
+        enabledReligionIds,
         holidaysForYear,
         monthMap,
-        mergeMonthMaps,
-        ReligiousHolidayProvider
+        mergeMonthMaps
     };
 }

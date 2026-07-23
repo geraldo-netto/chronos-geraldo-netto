@@ -84,66 +84,9 @@ test("catalogue keeps provenance anchors beside the bounded tables", () => {
     assert.doesNotMatch(source, /__TABLES__/);
 });
 
-function baseProvider(country = "") {
-    return {
-        country,
-        destroyed: false,
-        clearPlace() { this.country = ""; },
-        destroy() { this.destroyed = true; },
-        setPlace(nextCountry, _region, onUpdated) {
-            this.country = nextCountry;
-            if (onUpdated) {
-                onUpdated();
-            }
-        },
-        getHolidays(_year, _month, callback) {
-            callback(new Map([["12/25", ["Public Christmas", ["public_holiday"]]]]),
-                "provider warning", "Public Provider");
-        }
-    };
-}
-
-test("provider serves local observances while public holidays are disabled", () => {
-    const base = baseProvider();
-    const provider = new ReligiousHolidays.ReligiousHolidayProvider(
-        base, ["christianity", "unknown"]);
-    let answer;
-
-    provider.getHolidays(2026, 12, (...args) => { answer = args; });
-
-    assert.equal(provider.country, "religious");
-    assert.deepEqual(answer[0].get("12/25"),
-        ["Christmas Day (Christianity)", ["religious_holiday", "christianity"]]);
-    assert.deepEqual(answer.slice(1), ["", ""]);
-});
-
-test("provider merges public results and preserves provider status", () => {
-    const base = baseProvider("ita");
-    const provider = new ReligiousHolidays.ReligiousHolidayProvider(
-        base, ["christianity"]);
-    let answer;
-
-    provider.getHolidays(2026, 12, (...args) => { answer = args; });
-
-    assert.deepEqual(answer[0].get("12/25"), [
-        "Public Christmas\nChristmas Day (Christianity)",
-        ["public_holiday", "religious_holiday", "christianity"]
-    ]);
-    assert.deepEqual(answer.slice(1), ["provider warning", "Public Provider"]);
-});
-
-test("provider forwards lifecycle and accepts changed selections", () => {
-    const base = baseProvider();
-    const provider = new ReligiousHolidays.ReligiousHolidayProvider(base);
-    let updated = false;
-
-    assert.equal(provider.country, "");
-    provider.setEnabledIds(["shinto"]);
-    provider.setPlace("jpn", "global", () => { updated = true; });
-    assert.equal(updated, true);
-    assert.equal(provider.country, "jpn");
-    provider.clearPlace();
-    assert.equal(provider.country, "religious");
-    provider.destroy();
-    assert.equal(base.destroyed, true);
+test("unknown and duplicate ids are filtered in request order", () => {
+    assert.deepEqual(
+        ReligiousHolidays.enabledReligionIds(["islam", "unknown", "islam", "shinto"]),
+        ["islam", "shinto"]);
+    assert.deepEqual(ReligiousHolidays.enabledReligionIds("christianity"), []);
 });

@@ -48,7 +48,6 @@ const HolidayRecord = IS_NODE ?
 const ReligiousHolidays = IS_NODE ?
     require("./religiousHolidays") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].religiousHolidays;
-var ReligiousHolidayProvider = ReligiousHolidays.ReligiousHolidayProvider; // NOSONAR [S3504] -- GJS importer export
 
 const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
 
@@ -627,6 +626,50 @@ var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- 
 
     getHolidays(year, month, callback) {
         this._provider.getHolidays(year, month, callback);
+    }
+};
+
+// Decorates the facade with the locally-computed religious observances the
+// catalogue module expands: the merged month keeps the public provider's
+// names first, the way the cache joins same-day rows. The catalogue stays a
+// pure helper; the provider contract lives here, beside the facade it wraps.
+var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S3504] -- GJS importer export
+    constructor(provider, enabledIds = []) {
+        this._base = provider;
+        this.setEnabledIds(enabledIds);
+    }
+
+    get country() {
+        return this._base.country || (this._enabledIds.length ? "religious" : "");
+    }
+
+    setEnabledIds(enabledIds) {
+        this._enabledIds = ReligiousHolidays.enabledReligionIds(enabledIds);
+    }
+
+    destroy() {
+        this._base.destroy();
+    }
+
+    clearPlace() {
+        this._base.clearPlace();
+    }
+
+    setPlace(country, region, onUpdated) {
+        this._base.setPlace(country, region, onUpdated);
+    }
+
+    getHolidays(year, month, callback) {
+        const religious = ReligiousHolidays.monthMap(year, month, this._enabledIds);
+        if (!this._base.country) {
+            callback(religious, "", "");
+            return;
+        }
+
+        this._base.getHolidays(year, month, (publicHolidays, error, providerName) => {
+            callback(ReligiousHolidays.mergeMonthMaps(publicHolidays, religious),
+                error, providerName);
+        });
     }
 };
 
