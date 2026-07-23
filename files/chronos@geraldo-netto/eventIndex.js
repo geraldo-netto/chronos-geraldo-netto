@@ -33,7 +33,14 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this._eventIds = new Set();
         this._eventsById = new Map();
         this._overflowed = false;
+        this._windowStart = null;
+        this._windowEnd = null;
         this._rebuildEventState();
+    }
+
+    setWindow(start, end) {
+        this._windowStart = date_only(start);
+        this._windowEnd = date_only(end);
     }
 
     clear() {
@@ -133,7 +140,31 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         };
     }
 
+    _registrationBounds(data) {
+        let start = date_only(data.start);
+        let end = data.end_date;
+
+        if (this._windowStart && start.compare(this._windowStart) < 0) {
+            start = this._windowStart;
+        }
+        if (this._windowEnd && end.compare(this._windowEnd) > 0) {
+            end = this._windowEnd;
+        }
+
+        return start.compare(end) <= 0 ? { start, end } : null;
+    }
+
     register(data, timestamp, currentSelectedDate) {
+        const bounds = this._registrationBounds(data);
+        if (bounds === null) {
+            const selected = this.get(currentSelectedDate);
+            const selected_changed = Boolean(selected &&
+                selected.get_ids().includes(data.id));
+            const changed = this._eventsById.has(data.id);
+            this.remove([data.id]);
+            return { changed, selected_changed };
+        }
+
         const refused = this._prepareEvent(data);
         if (refused) {
             return refused;
@@ -141,7 +172,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
 
         let changed = false;
         let selected_changed = false;
-        let date_iter = date_only(data.start);
+        let date_iter = bounds.start;
 
         for (let escape = 0; escape <= MAX_SPANNED_DAYS; escape++) {
             const result = this._registerOnDate(
@@ -149,7 +180,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
             changed = changed || result.changed;
             selected_changed = selected_changed || result.selected_changed;
 
-            if (data.ends_on_date_only(date_iter)) {
+            if (dt_equals(bounds.end, date_iter)) {
                 break;
             }
             date_iter = date_iter.add_days(1);

@@ -1462,6 +1462,8 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     assert.equal(coordinator.fetchMonthEvents(
         month, false, setTimeRange, () => ++timestamp), 41);
     assert.equal(calls[0].end - calls[0].start, 42 * DAY_S - 1);
+    assert.equal(index._windowStart.to_unix(), calls[0].start);
+    assert.equal(index._windowEnd.to_unix(), calls[0].end - (DAY_S - 1));
     assert.equal(coordinator.fetchMonthEvents(
         month, false, setTimeRange, () => ++timestamp), null);
     assert.equal(coordinator.fetchMonthEvents(
@@ -1529,11 +1531,61 @@ test("day registration: selected-date flag fires only when that day changes", ()
     assert.equal(outside.selected_changed, false);
 });
 
-test("day registration: bugged 1000-day span stops at the 50-day escape", () => {
-    const manager = readyManager();
-    registerDays(manager,
-        makeEventData({ startUnix: 10 * DAY_S, endUnix: 1010 * DAY_S }));
-    assert.equal(Object.keys(manager._event_index.eventsByDate).length, 51);
+test("day registration intersects a long event with each active fetch window", () => {
+    const index = new EventIndex();
+    const event = makeEventData({ startUnix: 10 * DAY_S, endUnix: 1010 * DAY_S });
+    const selected = new FakeDateTime(65 * DAY_US);
+
+    // The old start-relative escape ended at event offset 50 (day 60), so
+    // offsets 51 and 55 disappeared even when the server returned the event
+    // for this later window.
+    index.setWindow(new FakeDateTime(60 * DAY_US), new FakeDateTime(101 * DAY_US));
+    assert.equal(index.register(event, 1, selected).selected_changed, true);
+    assert.equal(Object.keys(index.eventsByDate).length, 42);
+    assert.ok(index.getByUnixKey(60 * DAY_S));
+    assert.ok(index.getByUnixKey(61 * DAY_S));
+    assert.ok(index.getByUnixKey(65 * DAY_S));
+    assert.ok(index.getByUnixKey(101 * DAY_S));
+    assert.equal(index.getByUnixKey(59 * DAY_S), null);
+    assert.equal(index.getByUnixKey(102 * DAY_S), null);
+
+    // Browsing farther into the same event gets a fresh bounded intersection,
+    // not buckets tied to the event's original start.
+    index.clear();
+    index.setWindow(new FakeDateTime(200 * DAY_US), new FakeDateTime(241 * DAY_US));
+    index.register(event, 2, new FakeDateTime(220 * DAY_US));
+    assert.equal(Object.keys(index.eventsByDate).length, 42);
+    assert.ok(index.getByUnixKey(200 * DAY_S));
+    assert.ok(index.getByUnixKey(241 * DAY_S));
+});
+
+test("an EventIndex without a fetch window retains a bounded safety escape", () => {
+    const index = new EventIndex();
+    index.register(
+        makeEventData({ startUnix: 10 * DAY_S, endUnix: 1010 * DAY_S }),
+        1,
+        new FakeDateTime(10 * DAY_US));
+    assert.equal(Object.keys(index.eventsByDate).length, 51);
+});
+
+test("an event updated outside the active window releases its old buckets", () => {
+    const index = new EventIndex();
+    const selected = new FakeDateTime(12 * DAY_US);
+    index.setWindow(new FakeDateTime(10 * DAY_US), new FakeDateTime(20 * DAY_US));
+    index.register(makeEventData({
+        id: "moved", startUnix: 12 * DAY_S, endUnix: 12 * DAY_S + 60
+    }), 1, selected);
+
+    const result = index.register(makeEventData({
+        id: "moved", modTime: 2, startUnix: 30 * DAY_S, endUnix: 30 * DAY_S + 60
+    }), 2, selected);
+    assert.deepEqual(result, { changed: true, selected_changed: true });
+    assert.equal(index.get(selected), null);
+    assert.equal(index._eventIds.size, 0);
+
+    assert.deepEqual(index.register(makeEventData({
+        id: "never-seen", startUnix: 40 * DAY_S, endUnix: 40 * DAY_S + 60
+    }), 3, selected), { changed: false, selected_changed: false });
 });
 
 test("day registration: re-registering the same event reports no change", () => {

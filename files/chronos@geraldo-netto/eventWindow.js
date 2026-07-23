@@ -47,6 +47,7 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         const start = day_one.add_days(-DateFormats.monthWindowStartOffset(
             day_one.get_day_of_week(), Cinnamon.util_get_week_start()));
         const end = start.add_days(42).add_seconds(-1);
+        this.index.setWindow(start, end);
         setTimeRange(start.to_unix(), end.to_unix(), force, cancellable);
         return timestampNow();
     }
