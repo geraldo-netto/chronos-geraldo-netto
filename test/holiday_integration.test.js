@@ -676,6 +676,55 @@ test("a response from the country the user just left does not silence the new on
     assert.deepEqual(months[0].get("7/14"), ["Bastille Day", []]);
 });
 
+// T585: the composition root called the lazy locale getter once, during
+// construction, and froze that value into the record contract and the
+// OpenHolidays adapter — but the locale query answers asynchronously, after
+// the first paint, so the first instance of a non-English session kept
+// English request and localization state for the applet's lifetime. The
+// language is now a resolver consulted at each use.
+test("the holiday language settles with the locale query, not construction", () => {
+    // the locale query has not answered when the provider graph is built
+    let lang = "en";
+    const { createHolidayProvider, OpenHolidaysServiceAdapter } = loadHolidays();
+    const provider = createHolidayProvider({
+        lang: () => lang,
+        cache: makeMemoryCache(),
+        load: (url, params, callback) => {
+            callback([{
+                date: { year: Number(params.year), month: 7, day: 14 },
+                name: [{ lang: "fr", text: "Fête nationale" }, { lang: "en", text: "Bastille Day" }],
+                flags: []
+            }], params, STAMP);
+        }
+    });
+
+    // ...and it settles on French before the first fetch is dispatched
+    lang = "fr";
+    provider.setPlace("fra", "global", () => {});
+    const months = [];
+    provider.getHolidays(FIXED_YEAR, 7, (dates) => months.push(dates));
+    assert.deepEqual(months[0].get("7/14"), ["Fête nationale", []],
+        "localization uses the settled language, not the construction-time default");
+
+    // the request language resolves per fetch the same way
+    const adapter = new OpenHolidaysServiceAdapter(() => {}, () => lang);
+    assert.equal(adapter.params("fra", "global", 2026).languageIsoCode, "FR");
+    lang = "de";
+    assert.equal(adapter.params("fra", "global", 2026).languageIsoCode, "DE");
+
+    // and the shipped default is the locale query's live resolver, not a
+    // string frozen at import time
+    const shipped = createHolidayProvider({ cache: makeMemoryCache(), load: () => {} });
+    assert.equal(typeof shipped._base._provider.record._lang, "function",
+        "an unset language stays resolvable after construction");
+    assert.equal(shipped._base._provider.record.language, "en",
+        "and resolving it consults the locale query's current answer");
+
+    // a contract built bare falls back to its own module's live resolver
+    const { HolidayRecordContract: BareContract } = require(holidayRecordPath);
+    assert.equal(new BareContract().language, "en");
+});
+
 // T580: flags rode through validation with only Array.isArray, and a 366-day
 // span reuses the same array across 367 rows before the cache serializes the
 // expansion — so a near-cap accepted response could amplify toward gigabytes

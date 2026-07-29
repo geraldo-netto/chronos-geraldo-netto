@@ -76,8 +76,16 @@ function nonBlankText(value) {
 }
 
 var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- GJS importer export
-    constructor(lang = _lcLang()) {
+    constructor(lang = _lcLang) {
         this._lang = lang;
+    }
+
+    // The locale query answers after the first paint, so a contract built at
+    // applet construction froze the English default in for the applet's
+    // lifetime. The language may therefore be a resolver, consulted at each
+    // use, so whatever the query settles on is what localization sees.
+    get language() {
+        return typeof this._lang === "function" ? this._lang() : this._lang;
     }
 
     validHoliday(holiday) {
@@ -103,9 +111,10 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
     }
 
     localizeName(holiday) {
+        const lang = this.language;
         const usable = holiday.name.filter((entry) => nonBlankText(entry.text));
         const localized = usable
-            .filter((entry) => entry.lang === this._lang || entry.lang === "en")
+            .filter((entry) => entry.lang === lang || entry.lang === "en")
             .sort((a, b) => a.lang === "en" ? 1 : b.lang === "en" ? -1 : 0)[0]; // NOSONAR [S3358] -- accepted compatible form
 
         return (localized || usable[0] || { text: "" }).text.trim();

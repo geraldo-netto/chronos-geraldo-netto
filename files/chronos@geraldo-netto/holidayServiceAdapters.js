@@ -332,10 +332,18 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
 };
 
 var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHolidayServiceAdapter { // NOSONAR [S3504] -- GJS importer export
-    constructor(loadJsonAsync = unavailableLoadJsonAsync, lang = _lcLang()) {
+    constructor(loadJsonAsync = unavailableLoadJsonAsync, lang = _lcLang) {
         super(loadJsonAsync);
-        this._lang = String(lang || "en").slice(0, 2).toUpperCase();
+        this._lang = lang;
         this.name = HOLIDAY_PROVIDER_NAMES.OPEN_HOLIDAYS;
+    }
+
+    // The locale query answers after the applet is built, so a language frozen
+    // at construction pinned the English default into every request for the
+    // applet's lifetime. A resolver is consulted per fetch instead.
+    _langCode() {
+        const lang = typeof this._lang === "function" ? this._lang() : this._lang;
+        return String(lang || "en").slice(0, 2).toUpperCase();
     }
 
     countryCode(country) {
@@ -357,7 +365,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
             region: region || GLOBAL_REGION,
             countryCode: this.countryCode(country),
             subdivisionCode: this.subdivisionCode(country, region),
-            languageIsoCode: this._lang,
+            languageIsoCode: this._langCode(),
             validFrom: `${year}-01-01`,
             validTo: `${year}-12-31`
         };

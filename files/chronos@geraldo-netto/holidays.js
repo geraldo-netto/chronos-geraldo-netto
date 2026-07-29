@@ -102,7 +102,11 @@ var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS; // NOSO
 // the adapters are loader-agnostic; this is the single place that hands
 // them an HTTP session, keeping the provider order intact
 function httpBackedService(getSession, params = {}) {
-    const lang = params.lang || _lcLang();
+    // no explicit language means "whatever the locale query settles on": the
+    // lazy resolver is handed down whole, so a fetch dispatched after the
+    // asynchronous answer lands uses the real language, not the English
+    // default that was current at construction
+    const lang = params.lang || _lcLang;
     const record = params.record || new HolidayRecordContract(lang);
     const load = params.load || Provider.loaderFor(getSession);
 
@@ -232,7 +236,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         // chain. The chain used to forward validResponse/expandHoliday to a
         // record it privately owned, which made "what an adapter must implement"
         // a different answer for every adapter in the tree.
-        this.record = params.record || new HolidayRecordContract(_lcLang());
+        this.record = params.record || new HolidayRecordContract(_lcLang);
         // destroy() aborts the session; without this the abort reads as a
         // provider failure and the chain issues its next request on it
         if (this.service.setLivenessCheck) {
@@ -604,7 +608,8 @@ HolidayService.fn = "/holidays.json";
 // Every node is a parameter with a default, so a caller replaces exactly the one
 // it cares about and the rest of the graph is still the shipped one.
 function createHolidayProvider(params = {}) {
-    const lang = params.lang || _lcLang();
+    // like httpBackedService: an unspecified language stays a live resolver
+    const lang = params.lang || _lcLang;
     const record = params.record || new HolidayRecordContract(lang);
     const session = params.httpSession || new IoUtils.LazyHttpSession();
 
