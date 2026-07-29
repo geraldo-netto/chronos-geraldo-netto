@@ -60,6 +60,19 @@ let _consumers = 0;
 
 function registerLocaleConsumer() {
     _consumers++;
+    if (_consumers !== 1) {
+        return;
+    }
+    // The last teardown cancelled the armed retry with the other timers, and
+    // the degraded gate admits only that retry — so an env that failed under
+    // the previous consumer stayed on the defaults for the process lifetime
+    // no matter how many attempts were left. A fresh first consumer resumes
+    // the ladder where it stopped.
+    Object.keys(degraded).forEach((env) => {
+        if (degraded[env] && !(attempts[env] >= LOCALE_MAX_ATTEMPTS)) { // NOSONAR [S1940] -- mirrors _shouldAsk's cap guard
+            _requestInfo(env, true);
+        }
+    });
 }
 
 function _lastLocaleConsumerLeft() {

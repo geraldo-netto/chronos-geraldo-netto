@@ -2059,6 +2059,38 @@ test("the teardown cancels the locale subprocess still in flight", () => {
         "the subprocess is not left running after the applet is gone");
 });
 
+// T584: a failed env is degraded and only its armed retry may re-ask — but the
+// last consumer's teardown cancels that retry with the other timers. An applet
+// added later then stayed on the English defaults for the process lifetime
+// despite unused attempts. The fail-remove-re-add sequence is the first
+// seconds of login, which is exactly when `locale` fails.
+test("a degraded locale query restarts when an applet returns", () => {
+    global.logError = () => {};
+    let failures = 0;
+    const localeQuery = loadLocaleModules({
+        spawnFails: () => {
+            if (failures++ === 0) {
+                throw new Error("fork failed");
+            }
+        },
+        spawnOutput: 'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\n'
+    });
+
+    // first applet: the spawn fails, the env degrades, a retry is armed
+    localeQuery.registerLocaleConsumer();
+    assert.equal(localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+        "Sun;Mon;Tue;Wed;Thu;Fri;Sat", "the failure leaves the defaults");
+
+    // ...and the applet is removed, which cancels the armed retry
+    localeQuery.cancelPendingLocaleQueries();
+
+    // a new applet is added: the degraded query restarts and recovers
+    localeQuery.registerLocaleConsumer();
+    assert.equal(localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+        "Dom;Seg;Ter;Qua;Qui;Sex;Sáb",
+        "the returning applet is not condemned by the departed one's failure");
+});
+
 // T610: the teardown removed the armed deadline first — the only other holder
 // of the process handle, and the only code that called force_exit() — then
 // cancelled just the read. A `locale` genuinely wedged on a hung NSS lookup
