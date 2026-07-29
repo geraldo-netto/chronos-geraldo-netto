@@ -105,15 +105,19 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
         const days = [{year, month, day, name, flags, region}];
 
         if (holiday.dateTo) {
-            const {year: yearTo, month: monthTo, day: dayTo} = holiday.dateTo;
-            let iter = new Date(year, month - 1, day, 12);
-            const limit = new Date(yearTo, monthTo - 1, dayTo, 12);
-            while (iter < limit && days.length <= MAX_HOLIDAY_SPAN_DAYS) { // NOSONAR [S2189] -- setTime mutates the iterator
-                iter.setTime(iter.getTime() + MSECS_IN_DAY);
+            // Local Dates drift across a clocks-back transition: a raw 24 h
+            // step lands at 11:00 local, still under a local-noon limit, and
+            // the loop once pushed a phantom row past dateTo. UTC has no
+            // transitions — holidaySpanDays above does the same arithmetic.
+            let iter = _noonUtc(holiday.date);
+            const limit = _noonUtc(holiday.dateTo);
+            while (iter < limit && days.length <= MAX_HOLIDAY_SPAN_DAYS) {
+                iter += MSECS_IN_DAY;
+                const utcDay = new Date(iter);
                 days.push({
-                    year: iter.getFullYear(),
-                    month: iter.getMonth() + 1,
-                    day: iter.getDate(),
+                    year: utcDay.getUTCFullYear(),
+                    month: utcDay.getUTCMonth() + 1,
+                    day: utcDay.getUTCDate(),
                     name,
                     flags,
                     region

@@ -1052,6 +1052,36 @@ test("the fallback chain tries the last successful provider first", () => {
     assert.deepEqual(calls, ["primary:2026", "fallback:2026", "fallback:2027"]);
 });
 
+// T601: the expansion loop iterated with local Dates from local noon, adding
+// raw 24 h steps. Across a clocks-back transition a step lands at 11:00 local —
+// still under the local-noon limit — so the loop pushed a phantom row for the
+// day after dateTo, which was rendered on the grid, cached, and persisted.
+// holidaySpanDays beside it always did this arithmetic in UTC; the loop now
+// does too. (Spring-forward was safe: 13:00 is past noon.)
+test("a span across a clocks-back transition ends on dateTo", () => {
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = "Europe/Berlin";
+    try {
+        const { HolidayRecordContract } = loadHolidays();
+        const record = new HolidayRecordContract("en");
+        // Berlin sets clocks back on Sunday, 25 October 2026
+        const rows = record.expandHoliday({
+            date: { year: 2026, month: 10, day: 24 },
+            dateTo: { year: 2026, month: 10, day: 26 },
+            name: [{ lang: "en", text: "Herbstfest" }],
+            flags: []
+        }, "global").map(({ year, month, day }) => `${year}-${month}-${day}`);
+
+        assert.deepEqual(rows, ["2026-10-24", "2026-10-25", "2026-10-26"]);
+    } finally {
+        if (previousTimezone === undefined) {
+            delete process.env.TZ;
+        } else {
+            process.env.TZ = previousTimezone;
+        }
+    }
+});
+
 test("expandHoliday spans month boundaries without corrupting dates", () => {
     const { HolidayRecordContract } = loadHolidays();
     const record = new HolidayRecordContract("en");
