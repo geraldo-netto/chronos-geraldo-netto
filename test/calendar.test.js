@@ -1084,6 +1084,38 @@ test("a holiday fetch that has not answered yet shows a pending marker", () => {
     assert.doesNotMatch(label.text, /…/);
 });
 
+// T603: `awaited` was a local counter never re-read after the dispatch loop,
+// and a success ran setStatus() unconditionally — so on a year-straddling grid
+// the first month's answer erased the pending marker while the second was
+// still in flight, making a slow January look identical to a month with no
+// holidays. Only the last outstanding answer may render the final status.
+test("the pending marker survives until every in-flight month answers", () => {
+    const pending = new Map();
+    const label = new MockActor();
+    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+        holidayGeneration: 3,
+        holidayProvider: {
+            active: true,
+            getHolidays(y, m, cb) {
+                pending.set(`${y}/${m}`, cb);
+            }
+        }
+    }));
+    annotator.attachLabel(label);
+
+    annotator.annotate(new Set(["2026/12", "2027/1"]), new Map(), 3);
+    assert.match(label.text, /…$/);
+
+    pending.get("2026/12")(new Map(), "", "stub-provider");
+    assert.match(label.text, /…$/, "December's answer keeps January's marker");
+    assert.match(annotator.monthLabel.tooltip.texts.at(-1), /loading/);
+
+    pending.get("2027/1")(new Map(), "", "stub-provider");
+    assert.doesNotMatch(label.text, /…/);
+    assert.ok(annotator.monthLabel.tooltip.texts.at(-1).includes("stub-provider"),
+        "the final answer renders the provider credit");
+});
+
 test("CalendarHolidayAnnotator owns provider status and cell annotations", () => {
     const cell = {
         button: new MockActor({ style_class: "calendar-work-day" }),

@@ -604,6 +604,10 @@ class CalendarHolidayAnnotator {
         // whether any cell currently carries a holiday mark, so the grid knows
         // whether it still has to hand us the cells when holidays are switched off
         this.annotated = false;
+        // months of the current pass still waiting on the network: only the
+        // last outstanding answer may replace the pending marker with a final
+        // status, or a slow January looks like a month with no holidays
+        this._awaited = 0;
     }
 
     // the header builds the label and gives it to us; nothing else writes it
@@ -721,7 +725,13 @@ class CalendarHolidayAnnotator {
     _reportProvider(error, providerName) {
         if (error) {
             this.setStatus(error, providerName);
-        } else if (!this.error) {
+        } else if (this.error) {
+            // an error already reported this pass stays; a sibling month's
+            // success must not soften it
+        } else if (this._awaited > 0) {
+            // other months of this pass are still in flight: the pending
+            // marker is still the truth, so this answer renders nothing
+        } else {
             this.setStatus("", providerName);
         }
     }
@@ -746,16 +756,20 @@ class CalendarHolidayAnnotator {
             return;
         }
 
-        let awaited = 0;
+        // the counter lives on the instance so a late answer knows whether a
+        // sibling month is still in flight; a repaint's re-dispatch joins the
+        // same in-flight fetches, so the clamp keeps stray extra callbacks
+        // from earlier passes from driving it negative
+        this._awaited = 0;
         for (let month of months) {
             const [y, m] = month.split('/');
-            awaited++;
+            this._awaited++;
             holiday.getHolidays(y, m, (dates, error, providerName) => {
                 if (!this._isCurrent(holiday_generation)) {
                     return;
                 }
 
-                awaited--;
+                this._awaited = Math.max(0, this._awaited - 1);
                 this._reportProvider(error, providerName);
                 this._markCells(dates, cells);
             });
@@ -763,7 +777,7 @@ class CalendarHolidayAnnotator {
 
         // a cached month answers inside getHolidays; anything still awaited is
         // a real network round-trip the user should see
-        if (awaited > 0) {
+        if (this._awaited > 0) {
             this.setPending();
         }
     }
