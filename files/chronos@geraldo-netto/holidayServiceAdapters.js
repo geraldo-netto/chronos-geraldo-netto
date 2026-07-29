@@ -158,8 +158,11 @@ var EnricoServiceAdapter = class EnricoServiceAdapter { // NOSONAR [S3504] -- GJ
 
     fetchYear(country, region, year, callback) {
         const params = this.params(country, region, year);
+        // url() serializes every own key, and providerName is the chain's
+        // params contract, not a wire parameter: build the URL first
+        const url = this.url(params);
         params.providerName = this.name;
-        this._loadJsonAsync(this.url(params), params, (data, requestParams, retrieved) => {
+        this._loadJsonAsync(url, params, (data, requestParams, retrieved) => {
             deliverTranslated(this, data, requestParams, retrieved, callback);
         });
     }

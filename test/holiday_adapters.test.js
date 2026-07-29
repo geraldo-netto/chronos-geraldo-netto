@@ -1213,6 +1213,27 @@ test("EnricoServiceAdapter builds params and the record localizes and expands", 
     assert.ok(adapter.url(adapter.params("u sa", "new york", 2026)).includes("region=new%20york"));
 });
 
+// T604: fetchYear attached providerName — the params contract the chain reads,
+// not a wire key — before url() serialized every own key, so every live request
+// carried &providerName=Enrico while the suite pinned url(params(...)) directly
+// and never saw the extra parameter.
+test("EnricoServiceAdapter keeps providerName off the wire but in the params contract", () => {
+    const { EnricoServiceAdapter } = loadHolidays();
+    const seen = [];
+    const adapter = new EnricoServiceAdapter((url, params, callback) => {
+        seen.push({ url, params });
+        callback([], params, STAMP);
+    });
+
+    adapter.fetchYear("ita", "global", 2026, () => {});
+
+    assert.equal(seen[0].url,
+        "https://kayaposoft.com/enrico/json/v2.0/?action=getHolidaysForYear" +
+        "&year=2026&country=ita&holidayType=public_holiday");
+    assert.equal(seen[0].params.providerName, "Enrico",
+        "the chain still learns which provider answered");
+});
+
 test("EnricoServiceAdapter normalizes live rows whose optional flags are absent", () => {
     const { EnricoServiceAdapter, HolidayRecordContract } = loadHolidays();
     const wireRows = [
