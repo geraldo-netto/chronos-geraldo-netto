@@ -59,6 +59,13 @@ function logHolidayDataError(provider, year, reason) {
     }
 }
 
+// same discipline as religiousHolidays' month/year guard: numbers and numeric
+// strings coerce, everything else reads as not-a-year
+function _numericInput(value) {
+    return typeof value === "number" || typeof value === "string" ?
+        Number(value) : NaN;
+}
+
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
 var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS importer export
 
@@ -544,12 +551,23 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     }
 
     getHolidays (year, month, callback) {
+        // The annotator splits its "YYYY/M" month keys, so both arrive as
+        // strings; the staleness gate and the record contract compare numbers,
+        // and a string year used to read every provider's valid payload as
+        // invalid data. Coerce once here and everything below sees integers.
+        const numericYear = _numericInput(year);
+        const numericMonth = _numericInput(month);
+        if (!Number.isInteger(numericYear) || !Number.isInteger(numericMonth)) {
+            callback(new Map(), HOLIDAY_ERRORS.INVALID_RESPONSE, "");
+            return;
+        }
+
         // the 42-day grid always spans two months, so the second one asks for
         // a year whose fetch is already running: join it instead of answering
         // from the still-empty cache
         const respond = () => {
-            const status = this._statusFor(year);
-            callback(this.matchMonth(year, month), status.error, status.provider);
+            const status = this._statusFor(numericYear);
+            callback(this.matchMonth(numericYear, numericMonth), status.error, status.provider);
         };
 
         // Cinnamon runs the first grid update in the same call stack as applet
@@ -563,8 +581,8 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
                 return;
             }
 
-            if (this.fetching(year) || this.staleCache(year)) {
-                this.retrieveForYear(year, respond);
+            if (this.fetching(numericYear) || this.staleCache(numericYear)) {
+                this.retrieveForYear(numericYear, respond);
             } else {
                 respond();
             }

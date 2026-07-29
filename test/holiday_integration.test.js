@@ -676,6 +676,49 @@ test("a response from the country the user just left does not silence the new on
     assert.deepEqual(months[0].get("7/14"), ["Bastille Day", []]);
 });
 
+// T597: the annotator builds "YYYY/M" month keys and hands the split pieces
+// straight to getHolidays, so year and month arrive as strings. The record
+// contract requires an integer year, so every provider's perfectly valid
+// payload read as invalid data: three burned round trips, "Holiday data
+// unavailable" under the month label, and an hour of suppressed retry — for
+// any year the numeric setPlace fetch had not already cached.
+test("the annotator's string month keys fetch and render like numeric ones", () => {
+    const { createHolidayProvider } = loadHolidays();
+    const requested = [];
+    const provider = createHolidayProvider({
+        lang: "en",
+        cache: makeMemoryCache(),
+        load: (url, params, callback) => {
+            requested.push(params.year);
+            callback([{
+                date: { year: Number(params.year), month: 1, day: 1 },
+                name: [{ lang: "en", text: "Jour de l'an" }],
+                flags: []
+            }], params, STAMP);
+        }
+    });
+
+    provider.setPlace("fra", "global", () => {});
+    const before = requested.length;
+
+    // the grid straddles December/January: the annotator asks for the next
+    // year with the strings it split out of its own month key
+    const [y, m] = `${FIXED_YEAR + 1}/1`.split("/");
+    const answers = [];
+    provider.getHolidays(y, m, (dates, error) => answers.push([dates, error]));
+
+    assert.equal(answers.length, 1);
+    assert.equal(answers[0][1], "", "a valid payload is not classed as a failure");
+    assert.deepEqual(answers[0][0].get("1/1"), ["Jour de l'an", []]);
+    assert.equal(requested.length, before + 1, "one fetch, no failover burn");
+
+    // and an input that cannot be a year answers empty without dispatching
+    const garbage = [];
+    provider.getHolidays(null, "1", (dates, error) => garbage.push([dates.size, error]));
+    assert.deepEqual(garbage, [[0, "Holiday data unavailable"]]);
+    assert.equal(requested.length, before + 1, "nothing was fetched for it");
+});
+
 // T605: ioUtils reports a request Soup refused to construct as callback(null,
 // null) so failover and settlement still run — but the holiday loader
 // dereferenced the null message for its date header. The TypeError escaped
