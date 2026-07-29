@@ -141,6 +141,7 @@ function loadHolidays(options = {}) {
             GLib: {
                 PRIORITY_DEFAULT: 0,
                 timeout_add_seconds: () => 1,
+                source_remove: () => {},
                 build_filenamev(parts) {
                     return path.join(...parts);
                 },

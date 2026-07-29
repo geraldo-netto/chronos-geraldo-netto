@@ -136,7 +136,8 @@ function loadUtils(options = "") {
             GLib: {
                 SpawnFlags: { SEARCH_PATH: 4 },
                 PRIORITY_DEFAULT: 0,
-                timeout_add_seconds: () => 1
+                timeout_add_seconds: () => 1,
+                source_remove: () => {}
             }
         },
         byteArray: {
@@ -328,6 +329,83 @@ test("httpGetJson parses Soup 3 and reports HTTP failures", () => {
     });
 
     assert.deepEqual(failed, { data: null, message: failedSoup.messages[0] });
+});
+
+// T600: Session:timeout is a per-read socket timeout, so an endpoint trickling
+// one byte per interval kept a request in flight forever — and with it the
+// process-wide Nominatim queue slot or a year's in-flight holiday entry. The
+// deadline is the whole-request clock; firing it cancels the request so the
+// ordinary failure path settles everyone waiting.
+test("a request that trickles past the deadline is cancelled and settled", () => {
+    const utils = loadIoUtils();
+    let parkedRead = null;
+    const soup = makeSoup3({
+        onFinish: () => ({
+            read_bytes_async(_count, _priority, cancellable, cb) {
+                parkedRead = { cancellable, cb };
+            }
+        })
+    });
+    Object.assign(global.imports.gi.Soup, soup);
+
+    let deadline = null;
+    const removed = [];
+    global.imports.gi.GLib.timeout_add_seconds = (_priority, seconds, cb) => {
+        deadline = { seconds, cb };
+        return 7;
+    };
+    global.imports.gi.GLib.source_remove = (id) => removed.push(id);
+
+    let answered = "unset";
+    utils.httpGetJson(new soup.Session(), "https://example.test/slow?city=Berlin", (data) => {
+        answered = data;
+    });
+
+    assert.equal(answered, "unset", "the trickle keeps the request in flight");
+    assert.equal(deadline.seconds, utils.HTTP_DEADLINE_SECONDS);
+
+    assert.equal(deadline.cb(), false, "the deadline is one-shot");
+    assert.equal(parkedRead.cancellable.cancelled, true, "and it cancels the request");
+
+    // Gio completes a cancelled read with an error; the request settles as a failure
+    parkedRead.cb({ read_bytes_finish: () => { throw new Error("Operation was cancelled"); } }, {});
+    assert.equal(answered, null);
+    assert.deepEqual(removed, [], "a fired deadline is spent, not removed again");
+});
+
+test("a request that completes disarms its deadline", () => {
+    const utils = loadIoUtils();
+    const removed = [];
+    global.imports.gi.GLib.timeout_add_seconds = () => 9;
+    global.imports.gi.GLib.source_remove = (id) => removed.push(id);
+
+    let parsed = "unset";
+    const soup = global.imports.gi.Soup;
+    utils.httpGetJson(new soup.Session(), "https://example.test/ok", (data) => {
+        parsed = data;
+    });
+
+    assert.deepEqual(parsed, { ok: true });
+    assert.deepEqual(removed, [9], "the settled request released its timer");
+});
+
+test("no deadline is armed when the platform offers no cancellable", () => {
+    const utils = loadIoUtils();
+    delete global.imports.gi.Gio.Cancellable;
+    let armed = 0;
+    global.imports.gi.GLib.timeout_add_seconds = () => {
+        armed++;
+        return 3;
+    };
+
+    let parsed = "unset";
+    const soup = global.imports.gi.Soup;
+    utils.httpGetJson(new soup.Session(), "https://example.test/ok", (data) => {
+        parsed = data;
+    });
+
+    assert.deepEqual(parsed, { ok: true });
+    assert.equal(armed, 0, "a deadline with nothing to cancel is dead weight");
 });
 
 // REGRESSION: communicate_utf8_finish() answers with a decoded string, as its

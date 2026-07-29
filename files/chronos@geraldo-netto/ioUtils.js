@@ -12,9 +12,16 @@
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const Gio = GjsImports.gi.Gio;
+const GLib = GjsImports.gi.GLib;
 const Soup = GjsImports.gi.Soup;
 
 var HTTP_TIMEOUT_SECONDS = 30; // NOSONAR [S3504] -- GJS importer export
+// Session:timeout above is a per-read socket timeout: an endpoint that keeps
+// trickling bytes resets it forever, so one request could stay in flight for
+// days while everything serialized behind it — the Nominatim queue, a year's
+// in-flight holiday entry, the scheduler's settle — starved. This is the
+// whole-request clock the socket timeout cannot provide.
+var HTTP_DEADLINE_SECONDS = 2 * HTTP_TIMEOUT_SECONDS; // NOSONAR [S3504] -- GJS importer export
 // Responses are parsed on the compositor thread and the holiday payloads are
 // tens of kilobytes; anything past this is a broken or hostile endpoint, and
 // parsing it would balloon the Cinnamon process.
@@ -354,6 +361,32 @@ function _newRequestMessage(url, headers) {
     }
 }
 
+// Cancelling the request makes Gio error the pending send or read, so the
+// ordinary failure path settles everything waiting on it. Disarming after a
+// fire is a no-op: the id is spent.
+function _armRequestDeadline(cancellable, url) {
+    if (!cancellable) {
+        return () => {};
+    }
+
+    let id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, HTTP_DEADLINE_SECONDS, () => {
+        id = 0;
+        if (global.logError) {
+            global.logError("request to " + urlForLog(url) + " passed the " +
+                HTTP_DEADLINE_SECONDS + " s deadline; cancelling it");
+        }
+        cancellable.cancel();
+        return false;
+    });
+
+    return () => {
+        if (id) {
+            GLib.source_remove(id);
+            id = 0;
+        }
+    };
+}
+
 function httpGetJson(session, url, callback, options = {}) {
     const message = _newRequestMessage(url, options.headers);
 
@@ -366,10 +399,12 @@ function httpGetJson(session, url, callback, options = {}) {
     }
     const cancellable = Gio.Cancellable ? new Gio.Cancellable() : null;
     _cancelOnDowngrade(message, url, cancellable);
+    const disarmDeadline = _armRequestDeadline(cancellable, url);
 
     // Each path below calls back exactly once, and always outside its try: a
     // throw from the callback must not be swallowed as if it were a read error.
     const fail = (e) => {
+        disarmDeadline();
         if (global.logError) {
             global.logError(e);
         }
@@ -377,6 +412,7 @@ function httpGetJson(session, url, callback, options = {}) {
     };
 
     const deliver = (body) => {
+        disarmDeadline();
         let data = null;
         try {
             data = _jsonFromBody(message, url, body);
@@ -454,6 +490,7 @@ if (typeof module !== "undefined") {
         LazyHttpSession,
         decodeUtf8,
         HTTP_TIMEOUT_SECONDS,
+        HTTP_DEADLINE_SECONDS,
         MAX_RESPONSE_BYTES,
         MAX_CACHE_FILE_BYTES,
         httpGetJson,
