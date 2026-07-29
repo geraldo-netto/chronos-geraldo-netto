@@ -681,6 +681,15 @@ class AppletPanelStatusPresenter {
 
     issueStatus(clockEntries, cityIssues = null) {
         const view = this.view;
+        // The tooltip format only renders world-clock rows, and only a
+        // rendered stamp clears its issue — so with clocks switched off a
+        // fixed format could never clear the warning it left behind. With no
+        // renderable row the issue no longer applies; a still-broken format
+        // re-raises it from the first stamp after clocks return.
+        if (!clockEntries.length) {
+            this._invalidTooltipFormat = null;
+            this._tooltipFormatIssue = "";
+        }
         const issues = [
             this._formatIssue,
             this._tooltipFormatIssue,

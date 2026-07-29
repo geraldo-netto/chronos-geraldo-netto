@@ -1125,6 +1125,35 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
     assert.equal(footer, "", "the aggregate clears when every source recovers");
 });
 
+// T608: _tooltipFormatIssue was cleared only inside tooltipClockStamp, on a
+// successfully rendered stamp. With world clocks off no stamp ever renders, so
+// a user who set a bad custom-tooltip-format, disabled clocks, then fixed the
+// format kept the "Invalid time format" footer for the rest of the session.
+test("a tooltip-format issue does not outlive the last renderable clock row", () => {
+    const view = {
+        customTooltipFormat: "%broken",
+        desktopSettings: { use24h: true },
+        showWeather: false
+    };
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    const entry = {
+        label: "Tokyo",
+        time: "12:00",
+        localTime: { format: (fmt) => fmt === "%broken" ? null : "stamp" }
+    };
+
+    // clocks on: the bad format fails to render and raises the issue
+    presenter.tooltipClockStamp(entry);
+    assert.match(presenter.issueStatus([entry]), /Invalid time format/);
+
+    // clocks off: no row renders, so the issue no longer applies
+    assert.equal(presenter.issueStatus([]), "");
+
+    // ...and returning clocks with the format still broken re-raises it
+    presenter.tooltipClockStamp(entry);
+    assert.match(presenter.issueStatus([entry]), /Invalid time format/);
+});
+
 // The applet's resume path drives both readouts. The city half needs to be forced
 // past its "nothing changed" guard: after a suspend the settings are identical
 // and the armed timer still looks alive, because CLOCK_MONOTONIC did not advance.
