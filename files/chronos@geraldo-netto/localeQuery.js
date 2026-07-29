@@ -94,6 +94,13 @@ function _cancelPendingRequest(env) {
     // and re-adding the applet three times would leave the next one on the
     // English defaults with the retry ladder used up
     abandoned[env] = true;
+    // The armed deadline was the only other holder of the process handle, and
+    // the teardown just removed it with the rest of the timers. Cancelling the
+    // read only stops us waiting: a genuinely wedged `locale` has to be
+    // killed here too, or it lingers for the rest of the session.
+    if (_subprocesses[env] && _subprocesses[env].force_exit) {
+        _subprocesses[env].force_exit();
+    }
     _cancellables[env].cancel();
 }
 
@@ -125,6 +132,9 @@ const localeInfoCache = {};
 const requested = {};
 // the cancellable of the query in flight, so a teardown can stop it
 const _cancellables = {};
+// the subprocess in flight, so a teardown can kill a wedged child rather than
+// merely stop reading from it
+const _subprocesses = {};
 // holding defaults because the query failed, and how many times it has
 const degraded = {};
 const attempts = {};
@@ -261,6 +271,7 @@ function _settlers(env) {
                 abandoned[env] = false;
                 requested[env] = false;
                 delete _cancellables[env];
+                delete _subprocesses[env];
                 // The last consumer left, but another applet can be added before
                 // Gio delivers the cancellation callback. Its getInfo() sees the
                 // old request in flight and cannot restart it; once this callback
@@ -337,6 +348,7 @@ function _requestInfo(env, force = false) {
 
         const cancellable = new Gio.Cancellable();
         _cancellables[env] = cancellable;
+        _subprocesses[env] = proc;
         const settlers = _settlers(env);
 
         _armDeadline(env, proc, cancellable, settlers);

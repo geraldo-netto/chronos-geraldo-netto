@@ -52,7 +52,12 @@ class LocaleSubprocess {
 
     init() {}
 
+    force_exit() {
+        this.forced = true;
+    }
+
     communicate_utf8_async(_stdin, cancellable, callback) {
+        this.constructor.last = this;
         this._cancellable = cancellable;
         // GJS still calls back when the cancellable is cancelled — finish()
         // below is what raises. A test cancels, then settles, to walk the path a
@@ -2052,6 +2057,26 @@ test("the teardown cancels the locale subprocess still in flight", () => {
 
     assert.equal(cancellable.cancelled, true,
         "the subprocess is not left running after the applet is gone");
+});
+
+// T610: the teardown removed the armed deadline first — the only other holder
+// of the process handle, and the only code that called force_exit() — then
+// cancelled just the read. A `locale` genuinely wedged on a hung NSS lookup
+// (the exact case the deadline documents) was left running for the rest of the
+// session with nothing left that could kill it.
+test("the teardown kills a wedged locale child, not just the read", () => {
+    const localeQuery = loadLocaleModules({ neverAnswers: true });
+    localeQuery.registerLocaleConsumer();
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+
+    const child = global.imports.gi.Gio.Subprocess.last;
+    assert.ok(child, "a query is in flight");
+    assert.ok(!child.forced, "and its child is running");
+
+    localeQuery.cancelPendingLocaleQueries();
+
+    assert.equal(child.forced, true,
+        "the wedged child is killed, not abandoned to the session");
 });
 
 // The applet is multi-instance, the locale query is process-wide, and the
