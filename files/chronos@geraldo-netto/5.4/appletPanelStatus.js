@@ -129,6 +129,16 @@ function badFormatFallback(view, message) {
     return String(message).replace(/%/g, "%%") + " • " + (use24h ? "%H:%M" : "%-l:%M %p"); // NOSONAR [S7781] -- accepted compatible form
 }
 
+// The date formats are translator-supplied strftime, and — like the custom
+// format badFormatFallback guards — nothing can check their directives. A
+// broken msgstr makes get_clock_for_format answer null, which .capitalize()
+// used to turn into a TypeError on every menu open for that locale. The
+// untranslated msgid is known-valid, so the header falls back to it.
+function _localizedStamp(view, format, fallback) {
+    const stamp = view.formatClock(format) || view.formatClock(fallback) || "";
+    return stamp.capitalize();
+}
+
 // Everything the presenter reads and writes, behind one seam.
 //
 // It was the writes only, and the presenter went on reading about fifteen applet
@@ -703,9 +713,11 @@ class AppletPanelStatusPresenter {
         const rolledOver = Boolean(this._todayFormatCache);
         this._todayFormatCache = {
             key,
-            full: view.formatClock(DateFormats.DATE_FORMAT_FULL).capitalize(),
-            short: view.formatClock(DateFormats.DATE_FORMAT_SHORT).capitalize(),
-            day: view.formatClock(DateFormats.DAY_FORMAT).capitalize()
+            full: _localizedStamp(view, DateFormats.DATE_FORMAT_FULL,
+                DateFormats.DATE_FORMAT_FULL_FALLBACK),
+            short: _localizedStamp(view, DateFormats.DATE_FORMAT_SHORT,
+                DateFormats.DATE_FORMAT_SHORT_FALLBACK),
+            day: _localizedStamp(view, DateFormats.DAY_FORMAT, DateFormats.DAY_FORMAT)
         };
 
         if (rolledOver) {

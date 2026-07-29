@@ -43,6 +43,13 @@ var MAX_CLOCK_STAMP_LENGTH = 256; // NOSONAR [S3504] -- GJS importer export
 var DAY_FORMAT = CinnamonDesktop.WallClock.lctime_format("cinnamon", "%A"); // NOSONAR [S3504] -- GJS importer export
 var DATE_FORMAT_SHORT; // NOSONAR [S3504] -- GJS importer export
 var DATE_FORMAT_FULL; // NOSONAR [S3504] -- GJS importer export
+// The translated formats are strftime written by translators, and nothing
+// checks their directives — xgettext does not mark them c-format, so msgfmt
+// cannot. A broken msgstr makes get_clock_for_format answer null; the
+// untranslated msgids are known-valid, so they stay beside the translations
+// as render-time fallbacks.
+var DATE_FORMAT_SHORT_FALLBACK = CinnamonDesktop.WallClock.lctime_format("cinnamon", "%B %-e, %Y"); // NOSONAR [S3504] -- GJS importer export
+var DATE_FORMAT_FULL_FALLBACK = CinnamonDesktop.WallClock.lctime_format("cinnamon", "%A, %B %-e, %Y"); // NOSONAR [S3504] -- GJS importer export
 {
     // cinnamon-xlet-makepot extracts only the _() keyword, so these two date
     // formats were invisible to translators under the bare translate() name and
@@ -81,6 +88,8 @@ if (typeof module !== "undefined") {
         DAY_FORMAT,
         DATE_FORMAT_SHORT,
         DATE_FORMAT_FULL,
+        DATE_FORMAT_SHORT_FALLBACK,
+        DATE_FORMAT_FULL_FALLBACK,
         monthWindowStartOffset,
         dateFormatWithinLimit,
         dateFormatOrDefault,

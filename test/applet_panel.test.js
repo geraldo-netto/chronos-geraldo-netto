@@ -240,6 +240,34 @@ test("getFormattedToday caches by day and invalidates at rollover", () => {
         "midnight repaints the grid's today and moves the events list with it");
 });
 
+// T609: DATE_FORMAT_SHORT/FULL are translator-supplied strftime msgstrs in 15
+// catalogs, and nothing gates their directives — a broken one made
+// get_clock_for_format answer null and `.capitalize()` threw on every menu
+// open for that locale, blanking the day/date header for good. The header now
+// falls back to the untranslated msgid, which is known-valid.
+test("a broken translated date format falls back to the untranslated one", () => {
+    const seen = new Set();
+    const stub = {
+        clock: clockStub({
+            get_clock_for_format: (fmt) => {
+                // the first ask per format is the translated msgstr answering
+                // null; the retry is the untranslated fallback
+                if (!seen.has(fmt)) {
+                    seen.add(fmt);
+                    return null;
+                }
+                return "stamp:" + fmt;
+            }
+        })
+    };
+    const presenter = panelStatus(stub);
+
+    const today = presenter.getFormattedToday();
+    assert.equal(today.full, ("stamp:" + DateFormats.DATE_FORMAT_FULL_FALLBACK).capitalize());
+    assert.equal(today.short, ("stamp:" + DateFormats.DATE_FORMAT_SHORT_FALLBACK).capitalize());
+    assert.equal(today.day, ("stamp:" + DateFormats.DAY_FORMAT).capitalize());
+});
+
 // T27d: suffix building and ellipsizing
 // a reading record {condition, temperatureC} from a display string like "☀ 20°C"
 test("buildLabelSuffix is the temperature on every panel orientation", () => {
