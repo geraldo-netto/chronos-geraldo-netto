@@ -535,6 +535,37 @@ test("re-delivering the same events does not repaint the grid", () => {
     assert.equal(emitted(manager, "events-updated").length, 2, "a moved event repaints");
 });
 
+// T599: rescheduling an event to another day inside the window rewrites its
+// buckets, but selected_changed was reported only for the NEW date — so the
+// grid dot moved while the open event column kept the stale row for the old
+// day until the user reselected it. The out-of-window move and the removal
+// path both handled their cases; the in-window move was the gap.
+test("an event rescheduled off the selected day refreshes that day's list", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(11 * DAY_US);
+
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "standup", startUnix: 11 * DAY_S + 3600, endUnix: 11 * DAY_S + 5400
+        })]
+    });
+    assert.equal(emitted(manager, "selected-date-events-changed").length, 1,
+        "the event lands on the selected day");
+
+    // an external edit moves it to the next day, still inside the window
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "standup", startUnix: 12 * DAY_S + 3600, endUnix: 12 * DAY_S + 5400,
+            modTime: 2
+        })]
+    });
+
+    assert.equal(manager._event_index.getByUnixKey(11 * DAY_S), null,
+        "the old day's bucket is gone");
+    assert.equal(emitted(manager, "selected-date-events-changed").length, 2,
+        "and the open column is told the selected day changed");
+});
+
 test("added events spread across days and emit updates", () => {
     const manager = readyManager();
     manager._window_coordinator.current_selected_date = new FakeDateTime(11 * DAY_US);

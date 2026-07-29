@@ -162,16 +162,26 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return start.compare(end) <= 0 ? { start, end } : null;
     }
 
+    _selectedDayHas(id, currentSelectedDate) {
+        const selected = this.get(currentSelectedDate);
+        return Boolean(selected && selected.get_ids().includes(id));
+    }
+
     register(data, timestamp, currentSelectedDate) {
         const bounds = this._registrationBounds(data);
         if (bounds === null) {
-            const selected = this.get(currentSelectedDate);
-            const selected_changed = Boolean(selected &&
-                selected.get_ids().includes(data.id));
+            const selected_changed = this._selectedDayHas(data.id, currentSelectedDate);
             const changed = this._eventsById.has(data.id);
             this.remove([data.id]);
             return { changed, selected_changed };
         }
+
+        // A reschedule rewrites the buckets below, and _registerOnDate reports
+        // only the dates the event now covers — so a move OFF the selected day
+        // shrank its list with nothing saying so, and the open event column
+        // kept the stale row. The out-of-window branch above already honors
+        // this contract; note the departure so the in-window move does too.
+        const wasOnSelectedDay = this._selectedDayHas(data.id, currentSelectedDate);
 
         const refused = this._prepareEvent(data);
         if (refused) {
@@ -192,6 +202,10 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
                 break;
             }
             date_iter = date_iter.add_days(1);
+        }
+
+        if (wasOnSelectedDay && !selected_changed) {
+            selected_changed = !this._selectedDayHas(data.id, currentSelectedDate);
         }
 
         return { changed, selected_changed };
