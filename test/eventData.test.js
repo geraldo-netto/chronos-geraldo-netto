@@ -317,8 +317,9 @@ test("fuzz: a hostile DBus event either builds or is refused, and never half-bui
         try {
             event = new EventData(variant, 1);
         } catch (e) {
-            // refusing is a fine answer, as long as it says why
-            assert.match(String(e), /usable start or end time/);
+            // refusing is a fine answer, as long as it says why — and never
+            // by quoting the hostile payload back into the log
+            assert.match(String(e), /usable start or end time|unusable id/);
             continue;
         }
 
@@ -326,6 +327,8 @@ test("fuzz: a hostile DBus event either builds or is refused, and never half-bui
         // throw two lines later, inside a DBus signal handler
         assert.ok(event.start && event.end, "an event that exists has both ends");
         assert.equal(typeof event.id, "string");
+        assert.ok(EventDataModule.validEventUid(event.id),
+            "an admitted UID is inside the contract");
         assert.equal(typeof event.summary, "string");
         assert.ok(event.summary.length <= EventDataModule.MAX_EVENT_SUMMARY_LENGTH,
             "the summary lands in a wrapping label on the compositor thread");

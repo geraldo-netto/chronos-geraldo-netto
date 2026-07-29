@@ -512,11 +512,14 @@ test("CalendarLauncher owns date and uuid launch commands", () => {
 
 test("an oversized event UID cannot make a row look activatable", () => {
     global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
+    // the data contract refuses such a UID at admission (T579); forge one past
+    // it so the row's own guard stays pinned as defense in depth
     const event = makeRowEvent({
-        id: "x".repeat(EventView.MAX_EVENT_UID_LENGTH + 1),
+        id: "x",
         startUnix: 50 * DAY_S + 14 * 3600,
         endUnix: 50 * DAY_S + 15 * 3600
     });
+    event.id = "x".repeat(EventView.MAX_EVENT_UID_LENGTH + 1);
     const row = new EventView.EventRow(event, TODAY, rowParams());
     global.imports.gi.GLib.find_program_in_path = () => null;
 

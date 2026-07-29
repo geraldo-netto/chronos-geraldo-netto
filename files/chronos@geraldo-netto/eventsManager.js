@@ -21,6 +21,7 @@ const APPLET_MODULES = IS_NODE ?
     null : GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
 const ProviderUtils = APPLET_MODULES ? APPLET_MODULES.providerUtils : require("./providerUtils");
 const CalendarServerModule = APPLET_MODULES ? APPLET_MODULES.calendarServerConnection : require("./calendarServerConnection");
+const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
 const EventIndexModule = APPLET_MODULES ? APPLET_MODULES.eventIndex : require("./eventIndex");
 const EventWindowModule = APPLET_MODULES ? APPLET_MODULES.eventWindow : require("./eventWindow");
 
@@ -465,7 +466,16 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _handle_removed_events(server, uids_string) {
-        this._enqueue_event_mutation({ type: "remove", uids: uids_string });
+        // The payload is unbounded TEXT off the wire, and it would sit whole
+        // in the mutation queue until the idle drains it. Anything longer
+        // than one in-contract UID cannot name an indexed event, and the
+        // multi-UID batch path resyncs anyway — so an oversized payload
+        // collapses to the same authoritative resync without keeping the
+        // bytes. null is that resync signal.
+        const bounded = typeof uids_string === "string" &&
+            uids_string.length <= EventDataModule.MAX_EVENT_UID_LENGTH ?
+            uids_string : null;
+        this._enqueue_event_mutation({ type: "remove", uids: bounded });
     }
 
     _apply_removed_events(uids_string) {
@@ -473,8 +483,9 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // component UID is TEXT and may contain that exact sequence. A string
         // with the delimiter therefore cannot be decoded losslessly: clear the
         // window and ask the authoritative source again. A delimiter-free
-        // single ID is unambiguous and keeps the fast targeted path.
-        const ambiguous = uids_string.indexOf("::") !== -1;
+        // single ID is unambiguous and keeps the fast targeted path. null is
+        // the ingress bound's oversized-payload marker: same resync.
+        const ambiguous = uids_string === null || uids_string.indexOf("::") !== -1;
         if (ambiguous) {
             this._event_index.clear();
         } else {

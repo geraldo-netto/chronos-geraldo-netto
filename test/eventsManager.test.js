@@ -1001,6 +1001,55 @@ test("an event with no usable times is skipped, not fatal", () => {
         "and the one that was dropped says why");
 });
 
+// T579: the UID is unbounded wire TEXT, and the index retains every accepted
+// one in a set, a map and per-day lists for the life of the window — so
+// sequential near-cap deliveries could pin gigabytes inside Cinnamon, and the
+// invalid-time skip echoed the raw UID (CR/LF and all) into the shell log.
+test("an event with an unusable id is refused and never echoed to the log", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(11 * DAY_US);
+    const logged = [];
+    const originalLogError = global.logError;
+    global.logError = (e) => logged.push(String(e));
+
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [
+            eventVariant({
+                id: "x".repeat(5000), startUnix: 11 * DAY_S, endUnix: 11 * DAY_S + 60
+            }),
+            eventVariant({
+                id: "cr\r\nlf-uid", startUnix: 1e18, endUnix: 1e18
+            })
+        ]
+    });
+    global.logError = originalLogError;
+
+    assert.deepEqual(manager._event_index.eventsByDate, {}, "nothing is indexed");
+    assert.ok(logged.some((line) => /unusable id/.test(line)), "the skip is reported");
+    assert.ok(!logged.some((line) => line.includes("xxxxxxxx")),
+        "the oversized UID never reaches the log");
+    assert.ok(!logged.some((line) => line.includes("lf-uid")),
+        "and neither does the CR/LF one");
+});
+
+test("an oversized removal payload resyncs without retaining the bytes", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_month_year = new FakeDateTime(10 * DAY_US);
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "keep", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        })]
+    });
+
+    proxy.instance.signal("events-removed", "y".repeat(5000));
+
+    assert.deepEqual(manager._event_index.eventsByDate, {}, "the window is cleared");
+    assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true,
+        "and repopulated from the authoritative server");
+    assert.ok(!JSON.stringify(manager._event_mutations).includes("yyyyyyyy"),
+        "the payload is not parked in the mutation queue");
+});
+
 test("ambiguous removed-event IDs clear and force-refetch the window", () => {
     const manager = readyManager();
     const ambiguousUid = "calendar-source:meeting::2026";

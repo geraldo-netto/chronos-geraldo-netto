@@ -108,6 +108,19 @@ function clampEventSummary(summary) {
     return TextUtils.clampText(summary, MAX_EVENT_SUMMARY_LENGTH);
 }
 
+// The UID is wire TEXT relayed from whatever feed the user subscribed to, and
+// the index retains every accepted one in a set, a map and per-day lists for
+// the life of the window — so sequential deliveries of near-cap payloads could
+// pin gigabytes of UID bytes inside Cinnamon. One bound serves the whole
+// applet: the launch path already keeps UIDs under the kernel's per-argv
+// limit, and 2,000 admitted events stay in megabytes even from a hostile feed.
+var MAX_EVENT_UID_LENGTH = 4096; // NOSONAR [S3504] -- GJS importer export
+
+function validEventUid(id) {
+    return typeof id === "string" && id.length > 0 &&
+        id.length <= MAX_EVENT_UID_LENGTH;
+}
+
 var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
     constructor(data_var, last_update_timestamp) {
         const unpacked = data_var.deep_unpack();
@@ -117,12 +130,18 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
         const start = eventUnixTime(start_time);
         const end = eventUnixTime(end_time);
         if (start === null || end === null) {
-            // the caller turns this into "skip the event", which is the only
-            // sane answer: an event with no time cannot be placed on a grid
-            throw new Error("event " + String(id) + " has no usable start or end time");
+            // The caller turns this into "skip the event", which is the only
+            // sane answer: an event with no time cannot be placed on a grid.
+            // The UID stays out of the message — it is unbounded wire TEXT
+            // with no character guarantees, and the caller logs this verbatim.
+            throw new Error("skipping an event with no usable start or end time");
         }
 
-        this.id = typeof id === "string" ? id : String(id);
+        const uid = typeof id === "string" ? id : String(id);
+        if (!validEventUid(uid)) {
+            throw new Error("skipping an event with an unusable id");
+        }
+        this.id = uid;
         this.start = GLib.DateTime.new_from_unix_local(start);
         this.end = GLib.DateTime.new_from_unix_local(end);
 
@@ -326,6 +345,8 @@ if (typeof module !== "undefined") {
         dt_equals,
         clampEventSummary,
         MAX_EVENT_SUMMARY_LENGTH,
+        MAX_EVENT_UID_LENGTH,
+        validEventUid,
         EventData,
         EventDataList
     };

@@ -48,14 +48,13 @@ const EVENTS_UNAVAILABLE_TEXT =
     _("Calendar events are unavailable — no calendar service is running. Install or enable Evolution Data Server.");
 const EVENTS_REFRESH_FAILED_TEXT =
     _("Calendar events could not be refreshed.");
-// Linux limits each argv entry independently. Keeping the externally supplied
-// UID well below that kernel limit also leaves room for stricter launchers and
-// avoids ever handing the compositor a spawn request it knows can fail.
-var MAX_EVENT_UID_LENGTH = 4096; // NOSONAR [S3504] -- exported for boundary tests
-
 const EventDataModule = require("./eventData");
 const date_only = EventDataModule.date_only;
 const dt_equals = EventDataModule.dt_equals;
+// One UID contract for the whole applet, owned by the data module: it keeps
+// externally supplied UIDs well below the kernel's per-argv limit, so a spawn
+// request handed to the compositor can never fail on length.
+var MAX_EVENT_UID_LENGTH = EventDataModule.MAX_EVENT_UID_LENGTH; // NOSONAR [S3504] -- exported for boundary tests
 
 function eventUidCanLaunch(uuid) {
     return typeof uuid === "string" && uuid.length <= MAX_EVENT_UID_LENGTH;
