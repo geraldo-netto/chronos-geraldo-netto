@@ -676,6 +676,31 @@ test("a response from the country the user just left does not silence the new on
     assert.deepEqual(months[0].get("7/14"), ["Bastille Day", []]);
 });
 
+// T605: ioUtils reports a request Soup refused to construct as callback(null,
+// null) so failover and settlement still run — but the holiday loader
+// dereferenced the null message for its date header. The TypeError escaped
+// retrieveForYear after _inflight.start() and before any settle path, so the
+// year's entry never settled and every later getHolidays for it joined a
+// request that could not complete until the next place change.
+test("a request Soup refuses to construct settles the year instead of wedging it", () => {
+    const soup = makeSoup3();
+    soup.Message = { new: () => null };
+    const { createHolidayProvider, HOLIDAY_ERRORS } = loadHolidays({ soup });
+    const provider = createHolidayProvider({ lang: "en", cache: makeMemoryCache() });
+    const enrico = provider._base._provider;
+
+    provider.setPlace("fra", "global", () => {});
+
+    assert.equal(enrico.fetching(FIXED_YEAR), false,
+        "the failed construction settles the in-flight year");
+
+    const months = [];
+    provider.getHolidays(FIXED_YEAR, 7, (dates, error) => months.push([dates, error]));
+    assert.equal(months.length, 1, "a later month still gets an answer");
+    assert.equal(months[0][1], HOLIDAY_ERRORS.SERVICE_UNAVAILABLE,
+        "and it is the ordinary unavailable report, not silence");
+});
+
 // Every dimension of a holiday payload was bounded except the one that
 // multiplies. The body is capped at 4 MiB and each holiday's span at 366 days —
 // but nothing capped how MANY holidays it carries, and expandHoliday materialises

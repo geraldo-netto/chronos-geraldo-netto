@@ -69,7 +69,9 @@ var Provider = class Provider { // NOSONAR [S3504] -- GJS importer export
     static loaderFor(getSession) {
         return (url, params, callback) => {
             IoUtils.httpGetJson(getSession(), url, (data, message) => {
-                const headers = message.get_response_headers();
+                // a request Soup refused to construct arrives with no message;
+                // it must settle through the same path as a failed fetch
+                const headers = message ? message.get_response_headers() : null;
                 const retrieved = headers ? headers.get_one("date") : null;
 
                 callback(data, params, retrieved);
