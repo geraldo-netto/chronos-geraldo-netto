@@ -25,6 +25,19 @@ const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab
 var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export
 var MAX_HOLIDAYS_PER_YEAR = 1000; // NOSONAR [S3504] -- GJS importer export
 var MAX_EXPANDED_HOLIDAY_ROWS = 4000; // NOSONAR [S3504] -- GJS importer export
+// Flags are the one payload dimension expansion multiplies without a bound of
+// its own: a 366-day span reuses the same array across 367 rows before the
+// cache serializes them all, so a near-cap accepted response could amplify
+// toward gigabytes. Real flag sets are one or two short enum words.
+var MAX_HOLIDAY_FLAGS = 8; // NOSONAR [S3504] -- GJS importer export
+var MAX_HOLIDAY_FLAG_LENGTH = 64; // NOSONAR [S3504] -- GJS importer export
+
+function validHolidayFlags(flags) {
+    return Array.isArray(flags) &&
+        flags.length <= MAX_HOLIDAY_FLAGS &&
+        flags.every((flag) => typeof flag === "string" &&
+            flag.length <= MAX_HOLIDAY_FLAG_LENGTH);
+}
 
 function _noonUtc(parts) {
     return Date.UTC(parts.year, parts.month - 1, parts.day, 12);
@@ -77,7 +90,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
             holiday.name.every((entry) => entry && typeof entry.lang === "string" &&
                 typeof entry.text === "string") &&
             holiday.name.some((entry) => nonBlankText(entry.text)) &&
-            Array.isArray(holiday.flags);
+            validHolidayFlags(holiday.flags);
     }
 
     validResponse(data, requestedYear) {
@@ -131,6 +144,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
 
 if (typeof module !== "undefined") {
     module.exports = { validDateParts, validHolidaySpan, holidaySpanDays, holidayOverlapsYear, nonBlankText,
-        MAX_HOLIDAY_SPAN_DAYS, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
+        validHolidayFlags, MAX_HOLIDAY_SPAN_DAYS, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
+        MAX_HOLIDAY_FLAGS, MAX_HOLIDAY_FLAG_LENGTH,
         HolidayRecordContract };
 }

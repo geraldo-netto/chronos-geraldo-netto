@@ -292,6 +292,13 @@ test("a holiday date off the wire is rejected unless its parts are integers", ()
         { year: 2026, month: 5, day: 5, name: "X", flags: [], region: "global" }));
     assert.ok(!validCachedHoliday(
         { year: 2026, month: "5", day: 5, name: "X", flags: [], region: "global" }));
+
+    // T580: the cache file is user-writable, so its flags obey the same bound
+    // the network contract enforces — a hostile row cannot re-enter unbounded
+    assert.ok(!validCachedHoliday(
+        { year: 2026, month: 5, day: 5, name: "X", flags: ["x".repeat(65)], region: "global" }));
+    assert.ok(!validCachedHoliday(
+        { year: 2026, month: 5, day: 5, name: "X", flags: [1], region: "global" }));
 });
 
 // Every per-row type guard in the two ISO adapters survived mutation: without

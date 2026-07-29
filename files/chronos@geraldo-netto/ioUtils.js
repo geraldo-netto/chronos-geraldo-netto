@@ -138,6 +138,13 @@ function writeJsonFileAsync (file, data, onDone, etag = null) {
     // longer the whole truth and the caller must merge again. Without the etag
     // the write simply won.
     const bytes = new TextEncoder().encode(JSON.stringify(data));
+    // a file the read path would refuse must not be written: readJsonFileAsync
+    // caps what it loads, so writing past the cap only parks bytes the next
+    // startup throws away
+    if (tooBig(bytes.length, MAX_CACHE_FILE_BYTES, "cache file write")) {
+        _notifyWriteDone(onDone);
+        return;
+    }
     try {
         file.replace_contents_async(bytes, etag, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null,
             (source, result) => _finishJsonWrite(source, result, onDone));

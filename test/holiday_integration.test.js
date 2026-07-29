@@ -1,6 +1,6 @@
 const {
     assert, test, vm, fs, makeSoup3, FIXED_YEAR, STAMP,
-    holidayServiceAdaptersPath, shimPath,
+    holidayRecordPath, holidayServiceAdaptersPath, shimPath,
     loadHolidays, holiday, anyRecord
 } = require("./helpers/holidayFixture");
 
@@ -674,6 +674,39 @@ test("a response from the country the user just left does not silence the new on
     const months = [];
     provider.getHolidays(FIXED_YEAR, 7, (dates) => months.push(dates));
     assert.deepEqual(months[0].get("7/14"), ["Bastille Day", []]);
+});
+
+// T580: flags rode through validation with only Array.isArray, and a 366-day
+// span reuses the same array across 367 rows before the cache serializes the
+// expansion — so a near-cap accepted response could amplify toward gigabytes
+// on the compositor thread. The contract now bounds flag count and element
+// type/length, and the cache loader applies the same rule on reload.
+test("a spanning holiday cannot amplify oversized flags through expansion", () => {
+    const { HolidayRecordContract } = loadHolidays();
+    const { MAX_HOLIDAY_FLAGS, MAX_HOLIDAY_FLAG_LENGTH, MAX_HOLIDAY_SPAN_DAYS } =
+        require(holidayRecordPath);
+    const record = new HolidayRecordContract("en");
+    const spanning = (flags) => ({
+        date: { year: 2026, month: 1, day: 1 },
+        dateTo: { year: 2026, month: 12, day: 31 },
+        name: [{ lang: "en", text: "Span" }],
+        flags
+    });
+
+    const dense = Array.from({ length: MAX_HOLIDAY_FLAGS },
+        () => "f".repeat(MAX_HOLIDAY_FLAG_LENGTH));
+    assert.ok(record.validHoliday(spanning(dense)), "a full but bounded flag set is fine");
+
+    assert.ok(!record.validHoliday(spanning([...dense, "one-too-many"])));
+    assert.ok(!record.validHoliday(spanning(["x".repeat(MAX_HOLIDAY_FLAG_LENGTH + 1)])));
+    assert.ok(!record.validHoliday(spanning([{ hostile: "object" }])));
+    assert.ok(!record.validHoliday(spanning(["ok", 42])));
+
+    // the worst accepted case stays small: a year-long span times a full flag
+    // set serializes in kilobytes, not gigabytes
+    const rows = record.expandHoliday(spanning(dense), "global");
+    assert.ok(rows.length <= MAX_HOLIDAY_SPAN_DAYS + 1);
+    assert.ok(JSON.stringify(rows).length < 1024 * 1024);
 });
 
 // T597: the annotator builds "YYYY/M" month keys and hands the split pieces

@@ -389,6 +389,26 @@ test("a request that completes disarms its deadline", () => {
     assert.deepEqual(removed, [9], "the settled request released its timer");
 });
 
+// T580 defense in depth: readJsonFileAsync refuses a cache file past its cap,
+// so writing one only parks bytes the next startup throws away — and the
+// serialize itself was the amplification the flag bound exists to prevent.
+test("a cache payload past the read cap is refused at write time", () => {
+    const utils = loadIoUtils();
+    const writes = [];
+    const file = {
+        replace_contents_async(...args) {
+            writes.push(args);
+        }
+    };
+
+    const done = [];
+    utils.writeJsonFileAsync(file, { blob: "x".repeat(utils.MAX_CACHE_FILE_BYTES) },
+        (stale) => done.push(stale));
+
+    assert.deepEqual(writes, [], "nothing reaches the disk");
+    assert.deepEqual(done, [false], "the caller sees a settled, non-stale write");
+});
+
 test("no deadline is armed when the platform offers no cancellable", () => {
     const utils = loadIoUtils();
     delete global.imports.gi.Gio.Cancellable;
