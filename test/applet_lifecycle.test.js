@@ -1377,6 +1377,7 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
 
 test("constructor registers desktop and lifecycle callbacks", () => {
     const calls = [];
+    let formatWrites = 0;
     const Calendar52 = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
     const EventView52 = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
     const originals = {
@@ -1445,7 +1446,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
         disconnect() {}
         get_clock() { return "10:00"; }
         get_clock_for_format(fmt) { return fmt; }
-        set_format_string() { return true; }
+        set_format_string() { formatWrites++; return true; }
     };
     rootModules.weather.WeatherProvider = class {
         schedule() {}
@@ -1494,6 +1495,9 @@ test("constructor registers desktop and lifecycle callbacks", () => {
 
     const applet = new AppletModule.CinnamonCalendarApplet(St.Side.TOP, 20, 99);
     assert.equal(applet._constructed, true);
+    assert.equal(formatWrites, 1, "construction owns the initial format write");
+    Proto.on_applet_added_to_panel.call(applet);
+    assert.equal(formatWrites, 1, "added-to-panel does not repeat the initial format");
     applet._onSettingsChanged = () => calls.push(["settings"]);
     applet.desktop_settings._settings.callbacks["changed::clock-use-24h"]();
     applet.desktop_settings._settings.callbacks["changed::clock-show-seconds"]();

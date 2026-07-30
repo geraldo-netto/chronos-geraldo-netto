@@ -151,6 +151,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // when it changes; the format only decides what they say
             this._worldclocks.buildClocks(this.worldclocks, this.worldclock_format);
             this._updateFormatString();
+            this._applied_format_signature = this._formatSignature();
 
             this._constructed = true;
         }
