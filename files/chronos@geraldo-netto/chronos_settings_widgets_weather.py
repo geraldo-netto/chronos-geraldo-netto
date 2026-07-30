@@ -10,9 +10,9 @@
 
 """The weather-location settings widget and its city suggestions.
 
-One feature per module: the holiday country combo and the world-clock stack
-are siblings, and chronos_settings_widgets_common keeps only what they share — the
-completion match, the process-wide timezone resolver, the i18n binding.
+One feature per module: the holiday country combo and the world-clock stack are
+siblings. chronos_settings_widgets_common owns their completion matcher and
+shared timezone resolver; chronos_settings_i18n owns the translation binding.
 """
 
 from __future__ import annotations
