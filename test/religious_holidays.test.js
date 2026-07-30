@@ -60,12 +60,63 @@ test("religion and observance names pass through the applet translator", () => {
 
     assert.equal(rows.find((row) => row.month === 12 && row.day === 25).name,
         "translated:Christmas Day (translated:Christianity)");
+
+    const omer = ReligiousHolidays.holidaysForYear(
+        2026, ["judaism"], (text) => `translated:${text}`);
+    assert.equal(omer.find((row) => row.month === 4 && row.day === 3).name,
+        "translated:Sefirat HaOmer — Day 1 (translated:Judaism)");
+});
+
+function civilStamp(year, row) {
+    return Date.UTC(year, row.month - 1, row.day);
+}
+
+// Chabad fixes the count at 16 Nisan through 5 Sivan; Hebcal's published civil
+// anchors independently pin day 1, Lag BaOmer (day 33), day 49 and Shavuot for
+// every year in the catalogue's supported table window.
+test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
+    const anchors = {
+        2025: [[4, 14], [5, 16], [6, 1], [6, 2]],
+        2026: [[4, 3], [5, 5], [5, 21], [5, 22]],
+        2027: [[4, 23], [5, 25], [6, 10], [6, 11]]
+    };
+
+    for (const [yearText, [first, thirtyThird, last, shavuotDate]] of
+        Object.entries(anchors)) {
+        const year = Number(yearText);
+        const rows = ReligiousHolidays.holidaysForYear(year, ["judaism"]);
+        const omer = rows.filter((row) => row.name.startsWith("Sefirat HaOmer"));
+        const shavuot = rows.find((row) => row.name === "Shavuot (Judaism)");
+
+        assert.equal(omer.length, 49, `Omer ${year}`);
+        assert.deepEqual([omer[0].month, omer[0].day], first);
+        assert.deepEqual([omer[32].month, omer[32].day], thirtyThird);
+        assert.deepEqual([omer[48].month, omer[48].day], last);
+        assert.deepEqual([shavuot.month, shavuot.day], shavuotDate);
+        assert.equal(omer[0].name, "Sefirat HaOmer — Day 1 (Judaism)");
+        assert.equal(omer[32].name, "Sefirat HaOmer — Day 33 (Judaism)");
+        assert.equal(omer[48].name, "Sefirat HaOmer — Day 49 (Judaism)");
+        assert.deepEqual(
+            ReligiousHolidays.monthMap(year, thirtyThird[0], ["judaism"])
+                .get(`${thirtyThird[0]}/${thirtyThird[1]}`),
+            ["Sefirat HaOmer — Day 33 (Judaism)", ["religious_holiday", "judaism"]],
+            `calendar map carries Omer ${year}`);
+
+        for (let index = 1; index < omer.length; index++) {
+            assert.equal(civilStamp(year, omer[index]) - civilStamp(year, omer[index - 1]),
+                24 * 60 * 60 * 1000, `Omer ${year} day ${index + 1}`);
+        }
+        assert.equal(civilStamp(year, shavuot) - civilStamp(year, omer[48]),
+            24 * 60 * 60 * 1000, `Shavuot follows Omer ${year}`);
+    }
 });
 
 test("table dates stay absent outside their documented window", () => {
-    const rows = ReligiousHolidays.holidaysForYear(2030, ["islam", "christianity"]);
+    const rows = ReligiousHolidays.holidaysForYear(
+        2030, ["islam", "judaism", "christianity"]);
 
     assert.equal(rows.some((row) => row.flags.includes("islam")), false);
+    assert.equal(rows.some((row) => row.name.startsWith("Sefirat HaOmer")), false);
     assert.equal(rows.some((row) => row.name === "Easter Sunday (Christianity)"), true);
 });
 
@@ -128,6 +179,8 @@ test("catalogue keeps provenance anchors beside the bounded tables", () => {
     assert.match(source, /case\.edu\/studentlife\/dean/);
     assert.match(source, /xavier\.edu\/jesuitresource/);
     assert.match(source, /hebcal\.com\/holidays/);
+    assert.match(source, /chabad\.org\/library\/article_cdo\/aid\/130631/);
+    assert.match(source, /hebcal\.com\/holidays\/days-of-the-omer/);
     assert.doesNotMatch(source, /__TABLES__/);
 });
 

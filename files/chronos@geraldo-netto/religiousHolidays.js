@@ -37,6 +37,7 @@ const _ = (text) => text;
 
 var RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG; // NOSONAR [S3504] -- GJS importer export
 const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
+const OMER_DAY_COUNT = 49;
 
 var RELIGIONS = ReligiousCatalog.RELIGIONS; // NOSONAR [S3504] -- GJS importer export
 const RELIGION_IDS = ReligiousCatalog.RELIGION_IDS;
@@ -99,7 +100,8 @@ const TABLES = {
     "ghost-festival": { 2025: [9, 6], 2026: [8, 27], 2027: [8, 16] }
 };
 
-// entry kinds: {fixed: [month, day]} | {easter: offsetDays} | {table: "key"}
+// entry kinds: {fixed: [month, day]} | {easter: offsetDays} |
+// {table: "key"} | {series: "omer"}
 const OBSERVANCES = {
     christianity: [
         { name: _("Epiphany"), fixed: [1, 6] },
@@ -136,6 +138,7 @@ const OBSERVANCES = {
     judaism: [
         { name: _("Purim"), table: "purim" },
         { name: _("Passover begins"), table: "passover-start" },
+        { name: _("Sefirat HaOmer — Day %s"), series: "omer" },
         { name: _("Shavuot"), table: "shavuot" },
         { name: _("Rosh Hashanah"), table: "rosh-hashanah" },
         { name: _("Yom Kippur"), table: "yom-kippur" },
@@ -223,6 +226,57 @@ function _dateOf(entry, year) {
     return _easterDate(year, entry.easter);
 }
 
+// The count begins on 16 Nisan, the civil day after the first day of Passover,
+// and runs through 5 Sivan; Shavuot follows on day 50. These rules and the
+// published civil-date anchors are documented at:
+// https://www.chabad.org/library/article_cdo/aid/130631/jewish/Sefirat-HaOmer.htm
+// https://www.hebcal.com/holidays/days-of-the-omer
+//
+// UTC civil arithmetic makes every result independent of the host timezone and
+// of the daylight-saving transition that can fall inside the seven-week span.
+function _dateAtOffset(year, [month, day], offset) {
+    const date = new Date(0);
+    date.setUTCHours(12, 0, 0, 0);
+    date.setUTCFullYear(year, month - 1, day + offset);
+    return [date.getUTCMonth() + 1, date.getUTCDate()];
+}
+
+function _sameDate(left, right) {
+    return left[0] === right[0] && left[1] === right[1];
+}
+
+function _omerDates(year) {
+    const passover = TABLES["passover-start"][year];
+    const shavuot = TABLES.shavuot[year];
+    if (!passover || !shavuot) {
+        return [];
+    }
+
+    // Both published anchors must agree with the mandated count. If either
+    // table is edited incorrectly, omitting the series is safer than displaying
+    // a confident but wrong religious count.
+    if (!_sameDate(_dateAtOffset(year, passover, OMER_DAY_COUNT + 1), shavuot)) {
+        return [];
+    }
+
+    return Array.from({ length: OMER_DAY_COUNT }, (unused, index) =>
+        [_dateAtOffset(year, passover, index + 1), index + 1]);
+}
+
+function _datesOf(entry, year) {
+    if (entry.series === "omer") {
+        return _omerDates(year);
+    }
+
+    const date = _dateOf(entry, year);
+    return date ? [[date, null]] : [];
+}
+
+function _nameOf(entry, count, translateName) {
+    const name = translateName(entry.name);
+    return count === null ? name : name.replace("%s", String(count));
+}
+
 // expanded rows in the shape the holiday cache emits: the religion's label is
 // part of the display name, which is what "split by religion" means on a grid
 // cell that shows one tooltip
@@ -234,13 +288,13 @@ function holidaysForYear(year, enabledIds = religionIds(), translateName = _) {
     const rows = [];
     for (const id of enabledReligionIds(enabledIds)) {
         for (const entry of OBSERVANCES[id] || []) {
-            const date = _dateOf(entry, year);
-            if (date) {
+            for (const [date, count] of _datesOf(entry, year)) {
                 rows.push({
                     year,
                     month: date[0],
                     day: date[1],
-                    name: `${translateName(entry.name)} (${translateName(_religionLabel(id))})`,
+                    name: `${_nameOf(entry, count, translateName)} ` +
+                        `(${translateName(_religionLabel(id))})`,
                     flags: [RELIGIOUS_HOLIDAY_FLAG, id]
                 });
             }

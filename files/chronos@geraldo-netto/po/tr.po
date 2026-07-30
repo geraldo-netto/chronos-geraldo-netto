@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-30 11:43+0200\n"
+"POT-Creation-Date: 2026-07-30 14:58+0200\n"
 "PO-Revision-Date: 2021-07-05 18:36+0300\n"
 "Last-Translator: Serkan ÖNDER <serkanonder@outlook.com>\n"
 "Language-Team: \n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%-e %B %Y %A"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:379
+#: 5.4/calendar.js:340
 msgid "Today"
 msgstr "Bugün"
 
@@ -47,212 +47,217 @@ msgid "%s — %s"
 msgstr "%s — %s"
 
 #. 5.4->settings-schema.json->religion-christianity->description
-#: religiousHolidays.js:43
+#: religiousCatalog.js:19
 msgid "Christianity"
 msgstr "Hıristiyanlık"
 
 #. 5.4->settings-schema.json->religion-islam->description
-#: religiousHolidays.js:44
+#: religiousCatalog.js:20
 msgid "Islam"
 msgstr "İslâm"
 
 #. 5.4->settings-schema.json->religion-hinduism->description
-#: religiousHolidays.js:45
+#: religiousCatalog.js:21
 msgid "Hinduism"
 msgstr "Hinduizm"
 
 #. 5.4->settings-schema.json->religion-buddhism->description
-#: religiousHolidays.js:46
+#: religiousCatalog.js:22
 msgid "Buddhism"
 msgstr "Budizm"
 
 #. 5.4->settings-schema.json->religion-sikhism->description
-#: religiousHolidays.js:47
+#: religiousCatalog.js:23
 msgid "Sikhism"
 msgstr "Sihizm"
 
 #. 5.4->settings-schema.json->religion-judaism->description
-#: religiousHolidays.js:48
+#: religiousCatalog.js:24
 msgid "Judaism"
 msgstr "Yahudilik"
 
 #. 5.4->settings-schema.json->religion-bahai->description
-#: religiousHolidays.js:49
+#: religiousCatalog.js:25
 msgid "Bahá'í Faith"
 msgstr "Bahai İnancı"
 
 #. 5.4->settings-schema.json->religion-jainism->description
-#: religiousHolidays.js:50
+#: religiousCatalog.js:26
 msgid "Jainism"
 msgstr "Jainizm"
 
 #. 5.4->settings-schema.json->religion-shinto->description
-#: religiousHolidays.js:51
+#: religiousCatalog.js:27
 msgid "Shinto"
 msgstr "Şinto"
 
 #. 5.4->settings-schema.json->religion-taoism->description
-#: religiousHolidays.js:52
+#: religiousCatalog.js:28
 msgid "Taoism"
 msgstr "Taoizm"
 
-#: religiousHolidays.js:116
+#: religiousHolidays.js:107
 msgid "Epiphany"
 msgstr "Epifani"
 
-#: religiousHolidays.js:117
+#: religiousHolidays.js:108
 msgid "Good Friday"
 msgstr "Kutsal Cuma"
 
-#: religiousHolidays.js:118
+#: religiousHolidays.js:109
 msgid "Easter Sunday"
 msgstr "Paskalya Pazarı"
 
-#: religiousHolidays.js:119
+#: religiousHolidays.js:110
 msgid "Pentecost"
 msgstr "Pentikost"
 
-#: religiousHolidays.js:120
+#: religiousHolidays.js:111
 msgid "All Saints' Day"
 msgstr "Tüm Azizler Günü"
 
-#: religiousHolidays.js:121
+#: religiousHolidays.js:112
 msgid "Christmas Day"
 msgstr "Noel Günü"
 
-#: religiousHolidays.js:124
+#: religiousHolidays.js:115
 msgid "Islamic New Year"
 msgstr "İslami Yeni Yıl"
 
-#: religiousHolidays.js:125
+#: religiousHolidays.js:116
 msgid "Mawlid"
 msgstr "Mevlid"
 
-#: religiousHolidays.js:126
+#: religiousHolidays.js:117
 msgid "Ramadan begins"
 msgstr "Ramazan başlıyor"
 
-#: religiousHolidays.js:127
+#: religiousHolidays.js:118
 msgid "Eid al-Fitr"
 msgstr "Ramazan Bayramı"
 
-#: religiousHolidays.js:128
+#: religiousHolidays.js:119
 msgid "Eid al-Adha"
 msgstr "Kurban Bayramı"
 
-#: religiousHolidays.js:131
+#: religiousHolidays.js:122
 msgid "Makar Sankranti"
 msgstr "Makar Sankranti"
 
-#: religiousHolidays.js:132
+#: religiousHolidays.js:123
 msgid "Maha Shivaratri"
 msgstr "Maha Şivaratri"
 
-#: religiousHolidays.js:133
+#: religiousHolidays.js:124
 msgid "Holi"
 msgstr "Holi"
 
-#: religiousHolidays.js:134
+#: religiousHolidays.js:125
 msgid "Krishna Janmashtami"
 msgstr "Krishna Janmashtami"
 
-#: religiousHolidays.js:135
+#: religiousHolidays.js:126
 msgid "Diwali"
 msgstr "Diwali"
 
-#: religiousHolidays.js:138
+#: religiousHolidays.js:129
 msgid "Parinirvana Day"
 msgstr "Parinirvana Günü"
 
-#: religiousHolidays.js:139
+#: religiousHolidays.js:130
 msgid "Vesak"
 msgstr "Vesak"
 
-#: religiousHolidays.js:140
+#: religiousHolidays.js:131
 msgid "Bodhi Day"
 msgstr "Bodhi Günü"
 
-#: religiousHolidays.js:143
+#: religiousHolidays.js:134
 msgid "Guru Gobind Singh Jayanti"
 msgstr "Guru Gobind Singh Jayanti"
 
-#: religiousHolidays.js:144
+#: religiousHolidays.js:135
 msgid "Vaisakhi"
 msgstr "Vaisakhi"
 
-#: religiousHolidays.js:145
+#: religiousHolidays.js:136
 msgid "Guru Nanak Jayanti"
 msgstr "Guru Nanak Jayanti"
 
-#: religiousHolidays.js:148
+#: religiousHolidays.js:139
 msgid "Purim"
 msgstr "Purim"
 
-#: religiousHolidays.js:149
+#: religiousHolidays.js:140
 msgid "Passover begins"
 msgstr "Fısıh başlıyor"
 
-#: religiousHolidays.js:150
+#: religiousHolidays.js:141
+#, javascript-format
+msgid "Sefirat HaOmer — Day %s"
+msgstr "Sefirat HaOmer — %s. gün"
+
+#: religiousHolidays.js:142
 msgid "Shavuot"
 msgstr "Şavuot"
 
-#: religiousHolidays.js:151
+#: religiousHolidays.js:143
 msgid "Rosh Hashanah"
 msgstr "Roş Aşana"
 
-#: religiousHolidays.js:152
+#: religiousHolidays.js:144
 msgid "Yom Kippur"
 msgstr "Yom Kippur"
 
-#: religiousHolidays.js:153
+#: religiousHolidays.js:145
 msgid "Hanukkah begins"
 msgstr "Hanuka başlıyor"
 
-#: religiousHolidays.js:156
+#: religiousHolidays.js:148
 msgid "Naw-Rúz"
 msgstr "Nev-Ruz"
 
-#: religiousHolidays.js:157
+#: religiousHolidays.js:149
 msgid "Ridván begins"
 msgstr "Rıdvan başlıyor"
 
-#: religiousHolidays.js:160
+#: religiousHolidays.js:152
 msgid "Mahavir Jayanti"
 msgstr "Mahavir Jayanti"
 
-#: religiousHolidays.js:161
+#: religiousHolidays.js:153
 msgid "Paryushana begins"
 msgstr "Paryushana başlıyor"
 
-#: religiousHolidays.js:164
+#: religiousHolidays.js:156
 msgid "Shōgatsu"
 msgstr "Shogatsu"
 
-#: religiousHolidays.js:165
+#: religiousHolidays.js:157
 msgid "Hinamatsuri"
 msgstr "Hinamatsuri"
 
-#: religiousHolidays.js:166
+#: religiousHolidays.js:158
 msgid "Tanabata"
 msgstr "Tanabata"
 
-#: religiousHolidays.js:167
+#: religiousHolidays.js:159
 msgid "Shichi-Go-San"
 msgstr "Shichi-Go-San"
 
-#: religiousHolidays.js:170
+#: religiousHolidays.js:162
 msgid "Chinese New Year"
 msgstr "Çin Yeni Yılı"
 
-#: religiousHolidays.js:171
+#: religiousHolidays.js:163
 msgid "Qingming"
 msgstr "Qingming"
 
-#: religiousHolidays.js:172
+#: religiousHolidays.js:164
 msgid "Ghost Festival"
 msgstr "Hayalet Festivali"
 
-#: worldclockData.js:60 settings_widgets_common.py:58
+#: worldclockData.js:60 settings_widgets_worldclocks.py:53
 msgid "Invalid timezone"
 msgstr "Geçersiz saat dilimi"
 
@@ -265,136 +270,136 @@ msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "Takvim uygulamacığı bir hatayla karşılaştı. Sistem günlüğünü denetleyin."
 
-#: 5.4/appletMenuBuilder.js:274 5.4/appletMenuBuilder.js:280
+#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
 msgid "Go to today"
 msgstr "Bugüne git"
 
-#: 5.4/appletMenuBuilder.js:361
+#: 5.4/appletMenuBuilder.js:358
 msgid "Date and Time Settings"
 msgstr "Tarih ve Zaman Ayarları"
 
-#: 5.4/appletPanelStatus.js:47
+#: 5.4/appletPanelStatus.js:50
 msgid "Invalid time format; edit it in Settings"
 msgstr "Geçersiz saat biçimi; Ayarlar'dan düzenleyin"
 
-#: 5.4/appletPanelStatus.js:71
+#: 5.4/appletPanelStatus.js:74
 msgid "Location not found"
 msgstr "Konum bulunamadı"
 
-#: 5.4/appletPanelStatus.js:72
+#: 5.4/appletPanelStatus.js:75
 msgid "Weather service unavailable"
 msgstr "Hava durumu hizmeti kullanılamıyor"
 
-#: 5.4/appletPanelStatus.js:73
+#: 5.4/appletPanelStatus.js:76
 msgid "Set a weather location"
 msgstr "Bir hava durumu konumu ayarlayın"
 
-#: 5.4/appletPanelStatus.js:82
+#: 5.4/appletPanelStatus.js:85
 msgid "Clear"
 msgstr "Açık"
 
-#: 5.4/appletPanelStatus.js:83
+#: 5.4/appletPanelStatus.js:86
 msgid "Partly cloudy"
 msgstr "Parçalı bulutlu"
 
-#: 5.4/appletPanelStatus.js:84
+#: 5.4/appletPanelStatus.js:87
 msgid "Cloudy"
 msgstr "Bulutlu"
 
-#: 5.4/appletPanelStatus.js:85
+#: 5.4/appletPanelStatus.js:88
 msgid "Rain"
 msgstr "Yağmurlu"
 
-#: 5.4/appletPanelStatus.js:86
+#: 5.4/appletPanelStatus.js:89
 msgid "Snow"
 msgstr "Karlı"
 
-#: 5.4/appletPanelStatus.js:87
+#: 5.4/appletPanelStatus.js:90
 msgid "Showers"
 msgstr "Sağanak yağışlı"
 
-#: 5.4/appletPanelStatus.js:88
+#: 5.4/appletPanelStatus.js:91
 msgid "Thunderstorm"
 msgstr "Gök gürültülü fırtına"
 
-#: 5.4/appletPanelStatus.js:89
+#: 5.4/appletPanelStatus.js:92
 msgid "Fair"
 msgstr "Az bulutlu"
 
-#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:489
-#: 5.4/appletPanelStatus.js:650
+#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:492
+#: 5.4/appletPanelStatus.js:653
 msgid "Weather: loading…"
 msgstr "Hava durumu: yükleniyor…"
 
-#: 5.4/appletPanelStatus.js:513
+#: 5.4/appletPanelStatus.js:516
 msgid "No weather for this timezone"
 msgstr "Bu saat dilimi için hava durumu yok"
 
-#: 5.4/appletPanelStatus.js:524 5.4/appletPanelStatus.js:525
+#: 5.4/appletPanelStatus.js:527 5.4/appletPanelStatus.js:528
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Bilinen son ölçüm"
 
-#: 5.4/calendar.js:112
-msgid "Holiday service unavailable"
-msgstr "Tatil hizmeti kullanılamıyor"
-
-#: 5.4/calendar.js:113
-msgid "Holiday data unavailable"
-msgstr "Tatil verileri kullanılamıyor"
-
-#: 5.4/calendar.js:382
+#: 5.4/calendar.js:343
 msgid "Selected"
 msgstr "Seçili"
 
-#: 5.4/calendar.js:386
+#: 5.4/calendar.js:347
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d etkinlik"
 msgstr[1] "%d etkinlik"
 
-#: 5.4/calendar.js:668
-msgid "Holiday data: loading…"
-msgstr "Tatil verileri: yükleniyor…"
-
-#: 5.4/calendar.js:709
-#, javascript-format
-msgid "Holiday data: %s"
-msgstr "Tatil verileri: %s"
-
-#: 5.4/calendar.js:900
+#: 5.4/calendar.js:538
 #, javascript-format
 msgid "Week %s"
 msgstr "%s. hafta"
 
-#: 5.4/calendar.js:1259
+#: 5.4/calendar.js:879
 msgid "Previous month"
 msgstr "Önceki ay"
 
-#: 5.4/calendar.js:1289
+#: 5.4/calendar.js:909
 msgid "Next month"
 msgstr "Sonraki ay"
 
-#: 5.4/calendar.js:1293
+#: 5.4/calendar.js:913
 msgid "Previous year"
 msgstr "Önceki yıl"
 
-#: 5.4/calendar.js:1304
+#: 5.4/calendar.js:924
 msgid "Next year"
 msgstr "Sonraki yıl"
 
-#: 5.4/calendar.js:1317
+#: 5.4/calendar.js:937
 msgid "Week"
 msgstr "Hafta"
 
-#: 5.4/eventView.js:46
+#: 5.4/calendarAnnotations.js:58
+msgid "Holiday service unavailable"
+msgstr "Tatil hizmeti kullanılamıyor"
+
+#: 5.4/calendarAnnotations.js:59
+msgid "Holiday data unavailable"
+msgstr "Tatil verileri kullanılamıyor"
+
+#: 5.4/calendarAnnotations.js:222
+msgid "Holiday data: loading…"
+msgstr "Tatil verileri: yükleniyor…"
+
+#: 5.4/calendarAnnotations.js:263
+#, javascript-format
+msgid "Holiday data: %s"
+msgstr "Tatil verileri: %s"
+
+#: 5.4/eventView.js:45
 msgid "Some calendar events were hidden to keep the desktop responsive."
 msgstr ""
 "Masaüstünün hızlı yanıt vermesini sağlamak için bazı takvim etkinlikleri "
 "gizlendi."
 
-#: 5.4/eventView.js:48
+#: 5.4/eventView.js:47
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -402,62 +407,62 @@ msgstr ""
 "Takvim etkinlikleri kullanılamıyor — çalışan bir takvim hizmeti yok. "
 "Evolution Data Server'ı kurun veya etkinleştirin."
 
-#: 5.4/eventView.js:50
+#: 5.4/eventView.js:49
 msgid "Calendar events could not be refreshed."
 msgstr "Takvim etkinlikleri yenilenemedi."
 
-#: 5.4/eventView.js:67
+#: 5.4/eventView.js:61
 msgid "Starting in a few minutes"
 msgstr "Bir kaç dakika içinde başlayacak"
 
-#: 5.4/eventView.js:74
+#: 5.4/eventView.js:68
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "%d dakika içinde başlıyor"
 msgstr[1] "%d dakika içinde başlıyor"
 
-#: 5.4/eventView.js:84
+#: 5.4/eventView.js:78
 msgid "This evening"
 msgstr "Bu akşam"
 
-#: 5.4/eventView.js:87
+#: 5.4/eventView.js:81
 msgid "Starting later today"
 msgstr "Bugün, gün içinde başlayacak"
 
-#: 5.4/eventView.js:90
+#: 5.4/eventView.js:84
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "%d saat içinde"
 msgstr[1] "%d saat içinde"
 
-#: 5.4/eventView.js:232
+#: 5.4/eventView.js:167
 msgid "Loading…"
 msgstr "Yükleniyor…"
 
-#: 5.4/eventView.js:236 5.4/eventView.js:246 5.4/eventView.js:387
-#: 5.4/eventView.js:736
+#: 5.4/eventView.js:171 5.4/eventView.js:181 5.4/eventView.js:322
+#: 5.4/eventView.js:671
 msgid "No Events"
 msgstr "Olay Yok"
 
-#: 5.4/eventView.js:409 5.4/eventView.js:591
+#: 5.4/eventView.js:344 5.4/eventView.js:526
 msgid "Open the calendar app"
 msgstr "Takvim uygulamasını aç"
 
-#: 5.4/eventView.js:522
+#: 5.4/eventView.js:457
 msgid "Events for the selected day"
 msgstr "Seçili günün etkinlikleri"
 
-#: 5.4/eventView.js:575
+#: 5.4/eventView.js:510
 msgid "Add an event"
 msgstr "Etkinlik ekle"
 
-#: 5.4/eventView.js:833
+#: 5.4/eventView.js:768
 msgid "Ended"
 msgstr "Sona erdi"
 
-#: 5.4/eventView.js:864
+#: 5.4/eventView.js:799
 msgid "In progress"
 msgstr "Devam ediyor"
 
@@ -470,33 +475,41 @@ msgstr "Dünya saatleri"
 msgid "Source: %s"
 msgstr "Kaynak: %s"
 
-#: settings_widgets_common.py:56
+#: settings_widgets_holidays.py:27
+msgid "Type a country name"
+msgstr "Bir ülke adı yazın"
+
+#: settings_widgets_weather.py:31
+msgid "City or town (e.g. Lisbon)"
+msgstr "Şehir veya kasaba (ör. Lizbon)"
+
+#: settings_widgets_worldclocks.py:51
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Şehir veya saat dilimi (ör. Buenos Aires)"
 
-#: settings_widgets_common.py:57
+#: settings_widgets_worldclocks.py:52
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Kaydedilecek saat dilimi: %s"
 
-#: settings_widgets_common.py:59
+#: settings_widgets_worldclocks.py:54
 msgid "No timezone selected"
 msgstr "Saat dilimi seçilmedi"
 
-#: settings_widgets_common.py:60
+#: settings_widgets_worldclocks.py:55
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC ve yerel saat zaten yerleşik saat olarak gösteriliyor"
 
-#: settings_widgets_common.py:61
+#: settings_widgets_worldclocks.py:56
 msgid "Enter a display name for this clock"
 msgstr "Bu saat için bir görünen ad girin"
 
-#: settings_widgets_common.py:65
+#: settings_widgets_worldclocks.py:60
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "En fazla %d saat eklenebilir."
 
-#: settings_widgets_common.py:68
+#: settings_widgets_worldclocks.py:63
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -505,19 +518,11 @@ msgstr ""
 "kurun; o olmadan yalnızca America/Sao_Paulo gibi tam bir tanımlayıcı kabul "
 "edilir."
 
-#: settings_widgets_common.py:72
-msgid "City or town (e.g. Lisbon)"
-msgstr "Şehir veya kasaba (ör. Lizbon)"
-
-#: settings_widgets_common.py:74
-msgid "Type a country name"
-msgstr "Bir ülke adı yazın"
-
-#: settings_widgets_common.py:608
+#: settings_widgets_worldclocks.py:279
 msgid "Add new entry"
 msgstr "Yeni girdi ekle"
 
-#: settings_widgets_common.py:613
+#: settings_widgets_worldclocks.py:284
 msgid "Edit entry"
 msgstr "Girdiyi düzenle"
 
@@ -782,7 +787,11 @@ msgid ""
 "Enable this, then select the religions to mark in the calendar. Observance "
 "dates come only from data bundled with the applet, and the selections never "
 "leave this computer. Observances are not marked as non-working days."
-msgstr "Bunu etkinleştirin ve ardından takvimde işaretlenecek dinleri seçin. Gözlem tarihleri ​​yalnızca uygulamayla birlikte verilen verilerden gelir ve seçimler hiçbir zaman bu bilgisayardan ayrılmaz. Kutlamalar çalışma dışı günler olarak işaretlenmez."
+msgstr ""
+"Bunu etkinleştirin ve ardından takvimde işaretlenecek dinleri seçin. Gözlem "
+"tarihleri ​​yalnızca uygulamayla birlikte verilen verilerden gelir ve seçimler "
+"hiçbir zaman bu bilgisayardan ayrılmaz. Kutlamalar çalışma dışı günler "
+"olarak işaretlenmez."
 
 #. 5.4->settings-schema.json->country->description
 msgid "Country"
