@@ -128,6 +128,7 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstant
 };
 
 const CalendarModule = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
+const AnnotationsModule = require(path.join(APPLET_DIR, "5.4", "calendarAnnotations.js"));
 const NavigationModule = require(path.join(APPLET_DIR, "5.4", "calendarNavigation.js"));
 
 test("navigation controller owns no-op, cancellation, and focus boundaries", () => {
@@ -553,7 +554,7 @@ test("the calendar rebuilds when the locale query answers", () => {
 
 test("a holiday failure is announced in words, not just a glyph", () => {
     const label = new MockActor();
-    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         holidayProvider: { active: true, getHolidays() {} }
     }));
     annotator.attachLabel(label);
@@ -570,7 +571,7 @@ test("a holiday failure is announced in words, not just a glyph", () => {
 test("holiday failures reach the shared footer and recovery clears them", () => {
     const issues = [];
     const label = new MockActor();
-    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         reportIssue: (source, message) => issues.push([source, message])
     }));
     annotator.attachLabel(label, new MockActor());
@@ -601,7 +602,7 @@ test("holiday failures reach the shared footer and recovery clears them", () => 
 // and the tooltip. A broken or hostile endpoint chose that sentence.
 test("a provider's own error sentence is never shown to the user", () => {
     const label = new MockActor();
-    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         holidayProvider: { active: true, getHolidays() {} }
     }));
     annotator.attachLabel(label);
@@ -1091,7 +1092,7 @@ test("the month window is reused while the month and week start hold", () => {
 test("a holiday fetch that has not answered yet shows a pending marker", () => {
     let pending = null;
     const label = new MockActor();
-    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         holidayGeneration: 3,
         holidayProvider: {
             active: true,
@@ -1123,7 +1124,7 @@ test("a holiday fetch that has not answered yet shows a pending marker", () => {
 test("the pending marker survives until every in-flight month answers", () => {
     const pending = new Map();
     const label = new MockActor();
-    const annotator = new CalendarModule.CalendarHolidayAnnotator(makeHost({
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         holidayGeneration: 3,
         holidayProvider: {
             active: true,
@@ -1169,7 +1170,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
     // than reaching across for the calendar's cell renderer
     const cellRenderer = new CalendarModule.CalendarDayCellRenderer(host);
     host.nameCell = (target) => cellRenderer.applyAccessibleName(target);
-    const annotator = new CalendarModule.CalendarHolidayAnnotator(host);
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(host);
     annotator.attachLabel(label);
 
     cell.accessible_date = "Tuesday, 14 July 2026";

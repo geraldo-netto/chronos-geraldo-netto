@@ -264,10 +264,10 @@ test("every id the code can produce has a word in the table that renders it", ()
             `the weather error "${error}" has no translatable word`);
     }
 
-    const Calendar = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
+    const Annotations = require(path.join(APPLET_DIR, "5.4", "calendarAnnotations.js"));
     const HolidayConstants = require(path.join(APPLET_DIR, "holidayConstants.js"));
     const holidayErrors = Object.values(HolidayConstants.HOLIDAY_ERRORS);
-    const renderedHolidayErrors = Object.keys(Calendar.HOLIDAY_ERROR_TEXT);
+    const renderedHolidayErrors = Object.keys(Annotations.HOLIDAY_ERROR_TEXT);
     for (const error of holidayErrors) {
         assert.ok(renderedHolidayErrors.includes(error),
             `the holiday error "${error}" has no translatable word`);

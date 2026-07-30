@@ -142,8 +142,12 @@ test("nothing in the applet blocks the compositor on a subprocess or a socket", 
 test("the presentation modules do not import the network stack", () => {
     const grid = source("5.4/calendar.js");
     assert.doesNotMatch(grid, /require\("\.\/holidays"\)/,
-        "the grid reads HOLIDAY_ERRORS, which holidayConstants declares");
-    assert.match(grid, /require\("\.\/holidayConstants"\)/);
+        "the grid renders holiday marks the annotator hands it; it needs no holiday module at all");
+
+    const annotations = source("5.4/calendarAnnotations.js");
+    assert.doesNotMatch(annotations, /require\("\.\/holidays"\)/,
+        "the annotator reads HOLIDAY_ERRORS and the flags, which holidayConstants declares");
+    assert.match(annotations, /require\("\.\/holidayConstants"\)/);
 
     const panel = source("5.4/appletPanelStatus.js");
     assert.doesNotMatch(panel, /require\("\.\/weather"\)/,
@@ -245,8 +249,9 @@ test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
     assert.match(code, /const holiday_generation = \+\+this\._holiday_update_generation;/);
     // the guard is a named predicate now; what this pins is that the callback
     // still asks it before touching the grid
-    assert.match(code, /_isCurrent\(holiday_generation\) \{[\s\S]*?return holiday_generation === this\.host\.holidayGeneration;/);
-    assert.match(code, /if \(!this\._isCurrent\(holiday_generation\)\) \{[\s\S]*?return;/);
+    const annotations = source("5.4/calendarAnnotations.js");
+    assert.match(annotations, /_isCurrent\(holiday_generation\) \{[\s\S]*?return holiday_generation === this\.host\.holidayGeneration;/);
+    assert.match(annotations, /if \(!this\._isCurrent\(holiday_generation\)\) \{[\s\S]*?return;/);
     assert.match(code, /destroy\(\) \{[\s\S]*?this\._holiday_update_generation\+\+;/);
 });
 
@@ -255,7 +260,7 @@ test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
 // test/calendar.test.js asserts on the rendered label, the tooltip and the
 // accessible name
 test("calendars surface holiday provider failures", () => {
-    const code = source("5.4/calendar.js");
+    const code = source("5.4/calendarAnnotations.js");
     assert.match(code, /const HOLIDAY_ERROR_MARKER = "⚠";/);
     assert.match(code, /class CalendarHolidayAnnotator \{/);
     assert.match(code, /setStatus\(error, providerName = ""\) \{/);
