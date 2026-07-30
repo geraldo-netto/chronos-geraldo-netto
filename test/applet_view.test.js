@@ -217,24 +217,21 @@ test("the tooltip says when a city's temperature is no longer current", () => {
         "but it is not passed off as the weather now");
 });
 
-test("_setWeatherStatus clears the provider name when a refresh reports none", () => {
-    const stub = Object.assign(Object.create(Proto), {
-        _updateClockAndDate: () => {}
-    });
-    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+test("the weather coordinator clears a provider name when a refresh reports none", () => {
+    const coordinator = new CoordinatorModule.AppletWeatherCoordinator({
         weatherProvider: {},
         cityWeatherProvider: null,
         settings: () => ({}),
         worldclocks: () => [],
-        onChanged: stub._updateClockAndDate,
+        onChanged: () => {},
         guard: (source, fn) => fn()
     });
-    stub._weatherCoordinator.providerName = "Open-Meteo";
+    coordinator.providerName = "Open-Meteo";
 
     // a failed refresh carries no provider: the tooltip must not keep naming
     // the source of a reading that is gone
-    Proto._setWeatherStatus.call(stub, null, "Weather service unavailable");
-    assert.equal(stub._weatherCoordinator.providerName, "");
+    coordinator.setStatus(null, "Weather service unavailable");
+    assert.equal(coordinator.providerName, "");
 });
 
 // a country key that was cleared to an empty string (rather than to "none") is

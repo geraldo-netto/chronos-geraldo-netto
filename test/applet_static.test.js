@@ -288,7 +288,8 @@ test("applets surface weather provider failures", () => {
     assert.match(coordinators, /this\.error = "";/);
     assert.match(coordinators, /this\.providerName = "";/);
     assert.match(coordinators, /setStatus\(reading = null, error = "", providerName = "", pending = false\) \{[\s\S]*?this\.reading = reading \|\| null;[\s\S]*?this\.pending = pending;[\s\S]*?this\.error = error;[\s\S]*?this\.providerName = providerName \|\| "";/);
-    assert.match(code, /this\._weatherCoordinator\.setStatus/);
+    assert.doesNotMatch(code, /_setWeatherStatus/,
+        "weather completions bind directly to the coordinator");
     assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER\);\n/);
     assert.match(panelStatus, /function markedWeatherError\(error\)/);
     assert.match(panelStatus, /return text \? Weather\.WEATHER_ERROR_MARKER \+ " " \+ text : "";/);

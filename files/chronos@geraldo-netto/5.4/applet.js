@@ -475,13 +475,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._weatherCoordinator.scheduleCities(force);
     }
 
-    // an HTTP completion, so its caller is the main loop, not the code that
-    // asked for the forecast
-    _setWeatherStatus(weatherReading = null, weatherError = "", weatherProvider = "", pending = false) {
-        this._weatherCoordinator.setStatus(
-            weatherReading, weatherError, weatherProvider, pending);
-    }
-
     // both are EventsManager signals, raised from a DBus callback
     _events_manager_ready() {
         this._eventListCoordinator.ready(() => this.show_events);

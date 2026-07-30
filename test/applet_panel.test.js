@@ -731,31 +731,28 @@ test("the tooltip is empty when there are no clocks or weather status", () => {
     assert.equal(panelStatus(stub).buildTooltipText([]), "");
 });
 
-test("_setWeatherStatus stores state and refreshes the clock line", () => {
+test("the weather coordinator stores state and refreshes the clock line", () => {
     let updated = 0;
-    const stub = Object.assign(Object.create(Proto), {
-        _updateClockAndDate: () => updated++
-    });
-    stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+    const coordinator = new CoordinatorModule.AppletWeatherCoordinator({
         weatherProvider: {},
         cityWeatherProvider: null,
         settings: () => ({}),
         worldclocks: () => [],
-        onChanged: stub._updateClockAndDate,
+        onChanged: () => updated++,
         guard: (source, fn) => fn()
     });
-    Proto._setWeatherStatus.call(stub, { condition: "☀", temperatureC: 20 }, "err", "prov");
-    assert.deepEqual(stub._weatherCoordinator.reading, { condition: "☀", temperatureC: 20 });
-    assert.equal(stub._weatherCoordinator.pending, false);
-    assert.equal(stub._weatherCoordinator.error, "err");
-    assert.equal(stub._weatherCoordinator.providerName, "prov");
+    coordinator.setStatus({ condition: "☀", temperatureC: 20 }, "err", "prov");
+    assert.deepEqual(coordinator.reading, { condition: "☀", temperatureC: 20 });
+    assert.equal(coordinator.pending, false);
+    assert.equal(coordinator.error, "err");
+    assert.equal(coordinator.providerName, "prov");
     assert.equal(updated, 1);
 
     // the reserved first-fetch slot and the switched-off state carry no record;
     // pending is a flag, not a placeholder string the panel has to recognize
-    Proto._setWeatherStatus.call(stub, null, "", "", true);
-    assert.equal(stub._weatherCoordinator.reading, null);
-    assert.equal(stub._weatherCoordinator.pending, true);
+    coordinator.setStatus(null, "", "", true);
+    assert.equal(coordinator.reading, null);
+    assert.equal(coordinator.pending, true);
 });
 
 test("weather refresh scheduling forwards the settings snapshot", () => {
