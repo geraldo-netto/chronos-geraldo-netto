@@ -15,9 +15,10 @@ calendar fork.
   event view talks to over DBus.
 - Python 3 with GTK bindings (`python3-gi`) — the settings dialog runs in its
   own Python process, not inside Cinnamon.
-- An internet connection, only for holiday and weather data. Weather is off by
-  default. Holidays start automatically only when the operating-system timezone
-  maps to a supported country; choose **None (disable holidays)** to opt out.
+- An internet connection, only for public-holiday and weather data. Religious
+  observances use bundled local data and need no connection. Weather is off by
+  default. Public-holiday lookup starts automatically only when the
+  operating-system timezone maps to a supported country. Choose **None (disable holidays)** to opt out.
 - Optional: the Python 3 `pytz` module (`python3-pytz` on Mint/Debian/Ubuntu),
   used by the settings dialog to auto-complete and validate the timezone you
   type. Without it, Python's built-in `zoneinfo` database serves the same
@@ -186,6 +187,7 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Mark as weekend days | two days | How many days a week are styled as non-working; which days come from your locale. |
 | Date formats | `%d %b %H:%M` | The always-visible **Date format** and **Date format for tooltip** fields control the panel label and each tooltip row; the **Show information on date format syntax** button opens the reference. |
 | Country / Region | country from the operating-system timezone, or None | Marks that country's nationwide public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; any country you select overrides the inferred default. |
+| Religious observances / religions | off / none selected | Shows locally calculated observances for the religions you select. They are underlined but remain working days; see the date limits below. |
 | Show calendar (under **Keyboard shortcuts**) | `<Super>c` | Opens the calendar menu. |
 
 The panel label and world-clock rows use **Date format**. Every tooltip location
@@ -296,9 +298,12 @@ and both trees call the same `_()`.
 
 ## Features
 
-Public holidays are underlined in the calendar grid, and styled as non-working
-days like the weekend; hovering one names it. World clocks show additional time
-zones, and the event view works like the stock Cinnamon calendar.
+Public holidays are underlined in the calendar grid and styled as non-working
+days like the weekend. Optional religious observances are also underlined, but
+remain working days unless a public holiday falls on the same date. Hovering a
+marked day names every matching holiday or observance. World clocks show
+additional time zones, and the event view works like the stock Cinnamon
+calendar.
 
 Choose the Country and region for which to show the public holidays in the applet
 "Calendar" settings page. For a new settings profile, the country defaults from the machine's
@@ -312,6 +317,21 @@ to 8 extra clocks can be configured. Type the city into the timezone field and
 pick it from the suggestions ("Buenos Aires (America / Argentina)"), or type an
 IANA timezone identifier (e.g. `America/Sao_Paulo`) or a bare city name (e.g.
 `tokyo`) yourself.
+
+Religious observances are disabled by default. Enable **Show religious
+observances**, then select one or more of Christianity, Islam, Hinduism,
+Buddhism, Sikhism, Judaism, the Bahá'í Faith, Jainism, Shinto, and Taoism. The
+catalogue and every religion selection stay on this computer: enabling them
+makes no network request and writes no religious preference outside Cinnamon's
+local applet settings.
+
+Fixed-date observances and Gregorian Easter-relative Christian dates can be
+calculated for any supported calendar year. Dates tied to observational,
+astronomical, lunar, or lunisolar calendars are bundled only for **2025–2027**;
+outside that window those entries are omitted. Such dates can differ by
+community, location, and moon sighting. Sunset-starting and multi-day
+observances are represented by their first listed civil day. Treat the display
+as a calendar aid, not an authority for leave, worship, or travel planning.
 
 The optional weather readout uses Open-Meteo, falling back to the NOAA
 Aviation Weather METAR service and then to MET Norway. The applet remembers
@@ -352,7 +372,7 @@ The city a world clock's weather is looked up for comes from its **timezone**,
 not from the name you gave the clock: a clock called "Mom's place" is looked up
 as the city its timezone names, and the name you typed never leaves the machine.
 
-The holiday data are obtained from the webservice [Enrico](https://kayaposoft.com/enrico/)
+Public-holiday data are obtained from the webservice [Enrico](https://kayaposoft.com/enrico/)
 by Kayaposoft.com, with [OpenHolidays](https://www.openholidaysapi.org/) and
 [Nager.Date](https://date.nager.at/) as fallbacks. When the operating-system
 timezone supplies the initial holiday country, lookup starts automatically;
@@ -362,14 +382,19 @@ every 50 days per year of data (sooner after a failure), and the response is
 cached under
 `~/.cache/chronos@geraldo-netto/`.
 
+Religious-observance data are bundled with the applet and computed locally.
+Neither the enabled religions nor their dates are sent to Enrico, OpenHolidays,
+Nager.Date, or any other service.
+
 ### Third-party data
 
-Both the weather and holiday readouts fetch from third-party services over
-HTTPS. Weather is off by default; holidays start automatically only when the
-operating-system timezone maps to a supported country. Responses are treated as untrusted: they
-are size-capped, shape-checked, and colors or text taken from them are never
-interpolated into markup. No account, API key, or personal data beyond the
-location or country you configure is involved.
+Weather and public-holiday readouts fetch from third-party services over HTTPS;
+religious observances do not. Weather is off by default; public holidays start
+automatically only when the operating-system timezone maps to a supported
+country. Responses are treated as untrusted: they are size-capped,
+shape-checked, and colors or text taken from them are never interpolated into
+markup. No account, API key, or personal data beyond the location or country
+you configure is involved.
 
 > Enrico Service 2.0 is a free service written in PHP providing public holidays for several 
   countries. You can use Enrico Service to display public holidays on your website or in your 
@@ -407,8 +432,9 @@ not the other as a non-working day.
 This applet distinguishes between holidays and events. They have separate data sources, and they 
 are visualised in a different way.
 
-Holidays are marked as non-working days, the same as a weekend day. (Religious observances are
-not yet implemented).
+Public holidays are marked as non-working days, the same as a weekend day.
+Religious observances use the same underline and tooltip but do not change a
+working day into a non-working one.
 
 Events are marked separately, and their details are shown in a side column.
 

@@ -52,6 +52,8 @@ const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
 // the key name itself lives in the settings boundary, with the schema
 const FIRST_WEEKDAY_KEY = SettingsFacade.FIRST_DAY_OF_WEEK_KEY;
 const PART_DAY_HOLIDAY = 'PART_DAY_HOLIDAY';
+const PUBLIC_HOLIDAY_FLAG = Holidays.PUBLIC_HOLIDAY_FLAG;
+const RELIGIOUS_HOLIDAY_FLAG = Holidays.RELIGIOUS_HOLIDAY_FLAG;
 const HOLIDAY_ERROR_MARKER = "⚠";
 const HOLIDAY_PENDING_MARKER = "…";
 // weekday, day, month and year: what a sighted user reads off the grid
@@ -813,6 +815,17 @@ class CalendarHolidayAnnotator {
         this.host.nameCell(cell);
 
         const partDay = flags && flags.indexOf(PART_DAY_HOLIDAY) >= 0; // NOSONAR [S7765] -- accepted compatible form
+        const religiousOnly = flags &&
+            flags.indexOf(RELIGIOUS_HOLIDAY_FLAG) >= 0 && // NOSONAR [S7765] -- accepted compatible form
+            flags.indexOf(PUBLIC_HOLIDAY_FLAG) < 0; // NOSONAR [S7765] -- accepted compatible form
+        if (religiousOnly) {
+            // An observance is visible and named, but is not automatically a
+            // day off. A same-date public holiday carries the explicit public
+            // flag added by mergeMonthMaps and follows the non-work path below.
+            cell.button.add_style_class_name("calendar-holiday-day");
+            cell.holiday_styled = true;
+            return;
+        }
         if (this.host.weekendLength === 1 && partDay) return;
 
         cell.button.remove_style_class_name("calendar-work-day");

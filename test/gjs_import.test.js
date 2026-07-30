@@ -211,6 +211,8 @@ function gjsImportsMock() {
                             HOLIDAY_ERRORS: {},
                             HOLIDAY_PROVIDER_NAMES: {},
                             GLOBAL_REGION: "global",
+                            PUBLIC_HOLIDAY_FLAG: "public_holiday",
+                            RELIGIOUS_HOLIDAY_FLAG: "religious_holiday",
                             OPEN_HOLIDAYS_COUNTRIES: {},
                             COUNTRY_TO_ISO2: {},
                             ISO2_TO_COUNTRY: {},
@@ -310,6 +312,7 @@ const EXPORTS = {
         "IsoHolidayServiceAdapter", "EnricoServiceAdapter", "NagerDateServiceAdapter",
         "OpenHolidaysServiceAdapter", "createHolidayServiceChain"],
     holidayConstants: ["HOLIDAY_ERRORS", "HOLIDAY_PROVIDER_NAMES", "GLOBAL_REGION",
+        "PUBLIC_HOLIDAY_FLAG", "RELIGIOUS_HOLIDAY_FLAG",
         "OPEN_HOLIDAYS_COUNTRIES", "COUNTRY_TO_ISO2", "ISO2_TO_COUNTRY",
         "countryFromIso2", "REGION_TO_SUBDIVISION"],
     worldclockData: ["MAX_CLOCKS", "LOCAL_TIMEZONE", "INVALID_TIMEZONE_TEXT",
@@ -328,7 +331,8 @@ const EXPORTS = {
         "dtEquals", "classifyEventDisplayState", "localeCap", "formatRangePrefix",
         "formatRangeSuffix", "formatEventTimeRange", "ARROW_SEPARATOR"],
     settingsFacade: ["CalendarSettings", "EventsSettings", "SHOW_EVENTS_KEY",
-        "SHOW_WEEK_NUMBERS_KEY", "WEEKEND_LENGTH_KEY"]
+        "SHOW_WEEK_NUMBERS_KEY", "WEEKEND_LENGTH_KEY", "SHOW_RELIGIOUS_OBSERVANCES_KEY",
+        "RELIGION_KEY_PREFIX", "RELIGION_IDS"]
 };
 
 for (const [moduleName, symbols] of Object.entries(EXPORTS)) {

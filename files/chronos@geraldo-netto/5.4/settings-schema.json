@@ -13,6 +13,7 @@
                 "section1",
                 "section5",
                 "section2",
+                "section6",
                 "section3"
             ]
         },
@@ -63,6 +64,23 @@
             "title": "Keyboard shortcuts",
             "keys": [
                 "keyOpen"
+            ]
+        },
+        "section6": {
+            "type": "section",
+            "title": "Religious Observances",
+            "keys": [
+                "show-religious-observances",
+                "religion-christianity",
+                "religion-islam",
+                "religion-hinduism",
+                "religion-buddhism",
+                "religion-sikhism",
+                "religion-judaism",
+                "religion-bahai",
+                "religion-jainism",
+                "religion-shinto",
+                "religion-taoism"
             ]
         },
         "section4": {
@@ -160,6 +178,82 @@
             "SI (Celsius)": "si",
             "Imperial (Fahrenheit)": "imperial"
         }
+    },
+    "show-religious-observances": {
+        "type": "switch",
+        "default": false,
+        "description": "Show religious observances",
+        "tooltip": "Enable this, then select the religions to mark in the calendar. Observance dates come only from data bundled with the applet, and the selections never leave this computer. Observances are not marked as non-working days."
+    },
+    "religion-christianity": {
+        "type": "switch",
+        "default": false,
+        "description": "Christianity",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-islam": {
+        "type": "switch",
+        "default": false,
+        "description": "Islam",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-hinduism": {
+        "type": "switch",
+        "default": false,
+        "description": "Hinduism",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-buddhism": {
+        "type": "switch",
+        "default": false,
+        "description": "Buddhism",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-sikhism": {
+        "type": "switch",
+        "default": false,
+        "description": "Sikhism",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-judaism": {
+        "type": "switch",
+        "default": false,
+        "description": "Judaism",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-bahai": {
+        "type": "switch",
+        "default": false,
+        "description": "Bahá'í Faith",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-jainism": {
+        "type": "switch",
+        "default": false,
+        "description": "Jainism",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-shinto": {
+        "type": "switch",
+        "default": false,
+        "description": "Shinto",
+        "dependency": "show-religious-observances",
+        "indent": true
+    },
+    "religion-taoism": {
+        "type": "switch",
+        "default": false,
+        "description": "Taoism",
+        "dependency": "show-religious-observances",
+        "indent": true
     },
     "country": {
         "type": "custom",

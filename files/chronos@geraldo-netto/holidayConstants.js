@@ -19,6 +19,12 @@ var HOLIDAY_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
     NAGER_DATE: "Nager.Date"
 };
 var GLOBAL_REGION = "global"; // NOSONAR [S3504] -- GJS importer export
+// Every public row receives an explicit flag before it is merged with local
+// religious observances. Vendor rows are allowed to carry an empty flag list,
+// so absence of the religious flag alone cannot distinguish a public-only row
+// from a merged public+religious row.
+var PUBLIC_HOLIDAY_FLAG = "public_holiday"; // NOSONAR [S3504] -- GJS importer export
+var RELIGIOUS_HOLIDAY_FLAG = "religious_holiday"; // NOSONAR [S3504] -- GJS importer export
 // the countries the settings combobox offers; a value outside this list
 // cannot be picked in the UI and no provider can answer for it
 var SUPPORTED_COUNTRIES = [ // NOSONAR [S3504] -- GJS importer export
@@ -329,5 +335,5 @@ var REGION_TO_SUBDIVISION = { // NOSONAR [S3504] -- GJS importer export
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION };
+    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION };
 }

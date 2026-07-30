@@ -647,15 +647,26 @@ test("a changed weather location refetches the weather", () => {
 
 test("the provider lifecycle binds regions, defaults country, and refreshes the calendar", () => {
     const calls = [];
+    const listeners = {};
     const holidayProvider = {
         clearPlace: () => calls.push(["clear"]),
         setPlace: (...args) => calls.push(["place", ...args]),
+        setEnabledIds: (ids) => calls.push(["religions", ids]),
         destroy() {}
     };
     const settings = {
-        values: { has_region: ["usa"], country: null },
+        values: {
+            has_region: ["usa"],
+            country: null,
+            "show-religious-observances": true,
+            "religion-islam": true
+        },
         bind(key, prop, cb) { calls.push(["bind", key, prop]); },
-        connect(signal) { calls.push(["connect", signal]); return 1; },
+        connect(signal, callback) {
+            calls.push(["connect", signal]);
+            listeners[signal] = callback;
+            return Object.keys(listeners).length;
+        },
         bindWithObject(obj, key, prop, cb) {
             calls.push(["bindWithObject", key, prop]);
             obj[prop] = "ny";
@@ -669,16 +680,26 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     const lifecycle = new AppletModule.AppletProviderLifecycle({
         holidaySettings: new rootModules.settingsFacade.HolidaySettings(settings),
         onHolidayPlaceChanged: () => calls.push(["refresh"])
-    }, { holidayProvider: () => holidayProvider });
+    }, {
+        holidayProvider: (religiousIds) => {
+            calls.push(["factory-religions", religiousIds]);
+            return holidayProvider;
+        }
+    });
     lifecycle.initHolidayProvider();
     assert.ok(lifecycle.holidayProvider);
+    assert.deepEqual(calls.find((row) => row[0] === "factory-religions"),
+        ["factory-religions", ["islam"]]);
     assert.deepEqual(calls.filter((row) => row[0] === "bindWithObject"), [
         ["bindWithObject", "region_usa", "usa"]
     ]);
     // the country is watched for changes, not bound onto the applet as a
     // property: every read goes through the settings accessor
-    assert.deepEqual(calls.filter((row) => row[0] === "connect"),
-        [["connect", "changed::country"]]);
+    assert.deepEqual(calls.filter((row) => row[0] === "connect").map((row) => row[1]), [
+        "changed::country",
+        "changed::show-religious-observances",
+        ...rootModules.settingsFacade.RELIGION_IDS.map((id) => `changed::religion-${id}`)
+    ]);
     assert.equal(calls.some((row) => row[0] === "bind" && row[1] === "country"), false);
     // A direct lifecycle with a missing legacy value still resolves to none.
     // Normal construction resolves the timezone default in the binder first.
@@ -701,6 +722,13 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     const before = calls.filter((row) => row[0] === "refresh").length;
     onUpdated();
     assert.equal(calls.filter((row) => row[0] === "refresh").length, before + 1);
+
+    settings.values["religion-christianity"] = true;
+    listeners["changed::religion-christianity"]();
+    assert.deepEqual(calls.filter((row) => row[0] === "religions").at(-1),
+        ["religions", ["christianity", "islam"]]);
+    assert.equal(calls.filter((row) => row[0] === "refresh").length, before + 2,
+        "changing a religion repaints without restarting the applet");
 });
 
 test("applet wrappers open menus, launch settings, and refresh on resume", (t) => {
@@ -965,7 +993,9 @@ test("provider initialization wires hover and event manager signals", () => {
         holiday_settings: {
             country: "usa",
             regionCountries: [],
+            religiousIds: [],
             connectCountryChanged() { calls.push(["holiday-init"]); return 1; },
+            connectReligionsChanged() { return []; },
             bindRegions() {}
         },
         _calendar: null,

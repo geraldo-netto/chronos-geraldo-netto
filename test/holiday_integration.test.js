@@ -609,7 +609,7 @@ test("the holiday composition root wires the shipped graph", () => {
     provider.getHolidays(2026, 7, (dates, error) => months.push([dates, error]));
     const [dates, error] = months[0];
     assert.equal(error, "");
-    assert.deepEqual(dates.get("7/14"), ["Bastille Day", []]);
+    assert.deepEqual(dates.get("7/14"), ["Bastille Day", ["public_holiday"]]);
 
     // and the record contract is the chain's, not the primary adapter's
     assert.ok(new HolidayRecordContract("en").validResponse([{
@@ -673,7 +673,7 @@ test("a response from the country the user just left does not silence the new on
 
     const months = [];
     provider.getHolidays(FIXED_YEAR, 7, (dates) => months.push(dates));
-    assert.deepEqual(months[0].get("7/14"), ["Bastille Day", []]);
+    assert.deepEqual(months[0].get("7/14"), ["Bastille Day", ["public_holiday"]]);
 });
 
 // T585: the composition root called the lazy locale getter once, during
@@ -703,7 +703,7 @@ test("the holiday language settles with the locale query, not construction", () 
     provider.setPlace("fra", "global", () => {});
     const months = [];
     provider.getHolidays(FIXED_YEAR, 7, (dates) => months.push(dates));
-    assert.deepEqual(months[0].get("7/14"), ["Fête nationale", []],
+    assert.deepEqual(months[0].get("7/14"), ["Fête nationale", ["public_holiday"]],
         "localization uses the settled language, not the construction-time default");
 
     // the request language resolves per fetch the same way
@@ -791,7 +791,7 @@ test("the annotator's string month keys fetch and render like numeric ones", () 
 
     assert.equal(answers.length, 1);
     assert.equal(answers[0][1], "", "a valid payload is not classed as a failure");
-    assert.deepEqual(answers[0][0].get("1/1"), ["Jour de l'an", []]);
+    assert.deepEqual(answers[0][0].get("1/1"), ["Jour de l'an", ["public_holiday"]]);
     assert.equal(requested.length, before + 1, "one fetch, no failover burn");
 
     // and an input that cannot be a year answers empty without dispatching

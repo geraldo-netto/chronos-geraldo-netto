@@ -24,6 +24,16 @@ var WEEKEND_LENGTH_KEY = "weekend-length"; // NOSONAR [S3504] -- GJS importer ex
 var COUNTRY_KEY = "country"; // NOSONAR [S3504] -- GJS importer export
 var HAS_REGION_KEY = "has_region"; // NOSONAR [S3504] -- GJS importer export
 var REGION_KEY_PREFIX = "region_"; // NOSONAR [S3504] -- GJS importer export
+var SHOW_RELIGIOUS_OBSERVANCES_KEY = "show-religious-observances"; // NOSONAR [S3504] -- GJS importer export
+var RELIGION_KEY_PREFIX = "religion-"; // NOSONAR [S3504] -- GJS importer export
+// Kept beside the setting-key prefix because this is the runtime side of the
+// schema contract. A static parity test compares it with both the schema and
+// the religious catalogue, so adding a faith in any one place cannot silently
+// leave a dead or unreachable switch.
+var RELIGION_IDS = [ // NOSONAR [S3504] -- GJS importer export
+    "christianity", "islam", "hinduism", "buddhism", "sikhism",
+    "judaism", "bahai", "jainism", "shinto", "taoism"
+];
 var WORLDCLOCKS_KEY = "worldclocks"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_WORLDCLOCKS_KEY = "show-worldclocks"; // NOSONAR [S3504] -- GJS importer export
 var KEY_OPEN_KEY = "keyOpen"; // NOSONAR [S3504] -- GJS importer export
@@ -188,6 +198,21 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
         return this._settings.connect("changed::" + COUNTRY_KEY, callback);
     }
 
+    get religiousIds() {
+        if (!this._settings.getValue(SHOW_RELIGIOUS_OBSERVANCES_KEY)) {
+            return [];
+        }
+
+        return RELIGION_IDS.filter(
+            (id) => this._settings.getValue(RELIGION_KEY_PREFIX + id));
+    }
+
+    connectReligionsChanged(callback) {
+        return [SHOW_RELIGIOUS_OBSERVANCES_KEY].concat(
+            RELIGION_IDS.map((id) => RELIGION_KEY_PREFIX + id))
+            .map((key) => this._settings.connect("changed::" + key, callback));
+    }
+
     bindRegions(target, callback) {
         for (let country of this.regionCountries) {
             this._settings.bindWithObject(target, REGION_KEY_PREFIX + country, country, callback);
@@ -300,6 +325,9 @@ if (typeof module !== "undefined") {
         COUNTRY_KEY,
         HAS_REGION_KEY,
         REGION_KEY_PREFIX,
+        SHOW_RELIGIOUS_OBSERVANCES_KEY,
+        RELIGION_KEY_PREFIX,
+        RELIGION_IDS,
         WORLDCLOCKS_KEY,
         SHOW_WORLDCLOCKS_KEY,
         KEY_OPEN_KEY,

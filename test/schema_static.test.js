@@ -144,6 +144,33 @@ test("the country combobox and the supported-country list agree", () => {
         "a country the combobox offers but the applet rejects would silently disable holidays");
 });
 
+test("religious settings and the runtime catalogue have exact parity", () => {
+    const data = schema("5.4");
+    const facade = require(path.join(appletDir, "settingsFacade.js"));
+    const religious = require(path.join(appletDir, "religiousHolidays.js"));
+    const ids = religious.religionIds();
+    const selectorKeys = ids.map((id) => facade.RELIGION_KEY_PREFIX + id);
+
+    assert.deepEqual(facade.RELIGION_IDS, ids,
+        "a runtime religion has no setting, or a setting has no catalogue");
+    assert.deepEqual(data.layout.section6.keys,
+        [facade.SHOW_RELIGIOUS_OBSERVANCES_KEY, ...selectorKeys]);
+    assert.equal(data[facade.SHOW_RELIGIOUS_OBSERVANCES_KEY].default, false);
+
+    for (const [index, key] of selectorKeys.entries()) {
+        assert.ok(data[key], `${ids[index]} has no selector`);
+        assert.equal(data[key].type, "switch");
+        assert.equal(data[key].default, false);
+        assert.equal(data[key].dependency, facade.SHOW_RELIGIOUS_OBSERVANCES_KEY);
+        assert.equal(data[key].indent, true);
+        assert.equal(data[key].description, religious.RELIGIONS[index].label);
+    }
+
+    assert.deepEqual(Object.keys(data).filter((key) => key.startsWith(
+        facade.RELIGION_KEY_PREFIX)), selectorKeys,
+    "the schema exposes no selector the runtime ignores");
+});
+
 // The country combobox is gated against SUPPORTED_COUNTRIES; the region
 // comboboxes were gated against nothing. Add a region to region_usa without
 // adding it to REGION_TO_SUBDIVISION.usa and regionSubdivisionCode() answers null,
@@ -623,7 +650,7 @@ test("holiday timezone default is one-time and weather remains opt-in", () => {
     assert.equal(data.country.options["None (disable holidays)"], "none");
     assert.equal(data["holiday-country-timezone-default-attempted"], undefined);
     assert.match(data.country.tooltip, /operating-system timezone/);
-    assert.match(readme, /Weather is off by\s+default\. Holidays start automatically only when/);
+    assert.match(readme, /Weather is off by\s+default\. Public-holiday lookup starts automatically only when/);
     assert.match(readme, /None \(disable holidays\).*opt out/);
 });
 

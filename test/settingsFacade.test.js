@@ -187,6 +187,38 @@ test("the country is watched for changes, not bound onto the applet", () => {
     assert.equal(facade.country, "ita", "and the read still goes through the accessor");
 });
 
+test("religious selections are master-gated and every key is watched", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+    const values = {
+        "show-religious-observances": false,
+        "religion-christianity": true,
+        "religion-islam": true
+    };
+    const connected = [];
+    const settings = {
+        getValue: (key) => values[key],
+        connect(signal, callback) {
+            connected.push([signal, callback]);
+            return connected.length;
+        }
+    };
+    const facade = new SettingsFacade.HolidaySettings(settings);
+    const callback = function() {};
+
+    assert.deepEqual(facade.religiousIds, [], "disabled means no runtime selection");
+    values[SettingsFacade.SHOW_RELIGIOUS_OBSERVANCES_KEY] = true;
+    assert.deepEqual(facade.religiousIds, ["christianity", "islam"]);
+
+    assert.deepEqual(facade.connectReligionsChanged(callback),
+        Array.from({ length: SettingsFacade.RELIGION_IDS.length + 1 }, (_, index) => index + 1));
+    assert.deepEqual(connected.map(([signal]) => signal), [
+        "changed::show-religious-observances",
+        ...SettingsFacade.RELIGION_IDS.map((id) => `changed::religion-${id}`)
+    ]);
+    assert.ok(connected.every(([, listener]) => listener === callback));
+});
+
 test("the operating-system timezone fills only the initial holiday country", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);

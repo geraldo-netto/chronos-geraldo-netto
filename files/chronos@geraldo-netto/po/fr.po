@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-20 21:20+0200\n"
+"POT-Creation-Date: 2026-07-30 11:43+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: claudiux\n"
 "Language-Team: \n"
@@ -15,16 +15,16 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 "X-Generator: Poedit 3.4.2\n"
 
-#: dateFormats.js:46
+#: dateFormats.js:60
 msgid "%B %-e, %Y"
 msgstr "%-e %B %Y"
 
-#: dateFormats.js:47
+#: dateFormats.js:61
 msgid "%A, %B %-e, %Y"
 msgstr "%A %-e %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:377
+#: 5.4/calendar.js:379
 msgid "Today"
 msgstr "Aujourd'hui"
 
@@ -42,6 +42,212 @@ msgstr "Journée entière"
 msgid "%s — %s"
 msgstr "%s — %s"
 
+#. 5.4->settings-schema.json->religion-christianity->description
+#: religiousHolidays.js:43
+msgid "Christianity"
+msgstr "Christianisme"
+
+#. 5.4->settings-schema.json->religion-islam->description
+#: religiousHolidays.js:44
+msgid "Islam"
+msgstr "Islam"
+
+#. 5.4->settings-schema.json->religion-hinduism->description
+#: religiousHolidays.js:45
+msgid "Hinduism"
+msgstr "Hindouisme"
+
+#. 5.4->settings-schema.json->religion-buddhism->description
+#: religiousHolidays.js:46
+msgid "Buddhism"
+msgstr "Bouddhisme"
+
+#. 5.4->settings-schema.json->religion-sikhism->description
+#: religiousHolidays.js:47
+msgid "Sikhism"
+msgstr "Sikhisme"
+
+#. 5.4->settings-schema.json->religion-judaism->description
+#: religiousHolidays.js:48
+msgid "Judaism"
+msgstr "Judaïsme"
+
+#. 5.4->settings-schema.json->religion-bahai->description
+#: religiousHolidays.js:49
+msgid "Bahá'í Faith"
+msgstr "La foi bahá'íe"
+
+#. 5.4->settings-schema.json->religion-jainism->description
+#: religiousHolidays.js:50
+msgid "Jainism"
+msgstr "Jaïnisme"
+
+#. 5.4->settings-schema.json->religion-shinto->description
+#: religiousHolidays.js:51
+msgid "Shinto"
+msgstr "Shintoïsme"
+
+#. 5.4->settings-schema.json->religion-taoism->description
+#: religiousHolidays.js:52
+msgid "Taoism"
+msgstr "Taoïsme"
+
+#: religiousHolidays.js:116
+msgid "Epiphany"
+msgstr "Épiphanie"
+
+#: religiousHolidays.js:117
+msgid "Good Friday"
+msgstr "Vendredi saint"
+
+#: religiousHolidays.js:118
+msgid "Easter Sunday"
+msgstr "Dimanche de Pâques"
+
+#: religiousHolidays.js:119
+msgid "Pentecost"
+msgstr "Pentecôte"
+
+#: religiousHolidays.js:120
+msgid "All Saints' Day"
+msgstr "La Toussaint"
+
+#: religiousHolidays.js:121
+msgid "Christmas Day"
+msgstr "Jour de Noël"
+
+#: religiousHolidays.js:124
+msgid "Islamic New Year"
+msgstr "Nouvel An islamique"
+
+#: religiousHolidays.js:125
+msgid "Mawlid"
+msgstr "Mawlid"
+
+#: religiousHolidays.js:126
+msgid "Ramadan begins"
+msgstr "Le Ramadan commence"
+
+#: religiousHolidays.js:127
+msgid "Eid al-Fitr"
+msgstr "Aïd al-Fitr"
+
+#: religiousHolidays.js:128
+msgid "Eid al-Adha"
+msgstr "Aïd al-Adha"
+
+#: religiousHolidays.js:131
+msgid "Makar Sankranti"
+msgstr "Makar Sankranti"
+
+#: religiousHolidays.js:132
+msgid "Maha Shivaratri"
+msgstr "Maha Shivaratri"
+
+#: religiousHolidays.js:133
+msgid "Holi"
+msgstr "Holi"
+
+#: religiousHolidays.js:134
+msgid "Krishna Janmashtami"
+msgstr "Krishna Janmashtami"
+
+#: religiousHolidays.js:135
+msgid "Diwali"
+msgstr "Diwali"
+
+#: religiousHolidays.js:138
+msgid "Parinirvana Day"
+msgstr "Journée du Parinirvana"
+
+#: religiousHolidays.js:139
+msgid "Vesak"
+msgstr "Vesak"
+
+#: religiousHolidays.js:140
+msgid "Bodhi Day"
+msgstr "Journée de la Bodhi"
+
+#: religiousHolidays.js:143
+msgid "Guru Gobind Singh Jayanti"
+msgstr "Gourou Gobind Singh Jayanti"
+
+#: religiousHolidays.js:144
+msgid "Vaisakhi"
+msgstr "Vaisakhi"
+
+#: religiousHolidays.js:145
+msgid "Guru Nanak Jayanti"
+msgstr "Gourou Nanak Jayanti"
+
+#: religiousHolidays.js:148
+msgid "Purim"
+msgstr "Pourim"
+
+#: religiousHolidays.js:149
+msgid "Passover begins"
+msgstr "La Pâque commence"
+
+#: religiousHolidays.js:150
+msgid "Shavuot"
+msgstr "Chavouot"
+
+#: religiousHolidays.js:151
+msgid "Rosh Hashanah"
+msgstr "Roch Hachana"
+
+#: religiousHolidays.js:152
+msgid "Yom Kippur"
+msgstr "Yom Kippour"
+
+#: religiousHolidays.js:153
+msgid "Hanukkah begins"
+msgstr "Hanoukka commence"
+
+#: religiousHolidays.js:156
+msgid "Naw-Rúz"
+msgstr "Naw-Rúz"
+
+#: religiousHolidays.js:157
+msgid "Ridván begins"
+msgstr "Ridván commence"
+
+#: religiousHolidays.js:160
+msgid "Mahavir Jayanti"
+msgstr "Mahavir Jayanti"
+
+#: religiousHolidays.js:161
+msgid "Paryushana begins"
+msgstr "Paryushana commence"
+
+#: religiousHolidays.js:164
+msgid "Shōgatsu"
+msgstr "Shogatsu"
+
+#: religiousHolidays.js:165
+msgid "Hinamatsuri"
+msgstr "Hinamatsuri"
+
+#: religiousHolidays.js:166
+msgid "Tanabata"
+msgstr "Tanabata"
+
+#: religiousHolidays.js:167
+msgid "Shichi-Go-San"
+msgstr "Shichi-Go-San"
+
+#: religiousHolidays.js:170
+msgid "Chinese New Year"
+msgstr "Nouvel An chinois"
+
+#: religiousHolidays.js:171
+msgid "Qingming"
+msgstr "Qingming"
+
+#: religiousHolidays.js:172
+msgid "Ghost Festival"
+msgstr "Festival des fantômes"
+
 #: worldclockData.js:60 settings_widgets_common.py:58
 msgid "Invalid timezone"
 msgstr "Fuseau horaire non valide"
@@ -55,11 +261,11 @@ msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "L’applet de calendrier a rencontré une erreur. Consultez le journal système."
 
-#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
+#: 5.4/appletMenuBuilder.js:274 5.4/appletMenuBuilder.js:280
 msgid "Go to today"
 msgstr "Aller à aujourd’hui"
 
-#: 5.4/appletMenuBuilder.js:358
+#: 5.4/appletMenuBuilder.js:361
 msgid "Date and Time Settings"
 msgstr "Paramètres date et heure"
 
@@ -111,70 +317,70 @@ msgstr "Orage"
 msgid "Fair"
 msgstr "Beau temps"
 
-#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:461
-#: 5.4/appletPanelStatus.js:622
+#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:489
+#: 5.4/appletPanelStatus.js:650
 msgid "Weather: loading…"
 msgstr "Météo : chargement…"
 
-#: 5.4/appletPanelStatus.js:485
+#: 5.4/appletPanelStatus.js:513
 msgid "No weather for this timezone"
 msgstr "Pas de météo pour ce fuseau horaire"
 
-#: 5.4/appletPanelStatus.js:496 5.4/appletPanelStatus.js:497
+#: 5.4/appletPanelStatus.js:524 5.4/appletPanelStatus.js:525
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Dernier relevé connu"
 
-#: 5.4/calendar.js:110
+#: 5.4/calendar.js:112
 msgid "Holiday service unavailable"
 msgstr "Service des jours fériés indisponible"
 
-#: 5.4/calendar.js:111
+#: 5.4/calendar.js:113
 msgid "Holiday data unavailable"
 msgstr "Données des jours fériés indisponibles"
 
-#: 5.4/calendar.js:380
+#: 5.4/calendar.js:382
 msgid "Selected"
 msgstr "Sélectionné"
 
-#: 5.4/calendar.js:384
+#: 5.4/calendar.js:386
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d événement"
 msgstr[1] "%d événements"
 
-#: 5.4/calendar.js:662
+#: 5.4/calendar.js:668
 msgid "Holiday data: loading…"
 msgstr "Données des jours fériés : chargement…"
 
-#: 5.4/calendar.js:703
+#: 5.4/calendar.js:709
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Données des jours fériés : %s"
 
-#: 5.4/calendar.js:873
+#: 5.4/calendar.js:900
 #, javascript-format
 msgid "Week %s"
 msgstr "Semaine %s"
 
-#: 5.4/calendar.js:1224
+#: 5.4/calendar.js:1259
 msgid "Previous month"
 msgstr "Mois précédent"
 
-#: 5.4/calendar.js:1254
+#: 5.4/calendar.js:1289
 msgid "Next month"
 msgstr "Mois suivant"
 
-#: 5.4/calendar.js:1258
+#: 5.4/calendar.js:1293
 msgid "Previous year"
 msgstr "Année précédente"
 
-#: 5.4/calendar.js:1269
+#: 5.4/calendar.js:1304
 msgid "Next year"
 msgstr "Année suivante"
 
-#: 5.4/calendar.js:1282
+#: 5.4/calendar.js:1317
 msgid "Week"
 msgstr "Semaine"
 
@@ -197,66 +403,66 @@ msgstr ""
 msgid "Calendar events could not be refreshed."
 msgstr "Impossible d’actualiser les événements du calendrier."
 
-#: 5.4/eventView.js:60
+#: 5.4/eventView.js:67
 msgid "Starting in a few minutes"
 msgstr "Commence dans quelques minutes"
 
-#: 5.4/eventView.js:67
+#: 5.4/eventView.js:74
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Commence dans %d minute"
 msgstr[1] "Commence dans %d minutes"
 
-#: 5.4/eventView.js:77
+#: 5.4/eventView.js:84
 msgid "This evening"
 msgstr "Cet après-midi"
 
-#: 5.4/eventView.js:80
+#: 5.4/eventView.js:87
 msgid "Starting later today"
 msgstr "Commence plus tard aujourd'hui"
 
-#: 5.4/eventView.js:83
+#: 5.4/eventView.js:90
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Dans %d heure"
 msgstr[1] "Dans %d heures"
 
-#: 5.4/eventView.js:208
+#: 5.4/eventView.js:232
 msgid "Loading…"
 msgstr "Chargement…"
 
-#: 5.4/eventView.js:212 5.4/eventView.js:222 5.4/eventView.js:363
-#: 5.4/eventView.js:701
+#: 5.4/eventView.js:236 5.4/eventView.js:246 5.4/eventView.js:387
+#: 5.4/eventView.js:736
 msgid "No Events"
 msgstr "Aucun évènement"
 
-#: 5.4/eventView.js:385 5.4/eventView.js:567
+#: 5.4/eventView.js:409 5.4/eventView.js:591
 msgid "Open the calendar app"
 msgstr "Ouvrir l’application de calendrier"
 
-#: 5.4/eventView.js:498
+#: 5.4/eventView.js:522
 msgid "Events for the selected day"
 msgstr "Événements du jour sélectionné"
 
-#: 5.4/eventView.js:551
+#: 5.4/eventView.js:575
 msgid "Add an event"
 msgstr "Ajouter un événement"
 
-#: 5.4/eventView.js:797
+#: 5.4/eventView.js:833
 msgid "Ended"
 msgstr "Terminé"
 
-#: 5.4/eventView.js:828
+#: 5.4/eventView.js:864
 msgid "In progress"
 msgstr "En cours"
 
-#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:231 5.4/worldclocks.js:232
 msgid "World clocks"
 msgstr "Horloges mondiales"
 
-#: 5.4/worldclocks.js:230
+#: 5.4/worldclocks.js:231
 #, javascript-format
 msgid "Source: %s"
 msgstr "Source : %s"
@@ -300,15 +506,15 @@ msgstr ""
 msgid "City or town (e.g. Lisbon)"
 msgstr "Ville ou commune (p. ex. Lisbonne)"
 
-#: settings_widgets_common.py:73
+#: settings_widgets_common.py:74
 msgid "Type a country name"
 msgstr "Saisissez le nom d’un pays"
 
-#: settings_widgets_common.py:541
+#: settings_widgets_common.py:608
 msgid "Add new entry"
 msgstr "Ajouter une nouvelle entrée"
 
-#: settings_widgets_common.py:546
+#: settings_widgets_common.py:613
 msgid "Edit entry"
 msgstr "Modifier l'entrée sélectionnée"
 
@@ -444,6 +650,10 @@ msgstr "Obtenez les jours fériés pour"
 msgid "Keyboard shortcuts"
 msgstr "Raccourcis clavier"
 
+#. 5.4->settings-schema.json->section6->title
+msgid "Religious Observances"
+msgstr "Célébrations religieuses"
+
 #. 5.4->settings-schema.json->section4->title
 msgid "Show World Times"
 msgstr "Afficher les heures mondiales"
@@ -565,6 +775,17 @@ msgstr "SI (Celsius)"
 #. 5.4->settings-schema.json->weather-units->options
 msgid "Imperial (Fahrenheit)"
 msgstr "Impérial (Fahrenheit)"
+
+#. 5.4->settings-schema.json->show-religious-observances->description
+msgid "Show religious observances"
+msgstr "Afficher les observances religieuses"
+
+#. 5.4->settings-schema.json->show-religious-observances->tooltip
+msgid ""
+"Enable this, then select the religions to mark in the calendar. Observance "
+"dates come only from data bundled with the applet, and the selections never "
+"leave this computer. Observances are not marked as non-working days."
+msgstr "Activez cette option, puis sélectionnez les religions à marquer dans le calendrier. Les dates d'observance proviennent uniquement des données fournies avec l'applet et les sélections ne quittent jamais cet ordinateur. Les observances ne sont pas marquées comme jours non ouvrables."
 
 #. 5.4->settings-schema.json->country->description
 msgid "Country"

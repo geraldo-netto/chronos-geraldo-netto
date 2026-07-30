@@ -16,23 +16,40 @@
 // Outside the table window a table-backed observance is simply absent; the
 // fixed and computed ones still render for any year.
 
+/* global imports */
 /* eslint camelcase: "off" */
 
-var RELIGIOUS_HOLIDAY_FLAG = "religious_holiday"; // NOSONAR [S3504] -- GJS importer export
+const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const AppletModules = IS_NODE ? null :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
+const HolidayConstants = IS_NODE ?
+    require("./holidayConstants") :
+    AppletModules.holidayConstants;
+const translate = IS_NODE ? (text) => text : AppletModules.localeText.translate;
+
+// Translation marker: retain stable English catalogue data, then translate at
+// expansion time. This lets a locale change affect newly-rendered months while
+// still giving xgettext literal msgids to extract.
+const _ = (text) => text;
+
+var RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG; // NOSONAR [S3504] -- GJS importer export
+const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
 
 // ordered by number of adherents; the ids double as settings-key suffixes
 // (religion-<id>) and as the second flag on every row this module emits
 var RELIGIONS = [ // NOSONAR [S3504] -- GJS importer export
-    { id: "christianity", label: "Christianity" },
-    { id: "islam", label: "Islam" },
-    { id: "hinduism", label: "Hinduism" },
-    { id: "buddhism", label: "Buddhism" },
-    { id: "sikhism", label: "Sikhism" },
-    { id: "judaism", label: "Judaism" },
-    { id: "bahai", label: "Bahá'í Faith" },
-    { id: "jainism", label: "Jainism" },
-    { id: "shinto", label: "Shinto" },
-    { id: "taoism", label: "Taoism" }
+    { id: "christianity", label: _("Christianity") },
+    { id: "islam", label: _("Islam") },
+    { id: "hinduism", label: _("Hinduism") },
+    { id: "buddhism", label: _("Buddhism") },
+    { id: "sikhism", label: _("Sikhism") },
+    { id: "judaism", label: _("Judaism") },
+    { id: "bahai", label: _("Bahá'í Faith") },
+    { id: "jainism", label: _("Jainism") },
+    { id: "shinto", label: _("Shinto") },
+    { id: "taoism", label: _("Taoism") }
 ];
 
 // Anonymous Gregorian computus (Meeus/Jones/Butcher): month/day of Easter
@@ -96,63 +113,63 @@ const TABLES = {
 // entry kinds: {fixed: [month, day]} | {easter: offsetDays} | {table: "key"}
 const OBSERVANCES = {
     christianity: [
-        { name: "Epiphany", fixed: [1, 6] },
-        { name: "Good Friday", easter: -2 },
-        { name: "Easter Sunday", easter: 0 },
-        { name: "Pentecost", easter: 49 },
-        { name: "All Saints' Day", fixed: [11, 1] },
-        { name: "Christmas Day", fixed: [12, 25] }
+        { name: _("Epiphany"), fixed: [1, 6] },
+        { name: _("Good Friday"), easter: -2 },
+        { name: _("Easter Sunday"), easter: 0 },
+        { name: _("Pentecost"), easter: 49 },
+        { name: _("All Saints' Day"), fixed: [11, 1] },
+        { name: _("Christmas Day"), fixed: [12, 25] }
     ],
     islam: [
-        { name: "Islamic New Year", table: "islamic-new-year" },
-        { name: "Mawlid", table: "mawlid" },
-        { name: "Ramadan begins", table: "ramadan-start" },
-        { name: "Eid al-Fitr", table: "eid-al-fitr" },
-        { name: "Eid al-Adha", table: "eid-al-adha" }
+        { name: _("Islamic New Year"), table: "islamic-new-year" },
+        { name: _("Mawlid"), table: "mawlid" },
+        { name: _("Ramadan begins"), table: "ramadan-start" },
+        { name: _("Eid al-Fitr"), table: "eid-al-fitr" },
+        { name: _("Eid al-Adha"), table: "eid-al-adha" }
     ],
     hinduism: [
-        { name: "Makar Sankranti", fixed: [1, 14] },
-        { name: "Maha Shivaratri", table: "maha-shivaratri" },
-        { name: "Holi", table: "holi" },
-        { name: "Krishna Janmashtami", table: "krishna-janmashtami" },
-        { name: "Diwali", table: "diwali" }
+        { name: _("Makar Sankranti"), fixed: [1, 14] },
+        { name: _("Maha Shivaratri"), table: "maha-shivaratri" },
+        { name: _("Holi"), table: "holi" },
+        { name: _("Krishna Janmashtami"), table: "krishna-janmashtami" },
+        { name: _("Diwali"), table: "diwali" }
     ],
     buddhism: [
-        { name: "Parinirvana Day", fixed: [2, 15] },
-        { name: "Vesak", table: "vesak" },
-        { name: "Bodhi Day", fixed: [12, 8] }
+        { name: _("Parinirvana Day"), fixed: [2, 15] },
+        { name: _("Vesak"), table: "vesak" },
+        { name: _("Bodhi Day"), fixed: [12, 8] }
     ],
     sikhism: [
-        { name: "Guru Gobind Singh Jayanti", table: "guru-gobind-singh-jayanti" },
-        { name: "Vaisakhi", table: "vaisakhi" },
-        { name: "Guru Nanak Jayanti", table: "guru-nanak-jayanti" }
+        { name: _("Guru Gobind Singh Jayanti"), table: "guru-gobind-singh-jayanti" },
+        { name: _("Vaisakhi"), table: "vaisakhi" },
+        { name: _("Guru Nanak Jayanti"), table: "guru-nanak-jayanti" }
     ],
     judaism: [
-        { name: "Purim", table: "purim" },
-        { name: "Passover begins", table: "passover-start" },
-        { name: "Shavuot", table: "shavuot" },
-        { name: "Rosh Hashanah", table: "rosh-hashanah" },
-        { name: "Yom Kippur", table: "yom-kippur" },
-        { name: "Hanukkah begins", table: "hanukkah-start" }
+        { name: _("Purim"), table: "purim" },
+        { name: _("Passover begins"), table: "passover-start" },
+        { name: _("Shavuot"), table: "shavuot" },
+        { name: _("Rosh Hashanah"), table: "rosh-hashanah" },
+        { name: _("Yom Kippur"), table: "yom-kippur" },
+        { name: _("Hanukkah begins"), table: "hanukkah-start" }
     ],
     bahai: [
-        { name: "Naw-Rúz", table: "naw-ruz" },
-        { name: "Ridván begins", table: "ridvan-start" }
+        { name: _("Naw-Rúz"), table: "naw-ruz" },
+        { name: _("Ridván begins"), table: "ridvan-start" }
     ],
     jainism: [
-        { name: "Mahavir Jayanti", table: "mahavir-jayanti" },
-        { name: "Paryushana begins", table: "paryushana-start" }
+        { name: _("Mahavir Jayanti"), table: "mahavir-jayanti" },
+        { name: _("Paryushana begins"), table: "paryushana-start" }
     ],
     shinto: [
-        { name: "Shōgatsu", fixed: [1, 1] },
-        { name: "Hinamatsuri", fixed: [3, 3] },
-        { name: "Tanabata", fixed: [7, 7] },
-        { name: "Shichi-Go-San", fixed: [11, 15] }
+        { name: _("Shōgatsu"), fixed: [1, 1] },
+        { name: _("Hinamatsuri"), fixed: [3, 3] },
+        { name: _("Tanabata"), fixed: [7, 7] },
+        { name: _("Shichi-Go-San"), fixed: [11, 15] }
     ],
     taoism: [
-        { name: "Chinese New Year", table: "chinese-new-year" },
-        { name: "Qingming", table: "qingming" },
-        { name: "Ghost Festival", table: "ghost-festival" }
+        { name: _("Chinese New Year"), table: "chinese-new-year" },
+        { name: _("Qingming"), table: "qingming" },
+        { name: _("Ghost Festival"), table: "ghost-festival" }
     ]
 };
 
@@ -221,7 +238,7 @@ function _dateOf(entry, year) {
 // expanded rows in the shape the holiday cache emits: the religion's label is
 // part of the display name, which is what "split by religion" means on a grid
 // cell that shows one tooltip
-function holidaysForYear(year, enabledIds = religionIds()) {
+function holidaysForYear(year, enabledIds = religionIds(), translateName = translate) {
     if (!_validYear(year)) {
         return [];
     }
@@ -235,7 +252,7 @@ function holidaysForYear(year, enabledIds = religionIds()) {
                     year,
                     month: date[0],
                     day: date[1],
-                    name: `${entry.name} (${_religionLabel(id)})`,
+                    name: `${translateName(entry.name)} (${translateName(_religionLabel(id))})`,
                     flags: [RELIGIOUS_HOLIDAY_FLAG, id]
                 });
             }
@@ -289,7 +306,10 @@ function _joinEntry(known, name, flags) {
 // merge locally-computed rows into a provider month map without mutating
 // either: the provider's names come first, as they do in the cache
 function mergeMonthMaps(base, extra) {
-    const merged = new Map(base);
+    const merged = new Map();
+    for (const [key, [name, flags]] of base.entries()) {
+        merged.set(key, [name, _mergeFlags(flags, [PUBLIC_HOLIDAY_FLAG])]);
+    }
     for (const [key, [name, flags]] of extra.entries()) {
         merged.set(key, _joinEntry(merged.get(key), name, flags));
     }

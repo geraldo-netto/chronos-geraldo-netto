@@ -54,6 +54,14 @@ test("fixed, Easter-relative and table-backed observances expand", () => {
     assert.deepEqual(rows[0].flags, ["religious_holiday", "christianity"]);
 });
 
+test("religion and observance names pass through the applet translator", () => {
+    const rows = ReligiousHolidays.holidaysForYear(
+        2026, ["christianity"], (text) => `translated:${text}`);
+
+    assert.equal(rows.find((row) => row.month === 12 && row.day === 25).name,
+        "translated:Christmas Day (translated:Christianity)");
+});
+
 test("table dates stay absent outside their documented window", () => {
     const rows = ReligiousHolidays.holidaysForYear(2030, ["islam", "christianity"]);
 
@@ -82,6 +90,22 @@ test("map merging preserves inputs and orders public names first", () => {
     ]);
     assert.deepEqual(base.get("12/25"), ["Public Christmas", ["public_holiday"]]);
     assert.notEqual(merged, base);
+});
+
+test("merging explicitly marks public rows even when a provider supplies no flags", () => {
+    const base = new Map([
+        ["1/1", ["Public only", []]],
+        ["12/25", ["Public Christmas", []]]
+    ]);
+    const extra = ReligiousHolidays.monthMap(2026, 12, ["christianity"]);
+    const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
+
+    assert.deepEqual(merged.get("1/1"), ["Public only", ["public_holiday"]]);
+    assert.deepEqual(merged.get("12/25"), [
+        "Public Christmas\nChristmas Day (Christianity)",
+        ["public_holiday", "religious_holiday", "christianity"]
+    ]);
+    assert.deepEqual(base.get("1/1"), ["Public only", []], "the provider map stays untouched");
 });
 
 test("invalid years, months and religion selections fail closed", () => {

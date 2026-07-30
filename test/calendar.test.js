@@ -119,6 +119,8 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].settingsFacade 
 // feature, so it requires the constants, not the barrel that carries the HTTP
 // stack behind them
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants = {
+    PUBLIC_HOLIDAY_FLAG: "public_holiday",
+    RELIGIOUS_HOLIDAY_FLAG: "religious_holiday",
     HOLIDAY_ERRORS: {
         SERVICE_UNAVAILABLE: "Holiday service unavailable",
         INVALID_RESPONSE: "Holiday data unavailable"
@@ -1198,6 +1200,36 @@ test("holiday annotation: part-day holidays keep workday style with 1-day weeken
     cal.setDate(new Date(2026, 6, 9), true);
     const day14 = dayButtons(cal).find((b) => b.label === "14");
     assert.ok(day14.style_class.includes("calendar-work-day"));
+});
+
+test("holiday annotation: religious-only dates stay working days", () => {
+    const holiday = makeHolidayStub({
+        "2026/7": { "7/14": ["Local observance", ["religious_holiday", "taoism"]] }
+    });
+    const cal = makeCalendar({ holiday });
+    cal.setDate(new Date(2026, 6, 9), true);
+    const day14 = dayButtons(cal).find((button) => button.label === "14");
+
+    assert.ok(day14.style_class.includes("calendar-work-day"));
+    assert.ok(!day14.style_class.includes("calendar-nonwork-day"));
+    assert.ok(day14.style_class.includes("calendar-holiday-day"),
+        "the observance remains visible without being called a day off");
+});
+
+test("holiday annotation: merged public and religious dates are non-working", () => {
+    const holiday = makeHolidayStub({
+        "2026/7": {
+            "7/14": ["Public holiday\nLocal observance",
+                ["public_holiday", "religious_holiday", "taoism"]]
+        }
+    });
+    const cal = makeCalendar({ holiday });
+    cal.setDate(new Date(2026, 6, 9), true);
+    const day14 = dayButtons(cal).find((button) => button.label === "14");
+
+    assert.ok(!day14.style_class.includes("calendar-work-day"));
+    assert.ok(day14.style_class.includes("calendar-nonwork-day"));
+    assert.ok(day14.style_class.includes("calendar-holiday-day"));
 });
 
 test("holiday annotation: errors surface in the month label marker", () => {

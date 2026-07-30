@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-20 21:20+0200\n"
+"POT-Creation-Date: 2026-07-30 11:43+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: blogdron\n"
 "Language-Team: \n"
@@ -16,16 +16,16 @@ msgstr ""
 "n%10<=4 && (n%100<12 || n%100>14) ? 1 : 2);\n"
 "X-Generator: Poedit 3.4.1\n"
 
-#: dateFormats.js:46
+#: dateFormats.js:60
 msgid "%B %-e, %Y"
 msgstr "%-e %B %Y"
 
-#: dateFormats.js:47
+#: dateFormats.js:61
 msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:377
+#: 5.4/calendar.js:379
 msgid "Today"
 msgstr "Сегодня"
 
@@ -43,6 +43,212 @@ msgstr "Все дни"
 msgid "%s — %s"
 msgstr "%s — %s"
 
+#. 5.4->settings-schema.json->religion-christianity->description
+#: religiousHolidays.js:43
+msgid "Christianity"
+msgstr "Христианство"
+
+#. 5.4->settings-schema.json->religion-islam->description
+#: religiousHolidays.js:44
+msgid "Islam"
+msgstr "Ислам"
+
+#. 5.4->settings-schema.json->religion-hinduism->description
+#: religiousHolidays.js:45
+msgid "Hinduism"
+msgstr "Индуизм"
+
+#. 5.4->settings-schema.json->religion-buddhism->description
+#: religiousHolidays.js:46
+msgid "Buddhism"
+msgstr "Буддизм"
+
+#. 5.4->settings-schema.json->religion-sikhism->description
+#: religiousHolidays.js:47
+msgid "Sikhism"
+msgstr "Сикхизм"
+
+#. 5.4->settings-schema.json->religion-judaism->description
+#: religiousHolidays.js:48
+msgid "Judaism"
+msgstr "Иудаизм"
+
+#. 5.4->settings-schema.json->religion-bahai->description
+#: religiousHolidays.js:49
+msgid "Bahá'í Faith"
+msgstr "Вера Бахаи"
+
+#. 5.4->settings-schema.json->religion-jainism->description
+#: religiousHolidays.js:50
+msgid "Jainism"
+msgstr "Джайнизм"
+
+#. 5.4->settings-schema.json->religion-shinto->description
+#: religiousHolidays.js:51
+msgid "Shinto"
+msgstr "Синтоизм"
+
+#. 5.4->settings-schema.json->religion-taoism->description
+#: religiousHolidays.js:52
+msgid "Taoism"
+msgstr "Даосизм"
+
+#: religiousHolidays.js:116
+msgid "Epiphany"
+msgstr "Крещение"
+
+#: religiousHolidays.js:117
+msgid "Good Friday"
+msgstr "Страстная пятница"
+
+#: religiousHolidays.js:118
+msgid "Easter Sunday"
+msgstr "Пасхальное воскресенье"
+
+#: religiousHolidays.js:119
+msgid "Pentecost"
+msgstr "Пятидесятница"
+
+#: religiousHolidays.js:120
+msgid "All Saints' Day"
+msgstr "День всех святых"
+
+#: religiousHolidays.js:121
+msgid "Christmas Day"
+msgstr "Рождество"
+
+#: religiousHolidays.js:124
+msgid "Islamic New Year"
+msgstr "Исламский Новый год"
+
+#: religiousHolidays.js:125
+msgid "Mawlid"
+msgstr "Мавлид"
+
+#: religiousHolidays.js:126
+msgid "Ramadan begins"
+msgstr "Рамадан начинается"
+
+#: religiousHolidays.js:127
+msgid "Eid al-Fitr"
+msgstr "Ид аль-Фитр"
+
+#: religiousHolidays.js:128
+msgid "Eid al-Adha"
+msgstr "Ид аль-Адха"
+
+#: religiousHolidays.js:131
+msgid "Makar Sankranti"
+msgstr "Макар Санкранти"
+
+#: religiousHolidays.js:132
+msgid "Maha Shivaratri"
+msgstr "Маха Шиваратри"
+
+#: religiousHolidays.js:133
+msgid "Holi"
+msgstr "Холи"
+
+#: religiousHolidays.js:134
+msgid "Krishna Janmashtami"
+msgstr "Кришна Джанмаштами"
+
+#: religiousHolidays.js:135
+msgid "Diwali"
+msgstr "Дивали"
+
+#: religiousHolidays.js:138
+msgid "Parinirvana Day"
+msgstr "День Паринирваны"
+
+#: religiousHolidays.js:139
+msgid "Vesak"
+msgstr "Весак"
+
+#: religiousHolidays.js:140
+msgid "Bodhi Day"
+msgstr "День Бодхи"
+
+#: religiousHolidays.js:143
+msgid "Guru Gobind Singh Jayanti"
+msgstr "Гуру Гобинд Сингх Джаянти"
+
+#: religiousHolidays.js:144
+msgid "Vaisakhi"
+msgstr "Вайсакхи"
+
+#: religiousHolidays.js:145
+msgid "Guru Nanak Jayanti"
+msgstr "Гуру Нанак Джаянти"
+
+#: religiousHolidays.js:148
+msgid "Purim"
+msgstr "Пурим"
+
+#: religiousHolidays.js:149
+msgid "Passover begins"
+msgstr "Песах начинается"
+
+#: religiousHolidays.js:150
+msgid "Shavuot"
+msgstr "Шавуот"
+
+#: religiousHolidays.js:151
+msgid "Rosh Hashanah"
+msgstr "Рош ха-Шана"
+
+#: religiousHolidays.js:152
+msgid "Yom Kippur"
+msgstr "Йом Кипур"
+
+#: religiousHolidays.js:153
+msgid "Hanukkah begins"
+msgstr "Ханука начинается"
+
+#: religiousHolidays.js:156
+msgid "Naw-Rúz"
+msgstr "Навруз"
+
+#: religiousHolidays.js:157
+msgid "Ridván begins"
+msgstr "Ризван начинается"
+
+#: religiousHolidays.js:160
+msgid "Mahavir Jayanti"
+msgstr "Махавир Джаянти"
+
+#: religiousHolidays.js:161
+msgid "Paryushana begins"
+msgstr "Парюшана начинается"
+
+#: religiousHolidays.js:164
+msgid "Shōgatsu"
+msgstr "Сёгацу"
+
+#: religiousHolidays.js:165
+msgid "Hinamatsuri"
+msgstr "Хинамацури"
+
+#: religiousHolidays.js:166
+msgid "Tanabata"
+msgstr "Танабата"
+
+#: religiousHolidays.js:167
+msgid "Shichi-Go-San"
+msgstr "Сити-Го-Сан"
+
+#: religiousHolidays.js:170
+msgid "Chinese New Year"
+msgstr "Китайский Новый год"
+
+#: religiousHolidays.js:171
+msgid "Qingming"
+msgstr "Цинмин"
+
+#: religiousHolidays.js:172
+msgid "Ghost Festival"
+msgstr "Фестиваль призраков"
+
 #: worldclockData.js:60 settings_widgets_common.py:58
 msgid "Invalid timezone"
 msgstr "Недопустимый часовой пояс"
@@ -55,11 +261,11 @@ msgstr "Местное время"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "В апплете календаря произошла ошибка. Проверьте системный журнал."
 
-#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
+#: 5.4/appletMenuBuilder.js:274 5.4/appletMenuBuilder.js:280
 msgid "Go to today"
 msgstr "Перейти к сегодняшнему дню"
 
-#: 5.4/appletMenuBuilder.js:358
+#: 5.4/appletMenuBuilder.js:361
 msgid "Date and Time Settings"
 msgstr "Настройка Времени и Даты"
 
@@ -111,33 +317,33 @@ msgstr "Гроза"
 msgid "Fair"
 msgstr "Малооблачно"
 
-#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:461
-#: 5.4/appletPanelStatus.js:622
+#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:489
+#: 5.4/appletPanelStatus.js:650
 msgid "Weather: loading…"
 msgstr "Погода: загрузка…"
 
-#: 5.4/appletPanelStatus.js:485
+#: 5.4/appletPanelStatus.js:513
 msgid "No weather for this timezone"
 msgstr "Погода для этого часового пояса недоступна"
 
-#: 5.4/appletPanelStatus.js:496 5.4/appletPanelStatus.js:497
+#: 5.4/appletPanelStatus.js:524 5.4/appletPanelStatus.js:525
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Последнее известное значение"
 
-#: 5.4/calendar.js:110
+#: 5.4/calendar.js:112
 msgid "Holiday service unavailable"
 msgstr "Сервис праздников недоступен"
 
-#: 5.4/calendar.js:111
+#: 5.4/calendar.js:113
 msgid "Holiday data unavailable"
 msgstr "Данные о праздниках недоступны"
 
-#: 5.4/calendar.js:380
+#: 5.4/calendar.js:382
 msgid "Selected"
 msgstr "Выбрано"
 
-#: 5.4/calendar.js:384
+#: 5.4/calendar.js:386
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
@@ -145,37 +351,37 @@ msgstr[0] "%d событие"
 msgstr[1] "%d события"
 msgstr[2] "%d событий"
 
-#: 5.4/calendar.js:662
+#: 5.4/calendar.js:668
 msgid "Holiday data: loading…"
 msgstr "Данные о праздниках: загрузка…"
 
-#: 5.4/calendar.js:703
+#: 5.4/calendar.js:709
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Данные о праздниках: %s"
 
-#: 5.4/calendar.js:873
+#: 5.4/calendar.js:900
 #, javascript-format
 msgid "Week %s"
 msgstr "Неделя %s"
 
-#: 5.4/calendar.js:1224
+#: 5.4/calendar.js:1259
 msgid "Previous month"
 msgstr "Предыдущий месяц"
 
-#: 5.4/calendar.js:1254
+#: 5.4/calendar.js:1289
 msgid "Next month"
 msgstr "Следующий месяц"
 
-#: 5.4/calendar.js:1258
+#: 5.4/calendar.js:1293
 msgid "Previous year"
 msgstr "Предыдущий год"
 
-#: 5.4/calendar.js:1269
+#: 5.4/calendar.js:1304
 msgid "Next year"
 msgstr "Следующий год"
 
-#: 5.4/calendar.js:1282
+#: 5.4/calendar.js:1317
 msgid "Week"
 msgstr "Неделя"
 
@@ -196,11 +402,11 @@ msgstr ""
 msgid "Calendar events could not be refreshed."
 msgstr "Не удалось обновить события календаря."
 
-#: 5.4/eventView.js:60
+#: 5.4/eventView.js:67
 msgid "Starting in a few minutes"
 msgstr "Начало через несколько минут"
 
-#: 5.4/eventView.js:67
+#: 5.4/eventView.js:74
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
@@ -208,15 +414,15 @@ msgstr[0] "Начнётся через %d минуту"
 msgstr[1] "Начнётся через %d минуты"
 msgstr[2] "Начнётся через %d минут"
 
-#: 5.4/eventView.js:77
+#: 5.4/eventView.js:84
 msgid "This evening"
 msgstr "Этим вечером"
 
-#: 5.4/eventView.js:80
+#: 5.4/eventView.js:87
 msgid "Starting later today"
 msgstr "Начало сегодня"
 
-#: 5.4/eventView.js:83
+#: 5.4/eventView.js:90
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
@@ -224,40 +430,40 @@ msgstr[0] "В %d час"
 msgstr[1] "В %d часа"
 msgstr[2] "В %d часов"
 
-#: 5.4/eventView.js:208
+#: 5.4/eventView.js:232
 msgid "Loading…"
 msgstr "Загрузка…"
 
-#: 5.4/eventView.js:212 5.4/eventView.js:222 5.4/eventView.js:363
-#: 5.4/eventView.js:701
+#: 5.4/eventView.js:236 5.4/eventView.js:246 5.4/eventView.js:387
+#: 5.4/eventView.js:736
 msgid "No Events"
 msgstr "Нет событий"
 
-#: 5.4/eventView.js:385 5.4/eventView.js:567
+#: 5.4/eventView.js:409 5.4/eventView.js:591
 msgid "Open the calendar app"
 msgstr "Открыть приложение календаря"
 
-#: 5.4/eventView.js:498
+#: 5.4/eventView.js:522
 msgid "Events for the selected day"
 msgstr "События выбранного дня"
 
-#: 5.4/eventView.js:551
+#: 5.4/eventView.js:575
 msgid "Add an event"
 msgstr "Добавить событие"
 
-#: 5.4/eventView.js:797
+#: 5.4/eventView.js:833
 msgid "Ended"
 msgstr "Завершено"
 
-#: 5.4/eventView.js:828
+#: 5.4/eventView.js:864
 msgid "In progress"
 msgstr "Уже"
 
-#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:231 5.4/worldclocks.js:232
 msgid "World clocks"
 msgstr "Мировые часы"
 
-#: 5.4/worldclocks.js:230
+#: 5.4/worldclocks.js:231
 #, javascript-format
 msgid "Source: %s"
 msgstr "Источник: %s"
@@ -301,15 +507,15 @@ msgstr ""
 msgid "City or town (e.g. Lisbon)"
 msgstr "Город или населённый пункт (например, Лиссабон)"
 
-#: settings_widgets_common.py:73
+#: settings_widgets_common.py:74
 msgid "Type a country name"
 msgstr "Введите название страны"
 
-#: settings_widgets_common.py:541
+#: settings_widgets_common.py:608
 msgid "Add new entry"
 msgstr "Добавить новый элемент"
 
-#: settings_widgets_common.py:546
+#: settings_widgets_common.py:613
 msgid "Edit entry"
 msgstr "Редактировать элемент"
 
@@ -441,6 +647,10 @@ msgstr "Получить список праздников для"
 msgid "Keyboard shortcuts"
 msgstr "Клавиатурные сочетания"
 
+#. 5.4->settings-schema.json->section6->title
+msgid "Religious Observances"
+msgstr "Религиозные обряды"
+
 #. 5.4->settings-schema.json->section4->title
 msgid "Show World Times"
 msgstr "Показать Мировое Время"
@@ -558,6 +768,17 @@ msgstr "СИ (Цельсий)"
 #. 5.4->settings-schema.json->weather-units->options
 msgid "Imperial (Fahrenheit)"
 msgstr "Имперские (Фаренгейт)"
+
+#. 5.4->settings-schema.json->show-religious-observances->description
+msgid "Show religious observances"
+msgstr "Показать религиозные обряды"
+
+#. 5.4->settings-schema.json->show-religious-observances->tooltip
+msgid ""
+"Enable this, then select the religions to mark in the calendar. Observance "
+"dates come only from data bundled with the applet, and the selections never "
+"leave this computer. Observances are not marked as non-working days."
+msgstr "Включите это, затем выберите религии, которые нужно отметить в календаре. Даты соблюдения берутся только из данных, включенных в апплет, и выборки никогда не покидают этот компьютер. Праздники не помечаются как нерабочие дни."
 
 #. 5.4->settings-schema.json->country->description
 msgid "Country"

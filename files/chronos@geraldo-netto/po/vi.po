@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-20 21:20+0200\n"
+"POT-Creation-Date: 2026-07-30 11:43+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -18,16 +18,16 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Poedit 3.4.2\n"
 
-#: dateFormats.js:46
+#: dateFormats.js:60
 msgid "%B %-e, %Y"
 msgstr "%-e %B, %Y"
 
-#: dateFormats.js:47
+#: dateFormats.js:61
 msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e %B, %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:377
+#: 5.4/calendar.js:379
 msgid "Today"
 msgstr "Hôm nay"
 
@@ -45,6 +45,212 @@ msgstr "Cả ngày"
 msgid "%s — %s"
 msgstr "%s — %s"
 
+#. 5.4->settings-schema.json->religion-christianity->description
+#: religiousHolidays.js:43
+msgid "Christianity"
+msgstr "Kitô giáo"
+
+#. 5.4->settings-schema.json->religion-islam->description
+#: religiousHolidays.js:44
+msgid "Islam"
+msgstr "Hồi giáo"
+
+#. 5.4->settings-schema.json->religion-hinduism->description
+#: religiousHolidays.js:45
+msgid "Hinduism"
+msgstr "Ấn Độ giáo"
+
+#. 5.4->settings-schema.json->religion-buddhism->description
+#: religiousHolidays.js:46
+msgid "Buddhism"
+msgstr "Phật giáo"
+
+#. 5.4->settings-schema.json->religion-sikhism->description
+#: religiousHolidays.js:47
+msgid "Sikhism"
+msgstr "đạo Sikh"
+
+#. 5.4->settings-schema.json->religion-judaism->description
+#: religiousHolidays.js:48
+msgid "Judaism"
+msgstr "đạo Do Thái"
+
+#. 5.4->settings-schema.json->religion-bahai->description
+#: religiousHolidays.js:49
+msgid "Bahá'í Faith"
+msgstr "Đức tin Baha'í"
+
+#. 5.4->settings-schema.json->religion-jainism->description
+#: religiousHolidays.js:50
+msgid "Jainism"
+msgstr "đạo Jain"
+
+#. 5.4->settings-schema.json->religion-shinto->description
+#: religiousHolidays.js:51
+msgid "Shinto"
+msgstr "Thần đạo"
+
+#. 5.4->settings-schema.json->religion-taoism->description
+#: religiousHolidays.js:52
+msgid "Taoism"
+msgstr "Đạo giáo"
+
+#: religiousHolidays.js:116
+msgid "Epiphany"
+msgstr "Lễ hiển linh"
+
+#: religiousHolidays.js:117
+msgid "Good Friday"
+msgstr "Thứ Sáu Tuần Thánh"
+
+#: religiousHolidays.js:118
+msgid "Easter Sunday"
+msgstr "Chúa Nhật Phục Sinh"
+
+#: religiousHolidays.js:119
+msgid "Pentecost"
+msgstr "Lễ Ngũ Tuần"
+
+#: religiousHolidays.js:120
+msgid "All Saints' Day"
+msgstr "Ngày lễ các Thánh"
+
+#: religiousHolidays.js:121
+msgid "Christmas Day"
+msgstr "ngày Giáng sinh"
+
+#: religiousHolidays.js:124
+msgid "Islamic New Year"
+msgstr "Năm mới Hồi giáo"
+
+#: religiousHolidays.js:125
+msgid "Mawlid"
+msgstr "Mawlid"
+
+#: religiousHolidays.js:126
+msgid "Ramadan begins"
+msgstr "tháng Ramadan bắt đầu"
+
+#: religiousHolidays.js:127
+msgid "Eid al-Fitr"
+msgstr "Eid al-Fitr"
+
+#: religiousHolidays.js:128
+msgid "Eid al-Adha"
+msgstr "Eid al-Adha"
+
+#: religiousHolidays.js:131
+msgid "Makar Sankranti"
+msgstr "Makar Sankranti"
+
+#: religiousHolidays.js:132
+msgid "Maha Shivaratri"
+msgstr "Maha Shivaratri"
+
+#: religiousHolidays.js:133
+msgid "Holi"
+msgstr "Holi"
+
+#: religiousHolidays.js:134
+msgid "Krishna Janmashtami"
+msgstr "Krishna Janmashtami"
+
+#: religiousHolidays.js:135
+msgid "Diwali"
+msgstr "Diwali"
+
+#: religiousHolidays.js:138
+msgid "Parinirvana Day"
+msgstr "Ngày nhập Niết Bàn"
+
+#: religiousHolidays.js:139
+msgid "Vesak"
+msgstr "lễ Vesak"
+
+#: religiousHolidays.js:140
+msgid "Bodhi Day"
+msgstr "Ngày Bồ Đề"
+
+#: religiousHolidays.js:143
+msgid "Guru Gobind Singh Jayanti"
+msgstr "Guru Gobind Singh Jayanti"
+
+#: religiousHolidays.js:144
+msgid "Vaisakhi"
+msgstr "Vaisakhi"
+
+#: religiousHolidays.js:145
+msgid "Guru Nanak Jayanti"
+msgstr "Đạo sư Nanak Jayanti"
+
+#: religiousHolidays.js:148
+msgid "Purim"
+msgstr "Purim"
+
+#: religiousHolidays.js:149
+msgid "Passover begins"
+msgstr "Lễ Vượt Qua bắt đầu"
+
+#: religiousHolidays.js:150
+msgid "Shavuot"
+msgstr "Shavuot"
+
+#: religiousHolidays.js:151
+msgid "Rosh Hashanah"
+msgstr "Lễ Rosh Hashanah"
+
+#: religiousHolidays.js:152
+msgid "Yom Kippur"
+msgstr "Yom Kippur"
+
+#: religiousHolidays.js:153
+msgid "Hanukkah begins"
+msgstr "Hanukkah bắt đầu"
+
+#: religiousHolidays.js:156
+msgid "Naw-Rúz"
+msgstr "Naw-Rúz"
+
+#: religiousHolidays.js:157
+msgid "Ridván begins"
+msgstr "Ridvan bắt đầu"
+
+#: religiousHolidays.js:160
+msgid "Mahavir Jayanti"
+msgstr "Mahavir Jayanti"
+
+#: religiousHolidays.js:161
+msgid "Paryushana begins"
+msgstr "Paryushana bắt đầu"
+
+#: religiousHolidays.js:164
+msgid "Shōgatsu"
+msgstr "Shogatsu"
+
+#: religiousHolidays.js:165
+msgid "Hinamatsuri"
+msgstr "Hinamatsuri"
+
+#: religiousHolidays.js:166
+msgid "Tanabata"
+msgstr "Tanabata"
+
+#: religiousHolidays.js:167
+msgid "Shichi-Go-San"
+msgstr "Shichi-Go-San"
+
+#: religiousHolidays.js:170
+msgid "Chinese New Year"
+msgstr "Tết Nguyên Đán"
+
+#: religiousHolidays.js:171
+msgid "Qingming"
+msgstr "thanh minh"
+
+#: religiousHolidays.js:172
+msgid "Ghost Festival"
+msgstr "lễ hội ma"
+
 #: worldclockData.js:60 settings_widgets_common.py:58
 msgid "Invalid timezone"
 msgstr "Múi giờ không hợp lệ"
@@ -57,11 +263,11 @@ msgstr "Giờ địa phương"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Tiểu dụng lịch gặp lỗi. Hãy kiểm tra nhật ký hệ thống."
 
-#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
+#: 5.4/appletMenuBuilder.js:274 5.4/appletMenuBuilder.js:280
 msgid "Go to today"
 msgstr "Đến hôm nay"
 
-#: 5.4/appletMenuBuilder.js:358
+#: 5.4/appletMenuBuilder.js:361
 msgid "Date and Time Settings"
 msgstr "Cài đặt ngày và giờ"
 
@@ -113,69 +319,69 @@ msgstr "Dông"
 msgid "Fair"
 msgstr "Trời đẹp"
 
-#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:461
-#: 5.4/appletPanelStatus.js:622
+#: 5.4/appletPanelStatus.js:109 5.4/appletPanelStatus.js:489
+#: 5.4/appletPanelStatus.js:650
 msgid "Weather: loading…"
 msgstr "Thời tiết: đang tải…"
 
-#: 5.4/appletPanelStatus.js:485
+#: 5.4/appletPanelStatus.js:513
 msgid "No weather for this timezone"
 msgstr "Không có thời tiết cho múi giờ này"
 
-#: 5.4/appletPanelStatus.js:496 5.4/appletPanelStatus.js:497
+#: 5.4/appletPanelStatus.js:524 5.4/appletPanelStatus.js:525
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Số liệu gần nhất"
 
-#: 5.4/calendar.js:110
+#: 5.4/calendar.js:112
 msgid "Holiday service unavailable"
 msgstr "Dịch vụ ngày lễ không khả dụng"
 
-#: 5.4/calendar.js:111
+#: 5.4/calendar.js:113
 msgid "Holiday data unavailable"
 msgstr "Dữ liệu ngày lễ không khả dụng"
 
-#: 5.4/calendar.js:380
+#: 5.4/calendar.js:382
 msgid "Selected"
 msgstr "Đã chọn"
 
-#: 5.4/calendar.js:384
+#: 5.4/calendar.js:386
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d sự kiện"
 
-#: 5.4/calendar.js:662
+#: 5.4/calendar.js:668
 msgid "Holiday data: loading…"
 msgstr "Dữ liệu ngày lễ: đang tải…"
 
-#: 5.4/calendar.js:703
+#: 5.4/calendar.js:709
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dữ liệu ngày lễ: %s"
 
-#: 5.4/calendar.js:873
+#: 5.4/calendar.js:900
 #, javascript-format
 msgid "Week %s"
 msgstr "Tuần %s"
 
-#: 5.4/calendar.js:1224
+#: 5.4/calendar.js:1259
 msgid "Previous month"
 msgstr "Tháng trước"
 
-#: 5.4/calendar.js:1254
+#: 5.4/calendar.js:1289
 msgid "Next month"
 msgstr "Tháng sau"
 
-#: 5.4/calendar.js:1258
+#: 5.4/calendar.js:1293
 msgid "Previous year"
 msgstr "Năm trước"
 
-#: 5.4/calendar.js:1269
+#: 5.4/calendar.js:1304
 msgid "Next year"
 msgstr "Năm sau"
 
-#: 5.4/calendar.js:1282
+#: 5.4/calendar.js:1317
 msgid "Week"
 msgstr "Tuần"
 
@@ -195,64 +401,64 @@ msgstr ""
 msgid "Calendar events could not be refreshed."
 msgstr "Không thể làm mới các sự kiện lịch."
 
-#: 5.4/eventView.js:60
+#: 5.4/eventView.js:67
 msgid "Starting in a few minutes"
 msgstr "Bắt đầu trong vài phút nữa"
 
-#: 5.4/eventView.js:67
+#: 5.4/eventView.js:74
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Bắt đầu sau %d phút"
 
-#: 5.4/eventView.js:77
+#: 5.4/eventView.js:84
 msgid "This evening"
 msgstr "Tối nay"
 
-#: 5.4/eventView.js:80
+#: 5.4/eventView.js:87
 msgid "Starting later today"
 msgstr "Bắt đầu vào cuối ngày hôm nay"
 
-#: 5.4/eventView.js:83
+#: 5.4/eventView.js:90
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Trong %d giờ nữa"
 
-#: 5.4/eventView.js:208
+#: 5.4/eventView.js:232
 msgid "Loading…"
 msgstr "Đang tải…"
 
-#: 5.4/eventView.js:212 5.4/eventView.js:222 5.4/eventView.js:363
-#: 5.4/eventView.js:701
+#: 5.4/eventView.js:236 5.4/eventView.js:246 5.4/eventView.js:387
+#: 5.4/eventView.js:736
 msgid "No Events"
 msgstr "Không có sự kiện"
 
-#: 5.4/eventView.js:385 5.4/eventView.js:567
+#: 5.4/eventView.js:409 5.4/eventView.js:591
 msgid "Open the calendar app"
 msgstr "Mở ứng dụng lịch"
 
-#: 5.4/eventView.js:498
+#: 5.4/eventView.js:522
 msgid "Events for the selected day"
 msgstr "Sự kiện của ngày đã chọn"
 
-#: 5.4/eventView.js:551
+#: 5.4/eventView.js:575
 msgid "Add an event"
 msgstr "Thêm sự kiện"
 
-#: 5.4/eventView.js:797
+#: 5.4/eventView.js:833
 msgid "Ended"
 msgstr "Đã kết thúc"
 
-#: 5.4/eventView.js:828
+#: 5.4/eventView.js:864
 msgid "In progress"
 msgstr "Đang diễn ra"
 
-#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:231 5.4/worldclocks.js:232
 msgid "World clocks"
 msgstr "Đồng hồ thế giới"
 
-#: 5.4/worldclocks.js:230
+#: 5.4/worldclocks.js:231
 #, javascript-format
 msgid "Source: %s"
 msgstr "Nguồn: %s"
@@ -295,15 +501,15 @@ msgstr ""
 msgid "City or town (e.g. Lisbon)"
 msgstr "Thành phố hoặc thị trấn (ví dụ: Lisbon)"
 
-#: settings_widgets_common.py:73
+#: settings_widgets_common.py:74
 msgid "Type a country name"
 msgstr "Nhập tên quốc gia"
 
-#: settings_widgets_common.py:541
+#: settings_widgets_common.py:608
 msgid "Add new entry"
 msgstr "Thêm mục mới"
 
-#: settings_widgets_common.py:546
+#: settings_widgets_common.py:613
 msgid "Edit entry"
 msgstr "Chỉnh sửa mục"
 
@@ -435,6 +641,10 @@ msgstr "Lấy ngày nghỉ lễ công cộng cho"
 msgid "Keyboard shortcuts"
 msgstr "Phím tắt"
 
+#. 5.4->settings-schema.json->section6->title
+msgid "Religious Observances"
+msgstr "Các ngày lễ tôn giáo"
+
 #. 5.4->settings-schema.json->section4->title
 msgid "Show World Times"
 msgstr "Hiển thị giờ thế giới"
@@ -552,6 +762,17 @@ msgstr "SI (Celsius)"
 #. 5.4->settings-schema.json->weather-units->options
 msgid "Imperial (Fahrenheit)"
 msgstr "Hệ Anh (Fahrenheit)"
+
+#. 5.4->settings-schema.json->show-religious-observances->description
+msgid "Show religious observances"
+msgstr "Hiển thị các ngày lễ tôn giáo"
+
+#. 5.4->settings-schema.json->show-religious-observances->tooltip
+msgid ""
+"Enable this, then select the religions to mark in the calendar. Observance "
+"dates come only from data bundled with the applet, and the selections never "
+"leave this computer. Observances are not marked as non-working days."
+msgstr "Kích hoạt tính năng này, sau đó chọn tôn giáo để đánh dấu trong lịch. Ngày quan sát chỉ đến từ dữ liệu đi kèm với applet và các lựa chọn không bao giờ rời khỏi máy tính này. Các ngày kỷ niệm không được đánh dấu là ngày không làm việc."
 
 #. 5.4->settings-schema.json->country->description
 msgid "Country"

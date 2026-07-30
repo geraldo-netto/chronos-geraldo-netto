@@ -108,7 +108,7 @@ const DEFAULT_FACTORIES = {
     weatherProvider: () => new Weather.WeatherProvider(),
     cityWeatherProvider: () => new CityWeather.CityWeatherProvider(),
     eventsManager: (eventsSettings) => EventsManagerModule.createEventsManager(eventsSettings),
-    holidayProvider: () => Holidays.createHolidayProvider()
+    holidayProvider: (religiousIds) => Holidays.createHolidayProvider({ religiousIds })
 };
 
 // Owns the applet's providers and every signal it connects on their behalf.
@@ -167,7 +167,7 @@ class AppletProviderLifecycle {
     // handler tolerates the calendar not existing yet
     initHolidayProvider() {
         const holidaySettings = this.context.holidaySettings;
-        this.holidayProvider = this.factories.holidayProvider();
+        this.holidayProvider = this.factories.holidayProvider(holidaySettings.religiousIds);
         this.holidayRegions = {};
 
         const onPlaceChanged = this.onHolidayPlaceChanged.bind(this);
@@ -175,6 +175,7 @@ class AppletProviderLifecycle {
         // the regions bind onto a real target: onHolidayPlaceChanged reads
         // holidayRegions[country] to find the region for the country in use
         holidaySettings.bindRegions(this.holidayRegions, onPlaceChanged);
+        holidaySettings.connectReligionsChanged(this.onReligionsChanged.bind(this));
 
         // A missing legacy value still means disabled. New settings have
         // already had their one-time timezone default resolved by the binder.
@@ -193,6 +194,11 @@ class AppletProviderLifecycle {
         }
 
         this.onHolidayPlaceChanged();
+    }
+
+    onReligionsChanged() {
+        this.holidayProvider.setEnabledIds(this.context.holidaySettings.religiousIds);
+        this.context.onHolidayPlaceChanged();
     }
 
     onHolidayPlaceChanged() {
