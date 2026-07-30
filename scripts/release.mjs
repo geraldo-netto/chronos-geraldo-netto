@@ -51,17 +51,7 @@ export async function readProcessStartTime(pid, readStat = readFile) {
     }
 }
 
-export async function retireStaleLock(lockPath) {
-    let contents;
-    try {
-        contents = await readFile(lockPath, "utf8");
-    } catch (error) {
-        if (error?.code === "ENOENT") {
-            return;
-        }
-        throw error;
-    }
-
+function parseLockOwner(contents) {
     let owner;
     try {
         owner = JSON.parse(contents);
@@ -69,38 +59,95 @@ export async function retireStaleLock(lockPath) {
         throw new Error("release lock has an invalid owner", { cause: error });
     }
     if (!Number.isInteger(owner.pid) || owner.pid <= 0 ||
-        typeof owner.startTime !== "string" || !/^\d+$/.test(owner.startTime)) {
+        typeof owner.startTime !== "string" || !/^\d+$/.test(owner.startTime) ||
+        typeof owner.token !== "string" ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+            .test(owner.token)) {
         throw new Error("release lock has an invalid owner");
     }
-    if (await readProcessStartTime(owner.pid) === owner.startTime) {
-        throw new Error(`another release command is running as process ${owner.pid}`);
-    }
+    return owner;
+}
 
-    const retired = `${lockPath}.stale-${randomUUID()}`;
+async function readLockOwner(lockPath) {
     try {
-        await rename(lockPath, retired);
+        return parseLockOwner(await readFile(lockPath, "utf8"));
     } catch (error) {
         if (error?.code === "ENOENT") {
-            return;
+            return null;
         }
         throw error;
     }
-    await rm(retired, { force: true });
+}
+
+export function lockCandidatePath(lockPath, owner) {
+    return `${lockPath}.owner-${owner.token}`;
+}
+
+function sameLockOwner(left, right) {
+    return Boolean(left && right && left.pid === right.pid &&
+        left.startTime === right.startTime && left.token === right.token);
+}
+
+// The owner-specific hard link is a compare-and-delete claim. Only one stale
+// inspector can rename it, and the fixed lock path cannot become available to a
+// new contender until that claimant removes the exact owner it re-read.
+export async function removeOwnedLock(lock, operation) {
+    const claimed = `${lock.candidate}.${operation}-${randomUUID()}`;
+    try {
+        await rename(lock.candidate, claimed);
+    } catch (error) {
+        if (error?.code === "ENOENT") {
+            return false;
+        }
+        throw error;
+    }
+
+    try {
+        const current = await readLockOwner(lock.lockPath);
+        if (!sameLockOwner(current, lock.owner)) {
+            return false;
+        }
+        await rm(lock.lockPath, { force: true });
+        return true;
+    } finally {
+        await rm(claimed, { force: true });
+    }
+}
+
+export async function retireStaleLock(
+    lockPath, processStartTime = readProcessStartTime) {
+    const owner = await readLockOwner(lockPath);
+    if (!owner) {
+        return;
+    }
+    if (await processStartTime(owner.pid) === owner.startTime) {
+        throw new Error(`another release command is running as process ${owner.pid}`);
+    }
+    await removeOwnedLock({
+        lockPath,
+        candidate: lockCandidatePath(lockPath, owner),
+        owner
+    }, "stale");
 }
 
 async function acquireReleaseLock(root) {
     const lockPath = path.join(root, LOCK_FILE);
-    const candidate = path.join(root, `${LOCK_FILE}-${process.pid}-${randomUUID()}`);
+    const token = randomUUID();
     const startTime = await readProcessStartTime(process.pid);
     if (!startTime) {
         throw new Error("current process has no start identity");
     }
-    await writeFile(candidate, JSON.stringify({ pid: process.pid, startTime }), { flag: "wx" });
+    const owner = { pid: process.pid, startTime, token };
+    const candidate = lockCandidatePath(lockPath, owner);
+    const lock = { lockPath, candidate, owner };
+    let acquired = false;
+    await writeFile(candidate, JSON.stringify(owner), { flag: "wx" });
     try {
         for (let attempt = 0; attempt < 3; attempt++) {
             try {
                 await link(candidate, lockPath);
-                return lockPath;
+                acquired = true;
+                return lock;
             } catch (error) {
                 if (!error || error.code !== "EEXIST") { // NOSONAR [S6582] -- accepted compatible form
                     throw error;
@@ -110,7 +157,9 @@ async function acquireReleaseLock(root) {
         }
         throw new Error("could not acquire the release lock after concurrent recovery");
     } finally {
-        await rm(candidate, { force: true });
+        if (!acquired) {
+            await rm(candidate, { force: true });
+        }
     }
 }
 
@@ -141,13 +190,23 @@ async function cleanupReleaseStaging(root) {
 }
 
 async function withReleaseLock(root, action) {
-    const lockPath = await acquireReleaseLock(root);
+    const lock = await acquireReleaseLock(root);
+    let result;
+    let actionError = null;
     try {
         await cleanupReleaseStaging(root);
-        return await action();
-    } finally {
-        await rm(lockPath, { force: true });
+        result = await action();
+    } catch (error) {
+        actionError = error;
     }
+    const released = await removeOwnedLock(lock, "release");
+    if (actionError) {
+        throw actionError;
+    }
+    if (!released) {
+        throw new Error("release lock ownership changed before release");
+    }
+    return result;
 }
 
 function parseVersion(version) {

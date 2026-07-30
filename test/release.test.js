@@ -15,6 +15,15 @@ const RELEASE_FILES = [
     "package-lock.json",
     path.join("files", UUID, "metadata.json")
 ];
+const STALE_LOCK_TOKEN = "11111111-1111-4111-8111-111111111111";
+const LIVE_LOCK_TOKEN = "22222222-2222-4222-8222-222222222222";
+
+async function installReleaseLock(lockPath, owner) {
+    const candidate = `${lockPath}.owner-${owner.token}`;
+    await fs.writeFile(candidate, JSON.stringify(owner), { flag: "wx" });
+    await fs.link(candidate, lockPath);
+    return candidate;
+}
 
 async function makeReleaseFixture(t, mutate) {
     const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-release-"));
@@ -253,7 +262,9 @@ test("release cleanup never crosses a live command lock", async (t) => {
     const lock = path.join(root, ".chronos-release-lock");
     const staging = path.join(root, ".chronos-release-transaction-active");
     const startTime = await readProcessStartTime(process.pid);
-    await fs.writeFile(lock, JSON.stringify({ pid: process.pid, startTime }));
+    await fs.writeFile(lock, JSON.stringify({
+        pid: process.pid, startTime, token: LIVE_LOCK_TOKEN
+    }));
     await fs.mkdir(staging);
 
     await assert.rejects(checkRelease(root),
@@ -270,15 +281,17 @@ test("release startup retires dead locks and rejects corrupt owners", async (t) 
     const { checkRelease } = await import(releaseUrl);
     const root = await makeReleaseFixture(t);
     const lock = path.join(root, ".chronos-release-lock");
-    await fs.writeFile(lock, JSON.stringify({ pid: 99_999_999, startTime: "1" }));
+    await installReleaseLock(lock, {
+        pid: 99_999_999, startTime: "1", token: STALE_LOCK_TOKEN
+    });
 
     assert.equal(await checkRelease(root), "0.0.1");
     await assert.rejects(fs.access(lock));
 
     for (const corrupt of [
-        JSON.stringify({ pid: "unknown", startTime: "1" }),
-        JSON.stringify({ pid: process.pid }),
-        JSON.stringify({ pid: process.pid, startTime: "not-a-tick" }),
+        JSON.stringify({ pid: "unknown", startTime: "1", token: LIVE_LOCK_TOKEN }),
+        JSON.stringify({ pid: process.pid, token: LIVE_LOCK_TOKEN }),
+        JSON.stringify({ pid: process.pid, startTime: "not-a-tick", token: LIVE_LOCK_TOKEN }),
         "{"
     ]) {
         await fs.writeFile(lock, corrupt);
@@ -295,8 +308,9 @@ test("release startup distinguishes a reused PID from the lock owner", async (t)
     const lock = path.join(root, ".chronos-release-lock");
     const currentStart = await readProcessStartTime(process.pid);
     const previousStart = (BigInt(currentStart) + 1n).toString();
-    await fs.writeFile(lock,
-        JSON.stringify({ pid: process.pid, startTime: previousStart }));
+    await installReleaseLock(lock, {
+        pid: process.pid, startTime: previousStart, token: STALE_LOCK_TOKEN
+    });
 
     assert.equal(await checkRelease(root), "0.0.1");
     await assert.rejects(fs.access(lock));
@@ -307,20 +321,75 @@ test("concurrent stale-lock retirement is idempotent", async (t) => {
     const { retireStaleLock } = await import(releaseUrl);
     const root = await makeReleaseFixture(t);
     const lock = path.join(root, ".chronos-release-lock");
-    await fs.writeFile(lock, JSON.stringify({ pid: 99_999_999, startTime: "1" }));
+    await installReleaseLock(lock, {
+        pid: 99_999_999, startTime: "1", token: STALE_LOCK_TOKEN
+    });
 
     await Promise.all(Array.from({ length: 8 }, () => retireStaleLock(lock)));
     await assert.rejects(fs.access(lock));
     await retireStaleLock(lock);
     assert.deepEqual(
-        (await fs.readdir(root)).filter((name) => name.startsWith(
-            ".chronos-release-lock.stale-")),
+        (await fs.readdir(root)).filter((name) =>
+            name.startsWith(".chronos-release-lock")),
         []);
 
     const unreadable = path.join(root, ".chronos-release-lock-directory");
     await fs.mkdir(unreadable);
     await assert.rejects(retireStaleLock(unreadable),
         (error) => error.code === "EISDIR");
+});
+
+test("stale retirement cannot remove a replacement live lock", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { retireStaleLock, readProcessStartTime } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const lock = path.join(root, ".chronos-release-lock");
+    await installReleaseLock(lock, {
+        pid: 99_999_999, startTime: "1", token: STALE_LOCK_TOKEN
+    });
+
+    let inspected;
+    const inspectedPromise = new Promise((resolve) => { inspected = resolve; });
+    let continueRetirement;
+    const continuePromise = new Promise((resolve) => { continueRetirement = resolve; });
+    const delayed = retireStaleLock(lock, async () => {
+        inspected();
+        await continuePromise;
+        return null;
+    });
+    await inspectedPromise;
+
+    await retireStaleLock(lock);
+    const startTime = await readProcessStartTime(process.pid);
+    const liveOwner = { pid: process.pid, startTime, token: LIVE_LOCK_TOKEN };
+    const liveCandidate = await installReleaseLock(lock, liveOwner);
+    continueRetirement();
+    await delayed;
+
+    assert.deepEqual(JSON.parse(await fs.readFile(lock, "utf8")), liveOwner);
+    await fs.access(liveCandidate);
+    await fs.rm(lock);
+    await fs.rm(liveCandidate);
+});
+
+test("release cleanup removes only its own lock identity", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { removeOwnedLock } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const lockPath = path.join(root, ".chronos-release-lock");
+    const oldOwner = { pid: 99_999_999, startTime: "1", token: STALE_LOCK_TOKEN };
+    const oldCandidate = `${lockPath}.owner-${oldOwner.token}`;
+    await fs.writeFile(oldCandidate, JSON.stringify(oldOwner));
+
+    const liveOwner = { pid: process.pid, startTime: "1", token: LIVE_LOCK_TOKEN };
+    const liveCandidate = await installReleaseLock(lockPath, liveOwner);
+    assert.equal(await removeOwnedLock({
+        lockPath, candidate: oldCandidate, owner: oldOwner
+    }, "release"), false);
+    assert.deepEqual(JSON.parse(await fs.readFile(lockPath, "utf8")), liveOwner);
+
+    await fs.rm(lockPath);
+    await fs.rm(liveCandidate);
 });
 
 test("process start identities parse the comm field safely", async () => {
