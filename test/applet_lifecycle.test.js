@@ -1145,6 +1145,10 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
         setDate(date, force) {
             calls.push(["calendar-set-date", date instanceof Date, force]);
         }
+        holidayForDate(date) {
+            calls.push(["holiday-for-date", date]);
+            return date === "gdate" ? ["Republic Day", ["public_holiday"]] : null;
+        }
         refreshHolidays() {}
     };
     EventView52.EventList = class {
@@ -1152,6 +1156,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
             calls.push(["event-list", settings]);
             this.actor = {};
             this.handlers = {};
+            this.selectedDate = null;
         }
         connect(name, cb) {
             calls.push(["event-list-connect", name]);
@@ -1206,11 +1211,20 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
     Proto._buildUi.call(stub);
     stub._calendar.handlers["selected-date-changed"]();
     stub.events_manager.handlers["selected-date-changed"](null, "gdate");
+    const calendarEvents = {
+        timestamp: 1,
+        length: 1,
+        get_event_list: () => ["calendar-event"]
+    };
     stub.events_manager.handlers["selected-date-events-changed"](
-        null, "events", true, true);
+        null, calendarEvents, true, true);
+    stub._calendar.handlers["holidays-changed"]();
     stub.events_manager.handlers["refresh-error-changed"](null, true);
-    assert.deepEqual(calls.find(([name]) => name === "event-list-set-events"),
-        ["event-list-set-events", "events", true, true]);
+    const agendaCall = calls.filter(([name]) => name === "event-list-set-events").at(-1);
+    assert.equal(agendaCall[1].hasHolidays, true);
+    assert.deepEqual(agendaCall[1].get_event_list().map((event) =>
+        event.summary || event), ["Republic Day", "calendar-event"]);
+    assert.deepEqual(agendaCall.slice(2), [true, true]);
     assert.deepEqual(calls.find(([name]) => name === "event-list-refresh-failed"),
         ["event-list-refresh-failed", true]);
     stub.event_list.handlers["launched-calendar"]();
@@ -1492,7 +1506,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
         destroy() {}
     });
     EventView52.EventList = class {
-        constructor() { this.actor = {}; }
+        constructor() { this.actor = {}; this.selectedDate = null; }
         connect() { return 1; }
         destroy() {}
         set_date() {}
@@ -1505,6 +1519,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
         constructor() { this.actor = {}; }
         connect() { return 1; }
         getSelectedDate() { return new Date(); }
+        holidayForDate() { return null; }
         todaySelected() { return true; }
         refreshHolidays() {}
         setDate() {}

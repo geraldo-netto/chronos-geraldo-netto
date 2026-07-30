@@ -450,7 +450,8 @@ function makeHost(overrides = {}) {
         allocateDotBox() {},
         renderDots() {},
         nameCell() {},
-        reportIssue() {}
+        reportIssue() {},
+        holidaysChanged() {}
     }, overrides);
 }
 
@@ -899,6 +900,7 @@ test("the grid host is the whole contract the collaborators get", () => {
     const allocations = [];
     const named = [];
     const dots = [];
+    let holidayChanges = 0;
     let selected = null;
     const eventsManager = { get_colors_for_unix_key: () => null };
     const holiday = { country: "ita" };
@@ -914,7 +916,9 @@ test("the grid host is the whole contract the collaborators get", () => {
         selectDate: (date) => { selected = date; },
         allocateDotBox: (...args) => allocations.push(args),
         renderDots: (...args) => dots.push(args),
-        nameCell: (cell) => named.push(cell)
+        nameCell: (cell) => named.push(cell),
+        reportIssue() {},
+        holidaysChanged: () => { holidayChanges++; }
     };
     const host = new CalendarModule.CalendarGridHost(port);
 
@@ -940,6 +944,9 @@ test("the grid host is the whole contract the collaborators get", () => {
 
     host.nameCell("cell");
     assert.deepEqual(named, ["cell"]);
+
+    host.holidaysChanged();
+    assert.equal(holidayChanges, 1);
 });
 
 // The dot box's allocate handler is wired with connect(), and the grid's only
@@ -1133,6 +1140,17 @@ test("holiday annotation: names become tooltips and days turn nonwork", () => {
         b.style_class.includes("calendar-nonwork-day"));
     assert.ok(day14, "holiday day styled as nonwork");
     assert.ok(!day14.style_class.includes("calendar-work-day"));
+    const fetches = holiday.calls.length;
+    assert.deepEqual(cal.holidayForDate(new Date(2026, 6, 14)),
+        ["Bastille Day", []]);
+    assert.equal(holiday.calls.length, fetches,
+        "selected-day lookup reuses the rendered holiday model");
+    const cell = cal._gridView.dayCells.find((candidate) => candidate.button === day14);
+    assert.equal(cell.holidayTooltip.texts.at(-1), "Bastille Day",
+        "the existing cell tooltip remains intact");
+    assert.equal(AnnotationsModule.calendarDateKey(
+        makeFakeDateTimeFromDate(new Date(2026, 6, 14))), "2026/7/14",
+        "GLib and JavaScript dates address the same cached holiday");
 });
 
 test("the month window is reused while the month and week start hold", () => {

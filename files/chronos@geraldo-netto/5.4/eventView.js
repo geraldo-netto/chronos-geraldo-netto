@@ -48,11 +48,61 @@ const EVENTS_UNAVAILABLE_TEXT =
 const EVENTS_REFRESH_FAILED_TEXT =
     _("Calendar events could not be refreshed.");
 const EventDataModule = require("./eventData");
+const HolidayConstants = require("./holidayConstants");
 const date_only = EventDataModule.date_only;
 const dt_equals = EventDataModule.dt_equals;
 const CalendarLauncherModule = require("./calendarLauncher");
 const CalendarLauncher = CalendarLauncherModule.CalendarLauncher;
 const eventUidCanLaunch = CalendarLauncherModule.eventUidCanLaunch;
+
+function holidayAgendaType(flags = []) {
+    const publicHoliday = flags.indexOf(HolidayConstants.PUBLIC_HOLIDAY_FLAG) >= 0;
+    const religiousHoliday = flags.indexOf(HolidayConstants.RELIGIOUS_HOLIDAY_FLAG) >= 0;
+    if (publicHoliday && religiousHoliday) {
+        return _("Public holiday and religious observance");
+    }
+    if (publicHoliday) {
+        return _("Public holiday");
+    }
+    if (religiousHoliday) {
+        return _("Religious observance");
+    }
+    return _("Holiday");
+}
+
+class SelectedDayAgenda {
+    constructor(eventDataList, holiday) {
+        this._eventDataList = eventDataList;
+        this._holiday = holiday;
+        this.hasHolidays = Boolean(holiday);
+        const eventTimestamp = eventDataList ? eventDataList.timestamp : 0;
+        this.timestamp = `agenda:${eventTimestamp}:${JSON.stringify(holiday)}`;
+        this.length = (eventDataList ? eventDataList.length : 0) +
+            (this.hasHolidays ? 1 : 0);
+    }
+
+    get_event_list() {
+        const events = this._eventDataList ? this._eventDataList.get_event_list() : [];
+        if (!this._holiday) {
+            return events;
+        }
+        return [{
+            id: null,
+            is_holiday: true,
+            summary: EventDataModule.clampEventSummary(this._holiday[0]),
+            flags: this._holiday[1] || [],
+            color: "transparent"
+        }].concat(events);
+    }
+
+    holidaysOnly() {
+        return new SelectedDayAgenda(null, this._holiday);
+    }
+}
+
+function composeSelectedDayAgenda(eventDataList, holiday) {
+    return holiday ? new SelectedDayAgenda(eventDataList, holiday) : eventDataList;
+}
 
 function format_timespan(timespan) {
     let minutes = Math.floor(timespan / GLib.TIME_SPAN_MINUTE);
@@ -301,6 +351,9 @@ class EventList {
         this._refreshFailed = false;
         this._reportingEnabled = true;
         this._reportIssue = reportIssue;
+        this._eventDataList = null;
+        this._delayNoEventsBox = false;
+        this._eventsOverflowed = false;
         this._renderer = new EventListRenderer(this);
 
         this.actor = new St.BoxLayout(
@@ -628,12 +681,24 @@ class EventList {
     }
 
     set_events(event_data_list, delay_no_events_box, overflowed = false) {
-        if (this._unavailable) {
-            return;
-        }
+        this._eventDataList = event_data_list;
+        this._delayNoEventsBox = delay_no_events_box;
+        this._eventsOverflowed = overflowed;
+        this._renderCurrentEvents();
+    }
 
+    _renderCurrentEvents() {
+        let agenda = this._eventDataList;
+        if (this._unavailable) {
+            agenda = agenda && agenda.hasHolidays ? agenda.holidaysOnly() : null;
+        }
         this._renderer.setEvents(
-            event_data_list, delay_no_events_box, overflowed);
+            agenda, this._unavailable ? false : this._delayNoEventsBox,
+            this._unavailable ? false : this._eventsOverflowed);
+        if (this._unavailable && !agenda) {
+            this.set_no_events_text(EVENTS_UNAVAILABLE_TEXT);
+            this.no_events_box.show();
+        }
     }
 
     refresh_time_format() {
@@ -669,15 +734,11 @@ class EventList {
 
         if (!unavailable) {
             this.set_no_events_text(_("No Events"));
+            this._renderCurrentEvents();
             return;
         }
 
-        this._renderer.setEvents(null, false);
-        // "unavailable" on its own leaves the user with nothing to do about it:
-        // say what is missing and what would fix it
-        this.set_no_events_text(
-            EVENTS_UNAVAILABLE_TEXT);
-        this.no_events_box.show();
+        this._renderCurrentEvents();
     }
 
     // the renderer arms every source this class can be holding, so it is the
@@ -724,6 +785,15 @@ class EventRowPresenter {
     }
 
     update(now = GLib.DateTime.new_now_local(), today = date_only(now)) {
+        if (this.row.event.is_holiday) {
+            this.row.is_current_or_next = false;
+            this.row.event_time.set_style_class_name("calendar-event-time-present");
+            this.row.event_time.set_style_pseudo_class("all-day");
+            this.row.event_time.set_text(holidayAgendaType(this.row.event.flags));
+            this._setCountdown("");
+            this._announce();
+            return;
+        }
         const selectedDateOnly = date_only(this.row.selected_date);
         const state = EventFormat.classifyEventDisplayState(this.row.event, now, today);
         this.row.is_current_or_next = state.is_current_or_next;
@@ -941,7 +1011,8 @@ Signals.addSignalMethods(EventRow.prototype);
 
 if (typeof module !== "undefined") {
     module.exports = { EventList, EventListRenderer, EventRow,
-        EventRowPresenter, format_timespan, MAX_RENDERED_EVENT_ROWS,
+        EventRowPresenter, SelectedDayAgenda, composeSelectedDayAgenda,
+        holidayAgendaType, format_timespan, MAX_RENDERED_EVENT_ROWS,
         EVENTS_OVERFLOW_TEXT,
         EVENTS_UNAVAILABLE_TEXT, EVENTS_REFRESH_FAILED_TEXT };
 }

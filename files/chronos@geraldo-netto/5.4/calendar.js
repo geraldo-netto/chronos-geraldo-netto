@@ -245,6 +245,10 @@ class CalendarGridHost {
     reportIssue(source, message) {
         this.port.reportIssue(source, message);
     }
+
+    holidaysChanged() {
+        this.port.holidaysChanged();
+    }
 }
 
 class CalendarDayCellRenderer {
@@ -705,7 +709,8 @@ class Calendar {
                 this._gridView.allocateDotBox(actor, box, flags),
             renderDots: (cell, iter, key) => this._eventDotRenderer.update(cell, iter, key),
             nameCell: (cell) => this._dayCellRenderer.applyAccessibleName(cell),
-            reportIssue
+            reportIssue,
+            holidaysChanged: () => this.emit("holidays-changed")
         });
         this._eventDotRenderer = new CalendarEventDotRenderer(this._gridHost);
         this._dayCellRenderer = new CalendarDayCellRenderer(this._gridHost);
@@ -989,6 +994,10 @@ class Calendar {
 
     focusSelectedDay() {
         return this._navigation.focusSelectedDay();
+    }
+
+    holidayForDate(date) {
+        return this._holidayAnnotator.holidayForDate(date);
     }
 
     _onScroll(actor, event) {

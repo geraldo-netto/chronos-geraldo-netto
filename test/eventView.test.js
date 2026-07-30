@@ -279,6 +279,7 @@ rootModules.eventIndex = require(path.join(APPLET_DIR, "eventIndex.js"));
 rootModules.eventWindow = require(path.join(APPLET_DIR, "eventWindow.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
 rootModules.worldclockData = require(path.join(APPLET_DIR, "worldclockData.js"));
+rootModules.holidayConstants = require(path.join(APPLET_DIR, "holidayConstants.js"));
 
 const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
 const LauncherModule = require(path.join(APPLET_DIR, "5.4", "calendarLauncher.js"));
@@ -309,6 +310,50 @@ function makeRowEvent({ id = "id1", summary = "Team sync",
 }
 
 const TODAY = new FakeDateTime(50 * DAY_US);
+
+test("selected-day agenda composes each holiday kind without another data source", () => {
+    const calendarEvent = makeRowEvent({
+        startUnix: 50 * DAY_S + 14 * 3600,
+        endUnix: 50 * DAY_S + 15 * 3600
+    });
+    const events = {
+        timestamp: 7,
+        length: 1,
+        get_event_list: () => [calendarEvent]
+    };
+    const cases = [
+        [["Republic Day", ["public_holiday"]], "Public holiday"],
+        [["Shavuot", ["religious_holiday", "judaism"]], "Religious observance"],
+        [["Republic Day\nShavuot", ["public_holiday", "religious_holiday", "judaism"]],
+            "Public holiday and religious observance"]
+    ];
+
+    for (const [holiday, type] of cases) {
+        const agenda = EventView.composeSelectedDayAgenda(events, holiday);
+        assert.equal(agenda.length, 2);
+        assert.equal(agenda.hasHolidays, true);
+        assert.equal(agenda.get_event_list()[0].summary, holiday[0]);
+        assert.equal(EventView.holidayAgendaType(holiday[1]), type);
+        assert.equal(agenda.get_event_list()[1], calendarEvent);
+        assert.deepEqual(agenda.holidaysOnly().get_event_list().map((event) => event.summary),
+            [holiday[0]]);
+    }
+
+    assert.equal(EventView.composeSelectedDayAgenda(events, null), events,
+        "disabled holidays leave the calendar-server model untouched");
+});
+
+test("holiday agenda rows are all-day information, not calendar launch controls", () => {
+    const event = EventView.composeSelectedDayAgenda(null,
+        ["Shavuot", ["religious_holiday", "judaism"]]).get_event_list()[0];
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+
+    assert.equal(row.event_time.text, "Religious observance");
+    assert.ok(row.event_time.pseudo_classes.has("all-day"));
+    assert.equal(row.actor.options.reactive, false);
+    assert.equal(row.actor.options.can_focus, false);
+    assert.equal(row.actor.accessible_name, "Religious observance — Shavuot");
+});
 
 test("EventRow renders the formatted time range into its label", () => {
     const event = makeRowEvent({ startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600 });
@@ -619,6 +664,22 @@ test("set_unavailable swaps the placeholder text and blocks event rendering", ()
     list.set_unavailable(false);
     assert.equal(list.no_events_label.text, "No Events");
     list.set_unavailable(false);
+});
+
+test("holidays remain visible without a calendar service", () => {
+    const list = new EventView.EventList(desktopSettings());
+    const agenda = EventView.composeSelectedDayAgenda(null,
+        ["Republic Day", ["public_holiday"]]);
+
+    list.set_events(agenda, false);
+    list.set_unavailable(true);
+    assert.deepEqual(list.rows.map((row) => row.event.summary), ["Republic Day"]);
+    assert.equal(list.no_events_box.visible, false);
+
+    list.set_events(null, false);
+    assert.equal(list.rows.length, 0);
+    assert.equal(list.no_events_box.visible, true);
+    assert.match(list.no_events_label.text, /^Calendar events are unavailable/);
 });
 
 // an explicit ATK name replaces the button's child text, so a name fixed at

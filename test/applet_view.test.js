@@ -1258,6 +1258,7 @@ test("the menu builder disconnects the signals it connected", () => {
         constructor() {
             this.actor = { add_actor() {} };
             this.connected = [];
+            this.selectedDate = null;
         }
         connect(name) {
             this.connected.push(name);
@@ -1291,7 +1292,7 @@ test("the menu builder disconnects the signals it connected", () => {
     }
 });
 
-// The sixth connect: the calendar's selected-date-changed. Its id was discarded
+// Calendar signals must share the same explicit teardown owner.
 // while the other five were being given an owner — the one connect left in the
 // applet that nothing could disconnect, in the file whose comment says why that
 // is the shape that breaks when something upstream starts emitting later than it
@@ -1322,15 +1323,17 @@ test("the menu builder disconnects the calendar signal too", () => {
             return `cal:${name}`;
         }
         disconnect(id) { disconnected.push(id); }
+        holidayForDate() { return null; }
     };
 
     try {
         const calendar = builder._buildCalendar({ add_actor() {} });
-        assert.deepEqual(calendar.connected, ["selected-date-changed"]);
+        assert.deepEqual(calendar.connected, ["selected-date-changed", "holidays-changed"]);
 
         builder.destroy();
 
-        assert.deepEqual(disconnected, ["cal:selected-date-changed"]);
+        assert.deepEqual(disconnected,
+            ["cal:selected-date-changed", "cal:holidays-changed"]);
         assert.doesNotThrow(() => builder.destroy());
     } finally {
         Calendar52.Calendar = originalCalendar;

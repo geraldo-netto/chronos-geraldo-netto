@@ -101,6 +101,10 @@ class AppletMenuBuilder {
         this._calendar_signal_ids = [];
         this._calendar = null;
         this._eventList = null;
+        this._selectedEventDate = null;
+        this._eventDataList = null;
+        this._delayNoEventsBox = false;
+        this._eventsOverflowed = false;
         this._menu_items = [];
     }
 
@@ -179,12 +183,19 @@ class AppletMenuBuilder {
         this._events_manager_signal_ids.push(
             context.eventsManager.connect("selected-date-changed", (em, gdate) => {
                 eventList.set_date(gdate);
+                this._selectedEventDate = gdate;
+                this._eventDataList = null;
+                this._delayNoEventsBox = true;
+                this._eventsOverflowed = false;
+                this._renderAgenda();
             }));
         this._events_manager_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
             context.eventsManager.connect("selected-date-events-changed",
                 (em, eventDataList, delayNoEventsBox, overflowed) => {
-                    eventList.set_events(
-                        eventDataList, delayNoEventsBox, overflowed);
+                    this._eventDataList = eventDataList;
+                    this._delayNoEventsBox = delayNoEventsBox;
+                    this._eventsOverflowed = overflowed;
+                    this._renderAgenda();
                 }));
         this._events_manager_signal_ids.push(
             context.eventsManager.connect("refresh-error-changed", (em, failed) => {
@@ -203,6 +214,7 @@ class AppletMenuBuilder {
             }));
 
         this._eventList = eventList;
+        this._selectedEventDate = eventList.selectedDate;
         box.add_actor(eventList.actor);
 
         return eventList;
@@ -341,10 +353,24 @@ class AppletMenuBuilder {
         // owner, in the file whose comment above says why that is not acceptable
         this._calendar_signal_ids.push(
             calendar.connect("selected-date-changed", () => context.onSelectedDateChanged()));
+        this._calendar_signal_ids.push(
+            calendar.connect("holidays-changed", () => this._renderAgenda()));
 
         this._calendar = calendar;
         calbox.add_actor(calendar.actor);
+        this._renderAgenda();
         return calendar;
+    }
+
+    _renderAgenda() {
+        if (!this._eventList) {
+            return;
+        }
+        const holiday = this._calendar && this._selectedEventDate ?
+            this._calendar.holidayForDate(this._selectedEventDate) : null;
+        this._eventList.set_events(
+            EventView.composeSelectedDayAgenda(this._eventDataList, holiday),
+            this._delayNoEventsBox, this._eventsOverflowed);
     }
 
     _addSettingsMenuItems(issueLabel) {

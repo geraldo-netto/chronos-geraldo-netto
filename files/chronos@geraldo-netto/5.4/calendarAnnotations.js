@@ -26,6 +26,16 @@ const RELIGIOUS_HOLIDAY_FLAG = Holidays.RELIGIOUS_HOLIDAY_FLAG;
 const HOLIDAY_ERROR_MARKER = "⚠";
 const HOLIDAY_PENDING_MARKER = "…";
 
+function calendarDateKey(date) {
+    if (date && typeof date.get_month === "function") {
+        return `${date.get_year()}/${date.get_month()}/${date.get_day_of_month()}`;
+    }
+    if (date instanceof Date) {
+        return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
+    }
+    return "";
+}
+
 // Date.prototype.toLocaleFormat is a non-standard SpiderMonkey extension
 // that modern GJS removed; format through GLib.DateTime instead
 function formatJsDate(jsDate, fmt) {
@@ -160,6 +170,8 @@ class CalendarHolidayAnnotator {
         // whether any cell currently carries a holiday mark, so the grid knows
         // whether it still has to hand us the cells when holidays are switched off
         this.annotated = false;
+        this._dates = new Map();
+        this._datesKey = "[]";
         // months of the current pass still waiting on the network: only the
         // last outstanding answer may replace the pending marker with a final
         // status, or a slow January looks like a month with no holidays
@@ -294,15 +306,32 @@ class CalendarHolidayAnnotator {
 
     _reconcileCells(dates, cells) {
         this.annotated = false;
+        const selectedDates = new Map();
 
         for (const [date, cell] of cells.entries()) {
             const holiday = dates.get(date);
             if (holiday) {
                 this._annotateCell(cell, holiday[0], holiday[1]);
+                selectedDates.set(calendarDateKey(cell.date), holiday);
             } else {
                 this._clearCell(cell);
             }
         }
+        this._setDates(selectedDates);
+    }
+
+    _setDates(dates) {
+        const key = JSON.stringify(Array.from(dates.entries()));
+        if (key === this._datesKey) {
+            return;
+        }
+        this._datesKey = key;
+        this._dates = new Map(dates);
+        this.host.holidaysChanged();
+    }
+
+    holidayForDate(date) {
+        return this._dates.get(calendarDateKey(date)) || null;
     }
 
     _receiveMonth(dates, error, providerName, pass) {
@@ -361,6 +390,7 @@ class CalendarHolidayAnnotator {
         for (const cell of cells.values()) {
             this._clearCell(cell);
         }
+        this._setDates(new Map());
     }
 
     _clearCell(cell) {
@@ -421,6 +451,7 @@ if (typeof module !== "undefined") {
         CalendarHolidayAnnotator,
         HOLIDAY_ERROR_TEXT,
         translateHolidayError,
-        setTooltipText
+        setTooltipText,
+        calendarDateKey
     };
 }
