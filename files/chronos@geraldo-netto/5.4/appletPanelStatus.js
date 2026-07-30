@@ -766,6 +766,15 @@ class AppletPanelStatusPresenter {
         label.set_text(text);
     }
 
+    _setPanelLabel(text) {
+        if (this._rendered_label === text) {
+            return;
+        }
+
+        this._rendered_label = text;
+        this.view.setLabel(text);
+    }
+
     getClockEntries() {
         return this.view.getClockEntries();
     }
@@ -791,7 +800,7 @@ class AppletPanelStatusPresenter {
         }
         label_string = DateFormats.clampClockStamp(label_string);
 
-        this.view.setLabel(TextUtils.clampText(label_string, LABEL_MAX_LENGTH));
+        this._setPanelLabel(TextUtils.clampText(label_string, LABEL_MAX_LENGTH));
         // The screen reader gets more than the narrow visible label, but the
         // configured clock portion is still bounded before accessibility and
         // layout consumers receive it.

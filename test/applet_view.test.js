@@ -885,6 +885,22 @@ test("a closed menu refreshes nothing but the panel label", () => {
     assert.equal(calls.dayText.length, 0);
 });
 
+test("an unchanged panel label is not rewritten", () => {
+    const { stub, calls } = updateStub({ menuOpen: false });
+
+    Proto._updateClockAndDate.call(stub);
+    Proto._updateClockAndDate.call(stub);
+
+    assert.deepEqual(calls.label, ["10:00"],
+        "an identical render must not queue another St.Label relayout");
+
+    stub.clock.get_clock = () => "10:01";
+    Proto._updateClockAndDate.call(stub);
+
+    assert.deepEqual(calls.label, ["10:00", "10:01"],
+        "a changed clock still reaches the panel");
+});
+
 test("an empty clock list formats no clocks, whatever panel-clocks says", () => {
     // panel_clocks is a cap, not a demand: with nothing to show, formatting a
     // clock every second is pure waste
