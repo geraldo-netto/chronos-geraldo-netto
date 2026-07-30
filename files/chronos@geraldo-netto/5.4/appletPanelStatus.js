@@ -157,6 +157,7 @@ function _localizedStamp(view, format, fallback) {
 class PanelView {
     constructor(port) {
         this.port = port;
+        this._rendered_home_enabled = null;
     }
 
     get showWeather() {
@@ -296,6 +297,15 @@ class PanelView {
     }
 
     setHomeEnabled(enabled) {
+        // this runs on every open-menu tick, and these writes were the one
+        // undiffed path left in it: reactive/can_focus self-diff in Clutter,
+        // but set_style_class_name queues a relayout for a byte-identical name
+        const next = Boolean(enabled);
+        if (next === this._rendered_home_enabled) {
+            return;
+        }
+        this._rendered_home_enabled = next;
+
         const button = this.port.homeButton();
 
         if (!enabled && button.can_focus && this._hasKeyFocus(button)) {

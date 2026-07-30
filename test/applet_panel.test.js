@@ -234,6 +234,30 @@ test("the home button leaves an unfocused calendar alone", () => {
     assert.equal(button.can_focus, true);
 });
 
+// T655: setHomeEnabled runs on every open-menu tick, and set_style_class_name
+// queues a relayout even for a byte-identical class name
+test("an unchanged home state touches no actor", () => {
+    const styles = [];
+    const button = {
+        reactive: false,
+        can_focus: false,
+        set_style_class_name: (name) => styles.push(name)
+    };
+    const applet = { go_home_button: button, _calendar: { focusSelectedDay: () => {} } };
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
+
+    view.setHomeEnabled(true);
+    view.setHomeEnabled(true);
+    assert.deepEqual(styles, ["calendar-today-home-button-enabled"],
+        "a repeated identical state is not re-rendered");
+
+    view.setHomeEnabled(false);
+    assert.deepEqual(styles, [
+        "calendar-today-home-button-enabled", "calendar-today-home-button"
+    ], "a real change still lands");
+    assert.equal(button.reactive, false);
+});
+
 // T27a/T27b/T657: formatting keeps a local-day cache, but rollover side effects
 // belong to the lifecycle workflow rather than this getter.
 test("getFormattedToday is cache-only across a local-day key change", () => {
