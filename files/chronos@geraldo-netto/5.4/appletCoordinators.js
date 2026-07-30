@@ -45,6 +45,19 @@ class AppletWeatherCoordinator {
         this.scheduleCities();
     }
 
+    // The city weather exists to put a temperature beside each world clock,
+    // so switching the clocks off is the end of the reason to fetch it. The
+    // change detection lives here with the scheduling decision it gates:
+    // when the two halves lived in different classes, one could be edited
+    // without the other and an armed timer kept fetching after the opt-out.
+    applyShowWorldclocks() {
+        const show = this.settings().showWorldclocks;
+        if (show !== this._appliedShowWorldclocks) {
+            this._appliedShowWorldclocks = show;
+            this.scheduleCities();
+        }
+    }
+
     scheduleCities(force = false) {
         if (!this.cityWeatherProvider) {
             return;

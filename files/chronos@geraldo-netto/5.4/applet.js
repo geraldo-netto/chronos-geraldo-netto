@@ -377,17 +377,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._updateClockAndDate();
         this._eventListCoordinator.apply(this.show_events);
 
-        // The city weather exists to put a temperature beside each world clock,
-        // so switching the clocks off is the end of the reason to fetch it. The
-        // guard for that lives inside _scheduleCityWeatherRefresh — and nothing
-        // called it when the setting changed. The armed timer closed over the old
-        // settings and went on geocoding and forecasting eight cities every 30
-        // minutes for the rest of the session: network traffic continuing after
-        // the user opted out.
-        if (this.show_worldclocks !== this._applied_show_worldclocks) {
-            this._applied_show_worldclocks = this.show_worldclocks;
-            this._scheduleCityWeatherRefresh();
-        }
+        this._weatherCoordinator.applyShowWorldclocks();
     }
 
     _onWeatherSettingsChanged() {
