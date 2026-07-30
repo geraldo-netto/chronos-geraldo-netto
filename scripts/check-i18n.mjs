@@ -103,13 +103,34 @@ export async function validateCatalog(catalogPath, run = execFileAsync) {
 // .po file, so msgfmt and the fuzzy check stay green while the dialog renders
 // those strings in English in every locale. msgcmp fails on exactly that — a
 // msgid the catalog is missing, is fuzzy on, or has not translated.
+function msgcmpToolFailure(error, catalogPath) {
+    if (error && error.code === "ENOENT") {
+        return new Error("msgcmp is unavailable: install gettext to check translation catalogs",
+            { cause: error });
+    }
+    if (error && error.signal) {
+        return new Error(`msgcmp crashed with signal ${error.signal} while checking ` +
+            path.basename(catalogPath), { cause: error });
+    }
+    if (!error || typeof error.code !== "number") {
+        const reason = error && error.message ? `: ${error.message}` : "";
+        return new Error(`msgcmp could not run while checking ` +
+            `${path.basename(catalogPath)}${reason}`, { cause: error });
+    }
+    return null;
+}
+
 export async function checkCatalogCurrent(catalogPath, potPath, run = execFileAsync) {
     try {
         await run("msgcmp", [catalogPath, potPath]);
-    } catch {
+    } catch (error) {
+        const toolFailure = msgcmpToolFailure(error, catalogPath);
+        if (toolFailure) {
+            throw toolFailure;
+        }
         throw new Error(`${path.basename(catalogPath)} is not merged with the translation ` +
             `template: run msgmerge --update against ${path.basename(potPath)} ` +
-            "and translate the new entries");
+            "and translate the new entries", { cause: error });
     }
 }
 

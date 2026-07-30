@@ -89,7 +89,9 @@ test("the catalog gate rejects a catalog that was never merged with the template
     const calls = [];
     const run = async (command, args) => {
         calls.push([command, args]);
-        throw new Error("msgcmp: found 4 fatal errors");
+        const error = new Error("msgcmp: found 4 fatal errors");
+        error.code = 1;
+        throw error;
     };
 
     await assert.rejects(
@@ -97,6 +99,30 @@ test("the catalog gate rejects a catalog that was never merged with the template
         /de\.po is not merged with the translation template/
     );
     assert.deepEqual(calls, [["msgcmp", ["/catalogs/de.po", "/catalogs/chronos.pot"]]]);
+});
+
+test("the catalog gate reports a missing or crashed msgcmp as a tool failure", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkCatalogCurrent } = await import(scriptUrl);
+    const failure = (fields) => async () => {
+        throw Object.assign(new Error("spawn failed"), fields);
+    };
+
+    await assert.rejects(
+        checkCatalogCurrent("/catalogs/de.po", "/catalogs/chronos.pot",
+            failure({ code: "ENOENT" })),
+        /msgcmp is unavailable: install gettext/
+    );
+    await assert.rejects(
+        checkCatalogCurrent("/catalogs/de.po", "/catalogs/chronos.pot",
+            failure({ signal: "SIGSEGV" })),
+        /msgcmp crashed with signal SIGSEGV/
+    );
+    await assert.rejects(
+        checkCatalogCurrent("/catalogs/de.po", "/catalogs/chronos.pot",
+            failure({ code: "EACCES" })),
+        /msgcmp could not run.*spawn failed/
+    );
 });
 
 test("the catalog gate accepts a catalog msgcmp finds complete", async () => {
