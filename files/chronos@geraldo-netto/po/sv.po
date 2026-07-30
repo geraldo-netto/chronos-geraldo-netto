@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-30 14:58+0200\n"
+"POT-Creation-Date: 2026-07-30 21:24+0200\n"
 "PO-Revision-Date: 2021-02-27 16:18+0100\n"
 "Last-Translator: Åke Engelbrektson <eson@svenskasprakfiler.se>\n"
 "Language-Team: Svenska Språkfiler <contactform@svenskasprakfiler.se>\n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A %-e %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:340
+#: 5.4/calendar.js:344
 msgid "Today"
 msgstr "Idag"
 
@@ -257,7 +257,7 @@ msgstr "Qingming"
 msgid "Ghost Festival"
 msgstr "Spökfestival"
 
-#: worldclockData.js:60 settings_widgets_worldclocks.py:53
+#: worldclockData.js:60 chronos_settings_widgets_worldclocks.py:53
 msgid "Invalid timezone"
 msgstr "Ogiltig tidszon"
 
@@ -269,11 +269,11 @@ msgstr "Lokal tid"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Kalenderappleten stötte på ett fel. Kontrollera systemloggen."
 
-#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
+#: 5.4/appletMenuBuilder.js:283 5.4/appletMenuBuilder.js:289
 msgid "Go to today"
 msgstr "Gå till i dag"
 
-#: 5.4/appletMenuBuilder.js:358
+#: 5.4/appletMenuBuilder.js:384
 msgid "Date and Time Settings"
 msgstr "Inställningar för datum och tid"
 
@@ -325,69 +325,69 @@ msgstr "Åska"
 msgid "Fair"
 msgstr "Fint väder"
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:492
-#: 5.4/appletPanelStatus.js:653
+#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:495
+#: 5.4/appletPanelStatus.js:656
 msgid "Weather: loading…"
 msgstr "Väder: läser in…"
 
-#: 5.4/appletPanelStatus.js:516
+#: 5.4/appletPanelStatus.js:519
 msgid "No weather for this timezone"
 msgstr "Inget väder för den här tidszonen"
 
-#: 5.4/appletPanelStatus.js:527 5.4/appletPanelStatus.js:528
+#: 5.4/appletPanelStatus.js:530 5.4/appletPanelStatus.js:531
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Senast kända avläsning"
 
-#: 5.4/calendar.js:343
+#: 5.4/calendar.js:347
 msgid "Selected"
 msgstr "Vald"
 
-#: 5.4/calendar.js:347
+#: 5.4/calendar.js:351
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d händelse"
 msgstr[1] "%d händelser"
 
-#: 5.4/calendar.js:538
+#: 5.4/calendar.js:542
 #, javascript-format
 msgid "Week %s"
 msgstr "Vecka %s"
 
-#: 5.4/calendar.js:879
+#: 5.4/calendar.js:884
 msgid "Previous month"
 msgstr "Föregående månad"
 
-#: 5.4/calendar.js:909
+#: 5.4/calendar.js:914
 msgid "Next month"
 msgstr "Nästa månad"
 
-#: 5.4/calendar.js:913
+#: 5.4/calendar.js:918
 msgid "Previous year"
 msgstr "Föregående år"
 
-#: 5.4/calendar.js:924
+#: 5.4/calendar.js:929
 msgid "Next year"
 msgstr "Nästa år"
 
-#: 5.4/calendar.js:937
+#: 5.4/calendar.js:942
 msgid "Week"
 msgstr "Vecka"
 
-#: 5.4/calendarAnnotations.js:58
+#: 5.4/calendarAnnotations.js:68
 msgid "Holiday service unavailable"
 msgstr "Helgdagstjänsten är inte tillgänglig"
 
-#: 5.4/calendarAnnotations.js:59
+#: 5.4/calendarAnnotations.js:69
 msgid "Holiday data unavailable"
 msgstr "Helgdagsdata är inte tillgängliga"
 
-#: 5.4/calendarAnnotations.js:222
+#: 5.4/calendarAnnotations.js:234
 msgid "Holiday data: loading…"
 msgstr "Helgdagsdata: läser in…"
 
-#: 5.4/calendarAnnotations.js:263
+#: 5.4/calendarAnnotations.js:275
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Helgdagsdata: %s"
@@ -409,58 +409,74 @@ msgstr ""
 msgid "Calendar events could not be refreshed."
 msgstr "Kalenderhändelserna kunde inte uppdateras."
 
-#: 5.4/eventView.js:61
+#: 5.4/eventView.js:62
+msgid "Public holiday and religious observance"
+msgstr "Allmän helgdag och religiös högtid"
+
+#: 5.4/eventView.js:65
+msgid "Public holiday"
+msgstr "Allmän helgdag"
+
+#: 5.4/eventView.js:68
+msgid "Religious observance"
+msgstr "Religiös högtid"
+
+#: 5.4/eventView.js:70
+msgid "Holiday"
+msgstr "Helgdag"
+
+#: 5.4/eventView.js:111
 msgid "Starting in a few minutes"
 msgstr "Startar om några minuter"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:118
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Börjar om %d minut"
 msgstr[1] "Börjar om %d minuter"
 
-#: 5.4/eventView.js:78
+#: 5.4/eventView.js:128
 msgid "This evening"
 msgstr "Ikväll"
 
-#: 5.4/eventView.js:81
+#: 5.4/eventView.js:131
 msgid "Starting later today"
 msgstr "Senare idag"
 
-#: 5.4/eventView.js:84
+#: 5.4/eventView.js:134
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Om %d timme"
 msgstr[1] "Om %d timmar"
 
-#: 5.4/eventView.js:167
+#: 5.4/eventView.js:217
 msgid "Loading…"
 msgstr "Läser in…"
 
-#: 5.4/eventView.js:171 5.4/eventView.js:181 5.4/eventView.js:322
-#: 5.4/eventView.js:671
+#: 5.4/eventView.js:221 5.4/eventView.js:231 5.4/eventView.js:375
+#: 5.4/eventView.js:736
 msgid "No Events"
 msgstr "Inga händelser"
 
-#: 5.4/eventView.js:344 5.4/eventView.js:526
+#: 5.4/eventView.js:397 5.4/eventView.js:579
 msgid "Open the calendar app"
 msgstr "Öppna kalenderprogrammet"
 
-#: 5.4/eventView.js:457
+#: 5.4/eventView.js:510
 msgid "Events for the selected day"
 msgstr "Händelser för den valda dagen"
 
-#: 5.4/eventView.js:510
+#: 5.4/eventView.js:563
 msgid "Add an event"
 msgstr "Lägg till en händelse"
 
-#: 5.4/eventView.js:768
+#: 5.4/eventView.js:838
 msgid "Ended"
 msgstr "Avslutad"
 
-#: 5.4/eventView.js:799
+#: 5.4/eventView.js:869
 msgid "In progress"
 msgstr "Pågår"
 
@@ -473,41 +489,41 @@ msgstr "Världsklockor"
 msgid "Source: %s"
 msgstr "Källa: %s"
 
-#: settings_widgets_holidays.py:27
+#: chronos_settings_widgets_holidays.py:27
 msgid "Type a country name"
 msgstr "Skriv ett landsnamn"
 
-#: settings_widgets_weather.py:31
+#: chronos_settings_widgets_weather.py:31
 msgid "City or town (e.g. Lisbon)"
 msgstr "Stad eller ort (t.ex. Lissabon)"
 
-#: settings_widgets_worldclocks.py:51
+#: chronos_settings_widgets_worldclocks.py:51
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Stad eller tidszon (t.ex. Buenos Aires)"
 
-#: settings_widgets_worldclocks.py:52
+#: chronos_settings_widgets_worldclocks.py:52
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Tidszon att spara: %s"
 
-#: settings_widgets_worldclocks.py:54
+#: chronos_settings_widgets_worldclocks.py:54
 msgid "No timezone selected"
 msgstr "Ingen tidszon vald"
 
-#: settings_widgets_worldclocks.py:55
+#: chronos_settings_widgets_worldclocks.py:55
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC och lokal tid visas redan som inbyggda klockor"
 
-#: settings_widgets_worldclocks.py:56
+#: chronos_settings_widgets_worldclocks.py:56
 msgid "Enter a display name for this clock"
 msgstr "Ange ett visningsnamn för den här klockan"
 
-#: settings_widgets_worldclocks.py:60
+#: chronos_settings_widgets_worldclocks.py:60
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "Högst %d klockor kan läggas till."
 
-#: settings_widgets_worldclocks.py:63
+#: chronos_settings_widgets_worldclocks.py:63
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -516,11 +532,11 @@ msgstr ""
 "ett stadsnamn; utan den godtas endast en fullständig identifierare såsom "
 "America/Sao_Paulo."
 
-#: settings_widgets_worldclocks.py:279
+#: chronos_settings_widgets_worldclocks.py:279
 msgid "Add new entry"
 msgstr "Lägg till ny post"
 
-#: settings_widgets_worldclocks.py:284
+#: chronos_settings_widgets_worldclocks.py:284
 msgid "Edit entry"
 msgstr "Redigera post"
 

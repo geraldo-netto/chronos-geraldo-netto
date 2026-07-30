@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-30 14:58+0200\n"
+"POT-Creation-Date: 2026-07-30 21:24+0200\n"
 "PO-Revision-Date: 2021-07-05 18:36+0300\n"
 "Last-Translator: Serkan ÖNDER <serkanonder@outlook.com>\n"
 "Language-Team: \n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%-e %B %Y %A"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:340
+#: 5.4/calendar.js:344
 msgid "Today"
 msgstr "Bugün"
 
@@ -257,7 +257,7 @@ msgstr "Qingming"
 msgid "Ghost Festival"
 msgstr "Hayalet Festivali"
 
-#: worldclockData.js:60 settings_widgets_worldclocks.py:53
+#: worldclockData.js:60 chronos_settings_widgets_worldclocks.py:53
 msgid "Invalid timezone"
 msgstr "Geçersiz saat dilimi"
 
@@ -270,11 +270,11 @@ msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "Takvim uygulamacığı bir hatayla karşılaştı. Sistem günlüğünü denetleyin."
 
-#: 5.4/appletMenuBuilder.js:271 5.4/appletMenuBuilder.js:277
+#: 5.4/appletMenuBuilder.js:283 5.4/appletMenuBuilder.js:289
 msgid "Go to today"
 msgstr "Bugüne git"
 
-#: 5.4/appletMenuBuilder.js:358
+#: 5.4/appletMenuBuilder.js:384
 msgid "Date and Time Settings"
 msgstr "Tarih ve Zaman Ayarları"
 
@@ -326,69 +326,69 @@ msgstr "Gök gürültülü fırtına"
 msgid "Fair"
 msgstr "Az bulutlu"
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:492
-#: 5.4/appletPanelStatus.js:653
+#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:495
+#: 5.4/appletPanelStatus.js:656
 msgid "Weather: loading…"
 msgstr "Hava durumu: yükleniyor…"
 
-#: 5.4/appletPanelStatus.js:516
+#: 5.4/appletPanelStatus.js:519
 msgid "No weather for this timezone"
 msgstr "Bu saat dilimi için hava durumu yok"
 
-#: 5.4/appletPanelStatus.js:527 5.4/appletPanelStatus.js:528
+#: 5.4/appletPanelStatus.js:530 5.4/appletPanelStatus.js:531
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Bilinen son ölçüm"
 
-#: 5.4/calendar.js:343
+#: 5.4/calendar.js:347
 msgid "Selected"
 msgstr "Seçili"
 
-#: 5.4/calendar.js:347
+#: 5.4/calendar.js:351
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d etkinlik"
 msgstr[1] "%d etkinlik"
 
-#: 5.4/calendar.js:538
+#: 5.4/calendar.js:542
 #, javascript-format
 msgid "Week %s"
 msgstr "%s. hafta"
 
-#: 5.4/calendar.js:879
+#: 5.4/calendar.js:884
 msgid "Previous month"
 msgstr "Önceki ay"
 
-#: 5.4/calendar.js:909
+#: 5.4/calendar.js:914
 msgid "Next month"
 msgstr "Sonraki ay"
 
-#: 5.4/calendar.js:913
+#: 5.4/calendar.js:918
 msgid "Previous year"
 msgstr "Önceki yıl"
 
-#: 5.4/calendar.js:924
+#: 5.4/calendar.js:929
 msgid "Next year"
 msgstr "Sonraki yıl"
 
-#: 5.4/calendar.js:937
+#: 5.4/calendar.js:942
 msgid "Week"
 msgstr "Hafta"
 
-#: 5.4/calendarAnnotations.js:58
+#: 5.4/calendarAnnotations.js:68
 msgid "Holiday service unavailable"
 msgstr "Tatil hizmeti kullanılamıyor"
 
-#: 5.4/calendarAnnotations.js:59
+#: 5.4/calendarAnnotations.js:69
 msgid "Holiday data unavailable"
 msgstr "Tatil verileri kullanılamıyor"
 
-#: 5.4/calendarAnnotations.js:222
+#: 5.4/calendarAnnotations.js:234
 msgid "Holiday data: loading…"
 msgstr "Tatil verileri: yükleniyor…"
 
-#: 5.4/calendarAnnotations.js:263
+#: 5.4/calendarAnnotations.js:275
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Tatil verileri: %s"
@@ -411,58 +411,74 @@ msgstr ""
 msgid "Calendar events could not be refreshed."
 msgstr "Takvim etkinlikleri yenilenemedi."
 
-#: 5.4/eventView.js:61
+#: 5.4/eventView.js:62
+msgid "Public holiday and religious observance"
+msgstr "Resmî tatil ve dinî gün"
+
+#: 5.4/eventView.js:65
+msgid "Public holiday"
+msgstr "Resmî tatil"
+
+#: 5.4/eventView.js:68
+msgid "Religious observance"
+msgstr "Dinî gün"
+
+#: 5.4/eventView.js:70
+msgid "Holiday"
+msgstr "Tatil"
+
+#: 5.4/eventView.js:111
 msgid "Starting in a few minutes"
 msgstr "Bir kaç dakika içinde başlayacak"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:118
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "%d dakika içinde başlıyor"
 msgstr[1] "%d dakika içinde başlıyor"
 
-#: 5.4/eventView.js:78
+#: 5.4/eventView.js:128
 msgid "This evening"
 msgstr "Bu akşam"
 
-#: 5.4/eventView.js:81
+#: 5.4/eventView.js:131
 msgid "Starting later today"
 msgstr "Bugün, gün içinde başlayacak"
 
-#: 5.4/eventView.js:84
+#: 5.4/eventView.js:134
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "%d saat içinde"
 msgstr[1] "%d saat içinde"
 
-#: 5.4/eventView.js:167
+#: 5.4/eventView.js:217
 msgid "Loading…"
 msgstr "Yükleniyor…"
 
-#: 5.4/eventView.js:171 5.4/eventView.js:181 5.4/eventView.js:322
-#: 5.4/eventView.js:671
+#: 5.4/eventView.js:221 5.4/eventView.js:231 5.4/eventView.js:375
+#: 5.4/eventView.js:736
 msgid "No Events"
 msgstr "Olay Yok"
 
-#: 5.4/eventView.js:344 5.4/eventView.js:526
+#: 5.4/eventView.js:397 5.4/eventView.js:579
 msgid "Open the calendar app"
 msgstr "Takvim uygulamasını aç"
 
-#: 5.4/eventView.js:457
+#: 5.4/eventView.js:510
 msgid "Events for the selected day"
 msgstr "Seçili günün etkinlikleri"
 
-#: 5.4/eventView.js:510
+#: 5.4/eventView.js:563
 msgid "Add an event"
 msgstr "Etkinlik ekle"
 
-#: 5.4/eventView.js:768
+#: 5.4/eventView.js:838
 msgid "Ended"
 msgstr "Sona erdi"
 
-#: 5.4/eventView.js:799
+#: 5.4/eventView.js:869
 msgid "In progress"
 msgstr "Devam ediyor"
 
@@ -475,41 +491,41 @@ msgstr "Dünya saatleri"
 msgid "Source: %s"
 msgstr "Kaynak: %s"
 
-#: settings_widgets_holidays.py:27
+#: chronos_settings_widgets_holidays.py:27
 msgid "Type a country name"
 msgstr "Bir ülke adı yazın"
 
-#: settings_widgets_weather.py:31
+#: chronos_settings_widgets_weather.py:31
 msgid "City or town (e.g. Lisbon)"
 msgstr "Şehir veya kasaba (ör. Lizbon)"
 
-#: settings_widgets_worldclocks.py:51
+#: chronos_settings_widgets_worldclocks.py:51
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Şehir veya saat dilimi (ör. Buenos Aires)"
 
-#: settings_widgets_worldclocks.py:52
+#: chronos_settings_widgets_worldclocks.py:52
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Kaydedilecek saat dilimi: %s"
 
-#: settings_widgets_worldclocks.py:54
+#: chronos_settings_widgets_worldclocks.py:54
 msgid "No timezone selected"
 msgstr "Saat dilimi seçilmedi"
 
-#: settings_widgets_worldclocks.py:55
+#: chronos_settings_widgets_worldclocks.py:55
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC ve yerel saat zaten yerleşik saat olarak gösteriliyor"
 
-#: settings_widgets_worldclocks.py:56
+#: chronos_settings_widgets_worldclocks.py:56
 msgid "Enter a display name for this clock"
 msgstr "Bu saat için bir görünen ad girin"
 
-#: settings_widgets_worldclocks.py:60
+#: chronos_settings_widgets_worldclocks.py:60
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "En fazla %d saat eklenebilir."
 
-#: settings_widgets_worldclocks.py:63
+#: chronos_settings_widgets_worldclocks.py:63
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -518,11 +534,11 @@ msgstr ""
 "kurun; o olmadan yalnızca America/Sao_Paulo gibi tam bir tanımlayıcı kabul "
 "edilir."
 
-#: settings_widgets_worldclocks.py:279
+#: chronos_settings_widgets_worldclocks.py:279
 msgid "Add new entry"
 msgstr "Yeni girdi ekle"
 
-#: settings_widgets_worldclocks.py:284
+#: chronos_settings_widgets_worldclocks.py:284
 msgid "Edit entry"
 msgstr "Girdiyi düzenle"
 
