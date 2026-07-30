@@ -478,10 +478,22 @@ class JSONSettingsList:
         self.settings = settings
         self.info = info
         self.show_buttons = True
-        # the real json_settings_factory constructor never reads
-        # properties['value']; the list content comes from settings later
-        value = info.get("value")
-        self.model = Model(len(value) if isinstance(value, list) else 0)
+        # The real widget loads the saved JSON through typed schema columns.
+        # Do that here too: malformed rows must be repaired before this point,
+        # not hidden by a double that only counts an arbitrary list.
+        getter = getattr(settings, "get_value", None)
+        value = getter(key) if callable(getter) else info.get("value")
+        if not isinstance(value, list):
+            raise TypeError("JSONSettingsList value must be a list")
+        for row in value:
+            if not isinstance(row, dict):
+                raise TypeError("JSONSettingsList row must be an object")
+            if not isinstance(row.get("label"), str):
+                raise TypeError("JSONSettingsList label must be a string")
+            if not isinstance(row.get("timezone"), str):
+                raise TypeError("JSONSettingsList timezone must be a string")
+        self.model = Model(len(value))
+        self.model.rows = value
         self.add_button = AddButton()
 
     def update_button_sensitivity(self, *args):

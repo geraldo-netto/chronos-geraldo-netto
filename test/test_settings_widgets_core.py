@@ -2,7 +2,7 @@ import os
 from unittest import mock
 
 from helpers.settings_widgets_fixture import (
-    APPLET_DIR, COMMON_PATH, BaseWidget, DialogSettings, Entry,
+    APPLET_DIR, COMMON_PATH, BaseWidget, DialogSettings, Entry, FakeSettings,
     FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model, Path,
     importlib, install_stubs, json, load_module, random, requires_pytz, sys,
     tearDownModule as teardown_fixture, types, unittest,
@@ -113,24 +113,35 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(sensitivity, [True])
 
     def test_constructor_survives_corrupt_saved_clocks(self):
-        corrupt_values = [
-            [{"label": "Rome"}],                      # missing timezone key
-            [{"label": "Rome", "timezone": None}],    # null timezone
-            [{"label": "Rome", "timezone": 42}],      # non-string timezone
-            ["not-a-dict"],                           # entry is not an object
+        value = [
+            None,
+            {"label": "Rome"},
+            {"label": "Rome", "timezone": None},
+            {"label": "Rome", "timezone": 42},
+            {"label": 42, "timezone": "Europe/Rome"},
+            {"label": " ", "timezone": "Europe/Rome"},
+            {"label": " Tokyo ", "timezone": " Asia/Tokyo ", "junk": "drop"},
         ]
+        settings = FakeSettings({"worldclocks": value})
 
-        for value in corrupt_values:
-            with self.subTest(value=value):
-                clocks = self.module.ClocksList({"value": value}, "worldclocks", object())
-                self.assertTrue(clocks.add_button.sensitive)
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", settings)
+
+        expected = [{"label": "Tokyo", "timezone": "Asia/Tokyo"}]
+        self.assertEqual(settings.values["worldclocks"], expected)
+        self.assertEqual(settings.writes, [("worldclocks", expected)])
+        self.assertEqual(clocks.model.rows, expected,
+                         "the typed inherited loader receives only valid rows")
+        self.assertTrue(clocks.add_button.sensitive)
 
     def test_constructor_survives_non_list_saved_value(self):
         # xlet-settings.py instantiates widgets outside its try block, so a
         # constructor exception breaks the whole settings window
-        for info in [{"value": None}, {"value": 5}, {"value": "clocks"}, {}]:
-            with self.subTest(info=info):
-                clocks = self.module.ClocksList(dict(info), "worldclocks", object())
+        for value in (None, 5, "clocks", {}):
+            with self.subTest(value=value):
+                settings = FakeSettings({"worldclocks": value})
+                clocks = self.module.ClocksList({"value": []}, "worldclocks", settings)
+                self.assertEqual(settings.values["worldclocks"], [])
+                self.assertEqual(clocks.model.rows, [])
                 self.assertTrue(clocks.add_button.sensitive)
 
     def test_clock_entry_serializer_owns_dialog_data_and_output_shape(self):

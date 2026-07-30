@@ -566,6 +566,39 @@ def normalize_clock_label(value):
     return value.strip() if isinstance(value, str) else ""
 
 
+def normalize_saved_clocks(value) -> list[dict[str, str]]:
+    """Project saved JSON onto rows the typed Cinnamon list can load."""
+    if not isinstance(value, list):
+        return []
+
+    normalized = []
+    for row in value:
+        if not isinstance(row, dict):
+            continue
+        label = normalize_clock_label(row.get("label"))
+        timezone = row.get("timezone")
+        if not label or not isinstance(timezone, str):
+            continue
+        timezone = timezone.strip()
+        if timezone:
+            normalized.append({"label": label, "timezone": timezone})
+
+    return normalized
+
+
+def normalize_clock_setting(info, key, settings):
+    getter = getattr(settings, "get_value", None)
+    value = getter(key) if callable(getter) else info.get("value")
+    normalized = normalize_saved_clocks(value)
+    setter = getattr(settings, "set_value", None)
+    if normalized != value and callable(setter):
+        setter(key, normalized)
+
+    prepared = dict(info)
+    prepared["value"] = normalized
+    return prepared
+
+
 class ClockEntrySerializer:
     def initial_dialog_data(
         self,
@@ -859,7 +892,8 @@ class ClocksList(JSONSettingsList):
         # who may never open the World Clocks page at all.
         self._timezone_resolver = None
 
-        JSONSettingsList.__init__(self, key, settings, info)
+        normalized_info = normalize_clock_setting(info, key, settings)
+        JSONSettingsList.__init__(self, key, settings, normalized_info)
 
         self.entry_serializer = ClockEntrySerializer()
         self.dialog_builder = ClockDialogBuilder(self)
