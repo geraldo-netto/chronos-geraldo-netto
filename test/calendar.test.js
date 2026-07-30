@@ -303,20 +303,6 @@ test("fuzz: browse always lands in the expected month with a valid day", () => {
 
 // ---- full-instantiation harness (T07a) ----
 
-if (!Date.prototype.toLocaleFormat) {
-    // GJS extension; minimal deterministic stand-in
-    Object.defineProperty(Date.prototype, "toLocaleFormat", {
-        value: function(fmt) {
-            const months = ["January", "February", "March", "April", "May", "June", "July",
-                "August", "September", "October", "November", "December"];
-            return fmt
-                .replace("%OB", months[this.getMonth()])
-                .replace("%Y", String(this.getFullYear()))
-                .replace("%V", "01");
-        }
-    });
-}
-
 if (!String.prototype.capitalize) {
     Object.defineProperty(String.prototype, "capitalize", {
         value: function() {
