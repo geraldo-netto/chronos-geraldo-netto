@@ -1,5 +1,5 @@
 from helpers.settings_widgets_fixture import (
-    APPLET_DIR, COMMON_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
+    APPLET_DIR, COMMON_PATH, WEATHER_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
     Path, importlib, json, load_module,
     tearDownModule as teardown_fixture, unittest,
 )
@@ -19,7 +19,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_weather")
+        cls.module = load_module(WEATHER_PATH, "settings_widgets_weather_completion")
 
     def entry(self, values=None):
         settings = FakeSettings(values or {"weather-location": ""})
@@ -29,7 +29,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         return widget, settings
 
     def test_city_names_are_cities_and_not_zones(self):
-        resolver = self.module.TimezoneResolver(None, lambda: {
+        resolver = self.module.common.TimezoneResolver(None, lambda: {
             "Europe/Lisbon", "America/Argentina/Buenos_Aires", "Etc/UTC", "UTC",
         })
 
@@ -42,19 +42,19 @@ class WeatherLocationCompletionTest(unittest.TestCase):
             self.assertNotIn(junk, names, "%s names no city" % junk)
 
     def test_city_names_are_sorted_case_insensitively(self):
-        resolver = self.module.TimezoneResolver(None, lambda: {
+        resolver = self.module.common.TimezoneResolver(None, lambda: {
             "Europe/Rome", "America/Anchorage", "Asia/Tokyo",
         })
 
         self.assertEqual(resolver.city_names(), ["Anchorage", "Rome", "Tokyo"])
 
     def test_the_entry_completes_on_a_typed_city(self):
-        self.module._TIMEZONE_RESOLVER = None
+        self.module.common._TIMEZONE_RESOLVER = None
         self.module._WEATHER_CITIES = None
         widget, _settings = self.entry()
 
         self.assertIsNone(widget.completion)
-        self.assertIsNone(self.module._TIMEZONE_RESOLVER,
+        self.assertIsNone(self.module.common._TIMEZONE_RESOLVER,
                           "building the settings page must not index every timezone")
         self.assertFalse(widget.ensure_completion())
         completion = widget.completion
@@ -71,7 +71,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
 
     def test_a_typed_fragment_matches_a_city_anywhere_in_the_name(self):
         model = self.module.city_completion_model(["Buenos Aires", "Rome"])
-        match = self.module.plain_completion_match
+        match = self.module.common.plain_completion_match
 
         # substring, not prefix: people type the distinctive half of a name
         self.assertTrue(match(None, "aires", 0, model))
@@ -95,14 +95,14 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertIsNone(self.module.attach_city_completion(BindObject(), []))
 
     def test_the_cities_are_built_once_and_reused(self):
-        self.module._TIMEZONE_RESOLVER = None
+        self.module.common._TIMEZONE_RESOLVER = None
         self.module._WEATHER_CITIES = None
 
         cities = self.module.weather_cities()
         self.assertIs(self.module.weather_cities(), cities,
                       "the timezone database is read on the first field, not on every page")
-        resolver = self.module.shared_timezone_resolver()
-        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        resolver = self.module.common.shared_timezone_resolver()
+        clocks = self.module.common.ClocksList({"value": []}, "worldclocks", object())
         self.assertIs(clocks.timezone_resolver, resolver,
                       "weather and clocks must share one timezone index")
 
@@ -342,7 +342,7 @@ class WeatherLocationPrefillTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_prefill")
+        cls.module = load_module(WEATHER_PATH, "settings_widgets_weather_prefill")
 
     def entry(self, saved="", local_zone="Europe/Rome"):
         def fixed_zone():

@@ -804,9 +804,14 @@ class SettingsWidgetsTest(unittest.TestCase):
                         if isinstance(entry, dict) and entry.get("type") == "custom"})
         self.assertEqual(sorted(wrapper_52.__all__), named)
 
+        # each widget comes from its feature module, not one shared grab-bag
+        homes = {
+            "ClocksList": "settings_widgets_common",
+            "CountryComboBox": "settings_widgets_common",
+            "WeatherLocationEntry": "settings_widgets_weather",
+        }
         for widget in named:
-            self.assertEqual(getattr(wrapper_52, widget).__module__,
-                             "settings_widgets_common")
+            self.assertEqual(getattr(wrapper_52, widget).__module__, homes[widget])
 
         # list_edit_factory was re-exported here and never imported from here
         self.assertFalse(hasattr(wrapper_52, "list_edit_factory"),

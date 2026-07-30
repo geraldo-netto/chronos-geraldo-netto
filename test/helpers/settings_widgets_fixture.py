@@ -21,6 +21,7 @@ sys.dont_write_bytecode = True
 
 APPLET_DIR = Path(__file__).resolve().parent.parent.parent / "files" / "chronos@geraldo-netto"
 COMMON_PATH = APPLET_DIR / "settings_widgets_common.py"
+WEATHER_PATH = APPLET_DIR / "settings_widgets_weather.py"
 
 # The reserved built-ins live in the gi-free sibling, and the widget module no
 # longer re-exports them: it never read them, and naming them there existed only
@@ -812,7 +813,7 @@ def tearDownModule():
 
 
 __all__ = [
-    "APPLET_DIR", "COMMON_PATH", "RESERVED_TIMEZONES", "requires_pytz",
+    "APPLET_DIR", "COMMON_PATH", "WEATHER_PATH", "RESERVED_TIMEZONES", "requires_pytz",
     "BindObject", "GtkEntryCompletion", "GtkDialog", "GtkMessageDialog",
     "GtkLabel", "BaseWidget", "ComboBox", "Entry", "Model", "DialogSettings",
     "FakeSettings", "GLibError", "GLibStub", "GtkStub",
