@@ -361,7 +361,7 @@ test("CI runs the gates the README promises", () => {
     assert.equal(pkg.engines.node, ">=22.13.0");
     assert.match(workflow, /node: '22\.13\.0'\n {12}python: '3\.8'/,
         "the supported Node and Python floors are exercised together");
-    assert.match(workflow, /node: 24\n {12}python: '3\.12'/,
+    assert.match(workflow, /node: 26\n {12}python: '3\.14'/,
         "the current development runtimes are exercised together");
     assert.doesNotMatch(workflow, /node-version: 22\b/,
         "release jobs must not resolve an unsupported early Node 22 runtime");
