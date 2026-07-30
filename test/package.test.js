@@ -157,7 +157,7 @@ test("packaging reads staged bytes instead of dirty worktree bytes", async (t) =
 
 test("the documented release sequence packages the committed bumped version", async (t) => {
     const { source, output, applet } = await makeSpicesFixture(t);
-    for (const relative of ["package.json", "package-lock.json", "CHANGELOG.md"]) {
+    for (const relative of ["package.json", "package-lock.json"]) {
         await fs.copyFile(path.join(ROOT, relative), path.join(source, relative));
     }
     await fs.copyFile(path.join(ROOT, "files", UUID, "metadata.json"),
@@ -166,9 +166,9 @@ test("the documented release sequence packages the committed bumped version", as
 
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease } = await import(releaseUrl);
-    await bumpRelease(source, "0.0.2", { date: "2026-07-30" });
+    await bumpRelease(source, "0.0.2");
     await execFileAsync("git", ["-C", source, "add",
-        "CHANGELOG.md", "package.json", "package-lock.json",
+        "package.json", "package-lock.json",
         `files/${UUID}/metadata.json`]);
     await execFileAsync("git", ["-C", source,
         "-c", "user.name=Chronos Test", "-c", "user.email=chronos@example.invalid",

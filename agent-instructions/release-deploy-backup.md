@@ -35,6 +35,6 @@ Use this module for release engineering, production gates, backups, restore, pac
 - Define security-patch response windows.
 - Track dependency/runtime EOL and upgrade cadence.
 - Document deprecation policy, migration guides, `@deprecated` to removal windows, and feature-flag retirement.
-- Use SemVer, Keep a Changelog, Conventional Commits, tags, or the local release standard consistently.
+- Use SemVer, Conventional Commits, tags, and the local release standard consistently.
 - Supply-chain provenance may include SBOMs, build attestations, SLSA posture, and dependency automation.
 - Track delivery metrics such as deployment frequency, lead time, MTTR, and change-fail rate when useful.

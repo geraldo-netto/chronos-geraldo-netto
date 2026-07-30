@@ -21,7 +21,7 @@ Start most projects with:
 - `agent-workflow-context.md` - subagents, context checkpoints, working-set hygiene, and user progress updates.
 - `testing-and-fuzzing.md` - unit tests, coverage, fuzz/property tests, and verification.
 - `review-and-todo.md` - TODO ledger rules, review categories, wiring gaps, dead code, and major-change rescans.
-- `git-workflow.md` - staging/commit rules, Conventional Commits, hooks, lockfiles, changelog policy, and no AI self-attribution.
+- `git-workflow.md` - staging/commit rules, Conventional Commits, hooks, lockfiles, release-history policy, and no AI self-attribution.
 - `typescript-react-supabase.md` - TypeScript, React, hooks, UI layering, Supabase repositories/services/flows.
 - `ui-ux.md` - interface quality, responsive layout, states, controls, visual design, and content safety.
 - `python-ai-data.md` - Python structure, CLI/config, ingestion, ML, retrieval, RAG, vectorization, memory, and distributed work.

@@ -10,7 +10,6 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const UUID = "chronos@geraldo-netto";
-const REPOSITORY = "https://github.com/geraldo-netto/cinnamon-chronos";
 const RELEASE_BRANCH = "develop";
 const RELEASE_BRANCH_REF = `origin/${RELEASE_BRANCH}`;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
@@ -20,8 +19,7 @@ const TRANSACTION_MANIFEST = "manifest.json";
 const RELEASE_TARGETS = [
     "package.json",
     "package-lock.json",
-    `files/${UUID}/metadata.json`,
-    "CHANGELOG.md"
+    `files/${UUID}/metadata.json`
 ];
 
 export function parseProcessStartTime(stat) {
@@ -173,26 +171,13 @@ function compareVersions(left, right) {
 
 async function readReleaseFiles(root) {
     await recoverReleaseTransaction(root);
-    const packagePath = path.join(root, "package.json");
-    const lockPath = path.join(root, "package-lock.json");
-    const metadataPath = path.join(root, "files", UUID, "metadata.json");
-    const changelogPath = path.join(root, "CHANGELOG.md");
-    const original = await Promise.all([
-        readFile(packagePath, "utf8"),
-        readFile(lockPath, "utf8"),
-        readFile(metadataPath, "utf8"),
-        readFile(changelogPath, "utf8")
-    ]);
+    const original = await Promise.all(RELEASE_TARGETS.map((relative) =>
+        readFile(path.join(root, ...relative.split("/")), "utf8")));
     return {
-        packagePath,
-        lockPath,
-        metadataPath,
-        changelogPath,
         original,
         pkg: JSON.parse(original[0]),
         lock: JSON.parse(original[1]),
-        metadata: JSON.parse(original[2]),
-        changelog: original[3]
+        metadata: JSON.parse(original[2])
     };
 }
 
@@ -290,53 +275,11 @@ function validateVersionOwners(files) {
     return version;
 }
 
-function changelogState(changelog, version) {
-    const escapedVersion = version.replaceAll(".", "\\.");
-    const releasedHeading = new RegExp(
-        `^## \\[${escapedVersion}\\] - \\d{4}-\\d{2}-\\d{2}$`, "m") // NOSONAR [S7780] -- accepted compatible form
-        .test(changelog);
-    const developmentHeading = new RegExp(
-        `^## \\[${escapedVersion}\\] - \\d{4}-\\d{2}-\\d{2} ` +
-        "\\(development baseline; not released\\)$", "m") // NOSONAR [S7780] -- accepted compatible form
-        .test(changelog);
-    const lines = new Set(changelog.split("\n"));
-    const comparisonLink = `[Unreleased]: ${REPOSITORY}/compare/v${version}...HEAD`;
-    const tagLink = `[${version}]: ${REPOSITORY}/releases/tag/v${version}`;
-    const developmentLink = `[Unreleased]: ${REPOSITORY}/commits/${RELEASE_BRANCH}`;
-
-    if (developmentHeading) {
-        validateDevelopmentChangelog(lines, developmentLink, comparisonLink, tagLink, version);
-        return "development";
-    }
-    if (!releasedHeading) {
-        throw new Error(`CHANGELOG.md has no valid ${version} release state`);
-    }
-    if (!lines.has(comparisonLink)) {
-        throw new Error(`CHANGELOG.md Unreleased link does not start at v${version}`);
-    }
-    if (!lines.has(tagLink)) {
-        throw new Error(`CHANGELOG.md has no v${version} release link`);
-    }
-    return "released";
-}
-
-function validateDevelopmentChangelog(lines, developmentLink, comparisonLink, tagLink, version) {
-    if (!lines.has(developmentLink)) {
-        throw new Error(`CHANGELOG.md development baseline does not follow ${RELEASE_BRANCH}`);
-    }
-    if (lines.has(comparisonLink) || lines.has(tagLink)) {
-        throw new Error(`CHANGELOG.md development baseline must not claim v${version}`);
-    }
-}
-
 function validateReleaseFiles(files, tag) {
     const version = validateVersionOwners(files);
     const suppliedTag = tag !== undefined && tag !== null && tag !== "";
     if (suppliedTag && tag !== `v${version}`) {
         throw new Error(`release tag ${tag} does not match version v${version}`);
-    }
-    if (changelogState(files.changelog, version) === "development" && suppliedTag) {
-        throw new Error(`release tag ${tag} points at an unfinalized development baseline`);
     }
     return version;
 }
@@ -386,28 +329,11 @@ export async function checkRelease(projectRoot, tag, releaseBranch = RELEASE_BRA
     });
 }
 
-async function bumpReleaseLocked(root, nextVersion, options) {
+async function bumpReleaseLocked(root, nextVersion) {
     const files = await readReleaseFiles(root);
     const currentVersion = validateReleaseFiles(files);
     if (compareVersions(nextVersion, currentVersion) <= 0) {
         throw new Error(`next version ${nextVersion} must be greater than ${currentVersion}`);
-    }
-
-    const unreleasedHeading = "## [Unreleased]";
-    const headingStart = files.changelog.indexOf(unreleasedHeading);
-    const notesStart = headingStart + unreleasedHeading.length;
-    const nextHeading = files.changelog.indexOf("\n## [", notesStart);
-    if (headingStart < 0 || nextHeading < 0) {
-        throw new Error("CHANGELOG.md needs Unreleased followed by a released version");
-    }
-    const notes = files.changelog.slice(notesStart, nextHeading).trim();
-    if (!/^[-*] .+/m.test(notes)) {
-        throw new Error("CHANGELOG.md Unreleased section needs at least one release-note bullet");
-    }
-
-    const date = options.date || new Date().toISOString().slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        throw new Error(`release date must be YYYY-MM-DD: ${date}`);
     }
 
     files.pkg.version = nextVersion;
@@ -415,25 +341,12 @@ async function bumpReleaseLocked(root, nextVersion, options) {
     files.lock.packages[""].version = nextVersion;
     files.metadata.version = nextVersion;
 
-    let changelog = files.changelog.slice(0, notesStart) +
-        `\n\n## [${nextVersion}] - ${date}\n\n${notes}\n` +
-        files.changelog.slice(nextHeading);
-    const developmentLink = `[Unreleased]: ${REPOSITORY}/commits/${RELEASE_BRANCH}`;
-    const comparisonLink = `[Unreleased]: ${REPOSITORY}/compare/v${currentVersion}...HEAD`;
-    const previousLink = files.changelog.split("\n").includes(developmentLink) ?
-        developmentLink : comparisonLink;
-    const linkedChangelog = changelog.replace(
-        previousLink,
-        `[Unreleased]: ${REPOSITORY}/compare/v${nextVersion}...HEAD\n` +
-        `[${nextVersion}]: ${REPOSITORY}/releases/tag/v${nextVersion}`);
-    files.changelog = linkedChangelog;
     validateReleaseFiles(files);
 
     const after = [
         JSON.stringify(files.pkg, null, 2) + "\n",
         JSON.stringify(files.lock, null, 2) + "\n",
-        JSON.stringify(files.metadata, null, 4) + "\n",
-        files.changelog
+        JSON.stringify(files.metadata, null, 4) + "\n"
     ];
     await writeReleaseTransaction(root, {
         version: 1,
@@ -447,10 +360,10 @@ async function bumpReleaseLocked(root, nextVersion, options) {
     return nextVersion;
 }
 
-export async function bumpRelease(projectRoot, nextVersion, options = {}) {
+export async function bumpRelease(projectRoot, nextVersion) {
     parseVersion(nextVersion);
     const root = path.resolve(projectRoot);
-    return withReleaseLock(root, () => bumpReleaseLocked(root, nextVersion, options));
+    return withReleaseLock(root, () => bumpReleaseLocked(root, nextVersion));
 }
 
 const scriptPath = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : "";

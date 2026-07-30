@@ -18,6 +18,12 @@ Python 98 % lines per file. They fail the run — they are not advisory.
 `TODO.md` is the audit ledger. Items are worked one commit per item, and the row
 is deleted from the ledger in that same commit.
 
+## Change history
+
+Git history, Conventional Commits, and annotated release tags are the sole
+change record. Never create or maintain `CHANGELOG.md`, add changelog gates or
+release steps, or file TODO items asking for changelog updates.
+
 ## Instruction domains
 
 The reusable modules live in `agent-instructions/`, one file per domain, with

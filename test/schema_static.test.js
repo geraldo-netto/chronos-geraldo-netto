@@ -510,7 +510,7 @@ test("CI runs the gates the README promises", () => {
             `${executable} must retain its tracked executable mode`);
     }
     assert.match(workflow, /release:check -- "\$GITHUB_REF_NAME"/,
-        "the tag must match every version owner and the changelog");
+        "the tag must match every version owner");
     // pyflakes is what lint:py runs, and lint:py now fails when it is missing:
     // a workflow that does not install it cannot pass
     assert.match(workflow, /pip install .*pyflakes==\d/,

@@ -21,8 +21,9 @@ Use this module for repositories where agents may stage, commit, branch, or prep
 - If documentation-only commits are allowed to skip hooks, do so only when every staged file matches the documented docs-only rule.
 - If any staged file is code or config, run the normal hook/gate path.
 
-## Changelog And Tags
+## Release History And Tags
 
 - Follow the local release policy.
-- Some projects use `git log` plus Conventional Commits and tags as the changelog; do not add a `CHANGELOG.md` unless the project wants one.
+- Use `git log`, Conventional Commits, and annotated tags as the sole change record.
+- Never create or maintain `CHANGELOG.md`, or add manual changelog gates to TODO and release workflows.
 - Version bumps, tags, and release notes must match the project lifecycle policy.

@@ -13,15 +13,14 @@ const execFileAsync = promisify(execFile);
 const RELEASE_FILES = [
     "package.json",
     "package-lock.json",
-    path.join("files", UUID, "metadata.json"),
-    "CHANGELOG.md"
+    path.join("files", UUID, "metadata.json")
 ];
 
 async function makeReleaseFixture(t, mutate) {
     const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-release-"));
     t.after(() => fs.rm(temporary, { recursive: true, force: true }));
     await fs.mkdir(path.join(temporary, "files", UUID), { recursive: true });
-    for (const relative of ["package.json", "package-lock.json", "CHANGELOG.md"]) {
+    for (const relative of ["package.json", "package-lock.json"]) {
         await fs.copyFile(path.join(ROOT, relative), path.join(temporary, relative));
     }
     await fs.copyFile(
@@ -38,11 +37,6 @@ async function editJson(root, relative, edit) {
     const parsed = JSON.parse(await fs.readFile(filePath, "utf8"));
     edit(parsed);
     await fs.writeFile(filePath, JSON.stringify(parsed, null, 2) + "\n");
-}
-
-async function editText(root, relative, edit) {
-    const filePath = path.join(root, relative);
-    await fs.writeFile(filePath, edit(await fs.readFile(filePath, "utf8")));
 }
 
 async function releaseSnapshot(root) {
@@ -62,47 +56,45 @@ async function initializeReleaseRepository(root) {
         "commit", "--quiet", "-m", "release fixture");
 }
 
-async function makeFinalizedReleaseFixture(t) {
+async function makeBumpedReleaseFixture(t) {
     const root = await makeReleaseFixture(t);
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease } = await import(releaseUrl);
-    await bumpRelease(root, "0.0.2", { date: "2026-07-30" });
+    await bumpRelease(root, "0.0.2");
     return root;
 }
 
-test("release metadata, changelog, and an optional tag agree", async () => {
+test("release metadata and an optional tag agree", async () => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { checkRelease } = await import(releaseUrl);
 
     assert.equal(await checkRelease(ROOT), "0.0.1");
     await assert.rejects(checkRelease(ROOT, "v0.0.2"), /does not match version v0\.0\.1/);
-    await assert.rejects(checkRelease(ROOT, "v0.0.1"),
-        /points at an unfinalized development baseline/);
 });
 
 test("release tags are annotated, checked out, and on the release branch", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { checkRelease } = await import(releaseUrl);
 
-    const accepted = await makeFinalizedReleaseFixture(t);
+    const accepted = await makeBumpedReleaseFixture(t);
     await initializeReleaseRepository(accepted);
     await git(accepted, "-c", "user.name=Chronos Test",
         "-c", "user.email=chronos@example.invalid",
         "tag", "-a", "v0.0.2", "-m", "Chronos 0.0.2");
     assert.equal(await checkRelease(accepted, "v0.0.2", "develop"), "0.0.2");
 
-    const missing = await makeFinalizedReleaseFixture(t);
+    const missing = await makeBumpedReleaseFixture(t);
     await initializeReleaseRepository(missing);
     await assert.rejects(checkRelease(missing, "v0.0.2", "develop"),
         /release tag v0\.0\.2 does not exist/);
 
-    const lightweight = await makeFinalizedReleaseFixture(t);
+    const lightweight = await makeBumpedReleaseFixture(t);
     await initializeReleaseRepository(lightweight);
     await git(lightweight, "tag", "v0.0.2");
     await assert.rejects(checkRelease(lightweight, "v0.0.2", "develop"),
         /release tag v0\.0\.2 must be annotated/);
 
-    const offBranch = await makeFinalizedReleaseFixture(t);
+    const offBranch = await makeBumpedReleaseFixture(t);
     await initializeReleaseRepository(offBranch);
     await git(offBranch, "checkout", "--quiet", "-b", "candidate");
     await fs.writeFile(path.join(offBranch, "candidate.txt"), "not merged\n");
@@ -117,40 +109,24 @@ test("release tags are annotated, checked out, and on the release branch", async
         /release tag v0\.0\.2 is not reachable from develop/);
 });
 
-test("the release bump moves notes and updates every version owner", async (t) => {
-    const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-release-"));
-    t.after(() => fs.rm(temporary, { recursive: true, force: true }));
-    await fs.mkdir(path.join(temporary, "files", UUID), { recursive: true });
-    for (const relative of ["package.json", "package-lock.json", "CHANGELOG.md"]) {
-        await fs.copyFile(path.join(ROOT, relative), path.join(temporary, relative));
-    }
-    await fs.copyFile(
-        path.join(ROOT, "files", UUID, "metadata.json"),
-        path.join(temporary, "files", UUID, "metadata.json"));
-    const changelogPath = path.join(temporary, "CHANGELOG.md");
-    const changelog = await fs.readFile(changelogPath, "utf8");
-    await fs.writeFile(changelogPath, changelog.replace(
-        "## [Unreleased]\n", "## [Unreleased]\n\n### Fixed\n\n- A release-worthy fix.\n"));
-
+test("the release bump updates every version owner", async (t) => {
+    const temporary = await makeReleaseFixture(t);
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease, checkRelease } = await import(releaseUrl);
-    await bumpRelease(temporary, "0.0.2", { date: "2026-07-18" });
+    await bumpRelease(temporary, "0.0.2");
 
     const pkg = JSON.parse(await fs.readFile(path.join(temporary, "package.json"), "utf8"));
     const lock = JSON.parse(await fs.readFile(path.join(temporary, "package-lock.json"), "utf8"));
     const metadata = JSON.parse(await fs.readFile(
         path.join(temporary, "files", UUID, "metadata.json"), "utf8"));
-    const updatedChangelog = await fs.readFile(changelogPath, "utf8");
     assert.equal(pkg.version, "0.0.2");
     assert.equal(lock.version, "0.0.2");
     assert.equal(lock.packages[""].version, "0.0.2");
     assert.equal(metadata.version, "0.0.2");
-    assert.match(updatedChangelog, /## \[Unreleased\]\n\n## \[0\.0\.2\] - 2026-07-18/);
-    assert.match(updatedChangelog, /## \[0\.0\.2\][\s\S]*A release-worthy fix/);
     assert.equal(await checkRelease(temporary), "0.0.2");
 
     await assert.rejects(
-        bumpRelease(temporary, "0.0.2", { date: "2026-07-19" }),
+        bumpRelease(temporary, "0.0.2"),
         /must be greater than 0\.0\.2/);
 });
 
@@ -173,25 +149,7 @@ const DENIED_RELEASE_STATES = [
         (root) => editJson(root, path.join("files", UUID, "metadata.json"), (metadata) => {
             metadata.version = "0.0.1-rc1";
         }),
-        /version must be strict SemVer/],
-    ["a changelog without a valid development heading",
-        (root) => editText(root, "CHANGELOG.md",
-            (text) => text.replace(/^## \[0\.0\.1\].*$/m, "## 0.0.1")),
-        /CHANGELOG\.md has no valid 0\.0\.1 release state/],
-    ["a development baseline without its branch link",
-        (root) => editText(root, "CHANGELOG.md",
-            (text) => text.replace(/^\[Unreleased\]: .*$/m, "")),
-        /development baseline does not follow develop/],
-    ["a development baseline claiming a comparison tag",
-        (root) => editText(root, "CHANGELOG.md",
-            (text) => text + "\n[Unreleased]: " +
-                "https://github.com/geraldo-netto/cinnamon-chronos/compare/v0.0.1...HEAD\n"),
-        /development baseline must not claim v0\.0\.1/],
-    ["a development baseline claiming a release tag",
-        (root) => editText(root, "CHANGELOG.md",
-            (text) => text + "\n[0.0.1]: " +
-                "https://github.com/geraldo-netto/cinnamon-chronos/releases/tag/v0.0.1\n"),
-        /development baseline must not claim v0\.0\.1/]
+        /version must be strict SemVer/]
 ];
 
 test("the release check rejects every inconsistent release surface", async (t) => {
@@ -204,52 +162,18 @@ test("the release check rejects every inconsistent release surface", async (t) =
     }
 });
 
-test("a finalized release requires its heading and both tag links", async (t) => {
-    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
-    const { checkRelease } = await import(releaseUrl);
-    const cases = [
-        [/^## \[0\.0\.2\] - .*$/m, "## 0.0.2", /no valid 0\.0\.2 release state/],
-        [/^\[Unreleased\]: .*$/m, "", /Unreleased link does not start at v0\.0\.2/],
-        [/^\[0\.0\.2\]: .*$/m, "", /has no v0\.0\.2 release link/]
-    ];
-
-    for (const [pattern, replacement, expected] of cases) {
-        const root = await makeFinalizedReleaseFixture(t);
-        await editText(root, "CHANGELOG.md", (text) => text.replace(pattern, replacement));
-        await assert.rejects(checkRelease(root), expected);
-    }
-});
-
 const DENIED_BUMP_INPUTS = [
-    ["a non-SemVer next version", undefined, "1.0", {},
-        /version must be strict SemVer/],
-    ["a malformed release date", undefined, "0.0.2", { date: "18-07-2026" },
-        /release date must be YYYY-MM-DD/],
-    ["an empty Unreleased section",
-        (root) => editText(root, "CHANGELOG.md", (text) =>
-            text.replace(/## \[Unreleased\][\s\S]*?(?=## \[0\.0\.1\])/, "## [Unreleased]\n\n")),
-        "0.0.2", { date: "2026-07-18" },
-        /Unreleased section needs at least one release-note bullet/],
-    ["a changelog with no released version after Unreleased",
-        (root) => editText(root, "CHANGELOG.md", (text) =>
-            text.replace("## [Unreleased]\n", "") + "\n## [Unreleased]\n"),
-        "0.0.2", { date: "2026-07-18" },
-        /needs Unreleased followed by a released version/],
-    ["an Unreleased compare link with trailing whitespace",
-        (root) => editText(root, "CHANGELOG.md", (text) =>
-            text.replace(/^(\[Unreleased\]: .*)$/m, "$1  ")),
-        "0.0.2", { date: "2026-07-18" },
-        /development baseline does not follow develop/]
+    ["a non-SemVer next version", "1.0", /version must be strict SemVer/]
 ];
 
 test("the release bump rejects bad input before touching any file", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease } = await import(releaseUrl);
 
-    for (const [state, mutate, next, options, expected] of DENIED_BUMP_INPUTS) {
-        const root = await makeReleaseFixture(t, mutate);
+    for (const [state, next, expected] of DENIED_BUMP_INPUTS) {
+        const root = await makeReleaseFixture(t);
         const before = await releaseSnapshot(root);
-        await assert.rejects(bumpRelease(root, next, options), expected, `accepted ${state}`);
+        await assert.rejects(bumpRelease(root, next), expected, `accepted ${state}`);
         assert.deepEqual(await releaseSnapshot(root), before,
             `a rejected bump must not rewrite release files (${state})`);
     }
@@ -283,15 +207,13 @@ test("release recovery rejects malformed transaction journals", async (t) => {
 test("a failed transaction publish removes its staging directory", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease } = await import(releaseUrl);
-    const root = await makeReleaseFixture(t, (fixture) =>
-        editText(fixture, "CHANGELOG.md", (text) =>
-            text.replace("## [Unreleased]\n", "## [Unreleased]\n\n- Ready.\n")));
+    const root = await makeReleaseFixture(t);
     const transaction = path.join(root, ".chronos-release-transaction");
     await fs.mkdir(transaction);
     await fs.writeFile(path.join(transaction, "incomplete"), "");
 
     await assert.rejects(
-        bumpRelease(root, "0.0.2", { date: "2026-07-18" }),
+        bumpRelease(root, "0.0.2"),
         (error) => error.code === "EEXIST" || error.code === "ENOTEMPTY");
     assert.deepEqual(
         (await fs.readdir(root)).filter((name) =>
@@ -430,7 +352,7 @@ test("an interrupted release transaction is completed before the next check", as
     const { bumpRelease, checkRelease } = await import(releaseUrl);
     const interrupted = await makeReleaseFixture(t);
     const completed = await makeReleaseFixture(t);
-    await bumpRelease(completed, "0.0.2", { date: "2026-07-18" });
+    await bumpRelease(completed, "0.0.2");
 
     const before = await releaseSnapshot(interrupted);
     const after = await releaseSnapshot(completed);
@@ -454,7 +376,7 @@ test("release recovery preserves files edited after interruption", async (t) => 
     const { bumpRelease, checkRelease } = await import(releaseUrl);
     const interrupted = await makeReleaseFixture(t);
     const completed = await makeReleaseFixture(t);
-    await bumpRelease(completed, "0.0.2", { date: "2026-07-18" });
+    await bumpRelease(completed, "0.0.2");
     const before = await releaseSnapshot(interrupted);
     const after = await releaseSnapshot(completed);
     const entries = RELEASE_FILES.map((relative, index) => ({

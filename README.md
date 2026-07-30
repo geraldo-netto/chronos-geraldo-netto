@@ -137,8 +137,8 @@ Node 22.13.0 / Python 3.8 floors and the current Node 26 / Python 3.14 pair.
 
 ### Releasing
 
-Releases use strict `major.minor.patch` versions. Record user-visible changes as
-bullets under **Unreleased** in `CHANGELOG.md`. The upstream default and release
+Releases use strict `major.minor.patch` versions. Git history, Conventional
+Commits, and annotated tags are the change record. The upstream default and release
 branch is `develop`. Version `0.0.1` records the untagged development baseline,
 not a published release, so public releases begin with `0.0.2`. Prepare it with:
 
@@ -148,19 +148,17 @@ npm run lint
 npm test
 npm run i18n:check
 git diff --check
-git add CHANGELOG.md package.json package-lock.json files/chronos@geraldo-netto/metadata.json
+git add package.json package-lock.json files/chronos@geraldo-netto/metadata.json
 git commit -m "chore(release): 0.0.2"
 npm run package:spices
 ```
 
-The bump command refuses an empty Unreleased section or a version that does not
-increase. It moves those notes into a dated release section and updates
-`metadata.json`, `package.json`, both version owners in `package-lock.json`, and
-the changelog comparison links. Review the changes before staging them, and
-replace the example version in both the command and commit message. Packaging
-comes after the commit because the submission is built from Git-index bytes;
-this guarantees the staged artifact contains the version that just passed the
-gates instead of the pre-bump metadata.
+The bump command refuses a version that does not increase and atomically updates
+`metadata.json`, `package.json`, and both version owners in `package-lock.json`.
+Review the changes before staging them, and replace the example version in both
+the command and commit message. Packaging comes after the commit because the
+submission is built from Git-index bytes; this guarantees the staged artifact
+contains the version that just passed the gates instead of pre-bump metadata.
 
 After that commit is pushed to `develop` and its branch CI is green, create and
 push an annotated matching tag:
@@ -171,8 +169,7 @@ git push origin v0.0.2
 ```
 
 Tag CI reruns both runtime pairs, packages on the supported Node floor, then
-rejects any tag that does not match all three manifests and the dated changelog
-entry. The packaging job
+rejects any tag that does not match all three version manifests. The packaging job
 puts the exact gated tree and its SHA-256 manifest in a mode-preserving
 `chronos-spices.tar`, then uploads it as `chronos-spices-<commit SHA>`, replacing
 that same deterministic artifact when all jobs are rerun. The archive sorts
