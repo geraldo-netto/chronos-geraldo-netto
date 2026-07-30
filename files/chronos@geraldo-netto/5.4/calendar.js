@@ -26,9 +26,13 @@ const StyleUtils = AppletModules.styleUtils;
 const SettingsFacade = require("./settingsFacade");
 const EventDataModule = require("./eventData");
 const CalendarNavigation = require("./calendarNavigation");
+const CalendarDate = require("./calendarDate");
 const CalendarNavigationController = CalendarNavigation.CalendarNavigationController;
 const browsedDate = CalendarNavigation.browsedDate;
 const clampCalendarDate = CalendarNavigation.clampCalendarDate;
+const _formatJsDate = CalendarDate.formatJsDate;
+const _sameDay = CalendarDate.sameDay;
+const _today = CalendarDate.isToday;
 const CalendarAnnotations = require("./calendarAnnotations");
 const CalendarHolidayAnnotator = CalendarAnnotations.CalendarHolidayAnnotator;
 const setTooltipText = CalendarAnnotations.setTooltipText;
@@ -60,26 +64,6 @@ const ACCESSIBLE_DATE_FORMAT = DateFormats.DATE_FORMAT_FULL;
 const _lcAbday = LocaleQuery.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
 const _lcFirstWorkday = LocaleQuery.lazyLocaleValue(
     "LC_TIME", (info) => (info.first_workday + 6) % 7);
-
-// Date.prototype.toLocaleFormat is a non-standard SpiderMonkey extension
-// that modern GJS removed; format through GLib.DateTime instead
-function _formatJsDate(jsDate, fmt) {
-    const dt = GLib.DateTime.new_local(
-        jsDate.getFullYear(), jsDate.getMonth() + 1, jsDate.getDate(), 12, 0, 0);
-    return dt ? dt.format(fmt) : "";
-}
-
-function _sameDay(dateA, dateB) {
-    return (dateA.getDate() == dateB.getDate() &&
-            dateA.getMonth() == dateB.getMonth() &&
-            dateA.getYear() == dateB.getYear());
-}
-
-function _today(date, today = new Date()) {
-    return (date.getDate() == today.getDate() &&
-            date.getMonth() == today.getMonth() &&
-            date.getYear() == today.getYear());
-}
 
 // Weekend days are derived from the locale's first workday and configured length.
 function _isWorkDay(date, weekend_length) {

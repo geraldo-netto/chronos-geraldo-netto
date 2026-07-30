@@ -9,6 +9,7 @@ const Clutter = imports.gi.Clutter;
 const GLib = imports.gi.GLib;
 const St = imports.gi.St;
 const Mainloop = imports.mainloop;
+const CalendarDate = require("./calendarDate");
 
 const SMOOTH_SCROLL_NOTCH = 1;
 const MAX_SMOOTH_SCROLL_MONTHS = 12;
@@ -25,11 +26,7 @@ const DAY_KEY_DELTAS = {
 };
 const MIRRORED_KEYS = new Set([Clutter.KEY_Left, Clutter.KEY_Right]);
 
-function sameDay(dateA, dateB) {
-    return dateA.getDate() === dateB.getDate() &&
-        dateA.getMonth() === dateB.getMonth() &&
-        dateA.getFullYear() === dateB.getFullYear();
-}
+const sameDay = CalendarDate.sameDay;
 
 function clampCalendarDate(date) {
     const ordinal = date.getFullYear() * 12 + date.getMonth();
@@ -228,5 +225,5 @@ class CalendarNavigationController {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { CalendarNavigationController, browsedDate, clampCalendarDate };
+    module.exports = { CalendarNavigationController, browsedDate, clampCalendarDate, sameDay };
 }

@@ -8,10 +8,10 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
-const GLib = imports.gi.GLib;
 const Tooltips = imports.ui.tooltips;
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
+const CalendarDate = require("./calendarDate");
 // only the flag and error-id constants are read here; requiring the holidays
 // barrel would link the cache repository, every vendor adapter and the HTTP
 // session into the month header
@@ -19,6 +19,7 @@ const Holidays = require("./holidayConstants");
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
+const formatJsDate = CalendarDate.formatJsDate;
 
 const PART_DAY_HOLIDAY = 'PART_DAY_HOLIDAY';
 const PUBLIC_HOLIDAY_FLAG = Holidays.PUBLIC_HOLIDAY_FLAG;
@@ -34,14 +35,6 @@ function calendarDateKey(date) {
         return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
     }
     return "";
-}
-
-// Date.prototype.toLocaleFormat is a non-standard SpiderMonkey extension
-// that modern GJS removed; format through GLib.DateTime instead
-function formatJsDate(jsDate, fmt) {
-    const dt = GLib.DateTime.new_local(
-        jsDate.getFullYear(), jsDate.getMonth() + 1, jsDate.getDate(), 12, 0, 0);
-    return dt ? dt.format(fmt) : "";
 }
 
 // Cinnamon's Tooltip.set_text() has no equality guard: it calls

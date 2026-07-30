@@ -130,6 +130,30 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstant
 const CalendarModule = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
 const AnnotationsModule = require(path.join(APPLET_DIR, "5.4", "calendarAnnotations.js"));
 const NavigationModule = require(path.join(APPLET_DIR, "5.4", "calendarNavigation.js"));
+const CalendarDateModule = require(path.join(APPLET_DIR, "5.4", "calendarDate.js"));
+
+test("calendar date identity has one null-safe definition", () => {
+    const date = new Date(2026, 6, 9);
+
+    assert.equal(CalendarDateModule.sameDay(date, new Date(date)), true);
+    assert.equal(CalendarDateModule.sameDay(null, date), false);
+    assert.equal(CalendarDateModule.sameDay(date, null), false);
+    assert.equal(CalendarDateModule.sameDay(date, new Date(2026, 6, 10)), false);
+    assert.equal(CalendarDateModule.sameDay(date, new Date(2026, 7, 9)), false);
+    assert.equal(CalendarDateModule.sameDay(date, new Date(2027, 6, 9)), false);
+    assert.equal(CalendarDateModule.isToday(date, new Date(date)), true);
+    assert.equal(NavigationModule.sameDay, CalendarDateModule.sameDay);
+});
+
+test("calendar date formatting owns the GLib boundary", () => {
+    const date = new Date(2026, 6, 9);
+    assert.equal(CalendarDateModule.formatJsDate(date, "%Y"), "2026");
+
+    const newLocal = global.imports.gi.GLib.DateTime.new_local;
+    global.imports.gi.GLib.DateTime.new_local = () => null;
+    assert.equal(CalendarDateModule.formatJsDate(date, "%Y"), "");
+    global.imports.gi.GLib.DateTime.new_local = newLocal;
+});
 
 test("navigation controller owns no-op, cancellation, and focus boundaries", () => {
     const removed = [];
