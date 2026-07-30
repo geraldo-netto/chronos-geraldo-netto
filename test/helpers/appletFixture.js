@@ -330,9 +330,16 @@ function updateStub({ menuOpen = false } = {}) {
         go_home_button: { reactive: true, set_style_class_name: () => {} },
         _day: { set_text: (text) => calls.dayText.push(text) },
         _date: { set_text: () => {} },
-        _weather_status: {
-            visible: false,
-            set_text: (text) => calls.weatherStatus.push(text)
+        _issueReporter: {
+            issues: new Map(),
+            set(source, text) {
+                calls.weatherStatus.push(text);
+                if (text) {
+                    this.issues.set(source, text);
+                } else {
+                    this.issues.delete(source);
+                }
+            }
         },
         events_manager: { select_date: () => calls.selected++ },
         set_applet_label: (text) => calls.label.push(text),

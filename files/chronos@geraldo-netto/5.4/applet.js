@@ -98,14 +98,7 @@ function createPanelPort(applet) {
         setWorldclocksVisible: (visible) => applet._worldclocks.setVisible(visible),
         updateWorldclocks: (entries) => applet._worldclocks.updateClocks(entries),
         setWeatherSource: (source) => applet._worldclocks.setWeatherSource(source),
-        setWeatherStatus: (text) => {
-            if (applet._issueReporter) {
-                applet._issueReporter.set("panel", text);
-            } else {
-                applet._weather_status.set_text(text);
-                applet._weather_status.visible = Boolean(text);
-            }
-        },
+        setWeatherStatus: (text) => applet._issueReporter.set("panel", text),
         getClockEntries: () => applet._worldclocks.getClockEntries(),
         todaySelected: () => applet._calendar.todaySelected(),
         selectEventsDate: () => applet.events_manager.select_date(applet._calendar.getSelectedDate()),
@@ -249,7 +242,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._calendar = ui.calendar;
         this._worldclocks = ui.worldclocks;
         this._issueReporter = ui.issueReporter;
-        this._weather_status = ui.weatherStatus;
         this.go_home_button = ui.goHomeButton;
         this._day = ui.dayLabel;
         this._date = ui.dateLabel;

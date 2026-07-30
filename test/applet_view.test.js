@@ -1032,13 +1032,13 @@ test("a keyboard-opened popup shows weather status without world clocks", () => 
 
     Proto._updateClockAndDate.call(stub);
 
-    assert.equal(stub._weather_status.visible, true);
+    assert.equal(stub._issueReporter.issues.get("panel"), "Set a weather location");
     assert.equal(calls.weatherStatus.at(-1), "Set a weather location");
 
     stub._weatherCoordinator.error = "";
     stub._weatherCoordinator.reading = { condition: "☀", temperatureC: 20 };
     Proto._updateClockAndDate.call(stub);
-    assert.equal(stub._weather_status.visible, false,
+    assert.equal(stub._issueReporter.issues.has("panel"), false,
         "a successful reading leaves no redundant status row");
 });
 

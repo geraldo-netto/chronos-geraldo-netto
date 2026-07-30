@@ -147,9 +147,6 @@ class AppletMenuBuilder {
             calendar,
             worldclocks,
             issueReporter,
-            // Kept as a compatibility alias for callers while the former
-            // weather-only label becomes the shared footer.
-            weatherStatus: issueReporter.label,
             goHomeButton: home.button,
             dayLabel: home.day,
             dateLabel: home.date
