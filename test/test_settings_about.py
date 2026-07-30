@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 
 import json
+import re
 
 from helpers.settings_widgets_fixture import (
     APPLET_DIR,
@@ -158,7 +159,7 @@ class AboutPageTests(unittest.TestCase):
             (page.sections[1], self.module.WEATHER_SERVICES),
             (page.sections[2], self.module.HOLIDAY_SERVICES),
         ):
-            for row, (name, _uri, description, attribution) in zip(
+            for row, (_runtime_name, name, _uri, description, attribution) in zip(
                 section.rows, services
             ):
                 children = row.content_widget.children
@@ -190,7 +191,7 @@ class AboutPageTests(unittest.TestCase):
 
         credited = " ".join(
             uri
-            for _name, uri, _description, _attribution
+            for _runtime_name, _name, uri, _description, _attribution
             in self.module.WEATHER_SERVICES + self.module.HOLIDAY_SERVICES
         )
         for provider_domain in (
@@ -203,6 +204,56 @@ class AboutPageTests(unittest.TestCase):
             "date.nager.at",
         ):
             self.assertIn(provider_domain, credited)
+
+    def test_disclosures_have_exact_runtime_registry_parity(self):
+        def registry_names(filename, export_name):
+            source = (APPLET_DIR / filename).read_text()
+            match = re.search(
+                r"var %s = \{(?P<body>.*?)\n\};" % export_name,
+                source,
+                re.DOTALL,
+            )
+            self.assertIsNotNone(match, "%s is not exported" % export_name)
+            return tuple(re.findall(
+                r'^\s*[A-Z_]+:\s*"([^"]+)"',
+                match.group("body"),
+                re.MULTILINE,
+            ))
+
+        disclosures = (
+            (
+                self.module.WEATHER_SERVICES,
+                registry_names(
+                    "weatherServiceAdapters.js", "WEATHER_PROVIDER_NAMES"
+                ),
+            ),
+            (
+                self.module.HOLIDAY_SERVICES,
+                registry_names("holidayConstants.js", "HOLIDAY_PROVIDER_NAMES"),
+            ),
+        )
+        for services, runtime_names in disclosures:
+            self.assertEqual(
+                tuple(service[0] for service in services),
+                runtime_names,
+                "About provider names/order diverged from the runtime registry",
+            )
+
+        aliases = {
+            runtime_name: display_name
+            for services, _runtime_names in disclosures
+            for runtime_name, display_name, _uri, _description, _attribution
+            in services
+            if runtime_name != display_name
+        }
+        self.assertEqual(
+            aliases,
+            {
+                "Aviation Weather": "Aviation Weather Center",
+                "OpenHolidays": "OpenHolidays API",
+            },
+            "display-name aliases must remain explicit",
+        )
 
     def test_standalone_window_reuses_the_complete_settings_page(self):
         window = self.module.show_about_window()

@@ -41,11 +41,13 @@ OPENSTREETMAP_ATTRIBUTION = (
 WEATHER_SERVICES = (
     (
         "Open-Meteo",
+        "Open-Meteo",
         "https://open-meteo.com/",
         _("Primary place search and weather forecast service."),
         None,
     ),
     (
+        "Nominatim",
         "Nominatim",
         "https://nominatim.org/",
         _(
@@ -55,12 +57,14 @@ WEATHER_SERVICES = (
         OPENSTREETMAP_ATTRIBUTION,
     ),
     (
+        "Aviation Weather",
         "Aviation Weather Center",
         "https://aviationweather.gov/",
         _("First fallback weather service, using nearby METAR observations."),
         None,
     ),
     (
+        "MET Norway",
         "MET Norway",
         "https://www.met.no/en",
         _("Final fallback weather forecast service."),
@@ -71,17 +75,20 @@ WEATHER_SERVICES = (
 HOLIDAY_SERVICES = (
     (
         "Enrico",
+        "Enrico",
         "https://kayaposoft.com/enrico/",
         _("Primary public-holiday service."),
         None,
     ),
     (
+        "OpenHolidays",
         "OpenHolidays API",
         "https://www.openholidaysapi.org/",
         _("First fallback public-holiday service."),
         None,
     ),
     (
+        "Nager.Date",
         "Nager.Date",
         "https://date.nager.at/",
         _("Final fallback public-holiday service."),
@@ -207,8 +214,10 @@ class AboutPage(SettingsPage):
 
     def _add_services(self, title, subtitle, services):
         section = self.add_section(title, subtitle)
-        for service in services:
-            section.add_row(service_row(*service))
+        for _runtime_name, display_name, uri, description, attribution in services:
+            section.add_row(service_row(
+                display_name, uri, description, attribution
+            ))
 
 
 class AboutWindow(Gtk.Window):

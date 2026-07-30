@@ -40,11 +40,14 @@ var GEOCODE_CANDIDATE_COUNT = 10; // NOSONAR [S3504] -- GJS importer export
 var MAX_GEOCODE_PLACE_NAME_LENGTH = WeatherFormat.MAX_WEATHER_LOCATION_LENGTH; // NOSONAR [S3504] -- GJS importer export
 var GEOCODE_LANGUAGE_FALLBACK = LocaleQuery.MESSAGE_LANGUAGE_FALLBACK; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_USER_AGENT = "chronos@geraldo-netto Cinnamon applet (https://github.com/geraldo-netto/cinnamon-chronos)"; // NOSONAR [S3504] -- GJS importer export
+// Stable inventory order for cross-runtime disclosures: place services first,
+// then forecast-only fallbacks. Provider execution order lives in the separate
+// geocode and forecast registries in weatherProviders.js.
 var WEATHER_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
     OPEN_METEO: "Open-Meteo",
+    NOMINATIM: "Nominatim",
     AVIATION_WEATHER: "Aviation Weather",
-    MET_NO: "MET Norway",
-    NOMINATIM: "Nominatim"
+    MET_NO: "MET Norway"
 };
 
 // aviationweather.gov reports per airport, not per point: ask for the METARs
