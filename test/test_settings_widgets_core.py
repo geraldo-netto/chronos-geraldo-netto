@@ -2,7 +2,7 @@ import os
 from unittest import mock
 
 from helpers.settings_widgets_fixture import (
-    APPLET_DIR, COMMON_PATH, BaseWidget, DialogSettings, Entry, FakeSettings,
+    APPLET_DIR, WORLDCLOCKS_PATH, BaseWidget, DialogSettings, Entry, FakeSettings,
     FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model, Path,
     importlib, install_stubs, json, load_module, random, requires_pytz, sys,
     tearDownModule as teardown_fixture, types, unittest,
@@ -15,7 +15,7 @@ def tearDownModule():
 class SettingsWidgetsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_test")
+        cls.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_test")
 
     def setUp(self):
         GtkDialog.on_run = None
@@ -46,10 +46,10 @@ class SettingsWidgetsTest(unittest.TestCase):
 
     def test_widget_module_tolerates_missing_stdlib_zoneinfo(self):
         module = load_module(
-            COMMON_PATH, "settings_widgets_common_no_zoneinfo_test",
+            WORLDCLOCKS_PATH, "settings_widgets_common_no_zoneinfo_test",
             missing_zoneinfo=True)
 
-        self.assertIsNone(module.available_timezones)
+        self.assertIsNone(module.common.available_timezones)
 
     def test_the_suggestion_store_is_built_once_not_per_dialog(self):
         # ~440 rows with pytz, rebuilt on the GTK main thread every time the
@@ -176,7 +176,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             common_timezones=["Europe/Rome", "America/New_York", "UTC"]
         )
 
-        resolver = self.module.TimezoneResolver(fake_pytz, None)
+        resolver = self.module.common.TimezoneResolver(fake_pytz, None)
 
         self.assertTrue(resolver.has_timezone_data)
         self.assertEqual(resolver.split("Europe/Rome"), ("Europe", "Rome"))
@@ -203,7 +203,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             common_timezones=["America/Argentina/Buenos_Aires", "America/New_York"]
         )
 
-        resolver = self.module.TimezoneResolver(fake_pytz, None)
+        resolver = self.module.common.TimezoneResolver(fake_pytz, None)
 
         self.assertEqual(
             resolver.normalize("buenos aires"), "America/Argentina/Buenos_Aires")
@@ -222,7 +222,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             common_timezones=["Europe/Rome", "Europe/Amsterdam", "Africa/Cairo"]
         )
 
-        resolver = self.module.TimezoneResolver(fake_pytz, None)
+        resolver = self.module.common.TimezoneResolver(fake_pytz, None)
 
         self.assertEqual(
             [display for display, timezone in resolver.completions],
@@ -234,7 +234,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             common_timezones=["Asia/Nicosia", "Europe/Nicosia"]
         )
 
-        resolver = self.module.TimezoneResolver(fake_pytz, None)
+        resolver = self.module.common.TimezoneResolver(fake_pytz, None)
 
         self.assertEqual(resolver.normalize("nicosia"), "Asia/Nicosia")
         self.assertEqual(resolver.normalize("Europe/Nicosia"), "Europe/Nicosia")
@@ -242,9 +242,9 @@ class SettingsWidgetsTest(unittest.TestCase):
     def test_a_dialog_with_no_timezone_database_says_so_in_the_dialog(self):
         # the warning otherwise only reaches a log line nobody opening this
         # dialog will ever read
-        module = load_module(COMMON_PATH, "settings_widgets_no_tz_hint", missing_pytz=True)
+        module = load_module(WORLDCLOCKS_PATH, "settings_widgets_no_tz_hint", missing_pytz=True)
         clocks = module.ClocksList({"value": []}, "worldclocks", DialogSettings())
-        clocks.timezone_resolver = module.TimezoneResolver(None, None)
+        clocks.timezone_resolver = module.common.TimezoneResolver(None, None)
 
         labels = []
 
@@ -333,7 +333,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             all_timezones=["America/Sao_Paulo", "Europe/Rome"],
             common_timezones=["America/Sao_Paulo", "Europe/Rome"]
         )
-        resolver = self.module.TimezoneResolver(
+        resolver = self.module.common.TimezoneResolver(
             fake_pytz, None, local_timezone="America/Sao_Paulo")
 
         for typed in ("America/Sao_Paulo", "america/sao_paulo", "Sao Paulo", "local"):
@@ -348,7 +348,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         fake_pytz = types.SimpleNamespace(
             all_timezones=["America/Sao_Paulo"], common_timezones=["America/Sao_Paulo"])
         clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
-        clocks.timezone_resolver = self.module.TimezoneResolver(
+        clocks.timezone_resolver = self.module.common.TimezoneResolver(
             fake_pytz, None, local_timezone="America/Sao_Paulo")
 
         values = {"label": "Home", "timezone": "Sao Paulo"}
@@ -361,7 +361,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             "UTC and local time are already shown as built-in clocks")
 
     def test_timezone_resolver_uses_zoneinfo_fallback_without_pytz(self):
-        resolver = self.module.TimezoneResolver(
+        resolver = self.module.common.TimezoneResolver(
             None,
             lambda: {"Europe/Rome", "America/New_York"}
         )
@@ -378,7 +378,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertIsNone(resolver.normalize("Mars/Olympus"))
 
     def test_timezone_resolver_trusts_typed_values_when_no_timezone_source_exists(self):
-        resolver = self.module.TimezoneResolver(None, None)
+        resolver = self.module.common.TimezoneResolver(None, None)
 
         self.assertFalse(resolver.has_timezone_data)
         self.assertEqual(resolver.completions, [])
@@ -397,7 +397,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         written it to the config, where the applet renders it as an italic
         "Invalid timezone" row with nothing connecting the two.
         """
-        resolver = self.module.TimezoneResolver(None, None)
+        resolver = self.module.common.TimezoneResolver(None, None)
 
         # right shape, wrong characters: a space, and then the punctuation an
         # identifier never carries
@@ -453,18 +453,18 @@ class SettingsWidgetsTest(unittest.TestCase):
             def __iter__(self):
                 raise AssertionError("normalize_timezone should not scan pytz lists")
 
-        original_all = self.module.pytz.all_timezones
-        original_common = self.module.pytz.common_timezones
+        original_all = self.module.common.pytz.all_timezones
+        original_common = self.module.common.pytz.common_timezones
         try:
-            self.module.pytz.all_timezones = ExplodingTimezones()
-            self.module.pytz.common_timezones = ExplodingTimezones()
+            self.module.common.pytz.all_timezones = ExplodingTimezones()
+            self.module.common.pytz.common_timezones = ExplodingTimezones()
 
             self.assertEqual(clocks.normalize_timezone("europe/rome"), "Europe/Rome")
             self.assertEqual(clocks.normalize_timezone("new york"), "America/New_York")
             self.assertIsNone(clocks.normalize_timezone("Not A Timezone"))
         finally:
-            self.module.pytz.all_timezones = original_all
-            self.module.pytz.common_timezones = original_common
+            self.module.common.pytz.all_timezones = original_all
+            self.module.common.pytz.common_timezones = original_common
 
     @requires_pytz
     def test_timezone_choice_previews_saved_value(self):
@@ -619,8 +619,8 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(completed["text"], "America/Argentina/Buenos_Aires")
 
     def test_add_dialog_without_pytz_accepts_typed_timezone(self):
-        module = load_module(COMMON_PATH, "settings_widgets_common_dialog_no_pytz", missing_pytz=True)
-        module.available_timezones = lambda: {"Europe/Rome"}
+        module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_dialog_no_pytz", missing_pytz=True)
+        module.common.available_timezones = lambda: {"Europe/Rome"}
         clocks = module.ClocksList({"value": []}, "worldclocks", DialogSettings())
 
         def script(dialog):
@@ -658,13 +658,13 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(settings.requested, [("renamed-clocks", "columns")])
 
     def test_missing_pytz_degrades_to_plain_timezone_entry(self):
-        module = load_module(COMMON_PATH, "settings_widgets_common_no_pytz_test", missing_pytz=True)
-        module.available_timezones = lambda: {"Europe/Rome"}
+        module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_no_pytz_test", missing_pytz=True)
+        module.common.available_timezones = lambda: {"Europe/Rome"}
         clocks = module.ClocksList({
             "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
         }, "worldclocks", object())
 
-        self.assertIsNone(module.pytz)
+        self.assertIsNone(module.common.pytz)
         self.assertFalse(clocks.timezone_resolver.has_timezone_data)
         # zoneinfo still feeds the suggestions and validates typed entries
         self.assertIn(
@@ -703,8 +703,8 @@ class SettingsWidgetsTest(unittest.TestCase):
         # neither pytz nor zoneinfo: anything typed used to be handed straight
         # back and saved, so the dialog accepted gibberish and the applet showed
         # an italic "Invalid timezone" row later, with nothing connecting the two
-        module = load_module(COMMON_PATH, "settings_widgets_common_no_tzdata_test", missing_pytz=True)
-        resolver = module.TimezoneResolver(None, None)
+        module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_no_tzdata_test", missing_pytz=True)
+        resolver = module.common.TimezoneResolver(None, None)
 
         self.assertFalse(resolver.any_timezone_data())
         self.assertEqual(resolver.normalize("America/Sao_Paulo"), "America/Sao_Paulo")
@@ -739,14 +739,14 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertIn((1, True), dialog.sensitivity)
 
     def test_missing_pytz_logs_install_help(self):
-        module = load_module(COMMON_PATH, "settings_widgets_common_no_pytz_log_test", missing_pytz=True)
+        module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_no_pytz_log_test", missing_pytz=True)
 
         # Warned when the resolver is built, not at import: importing a module
         # should define things, not emit them. At import time cinnamon-settings
         # has not configured logging yet, so the warning landed on the whole
         # process's stderr or was dropped, depending on import order.
         with self.assertLogs("chronos@geraldo-netto.settings", level="WARNING") as logs:
-            module.TimezoneResolver(None, None)
+            module.common.TimezoneResolver(None, None)
 
         message = "\n".join(logs.output)
         self.assertIn("python3-pytz is not installed", message)
@@ -806,7 +806,7 @@ class SettingsWidgetsTest(unittest.TestCase):
 
         # each widget comes from its feature module, not one shared grab-bag
         homes = {
-            "ClocksList": "settings_widgets_common",
+            "ClocksList": "settings_widgets_worldclocks",
             "CountryComboBox": "settings_widgets_holidays",
             "WeatherLocationEntry": "settings_widgets_weather",
         }

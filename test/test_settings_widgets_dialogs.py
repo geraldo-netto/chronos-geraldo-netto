@@ -2,7 +2,7 @@ import gettext
 from unittest import mock
 
 from helpers.settings_widgets_fixture import (
-    COMMON_PATH, FUZZ_SEED, RESERVED_TIMEZONES, BaseWidget, BindObject,
+    COMMON_PATH, WEATHER_PATH, HOLIDAYS_PATH, WORLDCLOCKS_PATH, FUZZ_SEED, RESERVED_TIMEZONES, BaseWidget, BindObject,
     DialogSettings, GLibError, GLibStub, GtkDialog, GtkEntryCompletion, GtkLabel,
     GtkStub, _pytz, load_module, random, re, requires_pytz,
     tearDownModule as teardown_fixture, types, unittest,
@@ -15,7 +15,7 @@ def tearDownModule():
 class BuildDialogContentTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_builder_test")
+        cls.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_builder_test")
 
     def test_dialog_state_presenter_updates_preview_and_ok_state(self):
         clocks = self.module.ClocksList({
@@ -71,7 +71,7 @@ class BuildDialogContentTest(unittest.TestCase):
         # therefore asserted almost nothing on either
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Europe/Rome"], common_timezones=["Europe/Rome"])
-        clocks.timezone_resolver = self.module.TimezoneResolver(fake_pytz, None)
+        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
         dialog = GtkDialog()
         widgets = clocks._build_dialog_content(
             dialog, {"label": " Home ", "timezone": "europe/rome"})
@@ -126,7 +126,8 @@ class NonNullableGtkArgumentTest(unittest.TestCase):
     ]
 
     def test_no_gtk_string_setter_is_handed_none(self):
-        source = COMMON_PATH.read_text()
+        source = "\n".join(module_path.read_text() for module_path in (
+            COMMON_PATH, WEATHER_PATH, HOLIDAYS_PATH, WORLDCLOCKS_PATH))
 
         for setter in self.NON_NULLABLE_SETTERS:
             # the literal call, and the conditional form that hid this one:
@@ -148,10 +149,11 @@ class GettextIsolationTest(unittest.TestCase):
     def test_the_widget_module_keeps_its_translator_to_itself(self):
         # gettext.install() injects _ into builtins for the whole
         # cinnamon-settings process and can shadow another xlet's translator
-        source = COMMON_PATH.read_text()
-        self.assertNotIn("gettext.install", source)
+        for module_path in (
+                COMMON_PATH, WEATHER_PATH, HOLIDAYS_PATH, WORLDCLOCKS_PATH):
+            self.assertNotIn("gettext.install", module_path.read_text())
 
-        module = load_module(COMMON_PATH, "settings_widgets_common_gettext_test")
+        module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_gettext_test")
         self.assertTrue(callable(module._))
         self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
 
@@ -165,7 +167,7 @@ class GettextIsolationTest(unittest.TestCase):
 
         with mock.patch.object(gettext, "translation", return_value=Translation()):
             module = load_module(
-                COMMON_PATH, "settings_widgets_common_gnu_translation_test")
+                WORLDCLOCKS_PATH, "settings_widgets_common_gnu_translation_test")
 
         self.assertEqual(module._("Invalid timezone"),
                          "translated: Invalid timezone")
@@ -175,7 +177,7 @@ class GettextIsolationTest(unittest.TestCase):
                 gettext, "translation",
                 return_value=gettext.NullTranslations()):
             module = load_module(
-                COMMON_PATH, "settings_widgets_common_null_translation_test")
+                WORLDCLOCKS_PATH, "settings_widgets_common_null_translation_test")
 
         self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
 
@@ -192,7 +194,7 @@ class GettextIsolationTest(unittest.TestCase):
                     gettext, "translation",
                     side_effect=[OSError("Bad magic number"), Translation()]):
                 module = load_module(
-                    COMMON_PATH, "settings_widgets_common_corrupt_user_catalog_test")
+                    WORLDCLOCKS_PATH, "settings_widgets_common_corrupt_user_catalog_test")
 
         self.assertEqual(module._("Invalid timezone"), "system: Invalid timezone")
         self.assertEqual(len(logs.output), 1)
@@ -204,7 +206,7 @@ class GettextIsolationTest(unittest.TestCase):
             with mock.patch.object(
                     gettext, "translation", side_effect=OSError("Bad magic number")):
                 module = load_module(
-                    COMMON_PATH, "settings_widgets_common_corrupt_catalogs_test")
+                    WORLDCLOCKS_PATH, "settings_widgets_common_corrupt_catalogs_test")
 
         self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
         self.assertEqual(len(logs.output), 2)
@@ -216,7 +218,7 @@ class GettextIsolationTest(unittest.TestCase):
                 gettext, "translation", side_effect=RuntimeError("programming error")):
             with self.assertRaisesRegex(RuntimeError, "programming error"):
                 load_module(
-                    COMMON_PATH, "settings_widgets_common_translation_bug_test")
+                    WORLDCLOCKS_PATH, "settings_widgets_common_translation_bug_test")
 
 
 class FakeWindow:
@@ -254,7 +256,7 @@ class FakeWindow:
 
 class CenterWindowTest(unittest.TestCase):
     def setUp(self):
-        self.module = load_module(COMMON_PATH, "settings_widgets_common_center")
+        self.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_center")
 
     def test_window_is_centered_on_its_monitor_workarea(self):
         window = FakeWindow()
@@ -282,7 +284,7 @@ class CompletionMatchingTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_completion")
+        cls.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_completion")
 
     def model_with(self, *rows):
         # built by the production builder: the match function searches a folded
@@ -377,7 +379,7 @@ class CenterSettingsWindowTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_center_idle")
+        cls.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_center_idle")
 
     def setUp(self):
         GLibStub.idles.clear()
@@ -447,7 +449,7 @@ class CenterSettingsWindowTest(unittest.TestCase):
 class RegressionTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_regression")
+        cls.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_regression")
 
     @requires_pytz
     def test_a_city_nested_below_its_region_is_findable_by_its_own_name(self):
@@ -512,7 +514,7 @@ class FuzzTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_fuzz")
+        cls.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_fuzz")
 
     def setUp(self):
         random.seed(FUZZ_SEED)
@@ -567,7 +569,7 @@ class FuzzTest(unittest.TestCase):
     @requires_pytz
     def test_completion_match_ignores_case_and_underscores(self):
         match = self.module.timezone_completion_match
-        resolver = self.module.TimezoneResolver(_pytz, None)
+        resolver = self.module.common.TimezoneResolver(_pytz, None)
         model = self.module.timezone_completion_model(resolver.completions)
 
         for timezone in self.sample_zones(60):
@@ -582,7 +584,7 @@ class FuzzTest(unittest.TestCase):
 
     @requires_pytz
     def test_normalize_round_trips_real_zones_through_random_case_and_spacing(self):
-        resolver = self.module.TimezoneResolver(_pytz, None)
+        resolver = self.module.common.TimezoneResolver(_pytz, None)
         padding = ["", " ", "  ", "\t", "\n", " \t "]
 
         for timezone in self.sample_zones(120):
@@ -594,7 +596,7 @@ class FuzzTest(unittest.TestCase):
 
     @requires_pytz
     def test_normalize_round_trips_the_bare_city_name_of_real_zones(self):
-        resolver = self.module.TimezoneResolver(_pytz, None)
+        resolver = self.module.common.TimezoneResolver(_pytz, None)
 
         for timezone in self.sample_zones(120):
             city = timezone.rsplit("/", maxsplit=1)[-1]
@@ -609,7 +611,7 @@ class FuzzTest(unittest.TestCase):
                     resolved.rsplit("/", maxsplit=1)[-1].lower(), city.lower())
 
     def test_normalize_refuses_blank_and_whitespace_only_values(self):
-        resolver = self.module.TimezoneResolver(None, None)
+        resolver = self.module.common.TimezoneResolver(None, None)
 
         for value in ("", "   ", "\t\n", None, 0, False, []):
             with self.subTest(value=repr(value)):
@@ -656,7 +658,7 @@ class MutationGapTest(unittest.TestCase):
     """Written against surviving mutants: paths the suite ran but never checked."""
 
     def setUp(self):
-        self.module = load_module(COMMON_PATH, "settings_widgets_common_mutation")
+        self.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_mutation")
 
     def test_a_window_that_cannot_be_measured_is_left_to_the_window_manager(self):
         # cinnamon-settings hands this widget whatever toplevel it has; something
@@ -699,18 +701,18 @@ class LazySettingsPageTest(unittest.TestCase):
     """Opening the settings must not pay for a page the user has not opened."""
 
     def setUp(self):
-        self.module = load_module(COMMON_PATH, "settings_widgets_lazy_test")
+        self.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_lazy_test")
 
     def test_the_timezone_map_is_not_built_until_the_page_needs_it(self):
         built = []
-        original = self.module.TimezoneResolver
+        original = self.module.common.TimezoneResolver
 
         class CountingResolver(original):
             def __init__(self, *args, **kwargs):
                 built.append(True)
                 super().__init__(*args, **kwargs)
 
-        self.module.TimezoneResolver = CountingResolver
+        self.module.common.TimezoneResolver = CountingResolver
         try:
             clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
 
@@ -727,14 +729,14 @@ class LazySettingsPageTest(unittest.TestCase):
             clocks.normalize_timezone("europe/rome")
             self.assertEqual(len(built), 1, "and it is built once, not per lookup")
         finally:
-            self.module.TimezoneResolver = original
+            self.module.common.TimezoneResolver = original
 
 
 class DialogSizingTest(unittest.TestCase):
     """A modal sized to its content is as wide as its widest unwrapped line."""
 
     def setUp(self):
-        self.module = load_module(COMMON_PATH, "settings_widgets_wrap_test")
+        self.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_wrap_test")
 
     def test_the_dialog_labels_wrap_instead_of_widening_the_window(self):
         clocks = self.module.ClocksList({
@@ -742,7 +744,7 @@ class DialogSizingTest(unittest.TestCase):
         }, "worldclocks", DialogSettings())
         # no timezone database: the dialog carries the 140-character hint that
         # says what to install
-        clocks.timezone_resolver = self.module.TimezoneResolver(None, None)
+        clocks.timezone_resolver = self.module.common.TimezoneResolver(None, None)
 
         dialog = GtkDialog()
         GtkLabel.instances.clear()
@@ -767,7 +769,7 @@ class DialogValidationFeedbackTest(unittest.TestCase):
     """A validation message nobody can hear is not validation feedback."""
 
     def setUp(self):
-        self.module = load_module(COMMON_PATH, "settings_widgets_a11y_test")
+        self.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_a11y_test")
         BaseWidget.instances.clear()
 
     def _dialog(self, data):
@@ -776,7 +778,7 @@ class DialogValidationFeedbackTest(unittest.TestCase):
         }, "worldclocks", DialogSettings())
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Europe/Rome"], common_timezones=["Europe/Rome"])
-        clocks.timezone_resolver = self.module.TimezoneResolver(fake_pytz, None)
+        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
 
         dialog = GtkDialog()
         widgets = clocks._build_dialog_content(dialog, data)

@@ -1,5 +1,5 @@
 from helpers.settings_widgets_fixture import (
-    APPLET_DIR, WEATHER_PATH, HOLIDAYS_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
+    APPLET_DIR, WEATHER_PATH, HOLIDAYS_PATH, WORLDCLOCKS_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
     Path, importlib, json, load_module,
     tearDownModule as teardown_fixture, unittest,
 )
@@ -102,7 +102,13 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertIs(self.module.weather_cities(), cities,
                       "the timezone database is read on the first field, not on every page")
         resolver = self.module.common.shared_timezone_resolver()
-        clocks = self.module.common.ClocksList({"value": []}, "worldclocks", object())
+        # the clocks module is loaded against this test's exact common instance
+        # — how the shim behaves in cinnamon-settings, where every feature
+        # module imports the one cached settings_widgets_common
+        clocks_module = load_module(
+            WORLDCLOCKS_PATH, "settings_widgets_worldclocks_shared",
+            preload={"settings_widgets_common": self.module.common})
+        clocks = clocks_module.ClocksList({"value": []}, "worldclocks", object())
         self.assertIs(clocks.timezone_resolver, resolver,
                       "weather and clocks must share one timezone index")
 

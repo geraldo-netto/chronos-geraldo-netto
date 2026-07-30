@@ -24,8 +24,8 @@ if _APPLET_DIR not in sys.path:
 # "widget" field gives it. list_edit_factory was re-exported here too and nothing
 # outside settings_widgets_common has ever called it: the tests import that
 # module directly.
-from settings_widgets_common import ClocksList
 from settings_widgets_holidays import CountryComboBox
 from settings_widgets_weather import WeatherLocationEntry
+from settings_widgets_worldclocks import ClocksList
 
 __all__ = ["ClocksList", "CountryComboBox", "WeatherLocationEntry"]

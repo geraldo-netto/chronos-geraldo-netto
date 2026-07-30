@@ -23,6 +23,7 @@ APPLET_DIR = Path(__file__).resolve().parent.parent.parent / "files" / "chronos@
 COMMON_PATH = APPLET_DIR / "settings_widgets_common.py"
 WEATHER_PATH = APPLET_DIR / "settings_widgets_weather.py"
 HOLIDAYS_PATH = APPLET_DIR / "settings_widgets_holidays.py"
+WORLDCLOCKS_PATH = APPLET_DIR / "settings_widgets_worldclocks.py"
 
 # The reserved built-ins live in the gi-free sibling, and the widget module no
 # longer re-exports them: it never read them, and naming them there existed only
@@ -754,9 +755,41 @@ def install_stubs():
 FIXED_LOCAL_TIMEZONE = "Antarctica/Troll"
 
 
-def load_module(path, name, missing_pytz=False, missing_zoneinfo=False):
+def _pin_local_timezone(preloaded):
+    # The dialog rejects a timezone that resolves to one the applet already
+    # draws — including the machine's own zone. Reading the real
+    # /etc/localtime would make every test depend on where the test ran: on a
+    # machine in Rome, "Europe/Rome" is correctly reserved. local_timezone_name
+    # has its own tests; here it is a fixed answer, and it is patched where it
+    # lives: TimezoneResolver and local_city_name call the gi-free sibling's
+    # copy, not a re-export.
+    for cached_name in set(sys.modules) - preloaded:
+        cached = sys.modules.get(cached_name)
+        cached_file = getattr(cached, "__file__", None)
+        if (cached_file and str(APPLET_DIR) in str(cached_file)
+                and hasattr(cached, "local_timezone_name")):
+            cached.local_timezone_name = lambda: FIXED_LOCAL_TIMEZONE
+
+
+def _purge_applet_modules(preloaded, preload):
+    # drop any applet-dir sibling exec pulled into the module cache
+    for cached_name in set(sys.modules) - preloaded:
+        cached = sys.modules.get(cached_name)
+        cached_file = getattr(cached, "__file__", None)
+        if cached_file and str(APPLET_DIR) in str(cached_file):
+            del sys.modules[cached_name]
+    for preload_name in (preload or {}):
+        sys.modules.pop(preload_name, None)
+
+
+def load_module(path, name, missing_pytz=False, missing_zoneinfo=False, preload=None):
     install_stubs()
     sys.path.insert(0, str(APPLET_DIR))
+    # a sibling already loaded by a previous call, handed in so this module
+    # imports that exact instance — how the shim behaves in cinnamon-settings,
+    # where every feature module sees one settings_widgets_common
+    for preload_name, preload_module in (preload or {}).items():
+        sys.modules[preload_name] = preload_module
     original_import = builtins.__import__
     # anything already imported stays; a sibling the module pulls in during exec
     # (e.g. a gi-free timezone_data split out of the widget module) is imported
@@ -777,31 +810,14 @@ def load_module(path, name, missing_pytz=False, missing_zoneinfo=False):
         spec = importlib.util.spec_from_file_location(name, path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
-        # The dialog rejects a timezone that resolves to one the applet already
-        # draws — including the machine's own zone. Reading the real
-        # /etc/localtime would make every test below depend on where the test
-        # ran: on a machine in Rome, "Europe/Rome" is correctly reserved.
-        # local_timezone_name has its own tests; here it is a fixed answer, and
-        # it is patched where it lives: TimezoneResolver and local_city_name call
-        # the gi-free sibling's copy, not a re-export.
-        for cached_name in set(sys.modules) - preloaded:
-            cached = sys.modules.get(cached_name)
-            cached_file = getattr(cached, "__file__", None)
-            if (cached_file and str(APPLET_DIR) in str(cached_file)
-                    and hasattr(cached, "local_timezone_name")):
-                cached.local_timezone_name = lambda: FIXED_LOCAL_TIMEZONE
+        _pin_local_timezone(preloaded)
         return module
     finally:
         builtins.__import__ = original_import
         # the 5.4 wrapper inserts the applet dir a second time; drop them all
         while str(APPLET_DIR) in sys.path:
             sys.path.remove(str(APPLET_DIR))
-        # drop any applet-dir sibling exec pulled into the module cache
-        for cached_name in set(sys.modules) - preloaded:
-            cached = sys.modules.get(cached_name)
-            cached_file = getattr(cached, "__file__", None)
-            if cached_file and str(APPLET_DIR) in str(cached_file):
-                del sys.modules[cached_name]
+        _purge_applet_modules(preloaded, preload)
 
 
 def tearDownModule():
@@ -814,7 +830,7 @@ def tearDownModule():
 
 
 __all__ = [
-    "APPLET_DIR", "COMMON_PATH", "WEATHER_PATH", "HOLIDAYS_PATH", "RESERVED_TIMEZONES", "requires_pytz",
+    "APPLET_DIR", "COMMON_PATH", "WEATHER_PATH", "HOLIDAYS_PATH", "WORLDCLOCKS_PATH", "RESERVED_TIMEZONES", "requires_pytz",
     "BindObject", "GtkEntryCompletion", "GtkDialog", "GtkMessageDialog",
     "GtkLabel", "BaseWidget", "ComboBox", "Entry", "Model", "DialogSettings",
     "FakeSettings", "GLibError", "GLibStub", "GtkStub",
