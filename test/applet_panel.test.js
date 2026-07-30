@@ -860,16 +860,45 @@ test("events enabled without a calendar service says so instead of vanishing", (
     assert.deepEqual(unavailable, [true]);
 });
 
-test("world-clock setting changes rebuild and repaint the clocks", () => {
+test("world-clock setting changes repaint retained weather through the presenter", () => {
     const ops = [];
-    const stub = Object.assign(Object.create(Proto), {
+    const rendered = [];
+    let rows = [];
+    const { stub } = updateStub({ menuOpen: true });
+    Object.assign(stub, {
         worldclock_format: "%H:%M",
+        show_weather: true,
+        show_worldclocks: true,
+        worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
         _worldclocks: {
-            buildClocks: (clocks, format) => ops.push(["build", clocks.length, format]),
-            updateClocks: () => ops.push(["update"])
+            buildClocks(clocks, format) {
+                ops.push(["build", clocks.length, format]);
+                rows = clocks.map((clock) => ({
+                    label: clock.label,
+                    timezone: clock.timezone,
+                    time: "18:00",
+                    builtin: false
+                }));
+            },
+            getClockEntries: () => rows,
+            updateClocks(entries) {
+                ops.push(["render"]);
+                rendered.push(entries);
+            },
+            setWeatherSource() {}
         }
     });
-    Proto._onWorldclocksChanged.call(stub, null, "worldclocks", [], [{ a: 1 }, { b: 2 }]);
-    assert.deepEqual(stub.worldclocks, [{ a: 1 }, { b: 2 }]);
-    assert.deepEqual(ops, [["build", 2, "%H:%M"], ["update"]]);
+    stub._weatherCoordinator.cityReading = (city) => city === "Tokyo" ?
+        { condition: "🌧", temperatureC: 12 } : null;
+    stub._weatherCoordinator.cityStale = () => false;
+    stub._weatherCoordinator.scheduleCities = () => ops.push(["schedule"]);
+
+    const renamed = [{ label: "Office", timezone: "Asia/Tokyo" }];
+    Proto._onWorldclocksChanged.call(stub, null, "worldclocks", stub.worldclocks, renamed);
+
+    assert.deepEqual(stub.worldclocks, renamed);
+    assert.deepEqual(ops, [["build", 1, "%H:%M"], ["render"], ["schedule"]]);
+    assert.equal(rendered.at(-1)[0].label, "Office");
+    assert.match(rendered.at(-1)[0].weather, /12°C/,
+        "the rebuilt row immediately reuses the cached Tokyo reading");
 });

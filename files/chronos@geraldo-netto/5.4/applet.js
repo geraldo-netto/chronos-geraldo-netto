@@ -312,7 +312,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._guarded("worldclocks-settings", () => {
             this.worldclocks = newval;
             this._worldclocks.buildClocks(this.worldclocks, this.worldclock_format);
-            this._worldclocks.updateClocks();
+            this._updateClockAndDate(true);
             this._scheduleCityWeatherRefresh();
         });
     }
