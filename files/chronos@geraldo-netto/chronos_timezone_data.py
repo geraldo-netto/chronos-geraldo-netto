@@ -60,13 +60,14 @@ def local_timezone_name() -> Optional[str]:
     """
     configured = os.environ.get("TZ", "").strip()
     if configured:
-        configured = configured.removeprefix(":")
+        if configured.startswith(":"):
+            configured = configured[1:]
         return (zoneinfo_name(Path(configured)) if configured.startswith("/")
                 else configured)
 
     try:
         localtime = Path("/etc/localtime")
-        target = localtime.readlink()
+        target = Path(os.readlink(localtime))
         if not target.is_absolute():
             target = localtime.parent / target
     # not a zoneinfo symlink (a copied file, a container, a stub /etc): there is

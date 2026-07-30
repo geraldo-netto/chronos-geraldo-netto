@@ -62,10 +62,15 @@ def code_objects(path: Path) -> list[types.CodeType]:
     return found
 
 
+def measurable_code_objects(path: Path) -> list[types.CodeType]:
+    """Source-owned code, excluding Python 3.14 annotation machinery."""
+    return [code for code in code_objects(path) if code.co_name != "__annotate__"]
+
+
 def executable_lines(path: Path) -> set[int]:
     """Every line the interpreter could stop on, from the compiled code."""
     lines: set[int] = set()
-    for current in code_objects(path):
+    for current in measurable_code_objects(path):
         for _, line in dis.findlinestarts(current):
             if line is not None:
                 lines.add(line)
@@ -92,7 +97,7 @@ def is_conditional_jump(instruction: dis.Instruction) -> bool:
 def branch_edges(path: Path) -> set[tuple[tuple[str, int], int, int]]:
     """Both possible destinations of every conditional jump."""
     edges = set()
-    for code in code_objects(path):
+    for code in measurable_code_objects(path):
         # Modules and class bodies run while unittest discovers/imports the
         # suite, before measurement starts. Functions and methods are the code
         # the tests can exercise deliberately.
@@ -106,7 +111,7 @@ def branch_edges(path: Path) -> set[tuple[tuple[str, int], int, int]]:
 def branch_labels(path: Path) -> dict[tuple[tuple[str, int], int, int], str]:
     """Human-readable source anchors for branch edges."""
     labels = {}
-    for code in code_objects(path):
+    for code in measurable_code_objects(path):
         if not code.co_flags & inspect.CO_NEWLOCALS:
             continue
         instructions = list(dis.get_instructions(code))
@@ -146,14 +151,17 @@ def branch_edges_for_code(code, instructions):
             source_index -= 1
         source = instructions[source_index].offset
         yield (key, source, int(instruction.argval))
-        yield (key, source, instructions[index + 1].offset)
+        fallthrough_index = index + 1
+        if instructions[fallthrough_index].opname == "NOT_TAKEN":
+            fallthrough_index += 1
+        yield (key, source, instructions[fallthrough_index].offset)
 
 
 def function_keys(path: Path) -> set[tuple[str, int]]:
     """Functions and methods, excluding module/class bodies and comprehensions."""
     ignored = {"<listcomp>", "<dictcomp>", "<setcomp>", "<genexpr>"}
     return {
-        code_key(code) for code in code_objects(path)
+        code_key(code) for code in measurable_code_objects(path)
         if code.co_flags & inspect.CO_NEWLOCALS and code.co_name not in ignored
     }
 

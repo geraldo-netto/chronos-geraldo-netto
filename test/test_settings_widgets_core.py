@@ -3,7 +3,7 @@ from unittest import mock
 
 from helpers.settings_widgets_fixture import (
     APPLET_DIR, WORLDCLOCKS_PATH, BaseWidget, DialogSettings, Entry, FakeSettings,
-    FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model, Path,
+    FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model,
     importlib, install_stubs, json, load_module, random, requires_pytz, sys,
     tearDownModule as teardown_fixture, types, unittest,
 )
@@ -284,20 +284,20 @@ class SettingsWidgetsTest(unittest.TestCase):
 
         with mock.patch.dict(os.environ, {}, clear=True):
             with mock.patch.object(
-                    Path, "readlink",
-                    return_value=Path("/usr/share/zoneinfo/Asia/Calcutta")):
+                    os, "readlink",
+                    return_value="/usr/share/zoneinfo/Asia/Calcutta"):
                 self.assertEqual(fresh.local_timezone_name(), "Asia/Calcutta")
 
             with mock.patch.object(
-                    Path, "readlink",
-                    return_value=Path("../usr/share/zoneinfo/Europe/Rome")):
+                    os, "readlink",
+                    return_value="../usr/share/zoneinfo/Europe/Rome"):
                 self.assertEqual(fresh.local_timezone_name(), "Europe/Rome")
 
             with mock.patch.object(
-                    Path, "readlink", return_value=Path("/etc/localtime")):
+                    os, "readlink", return_value="/etc/localtime"):
                 self.assertIsNone(fresh.local_timezone_name())
 
-            with mock.patch.object(Path, "readlink", side_effect=OSError("missing")):
+            with mock.patch.object(os, "readlink", side_effect=OSError("missing")):
                 self.assertIsNone(fresh.local_timezone_name())
 
     def test_tz_override_beats_the_localtime_link_for_reserved_clocks(self):
@@ -311,7 +311,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             common_timezones=["Asia/Calcutta", "Asia/Kolkata"])
 
         with mock.patch.dict(os.environ, {"TZ": "Asia/Calcutta"}, clear=True):
-            with mock.patch.object(Path, "readlink") as readlink:
+            with mock.patch.object(os, "readlink") as readlink:
                 resolver = fresh.TimezoneResolver(fake_pytz, None)
 
         readlink.assert_not_called()

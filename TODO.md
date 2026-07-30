@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T641 | platform; CI; reliability / correctness | Medium | open | S | Restore the declared Python 3.8 floor in the timezone resolver or raise the floor everywhere. | **[verified]** `timezone_data.py:63` uses `str.removeprefix` and `:69` uses `Path.readlink`, both Python 3.9+ APIs, while `.github/workflows/ci.yml:26` pins the gates matrix floor at `python: '3.8'`. On 3.8 the `AttributeError` from `localtime.readlink()` escapes the `except OSError:` at line 74 and propagates out of resolver construction, and the Python suite exercises both lines (`test_settings_widgets_core.py` sets `TZ` and patches `Path.readlink`), so the 3.8 CI leg cannot pass. Replace with `os.readlink`/slice equivalents or raise the documented floor and the matrix together. |
 | T651 | test coverage | Low | open | S | Update the `CalendarDayCellRenderer` tests to the six-argument `update` signature. | **[verified]** Production `update(cell, iter, row, today, dateUnixKey, accessibleDate)` (`5.4/calendar.js:255`) receives all six from its only production caller, but `test/calendar.test.js:994,1039,1046,1052` still call the pre-refactor three-argument shape, so `today`, `dateUnixKey`, and `accessibleDate` run as `undefined` and the per-update today reuse, unix-key dot path, and accessible-date plumbing those tests appear to cover are asserted only elsewhere. Pass the real arguments and assert them. |## Rejected
 
 | id | finding | why rejected |

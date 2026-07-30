@@ -10,6 +10,7 @@ from helpers.coverage import (
     discover_python_tests,
     instruction_line_map,
     load_test_suite,
+    measurable_code_objects,
 )
 
 
@@ -49,6 +50,38 @@ class CoverageInstructionLineTests(unittest.TestCase):
             set(branch_edges_for_code(code, instructions)),
             {(("example", 1), 0, 8), (("example", 1), 0, 4)},
         )
+
+    def test_python_314_not_taken_marker_is_not_a_branch_destination(self):
+        jump_name = next(name for name in dis.opmap if "JUMP" in name and "IF_FALSE" in name)
+        instructions = [
+            SimpleNamespace(offset=0, opname=jump_name,
+                            opcode=dis.opmap[jump_name], argval=8),
+            SimpleNamespace(offset=2, opname="NOT_TAKEN", opcode=-1, argval=None),
+            SimpleNamespace(offset=4, opname="LOAD_CONST",
+                            opcode=dis.opmap["LOAD_CONST"], argval=None),
+        ]
+        code = SimpleNamespace(co_qualname="example", co_name="example", co_firstlineno=1)
+
+        self.assertEqual(
+            set(branch_edges_for_code(code, instructions)),
+            {(("example", 1), 0, 8), (("example", 1), 0, 4)},
+        )
+
+    def test_python_314_annotation_helpers_are_not_source_functions(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "annotations.py"
+            path.write_text(
+                "def __annotate__():\n"
+                "    return {'value': int}\n"
+                "def source_function():\n"
+                "    return 1\n",
+                encoding="utf8",
+            )
+
+            names = {code.co_name for code in measurable_code_objects(path)}
+
+        self.assertNotIn("__annotate__", names)
+        self.assertIn("source_function", names)
 
 
 class RecursiveDiscoveryTests(unittest.TestCase):
