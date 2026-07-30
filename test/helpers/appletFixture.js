@@ -232,6 +232,7 @@ function weatherCoordinator(overrides = {}) {
         scheduleCities() {},
         cityReading: () => null,
         cityStale: () => false,
+        cityError: () => "",
         cityProviderName: () => "",
         setStatus(reading = null, error = "", providerName = "", pending = false) {
             this.reading = reading || null;

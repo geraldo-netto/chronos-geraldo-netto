@@ -155,6 +155,26 @@ test("city weather readings and provider name come from the city provider", () =
     assert.equal(withoutCityProvider.cityProviderName(), "");
 });
 
+test("city weather contracts fail loudly when a double is incomplete", () => {
+    const port = AppletModule.createPanelPort({
+        _weatherCoordinator: { cityError: (city) => city === "Tokyo" ? "offline" : "" }
+    });
+    assert.equal(port.cityWeatherError("Tokyo"), "offline");
+
+    const incompletePort = AppletModule.createPanelPort({ _weatherCoordinator: {} });
+    assert.throws(() => incompletePort.cityWeatherError("Tokyo"), /cityError/);
+
+    const coordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: {},
+        cityWeatherProvider: {},
+        settings: () => ({}),
+        worldclocks: () => [],
+        onChanged: () => {},
+        guard: (source, fn) => fn()
+    });
+    assert.throws(() => coordinator.cityError("Tokyo"), /errorFor/);
+});
+
 test("the weather being fetched is said in words, not as an ellipsis", () => {
     const names = [];
     const stub = Object.assign(Object.create(Proto), {

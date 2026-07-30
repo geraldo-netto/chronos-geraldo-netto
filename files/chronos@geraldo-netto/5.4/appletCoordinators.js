@@ -95,8 +95,7 @@ class AppletWeatherCoordinator {
     }
 
     cityError(city) {
-        return this.cityWeatherProvider && this.cityWeatherProvider.errorFor ?
-            this.cityWeatherProvider.errorFor(city) : "";
+        return this.cityWeatherProvider ? this.cityWeatherProvider.errorFor(city) : "";
     }
 
     cityProviderName() {
