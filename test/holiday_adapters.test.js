@@ -1,8 +1,20 @@
 const {
-    assert, test, makeRandom, STAMP, NAGER_STAMP, OPENHOLIDAYS_STAMP,
+    assert, test, fs, makeRandom, STAMP, NAGER_STAMP, OPENHOLIDAYS_STAMP,
     holidayConstantsPath, holidayRecordPath, holidayServiceAdaptersPath,
     loadHolidays, anyRecord
 } = require("./helpers/holidayFixture");
+
+test("provider adapters distinguish wire and domain public-holiday values", () => {
+    const source = fs.readFileSync(holidayServiceAdaptersPath, "utf8");
+
+    assert.match(source,
+        /const ENRICO_PUBLIC_HOLIDAY_TYPE = "public_holiday";/,
+        "the Enrico request value is a named vendor-protocol constant");
+    assert.equal((source.match(/"public_holiday"/g) || []).length, 1,
+        "normalized records must not copy the domain flag literal");
+    assert.match(source,
+        /type === "Public" \? PUBLIC_HOLIDAY_FLAG : type\.toLowerCase\(\)/);
+});
 
 test("every country the settings offer can reach the fallback providers", () => {
     const { SUPPORTED_COUNTRIES, COUNTRY_TO_ISO2 } = require(holidayConstantsPath);

@@ -57,6 +57,8 @@ const nonBlankText = HolidayRecord.nonBlankText;
 const HolidayRecordContract = HolidayRecord.HolidayRecordContract;
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
+const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
+const ENRICO_PUBLIC_HOLIDAY_TYPE = "public_holiday";
 var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS importer export
 var HOLIDAY_PROVIDER_NAMES = HolidayConstants.HOLIDAY_PROVIDER_NAMES; // NOSONAR [S3504] -- GJS importer export
 var OPEN_HOLIDAYS_COUNTRIES = HolidayConstants.OPEN_HOLIDAYS_COUNTRIES; // NOSONAR [S3504] -- GJS importer export
@@ -104,7 +106,7 @@ var EnricoServiceAdapter = class EnricoServiceAdapter { // NOSONAR [S3504] -- GJ
         const params = {
             year,
             country,
-            holidayType: "public_holiday"
+            holidayType: ENRICO_PUBLIC_HOLIDAY_TYPE
         };
 
         if (region !== GLOBAL_REGION) {
@@ -313,7 +315,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     _flags(holiday) {
         const types = Array.isArray(holiday.types) && holiday.types.length ? holiday.types : ["Public"];
 
-        return types.map((type) => type === "Public" ? "public_holiday" : type.toLowerCase());
+        return types.map((type) => type === "Public" ? PUBLIC_HOLIDAY_FLAG : type.toLowerCase());
     }
 
     _name(holiday) {
@@ -418,7 +420,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     _flags(holiday) {
         const type = holiday.type || "Public";
 
-        return [type === "Public" ? "public_holiday" : type.toLowerCase()];
+        return [type === "Public" ? PUBLIC_HOLIDAY_FLAG : type.toLowerCase()];
     }
 
     _name(holiday) {
