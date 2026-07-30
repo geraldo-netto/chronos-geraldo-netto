@@ -146,13 +146,17 @@ test("the country combobox and the supported-country list agree", () => {
 
 test("religious settings and the runtime catalogue have exact parity", () => {
     const data = schema("5.4");
+    const catalog = require(path.join(appletDir, "religiousCatalog.js"));
     const facade = require(path.join(appletDir, "settingsFacade.js"));
     const religious = require(path.join(appletDir, "religiousHolidays.js"));
-    const ids = religious.religionIds();
+    const ids = catalog.RELIGION_IDS;
     const selectorKeys = ids.map((id) => facade.RELIGION_KEY_PREFIX + id);
 
-    assert.deepEqual(facade.RELIGION_IDS, ids,
-        "a runtime religion has no setting, or a setting has no catalogue");
+    assert.equal(facade.RELIGION_IDS, ids,
+        "settings must consume the canonical catalogue rather than copying it");
+    assert.equal(religious.RELIGIONS, catalog.RELIGIONS,
+        "holiday calculation must consume the canonical catalogue rather than copying it");
+    assert.deepEqual(religious.religionIds(), ids);
     assert.deepEqual(data.layout.section6.keys,
         [facade.SHOW_RELIGIOUS_OBSERVANCES_KEY, ...selectorKeys]);
     assert.equal(data[facade.SHOW_RELIGIOUS_OBSERVANCES_KEY].default, false);
@@ -163,7 +167,7 @@ test("religious settings and the runtime catalogue have exact parity", () => {
         assert.equal(data[key].default, false);
         assert.equal(data[key].dependency, facade.SHOW_RELIGIOUS_OBSERVANCES_KEY);
         assert.equal(data[key].indent, true);
-        assert.equal(data[key].description, religious.RELIGIONS[index].label);
+        assert.equal(data[key].description, catalog.RELIGIONS[index].label);
     }
 
     assert.deepEqual(Object.keys(data).filter((key) => key.startsWith(

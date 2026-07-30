@@ -24,33 +24,23 @@ const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const AppletModules = IS_NODE ? null :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
+const ReligiousCatalog = IS_NODE ?
+    require("./religiousCatalog") :
+    AppletModules.religiousCatalog;
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     AppletModules.holidayConstants;
 const translate = IS_NODE ? (text) => text : AppletModules.localeText.translate;
 
-// Translation marker: retain stable English catalogue data, then translate at
-// expansion time. This lets a locale change affect newly-rendered months while
-// still giving xgettext literal msgids to extract.
+// Translation marker for observance names. Religion labels live in the shared
+// catalogue; both are translated only when an observance is expanded.
 const _ = (text) => text;
 
 var RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG; // NOSONAR [S3504] -- GJS importer export
 const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
 
-// ordered by number of adherents; the ids double as settings-key suffixes
-// (religion-<id>) and as the second flag on every row this module emits
-var RELIGIONS = [ // NOSONAR [S3504] -- GJS importer export
-    { id: "christianity", label: _("Christianity") },
-    { id: "islam", label: _("Islam") },
-    { id: "hinduism", label: _("Hinduism") },
-    { id: "buddhism", label: _("Buddhism") },
-    { id: "sikhism", label: _("Sikhism") },
-    { id: "judaism", label: _("Judaism") },
-    { id: "bahai", label: _("Bahá'í Faith") },
-    { id: "jainism", label: _("Jainism") },
-    { id: "shinto", label: _("Shinto") },
-    { id: "taoism", label: _("Taoism") }
-];
+var RELIGIONS = ReligiousCatalog.RELIGIONS; // NOSONAR [S3504] -- GJS importer export
+const RELIGION_IDS = ReligiousCatalog.RELIGION_IDS;
 
 // Anonymous Gregorian computus (Meeus/Jones/Butcher): month/day of Easter
 // Sunday for any Gregorian year.
@@ -183,12 +173,11 @@ function _deepFreeze(value) {
     }
     return value;
 }
-_deepFreeze(RELIGIONS);
 _deepFreeze(TABLES);
 _deepFreeze(OBSERVANCES);
 
 function religionIds() {
-    return RELIGIONS.map((religion) => religion.id);
+    return RELIGION_IDS.slice();
 }
 
 function _validYear(year) {

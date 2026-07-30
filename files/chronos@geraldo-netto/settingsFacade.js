@@ -9,6 +9,15 @@
 
 /* eslint camelcase: "off" */
 
+/* global imports */
+
+const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const ReligiousCatalog = IS_NODE ?
+    require("./religiousCatalog") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].religiousCatalog;
+
 // The settings boundary: every schema key name lives here, and nothing
 // outside this module passes a raw key string to Cinnamon's settings.
 //
@@ -26,14 +35,9 @@ var HAS_REGION_KEY = "has_region"; // NOSONAR [S3504] -- GJS importer export
 var REGION_KEY_PREFIX = "region_"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_RELIGIOUS_OBSERVANCES_KEY = "show-religious-observances"; // NOSONAR [S3504] -- GJS importer export
 var RELIGION_KEY_PREFIX = "religion-"; // NOSONAR [S3504] -- GJS importer export
-// Kept beside the setting-key prefix because this is the runtime side of the
-// schema contract. A static parity test compares it with both the schema and
-// the religious catalogue, so adding a faith in any one place cannot silently
-// leave a dead or unreachable switch.
-var RELIGION_IDS = [ // NOSONAR [S3504] -- GJS importer export
-    "christianity", "islam", "hinduism", "buddhism", "sikhism",
-    "judaism", "bahai", "jainism", "shinto", "taoism"
-];
+// The schema is a static Cinnamon artifact; this shared runtime catalogue is
+// authoritative, and a parity test holds the artifact to it.
+var RELIGION_IDS = ReligiousCatalog.RELIGION_IDS; // NOSONAR [S3504] -- GJS importer export
 var WORLDCLOCKS_KEY = "worldclocks"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_WORLDCLOCKS_KEY = "show-worldclocks"; // NOSONAR [S3504] -- GJS importer export
 var KEY_OPEN_KEY = "keyOpen"; // NOSONAR [S3504] -- GJS importer export

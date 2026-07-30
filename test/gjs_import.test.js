@@ -219,6 +219,10 @@ function gjsImportsMock() {
                             countryFromIso2() {},
                             REGION_TO_SUBDIVISION: {}
                         },
+                        religiousCatalog: {
+                            RELIGIONS: [],
+                            RELIGION_IDS: []
+                        },
                         holidayCache: {
                             HolidayCacheRepository: class {},
                             HolidayCache: class {},
@@ -298,6 +302,7 @@ const EXPORTS = {
         "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
         "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
         "ReligiousHolidayProvider", "HOLIDAY_ERRORS"],
+    religiousCatalog: ["RELIGIONS", "RELIGION_IDS"],
     religiousHolidays: ["RELIGIOUS_HOLIDAY_FLAG", "RELIGIONS", "gregorianEaster",
         "religionIds", "enabledReligionIds", "holidaysForYear", "monthMap",
         "mergeMonthMaps"],
