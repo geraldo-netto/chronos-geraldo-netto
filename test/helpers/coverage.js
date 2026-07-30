@@ -50,6 +50,19 @@ function measuredFiles() {
     return files;
 }
 
+function discoverJavaScriptTests(root = path.join(APPLET_DIR, "test")) {
+    const files = [];
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+        const entryPath = path.join(root, entry.name);
+        if (entry.isDirectory()) {
+            files.push(...discoverJavaScriptTests(entryPath));
+        } else if (entry.name.endsWith(".test.js")) {
+            files.push(entryPath);
+        }
+    }
+    return files.sort();
+}
+
 function runCoverage() {
     const report = createCoverageReport();
     try {
@@ -66,7 +79,7 @@ function runCoverage() {
             "--test-reporter-destination=stdout",
             "--test-reporter=./test/helpers/coverage-reporter.js",
             `--test-reporter-destination=${report.path}`,
-            "test/*.test.js"
+            ...discoverJavaScriptTests()
         ], { cwd: APPLET_DIR, stdio: "inherit", shell: false });
 
         if (result.status !== 0) {
@@ -134,4 +147,8 @@ function evaluateCoverage(summary) {
     return 0;
 }
 
-process.exitCode = runCoverage();
+if (require.main === module) {
+    process.exitCode = runCoverage();
+}
+
+module.exports = { discoverJavaScriptTests };

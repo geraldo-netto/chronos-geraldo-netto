@@ -15,6 +15,7 @@ Run it the way the suite runs: python3 test/helpers/coverage.py
 from __future__ import annotations
 
 import dis
+import importlib.util
 import inspect
 import sys
 import types
@@ -36,6 +37,7 @@ FUNCTION_THRESHOLD = 100.0
 # and no-style-context guards. Those paths are now behavioral tests, and a
 # per-file override prevents the global 98 % allowance from hiding them again.
 LINE_OVERRIDES = {Path("settings_widgets_common.py"): 100.0}
+TEST_DIR = APPLET_DIR / "test"
 
 
 def code_key(code: types.CodeType) -> tuple[str, int]:
@@ -239,9 +241,32 @@ def stop_monitoring(recorder):
     monitoring.free_tool_id(monitoring.COVERAGE_ID)
 
 
-def run_test_suite(recorder):
+def discover_python_tests(root=TEST_DIR):
+    """Every unittest file, including files below non-package directories."""
+    return sorted(root.rglob("test_*.py"))
+
+
+def load_test_suite(root=TEST_DIR):
+    """Load recursively found tests without requiring __init__.py markers."""
+    test_import_root = str(TEST_DIR)
+    if test_import_root not in sys.path:
+        sys.path.insert(0, test_import_root)
     loader = unittest.TestLoader()
-    suite = loader.discover(str(APPLET_DIR / "test"), pattern="*.py")
+    suite = unittest.TestSuite()
+    for index, path in enumerate(discover_python_tests(root)):
+        module_name = f"_chronos_test_{index}_{path.stem}"
+        spec = importlib.util.spec_from_file_location(module_name, path)
+        if spec is None or spec.loader is None:
+            raise ImportError(f"cannot load test module from {path}")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        spec.loader.exec_module(module)
+        suite.addTests(loader.loadTestsFromModule(module))
+    return suite
+
+
+def run_test_suite(recorder):
+    suite = load_test_suite()
 
     start_monitoring(recorder)
     sys.settrace(recorder.trace)

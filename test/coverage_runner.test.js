@@ -1,9 +1,12 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { execFile } = require("node:child_process");
+const { execFile, spawnSync } = require("node:child_process");
+const fs = require("node:fs");
+const os = require("node:os");
 const { test } = require("node:test");
 const path = require("node:path");
+const { discoverJavaScriptTests } = require("./helpers/coverage");
 
 const HELPER = path.join(__dirname, "helpers", "coverageReport.js");
 const PROBE = `
@@ -39,4 +42,30 @@ test("concurrent coverage runs use private reports and clean them", async () => 
         "each worker reads only the process id it wrote");
     assert.equal(reports.every((report) => report.removed), true,
         "every worker removes its private report directory");
+});
+
+test("the coverage runner discovers and executes nested JavaScript tests", (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "chronos-js-tests-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const nested = path.join(root, "integration");
+    const marker = path.join(root, "nested-executed");
+    fs.mkdirSync(nested);
+    fs.writeFileSync(path.join(nested, "nested.test.js"), `
+        const fs = require("node:fs");
+        const { test } = require("node:test");
+        test("nested sentinel", () => fs.writeFileSync(${JSON.stringify(marker)}, "yes"));
+    `);
+    fs.writeFileSync(path.join(nested, "ignored.js"), "throw new Error('ignored');\n");
+
+    const files = discoverJavaScriptTests(root);
+    assert.deepEqual(files, [path.join(nested, "nested.test.js")]);
+    const env = { ...process.env };
+    delete env.NODE_TEST_CONTEXT;
+    const result = spawnSync(process.execPath, ["--test", ...files], {
+        encoding: "utf8",
+        env,
+        shell: false
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(fs.readFileSync(marker, "utf8"), "yes");
 });
