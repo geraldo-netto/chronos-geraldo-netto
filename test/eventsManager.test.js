@@ -611,6 +611,34 @@ test("a huge event delivery is spread across turns", () => {
     assert.deepEqual(manager._event_batch_ids, [], "and nothing is left armed");
 });
 
+test("queued event chunks retain the delivery watermark across a newer fetch", () => {
+    const manager = readyManager();
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    manager.fetch_month_events(month, true);
+    const deliveryWatermark = manager.last_update_timestamp;
+    const events = Array.from({ length: 26 }, (_unused, index) => eventVariant({
+        id: "old-fetch-" + index,
+        startUnix: 10 * DAY_S + index * 60,
+        endUnix: 10 * DAY_S + index * 60 + 30
+    }));
+
+    proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
+    assert.equal(manager._queued_event_records, 1, "one old-fetch event waits for an idle");
+
+    manager.fetch_month_events(month, true);
+    const replacementWatermark = manager.last_update_timestamp;
+    assert.ok(replacementWatermark > deliveryWatermark);
+    drainEventMutations(manager);
+
+    const indexed = manager._event_index.get(month);
+    assert.equal(indexed._events["old-fetch-25"].last_update_timestamp,
+        deliveryWatermark, "later chunks keep the signal's ingress watermark");
+    assert.equal(manager._event_index.cull(replacementWatermark), true);
+    assert.equal(manager._event_index.get(month), null,
+        "events absent from the replacement payload are culled");
+});
+
 test("an oversized event message is rejected before any child is materialized", () => {
     const manager = readyManager();
     let childReads = 0;

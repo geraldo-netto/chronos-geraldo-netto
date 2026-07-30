@@ -249,6 +249,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
                 type: "add",
                 events: decoded.events,
                 index: 0,
+                watermark: this.last_update_timestamp,
                 overflowed: decoded.overflowed,
                 retainedBytes: decoded.retainedBytes
             });
@@ -313,7 +314,8 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             start + EVENT_BATCH_CHUNK, mutation.events.length);
         const last = end >= mutation.events.length;
         this._apply_added_or_updated(
-            mutation.events.slice(start, end), last, mutation.overflowed);
+            mutation.events.slice(start, end), mutation.watermark,
+            last, mutation.overflowed);
         // Release processed child variants while the rest of this signal waits.
         // Otherwise the array itself keeps the already-indexed payload alive.
         for (let index = start; index < end; index++) {
@@ -424,9 +426,9 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
     }
 
-    _apply_added_or_updated(events, flush, inputOverflowed = false) {
+    _apply_added_or_updated(events, watermark, flush, inputOverflowed = false) {
         const result = this._event_index.addOrUpdate(
-            events, this.last_update_timestamp, this.current_selected_date);
+            events, watermark, this.current_selected_date);
 
         const pending = this._pending_emit ||
             {
