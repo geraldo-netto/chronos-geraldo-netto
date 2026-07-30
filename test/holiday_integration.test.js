@@ -71,6 +71,23 @@ test("religious provider serves local observances while public holidays are disa
     assert.deepEqual(answer.slice(1), ["", ""]);
 });
 
+test("the composition root injects religious display translation", () => {
+    const { createHolidayProvider } = loadHolidays();
+    const provider = createHolidayProvider({
+        provider: religiousBase(),
+        religiousIds: ["christianity"],
+        translateName: (text) => `translated:${text}`
+    });
+    let answer;
+
+    provider.getHolidays(2026, 12, (...args) => { answer = args; });
+
+    assert.deepEqual(answer[0].get("12/25"), [
+        "translated:Christmas Day (translated:Christianity)",
+        ["religious_holiday", "christianity"]
+    ]);
+});
+
 test("religious provider merges public results and preserves provider status", () => {
     const { ReligiousHolidayProvider } = loadHolidays();
     const base = religiousBase("ita");

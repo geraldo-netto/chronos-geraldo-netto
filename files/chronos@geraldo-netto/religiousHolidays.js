@@ -30,7 +30,6 @@ const ReligiousCatalog = IS_NODE ?
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     AppletModules.holidayConstants;
-const translate = IS_NODE ? (text) => text : AppletModules.localeText.translate;
 
 // Translation marker for observance names. Religion labels live in the shared
 // catalogue; both are translated only when an observance is expanded.
@@ -227,7 +226,7 @@ function _dateOf(entry, year) {
 // expanded rows in the shape the holiday cache emits: the religion's label is
 // part of the display name, which is what "split by religion" means on a grid
 // cell that shows one tooltip
-function holidaysForYear(year, enabledIds = religionIds(), translateName = translate) {
+function holidaysForYear(year, enabledIds = religionIds(), translateName = _) {
     if (!_validYear(year)) {
         return [];
     }
@@ -261,14 +260,14 @@ function _numericInput(value) {
 
 // the month map the calendar grid consumes: "month/day" -> [name, flags],
 // same-day observances joined the way the holiday cache joins them
-function monthMap(year, month, enabledIds = religionIds()) {
+function monthMap(year, month, enabledIds = religionIds(), translateName = _) {
     const map = new Map();
     const numericMonth = _numericInput(month);
     if (!Number.isInteger(numericMonth) || numericMonth < 1 || numericMonth > 12) {
         return map;
     }
 
-    for (const row of holidaysForYear(_numericInput(year), enabledIds)) {
+    for (const row of holidaysForYear(_numericInput(year), enabledIds, translateName)) {
         if (row.month !== numericMonth) {
             continue;
         }

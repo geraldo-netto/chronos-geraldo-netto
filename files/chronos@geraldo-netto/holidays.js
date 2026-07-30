@@ -33,6 +33,9 @@ const IoUtils = IS_NODE ?
 const LocaleQuery = IS_NODE ?
     require("./localeQuery") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
+const LocaleText = IS_NODE ?
+    require("./localeText") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeText;
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
@@ -625,7 +628,8 @@ function createHolidayProvider(params = {}) {
     });
 
     return new ReligiousHolidayProvider(
-        new HolidayProviderFacade(provider), params.religiousIds);
+        new HolidayProviderFacade(provider), params.religiousIds,
+        params.translateName || LocaleText.translate);
 }
 
 var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- GJS importer export
@@ -665,8 +669,9 @@ var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- 
 // names first, the way the cache joins same-day rows. The catalogue stays a
 // pure helper; the provider contract lives here, beside the facade it wraps.
 var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S3504] -- GJS importer export
-    constructor(provider, enabledIds = []) {
+    constructor(provider, enabledIds = [], translateName = (text) => text) {
         this._base = provider;
+        this._translateName = translateName;
         this.setEnabledIds(enabledIds);
     }
 
@@ -695,7 +700,8 @@ var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S350
     }
 
     getHolidays(year, month, callback) {
-        const religious = ReligiousHolidays.monthMap(year, month, this._enabledIds);
+        const religious = ReligiousHolidays.monthMap(
+            year, month, this._enabledIds, this._translateName);
         if (!this._base.active) {
             callback(religious, "", "");
             return;
