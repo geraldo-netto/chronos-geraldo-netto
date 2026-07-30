@@ -107,7 +107,12 @@ test("turning events off reaches the calendar grid's enable state", () => {
     const refreshed = [];
     const coordinator = new CoordinatorModule.AppletEventListCoordinator({
         manager: { is_active: () => false, select_date: () => {} },
-        eventList: () => ({ actor: {}, set_reporting_enabled() {}, set_unavailable() {} }),
+        eventList: () => ({
+            actor: {},
+            set_reporting_enabled() {},
+            set_unavailable() {},
+            refresh_time_format() {}
+        }),
         selectedDate: () => "today",
         guard: (source, fn) => fn(),
         onEnabledChanged: () => refreshed.push(true)

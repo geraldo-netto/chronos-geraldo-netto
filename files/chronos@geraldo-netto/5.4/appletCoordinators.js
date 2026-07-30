@@ -106,17 +106,21 @@ class AppletEventListCoordinator {
     update(showEvents) {
         const list = this.eventList();
         if (!list) {
-            return;
+            return null;
         }
         const active = this.manager.is_active();
         const enabled = Boolean(showEvents);
         list.actor.visible = enabled;
         list.set_reporting_enabled(enabled);
         list.set_unavailable(enabled && !active);
+        return list;
     }
 
     apply(showEvents) {
-        this.update(showEvents);
+        const list = this.update(showEvents);
+        if (list) {
+            list.refresh_time_format();
+        }
         if (showEvents !== this._appliedShowEvents) {
             this._appliedShowEvents = showEvents;
             this.manager.select_date(this.selectedDate(), true);

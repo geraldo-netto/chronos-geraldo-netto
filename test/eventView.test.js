@@ -75,6 +75,15 @@ class FakeDateTime {
     }
 
     format(fmt) {
+        const hour = this.get_hour();
+        const minute = String(Math.floor(
+            (this.usec % (3600 * 1000000)) / (60 * 1000000))).padStart(2, "0");
+        if (fmt === "%H:%M") {
+            return `${String(hour).padStart(2, "0")}:${minute}`;
+        }
+        if (fmt === "%-l:%M %p") {
+            return `${hour % 12 || 12}:${minute} ${hour < 12 ? "AM" : "PM"}`;
+        }
         return `${fmt}|day${Math.floor(this.usec / DAY_US)}`;
     }
 }
@@ -269,8 +278,10 @@ rootModules.calendarServerConnection = require(path.join(APPLET_DIR, "calendarSe
 rootModules.eventIndex = require(path.join(APPLET_DIR, "eventIndex.js"));
 rootModules.eventWindow = require(path.join(APPLET_DIR, "eventWindow.js"));
 rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
+rootModules.worldclockData = require(path.join(APPLET_DIR, "worldclockData.js"));
 
 const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+const CoordinatorModule = require(path.join(APPLET_DIR, "5.4", "appletCoordinators.js"));
 
 // A row's launcher is the list's: EventRow used to default to a fresh
 // CalendarLauncher, which quietly gave every row its own memo of
@@ -796,6 +807,40 @@ test("EventList set_events covers empty, delayed, reuse, and scroll paths", () =
     assert.ok(removed.includes(31));
     assert.ok(removed.includes(32));
     assert.ok(removed.includes(33));
+});
+
+test("desktop clock-format changes repaint existing event rows", () => {
+    const settings = desktopSettings(true);
+    const list = new EventView.EventList(settings);
+    const event = makeRowEvent({
+        startUnix: 50 * DAY_S + 14 * 3600,
+        endUnix: 50 * DAY_S + 15 * 3600
+    });
+    list.set_events({ timestamp: 91, get_event_list: () => [event] }, false);
+    const row = list._rows[0];
+    const actor = row.actor;
+    const selections = [];
+    const coordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: {
+            is_active: () => true,
+            select_date: (...args) => selections.push(args)
+        },
+        eventList: () => list,
+        selectedDate: () => TODAY,
+        guard: (_source, callback) => callback()
+    });
+
+    coordinator.apply(true);
+    assert.equal(row.event_time.text, "14:00  →  15:00");
+
+    settings.use24h = false;
+    coordinator.apply(true);
+
+    assert.equal(row.event_time.text, "2:00 PM  →  3:00 PM");
+    assert.equal(list._rows[0], row);
+    assert.equal(row.actor, actor, "format changes repaint instead of rebuilding the list");
+    assert.equal(selections.length, 1,
+        "an unchanged show-events setting does not refetch the selected date");
 });
 
 test("same-tick list mutations rebuild all event rows", () => {

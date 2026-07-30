@@ -701,6 +701,17 @@ class EventList {
             event_data_list, delay_no_events_box, overflowed);
     }
 
+    refresh_time_format() {
+        const use24h = Boolean(this.desktop_settings.use24h);
+        for (const row of this._rows) {
+            if (row.use_24h === use24h) {
+                continue;
+            }
+            row.use_24h = use24h;
+            row.update_variations();
+        }
+    }
+
     // events are on but no calendar service answered: hiding the column made
     // the setting look like it did nothing
     set_unavailable(unavailable) {

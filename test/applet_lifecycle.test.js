@@ -859,7 +859,8 @@ test("settings and weather changes update dependent views", () => {
         event_list: {
             actor: { visible: false },
             set_reporting_enabled: () => {},
-            set_unavailable: () => {}
+            set_unavailable: () => {},
+            refresh_time_format: () => {}
         },
         events_manager: {
             is_active: () => true,
@@ -893,7 +894,8 @@ test("an unrelated settings keystroke costs no refetch and no clock rebuild", ()
         event_list: {
             actor: { visible: false },
             set_reporting_enabled: () => {},
-            set_unavailable: () => {}
+            set_unavailable: () => {},
+            refresh_time_format: () => {}
         },
         events_manager: {
             is_active: () => true,
@@ -1402,6 +1404,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
         set_events() {}
         set_reporting_enabled() {}
         set_unavailable() {}
+        refresh_time_format() {}
     };
     Calendar52.Calendar = class {
         constructor() { this.actor = {}; }
