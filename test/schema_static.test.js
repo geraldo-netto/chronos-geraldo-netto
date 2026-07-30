@@ -4,12 +4,36 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const readmePath = path.join(__dirname, "..", "README.md");
+const todoPath = path.join(__dirname, "..", "TODO.md");
 const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const projectUrl = "https://github.com/geraldo-netto/cinnamon-chronos";
 
 function schema(version) {
     return JSON.parse(fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", version, "settings-schema.json"), "utf8"));
 }
+
+function duplicateLedgerIds(markdown) {
+    const seen = new Set();
+    const duplicates = new Set();
+    for (const match of markdown.matchAll(/^\|\s*([TRDG]\d+)\s*\|/gm)) {
+        if (seen.has(match[1])) {
+            duplicates.add(match[1]);
+        }
+        seen.add(match[1]);
+    }
+    return Array.from(duplicates).sort();
+}
+
+test("the audit ledger gives every record a unique stable id", () => {
+    const ledger = fs.readFileSync(todoPath, "utf8");
+    assert.deepEqual(duplicateLedgerIds(ledger), []);
+
+    const fixture = ["T1", "R1", "D1", "G1"]
+        .flatMap((id) => [`| ${id} | first |`, `| ${id} | duplicate |`])
+        .join("\n");
+    assert.deepEqual(duplicateLedgerIds(fixture), ["D1", "G1", "R1", "T1"],
+        "the gate must reject duplicates in every ledger section");
+});
 
 // The Spices site offers an update only when metadata.json says so: the applet's
 // version is the manifest's, and package.json is only the tooling's idea of it.
