@@ -347,6 +347,8 @@ test("CI runs the gates the README promises", () => {
     const artifactName = /^ {10}name: chronos-spices-\$\{\{ github\.sha \}\}$/m;
 
     assert.match(workflow, /on:[\s\S]*push:[\s\S]*pull_request:/, "on push and on pull request");
+    assert.doesNotMatch(workflow, /^ {4}branches:/m,
+        "feature-branch pushes must run CI before a pull request opens");
     // every job runs repository and dependency code; the token must not be
     // able to write back, and a mutable action tag must not be able to move
     assert.match(workflow, /^permissions:\n {2}contents: read$/m,
