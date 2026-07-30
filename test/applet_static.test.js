@@ -251,7 +251,8 @@ test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
     // still asks it before touching the grid
     const annotations = source("5.4/calendarAnnotations.js");
     assert.match(annotations, /_isCurrent\(holiday_generation\) \{[\s\S]*?return holiday_generation === this\.host\.holidayGeneration;/);
-    assert.match(annotations, /if \(!this\._isCurrent\(holiday_generation\)\) \{[\s\S]*?return;/);
+    assert.match(annotations,
+        /_receiveMonth\(dates, error, providerName, pass\) \{[\s\S]*?if \(!this\._isCurrent\(pass\.generation\)\) \{[\s\S]*?return;/);
     assert.match(code, /destroy\(\) \{[\s\S]*?this\._holiday_update_generation\+\+;/);
 });
 
@@ -267,7 +268,10 @@ test("calendars surface holiday provider failures", () => {
     assert.match(code, /HOLIDAY_ERROR_MARKER/);
     assert.match(code, /new Tooltips\.Tooltip\(this\.label\)/);
     assert.match(code, /Holiday data: %s/);
-    assert.match(code, /holiday\.getHolidays\(y, m, \(dates, error, providerName\) => \{[\s\S]*?this\._reportProvider\(error, providerName\);/);
+    assert.match(code,
+        /holiday\.getHolidays\(y, m, \(dates, error, providerName\) => \{[\s\S]*?this\._receiveMonth\(dates, error, providerName, pass\);/);
+    assert.match(code,
+        /_receiveMonth\(dates, error, providerName, pass\) \{[\s\S]*?this\._reportProvider\(error, providerName\);/);
     assert.match(code, /_reportProvider\(error, providerName\) \{[\s\S]*?if \(error\) \{[\s\S]*?this\.setStatus\(error, providerName\);/);
 });
 

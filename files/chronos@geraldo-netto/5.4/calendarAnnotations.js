@@ -292,12 +292,31 @@ class CalendarHolidayAnnotator {
         }
     }
 
-    _markCells(dates, cells) {
-        for (const [date, [name, flags]] of dates.entries()) {
-            const cell = cells.get(date);
-            if (cell) {
-                this._annotateCell(cell, name, flags);
+    _reconcileCells(dates, cells) {
+        this.annotated = false;
+
+        for (const [date, cell] of cells.entries()) {
+            const holiday = dates.get(date);
+            if (holiday) {
+                this._annotateCell(cell, holiday[0], holiday[1]);
+            } else {
+                this._clearCell(cell);
             }
+        }
+    }
+
+    _receiveMonth(dates, error, providerName, pass) {
+        if (!this._isCurrent(pass.generation)) {
+            return;
+        }
+
+        for (const [date, annotation] of dates.entries()) {
+            pass.dates.set(date, annotation);
+        }
+        this._awaited = Math.max(0, this._awaited - 1);
+        this._reportProvider(error, providerName);
+        if (this._awaited === 0) {
+            this._reconcileCells(pass.dates, pass.cells);
         }
     }
 
@@ -312,22 +331,20 @@ class CalendarHolidayAnnotator {
             return;
         }
 
-        // the counter lives on the instance so a late answer knows whether a
-        // sibling month is still in flight; a repaint's re-dispatch joins the
-        // same in-flight fetches, so the clamp keeps stray extra callbacks
-        // from earlier passes from driving it negative
-        this._awaited = 0;
-        for (let month of months) {
+        // Count every sibling before dispatch: cached months answer inline, and
+        // the first one must not reconcile before the later months have even
+        // been requested. Only the complete pass owns the visible annotations.
+        const monthList = Array.from(months);
+        const pass = {
+            generation: holiday_generation,
+            dates: new Map(),
+            cells
+        };
+        this._awaited = monthList.length;
+        for (let month of monthList) {
             const [y, m] = month.split('/');
-            this._awaited++;
             holiday.getHolidays(y, m, (dates, error, providerName) => {
-                if (!this._isCurrent(holiday_generation)) {
-                    return;
-                }
-
-                this._awaited = Math.max(0, this._awaited - 1);
-                this._reportProvider(error, providerName);
-                this._markCells(dates, cells);
+                this._receiveMonth(dates, error, providerName, pass);
             });
         }
 
@@ -342,17 +359,21 @@ class CalendarHolidayAnnotator {
         this.annotated = false;
 
         for (const cell of cells.values()) {
-            if (!cell.holiday_name && !cell.holiday_tooltip_set) {
-                continue;
-            }
-
-            cell.holiday_name = "";
-            if (cell.holidayTooltip) {
-                setTooltipText(cell, cell.holidayTooltip, "");
-            }
-            cell.holiday_tooltip_set = false;
-            this.host.nameCell(cell);
+            this._clearCell(cell);
         }
+    }
+
+    _clearCell(cell) {
+        if (!cell.holiday_name && !cell.holiday_tooltip_set) {
+            return;
+        }
+
+        cell.holiday_name = "";
+        if (cell.holidayTooltip) {
+            setTooltipText(cell, cell.holidayTooltip, "");
+        }
+        cell.holiday_tooltip_set = false;
+        this.host.nameCell(cell);
     }
 
     _annotateCell(cell, name, flags) {

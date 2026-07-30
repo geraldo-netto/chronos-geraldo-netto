@@ -2241,6 +2241,60 @@ test("switching holidays off clears the marks they left", () => {
     assert.equal(cal._holidayReasonLabel.visible, false);
 });
 
+// Country, region and religion changes all keep the provider active and repaint
+// through the same contract. The new pass must replace that contract's complete
+// result, not merely overlay it onto the previous configuration's cells.
+test("an active holiday configuration replaces its old annotations", () => {
+    const datesByMonth = { "2026/7": { "7/14": ["Bastille Day", []] } };
+    const holiday = makeHolidayStub(datesByMonth);
+    const cal = makeCalendar({ holiday });
+    cal.setDate(new Date(2026, 6, 9), true);
+
+    const day14 = cal._gridView.dayCells.find((cell) => cell.button.label === "14");
+    const day15 = cal._gridView.dayCells.find((cell) => cell.button.label === "15");
+    assert.equal(day14.holiday_name, "Bastille Day");
+
+    datesByMonth["2026/7"] = {
+        "7/15": ["Replacement observance", ["religious_holiday"]]
+    };
+    cal._update();
+
+    assert.equal(day14.holiday_name, "");
+    assert.equal(day14.holidayTooltip.texts.at(-1), "");
+    assert.equal(day14.holiday_tooltip_set, false);
+    assert.doesNotMatch(day14.button.accessible_name, /Bastille Day/);
+    assert.equal(day15.holiday_name, "Replacement observance");
+    assert.match(day15.button.accessible_name, /Replacement observance/);
+});
+
+test("holiday reconciliation waits for every displayed month", () => {
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const cal = makeCalendar({ holiday });
+    cal.setDate(new Date(2026, 6, 9), true);
+
+    const day14 = cal._gridView.dayCells.find((cell) => cell.button.label === "14");
+    const day15 = cal._gridView.dayCells.find((cell) => cell.button.label === "15");
+    const pending = new Map();
+    holiday.getHolidays = (y, m, callback) => pending.set(`${y}/${m}`, callback);
+    cal._update();
+
+    pending.get("2026/7")(new Map([
+        ["7/15", ["Replacement observance", ["religious_holiday"]]]
+    ]), "", "stub-provider");
+    const siblings = Array.from(pending.entries())
+        .filter(([month]) => month !== "2026/7");
+    siblings[0][1](new Map(), "", "stub-provider");
+
+    assert.equal(day14.holiday_name, "Bastille Day",
+        "a partial pass cannot erase the old complete result");
+    assert.equal(day15.holiday_name || "", "",
+        "nor expose a partial replacement");
+
+    siblings[1][1](new Map(), "", "stub-provider");
+    assert.equal(day14.holiday_name, "");
+    assert.equal(day15.holiday_name, "Replacement observance");
+});
+
 // All 42 day cells were can_focus, so the grid was 42 tab stops. From the cell the
 // menu focuses on open, a keyboard user pressed Tab up to 42 times to reach the
 // world clocks or "Date and Time Settings" — and there was no way out of the grid
