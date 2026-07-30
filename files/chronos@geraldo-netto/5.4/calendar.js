@@ -993,12 +993,6 @@ class Calendar {
         this._navigation.selectedDate = date;
     }
 
-    get _day_cells() { return this._gridView.dayCells; }
-    get _week_labels() { return this._gridView.weekLabels; }
-    get _day_headings() { return this._gridView.dayHeadings; }
-    get _dot_metrics() { return this._gridView.dotMetrics; }
-    set _dot_metrics(metrics) { this._gridView.dotMetrics = metrics; }
-
     constructor(settings, events_manager, holiday_provider, desktop_settings,
         reportIssue = () => {}) {
         this.events_manager = events_manager;
@@ -1086,7 +1080,7 @@ class Calendar {
 
         this._navigation = new CalendarNavigationController({
             actor: () => this.actor,
-            dayCells: () => this._day_cells,
+            dayCells: () => this._gridView.dayCells,
             emitSelected: (date) => this.emit('selected-date-changed', date),
             update: () => this._update(),
             setDate: (date, forceReload) => this.setDate(date, forceReload),
@@ -1412,9 +1406,6 @@ class Calendar {
         return this._gridView.dayHeadingStyleClass(iter);
     }
 
-    _allocate_dot_box (actor, box, flags) {
-        return this._gridView.allocateDotBox(actor, box, flags);
-    }
 }
 
 Signals.addSignalMethods(Calendar.prototype);

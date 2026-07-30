@@ -454,7 +454,7 @@ function makeCalendar({ colors = null, holiday = null } = {}) {
 
 // the grid keeps its cells; the day button is the first child of each cell group
 function dayButtons(cal) {
-    return cal._day_cells.map((cell) => cell.button);
+    return cal._gridView.dayCells.map((cell) => cell.button);
 }
 
 // The dots are 4px of colour and nothing else: colour is the only channel that
@@ -486,7 +486,7 @@ test("today and the selected day say so in their names", () => {
     cal.setDate(today, true);
 
     const buttons = dayButtons(cal);
-    const todayCell = cal._day_cells.find((cell) => cell.is_today);
+    const todayCell = cal._gridView.dayCells.find((cell) => cell.is_today);
     assert.ok(todayCell, "the grid always contains today when today is selected");
     assert.match(todayCell.button.accessible_name, /Today/);
     assert.match(todayCell.button.accessible_name, /Selected/);
@@ -900,7 +900,7 @@ test("a day cell's dot box allocates through the host", () => {
 
     const calendar = makeCalendar();
     calendar._update();
-    calendar._day_cells[0].dot_box.fire("allocate", box, 0);
+    calendar._gridView.dayCells[0].dot_box.fire("allocate", box, 0);
 });
 
 // St gives every actor set_accessible_name; a plain double does not, and the
@@ -1043,7 +1043,7 @@ test("selected day carries the selected pseudo class and dots render colors", ()
     assert.equal(selected.length, 1);
     assert.equal(selected[0].label, "9");
 
-    const dotBox = cal._day_cells[0].dot_box;
+    const dotBox = cal._gridView.dayCells[0].dot_box;
     assert.equal(dotBox.children.length, 2);
     assert.ok(dotBox.children[0].options.style.includes("#101010"));
 });
@@ -1307,7 +1307,7 @@ function allocateDots(count, boxWidth, maxRows = null) {
         }
     };
     const cal = makeCalendar();
-    cal._allocate_dot_box(actor, { x1: 0, y1: 0, x2: boxWidth, y2: 20 }, {});
+    cal._gridView.allocateDotBox(actor, { x1: 0, y1: 0, x2: boxWidth, y2: 20 }, {});
     return dots;
 }
 
@@ -1338,15 +1338,15 @@ test("dot box: the theme is asked once, and again only when it changes", () => {
     const cal = makeCalendar();
     const box = { x1: 0, y1: 0, x2: 100, y2: 20 };
     for (let cell = 0; cell < 42; cell++) {
-        cal._allocate_dot_box(actor, box, {});
+        cal._gridView.allocateDotBox(actor, box, {});
     }
     assert.equal(lookups, 1, "the theme node is not re-read for every cell");
 
     // a theme change is the one moment those values move, and that is what
     // _onStyleChange drops
-    assert.ok(cal._dot_metrics, "the metrics are held between allocations");
-    cal._dot_metrics = null;
-    cal._allocate_dot_box(actor, box, {});
+    assert.ok(cal._gridView.dotMetrics, "the metrics are held between allocations");
+    cal._gridView.dotMetrics = null;
+    cal._gridView.allocateDotBox(actor, box, {});
     assert.equal(lookups, 2);
 });
 
@@ -1447,7 +1447,7 @@ test("day cells: holiday annotations do not leak into the next month", () => {
     assert.equal(day14.label, "11");
     assert.ok(!day14.style_class.includes("calendar-nonwork-day"));
     // and its tooltip was cleared
-    const cell = cal._day_cells.find((c) => c.button === day14);
+    const cell = cal._gridView.dayCells.find((c) => c.button === day14);
     assert.equal(cell.holidayTooltip.texts.at(-1), "");
 });
 
@@ -1455,7 +1455,7 @@ test("day cells: geometry change rebuilds the grid with week-number labels", () 
     const cal = makeCalendar();
     cal.setDate(new Date(2026, 6, 9), true);
     const before = dayButtons(cal);
-    assert.equal(cal._week_labels.length, 0);
+    assert.equal(cal._gridView.weekLabels.length, 0);
 
     cal.show_week_numbers = true;
     cal._onSettingsChange(null, "show-week-numbers", false, true);
@@ -1463,11 +1463,11 @@ test("day cells: geometry change rebuilds the grid with week-number labels", () 
     const after = dayButtons(cal);
     assert.equal(after.length, 42);
     assert.ok(!after.includes(before[0]), "geometry change makes fresh cells");
-    assert.equal(cal._week_labels.length, 6);
-    assert.ok(cal._week_labels.every((l) => l.text.length > 0));
+    assert.equal(cal._gridView.weekLabels.length, 6);
+    assert.ok(cal._gridView.weekLabels.every((l) => l.text.length > 0));
     // the cell is a bare number, and the only thing that says what it counts is
     // the column header — an actor a screen reader on this cell never visits
-    assert.ok(cal._week_labels.every((l) => /^Week \d+$/.test(l.accessible_name || "")),
+    assert.ok(cal._gridView.weekLabels.every((l) => /^Week \d+$/.test(l.accessible_name || "")),
         "each week cell names what its number counts");
     // day cells shift one column right of the week-number gutter
     const placed = placedGrid(cal);
@@ -1510,9 +1510,9 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
     const cal = makeCalendar();
     cal.setDate(new Date(2026, 6, 9), true);
 
-    assert.equal(cal._day_headings.length, 7);
-    const before = cal._day_headings.map((h) => h.label);
-    const nonwork = () => cal._day_headings
+    assert.equal(cal._gridView.dayHeadings.length, 7);
+    const before = cal._gridView.dayHeadings.map((h) => h.label);
+    const nonwork = () => cal._gridView.dayHeadings
         .filter((h) => h.label.style_class.includes("calendar-nonwork-day"))
         .map((h) => h.date.getDay())
         .sort();
@@ -1530,7 +1530,7 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
 
     assert.equal(rebuilds, 0, "weekend length is style-only, no rebuild");
     assert.equal(nonwork().length, 1, "one weekend heading after the change");
-    cal._day_headings.forEach((heading, i) => {
+    cal._gridView.dayHeadings.forEach((heading, i) => {
         assert.equal(heading.label, before[i], "heading actors are reused");
         const expected = CalendarModule._isWorkDay(heading.date, 1) ?
             "calendar-work-day" : "calendar-nonwork-day";
@@ -1540,7 +1540,7 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
 
     // headings and day cells must agree on which days are the weekend
     const headingNonwork = new Set(nonwork());
-    cal._day_cells.forEach((cell) => {
+    cal._gridView.dayCells.forEach((cell) => {
         assert.equal(cell.button.style_class.includes("calendar-nonwork-day") &&
             !cell.holiday_styled,
         headingNonwork.has(cell.date.getDay()),
@@ -1560,7 +1560,7 @@ test("weekday headings stay unique across a daylight-saving fallback", () => {
         cal._selectedDate = new Date(2026, 10, 1, 0, 30);
         cal._buildHeader();
 
-        assert.deepEqual(cal._day_headings.map((heading) => heading.date.getDay()),
+        assert.deepEqual(cal._gridView.dayHeadings.map((heading) => heading.date.getDay()),
             [0, 1, 2, 3, 4, 5, 6],
             "every weekday appears once through the repeated-hour transition");
     } finally {
@@ -1698,7 +1698,7 @@ function makeColorCalendar() {
 }
 
 function cellForDay(cal, month, day) {
-    return cal._day_cells.find((c) =>
+    return cal._gridView.dayCells.find((c) =>
         c.date.getMonth() === month && c.date.getDate() === day);
 }
 
@@ -1762,7 +1762,7 @@ test("in place: a holiday cell never accumulates duplicate style classes", () =>
     cal._update();
     cal._update();
 
-    const day14 = cal._day_cells.find((c) => c.date.getMonth() === 6 &&
+    const day14 = cal._gridView.dayCells.find((c) => c.date.getMonth() === 6 &&
         c.date.getDate() === 14).button;
     const classes = day14.style_class.split(" ");
     assert.equal(classes.filter((c) => c === "calendar-nonwork-day").length, 1);
@@ -2137,7 +2137,7 @@ test("a tooltip is not rewritten with the text it already has", () => {
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
-    const day14 = cal._day_cells.find((cell) => cell.button.label === "14");
+    const day14 = cal._gridView.dayCells.find((cell) => cell.button.label === "14");
     assert.equal(day14.holidayTooltip.texts.at(-1), "Bastille Day");
     const cellWrites = day14.holidayTooltip.texts.length;
     const monthWrites = cal._holidayAnnotator.monthLabel.tooltip.texts.length;
@@ -2165,7 +2165,7 @@ test("switching holidays off clears the marks they left", () => {
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
-    const day14 = cal._day_cells.find((cell) => cell.button.label === "14");
+    const day14 = cal._gridView.dayCells.find((cell) => cell.button.label === "14");
     assert.equal(day14.holiday_name, "Bastille Day");
     assert.ok(day14.button.style_class.includes("calendar-holiday-day"));
     assert.match(day14.button.accessible_name, /Bastille Day/);
@@ -2192,7 +2192,7 @@ test("the grid is one tab stop, and it moves with the selection", () => {
     const cal = makeCalendar();
     cal.setDate(new Date(2026, 6, 9), true);
 
-    const focusable = () => cal._day_cells.filter((cell) => cell.button.can_focus);
+    const focusable = () => cal._gridView.dayCells.filter((cell) => cell.button.can_focus);
 
     assert.equal(focusable().length, 1, "one tab stop, not forty-two");
     assert.equal(focusable()[0].button.label, "9", "and it is the selected day");
