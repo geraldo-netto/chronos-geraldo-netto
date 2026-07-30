@@ -832,6 +832,19 @@ test("README documents weather privacy data flow", () => {
     const tooltipMinutes = /every (\d+) minutes/.exec(tooltip);
     assert.ok(tooltipMinutes, "the consent tooltip must state the refresh cadence");
     assert.equal(Number(tooltipMinutes[1]), minutes);
+
+    // the adapters are where requests actually go; the README's host list was
+    // a hand-maintained copy, so a replaced or added endpoint could leave the
+    // privacy section naming services that no longer receive data
+    const adapters = fs.readFileSync(
+        path.join(appletDir, "weatherServiceAdapters.js"), "utf8");
+    const egressHosts = new Set(Array.from(
+        adapters.matchAll(/return "https:\/\/([^/"]+)\//g)).map(([, host]) => host));
+    assert.notEqual(egressHosts.size, 0, "the adapter module must build request URLs");
+    for (const host of egressHosts) {
+        assert.ok(readme.includes(`\`${host}\``),
+            `the README privacy section must name ${host}`);
+    }
 });
 
 test("README links to Enrico over canonical HTTPS URLs", () => {
