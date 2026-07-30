@@ -113,8 +113,13 @@ class CalendarLauncher {
         // out either line here.
 
         // Util.trySpawn(["gnome-calendar"], false);
-        Util.trySpawn(["gnome-calendar", "--date", gdate.format("%x")], false);
-        return true;
+        try {
+            Util.trySpawn(["gnome-calendar", "--date", gdate.format("%x")], false);
+            return true;
+        } catch {
+            global.log("Chronos: gnome-calendar could not open the requested date");
+            return false;
+        }
     }
 
     launchUuid(uuid) {

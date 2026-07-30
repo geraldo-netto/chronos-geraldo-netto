@@ -441,6 +441,8 @@ test("EventRow is keyboard-focusable and activates on Return/space", () => {
 
 test("EventList launches calendar only when available", () => {
     const spawned = [];
+    const logged = [];
+    global.log = (message) => logged.push(message);
     global.imports.misc.util.trySpawn = (args) => spawned.push(args);
 
     // no gnome-calendar on this box
@@ -455,6 +457,18 @@ test("EventList launches calendar only when available", () => {
     with_.launch_calendar(TODAY);
     assert.deepEqual(spawned, [["gnome-calendar", "--date", TODAY.format("%x")]]);
     assert.equal(with_._emitted.at(-1).name, "launched-calendar");
+
+    const emittedBeforeFailure = with_._emitted.length;
+    global.imports.misc.util.trySpawn = () => {
+        throw new Error("process failed with date argv");
+    };
+    with_.launch_calendar(TODAY);
+    assert.equal(with_._emitted.length, emittedBeforeFailure,
+        "a failed spawn must not report a launched calendar");
+    assert.equal(logged.at(-1),
+        "Chronos: gnome-calendar could not open the requested date");
+    assert.doesNotMatch(logged.at(-1), /argv|day50/);
+    global.log = () => {};
 });
 
 test("CalendarLauncher owns date and uuid launch commands", () => {
