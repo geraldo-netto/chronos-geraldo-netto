@@ -113,6 +113,22 @@ async function acquireReleaseLock(root) {
     }
 }
 
+async function cleanupReleaseTemporaries(root) {
+    for (const relative of RELEASE_TARGETS) {
+        const parts = relative.split("/");
+        const targetName = parts.pop();
+        const directory = path.join(root, ...parts);
+        const prefix = `${targetName}.chronos-release-`;
+        const siblings = await readdir(directory, { withFileTypes: true });
+        for (const sibling of siblings) {
+            if (!sibling.isDirectory() && sibling.name.startsWith(prefix) &&
+                sibling.name.endsWith(".tmp")) {
+                await rm(path.join(directory, sibling.name), { force: true });
+            }
+        }
+    }
+}
+
 async function cleanupReleaseStaging(root) {
     const entries = await readdir(root, { withFileTypes: true });
     for (const entry of entries) {
@@ -120,6 +136,7 @@ async function cleanupReleaseStaging(root) {
             await rm(path.join(root, entry.name), { recursive: true, force: true });
         }
     }
+    await cleanupReleaseTemporaries(root);
 }
 
 async function withReleaseLock(root, action) {

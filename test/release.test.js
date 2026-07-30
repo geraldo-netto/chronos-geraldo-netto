@@ -226,9 +226,22 @@ test("release startup removes staging left before journal publication", async (t
     const staging = path.join(root, ".chronos-release-transaction-abandoned");
     await fs.mkdir(staging);
     await fs.writeFile(path.join(staging, "manifest.json"), "incomplete");
+    const orphaned = RELEASE_FILES.map((relative) =>
+        path.join(root, `${relative}.chronos-release-dead.tmp`));
+    for (const temporary of orphaned) {
+        await fs.writeFile(temporary, "incomplete");
+    }
+    const unrelated = path.join(root, "notes.chronos-release-dead.tmp");
+    await fs.writeFile(unrelated, "keep");
 
     assert.equal(await checkRelease(root), "0.0.1");
     await assert.rejects(fs.access(staging));
+    for (const temporary of orphaned) {
+        await assert.rejects(fs.access(temporary));
+    }
+    await fs.access(unrelated);
+    assert.match(await fs.readFile(path.join(ROOT, ".gitignore"), "utf8"),
+        /^\*\.chronos-release-\*\.tmp$/m);
 });
 
 test("release cleanup never crosses a live command lock", async (t) => {
