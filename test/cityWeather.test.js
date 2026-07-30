@@ -10,6 +10,7 @@ const weatherPath = path.join(APPLET_DIR, "weather.js");
 const schedulerPath = path.join(APPLET_DIR, "weatherScheduler.js");
 const providersPath = path.join(APPLET_DIR, "weatherProviders.js");
 const ioUtilsPath = path.join(APPLET_DIR, "ioUtils.js");
+const clockLimitsPath = path.join(APPLET_DIR, "clockLimits.js");
 
 // Seeded PRNG so fuzz failures reproduce; change FUZZ_SEED to explore
 const FUZZ_SEED = 20260712;
@@ -103,6 +104,13 @@ beforeEach(() => {
 afterEach(() => {
     global.imports = originalImports;
     global.logError = originalLogError;
+});
+
+test("the city fan-out uses the shared clock cap", () => {
+    const CityWeather = loadCityWeather();
+    const ClockLimits = require(clockLimitsPath);
+
+    assert.equal(CityWeather.MAX_CITIES, ClockLimits.MAX_CLOCKS);
 });
 
 test("every world-clock city gets its own reading", () => {

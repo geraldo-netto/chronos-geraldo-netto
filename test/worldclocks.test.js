@@ -1106,6 +1106,7 @@ test("worldclockData exposes the same API under the GJS importer and under Node"
                 appletManager: {
                     applets: {
                         "chronos@geraldo-netto": {
+                            clockLimits: { MAX_CLOCKS: 8 },
                             localeText: { translate: (str) => str },
                             textUtils: {
                                 clampText: (text, max) => String(text).slice(0, max)

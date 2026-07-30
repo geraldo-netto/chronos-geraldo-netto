@@ -37,9 +37,9 @@ const WeatherProviders = IS_NODE ?
 const WeatherScheduler = IS_NODE ?
     require("./weatherScheduler") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
-const WorldclockData = IS_NODE ?
-    require("./worldclockData") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+const ClockLimits = IS_NODE ?
+    require("./clockLimits") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].clockLimits;
 
 const locationCacheKey = WeatherProviders.locationCacheKey;
 
@@ -52,7 +52,7 @@ const CITY_REFRESH_SECONDS = Weather.REFRESH_SECONDS;
 // with a permanently blank temperature column, no error anywhere, and a green
 // suite certifying it. A resolve plus a forecast per city is already sixteen
 // requests, so nothing here fans out further.
-const MAX_CITIES = WorldclockData.MAX_CLOCKS;
+const MAX_CITIES = ClockLimits.MAX_CLOCKS;
 // The cities are geocoded through a small pool, not all at once. On an
 // Open-Meteo outage every one falls through to Nominatim, whose usage policy
 // caps a client at one request a second, so a cold-cache round of eight

@@ -32,10 +32,12 @@ const LocaleText = IS_NODE ?
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+const ClockLimits = IS_NODE ?
+    require("./clockLimits") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].clockLimits;
 const _ = LocaleText.translate;
 
-// user-configurable clocks; the built-in UTC and local rows come on top
-var MAX_CLOCKS = 8; // NOSONAR [S3504] -- GJS importer export
+var MAX_CLOCKS = ClockLimits.MAX_CLOCKS; // NOSONAR [S3504] -- GJS importer export
 // The label is the user's own name for the clock, and the settings dialog puts
 // no limit on it. It is rendered in the popup grid and padded to the widest
 // cell in the monospace tooltip, so a single 60-character name stretches both

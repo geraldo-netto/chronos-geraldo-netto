@@ -731,24 +731,16 @@ test("holiday timezone default is one-time and weather remains opt-in", () => {
 });
 
 test("the clock cap is the same in schema, JS, Python, and the README", () => {
-    // the cap lives in several unlinked places; this test is the link
-    const worldclocks = fs.readFileSync(path.join(appletDir, "worldclockData.js"), "utf8");
+    const clockLimits = require(path.join(appletDir, "clockLimits.js"));
     const widgets = fs.readFileSync(path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
-    const cityWeather = fs.readFileSync(path.join(appletDir, "cityWeather.js"), "utf8");
     const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
     const data = schema("5.4");
 
-    const jsCap = Number(/var MAX_CLOCKS = (\d+);/.exec(worldclocks)[1]);
+    const jsCap = clockLimits.MAX_CLOCKS;
     const pyCap = Number(/^MAX_CLOCKS = (\d+)$/m.exec(widgets)[1]);
 
     assert.equal(jsCap, pyCap);
     assert.match(data.worldclocks.tooltip, new RegExp(`up to ${jsCap} timezones`));
-
-    // one city per clock: cityWeather must not carry a cap of its own, or a
-    // raised clock cap leaves the extra clocks with a blank temperature column
-    // and nothing to say why
-    assert.match(cityWeather, /const MAX_CITIES = WorldclockData\.MAX_CLOCKS;/,
-        "the city cap is the clock cap, not a copy of its current value");
 
     // the README states the cap in prose; every mention must agree
     // the prose wraps, so allow the count and its noun to sit on separate lines

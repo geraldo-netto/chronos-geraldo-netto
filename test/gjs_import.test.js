@@ -78,6 +78,9 @@ function gjsImportsMock() {
                         eventWindow: {
                             EventWindowCoordinator: class {}
                         },
+                        clockLimits: {
+                            MAX_CLOCKS: 8
+                        },
                         dateMath: {
                             MSECS_IN_DAY: 86400000,
                             monthWindowStartOffset() {}
@@ -276,6 +279,7 @@ function nativeImport(moduleName) {
 }
 
 const EXPORTS = {
+    clockLimits: ["MAX_CLOCKS"],
     dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
