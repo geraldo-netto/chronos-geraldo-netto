@@ -48,6 +48,23 @@ test("project metadata uses the Cinnamon Chronos repository identity", () => {
     assert.ok(weatherAdapters.includes(projectUrl));
     assert.equal(metadata.uuid, "chronos@geraldo-netto",
         "renaming the repository must not change Cinnamon's installed applet identity");
+
+    // Three more independent declarations of the same identity: the JS
+    // textdomain, the Python dialog's gettext domain, and the pot file the
+    // i18n gate verifies. A rename that misses one leaves catalogs binding a
+    // domain nothing installs — every string silently reverts to English —
+    // or the gate validating a template nothing ships.
+    const localeText = fs.readFileSync(path.join(appletDir, "localeText.js"), "utf8");
+    assert.ok(localeText.includes(`const UUID = "${metadata.uuid}";`),
+        "the JS textdomain must be the applet uuid");
+    const settingsI18n = fs.readFileSync(
+        path.join(appletDir, "settings_i18n.py"), "utf8");
+    assert.ok(settingsI18n.includes(`domain = "${metadata.uuid}"`),
+        "the Python gettext domain must be the applet uuid");
+    const checkI18n = fs.readFileSync(
+        path.join(__dirname, "..", "scripts", "check-i18n.mjs"), "utf8");
+    assert.ok(checkI18n.includes(`const UUID = "${metadata.uuid}";`),
+        "the i18n gate must verify the template the applet ships");
 });
 
 // The applet declares GPL-2.0-or-later in package.json and the README, and it
