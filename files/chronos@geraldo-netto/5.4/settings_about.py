@@ -23,7 +23,7 @@ APPLET_DIR = Path(__file__).resolve().parent.parent
 if str(APPLET_DIR) not in sys.path:
     sys.path.append(str(APPLET_DIR))
 
-from settings_i18n import _  # noqa: E402
+from chronos_settings_i18n import _  # noqa: E402
 
 
 PROJECT_URL = "https://github.com/geraldo-netto/cinnamon-chronos"

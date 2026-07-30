@@ -63,7 +63,7 @@ test("the packaging command stages only the Cinnamon Spices applet tree", async 
         "the package is exactly the tracked Spices manifest");
     for (const executable of [
         "files/chronos@geraldo-netto/5.4/settings_widgets.py",
-        "files/chronos@geraldo-netto/settings_widgets_common.py",
+        "files/chronos@geraldo-netto/chronos_settings_widgets_common.py",
         "files/chronos@geraldo-netto/po/makepot"
     ]) {
         const mode = (await fs.stat(path.join(output, ...executable.split("/")))).mode & 0o777;

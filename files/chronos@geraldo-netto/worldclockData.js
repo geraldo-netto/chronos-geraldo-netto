@@ -46,7 +46,7 @@ var MAX_CLOCK_LABEL_LENGTH = 24; // NOSONAR [S3504] -- GJS importer export
 var LOCAL_TIMEZONE = "local"; // NOSONAR [S3504] -- GJS importer export
 var UTC_TIMEZONE = "UTC"; // NOSONAR [S3504] -- GJS importer export
 // the IANA "no region" area: Etc/UTC, Etc/GMT+3 and the like are offsets, not
-// places. Named to match settings_widgets_common.py's TZ_NO_REGION so the two
+// places. Named to match chronos_settings_widgets_common.py's TZ_NO_REGION so the two
 // timezone-to-city implementations filter the same set.
 var TZ_NO_REGION = "Etc"; // NOSONAR [S3504] -- GJS importer export
 var TIMEZONE_FILE = "/etc/timezone"; // NOSONAR [S3504] -- GJS importer export

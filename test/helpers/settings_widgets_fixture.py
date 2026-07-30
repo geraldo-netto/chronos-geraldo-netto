@@ -20,16 +20,16 @@ sys.dont_write_bytecode = True
 
 
 APPLET_DIR = Path(__file__).resolve().parent.parent.parent / "files" / "chronos@geraldo-netto"
-COMMON_PATH = APPLET_DIR / "settings_widgets_common.py"
-WEATHER_PATH = APPLET_DIR / "settings_widgets_weather.py"
-HOLIDAYS_PATH = APPLET_DIR / "settings_widgets_holidays.py"
-WORLDCLOCKS_PATH = APPLET_DIR / "settings_widgets_worldclocks.py"
+COMMON_PATH = APPLET_DIR / "chronos_settings_widgets_common.py"
+WEATHER_PATH = APPLET_DIR / "chronos_settings_widgets_weather.py"
+HOLIDAYS_PATH = APPLET_DIR / "chronos_settings_widgets_holidays.py"
+WORLDCLOCKS_PATH = APPLET_DIR / "chronos_settings_widgets_worldclocks.py"
 
 # The reserved built-ins live in the gi-free sibling, and the widget module no
 # longer re-exports them: it never read them, and naming them there existed only
 # so the tests could reach them through it.
 _tzdata_spec = importlib.util.spec_from_file_location(
-    "timezone_data_for_tests", APPLET_DIR / "timezone_data.py")
+    "chronos_timezone_data_for_tests", APPLET_DIR / "chronos_timezone_data.py")
 _tzdata = importlib.util.module_from_spec(_tzdata_spec)
 _tzdata_spec.loader.exec_module(_tzdata)
 RESERVED_TIMEZONES = _tzdata.RESERVED_TIMEZONES
@@ -787,12 +787,12 @@ def load_module(path, name, missing_pytz=False, missing_zoneinfo=False, preload=
     sys.path.insert(0, str(APPLET_DIR))
     # a sibling already loaded by a previous call, handed in so this module
     # imports that exact instance — how the shim behaves in cinnamon-settings,
-    # where every feature module sees one settings_widgets_common
+    # where every feature module sees one chronos_settings_widgets_common
     for preload_name, preload_module in (preload or {}).items():
         sys.modules[preload_name] = preload_module
     original_import = builtins.__import__
     # anything already imported stays; a sibling the module pulls in during exec
-    # (e.g. a gi-free timezone_data split out of the widget module) is imported
+    # (e.g. a gi-free chronos_timezone_data split out of the widget module) is imported
     # by name off the applet dir and would otherwise linger in sys.modules, so a
     # later load would import that cached copy instead of the edited source — the
     # same stale-source trap the .pyc guard at the top of this file avoids.

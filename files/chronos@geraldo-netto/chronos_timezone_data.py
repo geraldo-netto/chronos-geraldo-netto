@@ -13,7 +13,7 @@
 
 Timezone identity and city names, with no Gtk/Atk/GLib and no widgets — the
 numbers-and-words half of the dialog, the way weatherFormat is to weather.js.
-settings_widgets_common re-exports these so the dialog code and the tests reach
+chronos_settings_widgets_common re-exports these so the dialog code and the tests reach
 the whole feature through one import.
 """
 

@@ -274,11 +274,11 @@ class SettingsWidgetsTest(unittest.TestCase):
         # load_module stubs this out so the rest of the suite does not depend on
         # where it runs; the real one is exercised here, against a real
         # /etc/localtime and against the shapes it has to survive. It lives in
-        # the gi-free timezone_data sibling, so a fresh exec of that source —
+        # the gi-free chronos_timezone_data sibling, so a fresh exec of that source —
         # no stubs, no sys.path — is the unpatched function.
         import importlib.util
         spec = importlib.util.spec_from_file_location(
-            "tzdata_localtime_real", APPLET_DIR / "timezone_data.py")
+            "tzdata_localtime_real", APPLET_DIR / "chronos_timezone_data.py")
         fresh = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fresh)
 
@@ -303,7 +303,7 @@ class SettingsWidgetsTest(unittest.TestCase):
     def test_tz_override_beats_the_localtime_link_for_reserved_clocks(self):
         import importlib.util
         spec = importlib.util.spec_from_file_location(
-            "tzdata_environment_identity", APPLET_DIR / "timezone_data.py")
+            "tzdata_environment_identity", APPLET_DIR / "chronos_timezone_data.py")
         fresh = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fresh)
         fake_pytz = types.SimpleNamespace(
@@ -806,9 +806,9 @@ class SettingsWidgetsTest(unittest.TestCase):
 
         # each widget comes from its feature module, not one shared grab-bag
         homes = {
-            "ClocksList": "settings_widgets_worldclocks",
-            "CountryComboBox": "settings_widgets_holidays",
-            "WeatherLocationEntry": "settings_widgets_weather",
+            "ClocksList": "chronos_settings_widgets_worldclocks",
+            "CountryComboBox": "chronos_settings_widgets_holidays",
+            "WeatherLocationEntry": "chronos_settings_widgets_weather",
         }
         for widget in named:
             self.assertEqual(getattr(wrapper_52, widget).__module__, homes[widget])
@@ -817,10 +817,30 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertFalse(hasattr(wrapper_52, "list_edit_factory"),
                          "the shim is the widgets Cinnamon names, and nothing else")
 
+    def test_foreign_generic_modules_cannot_intercept_widget_imports(self):
+        generic_names = [
+            "timezone_data",
+            "settings_i18n",
+            "settings_widgets_common",
+            "settings_widgets_holidays",
+            "settings_widgets_weather",
+            "settings_widgets_worldclocks",
+        ]
+        foreign = {name: types.ModuleType(name) for name in generic_names}
+        wrapper = load_module(
+            APPLET_DIR / "5.4" / "settings_widgets.py",
+            "settings_widgets_52_collision_test",
+            preload=foreign,
+        )
+
+        for widget in wrapper.__all__:
+            self.assertTrue(getattr(wrapper, widget).__module__.startswith("chronos_"),
+                            "a generic sys.modules entry intercepted Chronos")
+
     def test_the_shim_puts_the_applet_dir_on_the_path_when_it_is_missing(self):
         """The shim's whole job: cinnamon-settings imports it by the schema's
         name, with the applet directory nowhere on sys.path, and it has to make
-        `from settings_widgets_common import …` resolve. Every other test loads it
+        `from chronos_settings_widgets_common import …` resolve. Every other test loads it
         with the directory already on the path — the harness puts it there — so
         the one line that does the job never ran, and the coverage gate could not
         see it because it did not look inside 5.4/ at all.

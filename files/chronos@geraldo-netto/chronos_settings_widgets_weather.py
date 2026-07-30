@@ -11,7 +11,7 @@
 """The weather-location settings widget and its city suggestions.
 
 One feature per module: the holiday country combo and the world-clock stack
-are siblings, and settings_widgets_common keeps only what they share — the
+are siblings, and chronos_settings_widgets_common keeps only what they share — the
 completion match, the process-wide timezone resolver, the i18n binding.
 """
 
@@ -24,9 +24,9 @@ from gi.repository import Gtk
 
 # the shared halves: one folded-substring matcher and one process-wide
 # timezone index, both also used by the world-clock and country widgets
-import settings_widgets_common as common
-from timezone_data import completion_key, local_city_name
-from settings_i18n import _
+import chronos_settings_widgets_common as common
+from chronos_timezone_data import completion_key, local_city_name
+from chronos_settings_i18n import _
 
 WEATHER_LOCATION_HINT = _("City or town (e.g. Lisbon)")
 MAX_WEATHER_LOCATION_LENGTH = 256
@@ -216,4 +216,3 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         self.set_value(city)
         self.content_widget.set_text(city)
         return city
-

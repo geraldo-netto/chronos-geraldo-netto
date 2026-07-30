@@ -82,7 +82,7 @@ test("project metadata uses the Cinnamon Chronos repository identity", () => {
     assert.ok(localeText.includes(`const UUID = "${metadata.uuid}";`),
         "the JS textdomain must be the applet uuid");
     const settingsI18n = fs.readFileSync(
-        path.join(appletDir, "settings_i18n.py"), "utf8");
+        path.join(appletDir, "chronos_settings_i18n.py"), "utf8");
     assert.ok(settingsI18n.includes(`domain = "${metadata.uuid}"`),
         "the Python gettext domain must be the applet uuid");
     const checkI18n = fs.readFileSync(
@@ -501,7 +501,7 @@ test("CI runs the gates the README promises", () => {
         "the downloaded artifact must have the expected package root");
     for (const executable of [
         "5.4/settings_widgets.py",
-        "settings_widgets_common.py",
+        "chronos_settings_widgets_common.py",
         "po/makepot"
     ]) {
         assert.match(releaseJob,
@@ -733,7 +733,7 @@ test("holiday timezone default is one-time and weather remains opt-in", () => {
 test("the clock cap is the same in schema, JS, Python, and the README", () => {
     // the cap lives in several unlinked places; this test is the link
     const worldclocks = fs.readFileSync(path.join(appletDir, "worldclockData.js"), "utf8");
-    const widgets = fs.readFileSync(path.join(appletDir, "settings_widgets_worldclocks.py"), "utf8");
+    const widgets = fs.readFileSync(path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
     const cityWeather = fs.readFileSync(path.join(appletDir, "cityWeather.js"), "utf8");
     const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
     const data = schema("5.4");
@@ -780,7 +780,7 @@ test("the clock list is tall enough to show every clock the cap allows", () => {
     // bigger font grows the rows, hence the slack.
     const HEADER_HEIGHT = 29;
     const ROW_HEIGHT = 22;
-    const widgets = fs.readFileSync(path.join(appletDir, "settings_widgets_worldclocks.py"), "utf8");
+    const widgets = fs.readFileSync(path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
     const cap = Number(/^MAX_CLOCKS = (\d+)$/m.exec(widgets)[1]);
     const data = schema("5.4");
 
@@ -789,7 +789,7 @@ test("the clock list is tall enough to show every clock the cap allows", () => {
 });
 
 test("timezone entry dialog title is localized and extracted", () => {
-    const widgets = fs.readFileSync(path.join(appletDir, "settings_widgets_worldclocks.py"), "utf8");
+    const widgets = fs.readFileSync(path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
     const pot = fs.readFileSync(path.join(appletDir, "po", "chronos@geraldo-netto.pot"), "utf8");
 
     assert.match(widgets, /_\("City or timezone \(e\.g\. Buenos Aires\)"\)/);

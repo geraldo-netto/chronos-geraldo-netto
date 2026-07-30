@@ -24,7 +24,7 @@ except ImportError:
 # sibling with no Gtk/Atk/GLib. What is left here is what the three feature
 # modules (weather, holidays, world clocks) genuinely share: the folded
 # substring matcher and one process-wide timezone index.
-from timezone_data import (
+from chronos_timezone_data import (
     completion_key,
     TimezoneResolver,
 )
@@ -56,8 +56,6 @@ def shared_timezone_resolver() -> TimezoneResolver:
         _TIMEZONE_RESOLVER = TimezoneResolver(pytz, available_timezones)
 
     return _TIMEZONE_RESOLVER
-
-
 
 
 

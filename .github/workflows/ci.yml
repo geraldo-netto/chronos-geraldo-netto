@@ -139,5 +139,5 @@ jobs:
           sha256sum -c chronos-spices.sha256
           test -f chronos@geraldo-netto/files/chronos@geraldo-netto/metadata.json
           test "$(stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/5.4/settings_widgets.py)" = 755
-          test "$(stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/settings_widgets_common.py)" = 755
+          test "$(stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/chronos_settings_widgets_common.py)" = 755
           test "$(stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/po/makepot)" = 755

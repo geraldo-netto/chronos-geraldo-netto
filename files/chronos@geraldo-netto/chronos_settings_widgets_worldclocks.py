@@ -11,8 +11,8 @@
 """The world-clocks settings stack: the list, its add/edit dialog, and the
 timezone suggestions they share.
 
-One feature per module, beside settings_widgets_weather and
-settings_widgets_holidays; settings_widgets_common keeps only what the
+One feature per module, beside chronos_settings_widgets_weather and
+chronos_settings_widgets_holidays; chronos_settings_widgets_common keeps only what the
 features share — the folded-substring matcher and the process-wide timezone
 resolver.
 """
@@ -25,9 +25,9 @@ import logging
 from typing import Any, Optional
 from gi.repository import Atk, GLib, Gtk
 
-import settings_widgets_common as common
-from timezone_data import completion_key
-from settings_i18n import _
+import chronos_settings_widgets_common as common
+from chronos_timezone_data import completion_key
+from chronos_settings_i18n import _
 
 # i18n: bind the domain to a module-level name. Installing the translator
 # globally would inject _ into builtins for the whole cinnamon-settings
@@ -36,13 +36,13 @@ from settings_i18n import _
 # The applet can be installed per-user or system-wide, and the catalogs follow
 # it. Binding only to $HOME meant a system-wide install silently fell back to
 # NullTranslations - fallback=True - and the whole dialog reverted to English.
-# settings_i18n keeps the same lookup available to the standalone About window
+# chronos_settings_i18n keeps the same lookup available to the standalone About window
 # without importing this module's Cinnamon settings dependencies.
 
 LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 
 # user-configurable clocks; the applet always shows built-in UTC and local rows.
-# Kept here, not in timezone_data: schema_static reads this file for the cap and
+# Kept here, not in chronos_timezone_data: schema_static reads this file for the cap and
 # the world-clock list height is checked against it.
 MAX_CLOCKS = 8
 # idles spent waiting for the settings window to be parented before giving up on

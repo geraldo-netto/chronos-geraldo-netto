@@ -10,8 +10,8 @@
 
 """The holiday-country settings widget.
 
-One feature per module, beside settings_widgets_weather and the world-clock
-stack; settings_widgets_common keeps only what the features share.
+One feature per module, beside chronos_settings_widgets_weather and the world-clock
+stack; chronos_settings_widgets_common keeps only what the features share.
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from JsonSettingsWidgets import JSONSettingsBackend
 from xapp.SettingsWidgets import SettingsLabel, SettingsWidget
 from gi.repository import Gtk
 
-import settings_widgets_common as common
-from timezone_data import completion_key
-from settings_i18n import _
+import chronos_settings_widgets_common as common
+from chronos_timezone_data import completion_key
+from chronos_settings_i18n import _
 
 COUNTRY_HINT = _("Type a country name")
 

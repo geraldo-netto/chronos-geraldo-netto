@@ -36,7 +36,7 @@ FUNCTION_THRESHOLD = 100.0
 # This module's remaining line slack used to consist solely of import fallbacks
 # and no-style-context guards. Those paths are now behavioral tests, and a
 # per-file override prevents the global 98 % allowance from hiding them again.
-LINE_OVERRIDES = {Path("settings_widgets_common.py"): 100.0}
+LINE_OVERRIDES = {Path("chronos_settings_widgets_common.py"): 100.0}
 TEST_DIR = APPLET_DIR / "test"
 
 

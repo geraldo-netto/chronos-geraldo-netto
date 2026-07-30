@@ -505,7 +505,7 @@ test("the popup and the weather side select the same clocks", () => {
     assert.deepEqual(selected, ["Rome", "Tokyo"], "the built-in collision is nobody's clock");
 });
 
-// worldclockData.timezoneCityName and settings_widgets_common.local_city_name
+// worldclockData.timezoneCityName and chronos_settings_widgets_common.local_city_name
 // both derive the weather-location city from a timezone id and both write the
 // same settings key, so they must agree. The cases live in a fixture that the
 // Python suite asserts against too; a divergence fails one side.
