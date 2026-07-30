@@ -23,7 +23,7 @@ const SettingsFacade = require("./settingsFacade");
 const WorldclockData = require("./worldclockData");
 const HolidayConstants = require("./holidayConstants");
 
-const NO_HOLIDAYS = "none";
+const NO_HOLIDAYS = SettingsFacade.NO_HOLIDAYS;
 const SUPPORTED_COUNTRIES = HolidayConstants.SUPPORTED_COUNTRIES;
 
 // Cinnamon's settings.bind() writes the bound value onto the applet object

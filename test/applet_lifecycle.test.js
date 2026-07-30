@@ -136,7 +136,7 @@ test("an unsupported configured country falls back to none", () => {
 
     global.logError = originalLogError;
 
-    assert.equal(settings.values.country, "none");
+    assert.equal(settings.values.country, rootModules.settingsFacade.NO_HOLIDAYS);
     assert.deepEqual(places, [["clear"]], "no lookup is attempted for an unsupported country");
     assert.equal(logged.length, 1);
     assert.match(logged[0], /ind/);

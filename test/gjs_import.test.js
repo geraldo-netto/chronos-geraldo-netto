@@ -337,7 +337,8 @@ const EXPORTS = {
         "formatRangeSuffix", "formatEventTimeRange", "ARROW_SEPARATOR"],
     settingsFacade: ["CalendarSettings", "EventsSettings", "SHOW_EVENTS_KEY",
         "SHOW_WEEK_NUMBERS_KEY", "WEEKEND_LENGTH_KEY", "SHOW_RELIGIOUS_OBSERVANCES_KEY",
-        "RELIGION_KEY_PREFIX", "RELIGION_IDS"]
+        "RELIGION_KEY_PREFIX", "RELIGION_IDS", "CUSTOM_FORMAT_KEY",
+        "CUSTOM_TOOLTIP_FORMAT_KEY", "NO_HOLIDAYS"]
 };
 
 for (const [moduleName, symbols] of Object.entries(EXPORTS)) {

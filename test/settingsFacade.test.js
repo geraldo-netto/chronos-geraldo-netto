@@ -119,6 +119,17 @@ test("version shim forwards the shared settings facade API", () => {
     assert.equal(context.module.exports, shared);
 });
 
+test("settings tables reuse the facade's canonical key and sentinel values", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+
+    assert.deepEqual(SettingsFacade.PANEL_KEYS.slice(1, 3), [
+        [SettingsFacade.CUSTOM_FORMAT_KEY, "custom_format"],
+        [SettingsFacade.CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format"]
+    ]);
+    assert.equal(SettingsFacade.NO_HOLIDAYS, "none");
+});
+
 test("legacy shipped date formats migrate to the fixed-order defaults once", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);

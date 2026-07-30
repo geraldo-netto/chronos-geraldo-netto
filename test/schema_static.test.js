@@ -220,6 +220,7 @@ test("every region the dialog offers is a region the providers understand", () =
 test("every settings key the facade binds exists in the schema", () => {
     const data = schema("5.4");
     const facade = fs.readFileSync(path.join(appletDir, "settingsFacade.js"), "utf8");
+    const facadeModule = require(path.join(appletDir, "settingsFacade.js"));
 
     // the literal key strings, as the facade declares them
     const declared = Array.from(facade.matchAll(
@@ -253,9 +254,14 @@ test("every settings key the facade binds exists in the schema", () => {
             `the facade binds "${key}", which the schema does not define`);
     }
 
-    // ...and the key->property tables, which are the other half of the binding
-    const bound = Array.from(facade.matchAll(/^\s+\["([a-z][\w-]*)", "\w+"\],?$/gm))
-        .map(([, key]) => key);
+    // ...and the exported key->property tables, which are the other half of the
+    // binding. Read their values rather than requiring literal syntax: some
+    // entries intentionally refer to the constants checked above.
+    const bound = [
+        ...facadeModule.PANEL_KEYS,
+        ...facadeModule.WEATHER_KEYS,
+        ...facadeModule.CUSTOM_WEATHER_KEYS
+    ].map(([key]) => key);
     assert.ok(bound.length >= 4, "the key/property tables were not found");
 
     for (const key of bound) {

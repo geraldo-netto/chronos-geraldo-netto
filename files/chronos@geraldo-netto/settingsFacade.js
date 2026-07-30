@@ -52,8 +52,8 @@ var NO_HOLIDAYS = "none"; // NOSONAR [S3504] -- GJS importer export
 // key -> applet property, grouped by the handler each one triggers
 var PANEL_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     [SHOW_EVENTS_KEY, "show_events"],
-    ["custom-format", "custom_format"],
-    ["custom-tooltip-format", "custom_tooltip_format"],
+    [CUSTOM_FORMAT_KEY, "custom_format"],
+    [CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format"],
     [SHOW_WORLDCLOCKS_KEY, "show_worldclocks"]
 ];
 var WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
@@ -336,6 +336,9 @@ if (typeof module !== "undefined") {
         SHOW_WORLDCLOCKS_KEY,
         KEY_OPEN_KEY,
         WEATHER_LOCATION_KEY,
+        CUSTOM_FORMAT_KEY,
+        CUSTOM_TOOLTIP_FORMAT_KEY,
+        NO_HOLIDAYS,
         PANEL_KEYS,
         WEATHER_KEYS,
         CUSTOM_WEATHER_KEYS
