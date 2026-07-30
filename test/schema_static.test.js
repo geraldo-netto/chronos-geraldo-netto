@@ -122,8 +122,12 @@ test("date format controls are always visible", () => {
 
     assert.equal(data["use-custom-format"], undefined);
     assert.equal(data.layout.section1.keys.includes("use-custom-format"), false);
-    assert.equal(data["custom-format"].default, "%d %b %H:%M");
-    assert.equal(data["custom-tooltip-format"].default, "%d %b %H:%M");
+    // the facade owns the value: the migration writes it over the legacy
+    // format, and the panel's runtime fallback imports it, so a schema default
+    // typed independently would leave legacy users migrated to a stale format
+    const facade = require(path.join(appletDir, "settingsFacade.js"));
+    assert.equal(data["custom-format"].default, facade.DEFAULT_DATE_TIME_FORMAT);
+    assert.equal(data["custom-tooltip-format"].default, facade.DEFAULT_DATE_TIME_FORMAT);
     assert.deepEqual(data["date-format-defaults-migrated"], {
         type: "generic",
         default: false
@@ -563,8 +567,10 @@ test("catalogs localize calendar dates while panel formats keep their fixed orde
     assert.deepEqual(msgids, ["%B %-e, %Y", "%A, %B %-e, %Y"]);
 
     // The panel and tooltip defaults are deliberately invariant: DD MMM and
-    // 24-hour time, regardless of the desktop locale or clock preference.
-    assert.match(panel, /DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M"/);
+    // 24-hour time, regardless of the desktop locale or clock preference —
+    // and the panel takes the value from the facade rather than retyping it.
+    assert.match(panel,
+        /DEFAULT_DATE_TIME_FORMAT = SettingsFacade\.DEFAULT_DATE_TIME_FORMAT/);
     assert.doesNotMatch(panel, /_\("%d %b %H:%M"\)/,
         "the fixed display order must not be translated or rearranged");
 

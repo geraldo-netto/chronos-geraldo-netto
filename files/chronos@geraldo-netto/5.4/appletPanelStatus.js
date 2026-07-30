@@ -20,6 +20,7 @@ const TextUtils = AppletModules.textUtils;
 // chains and the refresh scheduler that the weather.js barrel drags in.
 const Weather = require("./weatherFormat");
 const WorldclockData = require("./worldclockData");
+const SettingsFacade = require("./settingsFacade");
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
@@ -41,7 +42,9 @@ const LABEL_MAX_LENGTH = 64;
 const LABEL_ELLIPSIS = TextUtils.TEXT_ELLIPSIS;
 // The shipped panel and tooltip formats keep the same day-month, 24-hour order
 // in every locale. %b still localizes the abbreviated month name itself.
-const DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M";
+// The value is the facade's: the schema defaults, the legacy-format migration
+// and this runtime fallback must all name the same format.
+const DEFAULT_DATE_TIME_FORMAT = SettingsFacade.DEFAULT_DATE_TIME_FORMAT;
 // label, date and time, temperature, condition: only the numbers are right-aligned
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
 const INVALID_TIME_FORMAT_TEXT = _("Invalid time format; edit it in Settings");

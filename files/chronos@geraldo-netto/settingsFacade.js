@@ -338,6 +338,7 @@ if (typeof module !== "undefined") {
         WEATHER_LOCATION_KEY,
         CUSTOM_FORMAT_KEY,
         CUSTOM_TOOLTIP_FORMAT_KEY,
+        DEFAULT_DATE_TIME_FORMAT,
         NO_HOLIDAYS,
         PANEL_KEYS,
         WEATHER_KEYS,
