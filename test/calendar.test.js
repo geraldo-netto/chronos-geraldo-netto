@@ -1516,16 +1516,17 @@ test("day cells: a reused button clicks through to its current date", () => {
 test("day cells: holiday annotations do not leak into the next month", () => {
     const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
     const cal = makeCalendar({ holiday });
-    cal.setDate(new Date(2026, 6, 9), true);
+    cal.setDate(new Date(2026, 6, 14), true);
     const day14 = dayButtons(cal).find((b) => b.label === "14" &&
         b.style_class.includes("calendar-nonwork-day"));
     assert.ok(day14);
-    assert.ok(day14.pseudo || true);
+    assert.ok(day14.pseudo.has("selected"));
 
     cal.setDate(new Date(2026, 7, 9), true);
     // same actor now shows an August date (a Tuesday): style fully reset
     assert.equal(day14.label, "11");
     assert.ok(!day14.style_class.includes("calendar-nonwork-day"));
+    assert.ok(!day14.pseudo.has("selected"));
     // and its tooltip was cleared
     const cell = cal._gridView.dayCells.find((c) => c.button === day14);
     assert.equal(cell.holidayTooltip.texts.at(-1), "");
