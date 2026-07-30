@@ -27,9 +27,7 @@
     "release:check": "node scripts/release.mjs check",
     "test": "npm run test:js && npm run test:py",
     "test:js": "node test/helpers/coverage.js",
-    "test:py": "python3 test/helpers/coverage.py",
-    "test:js:raw": "node --test --experimental-test-coverage --test-coverage-include='files/chronos@geraldo-netto/*.js' --test-coverage-include='files/chronos@geraldo-netto/5.4/*.js' --test-coverage-include='scripts/*.mjs' --test-coverage-lines=98 --test-coverage-branches=90 --test-coverage-functions=100 test/*.test.js",
-    "test:py:raw": "python3 -m unittest discover -s test -p '*.py'"
+    "test:py": "python3 test/helpers/coverage.py"
   },
   "engines": {
     "node": ">=22.13.0"
