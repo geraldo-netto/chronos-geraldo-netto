@@ -807,6 +807,63 @@ test("shared reading repository coalesces one remote read per refresh period", (
     assert.equal(requests.length, 3, "destroyed repositories start no work");
 });
 
+test("shared reading cache expires entries and evicts the least recently used", () => {
+    const Weather = loadWeather();
+    let now = 1000;
+    let deferPlaces = false;
+    const pendingPlaces = [];
+    const locationResolver = {
+        resolve(location, _isCurrent, callback) {
+            if (deferPlaces) {
+                pendingPlaces.push(callback);
+                return;
+            }
+            callback({ name: location, latitude: 1, longitude: 2 }, "");
+        },
+        forget() {}
+    };
+    const repository = new Weather.WeatherReadingRepository({
+        now: () => now,
+        cacheSeconds: 10,
+        maxCacheEntries: 3,
+        locationResolver,
+        forecastResolver: {
+            refresh(place, _isCurrent, callback) {
+                callback({ condition: "☀", temperatureC: place.name.length }, "", "test");
+            }
+        }
+    });
+    const read = (location) => repository.refresh(location, () => true, () => {});
+
+    // Panel edits and world-clock cities share this repository. Many sequential
+    // locations must not turn into process-lifetime retained readings.
+    for (const location of ["Panel A", "City B", "City C"]) {
+        read(location);
+    }
+    read("Panel A");
+    read("City D");
+    assert.deepEqual([...repository._cache.keys()], ["city c", "panel a", "city d"],
+        "the fresh hit moved Panel A past the older City B entry");
+    assert.equal(repository._cache.size, 3);
+
+    now += 10000;
+    deferPlaces = true;
+    read("City C");
+    assert.equal(repository._cache.has("city c"), false,
+        "an expired entry is removed before its replacement arrives");
+    assert.equal(pendingPlaces.length, 1);
+
+    repository.destroy();
+});
+
+test("shared reading cache ships with a small fixed bound", () => {
+    const Weather = loadWeather();
+    const repository = new Weather.WeatherReadingRepository({ cacheSeconds: 1 });
+    assert.equal(repository._max_cache_entries, Weather.MAX_WEATHER_READING_CACHE_ENTRIES);
+    assert.equal(Weather.MAX_WEATHER_READING_CACHE_ENTRIES, 16);
+    repository.destroy();
+});
+
 test("refresh geocodes, fetches forecast, and reports formatted text", () => {
     const Weather = loadWeather();
     const requests = [];

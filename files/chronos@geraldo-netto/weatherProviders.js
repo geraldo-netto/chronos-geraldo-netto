@@ -140,6 +140,7 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
 };
 
 var NOMINATIM_REQUEST_QUEUE = new NominatimRequestQueue(); // NOSONAR [S3504] -- GJS importer export
+var MAX_WEATHER_READING_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES; // NOSONAR [S3504] -- GJS importer export
 
 // The geocoders, in the order they are tried. Named, because a nameless provider
 // is logged by its URL when the chain moves on - and a geocode URL carries the
@@ -388,6 +389,9 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         this._now = params.now || (() => Date.now());
         this._cache_milliseconds = Math.max(0, Number(params.cacheSeconds) || 0) * 1000;
         this._cache = params.readingCache || new Map();
+        const requestedMax = Number(params.maxCacheEntries);
+        this._max_cache_entries = Number.isInteger(requestedMax) && requestedMax > 0 ?
+            requestedMax : MAX_WEATHER_READING_CACHE_ENTRIES;
         this._inflight = new Map();
         this.session = new IoUtils.LazyHttpSession(
             params.httpSession ? () => params.httpSession : undefined);
@@ -417,10 +421,30 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
     _freshReading(key) {
         const cached = this._cache.get(key);
         if (!cached || this._cache_milliseconds <= 0) {
+            this._cache.delete(key);
             return null;
         }
-        return this._now() - cached.startedAt < this._cache_milliseconds ?
-            cached : null;
+        if (this._now() - cached.startedAt >= this._cache_milliseconds) {
+            this._cache.delete(key);
+            return null;
+        }
+
+        // Map iteration order is the LRU order. A cache hit becomes newest.
+        this._cache.delete(key);
+        this._cache.set(key, cached);
+        return cached;
+    }
+
+    _rememberReading(key, reading, provider, startedAt) {
+        this._cache.delete(key);
+        while (this._cache.size >= this._max_cache_entries) {
+            const oldest = this._cache.keys().next();
+            if (oldest.done) {
+                break;
+            }
+            this._cache.delete(oldest.value);
+        }
+        this._cache.set(key, { reading, provider, startedAt });
     }
 
     refresh(location, isCurrent, callback) {
@@ -494,11 +518,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
 
         this._inflight.delete(key);
         if (reading && !error && this._cache_milliseconds > 0) {
-            this._cache.set(key, {
-                reading,
-                provider,
-                startedAt: request.startedAt
-            });
+            this._rememberReading(key, reading, provider, request.startedAt);
         }
 
         for (const subscriber of request.subscribers) {
@@ -519,6 +539,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
 if (typeof module !== "undefined") {
     module.exports = {
         GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
+        MAX_WEATHER_READING_CACHE_ENTRIES,
         NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
         WeatherLocationResolver, WeatherForecastResolver, WeatherReadingRepository
     };
