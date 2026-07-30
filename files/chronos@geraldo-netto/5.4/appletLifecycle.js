@@ -125,8 +125,24 @@ class AppletSettingsBinder {
     }
 
     bind() {
+        // AppletSettings registers itself with Cinnamon's settings manager at
+        // construction, but the applet can only finalize what bind() returned
+        // — a later bind step that throws (a corrupt schema has) would strand
+        // the registration, and its bind closures pin the applet for the
+        // session. Until the caller holds the instance, releasing it on
+        // failure is this method's job.
+        const settings = new Settings.AppletSettings(
+            this.applet, "chronos@geraldo-netto", this.applet.instance_id);
+        try {
+            return this._bindAll(settings);
+        } catch (e) {
+            this._finalizeQuietly(settings);
+            throw e;
+        }
+    }
+
+    _bindAll(settings) {
         const applet = this.applet;
-        const settings = new Settings.AppletSettings(applet, "chronos@geraldo-netto", applet.instance_id);
         const panel = new SettingsFacade.PanelSettings(settings);
         const holiday = new SettingsFacade.HolidaySettings(settings);
         this.holidaySettings = holiday;
@@ -147,6 +163,16 @@ class AppletSettingsBinder {
             holiday,
             worldclock: new SettingsFacade.WorldclockSettings(settings)
         };
+    }
+
+    _finalizeQuietly(settings) {
+        try {
+            settings.finalize();
+        } catch (e) {
+            if (global.logError) {
+                global.logError(e);
+            }
+        }
     }
 
     // tzdata is local but synchronous. Cinnamon constructs applets on its

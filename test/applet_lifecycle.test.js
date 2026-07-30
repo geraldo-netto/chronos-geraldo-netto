@@ -624,6 +624,64 @@ test("holiday-country inference yields startup and preserves later choices", () 
     assert.deepEqual(removed, [10], "teardown cancels an inference that never ran");
 });
 
+// T653: AppletSettings registers itself with Cinnamon's settings manager at
+// construction. A bind step that throws — the corrupt-schema case the
+// constructor catch documents — used to strand that registration: the applet
+// stores the instance only after bind() returns, so finalizeIfPresent found
+// nothing and the bind closures pinned the whole applet for the session.
+test("a bind step that throws releases the settings registration", () => {
+    const originalSettings = global.imports.ui.settings.AppletSettings;
+    const finalized = [];
+    global.imports.ui.settings.AppletSettings = class {
+        bind() {}
+        connect() { return 1; }
+        getValue() { throw new Error("corrupt schema"); }
+        setValue() {}
+        finalize() { finalized.push("settings"); }
+    };
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 42,
+        _setKeybinding() {}
+    });
+
+    try {
+        assert.throws(() => Proto._bindSettings.call(stub), /corrupt schema/);
+    } finally {
+        global.imports.ui.settings.AppletSettings = originalSettings;
+    }
+
+    assert.deepEqual(finalized, ["settings"],
+        "the orphaned registration is finalized exactly once");
+});
+
+test("a finalize that also throws still reports the original bind failure", () => {
+    const originalSettings = global.imports.ui.settings.AppletSettings;
+    const originalLogError = global.logError;
+    const logged = [];
+    global.imports.ui.settings.AppletSettings = class {
+        bind() {}
+        connect() { return 1; }
+        getValue() { throw new Error("corrupt schema"); }
+        setValue() {}
+        finalize() { throw new Error("already torn down"); }
+    };
+    global.logError = (e) => logged.push(e.message);
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 42,
+        _setKeybinding() {}
+    });
+
+    try {
+        assert.throws(() => Proto._bindSettings.call(stub), /corrupt schema/,
+            "the bind failure wins; the finalize failure is only logged");
+    } finally {
+        global.imports.ui.settings.AppletSettings = originalSettings;
+        global.logError = originalLogError;
+    }
+
+    assert.deepEqual(logged, ["already torn down"]);
+});
+
 test("settings binding preserves a pre-existing holiday opt-out on upgrade", () => {
     const originalSettings = global.imports.ui.settings.AppletSettings;
     const originalCountryCode = rootModules.worldclockData.localCountryCode;
