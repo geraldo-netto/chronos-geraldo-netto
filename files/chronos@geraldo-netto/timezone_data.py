@@ -20,6 +20,7 @@ the whole feature through one import.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
@@ -37,24 +38,43 @@ RESERVED_TIMEZONES = {"utc", "etc/utc", "local"}
 ZONEINFO_DIRECTORY = Path("/usr/share/zoneinfo")
 
 
+def zoneinfo_name(target: Path) -> Optional[str]:
+    """Return a lexical zoneinfo path without resolving an IANA alias."""
+    normalized = Path(os.path.normpath(str(target)))
+    parts = normalized.parts
+    try:
+        index = len(parts) - 1 - parts[::-1].index("zoneinfo")
+    except ValueError:
+        return None
+
+    name = "/".join(parts[index + 1:])
+    return name or None
+
+
 def local_timezone_name() -> Optional[str]:
-    """The system's own IANA zone, as /etc/localtime names it.
+    """The runtime's local-zone identity, preserving overrides and aliases.
 
     The applet always shows a local-time row, and it drops any configured clock
     whose zone resolves to the same one. The dialog therefore has to know what
     the local zone *is*, not just that the user typed the word "local".
     """
+    configured = os.environ.get("TZ", "").strip()
+    if configured:
+        configured = configured.removeprefix(":")
+        return (zoneinfo_name(Path(configured)) if configured.startswith("/")
+                else configured)
+
     try:
-        target = Path("/etc/localtime").resolve()
-        parts = target.parts
-        index = len(parts) - 1 - parts[::-1].index("zoneinfo")
+        localtime = Path("/etc/localtime")
+        target = localtime.readlink()
+        if not target.is_absolute():
+            target = localtime.parent / target
     # not a zoneinfo symlink (a copied file, a container, a stub /etc): there is
     # no name to compare against, and a missing name only costs the extra check
-    except (OSError, ValueError):
+    except OSError:
         return None
 
-    name = "/".join(parts[index + 1:])
-    return name or None
+    return zoneinfo_name(target)
 
 
 def looks_like_iana(value: Any) -> bool:

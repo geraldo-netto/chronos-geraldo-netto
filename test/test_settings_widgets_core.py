@@ -1,3 +1,6 @@
+import os
+from unittest import mock
+
 from helpers.settings_widgets_fixture import (
     APPLET_DIR, COMMON_PATH, BaseWidget, DialogSettings, Entry,
     FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model, Path,
@@ -268,27 +271,47 @@ class SettingsWidgetsTest(unittest.TestCase):
         fresh = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(fresh)
 
-        name = fresh.local_timezone_name()
-        # this machine has a real /etc/localtime; a container or a copied file
-        # would answer None, which is the other half of the contract
-        self.assertTrue(name is None or "/" in name or name.isalpha(), name)
-        if name is not None:
-            self.assertNotIn("zoneinfo", name)
-            self.assertFalse(name.startswith("/"))
+        with mock.patch.dict(os.environ, {}, clear=True):
+            with mock.patch.object(
+                    Path, "readlink",
+                    return_value=Path("/usr/share/zoneinfo/Asia/Calcutta")):
+                self.assertEqual(fresh.local_timezone_name(), "Asia/Calcutta")
 
-        # a path that is not inside a zoneinfo tree has no name to give
-        original_resolve = Path.resolve
-        try:
-            Path.resolve = lambda self, strict=False: Path("/etc/localtime")
-            self.assertIsNone(fresh.local_timezone_name())
+            with mock.patch.object(
+                    Path, "readlink",
+                    return_value=Path("../usr/share/zoneinfo/Europe/Rome")):
+                self.assertEqual(fresh.local_timezone_name(), "Europe/Rome")
 
-            def explode(self, strict=False):
-                raise OSError("no such file")
+            with mock.patch.object(
+                    Path, "readlink", return_value=Path("/etc/localtime")):
+                self.assertIsNone(fresh.local_timezone_name())
 
-            Path.resolve = explode
-            self.assertIsNone(fresh.local_timezone_name())
-        finally:
-            Path.resolve = original_resolve
+            with mock.patch.object(Path, "readlink", side_effect=OSError("missing")):
+                self.assertIsNone(fresh.local_timezone_name())
+
+    def test_tz_override_beats_the_localtime_link_for_reserved_clocks(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "tzdata_environment_identity", APPLET_DIR / "timezone_data.py")
+        fresh = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(fresh)
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["Asia/Calcutta", "Asia/Kolkata"],
+            common_timezones=["Asia/Calcutta", "Asia/Kolkata"])
+
+        with mock.patch.dict(os.environ, {"TZ": "Asia/Calcutta"}, clear=True):
+            with mock.patch.object(Path, "readlink") as readlink:
+                resolver = fresh.TimezoneResolver(fake_pytz, None)
+
+        readlink.assert_not_called()
+        self.assertIn("Asia/Calcutta", resolver.builtin_timezones)
+        self.assertTrue(resolver.is_reserved("Asia/Calcutta"))
+        self.assertFalse(resolver.is_reserved("Asia/Kolkata"))
+
+        with mock.patch.dict(
+                os.environ,
+                {"TZ": ":/usr/share/zoneinfo/America/New_York"}, clear=True):
+            self.assertEqual(fresh.local_timezone_name(), "America/New_York")
 
     def test_the_local_zone_is_reserved_under_whatever_name_it_is_typed(self):
         # The applet draws a local-time row and drops any configured clock whose
