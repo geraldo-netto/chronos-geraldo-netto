@@ -25,9 +25,6 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
-const IoUtils = IS_NODE ?
-    require("./ioUtils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 // the parts, not the barrel: requiring ./weather pulled in WeatherProvider — the
 // panel provider this module is the twin of — and its Soup session, for a handful
 // of constants, two resolvers and the refresh clock
@@ -100,28 +97,14 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
                     Boolean(this._active(settings) && this._cities(settings).length)
             }, params));
 
-        // Built on first use, not at construction: initProviders() makes one of
-        // these for every applet whether or not weather or world clocks are on,
-        // and an idle Soup.Session is a cost paid for a feature nobody enabled.
-        // WeatherProvider defers the same way for the same reason.
-        // one lazy session, guarded abort and all, shared with the panel provider
-        // and the holiday chain: the lifecycle lives in ioUtils
-        this._session = new IoUtils.LazyHttpSession(
-            params.httpSession ? () => params.httpSession : undefined);
-        this._httpGetJson = params.httpGetJson || ((url, callback, options = {}) => {
-            IoUtils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
-        });
-
-        this._location_resolver = params.locationResolver || new WeatherProviders.WeatherLocationResolver({
-            httpGetJson: this._httpGetJson
-        });
-        this._forecast_resolver = params.forecastResolver || new WeatherProviders.WeatherForecastResolver({
-            httpGetJson: this._httpGetJson
-        });
+        this._reading_repository = params.readingRepository ||
+            new WeatherProviders.WeatherReadingRepository(params);
+        this._owns_reading_repository = !params.readingRepository;
+        this._session = this._reading_repository.session;
     }
 
     _getHttpSession() {
-        return this._session.get();
+        return this._reading_repository.getHttpSession();
     }
 
     get lastProvider() {
@@ -211,7 +194,9 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._readings.clear();
         this._errors.clear();
 
-        this._session.abort();
+        if (this._owns_reading_repository) {
+            this._reading_repository.destroy();
+        }
     }
 
     // What the cities are read from: the clock list, and whether weather is on at
@@ -416,27 +401,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
 
     _refreshCity(city, generation, callback, round) {
         // the query is the timezone's city; the label is only ever a local key
-        this._location_resolver.resolve(
-            city.query,
-            () => this._isCurrent(generation),
-            (place, error) => this._cityPlaceResolved(
-                city, generation, callback, round, place, error));
-    }
-
-    _cityPlaceResolved(city, generation, callback, round, place, error) {
-        if (!this._isCurrent(generation)) {
-            return;
-        }
-        if (!place) {
-            // An unknown name will not improve on retry; a service outage may.
-            const cityError = error || Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND;
-            round.changed = this._setError(city.query, cityError) || round.changed;
-            const ok = cityError !== Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
-            this._cityDone(generation, round, round.settings, callback, ok);
-            return;
-        }
-        this._forecast_resolver.refresh(
-            place,
+        this._reading_repository.refresh(city.query,
             () => this._isCurrent(generation),
             (reading, forecastError, provider) => this._cityForecastResolved(
                 city, generation, callback, round, reading, forecastError, provider));
@@ -449,10 +414,12 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         }
         if (forecastError || !reading) {
             // the city keeps the reading it had; it is now aging, and staleFor()
-            // says so once it is two periods old
+            // says so once it is two periods old. An unknown place will not
+            // improve on retry; a service failure may.
             const cityError = forecastError || Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
             round.changed = this._setError(city.query, cityError) || round.changed;
-            this._cityDone(generation, round, round.settings, callback, false);
+            const ok = cityError === Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND;
+            this._cityDone(generation, round, round.settings, callback, ok);
             return;
         }
 

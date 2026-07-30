@@ -32,6 +32,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const GLib = GjsImports.gi.GLib;
+const IoUtils = IS_NODE ?
+    require("./ioUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
@@ -372,10 +375,151 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
 
 }
 
+// One applet has two weather consumers: the panel and the world-clock rows.
+// Their refresh clocks and last-good display state are deliberately separate,
+// but resolving a place and reading its forecast are the same data operation.
+// This repository is that operation's single owner. A shared instance at the
+// composition root means an overlapping panel/city request joins the same
+// flight, and a consumer arriving just after a synchronous completion reads the
+// same result for the rest of that refresh period.
+var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S3504] -- GJS importer export
+    constructor(params = {}) {
+        this._destroyed = false;
+        this._now = params.now || (() => Date.now());
+        this._cache_milliseconds = Math.max(0, Number(params.cacheSeconds) || 0) * 1000;
+        this._cache = params.readingCache || new Map();
+        this._inflight = new Map();
+        this.session = new IoUtils.LazyHttpSession(
+            params.httpSession ? () => params.httpSession : undefined);
+        this.httpGetJson = params.httpGetJson || ((url, callback, options = {}) => {
+            IoUtils.httpGetJson(this.getHttpSession(), url, callback, options);
+        });
+        this.locationResolver = params.locationResolver || new WeatherLocationResolver({
+            cache: params.geocodeCache,
+            httpGetJson: this.httpGetJson,
+            nominatimQueue: params.nominatimQueue
+        });
+        this.forecastResolver = params.forecastResolver || new WeatherForecastResolver({
+            httpGetJson: this.httpGetJson
+        });
+    }
+
+    getHttpSession() {
+        return this.session.get();
+    }
+
+    forget(location) {
+        const key = locationCacheKey(location);
+        this._cache.delete(key);
+        this.locationResolver.forget(location);
+    }
+
+    _freshReading(key) {
+        const cached = this._cache.get(key);
+        if (!cached || this._cache_milliseconds <= 0) {
+            return null;
+        }
+        return this._now() - cached.startedAt < this._cache_milliseconds ?
+            cached : null;
+    }
+
+    refresh(location, isCurrent, callback) {
+        const normalized = WeatherFormat.normalizeWeatherLocation(location);
+        if (this._destroyed || !normalized) {
+            if (!this._destroyed && isCurrent()) {
+                callback(null, WEATHER_ERRORS.LOCATION_NOT_FOUND, "");
+            }
+            return;
+        }
+
+        const key = locationCacheKey(normalized);
+        const cached = this._freshReading(key);
+        if (cached) {
+            if (isCurrent()) {
+                callback(cached.reading, "", cached.provider);
+            }
+            return;
+        }
+
+        const subscriber = { isCurrent, callback };
+        const active = this._inflight.get(key);
+        if (active) {
+            active.subscribers.push(subscriber);
+            return;
+        }
+
+        const request = { startedAt: this._now(), subscribers: [subscriber] };
+        this._inflight.set(key, request);
+        // A consumer generation decides whether that subscriber still wants the
+        // answer. The shared operation continues while any subscriber does: if
+        // the panel changes location while a city still wants the old one, that
+        // city must not inherit the panel's cancellation.
+        const requestIsCurrent = () => this._requestIsCurrent(key, request);
+        this.locationResolver.resolve(normalized, requestIsCurrent,
+            (place, error) => this._placeResolved(
+                key, request, requestIsCurrent, place, error));
+    }
+
+    _placeResolved(key, request, requestIsCurrent, place, error) {
+        if (!requestIsCurrent()) {
+            return;
+        }
+        if (!place) {
+            this._complete(key, request, null, error, "");
+            return;
+        }
+        this.forecastResolver.refresh(place, requestIsCurrent,
+            (reading, forecastError, provider) => this._complete(
+                key, request, reading, forecastError, provider));
+    }
+
+    _requestIsCurrent(key, request) {
+        if (this._destroyed || this._inflight.get(key) !== request) {
+            return false;
+        }
+        if (request.subscribers.some((subscriber) => subscriber.isCurrent())) {
+            return true;
+        }
+
+        // No consumer can use the result. Remove the flight before the resolver
+        // drops its callback, so a later request for the same key can start.
+        this._inflight.delete(key);
+        return false;
+    }
+
+    _complete(key, request, reading, error, provider) {
+        if (this._destroyed || this._inflight.get(key) !== request) {
+            return;
+        }
+
+        this._inflight.delete(key);
+        if (reading && !error && this._cache_milliseconds > 0) {
+            this._cache.set(key, {
+                reading,
+                provider,
+                startedAt: request.startedAt
+            });
+        }
+
+        for (const subscriber of request.subscribers) {
+            if (subscriber.isCurrent()) {
+                subscriber.callback(reading, error, provider);
+            }
+        }
+    }
+
+    destroy() {
+        this._destroyed = true;
+        this._inflight.clear();
+        this._cache.clear();
+        this.session.abort();
+    }
+}
+
 if (typeof module !== "undefined") {
     module.exports = {
         GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
         NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
-        WeatherLocationResolver, WeatherForecastResolver
+        WeatherLocationResolver, WeatherForecastResolver, WeatherReadingRepository
     };
 }

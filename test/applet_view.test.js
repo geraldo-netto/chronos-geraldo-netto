@@ -245,10 +245,11 @@ test("the provider lifecycle releases the city weather provider too", () => {
     // behind leaks both for the rest of the session
     lifecycle.cityWeatherProvider = { destroy: () => torn.push("city") };
     lifecycle.weatherProvider = { destroy: () => torn.push("panel") };
+    lifecycle.weatherRepository = { destroy: () => torn.push("repository") };
 
     lifecycle.destroy();
 
-    assert.deepEqual(torn, ["panel", "city"]);
+    assert.deepEqual(torn, ["panel", "city", "repository"]);
 });
 
 test("describeWeather puts the sky glyph into words for a screen reader", () => {

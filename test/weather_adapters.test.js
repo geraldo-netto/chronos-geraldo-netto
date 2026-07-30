@@ -593,7 +593,9 @@ test("MET.no forecast parser fuzzes truncated payloads without throwing", () => 
 // the module GJS consumers import, now that the barrel no longer aliases them.
 test("regression: the resolvers and the refresh period are var bindings", () => {
     const declared = {
-        weatherProviders: ["WeatherLocationResolver", "WeatherForecastResolver"],
+        weatherProviders: ["WeatherLocationResolver", "WeatherForecastResolver",
+            "WeatherReadingRepository"],
+        weather: ["WeatherReadingRepository"],
         weatherFormat: ["REFRESH_SECONDS"]
     };
 
@@ -626,6 +628,7 @@ test("weather.js composes display, adapters, scheduling and resolvers", () => {
     assert.equal(typeof Weather.geocodeUrl, "function", "carried on from weatherServiceAdapters");
     assert.equal(typeof Weather.WeatherRefreshScheduler, "function", "carried on from weatherScheduler");
     assert.equal(typeof Weather.WeatherForecastResolver, "function", "carried on from weatherProviders");
+    assert.equal(typeof Weather.WeatherReadingRepository, "function", "shared reading repository");
     // ...and weather.js's own two additions
     assert.equal(typeof Weather.WeatherProvider, "function");
     assert.equal(typeof Weather.WeatherDisplayState, "function");

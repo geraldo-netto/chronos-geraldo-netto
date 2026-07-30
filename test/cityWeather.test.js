@@ -180,15 +180,15 @@ test("a stale refresh and a destroyed provider write nothing", () => {
             }
         },
         forecastResolver: {
-            refresh(place, units, isCurrent, callback) {
-                callback("☀ 20°C", "", "Open-Meteo", R("☀ 20°C"));
+            refresh(place, isCurrent, callback) {
+                callback(R("☀ 20°C"), "", "Open-Meteo");
             }
         }
     });
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Rome"] }, () => {});
     // the user edited the clocks before the first geocode came back
-    provider.refresh({ showWeather: true, units: "si", cities: ["Rome"] }, () => {});
+    provider.refresh({ showWeather: true, units: "si", cities: ["Tokyo"] }, () => {});
     pending[0]();
     assert.equal(provider.recordFor("Rome"), null, "the superseded lookup is dropped");
 
@@ -805,8 +805,8 @@ test("a forecast answering after a newer refresh is dropped", () => {
 
     let updates = 0;
     provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => updates++);
-    // the user edits the clock list: a second refresh supersedes the first
-    provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => updates++);
+    // the user edits the clock list: a second, different key supersedes the first
+    provider.refresh({ showWeather: true, units: "si", cities: ["Tokyo"] }, () => updates++);
 
     const stale = pending.shift();
     stale();
@@ -816,7 +816,7 @@ test("a forecast answering after a newer refresh is dropped", () => {
     assert.equal(updates, 0, "and it must not redraw the tooltip");
 
     pending.shift()();
-    assert.deepEqual(provider.recordFor("Lisbon"), R("⛅ 24°C"), "the current round still lands");
+    assert.deepEqual(provider.recordFor("Tokyo"), R("⛅ 24°C"), "the current round still lands");
     assert.equal(updates, 1);
 });
 

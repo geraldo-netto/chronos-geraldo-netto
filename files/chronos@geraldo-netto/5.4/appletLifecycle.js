@@ -17,6 +17,7 @@ const Mainloop = imports.mainloop;
 const Settings = imports.ui.settings;
 const EventsManagerModule = require("./eventsManager");
 const Weather = require("./weather");
+const WeatherFormat = require("./weatherFormat");
 const CityWeather = require("./cityWeather");
 const Holidays = require("./holidays");
 const SettingsFacade = require("./settingsFacade");
@@ -105,8 +106,15 @@ class AppletSettingsBinder {
 // cares about; the rest is the shipped wiring.
 const DEFAULT_FACTORIES = {
     clock: () => new CinnamonDesktop.WallClock(),
-    weatherProvider: () => new Weather.WeatherProvider(),
-    cityWeatherProvider: () => new CityWeather.CityWeatherProvider(),
+    weatherRepository: () => new Weather.WeatherReadingRepository({
+        cacheSeconds: WeatherFormat.REFRESH_SECONDS
+    }),
+    weatherProvider: (repository) => new Weather.WeatherProvider({
+        readingRepository: repository
+    }),
+    cityWeatherProvider: (repository) => new CityWeather.CityWeatherProvider({
+        readingRepository: repository
+    }),
     eventsManager: (eventsSettings) => EventsManagerModule.createEventsManager(eventsSettings),
     holidayProvider: (religiousIds) => Holidays.createHolidayProvider({ religiousIds })
 };
@@ -119,6 +127,7 @@ class AppletProviderLifecycle {
         this.context = context;
         this.factories = Object.assign({}, DEFAULT_FACTORIES, factories); // NOSONAR [S6661] -- accepted compatible form
         this.clock = null;
+        this.weatherRepository = null;
         this.weatherProvider = null;
         this.cityWeatherProvider = null;
         this.eventsManager = null;
@@ -136,8 +145,9 @@ class AppletProviderLifecycle {
         const context = this.context;
 
         this.clock = this.factories.clock();
-        this.weatherProvider = this.factories.weatherProvider();
-        this.cityWeatherProvider = this.factories.cityWeatherProvider();
+        this.weatherRepository = this.factories.weatherRepository();
+        this.weatherProvider = this.factories.weatherProvider(this.weatherRepository);
+        this.cityWeatherProvider = this.factories.cityWeatherProvider(this.weatherRepository);
 
         this._actor_signal_ids.push(context.actor.connect("enter-event", () => {
             context.onPanelHover(true);
@@ -317,6 +327,7 @@ class AppletProviderLifecycle {
             () => this._releaseActorSignals(),
             () => this.weatherProvider && this.weatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this.cityWeatherProvider && this.cityWeatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
+            () => this.weatherRepository && this.weatherRepository.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this.holidayProvider && this.holidayProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this._releaseEventsManager(),
             () => this._releaseDesktopSettings(),

@@ -475,16 +475,17 @@ test("a geocode answered after a newer refresh or a destroy is dropped", () => {
             }
         },
         forecastResolver: {
-            refresh(place, units, isCurrent, callback) {
+            refresh(place, isCurrent, callback) {
                 forecasts.push(place);
-                callback("☀ 20°C", "", "Open-Meteo");
+                callback({ condition: "☀", temperatureC: 20 }, "", "Open-Meteo");
             }
         }
     });
     const settings = { showWeather: true, location: "Rome", units: "si" };
 
     provider.refresh(settings, (text) => values.push(text));
-    provider.refresh(settings, (text) => values.push(text));
+    provider.refresh({ showWeather: true, location: "Paris", units: "si" },
+        (text) => values.push(text));
 
     // the first lookup lands after the user's edit already started a newer one
     pending[0]();
@@ -749,6 +750,61 @@ test("weather forecast resolver owns fallback and last-success ordering", () => 
         providerName: ""
     }]);
     assert.equal(exhaustedLogs.at(-1), "all weather forecast providers failed");
+});
+
+test("shared reading repository coalesces one remote read per refresh period", () => {
+    const Weather = loadWeather();
+    const pending = [];
+    const requests = [];
+    const reports = [];
+    let now = 10000;
+    const repository = new Weather.WeatherReadingRepository({
+        now: () => now,
+        cacheSeconds: Weather.REFRESH_SECONDS,
+        httpGetJson(url, callback) {
+            requests.push(url);
+            pending.push({ url, callback });
+        }
+    });
+
+    repository.refresh("Rome", () => true,
+        (reading, error, provider) => reports.push(["panel", shown(reading), error, provider]));
+    repository.refresh(" rome ", () => true,
+        (reading, error, provider) => reports.push(["city", shown(reading), error, provider]));
+
+    assert.equal(requests.length, 1, "the overlapping consumers share one geocode");
+    pending.shift().callback({
+        results: [{ latitude: 41.9, longitude: 12.5, population: 2873000 }]
+    });
+    assert.equal(requests.length, 2, "and one forecast");
+    pending.shift().callback({ current_weather: { weathercode: 1, temperature: 18 } });
+    assert.deepEqual(reports.map((row) => row.slice(0, 3)), [
+        ["panel", "⛅ 18°C", ""],
+        ["city", "⛅ 18°C", ""]
+    ]);
+
+    repository.refresh("ROME", () => true,
+        (reading) => reports.push(["cached", shown(reading)]));
+    repository.refresh("Rome", () => false,
+        () => reports.push(["stale consumer must not be called"]));
+    assert.equal(requests.length, 2, "a synchronous follower uses the period cache");
+    assert.deepEqual(reports.at(-1), ["cached", "⛅ 18°C"]);
+
+    now += Weather.REFRESH_SECONDS * 1000;
+    repository.refresh("Rome", () => true,
+        (reading) => reports.push(["next-period", shown(reading)]));
+    assert.equal(requests.length, 3, "the next period performs one new forecast");
+    assert.ok(requests.at(-1).includes("/v1/forecast"), "the geocode cache is still shared");
+    pending.shift().callback({ current_weather: { weathercode: 2, temperature: 19 } });
+    assert.deepEqual(reports.at(-1), ["next-period", "⛅ 19°C"]);
+
+    const invalid = [];
+    repository.refresh(" ", () => true, (...args) => invalid.push(args));
+    assert.equal(invalid[0][1], Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND);
+
+    repository.destroy();
+    repository.refresh("Rome", () => true, () => reports.push(["destroyed"]));
+    assert.equal(requests.length, 3, "destroyed repositories start no work");
 });
 
 test("refresh geocodes, fetches forecast, and reports formatted text", () => {

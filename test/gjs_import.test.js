@@ -144,7 +144,8 @@ function gjsImportsMock() {
                             NOMINATIM_MIN_INTERVAL_MS: 1000,
                             NominatimRequestQueue: class {},
                             WeatherLocationResolver: class {},
-                            WeatherForecastResolver: class {}
+                            WeatherForecastResolver: class {},
+                            WeatherReadingRepository: class {}
                         },
                         weatherFormat: {
                             REFRESH_SECONDS: 1800,
@@ -296,11 +297,10 @@ const EXPORTS = {
     weatherScheduler: ["WeatherRefreshScheduler"],
     weatherProviders: ["GEOCODE_PROVIDERS", "FORECAST_PROVIDERS", "locationCacheKey",
         "NOMINATIM_MIN_INTERVAL_MS", "NominatimRequestQueue",
-        "WeatherLocationResolver", "WeatherForecastResolver"],
-    // WeatherProvider is the only name production reads off the barrel through the
-    // GJS importer — cityWeather and the panel presenter require the part that
-    // declares the symbol they want, and each part's own row above pins those.
-    weather: ["WeatherProvider"],
+        "WeatherLocationResolver", "WeatherForecastResolver", "WeatherReadingRepository"],
+    // The panel provider and the composition-root repository cross the version
+    // shim; other consumers require the part that declares their symbol.
+    weather: ["WeatherProvider", "WeatherReadingRepository"],
     holidays: ["Provider", "HolidayCacheRepository", "HolidayCache", "EnricoServiceAdapter",
         "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
         "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
@@ -395,7 +395,9 @@ test("the barrel carries its parts to Node, and nothing reads a part off it in G
             continue;
         }
         const read = Array.from(source.matchAll(/\bWeather\.(\w+)/g)).map(([, name]) => name);
-        assert.deepEqual([...new Set(read)], ["WeatherProvider"],
+        const expected = file.endsWith("appletLifecycle.js") ?
+            ["WeatherReadingRepository", "WeatherProvider"] : ["WeatherProvider"];
+        assert.deepEqual([...new Set(read)], expected,
             `${file} reads a part's symbol off the barrel, which GJS cannot see`);
     }
 });

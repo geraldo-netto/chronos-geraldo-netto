@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T628 | architecture / modularity / SOLID; caching strategy | Low | open | M | Share keyed weather reads between panel and city consumers. | **[verified]** `5.4/appletLifecycle.js:108-109` creates independent panel/city providers; `weather.js:132-156` and `cityWeather.js:95-120` then create separate sessions, geocode caches/resolvers, and forecast resolvers. When the panel location is also a world-clock city, `AppletWeatherCoordinator.schedule` dispatches both workflows and performs duplicate geocode/forecast I/O for the same place. Introduce a shared keyed reading repository/cache with in-flight coalescing at the composition root while retaining consumer-specific scheduling and display state; test one remote read per place/refresh window. |
 
 ## Rejected
 

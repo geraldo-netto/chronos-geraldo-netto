@@ -48,6 +48,9 @@ const WeatherServiceAdapters = IS_NODE ?
     require("./weatherServiceAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherServiceAdapters;
 
+// The composition root reaches the shared repository through the same version
+// shim as WeatherProvider. Keep this a var binding so GJS exposes it.
+var WeatherReadingRepository = WeatherProviders.WeatherReadingRepository; // NOSONAR [S3504] -- GJS importer export
 
 class WeatherDisplayState {
     constructor(params = {}) {
@@ -130,34 +133,23 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         // change that did not touch it does not throw the geocode away
         this._resolved_location_key = "";
         this._display_state = params.displayState || new WeatherDisplayState(params);
-        this._httpGetJson = params.httpGetJson || this._httpGetJson.bind(this);
         this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(params);
-        this._location_resolver = params.locationResolver || new WeatherProviders.WeatherLocationResolver({
-            cache: params.geocodeCache,
-            httpGetJson: this._httpGetJson,
-            nominatimQueue: params.nominatimQueue
-        });
-        this._forecast_resolver = params.forecastResolver || new WeatherProviders.WeatherForecastResolver({
-            httpGetJson: this._httpGetJson
-        });
-
-        // The session used to be built here unconditionally — including when the
-        // caller injected httpGetJson and the session could never be used. Its
-        // twin, CityWeatherProvider, has always taken one: the HTTP adapter was
-        // bypassable in one provider and mandatory in the other.
-        //
-        // It is also built on first use rather than at construction. Weather is
-        // opt-in and off by default, so a Soup session per applet at startup is
-        // paid by every user who never turns it on; the holiday provider makes
-        // the same argument for the same reason.
-        // the same lazy session, the same guarded abort, as the city provider and
-        // the holiday chain: one lifecycle, in ioUtils
-        this._session = new IoUtils.LazyHttpSession(
-            params.httpSession ? () => params.httpSession : undefined);
+        this._reading_repository = params.readingRepository ||
+            new WeatherReadingRepository(params);
+        this._owns_reading_repository = !params.readingRepository;
+        // Compatibility-visible references for diagnostics and focused tests;
+        // the repository remains the only object that drives them.
+        this._location_resolver = this._reading_repository.locationResolver;
+        this._forecast_resolver = this._reading_repository.forecastResolver;
+        this._session = this._reading_repository.session;
     }
 
     _getHttpSession() {
-        return this._session.get();
+        return this._reading_repository.getHttpSession();
+    }
+
+    _httpGetJson(url, callback, options = {}) {
+        this._reading_repository.httpGetJson(url, callback, options);
     }
 
     stop() {
@@ -169,8 +161,9 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         this._destroyed = true;
         this.stop();
 
-        // nothing to abort if nothing ever asked for a session
-        this._session.abort();
+        if (this._owns_reading_repository) {
+            this._reading_repository.destroy();
+        }
     }
 
     schedule(settings, callback) {
@@ -211,7 +204,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
         const key = normalized ? WeatherProviders.locationCacheKey(normalized) : "";
         if (key && key !== this._resolved_location_key) {
-            this._location_resolver.forget(normalized);
+            this._reading_repository.forget(normalized);
         }
 
         this._resolved_location_key = key;
@@ -247,11 +240,8 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         }
 
         const report = this._refreshReporter(settings, callback);
-        this._location_resolver.resolve(
-            location,
-            () => this._isCurrent(generation),
-            (place, error) => this._weatherPlaceResolved(
-                generation, report, place, error));
+        this._reading_repository.refresh(location,
+            () => this._isCurrent(generation), report);
     }
 
     _isCurrent(generation) {
@@ -273,17 +263,6 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             });
     }
 
-    _weatherPlaceResolved(generation, report, place, error) {
-        if (!this._isCurrent(generation)) {
-            return;
-        }
-        if (!place) {
-            report(null, error, "");
-            return;
-        }
-        this._refreshForecast(place, generation, report);
-    }
-
     // What a reading is a reading *of*: the place. It used to be the place and
     // the units, because the stored reading was rendered text and °F was a
     // different reading from °C — so switching the unit threw the reading away
@@ -294,15 +273,6 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         return WeatherProviders.locationCacheKey(location);
     }
 
-    _refreshForecast(place, generation, callback) {
-        this._forecast_resolver.refresh(place, () => {
-            return !this._destroyed && generation === this._request_generation;
-        }, callback);
-    }
-
-    _httpGetJson(url, callback, options = {}) {
-        IoUtils.httpGetJson(this._getHttpSession(), url, (data) => callback(data), options);
-    }
 };
 
 if (typeof module !== "undefined") {
@@ -313,5 +283,5 @@ if (typeof module !== "undefined") {
     // var bindings GJS needs live in the module that declares each name.
     module.exports = Object.assign({}, WeatherFormat, WeatherServiceAdapters, // NOSONAR [S6661] -- accepted compatible form
         WeatherScheduler, WeatherProviders, { HTTP_TIMEOUT_SECONDS: IoUtils.HTTP_TIMEOUT_SECONDS },
-        { WeatherProvider, WeatherDisplayState });
+        { WeatherProvider, WeatherDisplayState, WeatherReadingRepository });
 }

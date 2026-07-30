@@ -367,6 +367,24 @@ test("provider lifecycle tears down provider and system resources", () => {
     assert.deepEqual(lifecycle._desktop_settings_signal_ids, []);
 });
 
+test("the default weather graph shares one reading repository", () => {
+    const lifecycleModule = require(path.join(APPLET_DIR, "5.4", "appletLifecycle.js"));
+    const repository = lifecycleModule.DEFAULT_FACTORIES.weatherRepository();
+    const panel = lifecycleModule.DEFAULT_FACTORIES.weatherProvider(repository);
+    const cities = lifecycleModule.DEFAULT_FACTORIES.cityWeatherProvider(repository);
+
+    assert.equal(panel._reading_repository, repository);
+    assert.equal(cities._reading_repository, repository);
+    assert.equal(repository._cache_milliseconds, Weather.REFRESH_SECONDS * 1000);
+
+    panel.destroy();
+    cities.destroy();
+    assert.equal(repository._destroyed, false,
+        "consumer teardown cannot abort the other consumer's shared transport");
+    repository.destroy();
+    assert.equal(repository._destroyed, true);
+});
+
 test("bindSystemSignals refetches on logind resume and unsubscribes on destroy", () => {
     const resumed = [];
     let captured = null;
