@@ -135,21 +135,25 @@ test("navigation controller owns no-op, cancellation, and focus boundaries", () 
     const removed = [];
     global.imports.mainloop.source_remove = (id) => removed.push(id);
     let updates = 0;
+    let emitted = 0;
     const selected = new Date(2026, 6, 9);
     const controller = new NavigationModule.CalendarNavigationController({
         actor: () => ({}),
         dayCells: () => [],
-        emitSelected() {},
+        emitSelected() { emitted++; },
         update: () => updates++,
         setDate() {},
         browse() {},
         queueDate() {}
     }, selected);
 
-    controller.setDate(new Date(selected), false);
+    assert.equal(controller.setDate(new Date(selected), false), false);
     assert.equal(updates, 0, "an unchanged date is a no-op");
-    controller.setDate(new Date(selected), true);
+    assert.equal(controller.setDate(new Date(selected), true), false);
     assert.equal(updates, 1, "a forced reload still updates");
+    assert.equal(controller.setDate(new Date(2026, 6, 10), true), true);
+    assert.equal(updates, 2);
+    assert.equal(emitted, 1, "only a changed selection emits");
 
     controller.setDateIdleId = 7;
     controller.queuedDate = new Date(selected);

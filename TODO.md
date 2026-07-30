@@ -5,7 +5,6 @@
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
 | T628 | architecture / modularity / SOLID; caching strategy | Low | open | M | Share keyed weather reads between panel and city consumers. | **[verified]** `5.4/appletLifecycle.js:108-109` creates independent panel/city providers; `weather.js:132-156` and `cityWeather.js:95-120` then create separate sessions, geocode caches/resolvers, and forecast resolvers. When the panel location is also a world-clock city, `AppletWeatherCoordinator.schedule` dispatches both workflows and performs duplicate geocode/forecast I/O for the same place. Introduce a shared keyed reading repository/cache with in-flight coalescing at the composition root while retaining consumer-specific scheduling and display state; test one remote read per place/refresh window. |
-| T629 | architecture / modularity / SOLID; performance | Low | open | S | Make menu-open refresh a single workflow. | **[verified]** When the selected day is not today, `_resetCalendar()` at `5.4/applet.js:549` changes the date, `calendarNavigation.js:90-93` synchronously emits `selected-date-changed`, and the applet callback refreshes the full presenter; the menu-open handler then calls `_updateClockAndDate(true)` again at line 550. Consolidate ownership so opening the menu resets selection, event data, presenter state, and focus with exactly one full refresh; regression-test both already-today and browsed-date cases. |
 
 ## Rejected
 

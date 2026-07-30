@@ -83,15 +83,17 @@ class CalendarNavigationController {
 
     setDate(date, forceReload) {
         const bounded = clampCalendarDate(date);
-        if (sameDay(bounded, this.selectedDate) && !forceReload) {
-            return;
+        const changed = !sameDay(bounded, this.selectedDate);
+        if (!changed && !forceReload) {
+            return false;
         }
 
-        if (!sameDay(bounded, this.selectedDate)) {
+        if (changed) {
             this.selectedDate = bounded;
             this.port.emitSelected(bounded);
         }
         this.port.update();
+        return changed;
     }
 
     cancelQueuedDate() {

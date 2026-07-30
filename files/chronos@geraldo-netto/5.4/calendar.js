@@ -832,7 +832,7 @@ class Calendar {
 
     // Sets the calendar to show a specific date
     setDate(date, forceReload) {
-        this._navigation.setDate(date, forceReload);
+        return this._navigation.setDate(date, forceReload);
     }
 
     getSelectedDate() {

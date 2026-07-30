@@ -576,8 +576,12 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this.menu.connect('open-state-changed', (menu, isOpen) => {
             if (isOpen) {
                 this._guarded("menu-open", () => {
-                    this._resetCalendar();
-                    this._updateClockAndDate(true);
+                    // A changed selection emits synchronously and that callback
+                    // owns the full refresh. If today was already selected there
+                    // is no signal, so menu-open owns the one refresh instead.
+                    if (!this._resetCalendar()) {
+                        this._updateClockAndDate(true);
+                    }
                     // The menu manager grabs key focus onto the menu actor as the
                     // menu opens, and it is connected to this signal before we are,
                     // so it has already run: moving focus down into the day grid
@@ -593,7 +597,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _resetCalendar () {
-        this._calendar.setDate(new Date(), true);
+        return this._calendar.setDate(new Date(), true);
     }
 
     on_orientation_changed (orientation) {

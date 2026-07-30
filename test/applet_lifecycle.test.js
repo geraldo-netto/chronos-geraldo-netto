@@ -1305,6 +1305,7 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
                 issues.set("tried-open", true);
                 throw new Error("calendar actor is temporarily unavailable");
             }
+            return false;
         },
         _updateClockAndDate: (force) => calls.push(["clock", force]),
         _issueReporter: {
@@ -1332,6 +1333,17 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
     assert.ok(calls.some((row) => row[0] === "focus-day"),
         "opening the menu must move key focus into the day grid");
 
+    const clocksBeforeChangedReset = calls.filter((row) => row[0] === "clock").length;
+    stub._resetCalendar = () => {
+        calls.push(["reset-changed"]);
+        // Calendar emits selected-date-changed synchronously from setDate().
+        stub._updateClockAndDate(true);
+        return true;
+    };
+    stub.menu.handlers["open-state-changed"](stub.menu, true);
+    assert.equal(calls.filter((row) => row[0] === "clock").length,
+        clocksBeforeChangedReset + 1, "a changed selection is not refreshed twice");
+
     const added = Object.assign(Object.create(Proto), {
         // the constructor sets this last: a build that threw does not have it,
         // and Cinnamon calls on_applet_added_to_panel() anyway
@@ -1358,9 +1370,14 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
     assert.ok(calls.some((row) => row[0] === "clock-notify"));
 
     const reset = Object.assign(Object.create(Proto), {
-        _calendar: { setDate: (date, force) => calls.push(["set-date", date instanceof Date, force]) }
+        _calendar: {
+            setDate: (date, force) => {
+                calls.push(["set-date", date instanceof Date, force]);
+                return true;
+            }
+        }
     });
-    Proto._resetCalendar.call(reset);
+    assert.equal(Proto._resetCalendar.call(reset), true);
     assert.ok(calls.some((row) => row[0] === "set-date" && row[1] && row[2] === true));
 
     assert.equal(typeof AppletModule.main({}, St.Side.TOP, 20, 1), "object");
