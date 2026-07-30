@@ -681,9 +681,10 @@ test("a tooltip row is location, fixed-order timestamp, temperature, and weather
     };
     const presenter = panelStatus(stub);
 
-    assert.deepEqual(presenter.tooltipClockRow(entry),
+    const model = presenter._clockRenderModel([entry]);
+    assert.deepEqual(model.rows[0],
         ["Local time", "04 Jul 09:05", "20°C", "Clear"]);
-    assert.equal(presenter.buildTooltipText([entry]),
+    assert.equal(presenter._tooltipText(model),
         "Local time  04 Jul 09:05  20°C  Clear");
     assert.ok(formats.every((format) => format === "%d %b %H:%M"));
 });

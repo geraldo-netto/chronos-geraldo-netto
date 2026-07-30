@@ -193,8 +193,9 @@ test("the weather being fetched is said in words, not as an ellipsis", () => {
     assert.equal(names[0], "12 Jul 14:03 … — Weather: loading…",
         "read aloud, a bare ellipsis is nothing at all");
 
-    const cells = panelStatus(stub).tooltipWeatherCells(
-        tooltipEntry("Tokyo", "Asia/Tokyo", "12 Jul 07:51", false));
+    const cells = panelStatus(stub)._clockRenderModel([
+        tooltipEntry("Tokyo", "Asia/Tokyo", "12 Jul 07:51", false)
+    ]).rows[0].slice(2);
     assert.deepEqual(cells, ["", ""],
         "a city not read yet is a blank cell, not a placeholder");
 });
@@ -209,8 +210,9 @@ test("the tooltip says when a city's temperature is no longer current", () => {
         cityWeatherStale: (city) => city === "Tokyo"
     });
 
-    const cells = panelStatus(stub).tooltipWeatherCells(
-        tooltipEntry("Tokyo", "Asia/Tokyo", "12 Jul 07:51", false));
+    const cells = panelStatus(stub)._clockRenderModel([
+        tooltipEntry("Tokyo", "Asia/Tokyo", "12 Jul 07:51", false)
+    ]).rows[0].slice(2);
 
     assert.equal(cells[0], "30°C", "the reading it has is still shown");
     assert.match(cells[1], /⚠ Last known reading/,
@@ -348,29 +350,33 @@ test("a clock row with no zoned time falls back to the preformatted time", () =>
     // an invalid timezone has no GLib.DateTime to format — and names no city, so
     // it has no weather either, and the row says so rather than leaving a blank
     // that reads as a fetch still in flight
-    assert.deepEqual(presenter.tooltipClockRow({ label: "Rome", time: "Invalid timezone", builtin: false }),
+    assert.deepEqual(presenter._clockRenderModel([
+        { label: "Rome", time: "Invalid timezone", builtin: false }
+    ]).rows[0],
         ["Rome", "Invalid timezone", "", "No weather for this timezone"]);
-    assert.deepEqual(presenter.tooltipClockRow({ label: "UTC", timezone: "UTC", time: "01:52", builtin: true }),
+    assert.deepEqual(presenter._clockRenderModel([
+        { label: "UTC", timezone: "UTC", time: "01:52", builtin: true }
+    ]).rows[0],
         ["UTC", "01:52", "", ""], "UTC is a scale, not a place: it never had weather");
 
     // a zone that formats to nothing still shows the time the row came with
-    assert.deepEqual(presenter.tooltipClockRow({
+    assert.deepEqual(presenter._clockRenderModel([{
         label: "Rome",
         time: "18:52",
         builtin: false,
         localTime: { format: () => "" }
-    }), ["Rome", "18:52", "", "No weather for this timezone"]);
+    }]).rows[0], ["Rome", "18:52", "", "No weather for this timezone"]);
 
     // ...and an offset-only zone is the case this is really about: Etc/GMT+3 is a
     // real, valid timezone that names no city, so nothing can ever be forecast for
     // it. A blank cell was indistinguishable from a pending or a failed fetch.
-    assert.deepEqual(presenter.tooltipClockRow({
+    assert.deepEqual(presenter._clockRenderModel([{
         label: "GMT-3",
         timezone: "Etc/GMT+3",
         time: "15:52",
         builtin: false,
         localTime: { format: () => "15:52" }
-    }), ["GMT-3", "15:52", "", "No weather for this timezone"]);
+    }]).rows[0], ["GMT-3", "15:52", "", "No weather for this timezone"]);
 });
 
 test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", () => {
@@ -985,8 +991,8 @@ test("a panel view can be substituted whole", () => {
     assert.ok(reads.includes("weatherReading"));
 });
 
-// The weather error's words reached the user only through tooltipWeatherCells(),
-// which is called per clock row — and there are no rows when the world clocks are
+// The weather error's words reached the user only through per-clock weather
+// cells — and there are no rows when the world clocks are
 // off. So with weather on and clocks off, a failed lookup painted a bare ⚠ on the
 // panel and hovering it explained nothing; NO_LOCATION was a lone ⚠ that never
 // said "Set a weather location". The words existed, translated, and were
@@ -1127,18 +1133,21 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
         { label: "Lisbon", timezone: "Europe/Lisbon", localTime: {}, builtin: false }
     ];
 
-    assert.match(presenter.issueStatus(entries), /Invalid time format/);
-    assert.match(presenter.issueStatus(entries), /Weather service unavailable/);
-    assert.match(presenter.issueStatus(entries), /Invalid timezone.*Broken/);
-    assert.match(presenter.issueStatus(entries), /Tokyo.*Location not found/);
-    assert.match(presenter.issueStatus(entries), /Lisbon.*Last known reading/);
+    const model = presenter._clockRenderModel(entries);
+    const issues = presenter.issueStatus(entries, model.issues);
+    assert.match(issues, /Invalid time format/);
+    assert.match(issues, /Weather service unavailable/);
+    assert.match(issues, /Invalid timezone.*Broken/);
+    assert.match(issues, /Tokyo.*Location not found/);
+    assert.match(issues, /Lisbon.*Last known reading/);
 
     view.setClockFormatString = () => true;
     presenter.updateFormatString();
     view.showWeather = false;
     view.weatherError = "";
-    assert.equal(presenter.issueStatus([]), "");
-    view.setWeatherStatus(presenter.issueStatus([]));
+    const emptyModel = presenter._clockRenderModel([]);
+    assert.equal(presenter.issueStatus([], emptyModel.issues), "");
+    view.setWeatherStatus(presenter.issueStatus([], emptyModel.issues));
     assert.equal(footer, "", "the aggregate clears when every source recovers");
 });
 
@@ -1160,15 +1169,16 @@ test("a tooltip-format issue does not outlive the last renderable clock row", ()
     };
 
     // clocks on: the bad format fails to render and raises the issue
-    presenter.tooltipClockStamp(entry);
-    assert.match(presenter.issueStatus([entry]), /Invalid time format/);
+    let model = presenter._clockRenderModel([entry]);
+    assert.match(presenter.issueStatus([entry], model.issues), /Invalid time format/);
 
     // clocks off: no row renders, so the issue no longer applies
-    assert.equal(presenter.issueStatus([]), "");
+    model = presenter._clockRenderModel([]);
+    assert.equal(presenter.issueStatus([], model.issues), "");
 
     // ...and returning clocks with the format still broken re-raises it
-    presenter.tooltipClockStamp(entry);
-    assert.match(presenter.issueStatus([entry]), /Invalid time format/);
+    model = presenter._clockRenderModel([entry]);
+    assert.match(presenter.issueStatus([entry], model.issues), /Invalid time format/);
 });
 
 // The applet's resume path drives both readouts. The city half needs to be forced

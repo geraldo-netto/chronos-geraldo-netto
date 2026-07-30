@@ -455,19 +455,6 @@ class AppletPanelStatusPresenter {
             entry.localTime.format(DEFAULT_DATE_TIME_FORMAT) || entry.time);
     }
 
-    // the panel shows one time and one temperature; the tooltip is where the
-    // rest of the world fits, one row per clock: label, date and time,
-    // temperature, condition
-    tooltipClockRow(entry) {
-        const cells = [entry.label, this.tooltipClockStamp(entry)];
-
-        if (!this.view.showWeather) {
-            return cells;
-        }
-
-        return cells.concat(this.tooltipWeatherCells(entry));
-    }
-
     // a temperature cell and a condition cell, rendered from the reading record.
     // The tooltip has room for words, so it takes the temperature and the sky in
     // text and leaves the glyph to the panel. The error, if any, replaces the
@@ -536,14 +523,6 @@ class AppletPanelStatusPresenter {
             cells: record ? this._readingCells(record, rowError) : ["", rowError],
             issue
         };
-    }
-
-    _cityWeatherCells(entry) {
-        return this._cityWeatherModel(entry).cells;
-    }
-
-    tooltipWeatherCells(entry) {
-        return entry.builtin ? this._builtinWeatherCells(entry) : this._cityWeatherCells(entry);
     }
 
     _clockRenderRow(entry, showWeather) {
@@ -667,25 +646,7 @@ class AppletPanelStatusPresenter {
             joinPhrases(WorldclockData.INVALID_TIMEZONE_TEXT, labels.join(", ")) : "";
     }
 
-    _cityWeatherIssues(clockEntries) {
-        if (!this.view.showWeather) {
-            return [];
-        }
-
-        const issues = [];
-        for (const entry of clockEntries) {
-            if (entry.builtin) {
-                continue;
-            }
-            const issue = this._cityWeatherModel(entry).issue;
-            if (issue) {
-                issues.push(issue);
-            }
-        }
-        return issues;
-    }
-
-    issueStatus(clockEntries, cityIssues = null) {
+    issueStatus(clockEntries, renderIssues) {
         const view = this.view;
         // The tooltip format only renders world-clock rows, and only a
         // rendered stamp clears its issue — so with clocks switched off a
@@ -702,7 +663,7 @@ class AppletPanelStatusPresenter {
             view.showWeather && view.weatherError ?
                 translateWeatherError(view.weatherError) : "",
             this._clockIssues(clockEntries),
-            ...(cityIssues || this._cityWeatherIssues(clockEntries))
+            ...renderIssues
         ];
         return [...new Set(issues.filter((issue) => issue))].join("\n");
     }
