@@ -23,6 +23,9 @@ const WeatherFormat = IS_NODE ?
 const LocaleQuery = IS_NODE ?
     require("./localeQuery") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 
 // Open-Meteo may return an exact-name hamlet for a large city it knows only by
 // an exonym. A population below this is a candidate, not a confident answer:
@@ -34,6 +37,7 @@ var MIN_TRUSTED_GEOCODE_POPULATION = 1000; // NOSONAR [S3504] -- GJS importer ex
 // what the user typed and by how many people live there, is what makes a wrong
 // first hit survivable.
 var GEOCODE_CANDIDATE_COUNT = 10; // NOSONAR [S3504] -- GJS importer export
+var MAX_GEOCODE_PLACE_NAME_LENGTH = WeatherFormat.MAX_WEATHER_LOCATION_LENGTH; // NOSONAR [S3504] -- GJS importer export
 var GEOCODE_LANGUAGE_FALLBACK = LocaleQuery.MESSAGE_LANGUAGE_FALLBACK; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_USER_AGENT = "chronos@geraldo-netto Cinnamon applet (https://github.com/geraldo-netto/cinnamon-chronos)"; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
@@ -327,6 +331,10 @@ function coordinateNumber(value, minimum, maximum) {
         coordinate : null;
 }
 
+function geocodePlaceName(name) {
+    return TextUtils.clampText(name, MAX_GEOCODE_PLACE_NAME_LENGTH);
+}
+
 function placeCandidate(place) {
     if (!place || typeof place !== "object") {
         return null;
@@ -340,7 +348,7 @@ function placeCandidate(place) {
     }
 
     return {
-        name: typeof place.name === "string" ? place.name : "",
+        name: geocodePlaceName(place.name),
         population: place.population,
         latitude,
         longitude
@@ -412,7 +420,7 @@ function nominatimGeocodePlace(data) {
     }
 
     return {
-        name: place.display_name,
+        name: geocodePlaceName(place.display_name),
         latitude,
         longitude
     };
@@ -420,6 +428,7 @@ function nominatimGeocodePlace(data) {
 
 if (typeof module !== "undefined") {
     module.exports = { GEOCODE_CANDIDATE_COUNT, GEOCODE_LANGUAGE_FALLBACK,
+        MAX_GEOCODE_PLACE_NAME_LENGTH,
         WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES,
         weatherIcon, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, forecastUrl,
         metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber,

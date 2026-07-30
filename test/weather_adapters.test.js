@@ -159,6 +159,18 @@ test("normalizes primary and fallback geocode responses", () => {
         Weather.nominatimGeocodePlace([{ lat: "41.9", lon: "12.5", display_name: "Rome, Italy" }]),
         { name: "Rome, Italy", latitude: 41.9, longitude: 12.5 }
     );
+    for (const displayName of [null, undefined, 7, {}, []]) {
+        assert.deepEqual(Weather.nominatimGeocodePlace([{
+            lat: "41.9", lon: "12.5", display_name: displayName
+        }]), { name: "", latitude: 41.9, longitude: 12.5 });
+    }
+    const hostileName = "x".repeat(1024 * 1024);
+    const boundedName = Weather.nominatimGeocodePlace([{
+        lat: "41.9", lon: "12.5", display_name: hostileName
+    }]).name;
+    assert.equal(Array.from(boundedName).length, Weather.MAX_GEOCODE_PLACE_NAME_LENGTH);
+    assert.ok(boundedName.endsWith("…"));
+    assert.equal(boundedName.includes(hostileName), false);
     assert.equal(Weather.nominatimGeocodePlace([{ lat: "x", lon: "12.5" }]), null);
 
     for (const value of [null, "", " ", false, true, [], {}, NaN, Infinity]) {
@@ -263,6 +275,15 @@ test("Open-Meteo places drop provider fields before entering the cache", () => {
 
     assert.deepEqual(place, { name: "Rome", latitude: 41.9, longitude: 12.5 });
     assert.equal(JSON.stringify(place).includes(junk), false);
+
+    const bounded = Weather.openMeteoGeocodePlace({ results: [{
+        name: junk,
+        latitude: 41.9,
+        longitude: 12.5,
+        population: 2873000
+    }] }, junk);
+    assert.equal(Array.from(bounded.name).length, Weather.MAX_GEOCODE_PLACE_NAME_LENGTH);
+    assert.ok(bounded.name.endsWith("…"));
 });
 
 const LOCALE_VARIABLES = ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"];
