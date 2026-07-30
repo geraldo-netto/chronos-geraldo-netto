@@ -765,7 +765,7 @@ class EventRowPresenter {
     }
 
     connectActivation() {
-        if (!this.row._calendar_launcher.isAvailable() ||
+        if (!this.row.calendarLauncher.isAvailable() ||
             !eventUidCanLaunch(this.row.event.id)) {
             return;
         }
@@ -990,6 +990,12 @@ class EventRow {
         vbox.add(event_summary, { expand: true });
 
         this.update_variations();
+    }
+
+    // the presenter reads it; the row stays the only writer of its own fields,
+    // same seam shape as EventList's calendarLauncher
+    get calendarLauncher() {
+        return this._calendar_launcher;
     }
 
     update_variations(now = GLib.DateTime.new_now_local(), today = date_only(now)) {
