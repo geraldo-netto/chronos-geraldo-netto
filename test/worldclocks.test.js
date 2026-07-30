@@ -379,7 +379,7 @@ test("built-in UTC and local rows are shown even with no configured clocks", () 
     const { Worldclocks } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });
 
-    worldclocks.buildClocks([], "%H:%M");
+    worldclocks.buildClocks([]);
     worldclocks.updateClocks();
 
     assert.equal(worldclocks.actor.visible, true);
@@ -418,7 +418,7 @@ test("the local row follows the system timezone when it changes", () => {
     });
 
     const worldclocks = new Worldclocks({ add_actor() {} });
-    worldclocks.buildClocks([], "%H:%M");
+    worldclocks.buildClocks([]);
     worldclocks.updateClocks();
     assert.equal(worldclocks.clocks[1].display.text, timeIn("Europe/Rome"));
 
@@ -448,7 +448,7 @@ test("buildClocks caps configured clocks at 8 on top of the built-ins", () => {
         timezone: zoneAt(index)
     }));
 
-    worldclocks.buildClocks(clocks, "%H:%M");
+    worldclocks.buildClocks(clocks);
 
     assert.equal(worldclocks.actor.visible, true);
     assert.equal(worldclocks.clocks.length, BUILTIN_ROWS + MAX_CLOCKS);
@@ -472,7 +472,7 @@ test("buildClocks skips configured rows already covered by built-ins", () => {
         { label: "Etc UTC duplicate", timezone: "Etc/UTC" },
         { label: "Local duplicate", timezone: "local" },
         { label: "Rome", timezone: "Europe/Rome" }
-    ], "%H:%M");
+    ]);
 
     assert.deepEqual(worldclocks.clocks.map((clock) => clock.label), [
         "UTC",
@@ -497,7 +497,7 @@ test("the popup and the weather side select the same clocks", () => {
         { label: "Tokyo", timezone: "Asia/Tokyo" }
     ];
 
-    worldclocks.buildClocks(configured, "%H:%M");
+    worldclocks.buildClocks(configured);
     const shown = worldclocks.clocks.filter((clock) => !clock.builtin).map((clock) => clock.label);
     const selected = WorldclockData.selectUserClocks(configured).map((clock) => clock.label);
 
@@ -555,7 +555,7 @@ test("a very long clock name is cut down to size", () => {
     worldclocks.buildClocks([
         { label: "x".repeat(60), timezone: "Europe/Rome" },
         { label: "Tokyo", timezone: "Asia/Tokyo" }
-    ], "%H:%M");
+    ]);
 
     const [long, short] = worldclocks.clocks.filter((clock) => !clock.builtin);
     assert.equal(Array.from(long.label).length, max);
@@ -593,7 +593,7 @@ test("changing the format re-renders the clocks without rebuilding them", () => 
     const { Worldclocks } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });
 
-    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }], "%H:%M");
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
     worldclocks.updateClocks();
     const actors = worldclocks.clocks.map((clock) => clock.display);
     const before = worldclocks.clocks.at(-1).display.text;
@@ -610,6 +610,10 @@ test("changing the format re-renders the clocks without rebuilding them", () => 
     worldclocks.clocks.forEach((clock) => { clock.rendered_time = "sentinel"; });
     worldclocks.setFormat("%H:%M:%S");
     assert.ok(worldclocks.clocks.every((clock) => clock.rendered_time === "sentinel"));
+
+    worldclocks.buildClocks([{ label: "Rome", timezone: "Europe/Rome" }]);
+    assert.equal(worldclocks.format, "%H:%M:%S",
+        "rebuilding configured rows does not reset the view-owned format");
 });
 
 test("world-clock formats and rendered stamps stay within shared bounds", () => {
@@ -620,9 +624,10 @@ test("world-clock formats and rendered stamps stay within shared bounds", () => 
     const maxFormat = DateFormats.MAX_DATE_FORMAT_LENGTH;
     const maxStamp = DateFormats.MAX_CLOCK_STAMP_LENGTH;
 
-    worldclocks.buildClocks([], " ".repeat(maxFormat + 1));
+    worldclocks.setFormat(" ".repeat(maxFormat + 1));
     assert.equal(worldclocks.format, "%H:%M",
         "overlong whitespace falls back before GLib formats it");
+    worldclocks.buildClocks([]);
 
     worldclocks.setFormat("x".repeat(maxFormat + 1));
     assert.equal(worldclocks.format, "%H:%M",
@@ -644,7 +649,7 @@ test("world-clock formats and rendered stamps stay within shared bounds", () => 
 test("each clock row draws its city's temperature, not just says it", () => {
     const { Worldclocks } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });
-    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }], "%H:%M");
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
 
     const tokyo = worldclocks.clocks.at(-1);
     worldclocks.updateClocks([
@@ -701,7 +706,7 @@ test("each row reads its own zone's wall clock, not the applet's", () => {
         { label: "Rome", timezone: "Europe/Rome" },          // UTC+2 in July (CEST)
         { label: "New York", timezone: "America/New_York" }, // UTC-4 in July (EDT)
         { label: "Kolkata", timezone: "Asia/Kolkata" }       // UTC+5:30 — the half hour
-    ], "%H:%M");
+    ]);
     worldclocks.updateClocks();
 
     const shown = worldclocks.getClockEntries().map((entry) => [entry.label, entry.time]);
@@ -744,7 +749,7 @@ test("regional clocks stay ordered from Japan through Europe to the Americas", (
         { label: "New York", timezone: "America/New_York" },
         { label: "Los Angeles", timezone: "America/Los_Angeles" }
     ];
-    worldclocks.buildClocks(clocks, "%H:%M");
+    worldclocks.buildClocks(clocks);
 
     try {
         for (const current of cases) {
@@ -789,7 +794,7 @@ test("date-line, fractional-offset, and southern-DST clocks render exactly", () 
         { label: "St. John's", timezone: "America/St_Johns" },
         { label: "Pago Pago", timezone: "Pacific/Pago_Pago" }
     ];
-    worldclocks.buildClocks(clocks, "%H:%M");
+    worldclocks.buildClocks(clocks);
 
     try {
         for (const current of cases) {
@@ -825,7 +830,7 @@ test("fuzz: timezone order and rendering hold across random instants", () => {
         { label: "Los Angeles", timezone: "America/Los_Angeles" },
         { label: "Pago Pago", timezone: "Pacific/Pago_Pago" }
     ];
-    worldclocks.buildClocks(clocks, "%H:%M");
+    worldclocks.buildClocks(clocks);
 
     try {
         for (let round = 0; round < 100; round++) {
@@ -860,7 +865,7 @@ test("a clock crossing a DST transition reads the new offset, not the old one", 
     try {
         // 2026-03-29T00:59:00Z — one minute before Rome springs forward
         NOW_MS = Date.UTC(2026, 2, 29, 0, 59, 0);
-        worldclocks.buildClocks([{ label: "Rome", timezone: "Europe/Rome" }], "%H:%M");
+        worldclocks.buildClocks([{ label: "Rome", timezone: "Europe/Rome" }]);
         worldclocks.updateClocks();
         assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "01:59", "CET, UTC+1");
 
@@ -889,7 +894,7 @@ test("updateClocks formats every configured timezone", () => {
     worldclocks.buildClocks([
         { label: "Tokyo", timezone: "Asia/Tokyo" },
         { label: "Rome", timezone: "Europe/Rome" }
-    ], "%H:%M");
+    ]);
     worldclocks.updateClocks();
 
     assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, timeIn("Asia/Tokyo"));
@@ -914,7 +919,7 @@ test("updateClocks skips label writes when the time text is unchanged", () => {
     worldclocks.buildClocks([
         { label: "Tokyo", timezone: "Asia/Tokyo" },
         { label: "Rome", timezone: "Europe/Rome" }
-    ], "%H:%M");
+    ]);
 
     const writes = worldclocks.clocks.map(() => 0);
     worldclocks.clocks.forEach((clock, i) => {
@@ -940,7 +945,7 @@ test("invalid timezones are marked instead of silently using UTC", () => {
 
     worldclocks.buildClocks([
         { label: "Bad", timezone: "Invalid/Zone" }
-    ], "%H:%M");
+    ]);
     worldclocks.updateClocks();
 
     const bad = worldclocks.clocks[BUILTIN_ROWS];
@@ -955,7 +960,7 @@ test("the world-clock block can be hidden entirely", () => {
     const { Worldclocks } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });
 
-    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }], "%H:%M");
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
 
     worldclocks.setVisible(false);
     assert.equal(worldclocks.actor.visible, false, "including the built-in UTC and local rows");
@@ -964,7 +969,7 @@ test("the world-clock block can be hidden entirely", () => {
     assert.equal(worldclocks.actor.visible, true);
 });
 
-test("buildClocks defaults the format when none is provided", () => {
+test("world clocks start with the default format", () => {
     const { Worldclocks } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });
 
@@ -1024,7 +1029,7 @@ test("fuzzed clock lists never crash and always respect the cap and invalid mark
         const entries = randomClockEntries(random, labelAlphabet);
 
         const worldclocks = new Worldclocks({ add_actor() {} });
-        worldclocks.buildClocks(entries, random() < 0.5 ? "%H:%M" : undefined);
+        worldclocks.buildClocks(entries);
         worldclocks.updateClocks();
 
         const shown = WorldclockData.selectUserClocks(entries);
@@ -1060,7 +1065,7 @@ test("invalid-timezone text uses the shared translator", () => {
     });
 
     const worldclocks = new Worldclocks({ add_actor() {} });
-    worldclocks.buildClocks([{ label: "Bad", timezone: "Invalid/Zone" }], "%H:%M");
+    worldclocks.buildClocks([{ label: "Bad", timezone: "Invalid/Zone" }]);
     worldclocks.updateClocks();
 
     assert.deepEqual(translations, ["Invalid timezone", "Local time"]);
@@ -1077,7 +1082,7 @@ test("untranslated strings inherit the shared translator fallback", () => {
     });
 
     const worldclocks = new Worldclocks({ add_actor() {} });
-    worldclocks.buildClocks([{ label: "Bad", timezone: "Invalid/Zone" }], "%H:%M");
+    worldclocks.buildClocks([{ label: "Bad", timezone: "Invalid/Zone" }]);
     worldclocks.updateClocks();
 
     assert.deepEqual(lookups, ["Invalid timezone", "Local time"]);
@@ -1213,8 +1218,7 @@ test("a long clock name ellipsizes instead of widening the popup", () => {
     const worldclocks = new Worldclocks({ add_actor() {} });
 
     worldclocks.buildClocks(
-        [{ label: "Mom's place in Buenos Aires", timezone: "America/Argentina/Buenos_Aires" }],
-        "%H:%M");
+        [{ label: "Mom's place in Buenos Aires", timezone: "America/Argentina/Buenos_Aires" }]);
 
     const nameLabels = worldclocks.layout.children
         .filter((cell) => cell.column === 0)

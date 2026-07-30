@@ -90,10 +90,7 @@ function createPanelPort(applet) {
         actor: () => applet.actor,
         dayLabel: () => applet._day,
         dateLabel: () => applet._date,
-        setWorldclockFormat: (format) => {
-            applet.worldclock_format = format;
-            applet._worldclocks.setFormat(format);
-        },
+        setWorldclockFormat: (format) => applet._worldclocks.setFormat(format),
         setWorldclocksVisible: (visible) => applet._worldclocks.setVisible(visible),
         updateWorldclocks: (entries) => applet._worldclocks.updateClocks(entries),
         setWeatherSource: (source) => applet._worldclocks.setWeatherSource(source),
@@ -143,12 +140,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             this._providerLifecycle.bindSystemSignals();
 
             this.worldclock_settings.connectChanged(this._onWorldclocksChanged.bind(this));
-            this.worldclocks = this.worldclock_settings.clocks;
-            this.worldclock_format = "%H:%M";
 
             // the rows exist because of the clock list, and are rebuilt only
             // when it changes; the format only decides what they say
-            this._worldclocks.buildClocks(this.worldclocks, this.worldclock_format);
+            this._worldclocks.buildClocks(this.worldclock_settings.clocks);
             this._updateFormatString();
             this._applied_format_signature = this._formatSignature();
 
@@ -208,7 +203,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
                 location: this.weather_location,
                 units: this.weather_units
             }),
-            worldclocks: () => this.worldclocks,
+            worldclocks: () => this.worldclock_settings.clocks,
             onChanged: () => this._guarded(
                 "weather-view", () => this._updateClockAndDate()),
             guard: (source, fn) => this._guarded(source, fn)
@@ -313,10 +308,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     // settings emit (emitter, key, oldValue, newValue)
-    _onWorldclocksChanged(setting_provider, key, oldval, newval) {
+    _onWorldclocksChanged() {
         this._guarded("worldclocks-settings", () => {
-            this.worldclocks = newval;
-            this._worldclocks.buildClocks(this.worldclocks, this.worldclock_format);
+            this._worldclocks.buildClocks(this.worldclock_settings.clocks);
             this._updateClockAndDate(true);
             this._scheduleCityWeatherRefresh();
         });

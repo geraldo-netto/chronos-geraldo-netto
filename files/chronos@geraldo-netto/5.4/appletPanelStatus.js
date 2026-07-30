@@ -146,9 +146,8 @@ function _localizedStamp(view, format, fallback) {
 //
 // It was the writes only, and the presenter went on reading about fifteen applet
 // privates straight through it — weather state, hover state,
-// _worldclocks, _calendar, events_manager — and wrote one field around it
-// (applet.worldclock_format). PanelView broke its own seam too, reaching for
-// applet._calendar. So the applet's private shape was still the presenter's API:
+// _worldclocks, _calendar and events_manager. PanelView broke its own seam too,
+// reaching for applet._calendar. So the applet's private shape was still the presenter's API:
 // renaming any of those fields threw nothing, because `undefined` is falsy, and
 // the panel suffix, the tooltip's temperature column, the accessible name and
 // the "Source:" credit would all just silently go blank.

@@ -963,6 +963,7 @@ test("About launches the shared GTK page without a shell", () => {
 
 test("_updateFormatString always applies the configured format and handles invalid input", () => {
     const builds = [];
+    const viewFormats = [];
     const errors = [];
     const originalLogError = global.logError;
     global.logError = (message) => errors.push(message);
@@ -983,30 +984,32 @@ test("_updateFormatString always applies the configured format and handles inval
             showSeconds: false
         },
         _worldclocks: {
-            buildClocks: (clocks, format) => builds.push(["build", clocks.length, format]),
-            setFormat: (format) => builds.push(["format", format]),
+            buildClocks: (clocks) => builds.push(["build", clocks.length]),
+            setFormat: (format) => viewFormats.push(format),
             setVisible: (visible) => builds.push(["visible", visible])
         }
     });
 
     Proto._updateFormatString.call(stub);
     assert.deepEqual(stub.clock.formats, ["%H:%M"]);
-    assert.equal(stub.worldclock_format, "%H:%M");
+    assert.equal(viewFormats.at(-1), "%H:%M");
 
     stub.custom_format = "bad";
     Proto._updateFormatString.call(stub);
     assert.ok(errors.length > 0);
-    assert.ok(stub.worldclock_format.includes("Invalid time format"));
-    assert.deepEqual(stub.clock.formats.slice(1), ["bad", stub.worldclock_format]);
+    assert.ok(viewFormats.at(-1).includes("Invalid time format"));
+    assert.deepEqual(stub.clock.formats.slice(1), ["bad", viewFormats.at(-1)]);
 
     const overlong = "x".repeat(rootModules.dateFormats.MAX_DATE_FORMAT_LENGTH + 1);
     const beforeOverlong = stub.clock.formats.length;
     stub.custom_format = overlong;
     Proto._updateFormatString.call(stub);
-    assert.deepEqual(stub.clock.formats.slice(beforeOverlong), [stub.worldclock_format],
+    assert.deepEqual(stub.clock.formats.slice(beforeOverlong), [viewFormats.at(-1)],
         "an overlong setting never reaches CinnamonDesktop.WallClock");
-    assert.ok(stub.worldclock_format.includes("Invalid time format"));
-    assert.ok(builds.length >= 4);
+    assert.ok(viewFormats.at(-1).includes("Invalid time format"));
+    assert.equal(Object.prototype.hasOwnProperty.call(stub, "worldclock_format"), false);
+    assert.equal(viewFormats.length, 3, "each settings pass updates the view-owned format");
+    assert.equal(builds.length, 3, "each settings pass reapplies clock visibility only");
     global.logError = originalLogError;
 });
 
@@ -1117,7 +1120,7 @@ test("provider initialization wires hover and event manager signals", () => {
     stub.show_worldclocks = true;
     stub.weather_location = "Rome";
     stub.weather_units = "si";
-    stub.worldclocks = [];
+    stub.worldclock_settings = { clocks: [] };
     assert.equal(stub._weatherCoordinator.settings().location, "Rome");
     assert.deepEqual(stub._weatherCoordinator.worldclocks(), []);
     stub._weatherCoordinator.onChanged();

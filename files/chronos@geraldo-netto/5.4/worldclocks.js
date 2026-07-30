@@ -54,8 +54,7 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         return DateFormats.clampClockStamp(time.format(this.format) || "").trim();
     }
 
-    buildClocks(clocks, format) {
-        this.format = DateFormats.dateFormatOrDefault(format || "%H:%M", "%H:%M");
+    buildClocks(clocks) {
         this.actor.destroy_all_children();
         this.clocks = [];
 

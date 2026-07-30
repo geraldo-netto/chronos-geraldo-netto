@@ -854,13 +854,14 @@ test("world-clock setting changes repaint retained weather through the presenter
     let rows = [];
     const { stub } = updateStub({ menuOpen: true });
     Object.assign(stub, {
-        worldclock_format: "%H:%M",
         show_weather: true,
         show_worldclocks: true,
-        worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
+        worldclock_settings: {
+            clocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }]
+        },
         _worldclocks: {
-            buildClocks(clocks, format) {
-                ops.push(["build", clocks.length, format]);
+            buildClocks(clocks) {
+                ops.push(["build", clocks.length]);
                 rows = clocks.map((clock) => ({
                     label: clock.label,
                     timezone: clock.timezone,
@@ -882,10 +883,12 @@ test("world-clock setting changes repaint retained weather through the presenter
     stub._weatherCoordinator.scheduleCities = () => ops.push(["schedule"]);
 
     const renamed = [{ label: "Office", timezone: "Asia/Tokyo" }];
-    Proto._onWorldclocksChanged.call(stub, null, "worldclocks", stub.worldclocks, renamed);
+    stub.worldclock_settings.clocks = renamed;
+    delete stub.worldclocks;
+    Proto._onWorldclocksChanged.call(stub, null, "worldclocks", [], renamed);
 
-    assert.deepEqual(stub.worldclocks, renamed);
-    assert.deepEqual(ops, [["build", 1, "%H:%M"], ["render"], ["schedule"]]);
+    assert.equal(Object.prototype.hasOwnProperty.call(stub, "worldclocks"), false);
+    assert.deepEqual(ops, [["build", 1], ["render"], ["schedule"]]);
     assert.equal(rendered.at(-1)[0].label, "Office");
     assert.match(rendered.at(-1)[0].weather, /12°C/,
         "the rebuilt row immediately reuses the cached Tokyo reading");

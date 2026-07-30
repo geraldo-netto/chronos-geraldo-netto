@@ -451,13 +451,19 @@ test("the configured panel format remains authoritative", () => {
             }
         },
         desktop_settings: { use24h: true, showSeconds: false },
-        _worldclocks: { buildClocks() {}, setFormat() {}, setVisible() {} }
+        _worldclocks: {
+            format: null,
+            buildClocks() {},
+            setFormat(format) { this.format = format; },
+            setVisible() {}
+        }
     });
 
     Proto._updateFormatString.call(stub);
 
     assert.equal(stub.clock.formats.at(-1), configured);
-    assert.equal(stub.worldclock_format, configured);
+    assert.equal(stub._worldclocks.format, configured);
+    assert.equal(Object.prototype.hasOwnProperty.call(stub, "worldclock_format"), false);
 });
 
 // REGRESSION: the panel suffix used to carry the condition glyph and to bolt
