@@ -1057,9 +1057,15 @@ test("a hostile provider error string cannot flood the tooltip or the log", () =
         "a 4 MiB error string is laid out on the compositor thread");
     assert.ok(logged.at(-1).endsWith("…"));
 
-    // newlines in it would forge lines in the Cinnamon log
-    enrico.addData({ error: "boom\nJan 01 00:00:00 cinnamon: forged" }, { year: 2026 }, STAMP);
-    assert.doesNotMatch(logged.at(-1), /\n/);
+    // C0/C1 controls can forge lines, erase terminal output, or start ANSI/OSC
+    // sequences when a maintainer inspects the Cinnamon log.
+    enrico.addData({
+        error: "boom\u0000\n\u001b[2J\u007f\u0085Jan 01 00:00:00 cinnamon: forged"
+    }, { year: 2026 }, STAMP);
+    assert.equal(Array.from(logged.at(-1)).some((character) => {
+        const code = character.codePointAt(0);
+        return code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+    }), false);
 
     // and a non-string error is an invalid response, not an object stringified
     // into the month label

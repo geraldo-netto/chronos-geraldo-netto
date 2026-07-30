@@ -17,6 +17,28 @@
 // Pango.
 var TEXT_ELLIPSIS = "…"; // NOSONAR [S3504] -- GJS importer export
 
+function sanitizeControlCharacters(text) {
+    if (typeof text !== "string") {
+        return "";
+    }
+    const sanitized = [];
+    let replacing = false;
+    for (const character of text) {
+        const code = character.codePointAt(0);
+        const control = code <= 0x1f || (code >= 0x7f && code <= 0x9f);
+        if (control) {
+            if (!replacing) {
+                sanitized.push(" ");
+                replacing = true;
+            }
+        } else {
+            sanitized.push(character);
+            replacing = false;
+        }
+    }
+    return sanitized.join("");
+}
+
 // A cheap UTF-16 check handles ordinary ASCII text. Only a string that may fit
 // because it contains astral code points is iterated, and iteration stops as
 // soon as the cap is exceeded instead of materializing the whole input.
@@ -70,6 +92,7 @@ function clampText(text, maxLength) {
 if (typeof module !== "undefined") {
     module.exports = {
         clampText,
+        sanitizeControlCharacters,
         textWithinLimit,
         normalizeBoundedText,
         TEXT_ELLIPSIS

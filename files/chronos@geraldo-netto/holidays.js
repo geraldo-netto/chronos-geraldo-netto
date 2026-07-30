@@ -42,6 +42,9 @@ const HolidayConstants = IS_NODE ?
 const HolidayCacheModule = IS_NODE ?
     require("./holidayCache") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayCache;
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const HolidayServiceAdapters = IS_NODE ?
     require("./holidayServiceAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayServiceAdapters;
@@ -368,7 +371,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             //
             // What the user is told is that the data did not arrive, in their own
             // language. What the maintainer is told is what the provider said,
-            // clamped and stripped of newlines: it is the one remote string that
+            // clamped and stripped of controls: it is the one remote string that
             // skipped the clamp every other one goes through, so a 4 MiB response
             // could be laid out by Pango on the compositor thread, or forge lines
             // in the Cinnamon log.
@@ -393,9 +396,8 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     }
 
     _remoteErrorText(error) {
-        const text = typeof error === "string" ?
-            error.replace(/[\r\n]+/g, " ") : "";
-        return HolidayCacheModule.clampHolidayName(text) ||
+        const bounded = HolidayCacheModule.clampHolidayName(error);
+        return TextUtils.sanitizeControlCharacters(bounded) ||
             HOLIDAY_ERRORS.INVALID_RESPONSE;
     }
 
