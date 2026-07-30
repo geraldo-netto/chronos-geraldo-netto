@@ -140,6 +140,32 @@ test("packaging reads staged bytes instead of dirty worktree bytes", async (t) =
         path.join(output, "files", UUID, "applet.js"), "utf8"), "tracked applet");
 });
 
+test("the documented release sequence packages the committed bumped version", async (t) => {
+    const { source, output, applet } = await makeSpicesFixture(t);
+    for (const relative of ["package.json", "package-lock.json", "CHANGELOG.md"]) {
+        await fs.copyFile(path.join(ROOT, relative), path.join(source, relative));
+    }
+    await fs.copyFile(path.join(ROOT, "files", UUID, "metadata.json"),
+        path.join(applet, "metadata.json"));
+    await execFileAsync("git", ["-C", source, "add", "."]);
+
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { bumpRelease } = await import(releaseUrl);
+    await bumpRelease(source, "0.0.2", { date: "2026-07-30" });
+    await execFileAsync("git", ["-C", source, "add",
+        "CHANGELOG.md", "package.json", "package-lock.json",
+        `files/${UUID}/metadata.json`]);
+    await execFileAsync("git", ["-C", source,
+        "-c", "user.name=Chronos Test", "-c", "user.email=chronos@example.invalid",
+        "commit", "--quiet", "-m", "chore(release): 0.0.2"]);
+
+    const { buildSpicesPackage } = await importPackager();
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
+    const packagedMetadata = JSON.parse(await fs.readFile(
+        path.join(output, "files", UUID, "metadata.json"), "utf8"));
+    assert.equal(packagedMetadata.version, "0.0.2");
+});
+
 test("the explicit manifest seam copies validated worktree files", async (t) => {
     const { source, output } = await makeSpicesFixture(t);
     const trackedFiles = [

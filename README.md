@@ -145,14 +145,20 @@ npm run release:bump -- 0.0.2
 npm run lint
 npm test
 npm run i18n:check
+git diff --check
+git add CHANGELOG.md package.json package-lock.json files/chronos@geraldo-netto/metadata.json
+git commit -m "chore(release): 0.0.2"
 npm run package:spices
 ```
 
 The bump command refuses an empty Unreleased section or a version that does not
 increase. It moves those notes into a dated release section and updates
 `metadata.json`, `package.json`, both version owners in `package-lock.json`, and
-the changelog comparison links. Review the changes and commit them with a
-`chore(release): 0.0.2` commit, replacing the example version as appropriate.
+the changelog comparison links. Review the changes before staging them, and
+replace the example version in both the command and commit message. Packaging
+comes after the commit because the submission is built from Git-index bytes;
+this guarantees the staged artifact contains the version that just passed the
+gates instead of the pre-bump metadata.
 
 After that commit is merged to `main` and its CI is green, create and push an
 annotated matching tag:
