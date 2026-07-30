@@ -1787,7 +1787,9 @@ function gjsImportsMock() {
         DATE_FORMAT_FULL: "%A, %B %-e, %Y",
         translate: (str) => str,
         translatePlural: (s, p, n) => (n === 1 ? s : p),
-        monthWindowStartOffset() {},
+        monthWindowStartOffset(isoWeekDay, weekStart) {
+            return ((isoWeekDay % 7) - weekStart + 7) % 7;
+        },
         lazyLocaleValue() {},
         onLocaleInfoChanged() {},
         cancelPendingLocaleQueries() {},
@@ -1829,6 +1831,7 @@ function gjsImportsMock() {
                     "chronos@geraldo-netto": {
                         localeText: stub,
                         localeQuery: stub,
+                        dateMath: stub,
                         dateFormats: stub,
                         ioUtils: stub,
                         styleUtils: stub,

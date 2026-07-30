@@ -16,7 +16,7 @@ const GLib = GjsImports.gi.GLib;
 const Cinnamon = GjsImports.gi.Cinnamon;
 const APPLET_MODULES = IS_NODE ?
     null : GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
-const DateFormats = APPLET_MODULES ? APPLET_MODULES.dateFormats : require("./dateFormats");
+const DateMath = APPLET_MODULES ? APPLET_MODULES.dateMath : require("./dateMath");
 const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
 const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 const date_only = EventDataModule.date_only;
@@ -44,7 +44,7 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         }
 
         const day_one = month_year_only(month_year);
-        const start = day_one.add_days(-DateFormats.monthWindowStartOffset(
+        const start = day_one.add_days(-DateMath.monthWindowStartOffset(
             day_one.get_day_of_week(), Cinnamon.util_get_week_start()));
         const end = start.add_days(42).add_seconds(-1);
         this.index.setWindow(start, end);

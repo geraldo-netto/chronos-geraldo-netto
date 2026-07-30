@@ -12,14 +12,14 @@
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
-const DateFormats = IS_NODE ?
-    require("./dateFormats") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats;
+const DateMath = IS_NODE ?
+    require("./dateMath") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateMath;
 const LocaleQuery = IS_NODE ?
     require("./localeQuery") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 
-const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
+const MSECS_IN_DAY = DateMath.MSECS_IN_DAY;
 const _lcLang = LocaleQuery.messageLanguage;
 
 var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export

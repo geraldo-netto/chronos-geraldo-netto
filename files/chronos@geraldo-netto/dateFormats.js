@@ -32,9 +32,13 @@ const LocaleText = IS_NODE ?
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+const DateMath = IS_NODE ?
+    require("./dateMath") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateMath;
 const translate = LocaleText.translate;
 
-var MSECS_IN_DAY = 24 * 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
+var MSECS_IN_DAY = DateMath.MSECS_IN_DAY; // NOSONAR [S3504] -- GJS importer export
+var monthWindowStartOffset = DateMath.monthWindowStartOffset; // NOSONAR [S3504] -- GJS importer export
 // Product limits for settings-controlled strftime input and any text it
 // renders into compositor actors or accessibility metadata.
 var MAX_DATE_FORMAT_LENGTH = 256; // NOSONAR [S3504] -- GJS importer export
@@ -59,13 +63,6 @@ var DATE_FORMAT_FULL_FALLBACK = CinnamonDesktop.WallClock.lctime_format("cinnamo
     const _ = translate;
     DATE_FORMAT_SHORT = CinnamonDesktop.WallClock.lctime_format("cinnamon", _("%B %-e, %Y"));
     DATE_FORMAT_FULL = CinnamonDesktop.WallClock.lctime_format("cinnamon", _("%A, %B %-e, %Y"));
-}
-
-// days to step back from a month's first day to reach the start of the
-// calendar grid. isoWeekDay is GLib's 1=Mon..7=Sun; weekStart is
-// Cinnamon.util_get_week_start()'s 0=Sun..6=Sat.
-function monthWindowStartOffset (isoWeekDay, weekStart) {
-    return ((isoWeekDay % 7) - weekStart + 7) % 7;
 }
 
 function dateFormatWithinLimit(format) {
