@@ -12,7 +12,7 @@ import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const execFileAsync = promisify(execFile);
-const UUID = "chronos@geraldo-netto";
+export const UUID = "chronos@geraldo-netto";
 const SPICES_ROOT_ENTRIES = ["README.md", "files", "info.json", "screenshot.png"];
 const REQUIRED_FILES = new Set(["README.md", "info.json", "screenshot.png"]);
 

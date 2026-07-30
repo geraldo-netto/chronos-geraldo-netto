@@ -12,6 +12,7 @@
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 const fs = require("node:fs");
+const { pathToFileURL } = require("node:url");
 const { createCoverageReport } = require("./coverageReport");
 
 const LINES = 98;
@@ -28,50 +29,54 @@ const LINE_OVERRIDES = new Map([
 
 const APPLET_DIR = path.join(__dirname, "..", "..");
 
-// The two directories the include globs above cover. A shipped file that no
-// test require()s never appears in the coverage report, so the per-file loop
-// below cannot hold it to anything — it is silently exempt from the gate. Glob
-// the shipped files from disk and demand each one was actually measured.
-const MEASURED_DIRS = [
-    [path.join(APPLET_DIR, "files", "chronos@geraldo-netto"), ".js"],
-    [path.join(APPLET_DIR, "files", "chronos@geraldo-netto", "5.4"), ".js"],
-    [path.join(APPLET_DIR, "scripts"), ".mjs"]
-];
-
-function measuredFiles() {
-    const files = [];
-    for (const [dir, extension] of MEASURED_DIRS) {
-        for (const entry of fs.readdirSync(dir)) {
-            if (entry.endsWith(extension)) {
-                files.push(path.join(dir, entry));
-            }
-        }
-    }
-    return files;
-}
-
-function discoverJavaScriptTests(root = path.join(APPLET_DIR, "test")) {
+function recursiveFiles(root, accepts) {
     const files = [];
     for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
         const entryPath = path.join(root, entry.name);
         if (entry.isDirectory()) {
-            files.push(...discoverJavaScriptTests(entryPath));
-        } else if (entry.name.endsWith(".test.js")) {
+            files.push(...recursiveFiles(entryPath, accepts));
+        } else if (accepts(entry.name)) {
             files.push(entryPath);
         }
     }
     return files.sort();
 }
 
-function runCoverage() {
+function discoverJavaScriptTests(root = path.join(APPLET_DIR, "test")) {
+    return recursiveFiles(root, (name) => name.endsWith(".test.js"));
+}
+
+async function shippedJavaScriptFiles(sourceRoot = APPLET_DIR) {
+    const packagerUrl = pathToFileURL(
+        path.join(APPLET_DIR, "scripts", "package-spices.mjs")).href;
+    const { listTrackedSpicesFiles, UUID } = await import(packagerUrl);
+    const prefix = `files/${UUID}/`;
+    return (await listTrackedSpicesFiles(sourceRoot))
+        .map(({ relative }) => relative)
+        .filter((relative) => relative.startsWith(prefix) && relative.endsWith(".js"))
+        .map((relative) => path.join(sourceRoot, ...relative.split("/")));
+}
+
+async function coverageSourceFiles(sourceRoot = APPLET_DIR) {
+    const shipped = await shippedJavaScriptFiles(sourceRoot);
+    const scripts = recursiveFiles(path.join(sourceRoot, "scripts"),
+        (name) => name.endsWith(".mjs"));
+    return [...shipped, ...scripts].sort();
+}
+
+function coverageIncludes(files) {
+    return files.map((file) =>
+        `--test-coverage-include=${path.relative(APPLET_DIR, file).split(path.sep).join("/")}`);
+}
+
+async function runCoverage() {
+    const sourceFiles = await coverageSourceFiles();
     const report = createCoverageReport();
     try {
         const result = spawnSync("node", [ // NOSONAR [S4036] -- trusted test runner
             "--test",
             "--experimental-test-coverage",
-            "--test-coverage-include=files/chronos@geraldo-netto/*.js",
-            "--test-coverage-include=files/chronos@geraldo-netto/5.4/*.js",
-            "--test-coverage-include=scripts/*.mjs",
+            ...coverageIncludes(sourceFiles),
             `--test-coverage-lines=${LINES}`,
             `--test-coverage-branches=${BRANCHES}`,
             `--test-coverage-functions=${FUNCTIONS}`,
@@ -87,16 +92,16 @@ function runCoverage() {
         }
 
         const summary = JSON.parse(fs.readFileSync(report.path, "utf8"));
-        return evaluateCoverage(summary);
+        return evaluateCoverage(summary, sourceFiles);
     } finally {
         report.cleanup();
     }
 }
 
-function missingCoverageFailures(summary) {
+function missingCoverageFailures(summary, sourceFiles) {
     const failures = [];
     const measured = new Set(summary.files.map((file) => path.resolve(file.path)));
-    for (const file of measuredFiles()) {
+    for (const file of sourceFiles) {
         if (!measured.has(path.resolve(file))) {
             failures.push(
                 `${path.relative(APPLET_DIR, file)}: no test loads it, so its coverage was never measured`);
@@ -135,8 +140,8 @@ function reportCoverageFailures(failures) {
         "into the average of 34.\n");
 }
 
-function evaluateCoverage(summary) {
-    const failures = missingCoverageFailures(summary)
+function evaluateCoverage(summary, sourceFiles) {
+    const failures = missingCoverageFailures(summary, sourceFiles)
         .concat(summary.files.flatMap(thresholdFailures));
     if (failures.length > 0) {
         reportCoverageFailures(failures);
@@ -148,7 +153,18 @@ function evaluateCoverage(summary) {
 }
 
 if (require.main === module) {
-    process.exitCode = runCoverage();
+    runCoverage()
+        .then((status) => {
+            process.exitCode = status;
+        })
+        .catch((error) => {
+            console.error(error);
+            process.exitCode = 1;
+        });
 }
 
-module.exports = { discoverJavaScriptTests };
+module.exports = {
+    discoverJavaScriptTests,
+    missingCoverageFailures,
+    shippedJavaScriptFiles
+};

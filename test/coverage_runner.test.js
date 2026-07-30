@@ -6,7 +6,11 @@ const fs = require("node:fs");
 const os = require("node:os");
 const { test } = require("node:test");
 const path = require("node:path");
-const { discoverJavaScriptTests } = require("./helpers/coverage");
+const {
+    discoverJavaScriptTests,
+    missingCoverageFailures,
+    shippedJavaScriptFiles
+} = require("./helpers/coverage");
 
 const HELPER = path.join(__dirname, "helpers", "coverageReport.js");
 const PROBE = `
@@ -68,4 +72,22 @@ test("the coverage runner discovers and executes nested JavaScript tests", (t) =
     });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(fs.readFileSync(marker, "utf8"), "yes");
+});
+
+test("the shipped manifest makes an unloaded nested module fail coverage", async (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "chronos-coverage-sources-"));
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const nested = path.join(root, "files", "chronos@geraldo-netto", "6.0");
+    fs.mkdirSync(nested, { recursive: true });
+    const unloaded = path.join(nested, "unloaded.js");
+    fs.writeFileSync(unloaded, "module.exports = 1;\n");
+    fs.writeFileSync(path.join(root, "development-only.js"), "module.exports = 2;\n");
+    assert.equal(spawnSync("git", ["init", "--quiet", root]).status, 0);
+    assert.equal(spawnSync("git", ["-C", root, "add", "."]).status, 0);
+
+    const files = await shippedJavaScriptFiles(root);
+    assert.deepEqual(files, [unloaded]);
+    const failures = missingCoverageFailures({ files: [] }, files);
+    assert.equal(failures.length, 1);
+    assert.match(failures[0], /6\.0[/\\]unloaded\.js: no test loads it/);
 });
