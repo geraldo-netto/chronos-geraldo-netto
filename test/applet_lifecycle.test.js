@@ -1622,6 +1622,8 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     applet._scheduleWeatherRefresh = () => calls.push(["weather"]);
     applet._onLaunchSettings = () => calls.push(["launch-settings"]);
     applet._calendar.refreshHolidays = () => calls.push(["holidays"]);
+    applet._calendar.refreshToday = () => calls.push(["today"]);
+    applet.events_manager.queue_reload_today = (force) => calls.push(["reload-today", force]);
 
     context.onEventsManagerReady();
     context.onHasCalendarsChanged();
@@ -1642,7 +1644,8 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     applet._providerLifecycle.connectClockNotify(() => calls.push(["clock-notify"]));
 
     assert.deepEqual(calls.filter((row) => row[0] !== "settings" && row[0] !== "tick"), [
-        ["events-ready"], ["calendars"], ["weather"], ["holidays"], ["launch-settings"]
+        ["events-ready"], ["calendars"], ["weather"], ["today"],
+        ["reload-today", false], ["holidays"], ["launch-settings"]
     ]);
 
     global.imports.ui.applet.TextApplet.prototype.actor = originals.TextActor;

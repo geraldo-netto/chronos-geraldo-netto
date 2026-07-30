@@ -98,10 +98,6 @@ function createPanelPort(applet) {
         getClockEntries: () => applet._worldclocks.getClockEntries(),
         todaySelected: () => applet._calendar.todaySelected(),
         selectEventsDate: () => applet.events_manager.select_date(applet._calendar.getSelectedDate()),
-        dayChanged: () => {
-            applet._calendar.refreshToday();
-            applet.events_manager.queue_reload_today(false);
-        },
         homeButton: () => applet.go_home_button,
         focusSelectedDay: () => applet._calendar && applet._calendar.focusSelectedDay && // NOSONAR [S6582] -- accepted compatible form
             applet._calendar.focusSelectedDay()
@@ -184,7 +180,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             onSettingsChanged: () => this._onSettingsChanged(),
             onResume: () => this._onResume(),
             onDayChanged: () => this._guarded(
-                "day-rollover", () => this._updateClockAndDate(true))
+                "day-rollover", () => this._onDayChanged())
         });
 
         const providers = this._providerLifecycle.initProviders();
@@ -339,6 +335,12 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             this._updateClockAndDate();
             this._scheduleWeatherRefresh({ force: true });
         });
+    }
+
+    _onDayChanged() {
+        this._calendar.refreshToday();
+        this.events_manager.queue_reload_today(false);
+        this._updateClockAndDate(true);
     }
 
     on_applet_clicked() {

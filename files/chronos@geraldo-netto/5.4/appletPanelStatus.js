@@ -295,12 +295,6 @@ class PanelView {
         this.port.selectEventsDate();
     }
 
-    // local midnight passed while the popup stayed open: the grid's today
-    // highlight and the events list are a day behind
-    dayChanged() {
-        this.port.dayChanged();
-    }
-
     setHomeEnabled(enabled) {
         const button = this.port.homeButton();
 
@@ -682,10 +676,6 @@ class AppletPanelStatusPresenter {
             return this._todayFormatCache;
         }
 
-        // the key rolls over exactly at local midnight, and this is the only
-        // time-driven place that notices: without the notification a popup held
-        // open across midnight kept yesterday's cell highlighted as today
-        const rolledOver = Boolean(this._todayFormatCache);
         this._todayFormatCache = {
             key,
             full: _localizedStamp(view, DateFormats.DATE_FORMAT_FULL,
@@ -694,10 +684,6 @@ class AppletPanelStatusPresenter {
                 DateFormats.DATE_FORMAT_SHORT_FALLBACK),
             day: _localizedStamp(view, DateFormats.DAY_FORMAT, DateFormats.DAY_FORMAT)
         };
-
-        if (rolledOver) {
-            view.dayChanged();
-        }
 
         return this._todayFormatCache;
     }
