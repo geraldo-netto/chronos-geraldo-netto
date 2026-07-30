@@ -12,6 +12,11 @@ const Mainloop = imports.mainloop;
 
 const SMOOTH_SCROLL_NOTCH = 1;
 const MAX_SMOOTH_SCROLL_MONTHS = 12;
+// January 1 can need leading cells in year 0, and December 9999 can need
+// trailing cells in year 10000. GLib.DateTime represents neither, so the
+// browsable domain starts and ends one month inside its year limits.
+const MIN_BROWSABLE_MONTH_ORDINAL = 1 * 12 + 1;
+const MAX_BROWSABLE_MONTH_ORDINAL = 9999 * 12 + 10;
 const DAY_KEY_DELTAS = {
     [Clutter.KEY_Left]: -1,
     [Clutter.KEY_Right]: 1,
@@ -26,14 +31,40 @@ function sameDay(dateA, dateB) {
         dateA.getFullYear() === dateB.getFullYear();
 }
 
+function clampCalendarDate(date) {
+    const ordinal = date.getFullYear() * 12 + date.getMonth();
+    if (ordinal >= MIN_BROWSABLE_MONTH_ORDINAL &&
+            ordinal <= MAX_BROWSABLE_MONTH_ORDINAL) {
+        return date;
+    }
+
+    const bounded = new Date(date);
+    if (ordinal < MIN_BROWSABLE_MONTH_ORDINAL) {
+        bounded.setFullYear(1, 1, 1);
+    } else {
+        bounded.setFullYear(9999, 10, 30);
+    }
+    return bounded;
+}
+
 function browsedDate(oldDate, yearChange, monthChange) {
     const monthIndex = oldDate.getMonth() + monthChange;
     const monthYearChange = Math.floor(monthIndex / 12);
     const newMonth = ((monthIndex % 12) + 12) % 12;
 
     const newYear = oldDate.getFullYear() + yearChange + monthYearChange;
-    const daysInMonth = 32 - new Date(newYear, newMonth, 32).getDate();
-    const date = new Date();
+    const ordinal = newYear * 12 + newMonth;
+    if (ordinal < MIN_BROWSABLE_MONTH_ORDINAL ||
+            ordinal > MAX_BROWSABLE_MONTH_ORDINAL) {
+        return clampCalendarDate(oldDate);
+    }
+
+    // The Date(year, ...) constructor maps years 0-99 to 1900-1999. Mutating an
+    // existing Date preserves the proleptic year the GLib boundary expects.
+    const monthEnd = new Date(oldDate);
+    monthEnd.setFullYear(newYear, newMonth + 1, 0);
+    const date = new Date(oldDate);
+    const daysInMonth = monthEnd.getDate();
     date.setFullYear(newYear, newMonth, Math.min(oldDate.getDate(), daysInMonth));
     return date;
 }
@@ -43,7 +74,7 @@ function browsedDate(oldDate, yearChange, monthChange) {
 class CalendarNavigationController {
     constructor(port, selectedDate = new Date()) {
         this.port = port;
-        this.selectedDate = selectedDate;
+        this.selectedDate = clampCalendarDate(selectedDate);
         this.queuedDate = null;
         this.setDateIdleId = 0;
         this.scrollAccumulator = 0;
@@ -51,13 +82,14 @@ class CalendarNavigationController {
     }
 
     setDate(date, forceReload) {
-        if (sameDay(date, this.selectedDate) && !forceReload) {
+        const bounded = clampCalendarDate(date);
+        if (sameDay(bounded, this.selectedDate) && !forceReload) {
             return;
         }
 
-        if (!sameDay(date, this.selectedDate)) {
-            this.selectedDate = date;
-            this.port.emitSelected(date);
+        if (!sameDay(bounded, this.selectedDate)) {
+            this.selectedDate = bounded;
+            this.port.emitSelected(bounded);
         }
         this.port.update();
     }
@@ -85,7 +117,7 @@ class CalendarNavigationController {
     }
 
     queueDate(date) {
-        this.queuedDate = date;
+        this.queuedDate = clampCalendarDate(date);
         if (this.setDateIdleId === 0) {
             this.setDateIdleId = Mainloop.timeout_add(25, this.flushQueuedDate.bind(this));
         }
@@ -194,5 +226,5 @@ class CalendarNavigationController {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { CalendarNavigationController, browsedDate };
+    module.exports = { CalendarNavigationController, browsedDate, clampCalendarDate };
 }

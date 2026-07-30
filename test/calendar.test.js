@@ -175,6 +175,12 @@ function browse(fromDate, yearChange, monthChange) {
     return queued;
 }
 
+function dateInYear(year, month, day) {
+    const date = new Date(0);
+    date.setFullYear(year, month, day);
+    return date;
+}
+
 // T09a: month/year browsing across year boundaries
 test("next month from December rolls into January of the next year", () => {
     const result = browse(new Date(2025, 11, 15), 0, +1);
@@ -223,6 +229,40 @@ test("year change from Feb 29 clamps to Feb 28 in the non-leap target", () => {
     const result = browse(new Date(2024, 1, 29), +1, 0);
     assert.equal(result.getMonth(), 1);
     assert.equal(result.getDate(), 28);
+});
+
+test("calendar navigation stops at complete GLib month-window boundaries", () => {
+    const earliest = dateInYear(1, 1, 15);
+    const latest = dateInYear(9999, 10, 15);
+    let heldBackward = new Date(2026, 6, 9);
+    let heldForward = new Date(2026, 6, 9);
+
+    for (let repeat = 0; repeat < 12000; repeat++) {
+        heldBackward = NavigationModule.browsedDate(heldBackward, -1, 0);
+        heldForward = NavigationModule.browsedDate(heldForward, 1, 0);
+    }
+
+    assert.equal(NavigationModule.browsedDate(earliest, -1, 0).getTime(),
+        earliest.getTime(), "year browsing cannot enter year zero");
+    assert.equal(NavigationModule.browsedDate(earliest, 0, -1).getTime(),
+        earliest.getTime(), "month browsing cannot build January's year-zero cells");
+    assert.equal(NavigationModule.browsedDate(latest, 1, 0).getTime(),
+        latest.getTime(), "year browsing cannot enter year 10000");
+    assert.equal(NavigationModule.browsedDate(latest, 0, 1).getTime(),
+        latest.getTime(), "month browsing cannot build December's year-10000 cells");
+    assert.deepEqual([heldBackward.getFullYear(), heldBackward.getMonth()], [1, 6]);
+    assert.deepEqual([heldForward.getFullYear(), heldForward.getMonth()], [9999, 6]);
+
+    assert.deepEqual([
+        NavigationModule.clampCalendarDate(dateInYear(1, 0, 15)).getFullYear(),
+        NavigationModule.clampCalendarDate(dateInYear(1, 0, 15)).getMonth(),
+        NavigationModule.clampCalendarDate(dateInYear(1, 0, 15)).getDate()
+    ], [1, 1, 1]);
+    assert.deepEqual([
+        NavigationModule.clampCalendarDate(dateInYear(9999, 11, 15)).getFullYear(),
+        NavigationModule.clampCalendarDate(dateInYear(9999, 11, 15)).getMonth(),
+        NavigationModule.clampCalendarDate(dateInYear(9999, 11, 15)).getDate()
+    ], [9999, 10, 30]);
 });
 
 function expectedBrowseTarget(from, yearChange, monthChange) {
@@ -764,6 +804,23 @@ test("CalendarMonthWindow builds 42 visible dates and month lookup keys", () => 
     assert.equal(window.months.has("2026/6"), true);
     assert.equal(window.months.has("2026/7"), true);
     assert.equal(typeof window.weekLabelForRow(0), "string");
+});
+
+test("CalendarMonthWindow guards its GLib date domain", () => {
+    const minimum = new CalendarModule.CalendarMonthWindow(dateInYear(1, 0, 15), 0);
+    const maximum = new CalendarModule.CalendarMonthWindow(dateInYear(9999, 11, 15), 0);
+    assert.ok(minimum.days.every((day) => day.getFullYear() >= 1));
+    assert.ok(maximum.days.every((day) => day.getFullYear() <= 9999));
+
+    const original = global.imports.gi.GLib.DateTime.new_from_unix_local;
+    global.imports.gi.GLib.DateTime.new_from_unix_local = () => null;
+    try {
+        const unavailable = new CalendarModule.CalendarMonthWindow(new Date(2026, 6, 9), 0);
+        assert.ok(unavailable.dateUnixKeys.every((key) => key === null),
+            "a failed GLib conversion does not escape the render idle");
+    } finally {
+        global.imports.gi.GLib.DateTime.new_from_unix_local = original;
+    }
 });
 
 test("CalendarDayCellRenderer builds reusable clickable cells", () => {

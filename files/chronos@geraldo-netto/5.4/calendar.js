@@ -28,6 +28,7 @@ const EventDataModule = require("./eventData");
 const CalendarNavigation = require("./calendarNavigation");
 const CalendarNavigationController = CalendarNavigation.CalendarNavigationController;
 const browsedDate = CalendarNavigation.browsedDate;
+const clampCalendarDate = CalendarNavigation.clampCalendarDate;
 const CalendarAnnotations = require("./calendarAnnotations");
 const CalendarHolidayAnnotator = CalendarAnnotations.CalendarHolidayAnnotator;
 const setTooltipText = CalendarAnnotations.setTooltipText;
@@ -110,10 +111,11 @@ class CalendarMonthWindowCache {
     }
 
     get(selectedDate, weekStart) {
-        const key = `${selectedDate.getFullYear()}/${selectedDate.getMonth()}/${weekStart}`;
+        const bounded = clampCalendarDate(selectedDate);
+        const key = `${bounded.getFullYear()}/${bounded.getMonth()}/${weekStart}`;
         if (this._key !== key || !this._window) {
             this._key = key;
-            this._window = new CalendarMonthWindow(selectedDate, weekStart);
+            this._window = new CalendarMonthWindow(bounded, weekStart);
         }
 
         return this._window;
@@ -122,12 +124,14 @@ class CalendarMonthWindowCache {
 
 class CalendarMonthWindow {
     constructor(selectedDate, weekStart) {
-        this.selectedDate = selectedDate;
+        this.selectedDate = clampCalendarDate(selectedDate);
         this.weekStart = weekStart;
         this.beginDate = this._beginDate();
         this.days = this._buildDays();
-        this.dateUnixKeys = this.days.map((day) =>
-            date_only(js_date_to_gdatetime(day)).to_unix());
+        this.dateUnixKeys = this.days.map((day) => {
+            const gdate = js_date_to_gdatetime(day);
+            return gdate ? date_only(gdate).to_unix() : null;
+        });
         // one GLib.DateTime plus a format per cell, and _update() runs on every
         // menu open, month change, settings change and coalesced event update:
         // the name depends only on the date in the slot, so it belongs here
