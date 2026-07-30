@@ -84,6 +84,7 @@ function gjsImportsMock() {
                                 return Array.from(String(text)).length <= max;
                             },
                             normalizeBoundedText(text) { return String(text).trim(); },
+                            urlForLog(url) { return String(url).split(/[?#]/)[0]; },
                             TEXT_ELLIPSIS: "…"
                         },
                         localeText: {
@@ -273,7 +274,7 @@ function nativeImport(moduleName) {
 const EXPORTS = {
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
-    textUtils: ["clampText", "textWithinLimit", "normalizeBoundedText", "TEXT_ELLIPSIS"],
+    textUtils: ["clampText", "textWithinLimit", "normalizeBoundedText", "urlForLog", "TEXT_ELLIPSIS"],
     localeText: ["translate", "translatePlural", "joinPhrases", "localeDirectory"],
     localeQuery: ["registerLocaleConsumer", "cancelPendingLocaleQueries",
         "onLocaleInfoChanged", "lazyLocaleValue", "MESSAGE_LANGUAGE_FALLBACK",

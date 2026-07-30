@@ -14,6 +14,13 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
 const Soup = GjsImports.gi.Soup;
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+
+var urlForLog = TextUtils.urlForLog; // NOSONAR [S3504] -- GJS importer export
 
 var HTTP_TIMEOUT_SECONDS = 30; // NOSONAR [S3504] -- GJS importer export
 // Session:timeout above is a per-read socket timeout: an endpoint that keeps
@@ -181,19 +188,6 @@ function _setRequestHeaders(message, headers) {
     for (let header of Object.keys(headers)) {
         requestHeaders.append(header, headers[header]);
     }
-}
-
-function urlForLog(url) {
-    if (typeof url !== "string") {
-        return "";
-    }
-
-    const match = /^([a-z][a-z0-9+.-]*:\/\/[^/?#]+)([^?#]*)?/i.exec(url); // NOSONAR [S5842] -- empty URL path is valid
-    if (match) {
-        return match[1] + (match[2] || "");
-    }
-
-    return url.split(/[?#]/)[0];
 }
 
 function createHttpSession(options = {}) {

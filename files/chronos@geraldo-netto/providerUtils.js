@@ -25,11 +25,11 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
-const IoUtils = IS_NODE ?
-    require("./ioUtils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 
-const urlForLog = IoUtils.urlForLog;
+const urlForLog = TextUtils.urlForLog;
 
 // Exponential backoff with a ceiling and jitter — the one copy.
 //

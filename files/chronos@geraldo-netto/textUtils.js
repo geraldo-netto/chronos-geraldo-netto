@@ -67,6 +67,21 @@ function normalizeBoundedText(text, maxLength) {
     return text.trim();
 }
 
+// Keep user-supplied query strings and fragments out of logs without pulling
+// the HTTP stack into code that only needs a printable provider identity.
+function urlForLog(url) {
+    if (typeof url !== "string") {
+        return "";
+    }
+
+    const match = /^([a-z][a-z0-9+.-]*:\/\/[^/?#]+)([^?#]*)?/i.exec(url); // NOSONAR [S5842] -- empty URL path is valid
+    if (match) {
+        return match[1] + (match[2] || "");
+    }
+
+    return url.split(/[?#]/)[0];
+}
+
 // Code points, not UTF-16 units. The trailing whitespace goes before the
 // ellipsis: "Rome …" reads as a broken word, "Rome…" as a truncated one.
 function clampText(text, maxLength) {
@@ -95,6 +110,7 @@ if (typeof module !== "undefined") {
         sanitizeControlCharacters,
         textWithinLimit,
         normalizeBoundedText,
+        urlForLog,
         TEXT_ELLIPSIS
     };
 }
