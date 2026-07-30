@@ -149,7 +149,7 @@ test("normalizes primary and fallback geocode responses", () => {
 
     assert.deepEqual(
         Weather.openMeteoGeocodePlace({ results: [{ latitude: 41.9, longitude: 12.5, population: 1000 }] }),
-        { latitude: 41.9, longitude: 12.5, population: 1000 }
+        { name: "", latitude: 41.9, longitude: 12.5 }
     );
     assert.equal(Weather.openMeteoGeocodePlace({
         results: [{ latitude: 41.9, longitude: 12.5, population: 999 }]
@@ -173,7 +173,7 @@ test("normalizes primary and fallback geocode responses", () => {
     ]) {
         assert.deepEqual(Weather.openMeteoGeocodePlace({
             results: [{ latitude, longitude, population: 1000 }]
-        }), { latitude: Number(latitude), longitude: Number(longitude), population: 1000 });
+        }), { name: "", latitude: Number(latitude), longitude: Number(longitude) });
         assert.deepEqual(Weather.nominatimGeocodePlace([{
             lat: latitude, lon: longitude, display_name: "edge"
         }]), { name: "edge", latitude: Number(latitude), longitude: Number(longitude) });
@@ -219,21 +219,20 @@ test("the geocode hit is the one the user typed, not the one the API ranked firs
     const Weather = loadWeather();
 
     const genova = Weather.openMeteoGeocodePlace(GENOVA_RESULTS, "Genova");
-    assert.equal(genova.country, "Italy");
+    assert.equal(genova.name, "Genova");
     assert.equal(genova.latitude, 44.4);
     // the exact spelling beats the accented namesakes, and among the two cities
     // that spell it the same the half-million one beats the hamlet
-    assert.equal(genova.population, 580097);
+    assert.equal(genova.longitude, 8.9);
 
     // typed with the accent, the answer is the accented city — the largest of them
     const genovaAccented = Weather.openMeteoGeocodePlace(GENOVA_RESULTS, "Génova");
-    assert.equal(genovaAccented.country, "Colombia");
+    assert.equal(genovaAccented.latitude, 4.2);
 
     // a name nobody matches falls back to the most populous hit rather than to
     // whichever one the geocoder happened to put first
     const unmatched = Weather.openMeteoGeocodePlace(GENOVA_RESULTS, "nowhere");
-    assert.equal(unmatched.country, "Italy");
-    assert.equal(unmatched.population, 580097);
+    assert.equal(unmatched.latitude, 44.4);
 
     // a hit with no usable coordinates is skipped, not returned
     const skipped = Weather.openMeteoGeocodePlace({
@@ -248,6 +247,22 @@ test("the geocode hit is the one the user typed, not the one the API ranked firs
         Weather.openMeteoGeocodePlace({ results: [{ latitude: 41.9, longitude: 12.5, population: "many" }] }),
         null
     );
+});
+
+test("Open-Meteo places drop provider fields before entering the cache", () => {
+    const Weather = loadWeather();
+    const junk = "x".repeat(1024 * 1024);
+    const place = Weather.openMeteoGeocodePlace({ results: [{
+        name: "Rome",
+        latitude: 41.9,
+        longitude: 12.5,
+        population: 2873000,
+        timezone: "Europe/Rome",
+        provider_payload: { junk }
+    }] }, "Rome");
+
+    assert.deepEqual(place, { name: "Rome", latitude: 41.9, longitude: 12.5 });
+    assert.equal(JSON.stringify(place).includes(junk), false);
 });
 
 const LOCALE_VARIABLES = ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"];

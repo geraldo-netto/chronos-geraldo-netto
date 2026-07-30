@@ -351,7 +351,12 @@ function placeCandidate(place) {
         return null;
     }
 
-    return Object.assign({}, place, { latitude, longitude }); // NOSONAR [S6661] -- accepted compatible form
+    return {
+        name: typeof place.name === "string" ? place.name : "",
+        population: place.population,
+        latitude,
+        longitude
+    };
 }
 
 // What makes one hit better than another, in order: the user's spelling exactly;
@@ -395,8 +400,10 @@ function openMeteoGeocodePlace(data, query) {
     }, null);
 
     const population = best ? Number(best.population) : NaN; // NOSONAR [S7773] -- accepted compatible form
-    return Number.isFinite(population) && population >= MIN_TRUSTED_GEOCODE_POPULATION ?
-        best : null;
+    if (!Number.isFinite(population) || population < MIN_TRUSTED_GEOCODE_POPULATION) {
+        return null;
+    }
+    return { name: best.name, latitude: best.latitude, longitude: best.longitude };
 }
 
 function nominatimGeocodePlace(data) {
