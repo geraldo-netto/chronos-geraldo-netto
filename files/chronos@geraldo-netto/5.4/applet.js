@@ -318,8 +318,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _setKeybinding() {
-        Main.keybindingManager.addHotKey(
-            "calendar-open-" + this.instance_id,
+        Main.keybindingManager.addXletHotKey(
+            this,
+            "calendar-open",
             this.keyOpen,
             () => this._guarded("keybinding-open", () => this._openMenu()));
     }
@@ -513,7 +514,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // the keybinding is registered inside the constructor's try, so a
             // failure after that point used to leave a live global hotkey bound
             // to a destroyed applet — pressing it opened a menu that was gone
-            () => Main.keybindingManager.removeHotKey("calendar-open-" + this.instance_id),
+            () => Main.keybindingManager.removeXletHotKey(this, "calendar-open"),
             () => destroyIfPresent(this._settingsBinder),
             () => destroyIfPresent(this._providerLifecycle),
             // the menu builder connects five signals on the events manager and

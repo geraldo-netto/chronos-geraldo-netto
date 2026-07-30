@@ -303,8 +303,9 @@ test("a failed build does not go on to be added to the panel", () => {
 test("a half-built applet still tears down what it managed to build", () => {
     const torn = [];
     const keybindings = global.imports.ui.main.keybindingManager;
-    const originalRemove = keybindings.removeHotKey;
-    keybindings.removeHotKey = (name) => torn.push(["hotkey", name]);
+    const originalRemove = keybindings.removeXletHotKey;
+    keybindings.removeXletHotKey = (applet, name) =>
+        torn.push(["hotkey", applet.instance_id, name]);
 
     const stub = Object.assign(Object.create(Proto), {
         instance_id: 9,
@@ -322,13 +323,17 @@ test("a half-built applet still tears down what it managed to build", () => {
     assert.doesNotThrow(() => Proto._destroy.call(stub));
     // the keybinding is bound inside the constructor's try, so a failure after
     // that left a live global hotkey opening a menu that no longer exists
-    assert.deepEqual(torn, [["hotkey", "calendar-open-9"], ["lifecycle"], ["settings"]]);
+    assert.deepEqual(torn, [
+        ["hotkey", 9, "calendar-open"], ["lifecycle"], ["settings"]
+    ]);
 
     // removal after a failed construction must not tear down twice
     Proto.on_applet_removed_from_panel.call(stub);
-    assert.deepEqual(torn, [["hotkey", "calendar-open-9"], ["lifecycle"], ["settings"]]);
+    assert.deepEqual(torn, [
+        ["hotkey", 9, "calendar-open"], ["lifecycle"], ["settings"]
+    ]);
 
-    keybindings.removeHotKey = originalRemove;
+    keybindings.removeXletHotKey = originalRemove;
 });
 
 test("provider lifecycle tears down provider and system resources", () => {
@@ -735,13 +740,13 @@ test("applet wrappers open menus, launch settings, and refresh on resume", (t) =
     const calls = [];
     let hotkeyCallback = null;
     const keybindings = global.imports.ui.main.keybindingManager;
-    const originalAddHotKey = keybindings.addHotKey;
-    keybindings.addHotKey = (name, accelerator, callback) => {
-        calls.push(["hotkey", name, accelerator]);
+    const originalAddHotKey = keybindings.addXletHotKey;
+    keybindings.addXletHotKey = (applet, name, accelerator, callback) => {
+        calls.push(["hotkey", applet.instance_id, name, accelerator]);
         hotkeyCallback = callback;
     };
     t.after(() => {
-        keybindings.addHotKey = originalAddHotKey;
+        keybindings.addXletHotKey = originalAddHotKey;
     });
     const stub = Object.assign(Object.create(Proto), {
         instance_id: 5,
@@ -773,6 +778,37 @@ test("applet wrappers open menus, launch settings, and refresh on resume", (t) =
     assert.ok(calls.some((row) => row[0] === "clock"));
     assert.ok(calls.some((row) => row[0] === "weather"));
     assert.ok(calls.some((row) => row[0] === "orientation" && row[1] === St.Side.BOTTOM));
+});
+
+test("clearing the configured shortcut removes the active applet hotkey", (t) => {
+    const active = new Map();
+    const keybindings = global.imports.ui.main.keybindingManager;
+    const originalAddHotKey = keybindings.addXletHotKey;
+    keybindings.addXletHotKey = (applet, name, accelerator, callback) => {
+        const key = `${applet.instance_id}:${name}`;
+        active.delete(key);
+        if (!accelerator) {
+            return false;
+        }
+        active.set(key, callback);
+        return true;
+    };
+    t.after(() => {
+        keybindings.addXletHotKey = originalAddHotKey;
+    });
+
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 5,
+        keyOpen: "Ctrl Space",
+        _openMenu() {}
+    });
+
+    Proto._setKeybinding.call(stub);
+    assert.equal(active.size, 1);
+
+    stub.keyOpen = "";
+    Proto._setKeybinding.call(stub);
+    assert.equal(active.size, 0);
 });
 
 test("weather attribution opens the OpenStreetMap copyright page", () => {

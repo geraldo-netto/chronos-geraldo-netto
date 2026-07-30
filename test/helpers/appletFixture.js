@@ -157,7 +157,12 @@ global.imports = {
                 addActor(actor) { this.children.push(actor); }
             }
         },
-        main: { keybindingManager: { addHotKey() {}, removeHotKey() {} } },
+        main: { keybindingManager: {
+            addHotKey() {},
+            removeHotKey() {},
+            addXletHotKey() {},
+            removeXletHotKey() {}
+        } },
         settings: { AppletSettings: class { bind() {} connect() {} getValue() { return []; } } }, // NOSONAR [S1186] -- deliberate test seam
         separator: {},
         tooltips: { Tooltip: class { constructor(actor, text) { this.actor = actor; this.text = text; } set_text(text) { this.text = text; } } },
