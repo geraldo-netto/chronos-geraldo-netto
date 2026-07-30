@@ -1180,8 +1180,9 @@ test("changing the units re-renders; it does not re-resolve the location", () =>
         }
     };
 
-    provider.queue({ showWeather: true, location: "Rome", units: "si" }, () => {});
-    settled();
+    // Startup reaches schedule() directly from on_applet_added_to_panel. It
+    // must record the location key just like the debounced settings path does.
+    provider.schedule({ showWeather: true, location: "Rome", units: "si" }, () => {});
     const afterFirst = urls.length;
     assert.ok(urls.some((url) => url.includes("geocoding-api")), "the first read resolves the city");
 

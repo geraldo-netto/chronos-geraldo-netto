@@ -179,6 +179,8 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         }
 
         const location = WeatherFormat.normalizeWeatherLocation(settings.location);
+        this._resolved_location_key = location ?
+            WeatherProviders.locationCacheKey(location) : "";
         // the reading on the panel belongs to the place it was fetched for; if
         // that is not the place being asked about now, it is not the weather
         this._display_state.forgetUnless(this._staleKey(settings));
