@@ -807,7 +807,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         # each widget comes from its feature module, not one shared grab-bag
         homes = {
             "ClocksList": "settings_widgets_common",
-            "CountryComboBox": "settings_widgets_common",
+            "CountryComboBox": "settings_widgets_holidays",
             "WeatherLocationEntry": "settings_widgets_weather",
         }
         for widget in named:

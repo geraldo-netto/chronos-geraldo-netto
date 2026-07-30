@@ -1,5 +1,5 @@
 from helpers.settings_widgets_fixture import (
-    APPLET_DIR, COMMON_PATH, WEATHER_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
+    APPLET_DIR, WEATHER_PATH, HOLIDAYS_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
     Path, importlib, json, load_module,
     tearDownModule as teardown_fixture, unittest,
 )
@@ -239,7 +239,7 @@ class CountryComboBoxTest(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(COMMON_PATH, "settings_widgets_common_country")
+        cls.module = load_module(HOLIDAYS_PATH, "settings_widgets_holidays_country")
 
     def combo(self, value="none"):
         settings = FakeSettings({"country": value})
