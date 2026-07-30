@@ -49,12 +49,14 @@ var LEGACY_DATE_TIME_FORMAT = "%A, %B %e, %H:%M"; // NOSONAR [S3504] -- GJS impo
 var DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M"; // NOSONAR [S3504] -- GJS importer export
 var NO_HOLIDAYS = "none"; // NOSONAR [S3504] -- GJS importer export
 
-// key -> applet property, grouped by the handler each one triggers
+// key -> applet property -> semantic handler. The schema keys and their effect
+// routing live together, so adding a setting cannot silently join the generic
+// repaint path.
 var PANEL_KEYS = [ // NOSONAR [S3504] -- GJS importer export
-    [SHOW_EVENTS_KEY, "show_events"],
-    [CUSTOM_FORMAT_KEY, "custom_format"],
-    [CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format"],
-    [SHOW_WORLDCLOCKS_KEY, "show_worldclocks"]
+    [SHOW_EVENTS_KEY, "show_events", "onShowEventsChanged"],
+    [CUSTOM_FORMAT_KEY, "custom_format", "onPanelFormatChanged"],
+    [CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format", "onTooltipFormatChanged"],
+    [SHOW_WORLDCLOCKS_KEY, "show_worldclocks", "onShowWorldclocksChanged"]
 ];
 var WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     ["show-weather", "show_weather"],
@@ -249,9 +251,9 @@ var PanelSettings = class PanelSettings { // NOSONAR [S3504] -- GJS importer exp
     // owns the settings object, not bindWithObject. The parameter was passed by
     // every caller and read by neither. (CalendarSettings.bindShowWeekNumbers
     // genuinely does take one — it uses bindWithObject.)
-    bindPanelKeys(callback) {
-        for (let [key, property] of PANEL_KEYS) {
-            this._settings.bind(key, property, callback);
+    bindPanelKeys(handlers) {
+        for (let [key, property, handler] of PANEL_KEYS) {
+            this._settings.bind(key, property, handlers[handler]);
         }
     }
 

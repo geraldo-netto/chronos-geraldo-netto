@@ -259,7 +259,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     // went on fetching the old city for the rest of the session, silently.
     _bindSettings() {
         this._settingsBinder = new AppletSettingsBinder(this, {
-            onSettingsChanged: this._onSettingsChanged.bind(this),
+            onShowEventsChanged: this._onShowEventsChanged.bind(this),
+            onPanelFormatChanged: this._onPanelFormatChanged.bind(this),
+            onTooltipFormatChanged: this._onTooltipFormatChanged.bind(this),
+            onShowWorldclocksChanged: this._onShowWorldclocksChanged.bind(this),
             onWeatherSettingsChanged: this._onWeatherSettingsChanged.bind(this),
             onKeybindingChanged: () => this._guarded(
                 "keybinding-settings", () => this._setKeybinding())
@@ -369,17 +372,42 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._guarded("settings", () => this._applySettings());
     }
 
-    _applySettings() {
+    _applyFormatSettings() {
         const formatSignature = this._formatSignature();
         if (formatSignature !== this._applied_format_signature) {
             this._applied_format_signature = formatSignature;
             this._updateFormatString();
         }
+    }
 
-        this._updateClockAndDate();
+    _applySettings() {
+        this._applyPanelFormat();
         this._eventListCoordinator.apply(this.show_events);
+    }
 
-        this._weatherCoordinator.applyShowWorldclocks();
+    _applyPanelFormat() {
+        this._applyFormatSettings();
+        this._updateClockAndDate();
+    }
+
+    _onShowEventsChanged() {
+        this._guarded("events-settings", () =>
+            this._eventListCoordinator.apply(this.show_events));
+    }
+
+    _onPanelFormatChanged() {
+        this._guarded("panel-format-settings", () => this._applyPanelFormat());
+    }
+
+    _onTooltipFormatChanged() {
+        this._guarded("tooltip-format-settings", () => this._updateClockAndDate());
+    }
+
+    _onShowWorldclocksChanged() {
+        this._guarded("worldclocks-visibility-settings", () => {
+            this._applyPanelFormat();
+            this._weatherCoordinator.applyShowWorldclocks();
+        });
     }
 
     _onWeatherSettingsChanged() {
@@ -572,7 +600,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._guarded("orientation", () => {
             this.orientation = orientation;
             this.menu.setOrientation(orientation);
-            this._onSettingsChanged();
+            this._applyPanelFormat();
         });
     }
 }

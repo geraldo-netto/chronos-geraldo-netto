@@ -124,8 +124,9 @@ test("settings tables reuse the facade's canonical key and sentinel values", () 
     const SettingsFacade = require(modulePath);
 
     assert.deepEqual(SettingsFacade.PANEL_KEYS.slice(1, 3), [
-        [SettingsFacade.CUSTOM_FORMAT_KEY, "custom_format"],
-        [SettingsFacade.CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format"]
+        [SettingsFacade.CUSTOM_FORMAT_KEY, "custom_format", "onPanelFormatChanged"],
+        [SettingsFacade.CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format",
+            "onTooltipFormatChanged"]
     ]);
     assert.equal(SettingsFacade.NO_HOLIDAYS, "none");
 });

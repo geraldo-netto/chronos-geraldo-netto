@@ -49,8 +49,8 @@ test("city weather is not fetched for world clocks that are switched off", () =>
 });
 
 // The guard above is only reached if something calls the scheduler when the
-// setting changes, and nothing did: _onSettingsChanged updated the format, the
-// clock and the event list and never the city weather. So turning the clocks
+// setting changes, and nothing did: the old generic handler updated the format,
+// clock and event list and never the city weather. So turning the clocks
 // OFF did not stop anything — the armed timer closed over the old settings and
 // went on geocoding and forecasting eight cities every half hour for the rest of
 // the session, after the user had opted out. Calling the scheduler directly, as
@@ -83,20 +83,20 @@ test("turning world clocks off stops the city weather that was fetched for them"
         guard: (source, fn) => fn()
     });
 
-    Proto._onSettingsChanged.call(stub);
+    Proto._onShowWorldclocksChanged.call(stub);
     assert.equal(scheduled.length, 1, "the first pass arms the round");
     assert.deepEqual(scheduled[0].cities.map((city) => city.query), ["Tokyo"]);
 
     // the user switches the clocks off
     stub.show_worldclocks = false;
-    Proto._onSettingsChanged.call(stub);
+    Proto._onShowWorldclocksChanged.call(stub);
 
     assert.equal(scheduled.length, 2, "the change reaches the city-weather scheduler");
     assert.deepEqual(scheduled[1].cities, [],
         "and nothing is fetched for a feature the user turned off");
 
     // ...and an unrelated settings change costs no further round
-    Proto._onSettingsChanged.call(stub);
+    Proto._onTooltipFormatChanged.call(stub);
     assert.equal(scheduled.length, 2);
 });
 

@@ -414,6 +414,7 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
 
 test("settings binding wires schema keys and creates settings facades", () => {
     const binds = [];
+    const callbacks = {};
     let keybindingChanged = null;
     const original = global.imports.ui.settings.AppletSettings;
     global.imports.ui.settings.AppletSettings = class {
@@ -422,6 +423,7 @@ test("settings binding wires schema keys and creates settings facades", () => {
         }
         bind(key, prop, cb) {
             binds.push(["bind", key, prop, typeof cb]);
+            callbacks[key] = cb;
             if (key === "keyOpen") {
                 keybindingChanged = cb;
             }
@@ -433,9 +435,17 @@ test("settings binding wires schema keys and creates settings facades", () => {
 
     const stub = Object.assign(Object.create(Proto), {
         instance_id: 42,
-        _setKeybinding: () => binds.push(["hotkey"])
+        _setKeybinding: () => binds.push(["hotkey"]),
+        _onShowEventsChanged: () => binds.push(["effect", "events"]),
+        _onPanelFormatChanged: () => binds.push(["effect", "panel-format"]),
+        _onTooltipFormatChanged: () => binds.push(["effect", "tooltip-format"]),
+        _onShowWorldclocksChanged: () => binds.push(["effect", "worldclocks"])
     });
     Proto._bindSettings.call(stub);
+    callbacks["show-events"]();
+    callbacks["custom-format"]();
+    callbacks["custom-tooltip-format"]();
+    callbacks["show-worldclocks"]();
     keybindingChanged();
     global.imports.ui.settings.AppletSettings = original;
 
@@ -446,6 +456,12 @@ test("settings binding wires schema keys and creates settings facades", () => {
     assert.ok(binds.some((row) => row[1] === "custom-format"));
     assert.ok(binds.some((row) => row[1] === "custom-tooltip-format"));
     assert.ok(!binds.some((row) => row[1] === "use-custom-format"));
+    assert.deepEqual(binds.filter((row) => row[0] === "effect"), [
+        ["effect", "events"],
+        ["effect", "panel-format"],
+        ["effect", "tooltip-format"],
+        ["effect", "worldclocks"]
+    ]);
     assert.equal(binds.filter((row) => row[0] === "hotkey").length, 2,
         "initial binding and a changed accelerator both install the hotkey");
 
@@ -947,53 +963,28 @@ test("settings and weather changes update dependent views", () => {
     assert.ok(calls.some((row) => row[0] === "weather"));
 });
 
-test("an unrelated settings keystroke costs no refetch and no clock rebuild", () => {
+test("panel settings dispatch only their dependent workflows", () => {
     const calls = [];
     const stub = Object.assign(Object.create(Proto), {
-        orientation: St.Side.TOP,
-        custom_format: "%H:%M",
-        custom_tooltip_format: "%A",
         show_events: true,
-        desktop_settings: { use24h: false, showSeconds: false },
-        _updateFormatString: () => calls.push(["format"]),
-        _updateClockAndDate: () => calls.push(["clock"]),
-        event_list: {
-            actor: { visible: false },
-            set_reporting_enabled: () => {},
-            set_unavailable: () => {},
-            refresh_time_format: () => {}
-        },
-        events_manager: {
-            is_active: () => true,
-            select_date: (date, force) => calls.push(["select", force])
-        },
-        _calendar: { getSelectedDate: () => new Date(2026, 6, 9) }
-    });
-    stub._eventListCoordinator = new CoordinatorModule.AppletEventListCoordinator({
-        manager: stub.events_manager,
-        eventList: () => stub.event_list,
-        selectedDate: () => stub._calendar.getSelectedDate(),
-        guard: (source, fn) => fn()
+        _guarded: (source, fn) => fn(),
+        _applyFormatSettings: () => calls.push("format"),
+        _updateClockAndDate: () => calls.push("clock"),
+        _eventListCoordinator: { apply: () => calls.push("events") },
+        _weatherCoordinator: { applyShowWorldclocks: () => calls.push("cities") }
     });
 
-    Proto._onSettingsChanged.call(stub);
-    const afterFirst = calls.length;
+    const invoke = (method) => {
+        calls.length = 0;
+        Proto[method].call(stub);
+        return calls.slice();
+    };
 
-    // typing in the tooltip-format entry fires the handler per keystroke; the
-    // panel format did not change, and neither did show-events
-    stub.custom_tooltip_format = "%A, %B";
-    Proto._onSettingsChanged.call(stub);
-    stub.custom_tooltip_format = "%A, %B %e";
-    Proto._onSettingsChanged.call(stub);
-
-    const extra = calls.slice(afterFirst);
-    assert.deepEqual(extra, [["clock"], ["clock"]],
-        "no forced month refetch and no world-clock rebuild for unrelated keys");
-
-    // a real format change still rebuilds
-    stub.custom_format = "%H:%M:%S";
-    Proto._onSettingsChanged.call(stub);
-    assert.ok(calls.slice(-2).some((row) => row[0] === "format"));
+    assert.deepEqual(invoke("_onShowEventsChanged"), ["events"]);
+    assert.deepEqual(invoke("_onPanelFormatChanged"), ["format", "clock"]);
+    assert.deepEqual(invoke("_onTooltipFormatChanged"), ["clock"]);
+    assert.deepEqual(invoke("_onShowWorldclocksChanged"),
+        ["format", "clock", "cities"]);
 });
 
 test("provider initialization wires hover and event manager signals", () => {
