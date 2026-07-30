@@ -214,6 +214,15 @@ test("every region the dialog offers is a region the providers understand", () =
         assert.ok(regions[key.slice("region_".length)],
             `${key} offers regions the providers cannot resolve`);
     }
+
+    // The layout is the third place the region set is stated, and it was the
+    // one with no cross-check: a fully wired region_<c> key that is missing
+    // from section2.keys is a combobox Cinnamon never renders — users cannot
+    // pick a region the providers fully support, silently.
+    for (const country of Object.keys(regions)) {
+        assert.ok(data.layout.section2.keys.includes(`region_${country}`),
+            `region_${country} exists but the layout never shows it`);
+    }
 });
 
 // settingsFacade.test.js asserts the facade passed SettingsFacade.SHOW_WEEK_NUMBERS_KEY
