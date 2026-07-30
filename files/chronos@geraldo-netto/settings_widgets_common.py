@@ -266,14 +266,24 @@ def attach_city_completion(entry, cities):
     return completion
 
 
+_TIMEZONE_RESOLVER: Optional[TimezoneResolver] = None
 _WEATHER_CITIES: Optional[list[str]] = None
+
+
+def shared_timezone_resolver() -> TimezoneResolver:
+    """Build the settings process's timezone index on its first real use."""
+    global _TIMEZONE_RESOLVER
+    if _TIMEZONE_RESOLVER is None:
+        _TIMEZONE_RESOLVER = TimezoneResolver(pytz, available_timezones)
+
+    return _TIMEZONE_RESOLVER
 
 
 def weather_cities() -> list[str]:
     """The city names offered under the weather location, built on first use."""
     global _WEATHER_CITIES
     if _WEATHER_CITIES is None:
-        _WEATHER_CITIES = TimezoneResolver(pytz, available_timezones).city_names()
+        _WEATHER_CITIES = shared_timezone_resolver().city_names()
 
     return _WEATHER_CITIES
 
@@ -321,7 +331,8 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         if hasattr(self.content_widget, "set_max_length"):
             self.content_widget.set_max_length(MAX_WEATHER_LOCATION_LENGTH)
 
-        self.completion = attach_city_completion(self.content_widget, weather_cities())
+        self.completion = None
+        self._completion_loaded = False
 
         self.attach()
         self.prefill_from_timezone()
@@ -334,14 +345,23 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
             self.content_widget.set_text(text)
 
     def connect_widget_handlers(self, *args):
+        self.content_widget.connect("focus-in-event", self.ensure_completion)
         # the ways an edit ends. Not "changed", which is every keystroke.
         self.content_widget.connect("activate", self.on_commit)
         self.content_widget.connect("focus-out-event", self.on_commit)
         # closing the settings window while the cursor is still in the field
         # never fires focus-out, and the name the user typed would go with it
         self.content_widget.connect("destroy", self.on_commit)
+
+    def ensure_completion(self, *args) -> bool:
+        if self._completion_loaded:
+            return False
+
+        self._completion_loaded = True
+        self.completion = attach_city_completion(self.content_widget, weather_cities())
         if self.completion is not None:
             self.completion.connect("match-selected", self.on_suggestion_picked)
+        return False
 
     def on_suggestion_picked(self, completion, model, tree_iter) -> bool:
         # a picked suggestion is a finished edit: save it without waiting for the
@@ -853,7 +873,7 @@ class ClocksList(JSONSettingsList):
     @property
     def timezone_resolver(self):
         if self._timezone_resolver is None:
-            self._timezone_resolver = TimezoneResolver(pytz, available_timezones)
+            self._timezone_resolver = shared_timezone_resolver()
 
         return self._timezone_resolver
 

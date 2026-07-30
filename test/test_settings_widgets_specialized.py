@@ -49,7 +49,14 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertEqual(resolver.city_names(), ["Anchorage", "Rome", "Tokyo"])
 
     def test_the_entry_completes_on_a_typed_city(self):
+        self.module._TIMEZONE_RESOLVER = None
+        self.module._WEATHER_CITIES = None
         widget, _settings = self.entry()
+
+        self.assertIsNone(widget.completion)
+        self.assertIsNone(self.module._TIMEZONE_RESOLVER,
+                          "building the settings page must not index every timezone")
+        self.assertFalse(widget.ensure_completion())
         completion = widget.completion
 
         self.assertEqual(completion.text_column, 0)
@@ -60,6 +67,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertIs(widget.content_widget.completion, completion)
         self.assertEqual(widget.content_widget.placeholder,
                          self.module.WEATHER_LOCATION_HINT)
+        self.assertFalse(widget.ensure_completion(), "a second focus does no work")
 
     def test_a_typed_fragment_matches_a_city_anywhere_in_the_name(self):
         model = self.module.city_completion_model(["Buenos Aires", "Rome"])
@@ -87,11 +95,16 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertIsNone(self.module.attach_city_completion(BindObject(), []))
 
     def test_the_cities_are_built_once_and_reused(self):
+        self.module._TIMEZONE_RESOLVER = None
         self.module._WEATHER_CITIES = None
 
         cities = self.module.weather_cities()
         self.assertIs(self.module.weather_cities(), cities,
                       "the timezone database is read on the first field, not on every page")
+        resolver = self.module.shared_timezone_resolver()
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        self.assertIs(clocks.timezone_resolver, resolver,
+                      "weather and clocks must share one timezone index")
 
     def test_the_field_shows_the_saved_location(self):
         widget, _settings = self.entry({"weather-location": "Lisbon"})
@@ -160,6 +173,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
     def test_picking_a_suggestion_saves_it_at_once(self):
         widget, settings = self.entry({"weather-location": ""})
         settings.writes.clear()
+        widget.ensure_completion()
 
         widget.completion.select(widget.completion.matches_index_for("Lisbon"))
 
