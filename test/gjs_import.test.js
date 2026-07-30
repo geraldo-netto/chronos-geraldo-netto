@@ -97,6 +97,8 @@ function gjsImportsMock() {
                             cancelPendingLocaleQueries() {},
                             onLocaleInfoChanged() {},
                             lazyLocaleValue() { return () => ""; },
+                            MESSAGE_LANGUAGE_FALLBACK: "en",
+                            messageLanguage() { return "en"; },
                             getInfo() { return {}; }
                         },
                         dateFormats: {
@@ -273,7 +275,8 @@ const EXPORTS = {
     textUtils: ["clampText", "textWithinLimit", "normalizeBoundedText", "TEXT_ELLIPSIS"],
     localeText: ["translate", "translatePlural", "joinPhrases", "localeDirectory"],
     localeQuery: ["registerLocaleConsumer", "cancelPendingLocaleQueries",
-        "onLocaleInfoChanged", "lazyLocaleValue", "getInfo"],
+        "onLocaleInfoChanged", "lazyLocaleValue", "MESSAGE_LANGUAGE_FALLBACK",
+        "messageLanguage", "getInfo"],
     dateFormats: ["MSECS_IN_DAY", "MAX_DATE_FORMAT_LENGTH", "MAX_CLOCK_STAMP_LENGTH",
         "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "monthWindowStartOffset", "dateFormatWithinLimit", "dateFormatOrDefault",

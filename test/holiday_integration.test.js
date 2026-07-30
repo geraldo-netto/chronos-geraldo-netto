@@ -693,14 +693,10 @@ test("a response from the country the user just left does not silence the new on
     assert.deepEqual(months[0].get("7/14"), ["Bastille Day", ["public_holiday"]]);
 });
 
-// T585: the composition root called the lazy locale getter once, during
-// construction, and froze that value into the record contract and the
-// OpenHolidays adapter — but the locale query answers asynchronously, after
-// the first paint, so the first instance of a non-English session kept
-// English request and localization state for the applet's lifetime. The
-// language is now a resolver consulted at each use.
-test("the holiday language settles with the locale query, not construction", () => {
-    // the locale query has not answered when the provider graph is built
+// T585: the composition root once called its language getter at construction
+// and froze that value into both localization and requests. Keep the injected
+// language as a resolver and consult it at each use.
+test("the holiday language resolver is consulted after construction", () => {
     let lang = "en";
     const { createHolidayProvider, OpenHolidaysServiceAdapter } = loadHolidays();
     const provider = createHolidayProvider({
@@ -715,7 +711,7 @@ test("the holiday language settles with the locale query, not construction", () 
         }
     });
 
-    // ...and it settles on French before the first fetch is dispatched
+    // It changes to French before the first fetch is dispatched.
     lang = "fr";
     provider.setPlace("fra", "global", () => {});
     const months = [];
@@ -729,17 +725,50 @@ test("the holiday language settles with the locale query, not construction", () 
     lang = "de";
     assert.equal(adapter.params("fra", "global", 2026).languageIsoCode, "DE");
 
-    // and the shipped default is the locale query's live resolver, not a
-    // string frozen at import time
+    // The shipped default is also a resolver, not a string frozen at import.
     const shipped = createHolidayProvider({ cache: makeMemoryCache(), load: () => {} });
     assert.equal(typeof shipped._base._provider.record._lang, "function",
         "an unset language stays resolvable after construction");
     assert.equal(shipped._base._provider.record.language, "en",
-        "and resolving it consults the locale query's current answer");
+        "and resolving it consults the session's current message language");
 
     // a contract built bare falls back to its own module's live resolver
     const { HolidayRecordContract: BareContract } = require(holidayRecordPath);
     assert.equal(new BareContract().language, "en");
+});
+
+test("holiday names and requests follow LC_MESSAGES, not LC_ADDRESS", () => {
+    const variables = ["LC_ALL", "LC_MESSAGES", "LC_ADDRESS", "LANG", "LANGUAGE"];
+    const saved = variables.map((name) => [name, process.env[name]]);
+    variables.forEach((name) => delete process.env[name]);
+    process.env.LC_MESSAGES = "fr_FR.UTF-8";
+    process.env.LC_ADDRESS = "it_IT.UTF-8";
+    process.env.LANG = "it_IT.UTF-8";
+
+    try {
+        const { createHolidayProvider, OpenHolidaysServiceAdapter } = loadHolidays();
+        const provider = createHolidayProvider({ cache: makeMemoryCache(), load: () => {} });
+        assert.equal(provider._base._provider.record.language, "fr");
+
+        const adapter = new OpenHolidaysServiceAdapter(() => {});
+        assert.equal(adapter.params("fra", "global", 2026).languageIsoCode, "FR");
+
+        const { HolidayRecordContract } = require(holidayRecordPath);
+        const record = new HolidayRecordContract();
+        assert.equal(record.localizeName({ name: [
+            { lang: "it", text: "Festa nazionale" },
+            { lang: "fr", text: "Fête nationale" },
+            { lang: "en", text: "Bastille Day" }
+        ] }), "Fête nationale");
+    } finally {
+        saved.forEach(([name, value]) => {
+            if (value === undefined) {
+                delete process.env[name];
+            } else {
+                process.env[name] = value;
+            }
+        });
+    }
 });
 
 // T580: flags rode through validation with only Array.isArray, and a 366-day

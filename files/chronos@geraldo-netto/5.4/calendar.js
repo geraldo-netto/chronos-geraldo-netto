@@ -657,8 +657,8 @@ class Calendar {
         // The weekday abbreviations and the weekend days come from the locale
         // query, which answers after the first paint — and they are both LC_TIME.
         // This used to be told whenever *any* env answered, so LC_ADDRESS landing
-        // — which is asked for only to pick the holiday provider's language, and
-        // which nothing in this header depends on — rebuilt the header, dropped
+        // — historically queried for holiday language, though nothing in this
+        // header depended on it — rebuilt the header, dropped
         // all 42 day cells and every tooltip on them, and made the next update
         // reconstruct the lot.
         this._locale_listener = LocaleQuery.onLocaleInfoChanged("LC_TIME", () => {

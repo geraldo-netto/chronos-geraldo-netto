@@ -1963,9 +1963,8 @@ test("a %s inside a phrase is text, not a placeholder", () => {
 // listener responds by rebuilding its header — destroy_all_children(), which
 // drops all 42 day cells and every per-cell holiday tooltip, and makes the next
 // update reconstruct 42 Cinnamon.Stacks, 42 St.Buttons, 42 GenericContainers and
-// 84 signal connections. LC_ADDRESS is asked for only to pick the holiday
-// provider's language, and nothing in the header depends on it — yet its arrival
-// tore the whole grid down.
+// 84 signal connections. An unrelated category such as LC_ADDRESS used to tear
+// the whole grid down when its answer arrived.
 test("a locale listener hears about its own env and no other", () => {
     const localeQuery = loadLocaleModules("abday=\"Sun;Mon;Tue;Wed;Thu;Fri;Sat\"");
     const heard = { LC_TIME: 0, LC_ADDRESS: 0 };
@@ -1973,7 +1972,7 @@ test("a locale listener hears about its own env and no other", () => {
     localeQuery.onLocaleInfoChanged("LC_TIME", () => heard.LC_TIME++);
     localeQuery.onLocaleInfoChanged("LC_ADDRESS", () => heard.LC_ADDRESS++);
 
-    // the holiday provider's language: LC_ADDRESS answers
+    // an unrelated regional query answers
     localeQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab)();
 
     assert.equal(heard.LC_ADDRESS, 1, "the listener that asked about it is told");

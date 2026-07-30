@@ -51,7 +51,7 @@ const HolidayRecord = IS_NODE ?
     require("./holidayRecord") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
 
-const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
+const _lcLang = LocaleQuery.messageLanguage;
 const validDateParts = HolidayRecord.validDateParts;
 const nonBlankText = HolidayRecord.nonBlankText;
 const HolidayRecordContract = HolidayRecord.HolidayRecordContract;
@@ -340,9 +340,8 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
         this.name = HOLIDAY_PROVIDER_NAMES.OPEN_HOLIDAYS;
     }
 
-    // The locale query answers after the applet is built, so a language frozen
-    // at construction pinned the English default into every request for the
-    // applet's lifetime. A resolver is consulted per fetch instead.
+    // A resolver is consulted per fetch. The shipped resolver follows the
+    // message locale independently of LC_ADDRESS regional formatting.
     _langCode() {
         const lang = typeof this._lang === "function" ? this._lang() : this._lang;
         return String(lang || "en").slice(0, 2).toUpperCase();

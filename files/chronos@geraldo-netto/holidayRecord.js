@@ -20,7 +20,7 @@ const LocaleQuery = IS_NODE ?
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 
 const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
-const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
+const _lcLang = LocaleQuery.messageLanguage;
 
 var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export
 var MAX_HOLIDAYS_PER_YEAR = 1000; // NOSONAR [S3504] -- GJS importer export
@@ -80,10 +80,8 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
         this._lang = lang;
     }
 
-    // The locale query answers after the first paint, so a contract built at
-    // applet construction froze the English default in for the applet's
-    // lifetime. The language may therefore be a resolver, consulted at each
-    // use, so whatever the query settles on is what localization sees.
+    // An injected language may be a live resolver, so consult it at each use.
+    // The shipped resolver reads the message locale, not regional formatting.
     get language() {
         return typeof this._lang === "function" ? this._lang() : this._lang;
     }

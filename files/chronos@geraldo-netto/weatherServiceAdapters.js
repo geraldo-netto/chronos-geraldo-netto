@@ -20,6 +20,9 @@ const IS_NODE = typeof process !== "undefined" &&
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
+const LocaleQuery = IS_NODE ?
+    require("./localeQuery") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 
 // Open-Meteo may return an exact-name hamlet for a large city it knows only by
 // an exonym. A population below this is a candidate, not a confident answer:
@@ -31,7 +34,7 @@ var MIN_TRUSTED_GEOCODE_POPULATION = 1000; // NOSONAR [S3504] -- GJS importer ex
 // what the user typed and by how many people live there, is what makes a wrong
 // first hit survivable.
 var GEOCODE_CANDIDATE_COUNT = 10; // NOSONAR [S3504] -- GJS importer export
-var GEOCODE_LANGUAGE_FALLBACK = "en"; // NOSONAR [S3504] -- GJS importer export
+var GEOCODE_LANGUAGE_FALLBACK = LocaleQuery.MESSAGE_LANGUAGE_FALLBACK; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_USER_AGENT = "chronos@geraldo-netto Cinnamon applet (https://github.com/geraldo-netto/cinnamon-chronos)"; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
     OPEN_METEO: "Open-Meteo",
@@ -71,23 +74,8 @@ function weatherIcon(weatherCode) {
     return "🌤";
 }
 
-// The session's language, as a bare ISO 639-1 code. GLib knows it in Cinnamon;
-// the environment is what says so under Node, and both can name a language the
-// geocoder has never heard of, so anything that is not two letters is "en".
-function hostLanguage() {
-    const environment = IS_NODE ? process.env : {};
-    const names = !IS_NODE && GjsImports.gi.GLib.get_language_names ?
-        GjsImports.gi.GLib.get_language_names() : [];
-
-    return names[0] || environment.LC_ALL || environment.LC_MESSAGES ||
-        environment.LANG || environment.LANGUAGE || "";
-}
-
 function geocodeLanguage(locale) {
-    const raw = locale || hostLanguage();
-    const language = String(raw).toLowerCase().split(/[._@:-]/)[0];
-
-    return (/^[a-z]{2}$/).test(language) ? language : GEOCODE_LANGUAGE_FALLBACK;
+    return LocaleQuery.messageLanguage(locale);
 }
 
 // Open-Meteo ranks a search by the language it is asked in, not only by the name

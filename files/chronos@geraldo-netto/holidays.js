@@ -52,7 +52,7 @@ const ReligiousHolidays = IS_NODE ?
     require("./religiousHolidays") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].religiousHolidays;
 
-const _lcLang = LocaleQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab);
+const _lcLang = LocaleQuery.messageLanguage;
 
 var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS; // NOSONAR [S3504] -- GJS importer export
 
@@ -105,10 +105,8 @@ var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS; // NOSO
 // the adapters are loader-agnostic; this is the single place that hands
 // them an HTTP session, keeping the provider order intact
 function httpBackedService(getSession, params = {}) {
-    // no explicit language means "whatever the locale query settles on": the
-    // lazy resolver is handed down whole, so a fetch dispatched after the
-    // asynchronous answer lands uses the real language, not the English
-    // default that was current at construction
+    // No explicit language means the session's message language. Hand the
+    // resolver down whole so requests and displayed names share one source.
     const lang = params.lang || _lcLang;
     const record = params.record || new HolidayRecordContract(lang);
     const load = params.load || Provider.loaderFor(getSession);
@@ -611,7 +609,7 @@ HolidayService.fn = "/holidays.json";
 // Every node is a parameter with a default, so a caller replaces exactly the one
 // it cares about and the rest of the graph is still the shipped one.
 function createHolidayProvider(params = {}) {
-    // like httpBackedService: an unspecified language stays a live resolver
+    // Like httpBackedService, an unspecified language stays a live resolver.
     const lang = params.lang || _lcLang;
     const record = params.record || new HolidayRecordContract(lang);
     const session = params.httpSession || new IoUtils.LazyHttpSession();

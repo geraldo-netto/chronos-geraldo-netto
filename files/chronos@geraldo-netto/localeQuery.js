@@ -13,6 +13,7 @@
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
+var MESSAGE_LANGUAGE_FALLBACK = "en"; // NOSONAR [S3504] -- GJS importer export
 // `locale -k` answers in milliseconds when it answers at all; this is a
 // deadline, not a budget
 const LOCALE_TIMEOUT_SECONDS = 5;
@@ -159,6 +160,21 @@ function _defaultInfo(env) {
     return Object.assign({}, DEFAULT_LOCALE_INFO[env] || {}); // NOSONAR [S6661] -- accepted compatible form
 }
 
+function hostMessageLocale() {
+    const environment = typeof process === "undefined" ? {} : process.env;
+    const names = GLib.get_language_names ? GLib.get_language_names() : [];
+    return names[0] || environment.LC_ALL || environment.LC_MESSAGES ||
+        environment.LANG || environment.LANGUAGE || "";
+}
+
+// Display and request language follows the message locale, independently of
+// LC_ADDRESS/LC_TIME regional formatting. Providers accept ISO 639-1 only.
+function messageLanguage(locale) {
+    const language = String(locale || hostMessageLocale())
+        .toLowerCase().split(/[._@:-]/)[0];
+    return (/^[a-z]{2}$/).test(language) ? language : MESSAGE_LANGUAGE_FALLBACK;
+}
+
 // values derived from locale info are memoized against this: they are all
 // computed before the locale query answers, and must be recomputed after
 var localeGeneration = 0; // NOSONAR [S3504] -- GJS importer export
@@ -172,10 +188,9 @@ var localeGeneration = 0; // NOSONAR [S3504] -- GJS importer export
 // listener responds by rebuilding its whole header — destroy_all_children(),
 // which drops the 42 day cells and every per-cell holiday tooltip with them, and
 // then the next update rebuilds 42 Cinnamon.Stacks, 42 St.Buttons, 42
-// GenericContainers and 84 signal connections. LC_ADDRESS is asked for only to
-// pick the holiday provider's language, and nothing in the header depends on it —
-// yet its arrival tore the whole grid down. One spurious full-grid rebuild per
-// session, and up to three more if `locale -k` degrades and retries.
+// GenericContainers and 84 signal connections. An unrelated locale category —
+// historically LC_ADDRESS — could therefore tear the whole grid down when it
+// answered. Scope each listener to the category its view actually consumes.
 function onLocaleInfoChanged(env, callback) {
     const entry = { env, callback };
     listeners.push(entry);
@@ -400,6 +415,8 @@ if (typeof module !== "undefined") {
         cancelPendingLocaleQueries,
         onLocaleInfoChanged,
         lazyLocaleValue,
+        MESSAGE_LANGUAGE_FALLBACK,
+        messageLanguage,
         getInfo
     };
 }
