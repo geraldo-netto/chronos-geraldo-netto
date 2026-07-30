@@ -787,7 +787,23 @@ test("README documents weather privacy data flow", () => {
     assert.match(readme, /Open-Meteo/);
     assert.match(readme, /geocoding-api\.open-meteo\.com/);
     assert.match(readme, /api\.open-meteo\.com/);
-    assert.match(readme, /every 30 minutes/);
+
+    // REFRESH_SECONDS is the one source; the README and the consent tooltip
+    // quote it in prose, and a cadence change must not outrun the disclosure
+    // (the holiday refresh-period test above is the same shape)
+    const weatherFormat = require(path.join(appletDir, "weatherFormat.js"));
+    const minutes = weatherFormat.REFRESH_SECONDS / 60;
+    const statedMinutes = Array.from(readme.matchAll(/every\s+(\d+)\s+minutes/gi))
+        .map((match) => Number(match[1]));
+    assert.notEqual(statedMinutes.length, 0, "the README must state the refresh cadence");
+    for (const stated of statedMinutes) {
+        assert.equal(stated, minutes);
+    }
+
+    const tooltip = schema("5.4")["weather-location"].tooltip;
+    const tooltipMinutes = /every (\d+) minutes/.exec(tooltip);
+    assert.ok(tooltipMinutes, "the consent tooltip must state the refresh cadence");
+    assert.equal(Number(tooltipMinutes[1]), minutes);
 });
 
 test("README links to Enrico over canonical HTTPS URLs", () => {
