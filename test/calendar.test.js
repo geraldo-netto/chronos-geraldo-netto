@@ -165,7 +165,7 @@ test("navigation controller owns no-op, cancellation, and focus boundaries", () 
 function browse(fromDate, yearChange, monthChange) {
     let queued = null;
     const stub = {
-        _selectedDate: fromDate,
+        _navigation: { queuedDate: null, selectedDate: fromDate },
         queue_set_date(date) {
             queued = date;
         }
@@ -692,10 +692,10 @@ test("the grid is navigable from the keyboard and announces its days", () => {
     assert.equal(cal.getSelectedDate().getDate(), 9);
 
     press(Clutter.KEY_Page_Down);
-    cal._queue_set_date_idle();
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getMonth(), 7, "page down moves a month");
     press(Clutter.KEY_Page_Up);
-    cal._queue_set_date_idle();
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getMonth(), 6);
 
     press(Clutter.KEY_Home);
@@ -719,7 +719,7 @@ test("the grid is navigable from the keyboard and announces its days", () => {
     MockActor.focused = null;
     press(Clutter.KEY_Page_Down);
     assert.equal(MockActor.focused, null, "nothing is focused before the date lands");
-    cal._queue_set_date_idle();
+    cal._navigation.flushQueuedDate();
     assert.ok(MockActor.focused, "and the newly selected day has focus once it does");
 });
 
@@ -1861,7 +1861,7 @@ test("queued calendar updates and reloads run exactly once", () => {
     cal.setDate = (...args) => { setDateArgs = args; };
     cal.queue_set_date(queuedDate);
     cal.queue_set_date(new Date(2026, 10, 6));
-    assert.equal(cal._set_date_idle_id, 13);
+    assert.equal(cal._navigation.setDateIdleId, 13);
     assert.equal(callbacks.at(-1)(), false);
     assert.equal(setDateArgs[0].getDate(), 6);
     assert.equal(setDateArgs[1], false);
@@ -2102,11 +2102,11 @@ test("a burst of month changes accumulates instead of overwriting itself", () =>
     cal._onNextMonthButtonClicked();
     cal._onNextMonthButtonClicked();
 
-    assert.equal(cal._queued_set_date.getMonth(), 3, "three notches are three months");
-    assert.equal(cal._queued_set_date.getFullYear(), 2026);
+    assert.equal(cal._navigation.queuedDate.getMonth(), 3, "three notches are three months");
+    assert.equal(cal._navigation.queuedDate.getFullYear(), 2026);
 
     // the coalesced date lands once
-    cal._queue_set_date_idle();
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getMonth(), 3);
 
     // ...and it still rolls the year correctly across December
@@ -2114,15 +2114,15 @@ test("a burst of month changes accumulates instead of overwriting itself", () =>
     cal._onNextMonthButtonClicked();
     cal._onNextMonthButtonClicked();
     cal._onNextMonthButtonClicked();
-    assert.equal(cal._queued_set_date.getFullYear(), 2027);
-    assert.equal(cal._queued_set_date.getMonth(), 1);
+    assert.equal(cal._navigation.queuedDate.getFullYear(), 2027);
+    assert.equal(cal._navigation.queuedDate.getMonth(), 1);
 
     // and back the other way
-    cal._queue_set_date_idle();
+    cal._navigation.flushQueuedDate();
     cal._onPrevMonthButtonClicked();
     cal._onPrevMonthButtonClicked();
-    assert.equal(cal._queued_set_date.getFullYear(), 2026);
-    assert.equal(cal._queued_set_date.getMonth(), 11);
+    assert.equal(cal._navigation.queuedDate.getFullYear(), 2026);
+    assert.equal(cal._navigation.queuedDate.getMonth(), 11);
 });
 
 // Cinnamon's Tooltip.set_text() has no equality guard — it calls
@@ -2232,13 +2232,13 @@ test("the paging keys are the grid's, not the navigation buttons'", () => {
 
     assert.equal(cal.getSelectedDate().getMonth(), 6,
         "the month does not move while the user is operating a button");
-    assert.equal(cal._queued_set_date, null);
+    assert.equal(cal._navigation.queuedDate, null);
 
     // ...and from a day cell they still work
     const day = dayButtons(cal).find((b) => b.label === "9");
     global.stage = { get_key_focus: () => day };
     cal.actor.fire("key-press-event", { get_key_symbol: () => 65366 });
-    assert.equal(cal._queued_set_date.getMonth(), 7, "PageDown from the grid is next month");
+    assert.equal(cal._navigation.queuedDate.getMonth(), 7, "PageDown from the grid is next month");
 
     global.stage = undefined;
 });

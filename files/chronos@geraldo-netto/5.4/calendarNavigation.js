@@ -70,7 +70,9 @@ class CalendarNavigationController {
         this.queuedDate = null;
     }
 
-    _applyQueuedDate() {
+    // Public: the timeout below drives it, and tests flush a queued browse
+    // without waiting out the 25ms coalescing window.
+    flushQueuedDate() {
         const date = this.queuedDate;
         this.queuedDate = null;
         this.setDateIdleId = 0;
@@ -85,7 +87,7 @@ class CalendarNavigationController {
     queueDate(date) {
         this.queuedDate = date;
         if (this.setDateIdleId === 0) {
-            this.setDateIdleId = Mainloop.timeout_add(25, this._applyQueuedDate.bind(this));
+            this.setDateIdleId = Mainloop.timeout_add(25, this.flushQueuedDate.bind(this));
         }
     }
 

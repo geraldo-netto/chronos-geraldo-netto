@@ -993,14 +993,6 @@ class Calendar {
         this._navigation.selectedDate = date;
     }
 
-    get _queued_set_date() {
-        return this._navigation.queuedDate;
-    }
-
-    get _set_date_idle_id() {
-        return this._navigation.setDateIdleId;
-    }
-
     get _day_cells() { return this._gridView.dayCells; }
     get _week_labels() { return this._gridView.weekLabels; }
     get _day_headings() { return this._gridView.dayHeadings; }
@@ -1137,10 +1129,6 @@ class Calendar {
 
     _cancel_set_date_idle() {
         this._navigation.cancelQueuedDate();
-    }
-
-    _queue_set_date_idle() {
-        return this._navigation._applyQueuedDate();
     }
 
     queue_set_date(date) {
@@ -1376,8 +1364,8 @@ class Calendar {
     }
 
     _applyDateBrowseAction(yearChange, monthChange) {
-        const queued = this._navigation ? this._navigation.queuedDate : this._queued_set_date;
-        const selected = this._navigation ? this._navigation.selectedDate : this._selectedDate;
+        const queued = this._navigation.queuedDate;
+        const selected = this._navigation.selectedDate;
         this.queue_set_date(browsedDate(queued || selected, yearChange, monthChange));
     }
 
