@@ -138,7 +138,9 @@ Node 22.13.0 / Python 3.8 floors and the current Node 26 / Python 3.14 pair.
 ### Releasing
 
 Releases use strict `major.minor.patch` versions. Record user-visible changes as
-bullets under **Unreleased** in `CHANGELOG.md`, then run:
+bullets under **Unreleased** in `CHANGELOG.md`. The upstream default and release
+branch is `develop`. Version `0.0.1` records the untagged development baseline,
+not a published release, so public releases begin with `0.0.2`. Prepare it with:
 
 ```sh
 npm run release:bump -- 0.0.2
@@ -160,8 +162,8 @@ comes after the commit because the submission is built from Git-index bytes;
 this guarantees the staged artifact contains the version that just passed the
 gates instead of the pre-bump metadata.
 
-After that commit is merged to `main` and its CI is green, create and push an
-annotated matching tag:
+After that commit is pushed to `develop` and its branch CI is green, create and
+push an annotated matching tag:
 
 ```sh
 git tag -a v0.0.2 -m "Cinnamon Chronos 0.0.2"

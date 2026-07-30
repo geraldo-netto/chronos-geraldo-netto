@@ -55,11 +55,19 @@ async function git(root, ...args) {
 }
 
 async function initializeReleaseRepository(root) {
-    await git(root, "init", "--quiet", "--initial-branch=main");
+    await git(root, "init", "--quiet", "--initial-branch=develop");
     await git(root, "add", ".");
     await git(root, "-c", "user.name=Chronos Test",
         "-c", "user.email=chronos@example.invalid",
         "commit", "--quiet", "-m", "release fixture");
+}
+
+async function makeFinalizedReleaseFixture(t) {
+    const root = await makeReleaseFixture(t);
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { bumpRelease } = await import(releaseUrl);
+    await bumpRelease(root, "0.0.2", { date: "2026-07-30" });
+    return root;
 }
 
 test("release metadata, changelog, and an optional tag agree", async () => {
@@ -68,31 +76,33 @@ test("release metadata, changelog, and an optional tag agree", async () => {
 
     assert.equal(await checkRelease(ROOT), "0.0.1");
     await assert.rejects(checkRelease(ROOT, "v0.0.2"), /does not match version v0\.0\.1/);
+    await assert.rejects(checkRelease(ROOT, "v0.0.1"),
+        /points at an unfinalized development baseline/);
 });
 
 test("release tags are annotated, checked out, and on the release branch", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { checkRelease } = await import(releaseUrl);
 
-    const accepted = await makeReleaseFixture(t);
+    const accepted = await makeFinalizedReleaseFixture(t);
     await initializeReleaseRepository(accepted);
     await git(accepted, "-c", "user.name=Chronos Test",
         "-c", "user.email=chronos@example.invalid",
-        "tag", "-a", "v0.0.1", "-m", "Chronos 0.0.1");
-    assert.equal(await checkRelease(accepted, "v0.0.1", "main"), "0.0.1");
+        "tag", "-a", "v0.0.2", "-m", "Chronos 0.0.2");
+    assert.equal(await checkRelease(accepted, "v0.0.2", "develop"), "0.0.2");
 
-    const missing = await makeReleaseFixture(t);
+    const missing = await makeFinalizedReleaseFixture(t);
     await initializeReleaseRepository(missing);
-    await assert.rejects(checkRelease(missing, "v0.0.1", "main"),
-        /release tag v0\.0\.1 does not exist/);
+    await assert.rejects(checkRelease(missing, "v0.0.2", "develop"),
+        /release tag v0\.0\.2 does not exist/);
 
-    const lightweight = await makeReleaseFixture(t);
+    const lightweight = await makeFinalizedReleaseFixture(t);
     await initializeReleaseRepository(lightweight);
-    await git(lightweight, "tag", "v0.0.1");
-    await assert.rejects(checkRelease(lightweight, "v0.0.1", "main"),
-        /release tag v0\.0\.1 must be annotated/);
+    await git(lightweight, "tag", "v0.0.2");
+    await assert.rejects(checkRelease(lightweight, "v0.0.2", "develop"),
+        /release tag v0\.0\.2 must be annotated/);
 
-    const offBranch = await makeReleaseFixture(t);
+    const offBranch = await makeFinalizedReleaseFixture(t);
     await initializeReleaseRepository(offBranch);
     await git(offBranch, "checkout", "--quiet", "-b", "candidate");
     await fs.writeFile(path.join(offBranch, "candidate.txt"), "not merged\n");
@@ -102,9 +112,9 @@ test("release tags are annotated, checked out, and on the release branch", async
         "commit", "--quiet", "-m", "off-branch release");
     await git(offBranch, "-c", "user.name=Chronos Test",
         "-c", "user.email=chronos@example.invalid",
-        "tag", "-a", "v0.0.1", "-m", "Chronos 0.0.1");
-    await assert.rejects(checkRelease(offBranch, "v0.0.1", "main"),
-        /release tag v0\.0\.1 is not reachable from main/);
+        "tag", "-a", "v0.0.2", "-m", "Chronos 0.0.2");
+    await assert.rejects(checkRelease(offBranch, "v0.0.2", "develop"),
+        /release tag v0\.0\.2 is not reachable from develop/);
 });
 
 test("the release bump moves notes and updates every version owner", async (t) => {
@@ -164,18 +174,24 @@ const DENIED_RELEASE_STATES = [
             metadata.version = "0.0.1-rc1";
         }),
         /version must be strict SemVer/],
-    ["a changelog without the dated release heading",
+    ["a changelog without a valid development heading",
         (root) => editText(root, "CHANGELOG.md",
-            (text) => text.replace(/^## \[0\.0\.1\] - \d{4}-\d{2}-\d{2}$/m, "## 0.0.1")),
-        /CHANGELOG\.md has no dated 0\.0\.1 release heading/],
-    ["a changelog without the Unreleased compare link",
+            (text) => text.replace(/^## \[0\.0\.1\].*$/m, "## 0.0.1")),
+        /CHANGELOG\.md has no valid 0\.0\.1 release state/],
+    ["a development baseline without its branch link",
         (root) => editText(root, "CHANGELOG.md",
             (text) => text.replace(/^\[Unreleased\]: .*$/m, "")),
-        /CHANGELOG\.md Unreleased link does not start at v0\.0\.1/],
-    ["a changelog without the release tag link",
+        /development baseline does not follow develop/],
+    ["a development baseline claiming a comparison tag",
         (root) => editText(root, "CHANGELOG.md",
-            (text) => text.replace(/^\[0\.0\.1\]: .*$/m, "")),
-        /CHANGELOG\.md has no v0\.0\.1 release link/]
+            (text) => text + "\n[Unreleased]: " +
+                "https://github.com/geraldo-netto/cinnamon-chronos/compare/v0.0.1...HEAD\n"),
+        /development baseline must not claim v0\.0\.1/],
+    ["a development baseline claiming a release tag",
+        (root) => editText(root, "CHANGELOG.md",
+            (text) => text + "\n[0.0.1]: " +
+                "https://github.com/geraldo-netto/cinnamon-chronos/releases/tag/v0.0.1\n"),
+        /development baseline must not claim v0\.0\.1/]
 ];
 
 test("the release check rejects every inconsistent release surface", async (t) => {
@@ -185,6 +201,22 @@ test("the release check rejects every inconsistent release surface", async (t) =
     for (const [state, mutate, expected] of DENIED_RELEASE_STATES) {
         const root = await makeReleaseFixture(t, mutate);
         await assert.rejects(checkRelease(root), expected, `accepted ${state}`);
+    }
+});
+
+test("a finalized release requires its heading and both tag links", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease } = await import(releaseUrl);
+    const cases = [
+        [/^## \[0\.0\.2\] - .*$/m, "## 0.0.2", /no valid 0\.0\.2 release state/],
+        [/^\[Unreleased\]: .*$/m, "", /Unreleased link does not start at v0\.0\.2/],
+        [/^\[0\.0\.2\]: .*$/m, "", /has no v0\.0\.2 release link/]
+    ];
+
+    for (const [pattern, replacement, expected] of cases) {
+        const root = await makeFinalizedReleaseFixture(t);
+        await editText(root, "CHANGELOG.md", (text) => text.replace(pattern, replacement));
+        await assert.rejects(checkRelease(root), expected);
     }
 });
 
@@ -207,7 +239,7 @@ const DENIED_BUMP_INPUTS = [
         (root) => editText(root, "CHANGELOG.md", (text) =>
             text.replace(/^(\[Unreleased\]: .*)$/m, "$1  ")),
         "0.0.2", { date: "2026-07-18" },
-        /could not rewrite the exact Unreleased compare link/]
+        /development baseline does not follow develop/]
 ];
 
 test("the release bump rejects bad input before touching any file", async (t) => {

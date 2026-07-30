@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T590 | process and delivery governance; documentation; CI | Medium | open | M | Align the documented branch/release history with the actual upstream repository. | **[verified]** On 2026-07-29, `git ls-remote --heads --tags origin` returned only `refs/heads/develop`: no `main` and no `v*` tag. This conflicts with `README.md:157-166`, which requires a release commit merged to `main` with green CI; `.github/workflows/ci.yml:12-15` runs only pull requests and `v*` tags, so no branch push can provide that post-merge signal; and `CHANGELOG.md:26,35-36` records and links a `0.0.1` release/tag that upstream lacks. Either create/protect the documented branch and publish the intended tag/release, or revise CI, changelog, and release docs to describe a develop-only unreleased state. |
 
 ## Rejected
 

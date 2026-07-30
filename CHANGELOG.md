@@ -8,6 +8,8 @@ All notable changes to Cinnamon Chronos are recorded here. The format follows
 
 ### Changed
 
+- CI and release provenance now follow the upstream `develop` branch and no
+  longer claim a nonexistent `v0.0.1` tag.
 - Development tooling and CI now require Node.js 22; Node.js 20 is no longer
   supported.
 - The applet now uses original Chronos artwork instead of the inherited
@@ -23,7 +25,7 @@ All notable changes to Cinnamon Chronos are recorded here. The format follows
 - Zip-based installs now receive the complete applet icon instead of a corrupt
   12-byte symlink payload.
 
-## [0.0.1] - 2026-07-17
+## [0.0.1] - 2026-07-17 (development baseline; not released)
 
 ### Added
 
@@ -32,5 +34,4 @@ All notable changes to Cinnamon Chronos are recorded here. The format follows
 - Reproducible Cinnamon Spices packaging, complete translation catalogs, and CI
   gates for the supported Node runtimes.
 
-[Unreleased]: https://github.com/geraldo-netto/cinnamon-chronos/compare/v0.0.1...HEAD
-[0.0.1]: https://github.com/geraldo-netto/cinnamon-chronos/releases/tag/v0.0.1
+[Unreleased]: https://github.com/geraldo-netto/cinnamon-chronos/commits/develop

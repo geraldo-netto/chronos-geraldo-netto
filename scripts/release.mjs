@@ -11,6 +11,8 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const UUID = "chronos@geraldo-netto";
 const REPOSITORY = "https://github.com/geraldo-netto/cinnamon-chronos";
+const RELEASE_BRANCH = "develop";
+const RELEASE_BRANCH_REF = `origin/${RELEASE_BRANCH}`;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const LOCK_FILE = ".chronos-release-lock";
 const TRANSACTION_DIR = ".chronos-release-transaction";
@@ -272,7 +274,7 @@ async function writeReleaseTransaction(root, transaction) {
     await rm(published, { recursive: true });
 }
 
-function validateReleaseFiles(files, tag) {
+function validateVersionOwners(files) {
     const version = files.metadata.version;
     parseVersion(version);
     const versions = [
@@ -285,24 +287,56 @@ function validateReleaseFiles(files, tag) {
             throw new Error(`${source} version ${candidate} does not match metadata.json ${version}`);
         }
     }
+    return version;
+}
 
-    if (!new RegExp(`^## \\[${version.replaceAll(".", "\\.")}\\] - \\d{4}-\\d{2}-\\d{2}$`, "m") // NOSONAR [S7780] -- accepted compatible form
-        .test(files.changelog)) {
-        throw new Error(`CHANGELOG.md has no dated ${version} release heading`);
+function changelogState(changelog, version) {
+    const escapedVersion = version.replaceAll(".", "\\.");
+    const releasedHeading = new RegExp(
+        `^## \\[${escapedVersion}\\] - \\d{4}-\\d{2}-\\d{2}$`, "m") // NOSONAR [S7780] -- accepted compatible form
+        .test(changelog);
+    const developmentHeading = new RegExp(
+        `^## \\[${escapedVersion}\\] - \\d{4}-\\d{2}-\\d{2} ` +
+        "\\(development baseline; not released\\)$", "m") // NOSONAR [S7780] -- accepted compatible form
+        .test(changelog);
+    const lines = new Set(changelog.split("\n"));
+    const comparisonLink = `[Unreleased]: ${REPOSITORY}/compare/v${version}...HEAD`;
+    const tagLink = `[${version}]: ${REPOSITORY}/releases/tag/v${version}`;
+    const developmentLink = `[Unreleased]: ${REPOSITORY}/commits/${RELEASE_BRANCH}`;
+
+    if (developmentHeading) {
+        validateDevelopmentChangelog(lines, developmentLink, comparisonLink, tagLink, version);
+        return "development";
     }
-    if (!files.changelog.includes(
-        `[Unreleased]: ${REPOSITORY}/compare/v${version}...HEAD`)) {
+    if (!releasedHeading) {
+        throw new Error(`CHANGELOG.md has no valid ${version} release state`);
+    }
+    if (!lines.has(comparisonLink)) {
         throw new Error(`CHANGELOG.md Unreleased link does not start at v${version}`);
     }
-    if (!files.changelog.includes(
-        `[${version}]: ${REPOSITORY}/releases/tag/v${version}`)) {
+    if (!lines.has(tagLink)) {
         throw new Error(`CHANGELOG.md has no v${version} release link`);
     }
+    return "released";
+}
 
-    if (tag !== undefined && tag !== null && tag !== "") {
-        if (tag !== `v${version}`) {
-            throw new Error(`release tag ${tag} does not match version v${version}`);
-        }
+function validateDevelopmentChangelog(lines, developmentLink, comparisonLink, tagLink, version) {
+    if (!lines.has(developmentLink)) {
+        throw new Error(`CHANGELOG.md development baseline does not follow ${RELEASE_BRANCH}`);
+    }
+    if (lines.has(comparisonLink) || lines.has(tagLink)) {
+        throw new Error(`CHANGELOG.md development baseline must not claim v${version}`);
+    }
+}
+
+function validateReleaseFiles(files, tag) {
+    const version = validateVersionOwners(files);
+    const suppliedTag = tag !== undefined && tag !== null && tag !== "";
+    if (suppliedTag && tag !== `v${version}`) {
+        throw new Error(`release tag ${tag} does not match version v${version}`);
+    }
+    if (changelogState(files.changelog, version) === "development" && suppliedTag) {
+        throw new Error(`release tag ${tag} points at an unfinalized development baseline`);
     }
     return version;
 }
@@ -314,7 +348,7 @@ function gitResult(root, args) {
     });
 }
 
-export function validateReleaseTag(projectRoot, tag, releaseBranch = "origin/main") {
+export function validateReleaseTag(projectRoot, tag, releaseBranch = RELEASE_BRANCH_REF) {
     const root = path.resolve(projectRoot);
     const tagRef = `refs/tags/${tag}`;
     const object = gitResult(root, ["cat-file", "-t", tagRef]);
@@ -340,7 +374,7 @@ export function validateReleaseTag(projectRoot, tag, releaseBranch = "origin/mai
     }
 }
 
-export async function checkRelease(projectRoot, tag, releaseBranch = "origin/main") {
+export async function checkRelease(projectRoot, tag, releaseBranch = RELEASE_BRANCH_REF) {
     const root = path.resolve(projectRoot);
     return withReleaseLock(root, async () => {
         const files = await readReleaseFiles(root);
@@ -384,14 +418,14 @@ async function bumpReleaseLocked(root, nextVersion, options) {
     let changelog = files.changelog.slice(0, notesStart) +
         `\n\n## [${nextVersion}] - ${date}\n\n${notes}\n` +
         files.changelog.slice(nextHeading);
+    const developmentLink = `[Unreleased]: ${REPOSITORY}/commits/${RELEASE_BRANCH}`;
+    const comparisonLink = `[Unreleased]: ${REPOSITORY}/compare/v${currentVersion}...HEAD`;
+    const previousLink = files.changelog.split("\n").includes(developmentLink) ?
+        developmentLink : comparisonLink;
     const linkedChangelog = changelog.replace(
-        new RegExp(`^\\[Unreleased\\]: ${REPOSITORY.replaceAll(".", "\\.")}\\/compare\\/v` + // NOSONAR [S7780] -- accepted compatible form
-            `${currentVersion.replaceAll(".", "\\.")}\\.\\.\\.HEAD$`, "m"), // NOSONAR [S7780] -- accepted compatible form
+        previousLink,
         `[Unreleased]: ${REPOSITORY}/compare/v${nextVersion}...HEAD\n` +
         `[${nextVersion}]: ${REPOSITORY}/releases/tag/v${nextVersion}`);
-    if (linkedChangelog === changelog) {
-        throw new Error("CHANGELOG.md could not rewrite the exact Unreleased compare link");
-    }
     files.changelog = linkedChangelog;
     validateReleaseFiles(files);
 

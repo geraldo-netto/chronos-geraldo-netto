@@ -438,8 +438,8 @@ test("CI runs the gates the README promises", () => {
     const artifactName = /^ {10}name: chronos-spices-\$\{\{ github\.sha \}\}$/m;
 
     assert.match(workflow, /on:[\s\S]*push:[\s\S]*pull_request:/, "on push and on pull request");
-    assert.doesNotMatch(workflow, /^ {4}branches:/m,
-        "feature-branch pushes must run CI before a pull request opens");
+    assert.match(workflow, /^ {4}branches: \[develop\]$/m,
+        "the real upstream release branch gets a post-push CI result");
     // every job runs repository and dependency code; the token must not be
     // able to write back, and a mutable action tag must not be able to move
     assert.match(workflow, /^permissions:\n {2}contents: read$/m,
@@ -483,10 +483,10 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /release:[\s\S]*needs: packaging/,
         "a release tag is accepted only after gates and packaging");
     assert.match(releaseJob,
-        /git fetch --no-tags origin main:refs\/remotes\/origin\/main/,
+        /git fetch --no-tags origin develop:refs\/remotes\/origin\/develop/,
         "tag CI fetches the release branch used for ancestry validation");
     assert.match(releaseJob,
-        /npm run release:check -- "\$GITHUB_REF_NAME" origin\/main/,
+        /npm run release:check -- "\$GITHUB_REF_NAME" origin\/develop/,
         "tag CI validates annotated-tag provenance against the release branch");
     assert.match(releaseJob, /uses: actions\/download-artifact@[0-9a-f]{40} # v\d/);
     assert.match(releaseJob, artifactName,
@@ -524,6 +524,8 @@ test("CI runs the gates the README promises", () => {
     assert.equal(pkg.scripts["release:check"], "node scripts/release.mjs check");
     assert.match(readme,
         /replacing\s+that\s+same deterministic artifact when all jobs are rerun/);
+    assert.match(readme, /default and release\s+branch is `develop`/);
+    assert.match(readme, /`0\.0\.1` records the untagged development baseline,\s+not a published release/);
     assert.match(readme, /verifies every checksum and executable mode/);
     assert.match(readme, /do not rebuild the release\s+from a local\s+checkout/);
 
