@@ -10,7 +10,11 @@
 
 
 import gettext
+import logging
 from pathlib import Path
+
+
+LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 
 
 def load_translation():
@@ -19,11 +23,15 @@ def load_translation():
         str(Path.home() / ".local/share/locale"),
         "/usr/share/locale",
     ):
-        translation = gettext.translation(domain, locale_dir, fallback=True)
+        try:
+            translation = gettext.translation(domain, locale_dir, fallback=True)
+        except OSError:
+            LOGGER.warning("Ignoring unreadable translation catalog under %s", locale_dir)
+            continue
         if isinstance(translation, gettext.GNUTranslations):
             return translation.gettext
 
-    return gettext.translation(domain, fallback=True).gettext
+    return gettext.NullTranslations().gettext
 
 
 _ = load_translation()

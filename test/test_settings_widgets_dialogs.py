@@ -179,6 +179,45 @@ class GettextIsolationTest(unittest.TestCase):
 
         self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
 
+    def test_a_corrupt_user_catalog_falls_through_to_the_system_catalog(self):
+        class Translation(gettext.GNUTranslations):
+            def __init__(self): # NOSONAR [S1186] -- deliberate test seam
+                pass
+
+            def gettext(self, message):
+                return "system: " + message
+
+        with self.assertLogs("chronos@geraldo-netto.settings", level="WARNING") as logs:
+            with mock.patch.object(
+                    gettext, "translation",
+                    side_effect=[OSError("Bad magic number"), Translation()]):
+                module = load_module(
+                    COMMON_PATH, "settings_widgets_common_corrupt_user_catalog_test")
+
+        self.assertEqual(module._("Invalid timezone"), "system: Invalid timezone")
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn(".local/share/locale", logs.output[0])
+        self.assertNotIn("Bad magic number", logs.output[0])
+
+    def test_corrupt_catalogs_fall_back_to_source_text(self):
+        with self.assertLogs("chronos@geraldo-netto.settings", level="WARNING") as logs:
+            with mock.patch.object(
+                    gettext, "translation", side_effect=OSError("Bad magic number")):
+                module = load_module(
+                    COMMON_PATH, "settings_widgets_common_corrupt_catalogs_test")
+
+        self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
+        self.assertEqual(len(logs.output), 2)
+        self.assertIn(".local/share/locale", logs.output[0])
+        self.assertIn("/usr/share/locale", logs.output[1])
+
+    def test_non_catalog_translation_failures_still_propagate(self):
+        with mock.patch.object(
+                gettext, "translation", side_effect=RuntimeError("programming error")):
+            with self.assertRaisesRegex(RuntimeError, "programming error"):
+                load_module(
+                    COMMON_PATH, "settings_widgets_common_translation_bug_test")
+
 
 class FakeWindow:
     def __init__(self, size=(800, 694), workarea=(0, 1080, 3840, 2160), broken=False,
