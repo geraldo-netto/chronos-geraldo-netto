@@ -790,6 +790,25 @@ test("every setting that leaves the machine says so where it is switched on", ()
     }
 });
 
+// the consent tooltip counts the services a country name can reach, and the
+// README names them; both were hand-written copies of the provider registry,
+// so a fourth fallback provider would understate the disclosure
+test("the disclosed holiday services are the provider registry", () => {
+    const constants = require(path.join(appletDir, "holidayConstants.js"));
+    const providers = Object.values(constants.HOLIDAY_PROVIDER_NAMES);
+
+    const countWords = { 1: "one", 2: "two", 3: "three", 4: "four", 5: "five" };
+    const tooltip = schema("5.4").country.tooltip;
+    assert.match(tooltip, new RegExp(
+        `up to ${countWords[providers.length]} third-party holiday services`));
+
+    const readme = fs.readFileSync(readmePath, "utf8");
+    for (const provider of providers) {
+        assert.ok(readme.includes(provider),
+            `the README privacy section must name ${provider}`);
+    }
+});
+
 test("README documents weather privacy data flow", () => {
     const readme = fs.readFileSync(readmePath, "utf8");
 
