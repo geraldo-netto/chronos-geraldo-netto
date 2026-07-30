@@ -1,7 +1,7 @@
 const {
     assert, test, fs, path, makeRandom, APPLET_DIR, rootModules,
     AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, Proto, panelStatus,
-    Weather, St, FUZZ_SEED, clockStub, readingFrom, weatherCoordinator, suffixStub,
+    Weather, FUZZ_SEED, clockStub, readingFrom, weatherCoordinator, suffixStub,
     updateStub, tooltipEntry
 } = require("./helpers/appletFixture");
 
@@ -433,31 +433,28 @@ test("ellipsizeLabelSuffix leaves an astral suffix that fits in code points alon
     assert.equal(panelStatus({}).ellipsizeLabelSuffix(astral), astral);
 });
 
-// With no mode switch, orientation and desktop clock preferences must never
-// replace the format stored in custom-format.
-test("the configured panel format applies on every panel orientation", () => {
+// Desktop clock preferences must never replace the format stored in
+// custom-format.
+test("the configured panel format remains authoritative", () => {
     const configured = "%Y-%m-%d %H:%M";
-    for (const side of [St.Side.TOP, St.Side.BOTTOM, St.Side.LEFT, St.Side.RIGHT]) {
-        const stub = Object.assign(Object.create(Proto), {
-            orientation: side,
-            custom_format: configured,
-            worldclocks: [],
-            clock: {
-                formats: [],
-                set_format_string(fmt) {
-                    this.formats.push(fmt);
-                    return true;
-                }
-            },
-            desktop_settings: { use24h: true, showSeconds: false },
-            _worldclocks: { buildClocks() {}, setFormat() {}, setVisible() {} }
-        });
+    const stub = Object.assign(Object.create(Proto), {
+        custom_format: configured,
+        worldclocks: [],
+        clock: {
+            formats: [],
+            set_format_string(fmt) {
+                this.formats.push(fmt);
+                return true;
+            }
+        },
+        desktop_settings: { use24h: true, showSeconds: false },
+        _worldclocks: { buildClocks() {}, setFormat() {}, setVisible() {} }
+    });
 
-        Proto._updateFormatString.call(stub);
+    Proto._updateFormatString.call(stub);
 
-        assert.equal(stub.clock.formats.at(-1), configured, `side ${side}`);
-        assert.equal(stub.worldclock_format, configured, `world clocks on side ${side}`);
-    }
+    assert.equal(stub.clock.formats.at(-1), configured);
+    assert.equal(stub.worldclock_format, configured);
 });
 
 // REGRESSION: the panel suffix used to carry the condition glyph and to bolt
@@ -509,7 +506,6 @@ test("the tooltip is exactly the UTC/local/city table", () => {
         weatherError: "",
         weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }, { label: "Tokyo" }],
-        panel_clocks: 1,
         cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : { condition: "🌨", temperatureC: -1 }),
         cityWeatherProviderName: () => "Aviation Weather"
     });
@@ -558,7 +554,6 @@ test("nothing hangs off the bottom of the tooltip table", () => {
         weatherError: "",
         weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
-        panel_clocks: 1,
         cityWeatherReading: () => ({ condition: "🌧", temperatureC: 12 }),
         cityWeatherProviderName: () => "Aviation Weather"
     });
@@ -625,9 +620,8 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
     assert.ok(lines[0].includes("  5°C"), "the short reading is padded, not the column");
 });
 
-// REGRESSION: hovering the panel used to redraw the tooltip from the panel's
-// own clock subset - the rows capped by panel_clocks, with the built-in UTC and
-// local rows left out - so the tooltip lost exactly the rows it exists to show.
+// REGRESSION: hovering the panel used to redraw the tooltip from an incomplete
+// configured-clock subset, leaving the built-in UTC and local rows out.
 test("a hovered panel shows every clock in the tooltip and none on the panel", () => {
     const { stub, calls } = updateStub({ menuOpen: false });
     stub._panel_hovered = true;
@@ -729,13 +723,9 @@ test("fuzz: the panel label builder never throws on any weather state", () => {
     const glyphs = Object.keys(Weather.WEATHER_CONDITIONS);
     const errors = Object.values(Weather.WEATHER_ERRORS).concat(["", "boom", "⚠", "네트워크"]);
     const readings = ["", "20°C", "-3 °F", "…", "🌡".repeat(40), "x".repeat(200)];
-    const sides = [St.Side.TOP, St.Side.BOTTOM, St.Side.LEFT, St.Side.RIGHT];
-
     for (let round = 0; round < 400; round++) {
         const glyph = rand() < 0.5 ? glyphs[Math.floor(rand() * glyphs.length)] + " " : "";
-        const orientation = sides[Math.floor(rand() * sides.length)];
         const stub = suffixStub({
-            orientation,
             show_weather: rand() < 0.8,
             weatherReading: {
                 condition: glyph,
@@ -772,7 +762,6 @@ test("fuzz: the panel label builder never throws on any weather state", () => {
 test("the world-clock block hides only when the setting says so", () => {
     const shown = [];
     const stub = Object.assign(Object.create(Proto), {
-        orientation: St.Side.TOP,
         custom_format: "",
         clock: clockStub({ set_format_string: () => true }),
         desktop_settings: { use24h: true, showSeconds: true },
@@ -829,7 +818,6 @@ test("the tooltip never adds a standalone date/time header", () => {
         weatherReading: null,
         weatherError: "",
         worldclocks: [],
-        panel_clocks: 0,
         cityWeatherReading: () => null,
         cityWeatherProviderName: () => ""
     };
@@ -922,11 +910,9 @@ test("an unchanged panel label is not rewritten", () => {
         "a changed clock still reaches the panel");
 });
 
-test("an empty clock list formats no clocks, whatever panel-clocks says", () => {
-    // panel_clocks is a cap, not a demand: with nothing to show, formatting a
-    // clock every second is pure waste
+test("an empty clock list formats no clocks while the menu is closed", () => {
     const { stub, calls } = updateStub({ menuOpen: false });
-    Object.assign(stub, { worldclocks: [], panel_clocks: 3, _panel_hovered: false });
+    Object.assign(stub, { worldclocks: [], _panel_hovered: false });
 
     Proto._updateClockAndDate.call(stub);
 
@@ -972,10 +958,8 @@ test("the panel view exposes the weather reading record", () => {
 test("a panel view can be substituted whole", () => {
     const reads = [];
     const view = {
-        orientation: St.Side.TOP,
         showWeather: true,
         worldclocksEnabled: false,
-        panelClocks: 0,
         worldclocks: [],
         panelHovered: false,
         menuOpen: false,
@@ -1014,7 +998,6 @@ test("a weather failure explains itself even with no world clocks", () => {
     const base = {
         showWeather: true,
         worldclocksEnabled: false,
-        panelClocks: 0,
         worldclocks: [],
         desktopSettings: { use24h: true },
         weatherProvider: "",
@@ -1366,10 +1349,8 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
         time: "12 Jul 22:03", localTime: { format: () => "12 Jul 22:03" }
     };
     const view = {
-        orientation: St.Side.TOP,
         showWeather: false,
         worldclocksEnabled: true,
-        panelClocks: 1,
         worldclocks: [{ label: "Tokyo" }],
         panelHovered: true,
         menuOpen: false,

@@ -1,6 +1,6 @@
 const {
     assert, test, rootModules, AppletModule, CoordinatorModule, PanelStatusModule,
-    MAX_SUFFIX, ELLIPSIS, Proto, panelStatus, DateFormats, St,
+    MAX_SUFFIX, ELLIPSIS, Proto, panelStatus, DateFormats,
     clockStub, readingFrom, suffixStub, updateStub, tooltipEntry
 } = require("./helpers/appletFixture");
 
@@ -8,7 +8,6 @@ test("switching world clocks off stops the work they cost", () => {
     const { stub, calls } = updateStub({ menuOpen: true });
     Object.assign(stub, {
         show_worldclocks: false,
-        panel_clocks: 2,
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
         _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
     });
@@ -63,7 +62,6 @@ test("turning world clocks off stops the city weather that was fetched for them"
         weather_units: "si",
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
         show_events: false,
-        orientation: St.Side.TOP,
         custom_format: "",
         desktop_settings: { use24h: true, showSeconds: false },
         _updateFormatString: () => {},
@@ -298,15 +296,12 @@ test("a broken translated date format falls back to the untranslated one", () =>
 
 // T27d: suffix building and ellipsizing
 // a reading record {condition, temperatureC} from a display string like "☀ 20°C"
-test("buildLabelSuffix is the temperature on every panel orientation", () => {
+test("buildLabelSuffix is the temperature", () => {
     // the panel shows the temperature; the sky glyph is in the tooltip and in
     // the accessible name, both of which say it in words anyway
-    for (const orientation of [St.Side.TOP, St.Side.BOTTOM, St.Side.LEFT, St.Side.RIGHT]) {
-        assert.equal(panelStatus(suffixStub({
-            orientation,
-            weatherReading: readingFrom("☀ 20°C")
-        })).buildLabelSuffix(), "20°C");
-    }
+    assert.equal(panelStatus(suffixStub({
+        weatherReading: readingFrom("☀ 20°C")
+    })).buildLabelSuffix(), "20°C");
 
     // world clocks never reach the panel, however many are configured: they are
     // a table, and the panel is one line the date and the weather already share
@@ -436,7 +431,6 @@ test("_updateClockAndDate with the menu closed only updates the label", () => {
 
 test("a closed panel with nothing to show does no per-tick clock work", () => {
     const { stub, calls } = updateStub({ menuOpen: false });
-    stub.panel_clocks = 0;
     stub.show_weather = false;
 
     Proto._updateClockAndDate.call(stub);
@@ -547,12 +541,10 @@ test("the panel presenter reads and writes through a view it is given", () => {
     // the seam is the whole API now: the presenter holds no applet, so a view
     // that answers every question it asks is enough to drive it
     const view = {
-        orientation: 0,
         showWeather: false,
         worldclocksEnabled: true,
         customFormat: "",
         customTooltipFormat: "",
-        panelClocks: 0,
         worldclocks: [],
         // the menu is open, so the tooltip and the today button are drawn too
         panelHovered: true,
@@ -704,7 +696,6 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
         weatherError: "",
         weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
-        panel_clocks: 0,
         cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : null),
         cityWeatherProviderName: () => "Aviation Weather"
     });
@@ -734,8 +725,7 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
 test("the tooltip is empty when there are no clocks or weather status", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: false,
-        worldclocks: [],
-        panel_clocks: 0
+        worldclocks: []
     });
 
     assert.equal(panelStatus(stub).buildTooltipText([]), "");

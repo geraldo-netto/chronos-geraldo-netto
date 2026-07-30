@@ -285,7 +285,6 @@ function suffixStub(overrides = {}) {
         ...appletOverrides
     } = overrides;
     return Object.assign({ // NOSONAR [S6661] -- deliberate test seam
-        orientation: St.Side.TOP,
         show_weather: true,
         weather_units: "si",
         _weatherCoordinator: weatherCoordinator({
@@ -315,8 +314,6 @@ function updateStub({ menuOpen = false } = {}) {
         weather_units: "si",
         _weatherCoordinator: weatherCoordinator(),
         worldclocks: [{ label: "NY", timezone: "America/New_York" }],
-        panel_clocks: 1,
-        orientation: St.Side.TOP,
         menu: { isOpen: menuOpen },
         _worldclocks: {
             setVisible: () => {},
