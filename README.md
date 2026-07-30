@@ -48,17 +48,29 @@ with the applet:
 
 | Tool | Version | Needed for | Install |
 | --- | --- | --- | --- |
-| Node.js | **≥ 22.13.0** | the JS suite and its coverage gate | `sudo apt install nodejs npm` |
+| Node.js | **≥ 22.13.0** | the JS suite and its coverage gate | install with `nvm` as described below |
 | Python 3 | ≥ 3.8 | the settings-widget suite | already present |
 | eslint | `^10` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
 | gettext | any | compiling catalogs (`msgfmt`) and rejecting active fuzzy entries (`msgattrib`) | `sudo apt install gettext` |
 
-Run `npm ci` (or `npm install` when changing dependencies) before the JavaScript
-suite or linter. It installs the three direct development dependencies declared
-in `package.json`; the applet itself does not ship them. The suites run on
-Node's built-in test runner and Python's `unittest`.
+Linux Mint's package repository can provide a Node.js release older than this
+project supports. Install the maintained [Node Version Manager
+(`nvm`)](https://github.com/nvm-sh/nvm#installing-and-updating), then install and
+verify the supported floor before installing project dependencies:
+
+```sh
+nvm install 22.13.0
+nvm use 22.13.0
+node --version                 # must print v22.13.0 or newer
+npm ci
+```
+
+Use `npm install` instead when changing dependencies. npm installs the three
+direct development dependencies declared in `package.json`; the applet itself
+does not ship them. The suites run on Node's built-in test runner and Python's
+`unittest`.
 
 ## Installation
 
