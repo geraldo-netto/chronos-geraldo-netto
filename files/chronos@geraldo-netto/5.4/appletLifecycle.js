@@ -27,6 +27,92 @@ const HolidayConstants = require("./holidayConstants");
 const NO_HOLIDAYS = SettingsFacade.NO_HOLIDAYS;
 const SUPPORTED_COUNTRIES = HolidayConstants.SUPPORTED_COUNTRIES;
 
+function localDayKey(date) {
+    return `${date.getFullYear()}:${date.getMonth()}:${date.getDate()}`;
+}
+
+function millisecondsUntilNextLocalDay(date) {
+    const next = new Date(
+        date.getFullYear(), date.getMonth(), date.getDate() + 1, 0, 0, 0, 0);
+    return Math.max(1, next.getTime() - date.getTime());
+}
+
+// WallClock only notifies when its rendered string changes, so a literal or
+// month-only panel format is not a day clock. This source owns that one job.
+// Recomputing the next local midnight after every firing preserves 23/25-hour
+// days, and reschedule() handles timezone changes and resume jumps.
+class LocalDayRollover {
+    constructor({ now = () => new Date(), schedule = Mainloop.timeout_add,
+        cancel = Mainloop.source_remove } = {}) {
+        this._now = now;
+        this._scheduleSource = schedule;
+        this._cancelSource = cancel;
+        this._sourceId = 0;
+        this._dayKey = "";
+        this._callback = null;
+        this._destroyed = false;
+    }
+
+    start(callback) {
+        if (this._destroyed || this._callback) {
+            return;
+        }
+        this._callback = callback;
+        this._dayKey = localDayKey(this._now());
+        this._schedule();
+    }
+
+    _schedule() {
+        if (this._destroyed || !this._callback) {
+            return;
+        }
+        const delay = millisecondsUntilNextLocalDay(this._now());
+        this._sourceId = this._scheduleSource(delay, () => {
+            this._sourceId = 0;
+            try {
+                this._checkDay();
+            } finally {
+                this._schedule();
+            }
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _checkDay() {
+        const key = localDayKey(this._now());
+        if (key === this._dayKey) {
+            return;
+        }
+        this._dayKey = key;
+        this._callback();
+    }
+
+    reschedule() {
+        if (!this._callback || this._destroyed) {
+            return;
+        }
+        this._cancel();
+        try {
+            this._checkDay();
+        } finally {
+            this._schedule();
+        }
+    }
+
+    _cancel() {
+        if (this._sourceId > 0) {
+            this._cancelSource(this._sourceId);
+            this._sourceId = 0;
+        }
+    }
+
+    destroy() {
+        this._destroyed = true;
+        this._cancel();
+        this._callback = null;
+    }
+}
+
 // Cinnamon's settings.bind() writes the bound value onto the applet object
 // itself, so the applet is the bind target by construction. Everything else
 // here is returned to the caller instead of assigned behind its back.
@@ -134,10 +220,12 @@ class AppletProviderLifecycle {
         this.holidayProvider = null;
         this.holidayRegions = {};
         this._clock_notify_id = 0;
+        this._dayRollover = new LocalDayRollover();
         this._actor_signal_ids = [];
         this._desktop_settings_signal_ids = [];
         this._events_manager_signal_ids = [];
         this._logind_sleep_signal_id = 0;
+        this._timedate_signal_id = 0;
         this._destroyed = false;
     }
 
@@ -226,8 +314,8 @@ class AppletProviderLifecycle {
         this.context.onHolidayPlaceChanged();
     }
 
-    // This is the applet's only clock: it arms no timer of its own. WallClock
-    // notifies when the string *it* renders changes, not once a second — measured,
+    // WallClock drives the rendered panel string. It notifies when the string
+    // *it* renders changes, not once a second — measured,
     // because four comments in this applet used to claim otherwise: with "%H:%M"
     // it emitted 0 times in ten seconds, with "%H:%M:%S" it emitted 11. So the
     // configured format is the tick rate: including %S produces second ticks;
@@ -241,6 +329,13 @@ class AppletProviderLifecycle {
         }
 
         this._clock_notify_id = this.clock.connect("notify::clock", callback);
+    }
+
+    startDayRollover() {
+        if (this._destroyed) {
+            return;
+        }
+        this._dayRollover.start(this.context.onDayChanged);
     }
 
     bindSystemSignals() {
@@ -262,9 +357,18 @@ class AppletProviderLifecycle {
                 (connection, sender, path, iface, signal, params) => {
                     const [sleeping] = params.deep_unpack();
                     if (!sleeping) {
+                        this._dayRollover.reschedule();
                         context.onResume();
                     }
                 });
+            this._timedate_signal_id = Gio.DBus.system.signal_subscribe(
+                "org.freedesktop.timedate1",
+                "org.freedesktop.DBus.Properties",
+                "PropertiesChanged",
+                "/org/freedesktop/timedate1",
+                null,
+                Gio.DBusSignalFlags.NONE,
+                () => this._dayRollover.reschedule());
         }
     }
 
@@ -314,6 +418,10 @@ class AppletProviderLifecycle {
             Gio.DBus.system.signal_unsubscribe(this._logind_sleep_signal_id);
             this._logind_sleep_signal_id = 0;
         }
+        if (this._timedate_signal_id > 0 && Gio && Gio.DBus && Gio.DBus.system) { // NOSONAR [S6582] -- accepted compatible form
+            Gio.DBus.system.signal_unsubscribe(this._timedate_signal_id);
+            this._timedate_signal_id = 0;
+        }
     }
 
     // Every step runs even if an earlier one throws: a teardown that stops at the
@@ -324,6 +432,7 @@ class AppletProviderLifecycle {
 
         const steps = [
             () => this._releaseClockNotify(),
+            () => this._dayRollover.destroy(),
             () => this._releaseActorSignals(),
             () => this.weatherProvider && this.weatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this.cityWeatherProvider && this.cityWeatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
@@ -345,5 +454,6 @@ class AppletProviderLifecycle {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { AppletSettingsBinder, AppletProviderLifecycle, DEFAULT_FACTORIES };
+    module.exports = { AppletSettingsBinder, AppletProviderLifecycle, LocalDayRollover,
+        localDayKey, millisecondsUntilNextLocalDay, DEFAULT_FACTORIES };
 }

@@ -187,7 +187,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
                 }
             }),
             onSettingsChanged: () => this._onSettingsChanged(),
-            onResume: () => this._onResume()
+            onResume: () => this._onResume(),
+            onDayChanged: () => this._guarded(
+                "day-rollover", () => this._updateClockAndDate(true))
         });
 
         const providers = this._providerLifecycle.initProviders();
@@ -517,6 +519,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             this._settingsBinder.deferInitialHolidayCountry();
 
             this._providerLifecycle.connectClockNotify(() => this._clockNotify());
+            this._providerLifecycle.startDayRollover();
 
             this._scheduleWeatherRefresh();
 

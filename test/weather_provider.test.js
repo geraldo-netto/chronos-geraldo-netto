@@ -1412,7 +1412,8 @@ test("applets refresh weather when the system resumes", () => {
     const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "applet.js"), "utf8");
     const lifecycle = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "appletLifecycle.js"), "utf8");
     assert.match(lifecycle, /"PrepareForSleep"/);
-    assert.match(lifecycle, /if \(!sleeping\) \{\s*context\.onResume\(\);/);
+    assert.match(lifecycle,
+        /if \(!sleeping\) \{\s*this\._dayRollover\.reschedule\(\);\s*context\.onResume\(\);/);
 
     const onResume = source.match(/_onResume\(\) \{([\s\S]*?)\n {4}\}/);
     assert.ok(onResume);

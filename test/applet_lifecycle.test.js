@@ -198,6 +198,58 @@ test("the panel clock connects to the tick signal WallClock actually emits", () 
     assert.equal(connects.length, 1);
 });
 
+test("local-day rollover is independent of the rendered clock string", () => {
+    const Lifecycle = require(path.join(APPLET_DIR, "5.4", "appletLifecycle.js"));
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = "Europe/Rome";
+    try {
+        assert.equal(Lifecycle.millisecondsUntilNextLocalDay(
+            new Date(2026, 6, 14, 23, 59, 30)), 30000);
+        assert.equal(Lifecycle.millisecondsUntilNextLocalDay(
+            new Date(2026, 2, 29, 0, 0, 0)), 23 * 60 * 60 * 1000,
+        "the spring DST day schedules its actual next local midnight");
+
+        let now = new Date(2026, 6, 14, 23, 59, 30);
+        const scheduled = [];
+        const cancelled = [];
+        let rollovers = 0;
+        const rollover = new Lifecycle.LocalDayRollover({
+            now: () => now,
+            schedule(delay, callback) {
+                scheduled.push({ delay, callback });
+                return scheduled.length;
+            },
+            cancel: (id) => cancelled.push(id)
+        });
+
+        rollover.start(() => { rollovers++; });
+        assert.equal(scheduled[0].delay, 30000);
+        now = new Date(2026, 6, 15, 0, 0, 0);
+        assert.equal(scheduled[0].callback(), false);
+        assert.equal(rollovers, 1);
+        assert.equal(scheduled.length, 2, "the next midnight is recomputed after firing");
+
+        rollover.reschedule();
+        assert.deepEqual(cancelled, [2]);
+        assert.equal(rollovers, 1, "a time change inside the same day does not fake a rollover");
+
+        now = new Date(2026, 6, 16, 8, 0, 0);
+        rollover.reschedule();
+        assert.equal(rollovers, 2, "a jump across midnight is noticed immediately");
+        rollover.destroy();
+        assert.equal(cancelled.at(-1), 4);
+        const count = scheduled.length;
+        rollover.start(() => { rollovers++; });
+        assert.equal(scheduled.length, count, "destroy is terminal");
+    } finally {
+        if (previousTimezone === undefined) {
+            delete process.env.TZ;
+        } else {
+            process.env.TZ = previousTimezone;
+        }
+    }
+});
+
 // The provider teardown was one unguarded block: a throw in the first step —
 // abort() on a Soup session Cinnamon has already disposed during a reload, say —
 // left the city-weather provider, the holiday provider and the events manager
@@ -387,8 +439,9 @@ test("the default weather graph shares one reading repository", () => {
 
 test("bindSystemSignals refetches on logind resume and unsubscribes on destroy", () => {
     const resumed = [];
-    let captured = null;
-    let unsubscribed = null;
+    const rescheduled = [];
+    const captured = {};
+    const unsubscribed = [];
     const context = {
         onResume: () => resumed.push(true),
         desktopSettings: { connectClockFormatChanged: () => [1, 2] }
@@ -396,11 +449,11 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
     global.imports.gi.Gio.DBus = {
         system: {
             signal_subscribe: (sender, iface, member, path, arg0, flags, cb) => {
-                captured = { member, path, cb };
-                return 55;
+                captured[member] = { member, path, cb };
+                return member === "PrepareForSleep" ? 55 : 56;
             },
             signal_unsubscribe: (id) => {
-                unsubscribed = id;
+                unsubscribed.push(id);
             }
         }
     };
@@ -408,22 +461,33 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
 
     try {
         const lifecycle = new AppletModule.AppletProviderLifecycle(context);
+        lifecycle._dayRollover = {
+            reschedule: () => rescheduled.push(true),
+            destroy() {}
+        };
         lifecycle.bindSystemSignals();
 
-        assert.equal(captured.member, "PrepareForSleep");
+        assert.equal(captured.PrepareForSleep.member, "PrepareForSleep");
         assert.equal(lifecycle._logind_sleep_signal_id, 55);
+        assert.equal(lifecycle._timedate_signal_id, 56);
 
         // true = going into sleep -> no refetch; false = resumed -> refetch
-        const emit = (sleeping) => captured.cb(null, null, captured.path,
+        const emit = (sleeping) => captured.PrepareForSleep.cb(
+            null, null, captured.PrepareForSleep.path,
             "org.freedesktop.login1.Manager", "PrepareForSleep", { deep_unpack: () => [sleeping] });
         emit(true);
         assert.deepEqual(resumed, [], "nothing is refetched on the way into sleep");
         emit(false);
         assert.deepEqual(resumed, [true], "the weather is refetched on wake");
+        assert.deepEqual(rescheduled, [true], "resume also corrects the local-day source");
+        captured.PropertiesChanged.cb();
+        assert.deepEqual(rescheduled, [true, true],
+            "timezone and system-clock changes recompute the next midnight");
 
         lifecycle.destroy();
-        assert.equal(unsubscribed, 55, "the system-bus subscription is released");
+        assert.deepEqual(unsubscribed, [55, 56], "system-bus subscriptions are released");
         assert.equal(lifecycle._logind_sleep_signal_id, 0);
+        assert.equal(lifecycle._timedate_signal_id, 0);
     } finally {
         delete global.imports.gi.Gio.DBus;
         delete global.imports.gi.Gio.DBusSignalFlags;
@@ -1387,7 +1451,8 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
             connectClockNotify: (cb) => {
                 calls.push(["clock-connect"]);
                 calls.clockCallback = cb;
-            }
+            },
+            startDayRollover: () => calls.push(["day-rollover-start"])
         },
         _onSettingsChanged: () => calls.push(["settings"]),
         _updateClockAndDate: () => calls.push(["clock-notify"]),
@@ -1398,6 +1463,7 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
     Proto.on_applet_added_to_panel.call(added);
     calls.clockCallback();
     assert.ok(calls.some((row) => row[0] === "clock-connect"));
+    assert.ok(calls.some((row) => row[0] === "day-rollover-start"));
     assert.ok(calls.some((row) => row[0] === "country-inference"));
     assert.ok(calls.some((row) => row[0] === "clock-notify"));
 
@@ -1549,7 +1615,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     const context = applet._providerLifecycle.context;
     applet._events_manager_ready = () => calls.push(["events-ready"]);
     applet._has_calendars_changed = () => calls.push(["calendars"]);
-    applet._updateClockAndDate = () => calls.push(["tick"]);
+    applet._updateClockAndDate = (force) => calls.push(["tick", force]);
     applet._scheduleWeatherRefresh = () => calls.push(["weather"]);
     applet._onLaunchSettings = () => calls.push(["launch-settings"]);
     applet._calendar.refreshHolidays = () => calls.push(["holidays"]);
@@ -1557,10 +1623,13 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     context.onEventsManagerReady();
     context.onHasCalendarsChanged();
     context.onResume();
+    context.onDayChanged();
     context.onHolidayPlaceChanged();
     context.onPanelHover(true);
     context.onPanelHover(false);
     assert.equal(applet._panel_hovered, false);
+    assert.ok(calls.some((row) => row[0] === "tick" && row[1] === true),
+        "midnight forces the menu model even when the panel label is unchanged");
 
     const menuContext = applet._menuBuilder.context;
     menuContext.onLaunchSettings();
