@@ -418,10 +418,11 @@ test("stylesheet gives keyboard focus a visible marker on any theme", () => {
 });
 
 test("launch_calendar refuses to spawn without gnome-calendar", () => {
+    const launcher = source("5.4/calendarLauncher.js");
+    assert.match(launcher, /class CalendarLauncher \{/);
+    assert.match(launcher, /isAvailable\(\) \{[\s\S]*?GLib\.find_program_in_path\("gnome-calendar"\)/);
+    assert.match(launcher, /launchDate\(gdate\) \{[\s\S]{0,250}?if \(!this\.isAvailable\(\)\) \{\n\s+return false;/);
     const code = source("5.4/eventView.js");
-    assert.match(code, /class CalendarLauncher \{/);
-    assert.match(code, /isAvailable\(\) \{[\s\S]*?GLib\.find_program_in_path\("gnome-calendar"\)/);
-    assert.match(code, /launchDate\(gdate\) \{[\s\S]{0,250}?if \(!this\.isAvailable\(\)\) \{\n\s+return false;/);
     assert.match(code, /launch_calendar\(gdate\) \{[\s\S]*?this\._calendar_launcher\.launchDate\(gdate\)/);
 });
 

@@ -18,7 +18,6 @@ const Atk = imports.gi.Atk;
 const Gtk = imports.gi.Gtk;
 const Separator = imports.ui.separator;
 const Tooltips = imports.ui.tooltips;
-const Util = imports.misc.util;
 const Mainloop = imports.mainloop;
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const DateFormats = AppletModules.dateFormats;
@@ -51,14 +50,9 @@ const EVENTS_REFRESH_FAILED_TEXT =
 const EventDataModule = require("./eventData");
 const date_only = EventDataModule.date_only;
 const dt_equals = EventDataModule.dt_equals;
-// One UID contract for the whole applet, owned by the data module: it keeps
-// externally supplied UIDs well below the kernel's per-argv limit, so a spawn
-// request handed to the compositor can never fail on length.
-var MAX_EVENT_UID_LENGTH = EventDataModule.MAX_EVENT_UID_LENGTH; // NOSONAR [S3504] -- exported for boundary tests
-
-function eventUidCanLaunch(uuid) {
-    return typeof uuid === "string" && uuid.length <= MAX_EVENT_UID_LENGTH;
-}
+const CalendarLauncherModule = require("./calendarLauncher");
+const CalendarLauncher = CalendarLauncherModule.CalendarLauncher;
+const eventUidCanLaunch = CalendarLauncherModule.eventUidCanLaunch;
 
 function format_timespan(timespan) {
     let minutes = Math.floor(timespan / GLib.TIME_SPAN_MINUTE);
@@ -88,65 +82,6 @@ function format_timespan(timespan) {
     }
 
     return ["", ngettext("In %d hour", "In %d hours", hours).format(hours)];
-}
-
-class CalendarLauncher {
-    // find_program_in_path stats every entry in $PATH, and every event row asks
-    // this while it is being built — a day with twenty events meant twenty full
-    // PATH scans on the compositor thread, on each rebuild. gnome-calendar does
-    // not come and go while the shell runs, so ask once.
-    isAvailable() {
-        if (this._available === undefined) {
-            this._available = Boolean(GLib.find_program_in_path("gnome-calendar"));
-        }
-
-        return this._available;
-    }
-
-    launchDate(gdate) {
-        if (!this.isAvailable()) {
-            return false;
-        }
-
-        // --date will be broken anywhere but Mint 20.3 and upstream releases > 41.2
-        // (unless some fixes are backported). Maintainer can patch this to comment
-        // out either line here.
-
-        // Util.trySpawn(["gnome-calendar"], false);
-        try {
-            Util.trySpawn(["gnome-calendar", "--date", gdate.format("%x")], false);
-            return true;
-        } catch {
-            global.log("Chronos: gnome-calendar could not open the requested date");
-            return false;
-        }
-    }
-
-    launchUuid(uuid) {
-        if (!this.isAvailable()) {
-            return false;
-        }
-
-        if (!eventUidCanLaunch(uuid)) {
-            global.log("Chronos: refused a calendar event identifier that exceeds the launch limit");
-            return false;
-        }
-
-        // The uid comes off whatever ICS or CalDAV feed the user subscribed to.
-        // This is the argv form, so there is no shell and no command injection
-        // — but as a separate argument, a uid beginning with a dash reaches
-        // gnome-calendar's option parser as an option. Attaching it to the
-        // switch keeps it a value.
-        try {
-            Util.trySpawn(["gnome-calendar", "--uuid=" + uuid], false);
-            return true;
-        } catch {
-            // Do not echo the feed-controlled UID (or an error that may contain
-            // argv) into the shell log.
-            global.log("Chronos: gnome-calendar could not open the requested event");
-            return false;
-        }
-    }
 }
 
 class EventListRenderer {
@@ -1005,8 +940,8 @@ class EventRow {
 Signals.addSignalMethods(EventRow.prototype);
 
 if (typeof module !== "undefined") {
-    module.exports = { CalendarLauncher, EventList, EventListRenderer, EventRow,
+    module.exports = { EventList, EventListRenderer, EventRow,
         EventRowPresenter, format_timespan, MAX_RENDERED_EVENT_ROWS,
-        MAX_EVENT_UID_LENGTH, eventUidCanLaunch, EVENTS_OVERFLOW_TEXT,
+        EVENTS_OVERFLOW_TEXT,
         EVENTS_UNAVAILABLE_TEXT, EVENTS_REFRESH_FAILED_TEXT };
 }

@@ -281,6 +281,7 @@ rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
 rootModules.worldclockData = require(path.join(APPLET_DIR, "worldclockData.js"));
 
 const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+const LauncherModule = require(path.join(APPLET_DIR, "5.4", "calendarLauncher.js"));
 const CoordinatorModule = require(path.join(APPLET_DIR, "5.4", "appletCoordinators.js"));
 
 // A row's launcher is the list's: EventRow used to default to a fresh
@@ -294,7 +295,7 @@ function desktopSettings(use24h = true) {
 
 function rowParams(overrides = {}) {
     return Object.assign(
-        { use_24h: true, launcher: new EventView.CalendarLauncher() },
+        { use_24h: true, launcher: new LauncherModule.CalendarLauncher() },
         overrides);
 }
 const EventFormat = require(path.join(APPLET_DIR, "eventFormat.js"));
@@ -492,7 +493,7 @@ test("CalendarLauncher owns date and uuid launch commands", () => {
     // asks $PATH once and keeps the answer: a launcher built without it stays
     // unavailable, one built with it stays available
     global.imports.gi.GLib.find_program_in_path = () => null;
-    const missing = new EventView.CalendarLauncher();
+    const missing = new LauncherModule.CalendarLauncher();
     assert.equal(missing.isAvailable(), false);
     assert.equal(missing.launchDate(TODAY), false);
     assert.equal(missing.launchUuid("uuid-1"), false);
@@ -502,7 +503,7 @@ test("CalendarLauncher owns date and uuid launch commands", () => {
         scans++;
         return "/usr/bin/gnome-calendar";
     };
-    const present = new EventView.CalendarLauncher();
+    const present = new LauncherModule.CalendarLauncher();
     assert.equal(present.isAvailable(), true);
     assert.equal(present.launchDate(TODAY), true);
     assert.equal(present.launchUuid("uuid-1"), true);
@@ -519,7 +520,7 @@ test("CalendarLauncher owns date and uuid launch commands", () => {
     present.launchUuid("--version");
     assert.deepEqual(spawned.at(-1), ["gnome-calendar", "--uuid=--version"]);
 
-    const max = EventView.MAX_EVENT_UID_LENGTH;
+    const max = LauncherModule.MAX_EVENT_UID_LENGTH;
     assert.equal(present.launchUuid("x".repeat(max)), true);
     assert.equal(spawned.at(-1)[1].length, "--uuid=".length + max);
     assert.equal(present.launchUuid("x".repeat(max + 1)), false);
@@ -544,11 +545,11 @@ test("an oversized event UID cannot make a row look activatable", () => {
         startUnix: 50 * DAY_S + 14 * 3600,
         endUnix: 50 * DAY_S + 15 * 3600
     });
-    event.id = "x".repeat(EventView.MAX_EVENT_UID_LENGTH + 1);
+    event.id = "x".repeat(LauncherModule.MAX_EVENT_UID_LENGTH + 1);
     const row = new EventView.EventRow(event, TODAY, rowParams());
     global.imports.gi.GLib.find_program_in_path = () => null;
 
-    assert.equal(EventView.eventUidCanLaunch(event.id), false);
+    assert.equal(LauncherModule.eventUidCanLaunch(event.id), false);
     assert.equal(row.actor.options.reactive, false);
     assert.equal(row.actor.options.can_focus, false);
     assert.equal(Object.keys(row.actor.handlers).length, 0);
