@@ -480,6 +480,12 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /tags: \['v\*'\]/, "release tags trigger CI");
     assert.match(workflow, /release:[\s\S]*needs: packaging/,
         "a release tag is accepted only after gates and packaging");
+    assert.match(releaseJob,
+        /git fetch --no-tags origin main:refs\/remotes\/origin\/main/,
+        "tag CI fetches the release branch used for ancestry validation");
+    assert.match(releaseJob,
+        /npm run release:check -- "\$GITHUB_REF_NAME" origin\/main/,
+        "tag CI validates annotated-tag provenance against the release branch");
     assert.match(releaseJob, /uses: actions\/download-artifact@[0-9a-f]{40} # v\d/);
     assert.match(releaseJob, artifactName,
         "the release job consumes the package built by its dependency");

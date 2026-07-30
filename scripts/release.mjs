@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 import { randomUUID } from "node:crypto";
+import { spawnSync } from "node:child_process";
 import { link, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -306,11 +307,48 @@ function validateReleaseFiles(files, tag) {
     return version;
 }
 
-export async function checkRelease(projectRoot, tag) {
+function gitResult(root, args) {
+    return spawnSync("git", ["-C", root, ...args], { // NOSONAR [S4036] -- fixed executable and argv
+        encoding: "utf8",
+        shell: false
+    });
+}
+
+export function validateReleaseTag(projectRoot, tag, releaseBranch = "origin/main") {
+    const root = path.resolve(projectRoot);
+    const tagRef = `refs/tags/${tag}`;
+    const object = gitResult(root, ["cat-file", "-t", tagRef]);
+    if (object.status !== 0) {
+        throw new Error(`release tag ${tag} does not exist`);
+    }
+    if (object.stdout.trim() !== "tag") {
+        throw new Error(`release tag ${tag} must be annotated`);
+    }
+
+    const taggedCommit = gitResult(root, ["rev-parse", `${tagRef}^{commit}`]);
+    const head = gitResult(root, ["rev-parse", "HEAD"]);
+    if (taggedCommit.status !== 0 || head.status !== 0 ||
+        taggedCommit.stdout.trim() !== head.stdout.trim()) {
+        throw new Error(`release tag ${tag} does not point at HEAD`);
+    }
+
+    const ancestor = gitResult(root, [
+        "merge-base", "--is-ancestor", taggedCommit.stdout.trim(), releaseBranch
+    ]);
+    if (ancestor.status !== 0) {
+        throw new Error(`release tag ${tag} is not reachable from ${releaseBranch}`);
+    }
+}
+
+export async function checkRelease(projectRoot, tag, releaseBranch = "origin/main") {
     const root = path.resolve(projectRoot);
     return withReleaseLock(root, async () => {
         const files = await readReleaseFiles(root);
-        return validateReleaseFiles(files, tag);
+        const version = validateReleaseFiles(files, tag);
+        if (tag !== undefined && tag !== null && tag !== "") {
+            validateReleaseTag(root, tag, releaseBranch);
+        }
+        return version;
     });
 }
 
@@ -386,7 +424,7 @@ if (import.meta.url === scriptPath) {
     const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
     const command = process.argv[2] || "check";
     if (command === "check") {
-        const version = await checkRelease(projectRoot, process.argv[3]);
+        const version = await checkRelease(projectRoot, process.argv[3], process.argv[4]);
         process.stdout.write(`release metadata is consistent at v${version}\n`);
     } else if (command === "bump") {
         if (!process.argv[3]) {

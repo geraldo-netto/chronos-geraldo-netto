@@ -50,13 +50,61 @@ async function releaseSnapshot(root) {
         fs.readFile(path.join(root, relative), "utf8")));
 }
 
+async function git(root, ...args) {
+    return execFileAsync("git", ["-C", root, ...args]);
+}
+
+async function initializeReleaseRepository(root) {
+    await git(root, "init", "--quiet", "--initial-branch=main");
+    await git(root, "add", ".");
+    await git(root, "-c", "user.name=Chronos Test",
+        "-c", "user.email=chronos@example.invalid",
+        "commit", "--quiet", "-m", "release fixture");
+}
+
 test("release metadata, changelog, and an optional tag agree", async () => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { checkRelease } = await import(releaseUrl);
 
     assert.equal(await checkRelease(ROOT), "0.0.1");
-    assert.equal(await checkRelease(ROOT, "v0.0.1"), "0.0.1");
     await assert.rejects(checkRelease(ROOT, "v0.0.2"), /does not match version v0\.0\.1/);
+});
+
+test("release tags are annotated, checked out, and on the release branch", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease } = await import(releaseUrl);
+
+    const accepted = await makeReleaseFixture(t);
+    await initializeReleaseRepository(accepted);
+    await git(accepted, "-c", "user.name=Chronos Test",
+        "-c", "user.email=chronos@example.invalid",
+        "tag", "-a", "v0.0.1", "-m", "Chronos 0.0.1");
+    assert.equal(await checkRelease(accepted, "v0.0.1", "main"), "0.0.1");
+
+    const missing = await makeReleaseFixture(t);
+    await initializeReleaseRepository(missing);
+    await assert.rejects(checkRelease(missing, "v0.0.1", "main"),
+        /release tag v0\.0\.1 does not exist/);
+
+    const lightweight = await makeReleaseFixture(t);
+    await initializeReleaseRepository(lightweight);
+    await git(lightweight, "tag", "v0.0.1");
+    await assert.rejects(checkRelease(lightweight, "v0.0.1", "main"),
+        /release tag v0\.0\.1 must be annotated/);
+
+    const offBranch = await makeReleaseFixture(t);
+    await initializeReleaseRepository(offBranch);
+    await git(offBranch, "checkout", "--quiet", "-b", "candidate");
+    await fs.writeFile(path.join(offBranch, "candidate.txt"), "not merged\n");
+    await git(offBranch, "add", "candidate.txt");
+    await git(offBranch, "-c", "user.name=Chronos Test",
+        "-c", "user.email=chronos@example.invalid",
+        "commit", "--quiet", "-m", "off-branch release");
+    await git(offBranch, "-c", "user.name=Chronos Test",
+        "-c", "user.email=chronos@example.invalid",
+        "tag", "-a", "v0.0.1", "-m", "Chronos 0.0.1");
+    await assert.rejects(checkRelease(offBranch, "v0.0.1", "main"),
+        /release tag v0\.0\.1 is not reachable from main/);
 });
 
 test("the release bump moves notes and updates every version owner", async (t) => {
@@ -89,7 +137,7 @@ test("the release bump moves notes and updates every version owner", async (t) =
     assert.equal(metadata.version, "0.0.2");
     assert.match(updatedChangelog, /## \[Unreleased\]\n\n## \[0\.0\.2\] - 2026-07-18/);
     assert.match(updatedChangelog, /## \[0\.0\.2\][\s\S]*A release-worthy fix/);
-    assert.equal(await checkRelease(temporary, "v0.0.2"), "0.0.2");
+    assert.equal(await checkRelease(temporary), "0.0.2");
 
     await assert.rejects(
         bumpRelease(temporary, "0.0.2", { date: "2026-07-19" }),
@@ -365,7 +413,7 @@ test("an interrupted release transaction is completed before the next check", as
         JSON.stringify({ version: 1, entries }));
     await fs.writeFile(path.join(interrupted, RELEASE_FILES[0]), entries[0].after);
 
-    assert.equal(await checkRelease(interrupted, "v0.0.2"), "0.0.2");
+    assert.equal(await checkRelease(interrupted), "0.0.2");
     await assert.rejects(fs.access(transaction), "the completed transaction is removed");
 });
 
