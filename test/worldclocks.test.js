@@ -1188,6 +1188,49 @@ test("timezoneCityName reads the place out of the identifier, not the label", ()
     assert.equal(WorldclockData.timezoneCityName(42), "");
 });
 
+// T654: the open menu asks for the same city on every tick, and each cold
+// resolution is a TimeZone construction plus a synchronous readlink alias
+// chase on the compositor thread
+test("timezoneWeatherCity memoizes per identifier and leaves local alone", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+    const originalReadLink = GLib.file_read_link;
+    const originalNewLocal = GLib.TimeZone.new_local;
+    let readlinks = 0;
+    GLib.file_read_link = (filename) => {
+        readlinks++;
+        return originalReadLink(filename);
+    };
+
+    try {
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        const resolved = readlinks;
+        assert.ok(resolved > 0, "the first resolution walks the alias chain");
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(readlinks, resolved, "the second answer comes from the memo");
+
+        // "local" names whatever the OS timezone is right now: never memoized
+        GLib.TimeZone.new_local = () => fakeTimeZone("America/New_York");
+        assert.equal(WorldclockData.timezoneWeatherCity(WorldclockData.LOCAL_TIMEZONE),
+            "New York");
+        GLib.TimeZone.new_local = () => fakeTimeZone("Europe/Rome");
+        assert.equal(WorldclockData.timezoneWeatherCity(WorldclockData.LOCAL_TIMEZONE),
+            "Rome");
+
+        // the memo is bounded: overflowing it clears and keeps answering
+        for (let i = 0; i <= WorldclockData.MAX_MEMOIZED_WEATHER_CITIES; i++) {
+            assert.equal(WorldclockData.timezoneWeatherCity(`Fill/Zone${i}`), "");
+        }
+        const beforeRefill = readlinks;
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.ok(readlinks > beforeRefill, "the cleared entry is resolved again");
+    } finally {
+        GLib.file_read_link = originalReadLink;
+        GLib.TimeZone.new_local = originalNewLocal;
+    }
+});
+
 // a clock whose zone cannot be resolved contributes no key: the built-in set
 // must not gain an "undefined" entry that then matches every broken clock
 test("builtInTimezoneKeys skips zones that do not resolve and always holds Etc/UTC", () => {

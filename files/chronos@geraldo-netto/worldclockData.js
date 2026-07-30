@@ -125,8 +125,33 @@ function timezoneCityName(timezone) {
 // Weather egress must use the runtime's resolved timezone, not the configured
 // text. The settings fallback can validate only an Area/City shape when no
 // timezone database is available; GLib is authoritative in the applet.
-function timezoneWeatherCity(timezone) {
+//
+// The open menu resolves every configured clock on every tick, and each
+// resolution is a GLib.TimeZone construction plus a synchronous readlink
+// alias chase on the compositor thread. A zoneinfo alias chain does not
+// change under a running session, so the answer is memoized per identifier.
+// "local" stays out of the memo: it names whatever the OS timezone is now.
+var MAX_MEMOIZED_WEATHER_CITIES = 64; // NOSONAR [S3504] -- GJS importer export
+const weatherCityMemo = new Map();
+
+function resolveTimezoneWeatherCity(timezone) {
     return timezoneCityName(timezoneIdentity(timezoneFromIdentifier(timezone)));
+}
+
+function timezoneWeatherCity(timezone) {
+    if (timezone === LOCAL_TIMEZONE) {
+        return resolveTimezoneWeatherCity(timezone);
+    }
+    if (weatherCityMemo.has(timezone)) {
+        return weatherCityMemo.get(timezone);
+    }
+
+    const city = resolveTimezoneWeatherCity(timezone);
+    if (weatherCityMemo.size >= MAX_MEMOIZED_WEATHER_CITIES) {
+        weatherCityMemo.clear();
+    }
+    weatherCityMemo.set(timezone, city);
+    return city;
 }
 
 // The city the machine's own timezone names, for a weather location nobody has
@@ -488,6 +513,7 @@ if (typeof module !== "undefined") {
         selectUserClocks,
         clockDisplayLabel,
         MAX_CLOCK_LABEL_LENGTH,
-        MAX_ZONE_TAB_BYTES
+        MAX_ZONE_TAB_BYTES,
+        MAX_MEMOIZED_WEATHER_CITIES
     };
 }
