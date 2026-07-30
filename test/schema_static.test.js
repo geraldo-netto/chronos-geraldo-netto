@@ -464,12 +464,14 @@ test("CI runs the gates the README promises", () => {
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,
         "the exact tracked-file package is built in CI");
-    assert.match(packagingJob,
-        /find chronos@geraldo-netto -type f -print0[\s\S]*xargs -0 sha256sum > chronos-spices\.sha256/,
-        "the uploaded tree carries a checksum manifest");
-    assert.match(packagingJob,
-        /tar -cf chronos-spices\.tar chronos-spices\.sha256 chronos@geraldo-netto/,
-        "the tree is wrapped before upload so file modes survive");
+    assert.match(packagingJob, /run: scripts\/archive-spices\.sh dist/,
+        "one tested archiver owns checksums and normalized tar metadata");
+    const archiver = fs.readFileSync(
+        path.join(__dirname, "..", "scripts", "archive-spices.sh"), "utf8");
+    for (const flag of ["--sort=name", "--mtime='@0'", "--owner=0", "--group=0",
+        "--numeric-owner", "--mode='u+rwX,go+rX,go-w'", "--format=gnu"]) {
+        assert.ok(archiver.includes(flag), `deterministic archive is missing ${flag}`);
+    }
     assert.match(packagingJob, /uses: actions\/upload-artifact@[0-9a-f]{40} # v\d/);
     assert.match(packagingJob, artifactName, "the gated package is retained under its commit SHA");
     assert.match(packagingJob, /path: dist\/chronos-spices\.tar/);

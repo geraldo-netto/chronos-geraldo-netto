@@ -91,12 +91,7 @@ jobs:
       # validated tree and its checksum manifest inside one tar first, so the
       # three tracked executables remain executable after download.
       - name: Archive validated Spices package
-        working-directory: dist
-        run: |
-          find chronos@geraldo-netto -type f -print0 \
-            | sort -z \
-            | xargs -0 sha256sum > chronos-spices.sha256
-          tar -cf chronos-spices.tar chronos-spices.sha256 chronos@geraldo-netto
+        run: scripts/archive-spices.sh dist
 
       # Preserve the exact tree that passed the package and catalog gates. The
       # tag job and the maintainer both consume this artifact; neither rebuilds

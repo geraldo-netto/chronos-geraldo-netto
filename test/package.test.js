@@ -107,6 +107,21 @@ async function importPackager() {
     return import(scriptUrl);
 }
 
+async function makeArchiveTree(root, timestamp) {
+    const applet = path.join(root, "chronos@geraldo-netto", "files", UUID);
+    await fs.mkdir(path.join(applet, "5.4"), { recursive: true });
+    const regular = path.join(applet, "metadata.json");
+    const executable = path.join(applet, "5.4", "settings_widgets.py");
+    await fs.writeFile(regular, '{"version":"1.2.3"}\n');
+    await fs.writeFile(executable, "#!/usr/bin/python3\n");
+    await fs.chmod(regular, 0o644);
+    await fs.chmod(executable, 0o755);
+    await fs.utimes(regular, timestamp, timestamp);
+    await fs.utimes(executable, timestamp, timestamp);
+    await fs.utimes(path.dirname(executable), timestamp, timestamp);
+    await fs.utimes(path.dirname(regular), timestamp, timestamp);
+}
+
 test("packaging rejects malformed and conflicted Git index entries", async () => {
     const { parseTrackedSpicesFiles } = await importPackager();
 
@@ -164,6 +179,31 @@ test("the documented release sequence packages the committed bumped version", as
     const packagedMetadata = JSON.parse(await fs.readFile(
         path.join(output, "files", UUID, "metadata.json"), "utf8"));
     assert.equal(packagedMetadata.version, "0.0.2");
+});
+
+test("equal staged trees produce byte-identical normalized archives", async (t) => {
+    const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-archives-"));
+    t.after(() => fs.rm(temporary, { recursive: true, force: true }));
+    const first = path.join(temporary, "first");
+    const second = path.join(temporary, "second");
+    await makeArchiveTree(first, new Date("2020-01-02T03:04:05Z"));
+    await makeArchiveTree(second, new Date("2030-09-08T07:06:05Z"));
+
+    const archiver = path.join(ROOT, "scripts", "archive-spices.sh");
+    await execFileAsync(archiver, [first]);
+    await execFileAsync(archiver, [second]);
+    assert.deepEqual(
+        await fs.readFile(path.join(first, "chronos-spices.tar")),
+        await fs.readFile(path.join(second, "chronos-spices.tar")));
+
+    const extracted = path.join(temporary, "extracted");
+    await fs.mkdir(extracted);
+    await execFileAsync("tar", ["-xf", path.join(first, "chronos-spices.tar"),
+        "-C", extracted]);
+    assert.equal((await fs.stat(path.join(extracted, "chronos@geraldo-netto", "files",
+        UUID, "metadata.json"))).mode & 0o777, 0o644);
+    assert.equal((await fs.stat(path.join(extracted, "chronos@geraldo-netto", "files",
+        UUID, "5.4", "settings_widgets.py"))).mode & 0o777, 0o755);
 });
 
 test("the explicit manifest seam copies validated worktree files", async (t) => {

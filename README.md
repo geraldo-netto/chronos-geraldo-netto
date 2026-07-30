@@ -173,7 +173,9 @@ rejects any tag that does not match all three manifests and the dated changelog
 entry. The packaging job
 puts the exact gated tree and its SHA-256 manifest in a mode-preserving
 `chronos-spices.tar`, then uploads it as `chronos-spices-<commit SHA>`, replacing
-that same deterministic artifact when all jobs are rerun. The release job
+that same deterministic artifact when all jobs are rerun. The archive sorts
+paths and normalizes timestamps, ownership, and portable file modes while
+preserving which tracked files are executable. The release job
 downloads the tar, verifies every checksum and executable mode, and extracts the
 Spices tree. After the release job is green, download that artifact from the
 workflow run, extract `chronos-spices.tar`, and publish or submit the
