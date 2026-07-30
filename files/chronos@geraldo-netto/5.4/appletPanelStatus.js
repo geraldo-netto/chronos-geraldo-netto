@@ -334,18 +334,21 @@ class AppletPanelStatusPresenter {
     updateFormatString() {
         const view = this.view;
         let world_string = view.customFormat;
-        let main_string = view.customFormat;
+        let accepted = false;
 
-        if (!DateFormats.dateFormatWithinLimit(world_string) ||
-            !view.setClockFormatString(world_string)) {
+        if (DateFormats.dateFormatWithinLimit(world_string)) {
+            accepted = view.setClockFormatString(world_string);
+        }
+
+        if (!accepted) {
             global.logError("Calendar applet: bad time format string - check your string.");
             this._formatIssue = INVALID_TIME_FORMAT_TEXT;
-            world_string = main_string = badFormatFallback(view, INVALID_TIME_FORMAT_TEXT);
+            world_string = badFormatFallback(view, INVALID_TIME_FORMAT_TEXT);
+            view.setClockFormatString(world_string);
         } else {
             this._formatIssue = "";
         }
 
-        view.setClockFormatString(main_string);
         // the format changes what the rows say, not which rows exist: rebuilding
         // the actors here meant every keystroke in the custom-format entry tore
         // the whole clock grid down and built it again

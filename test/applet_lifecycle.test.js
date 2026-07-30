@@ -892,18 +892,20 @@ test("_updateFormatString always applies the configured format and handles inval
     });
 
     Proto._updateFormatString.call(stub);
-    assert.equal(stub.clock.formats.at(-1), "%H:%M");
+    assert.deepEqual(stub.clock.formats, ["%H:%M"]);
     assert.equal(stub.worldclock_format, "%H:%M");
 
     stub.custom_format = "bad";
     Proto._updateFormatString.call(stub);
     assert.ok(errors.length > 0);
     assert.ok(stub.worldclock_format.includes("Invalid time format"));
+    assert.deepEqual(stub.clock.formats.slice(1), ["bad", stub.worldclock_format]);
 
     const overlong = "x".repeat(rootModules.dateFormats.MAX_DATE_FORMAT_LENGTH + 1);
+    const beforeOverlong = stub.clock.formats.length;
     stub.custom_format = overlong;
     Proto._updateFormatString.call(stub);
-    assert.ok(!stub.clock.formats.includes(overlong),
+    assert.deepEqual(stub.clock.formats.slice(beforeOverlong), [stub.worldclock_format],
         "an overlong setting never reaches CinnamonDesktop.WallClock");
     assert.ok(stub.worldclock_format.includes("Invalid time format"));
     assert.ok(builds.length >= 4);
