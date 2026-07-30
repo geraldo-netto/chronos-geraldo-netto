@@ -1163,6 +1163,14 @@ class Calendar {
         this._queue_update();
     }
 
+    // The show-events setting participates in is_active(), but changing it
+    // fires the applet's settings handler, not the manager's signals — so the
+    // grid kept stale event dots after the user switched events off. The
+    // applet calls this beside the event-column coordinator.
+    refreshEventsEnabled() {
+        this._update_events_enabled();
+    }
+
     _headerSignature() {
         return this._weekStart + "|" + this.show_week_numbers;
     }

@@ -799,6 +799,35 @@ test("a day cell click selects nothing when it holds no date or events are off",
     assert.equal(selected, null, "and neither does one clicked while events are off");
 });
 
+// T581: events_enabled was recomputed only from the manager-ready and
+// calendars-changed signals, but the show-events setting participates in
+// is_active() and changes through the applet's settings path — so cached
+// event dots stayed on the grid after the user switched events off.
+test("switching events off clears the grid without a manager signal", () => {
+    let active = true;
+    const manager = makeEventsManager(["#ff0000"]);
+    manager.is_active = () => active;
+    const cal = new CalendarModule.Calendar(makeSettings(), manager, null,
+        makeDesktopSettings());
+    cal.setDate(new Date(2026, 6, 9), true);
+    const day9 = () => dayButtons(cal).find((button) => button.label === "9");
+    assert.match(day9().accessible_name, /1 event$/);
+
+    // the user switches show-events off: is_active() flips, no signal fires
+    active = false;
+    cal.refreshEventsEnabled();
+    cal._idle_do_update();
+    assert.equal(cal.events_enabled, false);
+    assert.doesNotMatch(day9().accessible_name, /event/,
+        "the cached dots and counts are gone");
+
+    // ...and switching back on restores them from the still-indexed data
+    active = true;
+    cal.refreshEventsEnabled();
+    cal._idle_do_update();
+    assert.match(day9().accessible_name, /1 event$/);
+});
+
 // The seam itself: what the grid's collaborators may know about the calendar.
 // They used to hold the Calendar and read its private fields, so this contract
 // existed only as the sum of those reads.

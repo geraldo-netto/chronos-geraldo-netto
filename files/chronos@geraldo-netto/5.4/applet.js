@@ -222,7 +222,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             manager: this.events_manager,
             eventList: () => this.event_list,
             selectedDate: () => this._calendar.getSelectedDate(),
-            guard: (source, fn) => this._guarded(source, fn)
+            guard: (source, fn) => this._guarded(source, fn),
+            // the grid's events_enabled gates the day-cell dots, and no
+            // manager signal recomputes it when the setting flips
+            onEnabledChanged: () => this._calendar.refreshEventsEnabled()
         });
     }
 

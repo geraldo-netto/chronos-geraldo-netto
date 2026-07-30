@@ -99,6 +99,7 @@ class AppletEventListCoordinator {
         this.eventList = params.eventList;
         this.selectedDate = params.selectedDate;
         this.guard = params.guard;
+        this.onEnabledChanged = params.onEnabledChanged || (() => {});
         this._appliedShowEvents = undefined;
     }
 
@@ -119,6 +120,10 @@ class AppletEventListCoordinator {
         if (showEvents !== this._appliedShowEvents) {
             this._appliedShowEvents = showEvents;
             this.manager.select_date(this.selectedDate(), true);
+            // the column above is this coordinator's own; the grid's dots
+            // gate on the calendar's events_enabled, which only manager
+            // signals recompute — and a settings flip fires none of them
+            this.onEnabledChanged();
         }
     }
 

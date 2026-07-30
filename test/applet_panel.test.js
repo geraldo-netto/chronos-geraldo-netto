@@ -100,6 +100,29 @@ test("turning world clocks off stops the city weather that was fetched for them"
     assert.equal(scheduled.length, 2);
 });
 
+// T581 wiring: the grid's events_enabled is recomputed from manager signals,
+// and flipping show-events fires none of them — the coordinator's apply pass
+// is the only place that can tell the calendar.
+test("turning events off reaches the calendar grid's enable state", () => {
+    const refreshed = [];
+    const coordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: { is_active: () => false, select_date: () => {} },
+        eventList: () => ({ actor: {}, set_reporting_enabled() {}, set_unavailable() {} }),
+        selectedDate: () => "today",
+        guard: (source, fn) => fn(),
+        onEnabledChanged: () => refreshed.push(true)
+    });
+
+    coordinator.apply(true);
+    assert.equal(refreshed.length, 1, "the first pass applies the initial state");
+
+    coordinator.apply(true);
+    assert.equal(refreshed.length, 1, "an unchanged setting costs nothing");
+
+    coordinator.apply(false);
+    assert.equal(refreshed.length, 2, "the flip reaches the grid");
+});
+
 // The per-city temperature, the condition in words and the service that answered
 // existed only in the panel's mouse tooltip: a keyboard-only or screen-reader
 // user got none of it, and the provider credit is a courtesy the services are

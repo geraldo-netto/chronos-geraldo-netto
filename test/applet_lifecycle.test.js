@@ -981,10 +981,16 @@ test("provider initialization wires hover and event manager signals", () => {
     stub._weatherCoordinator.guard(
         "weather-test", () => calls.push(["weather-guard"]));
     assert.equal(stub._eventListCoordinator.eventList(), undefined);
-    stub._calendar = { getSelectedDate: () => "selected" };
+    stub._calendar = {
+        getSelectedDate: () => "selected",
+        refreshEventsEnabled: () => calls.push(["events-enabled"])
+    };
     assert.equal(stub._eventListCoordinator.selectedDate(), "selected");
     stub._eventListCoordinator.guard(
         "events-test", () => calls.push(["events-guard"]));
+    stub._eventListCoordinator.onEnabledChanged();
+    assert.ok(calls.some((row) => row[0] === "events-enabled"),
+        "a show-events flip reaches the calendar grid through the applet");
     // _panel_hovered gates the expensive path: a tooltip-sized entry list every
     // second. A fresh applet must not think the pointer is already on it.
     assert.equal(stub._panel_hovered, false, "no hover before an enter-event");
