@@ -790,7 +790,7 @@ test("events-off selection stays locked for keyboard and scroll input", () => {
     const cal = makeCalendar();
     const selected = new Date(2026, 6, 9);
     const Clutter = global.imports.gi.Clutter;
-    const press = (symbol) => cal.actor.fire("key-press-event", {
+    const press = (symbol) => cal._onKeyPress(null, {
         get_key_symbol: () => symbol
     });
     const scroll = (direction) => cal._onScroll(null, {
@@ -801,11 +801,15 @@ test("events-off selection stays locked for keyboard and scroll input", () => {
     cal.events_enabled = false;
 
     for (const symbol of [
+        Clutter.KEY_Left,
         Clutter.KEY_Right,
+        Clutter.KEY_Up,
+        Clutter.KEY_Down,
+        Clutter.KEY_Page_Up,
         Clutter.KEY_Page_Down,
         Clutter.KEY_Home
     ]) {
-        press(symbol);
+        assert.equal(press(symbol), Clutter.EVENT_PROPAGATE);
     }
     for (const direction of [
         Clutter.ScrollDirection.DOWN,
