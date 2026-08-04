@@ -1065,35 +1065,10 @@ test("CalendarDayCellRenderer mutates cached state and delegates dots", () => {
     assert.equal(cell.selected, true);
     assert.ok(cell.button.pseudo.has("selected"));
     assert.ok(cell.button.style_class.includes("calendar-day-top"));
+    assert.ok(cell.button.style_class.includes("calendar-today"));
     assert.equal(cell.holiday_tooltip_set, false);
     assert.equal(cell.holidayTooltip.texts.at(-1), "");
     assert.deepEqual(dotCalls, [[cell, iter, dateUnixKey]]);
-});
-
-test("CalendarDayCellRenderer reuses the update-scoped today value", () => {
-    const OriginalDate = Date;
-    const renderer = new CalendarModule.CalendarDayCellRenderer({
-        _selectedDate: new OriginalDate(2026, 6, 9),
-        _weekStart: 0,
-        weekend_length: 2,
-        _eventDotRenderer: { update() {} }
-    });
-    const iter = new OriginalDate(2026, 6, 9);
-    const today = new OriginalDate(2026, 6, 9);
-
-    let constructed = 0;
-    global.Date = class CountingDate extends OriginalDate {
-        constructor(...args) {
-            constructed++;
-            super(...args);
-        }
-    };
-    try {
-        assert.match(renderer._dayStyleClass(iter, 2, today), /calendar-today/);
-        assert.equal(constructed, 0);
-    } finally {
-        global.Date = OriginalDate;
-    }
 });
 
 test("CalendarEventDotRenderer owns dot actor reuse and cleanup", () => {

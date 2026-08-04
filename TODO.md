@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T675 | test coverage; reliability / correctness | Low | open | S | Kill the surviving `CalendarDayCellRenderer.update` today-style plumbing mutant. | **[verified]** T651 now passes all six arguments and asserts `cell.is_today`, the accessible date, and the dot key (`test/calendar.test.js:1035-1061`), but it asserts only `calendar-day-top` for style. Removing `today` from the `_updateCellStyle(cell, iter, row, today)` call at `5.4/calendar.js:246` therefore leaves that test green; the separate assertion at `test/calendar.test.js:1063-1087` calls `_dayStyleClass` directly and cannot prove `update` forwards the value. Assert `calendar-today` on the cell produced by the six-argument `update` call and retire the stale private-helper-only plumbing test if it becomes redundant. |
 
 ## Rejected
 
