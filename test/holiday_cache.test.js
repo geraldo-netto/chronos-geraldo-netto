@@ -1525,6 +1525,32 @@ test("a grid read after destroy neither fetches nor answers", () => {
     assert.equal(answered, 0);
 });
 
+test("destroy silences a pending read delivered by an injected cache", () => {
+    const { HolidayService } = loadHolidays();
+    let deliverReady = null;
+    let matches = 0;
+    const cache = {
+        country: "usa",
+        region: "global",
+        whenReady(callback) { deliverReady = callback; },
+        stale: () => false,
+        matchMonth() {
+            matches++;
+            return new Map();
+        }
+    };
+    const service = { fetchYear() { throw new Error("no fetch expected"); } };
+    const enrico = new HolidayService(service, cache, { record: service });
+    let answered = 0;
+
+    enrico.getHolidays(FIXED_YEAR, 7, () => answered++);
+    enrico.destroy();
+    deliverReady();
+
+    assert.equal(answered, 0);
+    assert.equal(matches, 0, "the dead service does not read through its cache");
+});
+
 test("the cache persists only the reachable window but keeps the session's data", () => {
     const { HolidayCache } = loadHolidays();
     const saved = [];

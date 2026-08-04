@@ -587,6 +587,9 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         // throttles the cache exists to enforce. Staleness is judged once the
         // cache has answered; with no load pending this path is synchronous.
         this.cache.whenReady(() => {
+            if (this._destroyed) {
+                return;
+            }
             if (this.fetching(numericYear) || this.staleCache(numericYear)) {
                 this.retrieveForYear(numericYear, respond);
             } else {
