@@ -28,7 +28,6 @@ const EventDataModule = require("./eventData");
 const CalendarNavigation = require("./calendarNavigation");
 const CalendarDate = require("./calendarDate");
 const CalendarNavigationController = CalendarNavigation.CalendarNavigationController;
-const browsedDate = CalendarNavigation.browsedDate;
 const clampCalendarDate = CalendarNavigation.clampCalendarDate;
 const _formatJsDate = CalendarDate.formatJsDate;
 const _sameDay = CalendarDate.sameDay;
@@ -712,7 +711,6 @@ class Calendar {
             emitSelected: (date) => this.emit('selected-date-changed', date),
             update: () => this._update(),
             setDate: (date, forceReload) => this.setDate(date, forceReload),
-            browse: (year, month) => this._applyDateBrowseAction(year, month),
             queueDate: (date) => this.queue_set_date(date)
         });
 
@@ -990,9 +988,7 @@ class Calendar {
     }
 
     _applyDateBrowseAction(yearChange, monthChange) {
-        const queued = this._navigation.queuedDate;
-        const selected = this._navigation.selectedDate;
-        this.queue_set_date(browsedDate(queued || selected, yearChange, monthChange));
+        this._navigation.applyBrowse(yearChange, monthChange);
     }
 
     _onPrevYearButtonClicked() {

@@ -195,10 +195,10 @@ test("navigation controller owns no-op, cancellation, and focus boundaries", () 
 function browse(fromDate, yearChange, monthChange) {
     let queued = null;
     const stub = {
-        _navigation: { queuedDate: null, selectedDate: fromDate },
-        queue_set_date(date) {
-            queued = date;
-        }
+        _navigation: new NavigationModule.CalendarNavigationController({
+            eventsEnabled: () => true,
+            queueDate: (date) => { queued = date; }
+        }, fromDate)
     };
     CalendarModule.Calendar.prototype._applyDateBrowseAction.call(stub, yearChange, monthChange);
     return queued;
@@ -512,6 +512,12 @@ function makeCalendar({ colors = null, holiday = null } = {}) {
 // the grid keeps its cells; the day button is the first child of each cell group
 function dayButtons(cal) {
     return cal._gridView.dayCells.map((cell) => cell.button);
+}
+
+function headerNavButton(box, styleClass) {
+    const button = box.children.find((child) => child.style_class === styleClass);
+    assert.ok(button, `no ${styleClass} button in the header`);
+    return button;
 }
 
 // The dots are 4px of colour and nothing else: colour is the only channel that
@@ -2001,7 +2007,7 @@ test("queued calendar updates and reloads run exactly once", () => {
 test("calendar wrappers cover scroll, style, holiday refresh, and selected-date helpers", () => {
     const cal = makeCalendar();
     const actions = [];
-    cal._applyDateBrowseAction = (year, month) => actions.push([year, month]);
+    cal._navigation.applyBrowse = (year, month) => actions.push([year, month]);
     cal._onPrevYearButtonClicked();
     cal._onNextYearButtonClicked();
     cal._onPrevMonthButtonClicked();
@@ -2056,19 +2062,31 @@ test("the month and year nav buttons reach their handlers through the clicked si
     const actions = [];
     cal._applyDateBrowseAction = (year, month) => actions.push([year, month]);
 
-    const navButton = (box, styleClass) => {
-        const button = box.children.find((child) => child.style_class === styleClass);
-        assert.ok(button, `no ${styleClass} button in the header`);
-        return button;
-    };
-
-    navButton(cal._topBoxMonth, "calendar-change-month-back").fire("clicked");
-    navButton(cal._topBoxMonth, "calendar-change-month-forward").fire("clicked");
-    navButton(cal._topBoxYear, "calendar-change-month-back").fire("clicked");
-    navButton(cal._topBoxYear, "calendar-change-month-forward").fire("clicked");
+    headerNavButton(cal._topBoxMonth, "calendar-change-month-back").fire("clicked");
+    headerNavButton(cal._topBoxMonth, "calendar-change-month-forward").fire("clicked");
+    headerNavButton(cal._topBoxYear, "calendar-change-month-back").fire("clicked");
+    headerNavButton(cal._topBoxYear, "calendar-change-month-forward").fire("clicked");
 
     assert.deepEqual(actions, [[0, -1], [0, 1], [-1, 0], [1, 0]],
         "previous month, next month, previous year, next year");
+});
+
+test("events-off selection stays locked for every header navigation button", () => {
+    const cal = makeCalendar();
+    const selected = new Date(2026, 6, 9);
+    cal.setDate(selected, true);
+    cal.events_enabled = false;
+
+    for (const [box, styleClass] of [
+        [cal._topBoxMonth, "calendar-change-month-back"],
+        [cal._topBoxMonth, "calendar-change-month-forward"],
+        [cal._topBoxYear, "calendar-change-month-back"],
+        [cal._topBoxYear, "calendar-change-month-forward"]
+    ]) {
+        headerNavButton(box, styleClass).fire("clicked");
+        assert.equal(cal.getSelectedDate().getTime(), selected.getTime());
+        assert.equal(cal._navigation.queuedDate, null);
+    }
 });
 
 // The week-number column reserves its width from the theme's digit width, and the
@@ -2103,7 +2121,7 @@ test("a theme change reaches the calendar through the style-changed signal", () 
 test("a touchpad's smooth scroll walks the months, a notch at a time", () => {
     const cal = makeCalendar();
     const actions = [];
-    cal._applyDateBrowseAction = (year, month) => actions.push([year, month]);
+    cal._navigation.applyBrowse = (year, month) => actions.push([year, month]);
 
     const SMOOTH = global.imports.gi.Clutter.ScrollDirection.SMOOTH;
     const scroll = (dx, dy) => cal._onScroll(null, {

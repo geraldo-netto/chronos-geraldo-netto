@@ -199,11 +199,11 @@ class CalendarNavigationController {
         switch (event.get_scroll_direction()) {
         case Clutter.ScrollDirection.UP:
         case Clutter.ScrollDirection.LEFT:
-            this.port.browse(0, -1);
+            this.applyBrowse(0, -1);
             break;
         case Clutter.ScrollDirection.DOWN:
         case Clutter.ScrollDirection.RIGHT:
-            this.port.browse(0, 1);
+            this.applyBrowse(0, 1);
             break;
         case Clutter.ScrollDirection.SMOOTH:
             this.onSmoothScroll(event);
@@ -226,13 +226,17 @@ class CalendarNavigationController {
         if (notches !== 0) {
             const months = Math.max(-MAX_SMOOTH_SCROLL_MONTHS,
                 Math.min(MAX_SMOOTH_SCROLL_MONTHS, notches));
-            this.port.browse(0, months);
+            this.applyBrowse(0, months);
         }
     }
 
     applyBrowse(yearChange, monthChange) {
+        if (!this.port.eventsEnabled()) {
+            return false;
+        }
         const oldDate = this.queuedDate || this.selectedDate;
         this.port.queueDate(browsedDate(oldDate, yearChange, monthChange));
+        return true;
     }
 }
 
