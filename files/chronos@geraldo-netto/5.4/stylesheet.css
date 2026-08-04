@@ -50,6 +50,15 @@
     font-style: italic;
 }
 
+.calendar-astronomy {
+    padding: 0.5em 0 0 0.5em;
+}
+
+.calendar-astronomy-row {
+    max-width: 30em;
+    text-align: left;
+}
+
 /*
  * A public holiday used to be marked by swapping calendar-work-day for
  * calendar-nonwork-day — the same class a Saturday already carries — so a

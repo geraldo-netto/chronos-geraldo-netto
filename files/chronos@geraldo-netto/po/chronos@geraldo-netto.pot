@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-07-31 01:09+0200\n"
+"POT-Creation-Date: 2026-08-04 20:58+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -268,11 +268,11 @@ msgstr ""
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 
-#: 5.4/appletMenuBuilder.js:283 5.4/appletMenuBuilder.js:289
+#: 5.4/appletMenuBuilder.js:286 5.4/appletMenuBuilder.js:292
 msgid "Go to today"
 msgstr ""
 
-#: 5.4/appletMenuBuilder.js:384
+#: 5.4/appletMenuBuilder.js:387
 msgid "Date and Time Settings"
 msgstr ""
 
@@ -336,6 +336,32 @@ msgstr ""
 #: 5.4/appletPanelStatus.js:520 5.4/appletPanelStatus.js:521
 #, javascript-format
 msgid "%s Last known reading"
+msgstr ""
+
+#: 5.4/astronomyView.js:78
+#, javascript-format
+msgid "Sunrise: %s — Sunset: %s"
+msgstr ""
+
+#: 5.4/astronomyView.js:79
+msgid "Sun is above the horizon all day"
+msgstr ""
+
+#: 5.4/astronomyView.js:80
+msgid "Sun is below the horizon all day"
+msgstr ""
+
+#: 5.4/astronomyView.js:82
+#, javascript-format
+msgid "Moonrise: %s — Moonset: %s"
+msgstr ""
+
+#: 5.4/astronomyView.js:83
+msgid "Moon is above the horizon all day"
+msgstr ""
+
+#: 5.4/astronomyView.js:84
+msgid "Moon is below the horizon all day"
 msgstr ""
 
 #: 5.4/calendar.js:331

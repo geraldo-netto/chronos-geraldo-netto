@@ -86,6 +86,14 @@ class AppletWeatherCoordinator {
         });
     }
 
+    currentPlace() {
+        const settings = this.settings();
+        if (!settings.showWeather || !this.weatherProvider.placeFor) {
+            return null;
+        }
+        return this.weatherProvider.placeFor(settings.location);
+    }
+
     cityReading(city) {
         return this.cityWeatherProvider ? this.cityWeatherProvider.recordFor(city) : null;
     }

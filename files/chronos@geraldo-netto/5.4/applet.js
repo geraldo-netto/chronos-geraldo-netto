@@ -234,6 +234,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this.event_list = ui.eventList;
         this._calendar = ui.calendar;
         this._worldclocks = ui.worldclocks;
+        this._astronomy = ui.astronomy;
         this._issueReporter = ui.issueReporter;
         this.go_home_button = ui.goHomeButton;
         this._day = ui.dayLabel;
@@ -349,6 +350,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     
     _openMenu() {
         this.menu.toggle();
+        this._updateAstronomy();
     }
 
     // Cinnamon text entries fire this on every keystroke. Rebuilding the clock
@@ -481,7 +483,19 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _updateClockAndDate(forceMenuUpdate = false) {
+        this._updateAstronomy(forceMenuUpdate);
         this._panelStatus().updateClockAndDate(forceMenuUpdate);
+    }
+
+    _updateAstronomy(forceMenuUpdate = false) {
+        if (!this._astronomy || (!forceMenuUpdate && !this.menu.isOpen)) {
+            return;
+        }
+        this._astronomy.update({
+            visible: this.show_weather,
+            place: this._weatherCoordinator.currentPlace(),
+            use24h: this.desktop_settings.use24h
+        });
     }
 
     on_applet_added_to_panel() {

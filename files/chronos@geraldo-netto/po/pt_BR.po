@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-30 21:24+0200\n"
+"POT-Creation-Date: 2026-08-04 20:58+0200\n"
 "PO-Revision-Date: 2021-10-02 18:47-0300\n"
 "Last-Translator: Marcelo Aof\n"
 "Language-Team: \n"
@@ -19,16 +19,16 @@ msgstr ""
 "X-Generator: Poedit 3.0\n"
 "Plural-Forms: nplurals=2; plural=(n > 1);\n"
 
-#: dateFormats.js:60
+#: dateFormats.js:64
 msgid "%B %-e, %Y"
 msgstr "%-e de %B de %Y"
 
-#: dateFormats.js:61
+#: dateFormats.js:65
 msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e de %B de %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:344
+#: 5.4/calendar.js:328
 msgid "Today"
 msgstr "Hoje"
 
@@ -257,11 +257,11 @@ msgstr "Qingming"
 msgid "Ghost Festival"
 msgstr "Festival dos Fantasmas"
 
-#: worldclockData.js:60 chronos_settings_widgets_worldclocks.py:53
+#: worldclockData.js:62 chronos_settings_widgets_worldclocks.py:53
 msgid "Invalid timezone"
 msgstr "Fuso horário inválido"
 
-#: worldclockData.js:61
+#: worldclockData.js:63
 msgid "Local time"
 msgstr "Hora local"
 
@@ -270,11 +270,11 @@ msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "O applet de calendário encontrou um erro. Verifique o registro do sistema."
 
-#: 5.4/appletMenuBuilder.js:283 5.4/appletMenuBuilder.js:289
+#: 5.4/appletMenuBuilder.js:286 5.4/appletMenuBuilder.js:292
 msgid "Go to today"
 msgstr "Ir para hoje"
 
-#: 5.4/appletMenuBuilder.js:384
+#: 5.4/appletMenuBuilder.js:387
 msgid "Date and Time Settings"
 msgstr "Configurações de Data e Hora"
 
@@ -326,69 +326,95 @@ msgstr "Tempestade"
 msgid "Fair"
 msgstr "Tempo bom"
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:495
-#: 5.4/appletPanelStatus.js:656
+#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:485
+#: 5.4/appletPanelStatus.js:638
 msgid "Weather: loading…"
 msgstr "Clima: carregando…"
 
-#: 5.4/appletPanelStatus.js:519
+#: 5.4/appletPanelStatus.js:509
 msgid "No weather for this timezone"
 msgstr "Sem meteorologia para este fuso horário"
 
-#: 5.4/appletPanelStatus.js:530 5.4/appletPanelStatus.js:531
+#: 5.4/appletPanelStatus.js:520 5.4/appletPanelStatus.js:521
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última leitura conhecida"
 
-#: 5.4/calendar.js:347
+#: 5.4/astronomyView.js:78
+#, javascript-format
+msgid "Sunrise: %s — Sunset: %s"
+msgstr "Nascer do sol: %s — Pôr do sol: %s"
+
+#: 5.4/astronomyView.js:79
+msgid "Sun is above the horizon all day"
+msgstr "O Sol fica acima do horizonte o dia todo"
+
+#: 5.4/astronomyView.js:80
+msgid "Sun is below the horizon all day"
+msgstr "O Sol fica abaixo do horizonte o dia todo"
+
+#: 5.4/astronomyView.js:82
+#, javascript-format
+msgid "Moonrise: %s — Moonset: %s"
+msgstr "Nascer da Lua: %s — Pôr da Lua: %s"
+
+#: 5.4/astronomyView.js:83
+msgid "Moon is above the horizon all day"
+msgstr "A Lua fica acima do horizonte o dia todo"
+
+#: 5.4/astronomyView.js:84
+msgid "Moon is below the horizon all day"
+msgstr "A Lua fica abaixo do horizonte o dia todo"
+
+#: 5.4/calendar.js:331
 msgid "Selected"
 msgstr "Selecionado"
 
-#: 5.4/calendar.js:351
+#: 5.4/calendar.js:335
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d evento"
 msgstr[1] "%d eventos"
 
-#: 5.4/calendar.js:542
+#: 5.4/calendar.js:526
 #, javascript-format
 msgid "Week %s"
 msgstr "Semana %s"
 
-#: 5.4/calendar.js:884
+#: 5.4/calendar.js:868
 msgid "Previous month"
 msgstr "Mês anterior"
 
-#: 5.4/calendar.js:914
+#: 5.4/calendar.js:898
 msgid "Next month"
 msgstr "Próximo mês"
 
-#: 5.4/calendar.js:918
+#: 5.4/calendar.js:902
 msgid "Previous year"
 msgstr "Ano anterior"
 
-#: 5.4/calendar.js:929
+#: 5.4/calendar.js:913
 msgid "Next year"
 msgstr "Próximo ano"
 
-#: 5.4/calendar.js:942
+#: 5.4/calendar.js:926
 msgid "Week"
 msgstr "Semana"
 
-#: 5.4/calendarAnnotations.js:68
+#: 5.4/calendarAnnotations.js:61
 msgid "Holiday service unavailable"
 msgstr "Serviço de feriados indisponível"
 
-#: 5.4/calendarAnnotations.js:69
+#: 5.4/calendarAnnotations.js:62
 msgid "Holiday data unavailable"
 msgstr "Dados de feriados indisponíveis"
 
-#: 5.4/calendarAnnotations.js:234
+#: 5.4/calendarAnnotations.js:227
 msgid "Holiday data: loading…"
 msgstr "Dados de feriados: carregando…"
 
-#: 5.4/calendarAnnotations.js:275
+#: 5.4/calendarAnnotations.js:268
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dados de feriados: %s"
@@ -482,11 +508,11 @@ msgstr "Encerrado"
 msgid "In progress"
 msgstr "Em andamento"
 
-#: 5.4/worldclocks.js:231 5.4/worldclocks.js:232
+#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
 msgid "World clocks"
 msgstr "Relógios mundiais"
 
-#: 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:230
 #, javascript-format
 msgid "Source: %s"
 msgstr "Fonte: %s"
@@ -547,11 +573,11 @@ msgstr "Editar relógio"
 msgid "© OpenStreetMap contributors"
 msgstr "© Colaboradores do OpenStreetMap"
 
-#: 5.4/settings_about.py:45
+#: 5.4/settings_about.py:46
 msgid "Primary place search and weather forecast service."
 msgstr "Serviço principal de pesquisa de locais e previsão do tempo."
 
-#: 5.4/settings_about.py:52
+#: 5.4/settings_about.py:54
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
@@ -559,46 +585,46 @@ msgstr ""
 "Pesquisa alternativa de locais usando dados do OpenStreetMap. O Chronos não "
 "baixa blocos de mapa nem outros recursos cartográficos."
 
-#: 5.4/settings_about.py:60
+#: 5.4/settings_about.py:63
 msgid "First fallback weather service, using nearby METAR observations."
 msgstr ""
 "Primeiro serviço meteorológico alternativo, usando observações METAR "
 "próximas."
 
-#: 5.4/settings_about.py:66
+#: 5.4/settings_about.py:70
 msgid "Final fallback weather forecast service."
 msgstr "Serviço final alternativo de previsão do tempo."
 
-#: 5.4/settings_about.py:75
+#: 5.4/settings_about.py:80
 msgid "Primary public-holiday service."
 msgstr "Serviço principal de feriados."
 
-#: 5.4/settings_about.py:81
+#: 5.4/settings_about.py:87
 msgid "First fallback public-holiday service."
 msgstr "Primeiro serviço alternativo de feriados."
 
-#: 5.4/settings_about.py:87
+#: 5.4/settings_about.py:94
 msgid "Final fallback public-holiday service."
 msgstr "Serviço final alternativo de feriados."
 
-#: 5.4/settings_about.py:133
+#: 5.4/settings_about.py:140
 #, python-format
 msgid "Version %s"
 msgstr "Versão %s"
 
-#: 5.4/settings_about.py:140
+#: 5.4/settings_about.py:147
 msgid "Project website and source code"
 msgstr "Site e código-fonte do projeto"
 
-#: 5.4/settings_about.py:141
+#: 5.4/settings_about.py:148
 msgid "License: GPL 2.0 or later"
 msgstr "Licença: GPL 2.0 ou posterior"
 
-#: 5.4/settings_about.py:177
+#: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Serviços de clima e localização"
 
-#: 5.4/settings_about.py:179
+#: 5.4/settings_about.py:186
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
@@ -607,11 +633,11 @@ msgstr ""
 "geocodificador e, em seguida, suas coordenadas são enviadas a um provedor "
 "meteorológico."
 
-#: 5.4/settings_about.py:185
+#: 5.4/settings_about.py:192
 msgid "Holiday services"
 msgstr "Serviços de feriados"
 
-#: 5.4/settings_about.py:187
+#: 5.4/settings_about.py:194
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
@@ -619,11 +645,11 @@ msgstr ""
 "Usados somente quando os feriados estão ativados. O país, a região e o ano "
 "solicitado selecionados podem ser enviados a esses provedores."
 
-#: 5.4/settings_about.py:194
+#: 5.4/settings_about.py:201
 msgid "About Chronos"
 msgstr "Sobre o Chronos"
 
-#: 5.4/settings_about.py:198
+#: 5.4/settings_about.py:205
 msgid "Authors and credits"
 msgstr "Autores e créditos"
 

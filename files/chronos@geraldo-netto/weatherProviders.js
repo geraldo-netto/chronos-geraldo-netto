@@ -176,6 +176,10 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         return this._geocode_cache;
     }
 
+    placeFor(location) {
+        return this._geocode_cache.get(locationCacheKey(location)) || null;
+    }
+
     // every debounced keystroke in the location entry resolves a place, so
     // without a bound the map grows with the typing
     _remember(cacheKey, place) {

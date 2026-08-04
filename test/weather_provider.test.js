@@ -229,10 +229,31 @@ test("the geocode cache is bounded and re-resolves an edited location", () => {
     const before = geocodes;
     resolve("paris");
     assert.equal(geocodes, before, "a hit is still served from the cache");
+    assert.deepEqual(resolver.placeFor(" Paris "),
+        { name: "", latitude: 1, longitude: 2 },
+        "the astronomy feature reads the same normalized geocode cache entry");
 
     resolver.forget("Paris");
+    assert.equal(resolver.placeFor("Paris"), null);
     resolve("paris");
     assert.equal(geocodes, before + 1, "forget() forces a re-resolve");
+});
+
+test("the panel provider exposes the coordinates resolved for its weather location", () => {
+    const Weather = loadWeather();
+    const provider = new Weather.WeatherProvider({
+        httpGetJson(url, callback) {
+            callback(url.includes("geocoding-api") ?
+                { results: [{ name: "Rome", latitude: 41.9, longitude: 12.5,
+                    population: 2873000 }] } :
+                { current_weather: { weathercode: 0, temperature: 20 } });
+        }
+    });
+
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, () => {});
+    assert.deepEqual(provider.placeFor(" rome "),
+        { name: "Rome", latitude: 41.9, longitude: 12.5 });
+    assert.equal(provider.placeFor("Oslo"), null);
 });
 
 test("a failed refresh retries sooner than the refresh period, with backoff", () => {

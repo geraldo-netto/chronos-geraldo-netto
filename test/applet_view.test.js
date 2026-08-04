@@ -236,6 +236,59 @@ test("the weather coordinator clears a provider name when a refresh reports none
     assert.equal(coordinator.providerName, "");
 });
 
+test("astronomy coordinates come only from the current enabled weather location", () => {
+    const places = {
+        Rome: { name: "Rome", latitude: 41.9, longitude: 12.5 }
+    };
+    let settings = { showWeather: true, location: "Rome" };
+    const coordinator = new CoordinatorModule.AppletWeatherCoordinator({
+        weatherProvider: { placeFor: (location) => places[location] || null },
+        cityWeatherProvider: null,
+        settings: () => settings,
+        worldclocks: () => [],
+        onChanged: () => {},
+        guard: (source, fn) => fn()
+    });
+
+    assert.deepEqual(coordinator.currentPlace(), places.Rome);
+    settings = { showWeather: true, location: "Oslo" };
+    assert.equal(coordinator.currentPlace(), null, "the old city's coordinates are never reused");
+    settings = { showWeather: false, location: "Rome" };
+    assert.equal(coordinator.currentPlace(), null, "weather opt-out also disables its location consumer");
+
+    coordinator.weatherProvider = {};
+    settings.showWeather = true;
+    assert.equal(coordinator.currentPlace(), null, "an unavailable cache degrades to no astronomy");
+});
+
+test("the astronomy popup updates only while it can be seen", () => {
+    const { stub } = updateStub({ menuOpen: false });
+    const updates = [];
+    const place = { latitude: 41.9, longitude: 12.5 };
+    stub._astronomy = { update: (model) => updates.push(model) };
+    stub._weatherCoordinator.currentPlace = () => place;
+    stub.show_weather = true;
+    stub.desktop_settings = { use24h: true };
+
+    Proto._updateClockAndDate.call(stub);
+    assert.deepEqual(updates, [], "closed-menu ticks do no astronomy work");
+    stub.menu.isOpen = true;
+    Proto._updateClockAndDate.call(stub);
+    assert.deepEqual(updates, [{ visible: true, place, use24h: true }]);
+    stub.menu.isOpen = false;
+    stub.show_weather = false;
+    Proto._updateClockAndDate.call(stub, true);
+    assert.deepEqual(updates[1], { visible: false, place, use24h: true });
+
+    stub.show_weather = true;
+    stub.menu.toggle = () => {
+        stub.menu.isOpen = true;
+    };
+    Proto._openMenu.call(stub);
+    assert.deepEqual(updates[2], { visible: true, place, use24h: true },
+        "opening renders immediately instead of waiting for the next clock tick");
+});
+
 // a country key that was cleared to an empty string (rather than to "none") is
 // still "no holidays": it must not reach the provider as a place to look up
 test("an empty holiday country is treated as none", () => {

@@ -21,6 +21,7 @@ const LocaleText = AppletModules.localeText;
 const Calendar = require("./calendar");
 const EventView = require("./eventView");
 const Worldclocks = require("./worldclocks");
+const AstronomyView = require("./astronomyView");
 
 const _ = LocaleText.translate;
 const HOME_KEY_SYMBOLS = new Set([
@@ -143,6 +144,7 @@ class AppletMenuBuilder {
         box.add_actor(calbox);
 
         const worldclocks = new Worldclocks.Worldclocks(calbox);
+        const astronomy = new AstronomyView.AstronomyView(calbox);
         this._addSettingsMenuItems(issueReporter.label);
         this._issueReporter = issueReporter;
 
@@ -150,6 +152,7 @@ class AppletMenuBuilder {
             eventList,
             calendar,
             worldclocks,
+            astronomy,
             issueReporter,
             goHomeButton: home.button,
             dayLabel: home.day,

@@ -152,6 +152,10 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         this._reading_repository.httpGetJson(url, callback, options);
     }
 
+    placeFor(location) {
+        return this._location_resolver.placeFor(location);
+    }
+
     stop() {
         this._request_generation++;
         this._scheduler.stop();

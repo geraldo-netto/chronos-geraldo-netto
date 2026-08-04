@@ -279,6 +279,9 @@ function nativeImport(moduleName) {
 }
 
 const EXPORTS = {
+    astronomy: ["ASTRONOMY_DAY_MS", "ASTRONOMY_MAX_DAY_MS", "ASTRONOMY_SAMPLE_MS",
+        "validCoordinates", "validDayBounds", "sunAltitude", "moonAltitude",
+        "calculateAstronomyEvents"],
     clockLimits: ["MAX_CLOCKS"],
     dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],

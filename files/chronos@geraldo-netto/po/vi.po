@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-07-30 21:24+0200\n"
+"POT-Creation-Date: 2026-08-04 20:58+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -18,16 +18,16 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Poedit 3.4.2\n"
 
-#: dateFormats.js:60
+#: dateFormats.js:64
 msgid "%B %-e, %Y"
 msgstr "%-e %B, %Y"
 
-#: dateFormats.js:61
+#: dateFormats.js:65
 msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e %B, %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:344
+#: 5.4/calendar.js:328
 msgid "Today"
 msgstr "Hôm nay"
 
@@ -256,11 +256,11 @@ msgstr "thanh minh"
 msgid "Ghost Festival"
 msgstr "lễ hội ma"
 
-#: worldclockData.js:60 chronos_settings_widgets_worldclocks.py:53
+#: worldclockData.js:62 chronos_settings_widgets_worldclocks.py:53
 msgid "Invalid timezone"
 msgstr "Múi giờ không hợp lệ"
 
-#: worldclockData.js:61
+#: worldclockData.js:63
 msgid "Local time"
 msgstr "Giờ địa phương"
 
@@ -268,11 +268,11 @@ msgstr "Giờ địa phương"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Tiểu dụng lịch gặp lỗi. Hãy kiểm tra nhật ký hệ thống."
 
-#: 5.4/appletMenuBuilder.js:283 5.4/appletMenuBuilder.js:289
+#: 5.4/appletMenuBuilder.js:286 5.4/appletMenuBuilder.js:292
 msgid "Go to today"
 msgstr "Đến hôm nay"
 
-#: 5.4/appletMenuBuilder.js:384
+#: 5.4/appletMenuBuilder.js:387
 msgid "Date and Time Settings"
 msgstr "Cài đặt ngày và giờ"
 
@@ -324,68 +324,94 @@ msgstr "Dông"
 msgid "Fair"
 msgstr "Trời đẹp"
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:495
-#: 5.4/appletPanelStatus.js:656
+#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:485
+#: 5.4/appletPanelStatus.js:638
 msgid "Weather: loading…"
 msgstr "Thời tiết: đang tải…"
 
-#: 5.4/appletPanelStatus.js:519
+#: 5.4/appletPanelStatus.js:509
 msgid "No weather for this timezone"
 msgstr "Không có thời tiết cho múi giờ này"
 
-#: 5.4/appletPanelStatus.js:530 5.4/appletPanelStatus.js:531
+#: 5.4/appletPanelStatus.js:520 5.4/appletPanelStatus.js:521
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Số liệu gần nhất"
 
-#: 5.4/calendar.js:347
+#: 5.4/astronomyView.js:78
+#, javascript-format
+msgid "Sunrise: %s — Sunset: %s"
+msgstr "Mặt Trời mọc: %s — Mặt Trời lặn: %s"
+
+#: 5.4/astronomyView.js:79
+msgid "Sun is above the horizon all day"
+msgstr "Mặt Trời ở trên đường chân trời cả ngày"
+
+#: 5.4/astronomyView.js:80
+msgid "Sun is below the horizon all day"
+msgstr "Mặt Trời ở dưới đường chân trời cả ngày"
+
+#: 5.4/astronomyView.js:82
+#, javascript-format
+msgid "Moonrise: %s — Moonset: %s"
+msgstr "Mặt Trăng mọc: %s — Mặt Trăng lặn: %s"
+
+#: 5.4/astronomyView.js:83
+msgid "Moon is above the horizon all day"
+msgstr "Mặt Trăng ở trên đường chân trời cả ngày"
+
+#: 5.4/astronomyView.js:84
+msgid "Moon is below the horizon all day"
+msgstr "Mặt Trăng ở dưới đường chân trời cả ngày"
+
+#: 5.4/calendar.js:331
 msgid "Selected"
 msgstr "Đã chọn"
 
-#: 5.4/calendar.js:351
+#: 5.4/calendar.js:335
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d sự kiện"
 
-#: 5.4/calendar.js:542
+#: 5.4/calendar.js:526
 #, javascript-format
 msgid "Week %s"
 msgstr "Tuần %s"
 
-#: 5.4/calendar.js:884
+#: 5.4/calendar.js:868
 msgid "Previous month"
 msgstr "Tháng trước"
 
-#: 5.4/calendar.js:914
+#: 5.4/calendar.js:898
 msgid "Next month"
 msgstr "Tháng sau"
 
-#: 5.4/calendar.js:918
+#: 5.4/calendar.js:902
 msgid "Previous year"
 msgstr "Năm trước"
 
-#: 5.4/calendar.js:929
+#: 5.4/calendar.js:913
 msgid "Next year"
 msgstr "Năm sau"
 
-#: 5.4/calendar.js:942
+#: 5.4/calendar.js:926
 msgid "Week"
 msgstr "Tuần"
 
-#: 5.4/calendarAnnotations.js:68
+#: 5.4/calendarAnnotations.js:61
 msgid "Holiday service unavailable"
 msgstr "Dịch vụ ngày lễ không khả dụng"
 
-#: 5.4/calendarAnnotations.js:69
+#: 5.4/calendarAnnotations.js:62
 msgid "Holiday data unavailable"
 msgstr "Dữ liệu ngày lễ không khả dụng"
 
-#: 5.4/calendarAnnotations.js:234
+#: 5.4/calendarAnnotations.js:227
 msgid "Holiday data: loading…"
 msgstr "Dữ liệu ngày lễ: đang tải…"
 
-#: 5.4/calendarAnnotations.js:275
+#: 5.4/calendarAnnotations.js:268
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dữ liệu ngày lễ: %s"
@@ -475,11 +501,11 @@ msgstr "Đã kết thúc"
 msgid "In progress"
 msgstr "Đang diễn ra"
 
-#: 5.4/worldclocks.js:231 5.4/worldclocks.js:232
+#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
 msgid "World clocks"
 msgstr "Đồng hồ thế giới"
 
-#: 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:230
 #, javascript-format
 msgid "Source: %s"
 msgstr "Nguồn: %s"
@@ -539,11 +565,11 @@ msgstr "Chỉnh sửa mục"
 msgid "© OpenStreetMap contributors"
 msgstr "© Người đóng góp OpenStreetMap"
 
-#: 5.4/settings_about.py:45
+#: 5.4/settings_about.py:46
 msgid "Primary place search and weather forecast service."
 msgstr "Dịch vụ chính để tìm kiếm địa điểm và dự báo thời tiết."
 
-#: 5.4/settings_about.py:52
+#: 5.4/settings_about.py:54
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
@@ -551,45 +577,45 @@ msgstr ""
 "Dịch vụ tìm kiếm địa điểm dự phòng sử dụng dữ liệu OpenStreetMap. Chronos "
 "không tải xuống ô bản đồ hoặc tài nguyên bản đồ khác."
 
-#: 5.4/settings_about.py:60
+#: 5.4/settings_about.py:63
 msgid "First fallback weather service, using nearby METAR observations."
 msgstr ""
 "Dịch vụ thời tiết dự phòng đầu tiên, sử dụng các quan trắc METAR lân cận."
 
-#: 5.4/settings_about.py:66
+#: 5.4/settings_about.py:70
 msgid "Final fallback weather forecast service."
 msgstr "Dịch vụ dự báo thời tiết dự phòng cuối cùng."
 
-#: 5.4/settings_about.py:75
+#: 5.4/settings_about.py:80
 msgid "Primary public-holiday service."
 msgstr "Dịch vụ ngày lễ chính."
 
-#: 5.4/settings_about.py:81
+#: 5.4/settings_about.py:87
 msgid "First fallback public-holiday service."
 msgstr "Dịch vụ ngày lễ dự phòng đầu tiên."
 
-#: 5.4/settings_about.py:87
+#: 5.4/settings_about.py:94
 msgid "Final fallback public-holiday service."
 msgstr "Dịch vụ ngày lễ dự phòng cuối cùng."
 
-#: 5.4/settings_about.py:133
+#: 5.4/settings_about.py:140
 #, python-format
 msgid "Version %s"
 msgstr "Phiên bản %s"
 
-#: 5.4/settings_about.py:140
+#: 5.4/settings_about.py:147
 msgid "Project website and source code"
 msgstr "Trang web và mã nguồn dự án"
 
-#: 5.4/settings_about.py:141
+#: 5.4/settings_about.py:148
 msgid "License: GPL 2.0 or later"
 msgstr "Giấy phép: GPL 2.0 trở lên"
 
-#: 5.4/settings_about.py:177
+#: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Dịch vụ thời tiết và vị trí"
 
-#: 5.4/settings_about.py:179
+#: 5.4/settings_about.py:186
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
@@ -597,11 +623,11 @@ msgstr ""
 "Chỉ được sử dụng khi thời tiết được bật. Tên địa điểm được gửi đến dịch vụ "
 "mã hóa địa lý, sau đó tọa độ được gửi đến nhà cung cấp thời tiết."
 
-#: 5.4/settings_about.py:185
+#: 5.4/settings_about.py:192
 msgid "Holiday services"
 msgstr "Dịch vụ ngày lễ"
 
-#: 5.4/settings_about.py:187
+#: 5.4/settings_about.py:194
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
@@ -609,11 +635,11 @@ msgstr ""
 "Chỉ được sử dụng khi ngày lễ được bật. Quốc gia, khu vực và năm được yêu cầu "
 "có thể được gửi đến các nhà cung cấp này."
 
-#: 5.4/settings_about.py:194
+#: 5.4/settings_about.py:201
 msgid "About Chronos"
 msgstr "Giới thiệu Chronos"
 
-#: 5.4/settings_about.py:198
+#: 5.4/settings_about.py:205
 msgid "Authors and credits"
 msgstr "Tác giả và ghi nhận"
 
