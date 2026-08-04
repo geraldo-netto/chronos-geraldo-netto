@@ -151,6 +151,9 @@ class CalendarNavigationController {
     }
 
     onKeyPress(event) {
+        if (!this.port.eventsEnabled()) {
+            return Clutter.EVENT_PROPAGATE;
+        }
         const symbol = event.get_key_symbol();
         const days = DAY_KEY_DELTAS[symbol];
         if (days !== undefined) {
@@ -190,6 +193,9 @@ class CalendarNavigationController {
     }
 
     onScroll(event) {
+        if (!this.port.eventsEnabled()) {
+            return;
+        }
         switch (event.get_scroll_direction()) {
         case Clutter.ScrollDirection.UP:
         case Clutter.ScrollDirection.LEFT:

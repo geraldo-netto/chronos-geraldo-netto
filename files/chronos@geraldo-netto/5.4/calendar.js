@@ -708,6 +708,7 @@ class Calendar {
         this._navigation = new CalendarNavigationController({
             actor: () => this.actor,
             dayCells: () => this._gridView.dayCells,
+            eventsEnabled: () => this.events_enabled,
             emitSelected: (date) => this.emit('selected-date-changed', date),
             update: () => this._update(),
             setDate: (date, forceReload) => this.setDate(date, forceReload),

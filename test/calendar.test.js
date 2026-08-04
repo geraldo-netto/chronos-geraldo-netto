@@ -164,6 +164,7 @@ test("navigation controller owns no-op, cancellation, and focus boundaries", () 
     const controller = new NavigationModule.CalendarNavigationController({
         actor: () => ({}),
         dayCells: () => [],
+        eventsEnabled: () => true,
         emitSelected() { emitted++; },
         update: () => updates++,
         setDate() {},
@@ -777,6 +778,39 @@ test("the grid is navigable from the keyboard and announces its days", () => {
     assert.equal(MockActor.focused, null, "nothing is focused before the date lands");
     cal._navigation.flushQueuedDate();
     assert.ok(MockActor.focused, "and the newly selected day has focus once it does");
+});
+
+test("events-off selection stays locked for keyboard and scroll input", () => {
+    const cal = makeCalendar();
+    const selected = new Date(2026, 6, 9);
+    const Clutter = global.imports.gi.Clutter;
+    const press = (symbol) => cal.actor.fire("key-press-event", {
+        get_key_symbol: () => symbol
+    });
+    const scroll = (direction) => cal._onScroll(null, {
+        get_scroll_direction: () => direction,
+        get_scroll_delta: () => [0, 2]
+    });
+    cal.setDate(selected, true);
+    cal.events_enabled = false;
+
+    for (const symbol of [
+        Clutter.KEY_Right,
+        Clutter.KEY_Page_Down,
+        Clutter.KEY_Home
+    ]) {
+        press(symbol);
+    }
+    for (const direction of [
+        Clutter.ScrollDirection.DOWN,
+        Clutter.ScrollDirection.SMOOTH
+    ]) {
+        scroll(direction);
+    }
+
+    assert.equal(cal.getSelectedDate().getTime(), selected.getTime());
+    assert.equal(cal._navigation.queuedDate, null);
+    assert.equal(cal._navigation.scrollAccumulator, 0);
 });
 
 // the handler sits on the table, which is the ancestor of the month and year
