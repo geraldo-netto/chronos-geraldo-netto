@@ -18,6 +18,11 @@ Python 98 % lines per file. They fail the run — they are not advisory.
 `TODO.md` is the audit ledger. Items are worked one commit per item, and the row
 is deleted from the ledger in that same commit.
 
+Every new actionable finding discovered during review, implementation, testing,
+or maintenance must be added to the root `TODO.md` immediately. Never leave a
+finding only in chat or defer recording it because it is outside the current
+task.
+
 ## Change history
 
 Git history, Conventional Commits, and annotated release tags are the sole
