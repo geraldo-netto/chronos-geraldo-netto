@@ -558,6 +558,9 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     }
 
     getHolidays (year, month, callback) {
+        if (this._destroyed) {
+            return;
+        }
         // The annotator splits its "YYYY/M" month keys, so both arrive as
         // strings; the staleness gate and the record contract compare numbers,
         // and a string year used to read every provider's valid payload as
@@ -584,10 +587,6 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         // throttles the cache exists to enforce. Staleness is judged once the
         // cache has answered; with no load pending this path is synchronous.
         this.cache.whenReady(() => {
-            if (this._destroyed) {
-                return;
-            }
-
             if (this.fetching(numericYear) || this.staleCache(numericYear)) {
                 this.retrieveForYear(numericYear, respond);
             } else {

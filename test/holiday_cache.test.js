@@ -410,6 +410,42 @@ test("destroying the provider drops the holidays it was holding", () => {
     assert.equal(cache.matchMonth(2026, 1).size, 0, "the indexes go with the data");
 });
 
+test("a cache load cannot repopulate or notify after release", () => {
+    const { HolidayCache } = loadHolidays();
+    let deliverLoad = null;
+    let loads = 0;
+    const cache = new HolidayCache((_country, done) => {
+        loads++;
+        deliverLoad = done;
+    }, () => {});
+    const callbacks = [];
+    cache.setPlace("ita", "global", () => callbacks.push("place"));
+    cache.whenReady(() => callbacks.push("waiter"));
+
+    cache.release();
+    deliverLoad({
+        years: { 2026: { global: STAMP } },
+        holidays: [{
+            year: 2026,
+            month: 1,
+            day: 1,
+            region: "global",
+            name: "New Year",
+            flags: []
+        }]
+    });
+
+    assert.equal(cache.country, null);
+    assert.deepEqual(cache.years, {});
+    assert.deepEqual(cache.data, []);
+    assert.deepEqual(callbacks, []);
+
+    cache.setPlace("usa", "global", () => callbacks.push("reopened"));
+    cache.whenReady(() => callbacks.push("late waiter"));
+    assert.equal(loads, 1, "a released cache cannot be reopened");
+    assert.deepEqual(callbacks, []);
+});
+
 test("HolidayService.destroy aborts its own session and silences late callbacks", () => {
     const aborted = [];
     const soup = makeSoup3();

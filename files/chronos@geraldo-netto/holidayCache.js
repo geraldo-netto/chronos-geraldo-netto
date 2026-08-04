@@ -423,6 +423,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._yearUse = new Map();
         this._loading = false;
         this._onReady = [];
+        this._released = false;
     }
 
     // The disk read setPlace starts is asynchronous, and Cinnamon runs the
@@ -432,6 +433,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // already fresh on disk. Anyone whose answer depends on the cached years
     // waits here; with no load pending this is a plain synchronous call.
     whenReady(callback) {
+        if (this._released) {
+            return;
+        }
         if (this._loading) {
             this._onReady.push(callback);
             return;
@@ -477,6 +481,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // `onReady` runs once the country's cached data is in place — the load is
     // asynchronous, so a caller that fetches or repaints has to wait for it.
     setPlace(country, region = GLOBAL_REGION, onReady) { // NOSONAR [S1788] -- accepted compatible form
+        if (this._released) {
+            return;
+        }
         // regioned countries default the region setting to null, which
         // bypasses the parameter default (null !== undefined)
         region = region || GLOBAL_REGION;
@@ -500,7 +507,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._loading = true;
         this._load(country, (data) => {
             // a second place change can land while the first is still reading
-            if (this.country !== country) {
+            if (this._released || this.country !== country) {
                 return;
             }
 
@@ -714,6 +721,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // AppletContextMenu's sourceActor), so nothing else drops them.
     release() {
         // waiters would repaint actors the removal has already destroyed
+        this._released = true;
+        this.country = null;
+        this.region = GLOBAL_REGION;
         this._onReady = [];
         this._loading = false;
         this.data = [];
