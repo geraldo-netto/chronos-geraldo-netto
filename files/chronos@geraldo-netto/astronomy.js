@@ -22,6 +22,7 @@ const OBLIQUITY = RAD * 23.4397;
 const SUN_RISE_ALTITUDE = RAD * -0.833;
 const MOON_RISE_ALTITUDE = RAD * 0.133;
 const CROSSING_REFINEMENTS = 12;
+const EXTREME_REFINEMENTS = 16;
 
 function validCoordinates(latitude, longitude) {
     return typeof latitude === "number" && Number.isFinite(latitude) &&
@@ -140,6 +141,50 @@ function refineCrossing(leftMs, rightMs, leftOffset, altitudeFunction,
     return Math.round((lower + upper) / 2);
 }
 
+function extremeDirection(leftOffset, rightOffset) {
+    if (leftOffset < 0 && rightOffset < 0) {
+        return 1;
+    }
+    if (leftOffset > 0 && rightOffset > 0) {
+        return -1;
+    }
+    return 0;
+}
+
+function refineExtreme(leftMs, rightMs, altitudeFunction,
+    latitude, longitude, threshold, direction) {
+    let lower = leftMs;
+    let upper = rightMs;
+    for (let attempt = 0; attempt < EXTREME_REFINEMENTS; attempt++) {
+        const third = (upper - lower) / 3;
+        const first = lower + third;
+        const second = upper - third;
+        const firstOffset = altitudeFunction(first, latitude, longitude) - threshold;
+        const secondOffset = altitudeFunction(second, latitude, longitude) - threshold;
+        if (direction * firstOffset < direction * secondOffset) {
+            lower = first;
+        } else {
+            upper = second;
+        }
+    }
+    const timestamp = (lower + upper) / 2;
+    return {
+        timestamp,
+        offset: altitudeFunction(timestamp, latitude, longitude) - threshold
+    };
+}
+
+function hiddenExtreme(leftMs, rightMs, leftOffset, rightOffset,
+    altitudeFunction, latitude, longitude, threshold) {
+    const direction = extremeDirection(leftOffset, rightOffset);
+    if (!direction) {
+        return null;
+    }
+    const point = refineExtreme(leftMs, rightMs, altitudeFunction,
+        latitude, longitude, threshold, direction);
+    return direction * point.offset >= 0 ? point : null;
+}
+
 function horizonState(rise, set, minimum, maximum) {
     if (rise !== null || set !== null) {
         return "normal";
@@ -172,16 +217,22 @@ function altitudeEvents(startMs, endMs, latitude, longitude,
     while (leftMs < endMs) {
         const rightMs = Math.min(leftMs + ASTRONOMY_SAMPLE_MS, endMs);
         const rightOffset = altitudeFunction(rightMs, latitude, longitude) - threshold;
-        const direction = crossingDirection(leftOffset, rightOffset);
-        if (direction) {
-            recordCrossing(events, direction, refineCrossing(
-                leftMs, rightMs, leftOffset, altitudeFunction,
-                latitude, longitude, threshold));
+        const interior = hiddenExtreme(leftMs, rightMs, leftOffset, rightOffset,
+            altitudeFunction, latitude, longitude, threshold);
+        const samples = interior ? [interior, { timestamp: rightMs, offset: rightOffset }] :
+            [{ timestamp: rightMs, offset: rightOffset }];
+        for (const sample of samples) {
+            const direction = crossingDirection(leftOffset, sample.offset);
+            if (direction) {
+                recordCrossing(events, direction, refineCrossing(
+                    leftMs, sample.timestamp, leftOffset, altitudeFunction,
+                    latitude, longitude, threshold));
+            }
+            minimum = Math.min(minimum, sample.offset);
+            maximum = Math.max(maximum, sample.offset);
+            leftMs = sample.timestamp;
+            leftOffset = sample.offset;
         }
-        minimum = Math.min(minimum, rightOffset);
-        maximum = Math.max(maximum, rightOffset);
-        leftMs = rightMs;
-        leftOffset = rightOffset;
     }
 
     events.state = horizonState(events.rise, events.set, minimum, maximum);
@@ -222,6 +273,9 @@ if (typeof module !== "undefined") {
         moonAltitude,
         crossingDirection,
         refineCrossing,
+        extremeDirection,
+        refineExtreme,
+        hiddenExtreme,
         horizonState,
         recordCrossing,
         altitudeEvents,

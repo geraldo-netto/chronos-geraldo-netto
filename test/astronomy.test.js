@@ -88,6 +88,14 @@ test("the generic sampler finds a rise and set without leaving the requested day
     assert.equal(events.state, "normal");
     assert.ok(minutesFrom(events.rise, 60 * MINUTE_MS) < 0.1);
     assert.ok(minutesFrom(events.set, 3 * 60 * MINUTE_MS) < 0.1);
+
+    const shortDay = 20 * MINUTE_MS;
+    const hiddenTrough = (timestamp) =>
+        Math.pow((timestamp - shortDay / 2) / (6 * MINUTE_MS), 2) - 1;
+    const troughEvents = Astronomy.altitudeEvents(0, shortDay, 0, 0, hiddenTrough, 0);
+    assert.equal(troughEvents.state, "normal");
+    assert.ok(minutesFrom(troughEvents.set, 4 * MINUTE_MS) < 0.1);
+    assert.ok(minutesFrom(troughEvents.rise, 16 * MINUTE_MS) < 0.1);
 });
 
 test("Rome results track the US Naval Observatory within low-precision tolerances", () => {
@@ -124,6 +132,28 @@ test("polar days and nights are explicit results rather than invented times", ()
     assert.equal(winter.moon.state, "alwaysUp");
     assert.equal(Astronomy.calculateAstronomyEvents(0, 0, 0, 0), null);
     assert.equal(Astronomy.calculateAstronomyEvents(0, 1, 91, 0), null);
+});
+
+test("grazing solar and lunar crossings survive one coarse sample interval", () => {
+    const cases = [
+        {
+            body: "sun", latitude: 68.2, date: "2026-01-05",
+            rise: "2026-01-05T12:00:13.923Z", set: "2026-01-05T12:11:24.470Z"
+        },
+        {
+            body: "moon", latitude: 61.6, date: "2026-01-16",
+            rise: "2026-01-16T10:02:15.901Z", set: "2026-01-16T10:19:44.480Z"
+        }
+    ];
+
+    for (const row of cases) {
+        const start = Date.parse(row.date + "T00:00:00Z");
+        const events = Astronomy.calculateAstronomyEvents(
+            start, start + Astronomy.ASTRONOMY_DAY_MS, row.latitude, 0)[row.body];
+        assert.equal(events.state, "normal");
+        assert.ok(minutesFrom(events.rise, Date.parse(row.rise)) < 1);
+        assert.ok(minutesFrom(events.set, Date.parse(row.set)) < 1);
+    }
 });
 
 test("seeded observations always return bounded, finite event timestamps", () => {
