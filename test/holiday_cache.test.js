@@ -446,6 +446,67 @@ test("a cache load cannot repopulate or notify after release", () => {
     assert.deepEqual(callbacks, []);
 });
 
+test("a released cache rejects every public re-entry path", () => {
+    const { HolidayCache } = loadHolidays();
+    let loads = 0;
+    let saves = 0;
+    const cache = new HolidayCache(() => { loads++; }, () => { saves++; });
+    const row = {
+        year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: []
+    };
+    const exercise = (name, action) => {
+        cache.release();
+        const refs = {
+            data: cache.data,
+            years: cache.years,
+            attempts: cache.attempts,
+            ready: cache._onReady
+        };
+        assert.doesNotThrow(action, name);
+        assert.equal(cache.data, refs.data, `${name} replaced released data`);
+        assert.equal(cache.years, refs.years, `${name} replaced released years`);
+        assert.equal(cache.attempts, refs.attempts, `${name} replaced released attempts`);
+        assert.equal(cache._onReady, refs.ready, `${name} replaced released waiters`);
+        assert.deepEqual(cache.data, [], name);
+        assert.deepEqual(cache.years, {}, name);
+        assert.deepEqual(cache.attempts, {}, name);
+        assert.equal(cache._yearUse.size, 0, name);
+        assert.equal(cache._holidayIndex.size, 0, name);
+        assert.equal(cache._monthIndex.size, 0, name);
+        assert.equal(cache._matchedMonthCache.size, 0, name);
+    };
+
+    exercise("setData", () => cache.setData([Object.assign({}, row)]));
+    exercise("addUnique", () => cache.addUnique(Object.assign({}, row)));
+    exercise("recordYear", () => cache.recordYear(2026, "global", STAMP));
+    exercise("recordFetch", () => cache.recordFetch(2026, "global", STAMP, {
+        forEach() { throw new Error("released data was inspected"); }
+    }));
+    exercise("recordAttempt", () => cache.recordAttempt(2026, "global", STAMP));
+    exercise("clearPlace", () => cache.clearPlace());
+
+    cache.release();
+    let ready = 0;
+    cache.whenReady(() => ready++);
+    cache.setPlace("usa", "global", () => ready++);
+    assert.equal(ready, 0);
+    assert.equal(loads, 0);
+
+    const january = cache.matchMonth(2026, 1);
+    assert.equal(january.size, 0);
+    assert.equal(cache.matchMonth(2026, 1).size, 0);
+    assert.equal(cache._yearUse.size, 0);
+    assert.equal(cache._matchedMonthCache.size, 0);
+    assert.deepEqual(cache.cachedYears(), []);
+    assert.equal(cache.stale(2026, "global", Date.now()), true);
+
+    cache.country = "usa";
+    cache.persist();
+    assert.equal(saves, 0, "released state wins over externally retained fields");
+    cache.release();
+    assert.doesNotThrow(() => cache.release(), "release is idempotent");
+});
+
 test("HolidayService.destroy aborts its own session and silences late callbacks", () => {
     const aborted = [];
     const soup = makeSoup3();

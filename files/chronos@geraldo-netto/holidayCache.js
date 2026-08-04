@@ -426,6 +426,10 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._released = false;
     }
 
+    _isActive() {
+        return !this._released;
+    }
+
     // The disk read setPlace starts is asynchronous, and Cinnamon runs the
     // first grid update in the same stack as applet construction — before the
     // read lands. Staleness judged at that instant sees no years at all, so a
@@ -433,7 +437,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // already fresh on disk. Anyone whose answer depends on the cached years
     // waits here; with no load pending this is a plain synchronous call.
     whenReady(callback) {
-        if (this._released) {
+        if (!this._isActive()) {
             return;
         }
         if (this._loading) {
@@ -481,7 +485,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // `onReady` runs once the country's cached data is in place — the load is
     // asynchronous, so a caller that fetches or repaints has to wait for it.
     setPlace(country, region = GLOBAL_REGION, onReady) { // NOSONAR [S1788] -- accepted compatible form
-        if (this._released) {
+        if (!this._isActive()) {
             return;
         }
         // regioned countries default the region setting to null, which
@@ -507,7 +511,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._loading = true;
         this._load(country, (data) => {
             // a second place change can land while the first is still reading
-            if (this._released || this.country !== country) {
+            if (!this._isActive() || this.country !== country) {
                 return;
             }
 
@@ -520,6 +524,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     setData(data) {
+        if (!this._isActive()) {
+            return;
+        }
         this.data = Array.isArray(data) ? data : [];
         this._rebuildIndex();
     }
@@ -640,6 +647,13 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     addUnique (single) {
+        if (!this._isActive()) {
+            return;
+        }
+        this._addUnique(single);
+    }
+
+    _addUnique(single) {
         single.region = single.region || GLOBAL_REGION;
         single.name = clampHolidayName(single.name);
         const known = this._holidayIndex.get(this._holidayKey(single));
@@ -671,6 +685,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     recordYear(year, region, retrieved) {
+        if (!this._isActive()) {
+            return;
+        }
         if (this.years[year]) {
             this.years[year][region] = retrieved;
         } else {
@@ -690,6 +707,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // had no path to it. Whether a result is worth writing to disk is the
     // fetch's decision, and the fetch is the provider's.
     recordFetch(year, region, retrieved, holidays, received = new Date().toUTCString()) {
+        if (!this._isActive()) {
+            return;
+        }
         // The stamp is the provider's raw Date response header. validCachedStamp
         // exists precisely because a stamp in the future keeps its year fresh
         // forever — stale() only asks whether now - retrieved is inside
@@ -708,6 +728,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     clearPlace() {
+        if (!this._isActive()) {
+            return;
+        }
         this.country = null;
         // a load still in flight was for a place that no longer exists; whoever
         // queued behind it gets the no-country answer now instead of never
@@ -736,6 +759,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     recordAttempt(year, region, attempted = new Date().toUTCString()) {
+        if (!this._isActive()) {
+            return;
+        }
         if (this.attempts[year]) {
             this.attempts[year][region] = attempted;
         } else {
@@ -776,6 +802,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     matchMonth(year, month, region = this.region) {
+        if (!this._isActive()) {
+            return new Map();
+        }
         // the grid is reading this year: that is what keeps it out of the prune
         this._touchYear(year);
         const monthKey = this._monthKey(year, month, region);
@@ -795,6 +824,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     persist(now = new Date()) {
+        if (!this._isActive()) {
+            return;
+        }
         // an inflight fetch can land after clearPlace(); saving then
         // would write the payload under a "null" country key
         if (!this.country) {
