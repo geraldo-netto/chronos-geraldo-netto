@@ -132,6 +132,8 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         // the location the geocode cache was last asked about, so a settings
         // change that did not touch it does not throw the geocode away
         this._resolved_location_key = "";
+        this._resolved_place_key = "";
+        this._resolved_place = null;
         this._display_state = params.displayState || new WeatherDisplayState(params);
         this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(params);
         this._reading_repository = params.readingRepository ||
@@ -153,7 +155,31 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     }
 
     placeFor(location) {
-        return this._location_resolver.placeFor(location);
+        const normalized = WeatherFormat.normalizeWeatherLocation(location);
+        if (!normalized) {
+            return null;
+        }
+
+        const key = WeatherProviders.locationCacheKey(normalized);
+        if (key === this._resolved_place_key) {
+            return this._resolved_place;
+        }
+        return this._reading_repository.placeFor(normalized);
+    }
+
+    _setLocationKey(key) {
+        if (key !== this._resolved_place_key) {
+            this._resolved_place_key = "";
+            this._resolved_place = null;
+        }
+        this._resolved_location_key = key;
+    }
+
+    _rememberPlace(key, place) {
+        if (place && key === this._resolved_location_key) {
+            this._resolved_place_key = key;
+            this._resolved_place = place;
+        }
     }
 
     stop() {
@@ -176,8 +202,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         }
 
         const location = WeatherFormat.normalizeWeatherLocation(settings.location);
-        this._resolved_location_key = location ?
-            WeatherProviders.locationCacheKey(location) : "";
+        this._setLocationKey(location ? WeatherProviders.locationCacheKey(location) : "");
         // the reading on the panel belongs to the place it was fetched for; if
         // that is not the place being asked about now, it is not the weather
         this._display_state.forgetUnless(this._staleKey(settings));
@@ -211,7 +236,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             this._reading_repository.forget(normalized);
         }
 
-        this._resolved_location_key = key;
+        this._setLocationKey(key);
     }
 
     queue(settings, callback) {
@@ -231,6 +256,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
 
         const generation = ++this._request_generation;
         const location = WeatherFormat.normalizeWeatherLocation(settings.location);
+        this._setLocationKey(location ? WeatherProviders.locationCacheKey(location) : "");
         if (!settings.showWeather) {
             callback(null, "", "");
             return;
@@ -253,7 +279,8 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     }
 
     _refreshReporter(settings, callback) {
-        return this._display_state.reporter(this._staleKey(settings),
+        const key = this._staleKey(settings);
+        const report = this._display_state.reporter(key,
             (reading, error, provider) => {
                 // Service outages may recover before the normal period. A name
                 // that both geocoders answered but could not resolve will not.
@@ -265,6 +292,10 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
                 }
                 callback(reading, error, provider);
             });
+        return (reading, error, provider, place) => {
+            this._rememberPlace(key, place);
+            report(reading, error, provider);
+        };
     }
 
     // What a reading is a reading *of*: the place. It used to be the place and

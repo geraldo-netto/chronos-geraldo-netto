@@ -2,6 +2,7 @@ const {
     assert, test, fs, path,
     shown, immediateNominatimQueue, loadWeather
 } = require("./helpers/weatherFixture");
+const { URL } = require("node:url");
 
 test("weather cache and debounce defaults stay at their shipped bounds", () => {
     const Weather = loadWeather();
@@ -260,6 +261,55 @@ test("the panel provider exposes the coordinates resolved for its weather locati
         timezone: "Area/" + "x".repeat(300)
     }] }, "Long Zone");
     assert.equal([...bounded.timezone].length, 255, "provider timezone input is bounded");
+});
+
+test("the current observer survives shared geocode-cache eviction", () => {
+    const Weather = loadWeather();
+    const places = {
+        Rome: [41.9, 12.5, "Europe/Rome"],
+        Paris: [48.9, 2.3, "Europe/Paris"],
+        London: [51.5, -0.1, "Europe/London"]
+    };
+    let geocodes = 0;
+    const httpGetJson = (url, callback) => {
+        if (url.includes("geocoding-api")) {
+            geocodes++;
+            const name = new URL(url).searchParams.get("name");
+            const [latitude, longitude, timezone] = places[name];
+            callback({ results: [{ name, latitude, longitude, timezone, population: 1000000 }] });
+            return;
+        }
+        callback({ current_weather: { weathercode: 0, temperature: 20 } });
+    };
+    const resolver = new Weather.WeatherLocationResolver({
+        httpGetJson,
+        maxCacheEntries: 2
+    });
+    const repository = new Weather.WeatherReadingRepository({
+        httpGetJson,
+        locationResolver: resolver,
+        cacheSeconds: 1800,
+        maxCacheEntries: 8
+    });
+    const provider = new Weather.WeatherProvider({ readingRepository: repository });
+
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, () => {});
+    assert.equal(repository.placeFor(" "), null);
+    assert.deepEqual(repository.placeFor("Rome"), {
+        name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "Europe/Rome"
+    }, "the observer travels with its cached reading");
+    repository.refresh("Paris", () => true, () => {});
+    repository.refresh("London", () => true, () => {});
+    assert.equal(resolver.placeFor("Rome"), null, "the shared location cache did evict Rome");
+    assert.deepEqual(provider.placeFor("Rome"), {
+        name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "Europe/Rome"
+    });
+
+    provider.refresh({ showWeather: true, location: "Rome", units: "si" }, () => {});
+    assert.equal(geocodes, 3, "a fresh weather hit needs no repair geocode");
+    assert.deepEqual(provider.placeFor("Rome"), {
+        name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "Europe/Rome"
+    });
 });
 
 test("a failed refresh retries sooner than the refresh period, with backoff", () => {

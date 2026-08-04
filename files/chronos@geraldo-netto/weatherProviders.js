@@ -422,6 +422,19 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         this.locationResolver.forget(location);
     }
 
+    placeFor(location) {
+        const normalized = WeatherFormat.normalizeWeatherLocation(location);
+        if (!normalized) {
+            return null;
+        }
+
+        const cached = this._freshReading(locationCacheKey(normalized));
+        if (cached && cached.place) {
+            return cached.place;
+        }
+        return this.locationResolver.placeFor(normalized);
+    }
+
     _freshReading(key) {
         const cached = this._cache.get(key);
         if (!cached || this._cache_milliseconds <= 0) {
@@ -439,7 +452,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         return cached;
     }
 
-    _rememberReading(key, reading, provider, startedAt) {
+    _rememberReading(key, reading, provider, startedAt, place) {
         this._cache.delete(key);
         while (this._cache.size >= this._max_cache_entries) {
             const oldest = this._cache.keys().next();
@@ -448,7 +461,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             }
             this._cache.delete(oldest.value);
         }
-        this._cache.set(key, { reading, provider, startedAt });
+        this._cache.set(key, { reading, provider, startedAt, place });
     }
 
     refresh(location, isCurrent, callback) {
@@ -464,7 +477,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         const cached = this._freshReading(key);
         if (cached) {
             if (isCurrent()) {
-                callback(cached.reading, "", cached.provider);
+                callback(cached.reading, "", cached.provider, cached.place);
             }
             return;
         }
@@ -476,7 +489,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             return;
         }
 
-        const request = { startedAt: this._now(), subscribers: [subscriber] };
+        const request = { startedAt: this._now(), subscribers: [subscriber], place: null };
         this._inflight.set(key, request);
         // A consumer generation decides whether that subscriber still wants the
         // answer. The shared operation continues while any subscriber does: if
@@ -496,6 +509,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             this._complete(key, request, null, error, "");
             return;
         }
+        request.place = place;
         this.forecastResolver.refresh(place, requestIsCurrent,
             (reading, forecastError, provider) => this._complete(
                 key, request, reading, forecastError, provider));
@@ -522,12 +536,12 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
 
         this._inflight.delete(key);
         if (reading && !error && this._cache_milliseconds > 0) {
-            this._rememberReading(key, reading, provider, request.startedAt);
+            this._rememberReading(key, reading, provider, request.startedAt, request.place);
         }
 
         for (const subscriber of request.subscribers) {
             if (subscriber.isCurrent()) {
-                subscriber.callback(reading, error, provider);
+                subscriber.callback(reading, error, provider, request.place);
             }
         }
     }
