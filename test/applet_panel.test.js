@@ -310,6 +310,34 @@ test("a broken translated date format falls back to the untranslated one", () =>
     assert.equal(today.day, ("stamp:" + DateFormats.DAY_FORMAT).capitalize());
 });
 
+test("date headers stay empty when translated and fallback formats fail", () => {
+    const formats = [];
+    const stub = {
+        clock: clockStub({
+            get_clock_for_format: (format) => {
+                formats.push(format);
+                return null;
+            }
+        })
+    };
+    const presenter = panelStatus(stub);
+
+    assert.deepEqual(presenter.getFormattedToday(), {
+        key: presenter._todayFormatCache.key,
+        full: "",
+        short: "",
+        day: ""
+    });
+    assert.deepEqual(formats, [
+        DateFormats.DATE_FORMAT_FULL,
+        DateFormats.DATE_FORMAT_FULL_FALLBACK,
+        DateFormats.DATE_FORMAT_SHORT,
+        DateFormats.DATE_FORMAT_SHORT_FALLBACK,
+        DateFormats.DAY_FORMAT,
+        DateFormats.DAY_FORMAT
+    ]);
+});
+
 // T27d: suffix building and ellipsizing
 // a reading record {condition, temperatureC} from a display string like "☀ 20°C"
 test("buildLabelSuffix is the temperature", () => {

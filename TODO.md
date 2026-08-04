@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T662 | test coverage | Low | open | S | Pin the `_localizedStamp` empty-string backstop when both the translated and fallback formats fail. | **[verified]** Removing the trailing `\|\| ""` from `5.4/appletPanelStatus.js:141` passes the full JS suite (948/948): `test/applet_panel.test.js:290` only exercises the single-failure retry (first ask null, retry answers), so the both-null path — where `.capitalize()` would throw the same per-menu-open TypeError e391543 fixed — is unasserted. It matters most for the day row, whose fallback is `DAY_FORMAT` itself (`appletPanelStatus.js:695`), so its retry re-asks the same possibly-broken cinnamon-domain translation and only the backstop saves it. Add a test where `formatClock` answers null for every ask and assert the header renders empty instead of throwing. |
 
 ## Rejected
 
