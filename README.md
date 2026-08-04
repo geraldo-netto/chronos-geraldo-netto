@@ -229,11 +229,12 @@ the timezone-derived city when one is available; typing another city replaces it
 Once that weather location has been resolved, the popup also shows today's
 sunrise, sunset, moonrise, and moonset. It reuses the geocoder's in-memory
 latitude and longitude: the event times are calculated locally, with no
-astronomy service or additional network request. Times use the machine's local
-timezone, because the weather location is the user's own location; polar days
-and nights are shown as continuous above- or below-horizon states instead of
-invented event times. Disabling weather hides these rows along with stopping the
-location lookup.
+astronomy service or additional network request. When the weather geocoder
+returns the place's timezone, it also defines which civil day and wall-clock
+times the popup shows; a fallback geocoder without timezone data uses the
+machine's local timezone. Polar days and nights are shown as continuous above-
+or below-horizon states instead of invented event times. Disabling weather hides
+these rows along with stopping the location lookup.
 
 The world clocks never appear on the panel. The panel is one line, which the date
 and the weather readout already share; the clocks are a table, and they are shown

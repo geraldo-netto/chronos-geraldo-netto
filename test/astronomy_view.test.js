@@ -7,6 +7,20 @@ const astronomyPath = path.join(appletDir, "astronomy.js");
 const shimPath = path.join(appletDir, "5.4", "astronomy.js");
 const viewPath = path.join(appletDir, "5.4", "astronomyView.js");
 let unixDateTime = null;
+let utcDateTimeFactory = () => null;
+let dateTimeFactory = () => null;
+const localTimezone = timezone("Europe/Rome");
+
+function timezone(identifier) {
+    return { get_identifier: () => identifier };
+}
+
+function timezoneFromIdentifier(identifier) {
+    if (identifier === "local") {
+        return localTimezone;
+    }
+    return identifier === "Broken/Zone" ? null : timezone(identifier);
+}
 
 class MockBox {
     constructor(options = {}) {
@@ -52,13 +66,21 @@ function loadView() {
     global.imports = {
         gi: {
             Clutter: { ActorAlign: { START: 1 } },
-            GLib: { DateTime: { new_from_unix_local: () => unixDateTime } },
+            GLib: { DateTime: {
+                new_from_unix_utc: (timestamp) => utcDateTimeFactory(timestamp),
+                new: (...args) => dateTimeFactory(...args)
+            } },
             St: { BoxLayout: MockBox, Label: MockLabel }
         },
         ui: {
             appletManager: { applets: { "chronos@geraldo-netto": {
                 astronomy,
-                localeText: { translate: (text) => text }
+                localeText: { translate: (text) => text },
+                worldclockData: {
+                    LOCAL_TIMEZONE: "local",
+                    timezoneFromIdentifier,
+                    timezoneIdentity: (value) => value ? value.get_identifier() : null
+                }
             } } }
         }
     };
@@ -67,18 +89,48 @@ function loadView() {
 
 beforeEach(() => {
     unixDateTime = null;
+    utcDateTimeFactory = () => null;
+    dateTimeFactory = () => null;
 });
 
-test("local civil-day bounds reject bad clocks and include DST-sized days", () => {
+test("place civil-day bounds reject bad clocks and preserve DST-sized days", () => {
     const View = loadView();
-    assert.equal(View.localDayBounds(null), null);
-    assert.equal(View.localDayBounds({}), null);
-    assert.equal(View.localDayBounds({ getTime: () => NaN }), null);
+    const seoul = timezone("Asia/Seoul");
+    assert.equal(View.civilDayBounds(null, seoul), null);
+    assert.equal(View.civilDayBounds({}, seoul), null);
+    assert.equal(View.civilDayBounds({ getTime: () => NaN }, seoul), null);
+    assert.equal(View.civilDayBounds(new Date(), null), null);
 
-    const now = new Date(2026, 2, 5, 12, 30);
-    const bounds = View.localDayBounds(now);
-    assert.equal(bounds.startMs, new Date(2026, 2, 5).getTime());
-    assert.equal(bounds.endMs, new Date(2026, 2, 6).getTime());
+    const constructed = [];
+    utcDateTimeFactory = () => ({
+        to_timezone: (value) => value === seoul ? {
+            get_year: () => 2026,
+            get_month: () => 3,
+            get_day_of_month: () => 29
+        } : null
+    });
+    dateTimeFactory = (...args) => {
+        constructed.push(args);
+        return {
+            to_unix: () => 1000,
+            add_days: () => ({ to_unix: () => 1000 + 23 * 60 * 60 })
+        };
+    };
+
+    const bounds = View.civilDayBounds(new Date(2026, 2, 29, 12, 30), seoul);
+    assert.deepEqual(constructed, [[seoul, 2026, 3, 29, 0, 0, 0]]);
+    assert.deepEqual(bounds, { startMs: 1000000, endMs: (1000 + 23 * 60 * 60) * 1000 });
+
+    dateTimeFactory = () => null;
+    assert.equal(View.civilDayBounds(new Date(), seoul), null);
+    dateTimeFactory = () => ({ add_days: () => null });
+    assert.equal(View.civilDayBounds(new Date(), seoul), null);
+    dateTimeFactory = () => ({
+        to_unix: () => 0,
+        add_days: () => ({ to_unix: () => 27 * 60 * 60 })
+    });
+    assert.equal(View.civilDayBounds(new Date(), seoul), null, "oversized civil days fail closed");
+    assert.equal(View.zonedDateTime(NaN, seoul), null);
 });
 
 test("row formatting covers ordinary, missing, and continuous-horizon events", () => {
@@ -98,7 +150,8 @@ test("row formatting covers ordinary, missing, and continuous-horizon events", (
 
 test("default time formatting uses the desktop clock convention and fails closed", () => {
     const View = loadView();
-    assert.equal(View.defaultFormatTime(1000, true), "");
+    const seoul = timezone("Asia/Seoul");
+    assert.equal(View.defaultFormatTime(1000, true, seoul), "");
 
     const formats = [];
     unixDateTime = {
@@ -107,12 +160,13 @@ test("default time formatting uses the desktop clock convention and fails closed
             return format === "%H:%M" ? "06:30" : "6:30 AM";
         }
     };
-    assert.equal(View.defaultFormatTime(1000, true), "06:30");
-    assert.equal(View.defaultFormatTime(1000, false), "6:30 AM");
+    utcDateTimeFactory = () => ({ to_timezone: (value) => value === seoul ? unixDateTime : null });
+    assert.equal(View.defaultFormatTime(1000, true, seoul), "06:30");
+    assert.equal(View.defaultFormatTime(1000, false, seoul), "6:30 AM");
     assert.deepEqual(formats, ["%H:%M", "%-l:%M %p"]);
 
     unixDateTime.format = () => null;
-    assert.equal(View.defaultFormatTime(1000, true), "");
+    assert.equal(View.defaultFormatTime(1000, true, seoul), "");
 });
 
 test("the popup view reuses one daily result and hides without cached coordinates", () => {
@@ -120,17 +174,23 @@ test("the popup view reuses one daily result and hides without cached coordinate
     const parent = new MockBox();
     const calls = [];
     let now = new Date(2026, 2, 5, 12);
+    let nextBounds = { startMs: 100, endMs: 200 };
     let nextEvents = {
         sun: { rise: 1, set: 2, state: "normal" },
         moon: { rise: 3, set: 4, state: "normal" }
     };
     const view = new View.AstronomyView(parent, {
         now: () => now,
+        dayBounds(_now, placeTimezone) {
+            calls.push(["bounds", placeTimezone.get_identifier()]);
+            return nextBounds;
+        },
         calculate(...args) {
             calls.push(args);
             return nextEvents;
         },
-        formatTime: (timestamp, use24h) => `${use24h ? "24" : "12"}:${timestamp}`
+        formatTime: (timestamp, use24h, placeTimezone) =>
+            `${use24h ? "24" : "12"}@${placeTimezone.get_identifier()}:${timestamp}`
     });
 
     assert.equal(parent.children[0], view.actor);
@@ -142,13 +202,27 @@ test("the popup view reuses one daily result and hides without cached coordinate
     assert.equal(view.actor.visible, false);
     assert.equal(calls.length, 0);
 
-    const request = { visible: true, place: { latitude: 41.9, longitude: 12.48 }, use24h: true };
+    const request = { visible: true, place: {
+        latitude: 41.9, longitude: 12.48, timezone: "Asia/Seoul"
+    }, use24h: true };
     view.update(request);
     assert.equal(view.actor.visible, true);
-    assert.equal(view.sunLabel.text, "Sunrise: 24:1 — Sunset: 24:2");
-    assert.equal(view.moonLabel.text, "Moonrise: 24:3 — Moonset: 24:4");
+    assert.equal(view.sunLabel.text, "Sunrise: 24@Asia/Seoul:1 — Sunset: 24@Asia/Seoul:2");
+    assert.equal(view.moonLabel.text, "Moonrise: 24@Asia/Seoul:3 — Moonset: 24@Asia/Seoul:4");
     view.update(request);
-    assert.equal(calls.length, 1, "an open-menu tick reuses the daily calculation");
+    assert.deepEqual(calls, [
+        ["bounds", "Asia/Seoul"], [100, 200, 41.9, 12.48],
+        ["bounds", "Asia/Seoul"]
+    ], "an open-menu tick reuses the daily calculation");
+
+    view.update({ visible: true, place: {
+        latitude: 40, longitude: 12, timezone: "Broken/Zone"
+    }, use24h: true });
+    assert.equal(calls.at(-2)[1], "Europe/Rome", "an invalid provider zone falls back locally");
+    assert.match(view.sunLabel.text, /24@Europe\/Rome/);
+
+    view.update({ visible: true, place: { latitude: 39, longitude: 12 }, use24h: true });
+    assert.equal(calls.at(-2)[1], "Europe/Rome", "a fallback geocoder without a zone stays usable");
 
     nextEvents = {
         sun: { rise: null, set: null, state: "alwaysUp" },
@@ -162,6 +236,22 @@ test("the popup view reuses one daily result and hides without cached coordinate
     nextEvents = null;
     view.update(request);
     assert.equal(view.actor.visible, false, "a failed calculation does not show stale times");
+
+    nextEvents = { sun: { state: "alwaysUp" }, moon: { state: "alwaysDown" } };
+    nextBounds = null;
+    view.update({ visible: true, place: {
+        latitude: 38, longitude: 12, timezone: "Europe/Rome"
+    }, use24h: true });
+    assert.equal(view.actor.visible, false, "missing place-day bounds hide the rows");
+    nextBounds = { startMs: 0, endMs: 27 * 60 * 60 * 1000 };
+    view.update({ visible: true, place: {
+        latitude: 37, longitude: 12, timezone: "Europe/Rome"
+    }, use24h: true });
+    assert.equal(view.actor.visible, false, "invalid place-day bounds hide the rows");
+    view.update({ visible: true, place: {
+        latitude: 91, longitude: 12, timezone: "Europe/Rome"
+    }, use24h: true });
+    assert.equal(view.actor.visible, false, "invalid observer coordinates hide the rows");
 });
 
 test("the shipped view uses its local clock, solver, and formatter defaults", () => {
@@ -169,9 +259,22 @@ test("the shipped view uses its local clock, solver, and formatter defaults", ()
     const parent = new MockBox();
     const view = new View.AstronomyView(parent);
 
+    utcDateTimeFactory = () => ({
+        to_timezone: () => unixDateTime || {
+            get_year: () => 2026,
+            get_month: () => 3,
+            get_day_of_month: () => 5,
+            format: () => "06:30"
+        }
+    });
+    dateTimeFactory = () => ({
+        to_unix: () => Date.parse("2026-03-05T00:00:00+01:00") / 1000,
+        add_days: () => ({ to_unix: () => Date.parse("2026-03-06T00:00:00+01:00") / 1000 })
+    });
+
     assert.doesNotThrow(() => view.update({
         visible: true,
-        place: { latitude: 41.9, longitude: 12.48 },
+        place: { latitude: 41.9, longitude: 12.48, timezone: "Europe/Rome" },
         use24h: true
     }));
     assert.equal(view.actor.visible, true);

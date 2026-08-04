@@ -13,17 +13,36 @@ const Clutter = imports.gi.Clutter;
 const GLib = imports.gi.GLib;
 const St = imports.gi.St;
 const Astronomy = require("./astronomy");
-const LocaleText = imports.ui.appletManager.applets["chronos@geraldo-netto"].localeText;
+const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const LocaleText = AppletModules.localeText;
+const WorldclockData = AppletModules.worldclockData;
 const _ = LocaleText.translate;
 const MISSING_EVENT_TIME = "—";
 
-function localDayBounds(now) {
+function zonedDateTime(timestamp, timezone) {
+    if (!Number.isFinite(timestamp) || !timezone) {
+        return null;
+    }
+    const utc = GLib.DateTime.new_from_unix_utc(Math.floor(timestamp / 1000));
+    return utc ? utc.to_timezone(timezone) : null;
+}
+
+function civilDayBounds(now, timezone) {
     if (!now || typeof now.getTime !== "function" || !Number.isFinite(now.getTime())) {
         return null;
     }
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    return { startMs: start.getTime(), endMs: end.getTime() };
+    const placeNow = zonedDateTime(now.getTime(), timezone);
+    if (!placeNow) {
+        return null;
+    }
+    const start = GLib.DateTime.new(timezone,
+        placeNow.get_year(), placeNow.get_month(), placeNow.get_day_of_month(), 0, 0, 0);
+    const end = start ? start.add_days(1) : null;
+    if (!start || !end) {
+        return null;
+    }
+    const bounds = { startMs: start.to_unix() * 1000, endMs: end.to_unix() * 1000 };
+    return Astronomy.validDayBounds(bounds.startMs, bounds.endMs) ? bounds : null;
 }
 
 function replaceTimes(template, rise, set) {
@@ -42,20 +61,23 @@ function bodyLine(body, riseTemplate, alwaysUpText, alwaysDownText, formatTime) 
     return replaceTimes(riseTemplate, rise || MISSING_EVENT_TIME, set || MISSING_EVENT_TIME);
 }
 
-function defaultFormatTime(timestamp, use24h) {
-    const local = GLib.DateTime.new_from_unix_local(Math.floor(timestamp / 1000));
-    if (!local) {
+function defaultFormatTime(timestamp, use24h, timezone) {
+    const placeTime = zonedDateTime(timestamp, timezone);
+    if (!placeTime) {
         return "";
     }
-    return local.format(use24h ? "%H:%M" : "%-l:%M %p") || "";
+    return placeTime.format(use24h ? "%H:%M" : "%-l:%M %p") || "";
 }
 
 class AstronomyView {
     constructor(box, params = {}) {
         this._calculate = params.calculate || Astronomy.calculateAstronomyEvents;
         this._formatTime = params.formatTime || defaultFormatTime;
+        this._dayBounds = params.dayBounds || civilDayBounds;
         this._now = params.now || (() => new Date());
         this._renderedKey = "";
+        this._timezoneKey = "";
+        this._timezone = null;
 
         this.actor = new St.BoxLayout({
             vertical: true,
@@ -72,8 +94,22 @@ class AstronomyView {
         box.add_actor(this.actor);
     }
 
-    _render(events, use24h) {
-        const formatTime = (timestamp) => this._formatTime(timestamp, use24h);
+    _placeTimezone(identifier) {
+        const key = typeof identifier === "string" ? identifier.trim() : "";
+        if (key && key === this._timezoneKey) {
+            return this._timezone;
+        }
+        const timezone = key ? WorldclockData.timezoneFromIdentifier(key) : null;
+        if (timezone) {
+            this._timezoneKey = key;
+            this._timezone = timezone;
+            return timezone;
+        }
+        return WorldclockData.timezoneFromIdentifier(WorldclockData.LOCAL_TIMEZONE);
+    }
+
+    _render(events, use24h, timezone) {
+        const formatTime = (timestamp) => this._formatTime(timestamp, use24h, timezone);
         this.sunLabel.set_text(bodyLine(events.sun,
             _("Sunrise: %s — Sunset: %s"),
             _("Sun is above the horizon all day"),
@@ -84,17 +120,29 @@ class AstronomyView {
             _("Moon is below the horizon all day"), formatTime));
     }
 
+    _observerDay(visible, place) {
+        if (!visible || !place ||
+            !Astronomy.validCoordinates(place.latitude, place.longitude)) {
+            return null;
+        }
+        const timezone = this._placeTimezone(place.timezone);
+        const bounds = timezone ? this._dayBounds(this._now(), timezone) : null;
+        if (!bounds || !Astronomy.validDayBounds(bounds.startMs, bounds.endMs)) {
+            return null;
+        }
+        return { latitude: place.latitude, longitude: place.longitude, timezone, bounds };
+    }
+
     update({ visible, place, use24h }) {
-        const latitude = place ? place.latitude : null;
-        const longitude = place ? place.longitude : null;
-        const bounds = visible && Astronomy.validCoordinates(latitude, longitude) ?
-            localDayBounds(this._now()) : null;
-        if (!bounds) {
+        const day = this._observerDay(visible, place);
+        if (!day) {
             this.actor.hide();
             return;
         }
-
-        const key = [bounds.startMs, bounds.endMs, latitude, longitude, Boolean(use24h)].join("|");
+        const { latitude, longitude, timezone, bounds } = day;
+        const timezoneKey = WorldclockData.timezoneIdentity(timezone) || "";
+        const key = [bounds.startMs, bounds.endMs, latitude, longitude,
+            timezoneKey, Boolean(use24h)].join("|");
         if (key !== this._renderedKey) {
             const events = this._calculate(
                 bounds.startMs, bounds.endMs, latitude, longitude);
@@ -102,7 +150,7 @@ class AstronomyView {
                 this.actor.hide();
                 return;
             }
-            this._render(events, Boolean(use24h));
+            this._render(events, Boolean(use24h), timezone);
             this._renderedKey = key;
         }
         this.actor.show();
@@ -113,7 +161,8 @@ if (typeof module !== "undefined") {
     module.exports = {
         AstronomyView,
         MISSING_EVENT_TIME,
-        localDayBounds,
+        zonedDateTime,
+        civilDayBounds,
         replaceTimes,
         bodyLine,
         defaultFormatTime

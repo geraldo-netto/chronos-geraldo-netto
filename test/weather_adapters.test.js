@@ -149,7 +149,7 @@ test("normalizes primary and fallback geocode responses", () => {
 
     assert.deepEqual(
         Weather.openMeteoGeocodePlace({ results: [{ latitude: 41.9, longitude: 12.5, population: 1000 }] }),
-        { name: "", latitude: 41.9, longitude: 12.5 }
+        { name: "", latitude: 41.9, longitude: 12.5, timezone: "" }
     );
     assert.equal(Weather.openMeteoGeocodePlace({
         results: [{ latitude: 41.9, longitude: 12.5, population: 999 }]
@@ -185,7 +185,7 @@ test("normalizes primary and fallback geocode responses", () => {
     ]) {
         assert.deepEqual(Weather.openMeteoGeocodePlace({
             results: [{ latitude, longitude, population: 1000 }]
-        }), { name: "", latitude: Number(latitude), longitude: Number(longitude) });
+        }), { name: "", latitude: Number(latitude), longitude: Number(longitude), timezone: "" });
         assert.deepEqual(Weather.nominatimGeocodePlace([{
             lat: latitude, lon: longitude, display_name: "edge"
         }]), { name: "edge", latitude: Number(latitude), longitude: Number(longitude) });
@@ -261,7 +261,7 @@ test("the geocode hit is the one the user typed, not the one the API ranked firs
     );
 });
 
-test("Open-Meteo places drop provider fields before entering the cache", () => {
+test("Open-Meteo places retain app-owned observer fields and drop provider payloads", () => {
     const Weather = loadWeather();
     const junk = "x".repeat(1024 * 1024);
     const place = Weather.openMeteoGeocodePlace({ results: [{
@@ -273,7 +273,8 @@ test("Open-Meteo places drop provider fields before entering the cache", () => {
         provider_payload: { junk }
     }] }, "Rome");
 
-    assert.deepEqual(place, { name: "Rome", latitude: 41.9, longitude: 12.5 });
+    assert.deepEqual(place,
+        { name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "Europe/Rome" });
     assert.equal(JSON.stringify(place).includes(junk), false);
 
     const bounded = Weather.openMeteoGeocodePlace({ results: [{

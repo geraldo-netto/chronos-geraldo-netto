@@ -38,6 +38,7 @@ var MIN_TRUSTED_GEOCODE_POPULATION = 1000; // NOSONAR [S3504] -- GJS importer ex
 // first hit survivable.
 var GEOCODE_CANDIDATE_COUNT = 10; // NOSONAR [S3504] -- GJS importer export
 var MAX_GEOCODE_PLACE_NAME_LENGTH = WeatherFormat.MAX_WEATHER_LOCATION_LENGTH; // NOSONAR [S3504] -- GJS importer export
+const MAX_GEOCODE_TIMEZONE_LENGTH = 255;
 var GEOCODE_LANGUAGE_FALLBACK = LocaleQuery.MESSAGE_LANGUAGE_FALLBACK; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_USER_AGENT = "chronos@geraldo-netto Cinnamon applet (https://github.com/geraldo-netto/cinnamon-chronos)"; // NOSONAR [S3504] -- GJS importer export
 // Stable inventory order for cross-runtime disclosures: place services first,
@@ -338,6 +339,11 @@ function geocodePlaceName(name) {
     return TextUtils.clampText(name, MAX_GEOCODE_PLACE_NAME_LENGTH);
 }
 
+function geocodeTimezone(value) {
+    return typeof value === "string" ?
+        TextUtils.clampText(value.trim(), MAX_GEOCODE_TIMEZONE_LENGTH) : "";
+}
+
 function placeCandidate(place) {
     if (!place || typeof place !== "object") {
         return null;
@@ -354,7 +360,8 @@ function placeCandidate(place) {
         name: geocodePlaceName(place.name),
         population: place.population,
         latitude,
-        longitude
+        longitude,
+        timezone: geocodeTimezone(place.timezone)
     };
 }
 
@@ -402,7 +409,12 @@ function openMeteoGeocodePlace(data, query) {
     if (!Number.isFinite(population) || population < MIN_TRUSTED_GEOCODE_POPULATION) {
         return null;
     }
-    return { name: best.name, latitude: best.latitude, longitude: best.longitude };
+    return {
+        name: best.name,
+        latitude: best.latitude,
+        longitude: best.longitude,
+        timezone: best.timezone
+    };
 }
 
 function nominatimGeocodePlace(data) {

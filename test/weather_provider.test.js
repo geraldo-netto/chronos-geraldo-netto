@@ -230,7 +230,7 @@ test("the geocode cache is bounded and re-resolves an edited location", () => {
     resolve("paris");
     assert.equal(geocodes, before, "a hit is still served from the cache");
     assert.deepEqual(resolver.placeFor(" Paris "),
-        { name: "", latitude: 1, longitude: 2 },
+        { name: "", latitude: 1, longitude: 2, timezone: "" },
         "the astronomy feature reads the same normalized geocode cache entry");
 
     resolver.forget("Paris");
@@ -245,15 +245,21 @@ test("the panel provider exposes the coordinates resolved for its weather locati
         httpGetJson(url, callback) {
             callback(url.includes("geocoding-api") ?
                 { results: [{ name: "Rome", latitude: 41.9, longitude: 12.5,
-                    population: 2873000 }] } :
+                    timezone: "Europe/Rome", population: 2873000 }] } :
                 { current_weather: { weathercode: 0, temperature: 20 } });
         }
     });
 
     provider.refresh({ showWeather: true, location: "Rome", units: "si" }, () => {});
     assert.deepEqual(provider.placeFor(" rome "),
-        { name: "Rome", latitude: 41.9, longitude: 12.5 });
+        { name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "Europe/Rome" });
     assert.equal(provider.placeFor("Oslo"), null);
+
+    const bounded = Weather.openMeteoGeocodePlace({ results: [{
+        name: "Long Zone", latitude: 1, longitude: 2, population: 1000,
+        timezone: "Area/" + "x".repeat(300)
+    }] }, "Long Zone");
+    assert.equal([...bounded.timezone].length, 255, "provider timezone input is bounded");
 });
 
 test("a failed refresh retries sooner than the refresh period, with backoff", () => {
