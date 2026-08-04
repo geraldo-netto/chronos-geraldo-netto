@@ -339,6 +339,69 @@ test("concurrent stale-lock retirement is idempotent", async (t) => {
         (error) => error.code === "EISDIR");
 });
 
+test("release lock claims recover at both removal crash points", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease, lockClaimPath } = await import(releaseUrl);
+    const owner = { pid: 99_999_999, startTime: "1", token: STALE_LOCK_TOKEN };
+    const claimant = { pid: 99_999_998, startTime: "1", token: LIVE_LOCK_TOKEN };
+    const artifacts = async (root) => (await fs.readdir(root))
+        .filter((name) => name.startsWith(".chronos-release-lock"));
+
+    const beforeUnlink = await makeReleaseFixture(t);
+    const beforeLock = path.join(beforeUnlink, ".chronos-release-lock");
+    const beforeCandidate = await installReleaseLock(beforeLock, owner);
+    const beforeClaim = lockClaimPath(beforeCandidate, "stale", claimant);
+    await fs.rename(beforeCandidate, beforeClaim);
+
+    assert.equal(await checkRelease(beforeUnlink), "0.0.1");
+    assert.deepEqual(await artifacts(beforeUnlink), [],
+        "a claim left before lock unlink is resumed and removed");
+
+    const afterUnlink = await makeReleaseFixture(t);
+    const afterLock = path.join(afterUnlink, ".chronos-release-lock");
+    const afterCandidate = await installReleaseLock(afterLock, owner);
+    const afterClaim = lockClaimPath(afterCandidate, "stale", claimant);
+    await fs.rename(afterCandidate, afterClaim);
+    await fs.rm(afterLock);
+    const malformedClaim = `${afterCandidate}.claim-broken`;
+    await fs.writeFile(malformedClaim, "not a claim");
+
+    assert.equal(await checkRelease(afterUnlink), "0.0.1");
+    assert.deepEqual(await artifacts(afterUnlink), [path.basename(malformedClaim)],
+        "the next owner collects only a well-formed orphaned claim");
+    await fs.rm(malformedClaim);
+
+    const legacy = await makeReleaseFixture(t);
+    const legacyLock = path.join(legacy, ".chronos-release-lock");
+    const legacyCandidate = await installReleaseLock(legacyLock, owner);
+    await fs.rename(legacyCandidate, `${legacyCandidate}.stale-${LIVE_LOCK_TOKEN}`);
+
+    assert.equal(await checkRelease(legacy), "0.0.1");
+    assert.deepEqual(await artifacts(legacy), [],
+        "claims from the previous release protocol remain recoverable");
+});
+
+test("a live release-lock claimant cannot be stolen", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { lockClaimPath, readProcessStartTime, retireStaleLock } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const lock = path.join(root, ".chronos-release-lock");
+    const owner = { pid: 99_999_999, startTime: "1", token: STALE_LOCK_TOKEN };
+    const candidate = await installReleaseLock(lock, owner);
+    const claimant = {
+        pid: process.pid,
+        startTime: await readProcessStartTime(process.pid),
+        token: LIVE_LOCK_TOKEN
+    };
+    const claim = lockClaimPath(candidate, "stale", claimant);
+    await fs.rename(candidate, claim);
+
+    await retireStaleLock(lock);
+
+    await fs.access(lock);
+    await fs.access(claim);
+});
+
 test("stale retirement cannot remove a replacement live lock", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { retireStaleLock, readProcessStartTime } = await import(releaseUrl);

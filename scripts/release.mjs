@@ -13,6 +13,8 @@ const UUID = "chronos@geraldo-netto";
 const RELEASE_BRANCH = "develop";
 const RELEASE_BRANCH_REF = `origin/${RELEASE_BRANCH}`;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LOCK_CLAIM_OPERATIONS = new Set(["release", "stale"]);
 const LOCK_FILE = ".chronos-release-lock";
 const TRANSACTION_DIR = ".chronos-release-transaction";
 const TRANSACTION_MANIFEST = "manifest.json";
@@ -61,8 +63,7 @@ function parseLockOwner(contents) {
     if (!Number.isInteger(owner.pid) || owner.pid <= 0 ||
         typeof owner.startTime !== "string" || !/^\d+$/.test(owner.startTime) ||
         typeof owner.token !== "string" ||
-        !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
-            .test(owner.token)) {
+        !UUID_PATTERN.test(owner.token)) {
         throw new Error("release lock has an invalid owner");
     }
     return owner;
@@ -83,23 +84,126 @@ export function lockCandidatePath(lockPath, owner) {
     return `${lockPath}.owner-${owner.token}`;
 }
 
+export function lockClaimPath(candidate, operation, claimant) {
+    return `${candidate}.claim-${operation}-${claimant.pid}-${claimant.startTime}-${claimant.token}`;
+}
+
+function parseLockClaim(candidate, claimPath) {
+    const prefix = `${candidate}.claim-`;
+    if (!claimPath.startsWith(prefix)) {
+        return null;
+    }
+    const match = /^(release|stale)-([1-9]\d*)-(\d+)-(.+)$/.exec(
+        claimPath.slice(prefix.length));
+    const pid = match ? Number(match[2]) : NaN;
+    if (!match || !Number.isSafeInteger(pid) || !UUID_PATTERN.test(match[4])) {
+        return null;
+    }
+    return { operation: match[1], pid, startTime: match[3], token: match[4] };
+}
+
+function isLegacyLockClaim(candidate, claimPath) {
+    const suffix = claimPath.slice(candidate.length + 1);
+    const separator = suffix.indexOf("-");
+    return LOCK_CLAIM_OPERATIONS.has(suffix.slice(0, separator)) &&
+        UUID_PATTERN.test(suffix.slice(separator + 1));
+}
+
+function lockCandidateForClaim(lockPath, claimPath) {
+    const prefix = `${lockPath}.owner-`;
+    if (!claimPath.startsWith(prefix)) {
+        return null;
+    }
+    const ownerAndClaim = claimPath.slice(prefix.length);
+    const separator = ownerAndClaim.indexOf(".");
+    const ownerToken = ownerAndClaim.slice(0, separator);
+    if (separator < 0 || !UUID_PATTERN.test(ownerToken)) {
+        return null;
+    }
+    const candidate = `${prefix}${ownerToken}`;
+    return parseLockClaim(candidate, claimPath) || isLegacyLockClaim(candidate, claimPath) ?
+        candidate : null;
+}
+
+async function listLockClaims(lockPath, candidate = null) {
+    const directory = path.dirname(lockPath);
+    const entries = await readdir(directory, { withFileTypes: true });
+    const claims = [];
+    for (const entry of entries) {
+        if (!entry.isFile()) {
+            continue;
+        }
+        const claimPath = path.join(directory, entry.name);
+        const claimedCandidate = lockCandidateForClaim(lockPath, claimPath);
+        if (claimedCandidate && (!candidate || claimedCandidate === candidate)) {
+            claims.push(claimPath);
+        }
+    }
+    return claims;
+}
+
+async function cleanupLockClaims(lockPath) {
+    for (const claimPath of await listLockClaims(lockPath)) {
+        await rm(claimPath, { force: true });
+    }
+}
+
 function sameLockOwner(left, right) {
     return Boolean(left && right && left.pid === right.pid &&
         left.startTime === right.startTime && left.token === right.token);
 }
 
-// The owner-specific hard link is a compare-and-delete claim. Only one stale
-// inspector can rename it, and the fixed lock path cannot become available to a
-// new contender until that claimant removes the exact owner it re-read.
-export async function removeOwnedLock(lock, operation) {
-    const claimed = `${lock.candidate}.${operation}-${randomUUID()}`;
+async function renameIfPresent(source, target) {
     try {
-        await rename(lock.candidate, claimed);
+        await rename(source, target);
+        return true;
     } catch (error) {
         if (error?.code === "ENOENT") {
             return false;
         }
         throw error;
+    }
+}
+
+async function lockClaimIsLive(candidate, claimPath) {
+    const claimant = parseLockClaim(candidate, claimPath);
+    return Boolean(claimant &&
+        await readProcessStartTime(claimant.pid) === claimant.startTime);
+}
+
+async function claimOwnedLock(lock, operation) {
+    const startTime = await readProcessStartTime(process.pid);
+    if (!startTime) {
+        throw new Error("current process has no start identity");
+    }
+    const claimed = lockClaimPath(lock.candidate, operation, {
+        pid: process.pid,
+        startTime,
+        token: randomUUID()
+    });
+    if (await renameIfPresent(lock.candidate, claimed)) {
+        return claimed;
+    }
+
+    for (const previous of await listLockClaims(lock.lockPath, lock.candidate)) {
+        if (await lockClaimIsLive(lock.candidate, previous)) {
+            return null;
+        }
+        if (await renameIfPresent(previous, claimed)) {
+            return claimed;
+        }
+    }
+    return null;
+}
+
+// The owner-specific hard link is a compare-and-delete claim. Only one stale
+// inspector can hold it. A claimant's process identity makes an interrupted
+// rename distinguishable from live cleanup, so a later command can atomically
+// take over the claim without letting two removers race a replacement lock.
+export async function removeOwnedLock(lock, operation) {
+    const claimed = await claimOwnedLock(lock, operation);
+    if (!claimed) {
+        return false;
     }
 
     try {
@@ -147,6 +251,7 @@ async function acquireReleaseLock(root) {
             try {
                 await link(candidate, lockPath);
                 acquired = true;
+                await cleanupLockClaims(lockPath);
                 return lock;
             } catch (error) {
                 if (!error || error.code !== "EEXIST") { // NOSONAR [S6582] -- accepted compatible form
