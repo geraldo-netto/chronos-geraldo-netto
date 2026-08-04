@@ -79,6 +79,8 @@ class CalendarNavigationController {
     }
 
     setDate(date, forceReload) {
+        this.cancelQueuedDate();
+        this.focusAfterSetDate = false;
         const bounded = clampCalendarDate(date);
         const changed = !sameDay(bounded, this.selectedDate);
         if (!changed && !forceReload) {
@@ -105,11 +107,15 @@ class CalendarNavigationController {
     // without waiting out the 25ms coalescing window.
     flushQueuedDate() {
         const date = this.queuedDate;
+        const focusAfterSetDate = this.focusAfterSetDate;
         this.queuedDate = null;
         this.setDateIdleId = 0;
+        this.focusAfterSetDate = false;
+        if (!date) {
+            return GLib.SOURCE_REMOVE;
+        }
         this.port.setDate(date, false);
-        if (this.focusAfterSetDate) {
-            this.focusAfterSetDate = false;
+        if (focusAfterSetDate) {
             this.focusSelectedDay();
         }
         return GLib.SOURCE_REMOVE;

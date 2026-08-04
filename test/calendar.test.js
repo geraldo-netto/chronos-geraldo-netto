@@ -2216,6 +2216,29 @@ test("a burst of month changes accumulates instead of overwriting itself", () =>
     assert.equal(cal._navigation.queuedDate.getMonth(), 11);
 });
 
+test("a direct selection cancels a pending month browse", () => {
+    const removed = [];
+    global.imports.mainloop.source_remove = (id) => removed.push(id);
+    const cal = makeCalendar();
+    cal.setDate(new Date(2026, 0, 15), true);
+
+    cal._navigation.focusAfterSetDate = true;
+    cal._onNextMonthButtonClicked();
+    const pendingId = cal._navigation.setDateIdleId;
+    const direct = new Date(2026, 0, 20);
+    cal.setDate(direct, false);
+
+    assert.deepEqual(removed, [pendingId]);
+    assert.equal(cal._navigation.queuedDate, null);
+    assert.equal(cal._navigation.setDateIdleId, 0);
+    assert.equal(cal._navigation.focusAfterSetDate, false);
+    assert.equal(cal.getSelectedDate().getTime(), direct.getTime());
+
+    cal._navigation.flushQueuedDate();
+    assert.equal(cal.getSelectedDate().getTime(), direct.getTime(),
+        "a canceled idle cannot restore the stale month");
+});
+
 // Cinnamon's Tooltip.set_text() has no equality guard — it calls
 // allocate_preferred_size() and queue_relayout() unconditionally — so writing
 // byte-identical text still forces a relayout. The month tooltip is cleared on
