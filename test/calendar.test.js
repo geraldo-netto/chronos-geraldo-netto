@@ -1035,23 +1035,29 @@ test("applyAccessibleName tolerates a button that cannot be named", () => {
 test("CalendarDayCellRenderer mutates cached state and delegates dots", () => {
     const dotCalls = [];
     const host = makeHost({
-        renderDots: (cell, iter) => dotCalls.push([cell, iter])
+        renderDots: (cell, iter, key) => dotCalls.push([cell, iter, key])
     });
     const renderer = new CalendarModule.CalendarDayCellRenderer(host);
     const cell = renderer.build();
+    const iter = new Date(2026, 6, 9);
+    const today = new Date(2026, 6, 9);
+    const dateUnixKey = Math.trunc(iter.getTime() / 1000);
+    const accessibleDate = "Thursday, 9 July 2026";
     cell.holidayTooltip = new global.imports.ui.tooltips.Tooltip(cell.button);
     cell.holiday_tooltip_set = true;
 
-    renderer.update(cell, new Date(2026, 6, 9), 2);
+    renderer.update(cell, iter, 2, today, dateUnixKey, accessibleDate);
 
     assert.equal(cell.button.label, "9");
     assert.equal(cell.date.getDate(), 9);
+    assert.equal(cell.is_today, true);
+    assert.equal(cell.accessible_date, accessibleDate);
     assert.equal(cell.selected, true);
     assert.ok(cell.button.pseudo.has("selected"));
     assert.ok(cell.button.style_class.includes("calendar-day-top"));
     assert.equal(cell.holiday_tooltip_set, false);
     assert.equal(cell.holidayTooltip.texts.at(-1), "");
-    assert.equal(dotCalls.length, 1);
+    assert.deepEqual(dotCalls, [[cell, iter, dateUnixKey]]);
 });
 
 test("CalendarDayCellRenderer reuses the update-scoped today value", () => {
