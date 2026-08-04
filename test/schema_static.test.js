@@ -143,14 +143,15 @@ test("5.4 schema exposes Belgium holiday regions", () => {
     });
 });
 
-test("schema groups panel label controls together", () => {
+test("schema groups weather and location controls together", () => {
     const data = schema("5.4");
     const layout = data.layout;
 
     assert.deepEqual(layout.section5, {
         type: "section",
-        title: "Panel Label",
-        keys: ["show-weather", "weather-location", "openstreetmap-attribution", "weather-units"]
+        title: "Weather and location services",
+        keys: ["show-weather", "show-astronomy", "weather-location",
+            "openstreetmap-attribution", "weather-units"]
     });
     assert.ok(layout.page1.sections.includes("section5"));
     assert.equal(layout.section1.keys.includes("show-weather"), false);
@@ -721,6 +722,9 @@ test("holiday timezone default is one-time and weather remains opt-in", () => {
     const readme = fs.readFileSync(readmePath, "utf8");
 
     assert.equal(data["show-weather"].default, false);
+    assert.equal(data["show-astronomy"].default, true);
+    assert.equal(data["show-astronomy"].dependency, "show-weather",
+        "astronomy cannot be enabled without the weather geocoder");
     assert.equal(data.country.default, "",
         "an empty new-install sentinel lets upgrades preserve an old explicit none");
     assert.equal(data.country.options["None (disable holidays)"], "none");

@@ -40,6 +40,7 @@ var RELIGION_KEY_PREFIX = "religion-"; // NOSONAR [S3504] -- GJS importer export
 var RELIGION_IDS = ReligiousCatalog.RELIGION_IDS; // NOSONAR [S3504] -- GJS importer export
 var WORLDCLOCKS_KEY = "worldclocks"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_WORLDCLOCKS_KEY = "show-worldclocks"; // NOSONAR [S3504] -- GJS importer export
+var SHOW_ASTRONOMY_KEY = "show-astronomy"; // NOSONAR [S3504] -- GJS importer export
 var KEY_OPEN_KEY = "keyOpen"; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_LOCATION_KEY = "weather-location"; // NOSONAR [S3504] -- GJS importer export
 var CUSTOM_FORMAT_KEY = "custom-format"; // NOSONAR [S3504] -- GJS importer export
@@ -56,7 +57,8 @@ var PANEL_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     [SHOW_EVENTS_KEY, "show_events", "onShowEventsChanged"],
     [CUSTOM_FORMAT_KEY, "custom_format", "onPanelFormatChanged"],
     [CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format", "onTooltipFormatChanged"],
-    [SHOW_WORLDCLOCKS_KEY, "show_worldclocks", "onShowWorldclocksChanged"]
+    [SHOW_WORLDCLOCKS_KEY, "show_worldclocks", "onShowWorldclocksChanged"],
+    [SHOW_ASTRONOMY_KEY, "show_astronomy", "onShowAstronomyChanged"]
 ];
 var WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     ["show-weather", "show_weather"],
@@ -336,6 +338,7 @@ if (typeof module !== "undefined") {
         RELIGION_IDS,
         WORLDCLOCKS_KEY,
         SHOW_WORLDCLOCKS_KEY,
+        SHOW_ASTRONOMY_KEY,
         KEY_OPEN_KEY,
         WEATHER_LOCATION_KEY,
         CUSTOM_FORMAT_KEY,

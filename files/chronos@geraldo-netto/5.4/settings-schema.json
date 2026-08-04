@@ -93,9 +93,10 @@
         },
         "section5": {
             "type": "section",
-            "title": "Panel Label",
+            "title": "Weather and location services",
             "keys": [
                 "show-weather",
+                "show-astronomy",
                 "weather-location",
                 "openstreetmap-attribution",
                 "weather-units"
@@ -151,6 +152,13 @@
         "default": false,
         "description": "Show weather on the panel",
         "tooltip": "Enable a small weather readout in the applet label. The reading is fetched from a third-party weather service, and the location below is sent to it."
+    },
+    "show-astronomy": {
+        "type": "switch",
+        "default": true,
+        "description": "Show sun and moon times",
+        "dependency": "show-weather",
+        "tooltip": "Uses the weather location. Sunrise, sunset, moonrise, and moonset are calculated locally without an additional network request."
     },
     "weather-location": {
         "type": "custom",

@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2024-11-24 20:59+0100\n"
 "Last-Translator: Vajda Örs <ors0092@gmail.com>\n"
 "Language-Team: \n"
@@ -339,29 +339,29 @@ msgstr "Ehhez az időzónához nincs időjárás"
 msgid "%s Last known reading"
 msgstr "%s Utolsó ismert mérés"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Napkelte: %s — Napnyugta: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "A Nap egész nap a horizont felett van"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "A Nap egész nap a horizont alatt van"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Holdkelte: %s — Holdnyugta: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "A Hold egész nap a horizont felett van"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "A Hold egész nap a horizont alatt van"
 
@@ -617,6 +617,7 @@ msgstr "A projekt webhelye és forráskódja"
 msgid "License: GPL 2.0 or later"
 msgstr "Licenc: GPL 2.0 vagy újabb"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Időjárási és helymeghatározási szolgáltatások"
@@ -703,10 +704,6 @@ msgstr "Vallási szokások"
 msgid "Show World Times"
 msgstr "Időzónák megjelenítése"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Panelcímke"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Naptáresemények megjelenítése"
@@ -777,6 +774,18 @@ msgstr ""
 "Kis időjárás-kijelző bekapcsolása a kisalkalmazás címkéjén. A mérés egy "
 "harmadik féltől származó időjárás-szolgáltatásból érkezik, és az alábbi hely "
 "oda kerül elküldésre."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Nap- és holdidők megjelenítése"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Az időjárási helyet használja. A napkelte, napnyugta, holdkelte és "
+"holdnyugta helyben, további hálózati kérés nélkül kerül kiszámításra."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1842,6 +1851,9 @@ msgstr "Név megjelenítése"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Időzóna"
+
+#~ msgid "Panel Label"
+#~ msgstr "Panelcímke"
 
 #, python-format
 #~ msgid "License: %s"

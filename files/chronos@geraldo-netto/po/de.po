@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2024-11-20 18:59+0100\n"
 "Last-Translator: Claus Colloseus <ccprog@gmx.de>\n"
 "Language-Team: German\n"
@@ -337,29 +337,29 @@ msgstr "Kein Wetter für diese Zeitzone"
 msgid "%s Last known reading"
 msgstr "%s Letzte bekannte Messung"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Sonnenaufgang: %s — Sonnenuntergang: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "Die Sonne steht den ganzen Tag über dem Horizont"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "Die Sonne steht den ganzen Tag unter dem Horizont"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Mondaufgang: %s — Monduntergang: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "Der Mond steht den ganzen Tag über dem Horizont"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "Der Mond steht den ganzen Tag unter dem Horizont"
 
@@ -615,6 +615,7 @@ msgstr "Projektwebsite und Quellcode"
 msgid "License: GPL 2.0 or later"
 msgstr "Lizenz: GPL 2.0 oder neuer"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Wetter- und Standortdienste"
@@ -701,10 +702,6 @@ msgstr "Religiöse Bräuche"
 msgid "Show World Times"
 msgstr "Zeige Weltzeiten"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Leistenbeschriftung"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Kalendereinträge anzeigen"
@@ -777,6 +774,19 @@ msgstr ""
 "Eine kleine Wetteranzeige in der Beschriftung des Applets aktivieren. Die "
 "Messung wird von einem Wetterdienst eines Drittanbieters abgerufen, und der "
 "untenstehende Ort wird an ihn gesendet."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Sonnen- und Mondzeiten anzeigen"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Verwendet den Wetterstandort. Sonnenaufgang, Sonnenuntergang, Mondaufgang "
+"und Monduntergang werden lokal ohne eine zusätzliche Netzwerkanfrage "
+"berechnet."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1840,6 +1850,9 @@ msgstr "Anzeigename"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zeitzone"
+
+#~ msgid "Panel Label"
+#~ msgstr "Leistenbeschriftung"
 
 #, python-format
 #~ msgid "License: %s"

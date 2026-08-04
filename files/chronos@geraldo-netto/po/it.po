@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2025-01-03 15:08+0100\n"
 "Last-Translator: Dragone2 <dragone2@risposteinformatiche.it>\n"
 "Language-Team: \n"
@@ -341,29 +341,29 @@ msgstr "Nessun meteo per questo fuso orario"
 msgid "%s Last known reading"
 msgstr "%s Ultima misurazione nota"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Alba: %s — Tramonto: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "Il Sole è sopra l’orizzonte tutto il giorno"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "Il Sole è sotto l’orizzonte tutto il giorno"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Sorgere della Luna: %s — Tramonto della Luna: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "La Luna è sopra l’orizzonte tutto il giorno"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "La Luna è sotto l’orizzonte tutto il giorno"
 
@@ -621,6 +621,7 @@ msgstr "Sito web e codice sorgente del progetto"
 msgid "License: GPL 2.0 or later"
 msgstr "Licenza: GPL 2.0 o successiva"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Servizi meteo e di localizzazione"
@@ -707,10 +708,6 @@ msgstr "Osservanze religiose"
 msgid "Show World Times"
 msgstr "Mostra i Tempi del Mondo"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Etichetta del pannello"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Mostra eventi del calendario"
@@ -783,6 +780,18 @@ msgstr ""
 "Attiva una piccola indicazione meteo nell’etichetta dell’applet. La "
 "misurazione è recuperata da un servizio meteo di terze parti, al quale viene "
 "inviata la località indicata sotto."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Mostra gli orari del sole e della luna"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Usa la località meteo. Alba, tramonto, sorgere e tramontare della luna "
+"vengono calcolati localmente senza un'ulteriore richiesta di rete."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1846,6 +1855,9 @@ msgstr "Nome visualizzato"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Fuso Orario"
+
+#~ msgid "Panel Label"
+#~ msgstr "Etichetta del pannello"
 
 #, python-format
 #~ msgid "License: %s"

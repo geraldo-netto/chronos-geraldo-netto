@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2021-10-02 18:47-0300\n"
 "Last-Translator: Marcelo Aof\n"
 "Language-Team: \n"
@@ -340,29 +340,29 @@ msgstr "Sem meteorologia para este fuso horário"
 msgid "%s Last known reading"
 msgstr "%s Última leitura conhecida"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Nascer do sol: %s — Pôr do sol: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "O Sol fica acima do horizonte o dia todo"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "O Sol fica abaixo do horizonte o dia todo"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Nascer da Lua: %s — Pôr da Lua: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "A Lua fica acima do horizonte o dia todo"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "A Lua fica abaixo do horizonte o dia todo"
 
@@ -620,6 +620,7 @@ msgstr "Site e código-fonte do projeto"
 msgid "License: GPL 2.0 or later"
 msgstr "Licença: GPL 2.0 ou posterior"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Serviços de clima e localização"
@@ -706,10 +707,6 @@ msgstr "Observâncias Religiosas"
 msgid "Show World Times"
 msgstr "Mostrar Relógios Mundiais"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Rótulo do painel"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Mostrar eventos do calendário"
@@ -778,6 +775,18 @@ msgid ""
 msgstr ""
 "Ativa uma pequena leitura do clima no rótulo do applet. A leitura é obtida "
 "de um serviço de clima de terceiros, e a localização abaixo é enviada a ele."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Mostrar horários do sol e da lua"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Usa a localização do clima. O nascer e o pôr do sol, e o nascer e o pôr da "
+"lua, são calculados localmente sem uma solicitação de rede adicional."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1841,6 +1850,9 @@ msgstr "Nome em exibição"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Fuso horário"
+
+#~ msgid "Panel Label"
+#~ msgstr "Rótulo do painel"
 
 #, python-format
 #~ msgid "License: %s"

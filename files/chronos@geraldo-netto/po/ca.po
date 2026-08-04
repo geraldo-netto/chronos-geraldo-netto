@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2025-02-13 20:56+0100\n"
 "Last-Translator: Odyssey <odysseyhyd@gmail.com>\n"
 "Language-Team: \n"
@@ -340,29 +340,29 @@ msgstr "Sense meteorologia per a aquesta zona horària"
 msgid "%s Last known reading"
 msgstr "%s Última lectura coneguda"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Sortida del sol: %s — Posta de sol: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "El sol és sobre l'horitzó tot el dia"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "El sol és sota l'horitzó tot el dia"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Sortida de la lluna: %s — Posta de la lluna: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "La lluna és sobre l'horitzó tot el dia"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "La lluna és sota l'horitzó tot el dia"
 
@@ -620,6 +620,7 @@ msgstr "Lloc web i codi font del projecte"
 msgid "License: GPL 2.0 or later"
 msgstr "Llicència: GPL 2.0 o posterior"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Serveis meteorològics i d'ubicació"
@@ -705,10 +706,6 @@ msgstr "Celebracions religioses"
 msgid "Show World Times"
 msgstr "Mostrar el rellotge mundial"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Etiqueta del tauler"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Mostrar esdeveniments del calendari"
@@ -777,6 +774,19 @@ msgstr ""
 "Activa una petita lectura del temps a l’etiqueta de la miniaplicació. La "
 "lectura s’obté d’un servei meteorològic de tercers, al qual s’envia la "
 "ubicació de sota."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Mostra les hores del sol i de la lluna"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Utilitza la ubicació meteorològica. La sortida i la posta del sol, i la "
+"sortida i la posta de la lluna, es calculen localment sense cap sol·licitud "
+"de xarxa addicional."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1840,6 +1850,9 @@ msgstr "Nom a mostrar"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zona horària"
+
+#~ msgid "Panel Label"
+#~ msgstr "Etiqueta del tauler"
 
 #, python-format
 #~ msgid "License: %s"

@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: blogdron\n"
 "Language-Team: \n"
@@ -336,29 +336,29 @@ msgstr "Погода для этого часового пояса недост�
 msgid "%s Last known reading"
 msgstr "%s Последнее известное значение"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Восход Солнца: %s — Закат Солнца: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "Солнце весь день находится над горизонтом"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "Солнце весь день находится под горизонтом"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Восход Луны: %s — Заход Луны: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "Луна весь день находится над горизонтом"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "Луна весь день находится под горизонтом"
 
@@ -617,6 +617,7 @@ msgstr "Сайт и исходный код проекта"
 msgid "License: GPL 2.0 or later"
 msgstr "Лицензия: GPL 2.0 или более поздняя"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Службы погоды и местоположения"
@@ -702,10 +703,6 @@ msgstr "Религиозные обряды"
 msgid "Show World Times"
 msgstr "Показать Мировое Время"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Метка на панели"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Показать события календаря"
@@ -774,6 +771,18 @@ msgstr ""
 "Показывать небольшую сводку погоды на метке апплета. Данные запрашиваются у "
 "стороннего погодного сервиса, и указанное ниже местоположение отправляется "
 "ему."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Показывать время восхода и захода Солнца и Луны"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Используется местоположение для погоды. Время восхода и захода Солнца и "
+"Луны рассчитывается локально без дополнительного сетевого запроса."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1835,6 +1844,9 @@ msgstr "Отображаемое имя"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Часовой пояс"
+
+#~ msgid "Panel Label"
+#~ msgstr "Метка на панели"
 
 #, python-format
 #~ msgid "License: %s"

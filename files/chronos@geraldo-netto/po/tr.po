@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2021-07-05 18:36+0300\n"
 "Last-Translator: Serkan ÖNDER <serkanonder@outlook.com>\n"
 "Language-Team: \n"
@@ -340,29 +340,29 @@ msgstr "Bu saat dilimi için hava durumu yok"
 msgid "%s Last known reading"
 msgstr "%s Bilinen son ölçüm"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Gün doğumu: %s — Gün batımı: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "Güneş tüm gün ufkun üzerinde"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "Güneş tüm gün ufkun altında"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Ay doğumu: %s — Ay batımı: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "Ay tüm gün ufkun üzerinde"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "Ay tüm gün ufkun altında"
 
@@ -618,6 +618,7 @@ msgstr "Proje web sitesi ve kaynak kodu"
 msgid "License: GPL 2.0 or later"
 msgstr "Lisans: GPL 2.0 veya sonrası"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Hava durumu ve konum hizmetleri"
@@ -703,10 +704,6 @@ msgstr "Dini Törenler"
 msgid "Show World Times"
 msgstr "Dünya Tarihlerini Göster"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Panel Etiketi"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Takvim olaylarını göster"
@@ -777,6 +774,18 @@ msgstr ""
 "Uygulamacık etiketinde küçük bir hava durumu göstergesi etkinleştirir. Ölçüm "
 "üçüncü taraf bir hava durumu hizmetinden alınır ve aşağıdaki konum bu "
 "hizmete gönderilir."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Güneş ve ay saatlerini göster"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Hava durumu konumunu kullanır. Gün doğumu, gün batımı, ay doğumu ve ay "
+"batımı ek bir ağ isteği olmadan yerel olarak hesaplanır."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1840,6 +1849,9 @@ msgstr "Görünüm Adı"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zaman dilimi"
+
+#~ msgid "Panel Label"
+#~ msgstr "Panel Etiketi"
 
 #, python-format
 #~ msgid "License: %s"

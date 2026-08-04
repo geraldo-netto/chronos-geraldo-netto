@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2025-04-03 19:37+0300\n"
 "Last-Translator: Kimmo Kujansuu <mrkujansuu@gmail.com>\n"
 "Language-Team: \n"
@@ -339,29 +339,29 @@ msgstr "Ei säätietoja tälle aikavyöhykkeelle"
 msgid "%s Last known reading"
 msgstr "%s Viimeisin tunnettu lukema"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Auringonnousu: %s — Auringonlasku: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "Aurinko on horisontin yläpuolella koko päivän"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "Aurinko on horisontin alapuolella koko päivän"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Kuunnousu: %s — Kuunlasku: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "Kuu on horisontin yläpuolella koko päivän"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "Kuu on horisontin alapuolella koko päivän"
 
@@ -617,6 +617,7 @@ msgstr "Projektin verkkosivusto ja lähdekoodi"
 msgid "License: GPL 2.0 or later"
 msgstr "Lisenssi: GPL 2.0 tai uudempi"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Sää- ja sijaintipalvelut"
@@ -703,10 +704,6 @@ msgstr "Uskonnolliset juhlat"
 msgid "Show World Times"
 msgstr "Maailman kellonajat"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Paneelin selite"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Kalenteritapahtumat"
@@ -774,6 +771,18 @@ msgid ""
 msgstr ""
 "Näytä pieni säälukema sovelman tekstissä. Lukema haetaan kolmannen osapuolen "
 "sääpalvelusta, ja alla oleva sijainti lähetetään sille."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Näytä auringon ja kuun ajat"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Käyttää sääsijaintia. Auringonnousu, auringonlasku, kuunnousu ja kuunlasku "
+"lasketaan paikallisesti ilman ylimääräistä verkkopyyntöä."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1837,6 +1846,9 @@ msgstr "Näyttönimi"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Aikavyöhyke"
+
+#~ msgid "Panel Label"
+#~ msgstr "Paneelin selite"
 
 #, python-format
 #~ msgid "License: %s"

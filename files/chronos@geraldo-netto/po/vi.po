@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -338,29 +338,29 @@ msgstr "Không có thời tiết cho múi giờ này"
 msgid "%s Last known reading"
 msgstr "%s Số liệu gần nhất"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Mặt Trời mọc: %s — Mặt Trời lặn: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "Mặt Trời ở trên đường chân trời cả ngày"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "Mặt Trời ở dưới đường chân trời cả ngày"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Mặt Trăng mọc: %s — Mặt Trăng lặn: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "Mặt Trăng ở trên đường chân trời cả ngày"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "Mặt Trăng ở dưới đường chân trời cả ngày"
 
@@ -611,6 +611,7 @@ msgstr "Trang web và mã nguồn dự án"
 msgid "License: GPL 2.0 or later"
 msgstr "Giấy phép: GPL 2.0 trở lên"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Dịch vụ thời tiết và vị trí"
@@ -696,10 +697,6 @@ msgstr "Các ngày lễ tôn giáo"
 msgid "Show World Times"
 msgstr "Hiển thị giờ thế giới"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Nhãn bảng điều khiển"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Hiển thị sự kiện lịch"
@@ -768,6 +765,18 @@ msgstr ""
 "Bật phần hiển thị thời tiết nhỏ trên nhãn của applet. Số liệu được lấy từ "
 "dịch vụ thời tiết của bên thứ ba, và vị trí bên dưới sẽ được gửi tới dịch vụ "
 "đó."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Hiển thị thời gian mặt trời và mặt trăng"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Sử dụng vị trí thời tiết. Thời gian mặt trời mọc, mặt trời lặn, mặt trăng "
+"mọc và mặt trăng lặn được tính cục bộ mà không cần thêm yêu cầu mạng."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1827,6 +1836,9 @@ msgstr "Tên hiển thị"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Múi giờ"
+
+#~ msgid "Panel Label"
+#~ msgstr "Nhãn bảng điều khiển"
 
 #, python-format
 #~ msgid "License: %s"

@@ -209,11 +209,12 @@ label.
 | Show world clocks in the calendar menu | on | Shows the clock rows under the calendar, including the built-in UTC and local time. |
 | World Clocks | empty | Up to 8 timezones on top of the built-in rows. |
 
-**Panel Label section** (on the Calendar page)
+**Weather and location services section** (on the Calendar page)
 
 | Setting | Default | What it does |
 |---|---|---|
 | Show weather on the panel | off | A small weather readout in the applet label (see below), next to the local time on every panel orientation. |
+| Show sun and moon times | on when weather is enabled | Shows sunrise, sunset, moonrise, and moonset in the popup. The switch is available only while weather is enabled because it reuses weather's resolved location. |
 | Weather location / units | your timezone's city / SI | The place to forecast and the temperature scale. The location field suggests city names as you type. The suggestions come from the timezone database already on the machine (the few hundred cities it names, the same list the world clocks complete against), so nothing is sent anywhere while you type — and because that is not a full gazetteer, a smaller town will not be suggested. The field stays free text: any name you type is still saved and sent to the geocoder when the applet next refreshes. |
 
 **The location fills itself in.** An empty location is filled with the city your
@@ -226,8 +227,8 @@ can correct it. Clearing the field saves an empty location and the panel shows
 its setup warning. Reopening the settings dialog or reloading the applet restores
 the timezone-derived city when one is available; typing another city replaces it.
 
-Once that weather location has been resolved, the popup also shows today's
-sunrise, sunset, moonrise, and moonset. It reuses the geocoder's in-memory
+When weather and **Show sun and moon times** are enabled, the popup also shows
+today's sunrise, sunset, moonrise, and moonset. It reuses the geocoder's retained
 latitude and longitude: the event times are calculated locally, with no
 astronomy service or additional network request. When the weather geocoder
 returns the place's timezone, it also defines which civil day and wall-clock

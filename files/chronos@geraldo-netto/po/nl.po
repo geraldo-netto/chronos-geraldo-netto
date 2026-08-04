@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2024-11-28 17:19+0100\n"
 "Last-Translator: qadzek\n"
 "Language-Team: \n"
@@ -338,29 +338,29 @@ msgstr "Geen weer voor deze tijdzone"
 msgid "%s Last known reading"
 msgstr "%s Laatst bekende meting"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Zonsopkomst: %s — Zonsondergang: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "De zon staat de hele dag boven de horizon"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "De zon staat de hele dag onder de horizon"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Maanopkomst: %s — Maanondergang: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "De maan staat de hele dag boven de horizon"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "De maan staat de hele dag onder de horizon"
 
@@ -616,6 +616,7 @@ msgstr "Projectwebsite en broncode"
 msgid "License: GPL 2.0 or later"
 msgstr "Licentie: GPL 2.0 of hoger"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Weer- en locatieservices"
@@ -703,10 +704,6 @@ msgstr "Religieuze vieringen"
 msgid "Show World Times"
 msgstr "Wereldtijden tonen"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Paneellabel"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Kalenderevenementen weergeven"
@@ -776,6 +773,18 @@ msgstr ""
 "Toon een kleine weerweergave in het label van het applet. De meting wordt "
 "opgehaald bij een weerdienst van derden, en de locatie hieronder wordt "
 "daarheen verstuurd."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Toon zon- en maantijden"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Gebruikt de weerlocatie. Zonsopkomst, zonsondergang, maansopkomst en "
+"maanondergang worden lokaal berekend zonder extra netwerkverzoek."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1839,6 +1848,9 @@ msgstr "Weergavenaam"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Tijdzone"
+
+#~ msgid "Panel Label"
+#~ msgstr "Paneellabel"
 
 #, python-format
 #~ msgid "License: %s"

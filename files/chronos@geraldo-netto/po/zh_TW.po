@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -337,29 +337,29 @@ msgstr "此時區沒有天氣資訊"
 msgid "%s Last known reading"
 msgstr "%s 最後已知的讀數"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "日出：%s — 日落：%s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "太陽全天位於地平線上方"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "太陽全天位於地平線下方"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "月出：%s — 月落：%s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "月亮全天位於地平線上方"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "月亮全天位於地平線下方"
 
@@ -609,6 +609,7 @@ msgstr "專案網站與原始碼"
 msgid "License: GPL 2.0 or later"
 msgstr "授權條款：GPL 2.0 或更新版本"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "天氣與位置服務"
@@ -693,10 +694,6 @@ msgstr "宗教節日"
 msgid "Show World Times"
 msgstr "顯示世界時間"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "面板標籤"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "顯示行事曆活動"
@@ -764,6 +761,17 @@ msgid ""
 msgstr ""
 "在小程式標籤上顯示簡短的天氣讀數。讀數取自第三方天氣服務，下方的地點會傳送給"
 "該服務。"
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "顯示太陽與月亮時間"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"使用天氣位置。日出、日落、月出及月落時間皆在本機計算，不會發出額外的網路請求。"
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1813,6 +1821,9 @@ msgstr "顯示名稱"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "時區"
+
+#~ msgid "Panel Label"
+#~ msgstr "面板標籤"
 
 #, python-format
 #~ msgid "License: %s"

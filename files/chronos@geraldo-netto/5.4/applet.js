@@ -256,6 +256,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             onPanelFormatChanged: this._onPanelFormatChanged.bind(this),
             onTooltipFormatChanged: this._onTooltipFormatChanged.bind(this),
             onShowWorldclocksChanged: this._onShowWorldclocksChanged.bind(this),
+            onShowAstronomyChanged: this._onShowAstronomyChanged.bind(this),
             onWeatherSettingsChanged: this._onWeatherSettingsChanged.bind(this),
             onKeybindingChanged: () => this._guarded(
                 "keybinding-settings", () => this._setKeybinding())
@@ -409,6 +410,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         });
     }
 
+    _onShowAstronomyChanged() {
+        this._guarded("astronomy-visibility-settings", () => this._updateAstronomy());
+    }
+
     _onWeatherSettingsChanged() {
         this._guarded("weather-settings", () => {
             this._updateClockAndDate();
@@ -492,7 +497,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             return;
         }
         this._astronomy.update({
-            visible: this.show_weather,
+            visible: this.show_weather && this.show_astronomy,
             place: this._weatherCoordinator.currentPlace(),
             use24h: this.desktop_settings.use24h
         });

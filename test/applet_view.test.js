@@ -268,6 +268,7 @@ test("the astronomy popup updates only while it can be seen", () => {
     stub._astronomy = { update: (model) => updates.push(model) };
     stub._weatherCoordinator.currentPlace = () => place;
     stub.show_weather = true;
+    stub.show_astronomy = true;
     stub.desktop_settings = { use24h: true };
 
     Proto._updateClockAndDate.call(stub);
@@ -281,11 +282,17 @@ test("the astronomy popup updates only while it can be seen", () => {
     assert.deepEqual(updates[1], { visible: false, place, use24h: true });
 
     stub.show_weather = true;
+    stub.show_astronomy = false;
+    Proto._updateClockAndDate.call(stub, true);
+    assert.deepEqual(updates[2], { visible: false, place, use24h: true },
+        "astronomy has its own popup visibility control");
+
+    stub.show_astronomy = true;
     stub.menu.toggle = () => {
         stub.menu.isOpen = true;
     };
     Proto._openMenu.call(stub);
-    assert.deepEqual(updates[2], { visible: true, place, use24h: true },
+    assert.deepEqual(updates[3], { visible: true, place, use24h: true },
         "opening renders immediately instead of waiting for the next clock tick");
 });
 

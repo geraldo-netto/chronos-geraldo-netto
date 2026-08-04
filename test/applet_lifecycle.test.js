@@ -521,13 +521,15 @@ test("settings binding wires schema keys and creates settings facades", () => {
         _onShowEventsChanged: () => binds.push(["effect", "events"]),
         _onPanelFormatChanged: () => binds.push(["effect", "panel-format"]),
         _onTooltipFormatChanged: () => binds.push(["effect", "tooltip-format"]),
-        _onShowWorldclocksChanged: () => binds.push(["effect", "worldclocks"])
+        _onShowWorldclocksChanged: () => binds.push(["effect", "worldclocks"]),
+        _onShowAstronomyChanged: () => binds.push(["effect", "astronomy"])
     });
     Proto._bindSettings.call(stub);
     callbacks["show-events"]();
     callbacks["custom-format"]();
     callbacks["custom-tooltip-format"]();
     callbacks["show-worldclocks"]();
+    callbacks["show-astronomy"]();
     keybindingChanged();
     global.imports.ui.settings.AppletSettings = original;
 
@@ -542,7 +544,8 @@ test("settings binding wires schema keys and creates settings facades", () => {
         ["effect", "events"],
         ["effect", "panel-format"],
         ["effect", "tooltip-format"],
-        ["effect", "worldclocks"]
+        ["effect", "worldclocks"],
+        ["effect", "astronomy"]
     ]);
     assert.equal(binds.filter((row) => row[0] === "hotkey").length, 2,
         "initial binding and a changed accelerator both install the hotkey");
@@ -1113,6 +1116,7 @@ test("panel settings dispatch only their dependent workflows", () => {
         _guarded: (source, fn) => fn(),
         _applyFormatSettings: () => calls.push("format"),
         _updateClockAndDate: () => calls.push("clock"),
+        _updateAstronomy: () => calls.push("astronomy"),
         _eventListCoordinator: { apply: () => calls.push("events") },
         _weatherCoordinator: { applyShowWorldclocks: () => calls.push("cities") }
     });
@@ -1128,6 +1132,7 @@ test("panel settings dispatch only their dependent workflows", () => {
     assert.deepEqual(invoke("_onTooltipFormatChanged"), ["clock"]);
     assert.deepEqual(invoke("_onShowWorldclocksChanged"),
         ["format", "clock", "cities"]);
+    assert.deepEqual(invoke("_onShowAstronomyChanged"), ["astronomy"]);
 });
 
 test("provider initialization wires hover and event manager signals", () => {

@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 20:58+0200\n"
+"POT-Creation-Date: 2026-08-04 21:36+0200\n"
 "PO-Revision-Date: 2021-02-27 16:18+0100\n"
 "Last-Translator: Åke Engelbrektson <eson@svenskasprakfiler.se>\n"
 "Language-Team: Svenska Språkfiler <contactform@svenskasprakfiler.se>\n"
@@ -339,29 +339,29 @@ msgstr "Inget väder för den här tidszonen"
 msgid "%s Last known reading"
 msgstr "%s Senast kända avläsning"
 
-#: 5.4/astronomyView.js:78
+#: 5.4/astronomyView.js:114
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Soluppgång: %s — Solnedgång: %s"
 
-#: 5.4/astronomyView.js:79
+#: 5.4/astronomyView.js:115
 msgid "Sun is above the horizon all day"
 msgstr "Solen är över horisonten hela dagen"
 
-#: 5.4/astronomyView.js:80
+#: 5.4/astronomyView.js:116
 msgid "Sun is below the horizon all day"
 msgstr "Solen är under horisonten hela dagen"
 
-#: 5.4/astronomyView.js:82
+#: 5.4/astronomyView.js:118
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Månuppgång: %s — Månnedgång: %s"
 
-#: 5.4/astronomyView.js:83
+#: 5.4/astronomyView.js:119
 msgid "Moon is above the horizon all day"
 msgstr "Månen är över horisonten hela dagen"
 
-#: 5.4/astronomyView.js:84
+#: 5.4/astronomyView.js:120
 msgid "Moon is below the horizon all day"
 msgstr "Månen är under horisonten hela dagen"
 
@@ -617,6 +617,7 @@ msgstr "Projektets webbplats och källkod"
 msgid "License: GPL 2.0 or later"
 msgstr "Licens: GPL 2.0 eller senare"
 
+#. 5.4->settings-schema.json->section5->title
 #: 5.4/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Väder- och platstjänster"
@@ -702,10 +703,6 @@ msgstr "Religiösa högtider"
 msgid "Show World Times"
 msgstr "Visa världstider"
 
-#. 5.4->settings-schema.json->section5->title
-msgid "Panel Label"
-msgstr "Paneletikett"
-
 #. 5.4->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Visa kalenderhändelser"
@@ -775,6 +772,18 @@ msgid ""
 msgstr ""
 "Visa en liten väderavläsning i panelprogrammets etikett. Avläsningen hämtas "
 "från en vädertjänst från tredje part, och platsen nedan skickas till den."
+
+#. 5.4->settings-schema.json->show-astronomy->description
+msgid "Show sun and moon times"
+msgstr "Visa sol- och måntider"
+
+#. 5.4->settings-schema.json->show-astronomy->tooltip
+msgid ""
+"Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
+"calculated locally without an additional network request."
+msgstr ""
+"Använder väderplatsen. Soluppgång, solnedgång, månuppgång och månnedgång "
+"beräknas lokalt utan en extra nätverksbegäran."
 
 #. 5.4->settings-schema.json->weather-location->description
 msgid "Weather location"
@@ -1837,6 +1846,9 @@ msgstr "Visningsnamn"
 #. 5.4->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Tidszon"
+
+#~ msgid "Panel Label"
+#~ msgstr "Paneletikett"
 
 #, python-format
 #~ msgid "License: %s"
