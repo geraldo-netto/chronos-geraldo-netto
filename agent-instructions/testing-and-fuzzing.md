@@ -18,6 +18,14 @@ Use this module for projects where generated or modified code must be backed by 
 - For projects with stronger gates, follow the project gate.
 - Complexity rules apply to tests too: keep each test helper and test body easy to read.
 
+## Mutation Testing
+
+- Mutation-test every changed production behavior in addition to running the ordinary test and coverage gates.
+- Kill every non-equivalent mutant in the changed logic by strengthening tests around observable behavior, boundaries, and failure paths.
+- Do not weaken the mutation scope or exclude surviving mutants merely to make the run green.
+- Prove genuinely equivalent mutants with domain-wide reasoning or exhaustive witnesses, and preserve that rationale in the project's rejected-findings ledger so later audits do not rediscover them.
+- When no mutation runner exists, perform a focused manual operator, constant, condition, and branch mutation audit over the changed production logic and report that limitation explicitly.
+
 ## Fuzz And Property Tests
 
 - Fuzz public APIs that parse, validate, transform, serialize, deserialize, route, or accept external input.
