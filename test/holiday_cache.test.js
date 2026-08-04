@@ -1947,6 +1947,32 @@ test("a tampered cache file cannot inject malformed holidays", () => {
     assert.deepEqual(loaded.holidays.map((single) => single.name), ["New Year"]);
 });
 
+test("a tampered cache cannot claim the local religious marker", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const stamp = "Thu, 01 Jan 2026 00:00:00 GMT";
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({
+        usa: {
+            years: { 2026: { global: stamp } },
+            holidays: [{
+                year: 2026,
+                month: 12,
+                day: 25,
+                name: "Provider Christmas",
+                flags: ["public_holiday", "religious_holiday", "bank"],
+                region: "global"
+            }]
+        }
+    }));
+
+    const loaded = loadCountry(repository, "usa");
+
+    assert.deepEqual(loaded.holidays[0].flags, ["public_holiday", "bank"]);
+    assert.equal(loaded.years[2026].global, stamp,
+        "sanitizing one flag keeps the otherwise complete snapshot fresh");
+});
+
 test("an unbounded holiday span is rejected, not expanded", () => {
     const HolidayRecord = require(holidayRecordPath);
     // the validate-and-expand rule is the record contract's, not the adapter's;

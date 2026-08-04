@@ -210,7 +210,12 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         }
 
         const bounded = stored.holidays.slice(0, MAX_EXPANDED_HOLIDAY_ROWS);
-        struct.holidays = bounded.filter(validCachedHoliday);
+        struct.holidays = bounded
+            .filter(validCachedHoliday)
+            .map((single) => ({
+                ...single,
+                flags: HolidayRecord.publicHolidayFlags(single.flags)
+            }));
 
         // Freshness describes the complete row snapshot. If validation or the
         // safety cap drops anything, keeping the stamps would suppress the

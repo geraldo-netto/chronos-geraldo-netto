@@ -18,9 +18,13 @@ const DateMath = IS_NODE ?
 const LocaleQuery = IS_NODE ?
     require("./localeQuery") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
+const HolidayConstants = IS_NODE ?
+    require("./holidayConstants") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
 
 const MSECS_IN_DAY = DateMath.MSECS_IN_DAY;
 const _lcLang = LocaleQuery.messageLanguage;
+const RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG;
 
 var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export
 var MAX_HOLIDAYS_PER_YEAR = 1000; // NOSONAR [S3504] -- GJS importer export
@@ -37,6 +41,10 @@ function validHolidayFlags(flags) {
         flags.length <= MAX_HOLIDAY_FLAGS &&
         flags.every((flag) => typeof flag === "string" &&
             flag.length <= MAX_HOLIDAY_FLAG_LENGTH);
+}
+
+function publicHolidayFlags(flags) {
+    return flags.filter((flag) => flag !== RELIGIOUS_HOLIDAY_FLAG);
 }
 
 function _noonUtc(parts) {
@@ -121,7 +129,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
     expandHoliday(holiday, region) {
         const {year, month, day} = holiday.date;
         const name = this.localizeName(holiday);
-        const flags = holiday.flags;
+        const flags = publicHolidayFlags(holiday.flags);
         const days = [{year, month, day, name, flags, region}];
 
         if (holiday.dateTo) {
@@ -151,6 +159,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
 
 if (typeof module !== "undefined") {
     module.exports = { validDateParts, validHolidaySpan, holidaySpanDays, holidayOverlapsYear, nonBlankText,
+        publicHolidayFlags,
         validHolidayFlags, MAX_HOLIDAY_SPAN_DAYS, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
         MAX_HOLIDAY_FLAGS, MAX_HOLIDAY_FLAG_LENGTH,
         HolidayRecordContract };

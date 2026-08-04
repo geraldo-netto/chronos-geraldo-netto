@@ -804,6 +804,24 @@ test("a spanning holiday cannot amplify oversized flags through expansion", () =
     assert.ok(JSON.stringify(rows).length < 1024 * 1024);
 });
 
+test("provider holidays cannot claim the local religious marker", () => {
+    const { HolidayRecordContract } = loadHolidays();
+    const record = new HolidayRecordContract("en");
+    const holiday = {
+        date: { year: 2026, month: 12, day: 25 },
+        name: [{ lang: "en", text: "Provider Christmas" }],
+        flags: ["public_holiday", "religious_holiday", "bank"]
+    };
+
+    assert.equal(record.validHoliday(holiday), true,
+        "a reserved marker does not discard the otherwise valid public row");
+    assert.deepEqual(record.expandHoliday(holiday, "global")[0].flags,
+        ["public_holiday", "bank"]);
+    assert.deepEqual(holiday.flags,
+        ["public_holiday", "religious_holiday", "bank"],
+        "normalization does not mutate the provider payload");
+});
+
 // T597: the annotator builds "YYYY/M" month keys and hands the split pieces
 // straight to getHolidays, so year and month arrive as strings. The record
 // contract requires an integer year, so every provider's perfectly valid
