@@ -197,8 +197,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         let any_removed = this._event_index.cull(this.last_update_timestamp);
 
         if (any_removed) {
-            this._emit_selected_date_events_changed(false);
-            this.emit("events-updated");
+            this._emit_event_index_changed();
         }
 
         this._gc_timer_id = 0;
@@ -403,16 +402,14 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         if (!this._mark_event_overflow()) {
             return;
         }
-        this._emit_selected_date_events_changed(false);
-        this.emit("events-updated");
+        this._emit_event_index_changed();
     }
 
     _apply_event_resync() {
         this._event_index.clear();
         this._resync_overflow_pending = true;
         this._mark_event_overflow();
-        this._emit_selected_date_events_changed(false);
-        this.emit("events-updated");
+        this._emit_event_index_changed();
         this.queue_reload_today(true);
     }
 
@@ -467,6 +464,11 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             Boolean(this._event_index.overflowed));
     }
 
+    _emit_event_index_changed() {
+        this._emit_selected_date_events_changed(false);
+        this.emit("events-updated");
+    }
+
     _handle_removed_events(server, uids_string) {
         // The payload is unbounded TEXT off the wire, and it would sit whole
         // in the mutation queue until the idle drains it. Anything longer
@@ -518,6 +520,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // specific matching events to remove, just rebuild the
         // entire list.
         this._event_index.clear();
+        this._emit_event_index_changed();
         this.queue_reload_today(true);
     }
 

@@ -1103,10 +1103,16 @@ test("ambiguous removed-event IDs clear and force-refetch the window", () => {
 test("client disappearance rebuilds the event map via a forced reload", () => {
     const manager = readyManager();
     manager._event_index.eventsByDate[123] = {};
+    const gridUpdates = emitted(manager, "events-updated").length;
+    const agendaUpdates = emitted(manager, "selected-date-events-changed").length;
     proxy.instance.signal("client-disappeared", "uid");
     assert.deepEqual(manager._event_index.eventsByDate, {});
     assert.ok(manager._force_reload_pending);
     assert.ok(manager._reload_today_id > 0);
+    assert.equal(emitted(manager, "events-updated").length, gridUpdates + 1,
+        "the grid clears dots even when the replacement fetch is empty");
+    assert.equal(emitted(manager, "selected-date-events-changed").length,
+        agendaUpdates + 1, "the open agenda sees the same invalidation");
 });
 
 test("status notifications reload only on real, known transitions", () => {
