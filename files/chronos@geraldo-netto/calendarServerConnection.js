@@ -34,6 +34,7 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         this._bus_watch_id = 0;
         this._calendar_server = null;
         this._calendar_server_signal_ids = [];
+        this._proxy_cancellable = null;
         this._server_retry_id = 0;
         this._server_retry_attempts = 0;
         this._cached_state = STATUS_UNKNOWN;
@@ -43,7 +44,7 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
     }
 
     start() {
-        if (this._destroyed || this._bus_watch_id > 0) {
+        if (this._destroyed || this._bus_watch_id > 0 || this._proxy_cancellable !== null) {
             return;
         }
 
@@ -62,24 +63,35 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         if (this._calendar_server == null) {
             log(UUID + ": Calendar events supported.");
 
-            Cinnamon.CalendarServerProxy.new_for_bus(
-                Gio.BusType.SESSION,
-                Gio.DBusProxyFlags.DO_NOT_AUTO_START_AT_CONSTRUCTION,
-                "org.cinnamon.CalendarServer",
-                "/org/cinnamon/CalendarServer",
-                null,
-                this._calendar_server_ready.bind(this)
-            );
+            this._proxy_cancellable = new Gio.Cancellable();
+            try {
+                Cinnamon.CalendarServerProxy.new_for_bus(
+                    Gio.BusType.SESSION,
+                    Gio.DBusProxyFlags.DO_NOT_AUTO_START_AT_CONSTRUCTION,
+                    "org.cinnamon.CalendarServer",
+                    "/org/cinnamon/CalendarServer",
+                    this._proxy_cancellable,
+                    this._calendar_server_ready.bind(this)
+                );
+            } catch (e) {
+                this._proxy_cancellable = null;
+                log("could not start calendar server connection: " + e);
+                this.queueRetry();
+            }
         }
     }
 
     _calendar_server_ready(obj, res) {
-        if (this._destroyed) {
-            return;
-        }
-
         try {
-            this._calendar_server = Cinnamon.CalendarServerProxy.new_for_bus_finish(res);
+            // Gio requires every async result to be finished, including one
+            // whose cancellable was cancelled during teardown. Keep the new
+            // proxy local until the connection is still allowed to own it.
+            const calendarServer = Cinnamon.CalendarServerProxy.new_for_bus_finish(res);
+            this._proxy_cancellable = null;
+            if (this._destroyed) {
+                return;
+            }
+            this._calendar_server = calendarServer;
 
             this._calendar_server_signal_ids.push(this._calendar_server.connect(
                 "events-added-or-updated", this.callbacks.onAddedOrUpdated));
@@ -94,6 +106,12 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
             this._server_retry_attempts = 0;
             this.callbacks.onReady();
         } catch (e) {
+            this._proxy_cancellable = null;
+            // Cancellation is expected after destroy. The result was drained
+            // above; a removed applet must neither log nor arm a retry.
+            if (this._destroyed) {
+                return;
+            }
             log("could not connect to calendar server process: " + e);
             this._disconnectServer();
             this._calendar_server = null;
@@ -158,6 +176,11 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         }
 
         this.cancelRetry();
+        if (this._proxy_cancellable !== null) {
+            const cancellable = this._proxy_cancellable;
+            this._proxy_cancellable = null;
+            cancellable.cancel();
+        }
         this._disconnectServer();
         this._calendar_server = null;
         this._inited = false;

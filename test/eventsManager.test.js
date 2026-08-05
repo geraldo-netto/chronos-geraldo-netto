@@ -59,7 +59,10 @@ function fireTimer(id) {
 const gio = { watches: [], unwatched: [] };
 const proxy = {
     pendingReadyCb: null,
+    pendingCancellable: null,
+    finishCalls: [],
     finishError: null,
+    startError: null,
     // GJS connect() can throw — a closed bus, a proxy that finished but is
     // already dead — and the code has to survive a proxy that built and then
     // failed halfway through being wired up
@@ -175,9 +178,14 @@ global.imports = {
             util_get_week_start: () => 0,
             CalendarServerProxy: {
                 new_for_bus(busType, flags, name, objectPath, cancellable, readyCb) {
+                    if (proxy.startError) {
+                        throw proxy.startError;
+                    }
+                    proxy.pendingCancellable = cancellable;
                     proxy.pendingReadyCb = readyCb;
                 },
                 new_for_bus_finish(res) {
+                    proxy.finishCalls.push(res);
                     if (proxy.finishError) {
                         throw proxy.finishError;
                     }
@@ -305,7 +313,10 @@ beforeEach(() => {
     gio.unwatched.length = 0;
     timers.pending.clear();
     proxy.pendingReadyCb = null;
+    proxy.pendingCancellable = null;
+    proxy.finishCalls.length = 0;
     proxy.finishError = null;
+    proxy.startError = null;
     proxy.connectError = null;
     proxy.instance = null;
 });
@@ -399,6 +410,8 @@ test("server connection owns state; the manager keeps only used accessors", () =
 test("service found connects the proxy and emits ready", () => {
     const manager = readyManager();
     assert.equal(gio.unwatched.length, 1);
+    assert.ok(proxy.pendingCancellable, "proxy construction carries an owned cancellable");
+    assert.equal(manager._server_connection._proxy_cancellable, null);
     assert.ok(manager._server_connection._inited);
     assert.equal(Object.keys(proxy.instance.connections).length, 4);
     assert.equal(emitted(manager, "events-manager-ready").length, 1);
@@ -408,10 +421,43 @@ test("proxy ready after destroy connects nothing", () => {
     const manager = makeManager();
     manager.start_events();
     gio.watches.at(-1).foundCb(null, "eds", "owner");
+    const cancellable = proxy.pendingCancellable;
+    assert.ok(cancellable);
     manager.destroy();
+    assert.equal(cancellable.cancelled, true);
     proxy.pendingReadyCb(null, "res");
+    assert.deepEqual(proxy.finishCalls, ["res"], "the cancelled async result is still finished");
+    assert.equal(Object.keys(proxy.instance.connections).length, 0);
     assert.equal(manager._server_connection._calendar_server, null);
     assert.ok(!manager._server_connection._inited);
+});
+
+test("a late proxy cancellation error is drained without logging or retrying", () => {
+    const logged = [];
+    const originalLog = global.log;
+    const manager = makeManager();
+    manager.start_events();
+    gio.watches.at(-1).foundCb(null, "eds", "owner");
+    proxy.finishError = new Error("cancelled");
+    manager.destroy();
+
+    global.log = (message) => logged.push(String(message));
+    assert.doesNotThrow(() => proxy.pendingReadyCb(null, "late-error"));
+    global.log = originalLog;
+
+    assert.deepEqual(proxy.finishCalls, ["late-error"]);
+    assert.equal(manager._server_connection._server_retry_id, 0);
+    assert.deepEqual(logged, []);
+});
+
+test("synchronous proxy construction failure retries cleanly", () => {
+    const manager = makeManager();
+    manager.start_events();
+    proxy.startError = new Error("bus closed");
+
+    assert.doesNotThrow(() => gio.watches.at(-1).foundCb(null, "eds", "owner"));
+    assert.equal(manager._server_connection._proxy_cancellable, null);
+    assert.ok(manager._server_connection._server_retry_id > 0);
 });
 
 test("proxy construction failure schedules a retry that restarts the watch", () => {
