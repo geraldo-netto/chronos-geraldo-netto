@@ -74,6 +74,16 @@ function registerLocaleConsumer() {
             _requestInfo(env, true);
         }
     });
+    // An env cancelled after the last consumer left is not degraded — that is
+    // deliberate — so the loop above cannot see it, and every memo would stay
+    // warm on the English defaults because `localeGeneration` never moved
+    // either. It never failed; it was never finished. Ask again.
+    Object.keys(unanswered).forEach((env) => {
+        if (unanswered[env]) {
+            unanswered[env] = false;
+            _requestInfo(env);
+        }
+    });
 }
 
 function _lastLocaleConsumerLeft() {
@@ -154,6 +164,12 @@ const degraded = {};
 const attempts = {};
 // cancelled deliberately by the last instance's teardown, rather than failed
 const abandoned = {};
+// Envs whose query we cancelled on the way out and which no consumer was left
+// to resume. The abandoned branch deliberately skips `_storeInfo` and leaves
+// `degraded` unset — the ladder stays clean for the next applet — but that is
+// also the set `registerLocaleConsumer` resumes from, so nothing remembered the
+// env had been left mid-flight and it was never asked again for the session.
+const unanswered = {};
 const listeners = [];
 
 function _defaultInfo(env) {
@@ -306,6 +322,8 @@ function _settlers(env) {
                 // clears that request, resume it for the replacement consumer.
                 if (_consumers > 0) {
                     _requestInfo(env);
+                } else {
+                    unanswered[env] = true;
                 }
                 return;
             }

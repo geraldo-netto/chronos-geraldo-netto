@@ -2309,3 +2309,46 @@ test("re-adding an applet restarts a cancellation still settling", () => {
 
     localeQuery.cancelPendingLocaleQueries();
 });
+
+// T727: the test above re-adds the applet *before* Gio delivers the
+// cancellation, which is the case the `_consumers > 0` branch covers. Settle
+// first and nothing resumed the query: the abandoned branch deliberately skips
+// `_storeInfo`, so `degraded` — the only set registerLocaleConsumer resumed
+// from — stayed clear, `localeGeneration` never moved, and every memo answered
+// from its cached English default without calling getInfo() again. The header
+// kept "Sun;Mon;Tue;..." and the US work week for the rest of the session, with
+// `locale` sitting there ready to answer instantly.
+test("a query abandoned before any consumer returns is resumed by the next one", () => {
+    const localeQuery = loadLocaleModules({
+        neverAnswers: true,
+        spawnOutput: 'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\nfirst_workday=1\n'
+    });
+    const Subprocess = global.imports.gi.Gio.Subprocess;
+
+    localeQuery.registerLocaleConsumer();
+    const value = localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday);
+    assert.equal(value(), "Sun;Mon;Tue;Wed;Thu;Fri;Sat");
+
+    const cancelled = global.imports.gi.Gio.Cancellable.last;
+    localeQuery.cancelPendingLocaleQueries();
+    // the cancellation lands while nobody is on the panel
+    Subprocess.settle();
+    assert.equal(global.imports.gi.Gio.Cancellable.last, cancelled,
+        "with no consumer there is nothing to resume it for, yet");
+
+    // the applet is added back
+    localeQuery.registerLocaleConsumer();
+    const replacement = global.imports.gi.Gio.Cancellable.last;
+    assert.notEqual(replacement, cancelled,
+        "the new consumer re-asks a question that was never answered");
+
+    Subprocess.settle();
+    assert.equal(value(), "Dom;Seg;Ter;Qua;Qui;Sex;Sáb",
+        "and the memo picks the real locale up");
+
+    // asking twice must not spawn twice
+    localeQuery.registerLocaleConsumer();
+    assert.equal(global.imports.gi.Gio.Cancellable.last, replacement);
+
+    localeQuery.cancelPendingLocaleQueries();
+});
