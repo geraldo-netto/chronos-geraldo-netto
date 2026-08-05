@@ -293,40 +293,83 @@ function _concatChunks(chunks, total) {
     return body;
 }
 
-function _abortRead(cancellable, deliver, error) {
+// libsoup hands the response body over as a GInputStream, and holds the
+// connection behind it until that stream is closed. GJS closes it on
+// finalization — and a compositor process does not collect promptly, so a
+// stream simply dropped parks a connection for an indefinite time. The applet
+// issues one holiday fetch plus up to nine weather requests every refresh
+// period (the panel and eight cities, each a geocode and a forecast), so they
+// accumulate. A failure to close is not actionable here: the body has either
+// been read to the end or been abandoned deliberately.
+function _closeStream(stream) {
+    if (!stream || typeof stream.close !== "function") {
+        return;
+    }
+
+    try {
+        stream.close(null);
+    } catch (e) {
+        if (global.logError) {
+            global.logError(e);
+        }
+    }
+}
+
+// Every way this read can end goes through here, so the stream is released
+// exactly once whether the body finished, outgrew the cap, or errored.
+function _settleRead(stream, deliver, error, body) {
+    _closeStream(stream);
+    deliver(error, body);
+}
+
+// Cancel first: that is what stops the session delivering more of a body we
+// have decided not to take, and the close releases what it already has.
+function _abortRead(stream, cancellable, deliver, error) {
     if (cancellable) {
         cancellable.cancel();
     }
-    deliver(error, null);
+    _settleRead(stream, deliver, error, null);
+}
+
+// One chunk, and which of the three exits it takes.
+function _acceptChunk(source, result, state, url, exits) {
+    let chunk;
+    try {
+        chunk = source.read_bytes_finish(result).get_data();
+    } catch (e) {
+        exits.abort(e);
+        return;
+    }
+
+    if (!chunk || chunk.length === 0) {
+        exits.settle(_concatChunks(state.chunks, state.total));
+        return;
+    }
+
+    state.total += chunk.length;
+    if (state.total > MAX_RESPONSE_BYTES) {
+        exits.abort(_tooLarge(url, "exceeds"));
+        return;
+    }
+
+    state.chunks.push(chunk);
+    exits.readMore();
+}
+
+function _readNextChunk(stream, cancellable, url, state, exits) {
+    stream.read_bytes_async(READ_CHUNK_BYTES, 0, cancellable, (source, result) =>
+        _acceptChunk(source, result, state, url, exits));
 }
 
 function _readCapped(stream, cancellable, url, deliver) {
-    const chunks = [];
-    let total = 0;
-    const readMore = () => {
-        stream.read_bytes_async(READ_CHUNK_BYTES, 0, cancellable, (source, result) => {
-            let chunk;
-            try {
-                chunk = source.read_bytes_finish(result).get_data();
-            } catch (e) {
-                _abortRead(cancellable, deliver, e);
-                return;
-            }
-
-            if (!chunk || chunk.length === 0) {
-                deliver(null, _concatChunks(chunks, total));
-                return;
-            }
-            total += chunk.length;
-            if (total > MAX_RESPONSE_BYTES) {
-                _abortRead(cancellable, deliver, _tooLarge(url, "exceeds"));
-                return;
-            }
-            chunks.push(chunk);
-            readMore();
-        });
+    const state = { chunks: [], total: 0 };
+    const exits = {
+        settle: (body) => _settleRead(stream, deliver, null, body),
+        abort: (error) => _abortRead(stream, cancellable, deliver, error),
+        readMore: () => _readNextChunk(stream, cancellable, url, state, exits)
     };
-    readMore();
+
+    exits.readMore();
 }
 
 function _tooLarge(url, what) {
@@ -393,9 +436,15 @@ function _sendStreaming(session, message, url, cancellable, deliver, fail) {
     session.send_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
         let stream;
         try {
-            _refuseDeclaredTooLarge(message, url);
+            // Finish first, then judge the declared length. Gio requires every
+            // async result to be finished, and the stream it yields is what
+            // holds the connection — refusing before taking it left both
+            // unreclaimed. send_finish does not read the body, so a refusal
+            // still costs nothing but the headers.
             stream = source.send_finish(result);
+            _refuseDeclaredTooLarge(message, url);
         } catch (e) {
+            _closeStream(stream);
             fail(e);
             return;
         }

@@ -730,19 +730,24 @@ test("httpGetJson refuses a response that declares itself oversized, before read
     // runs afterwards has already paid for the memory. The declared length is
     // what is available before the read.
     let read = false;
-    Object.assign(global.imports.gi.Soup, makeSoup3({
+    const soupDouble = makeSoup3({
         messageMethods: {
             response_headers: {
                 get_content_length: () => utils.MAX_RESPONSE_BYTES + 1,
                 get_one: () => null
             }
-        },
-        onFinish() {
-            read = true;
-            return { get_data: () => Buffer.from("{}") };
         }
-    }));
+    });
+    Object.assign(global.imports.gi.Soup, soupDouble);
     const soup = global.imports.gi.Soup;
+    const realSendFinish = soup.Session.prototype.send_finish;
+    soup.Session.prototype.send_finish = function(...args) {
+        const stream = realSendFinish.apply(this, args);
+        stream.read_bytes_async = () => {
+            read = true;
+        };
+        return stream;
+    };
 
     let received = "unset";
     utils.httpGetJson(new soup.Session(), "https://example.test/huge?city=Berlin", (data) => {
@@ -751,6 +756,10 @@ test("httpGetJson refuses a response that declares itself oversized, before read
 
     assert.equal(received, null);
     assert.equal(read, false, "the gigabyte is never pulled into the compositor");
+    // T743: send_finish yields the stream that holds the connection, so it is
+    // taken and released rather than skipped — skipping it left both the async
+    // result and the connection unreclaimed.
+    assert.deepEqual(soupDouble.streams.map((stream) => stream.closed), [1]);
     assert.match(logged[0], /declares more than/);
     assert.doesNotMatch(logged[0], /Berlin/, "and the location stays out of the log");
 });
@@ -761,7 +770,11 @@ test("httpGetJson refuses a response that declares itself oversized, before read
 // body — one with no Content-Length for _declaredTooLarge to see.
 function makeStreamingSoup({ chunks = [], status = 200, contentLength = null,
     onRead = () => {} } = {}) {
+    // every stream the double hands out, so a test can ask whether the
+    // connection behind it was released
+    const streams = [];
     return {
+        streams,
         MAJOR_VERSION: 3,
         MessagePriority: { NORMAL: 0 },
         Message: {
@@ -787,7 +800,8 @@ function makeStreamingSoup({ chunks = [], status = 200, contentLength = null,
             }
             send_finish() {
                 let index = 0;
-                return {
+                const stream = {
+                    closed: 0,
                     read_bytes_async(_count, _priority, _cancellable, callback) {
                         onRead(_count);
                         callback(this, {});
@@ -796,8 +810,13 @@ function makeStreamingSoup({ chunks = [], status = 200, contentLength = null,
                         const chunk = index < chunks.length ? chunks[index] : Buffer.alloc(0);
                         index++;
                         return { get_data: () => chunk };
+                    },
+                    close() {
+                        stream.closed++;
                     }
                 };
+                streams.push(stream);
+                return stream;
             }
         }
     };
@@ -859,12 +878,11 @@ test("httpGetJson refuses a streamed response that declares itself oversized", (
     const logged = [];
     global.logError = (message) => logged.push(String(message));
 
-    let streamed = false;
-    const soupDouble = makeStreamingSoup({ contentLength: utils.MAX_RESPONSE_BYTES + 1 });
-    soupDouble.Session.prototype.send_finish = function() {
-        streamed = true;
-        return { read_bytes_async() {}, read_bytes_finish() {} };
-    };
+    let reads = 0;
+    const soupDouble = makeStreamingSoup({
+        contentLength: utils.MAX_RESPONSE_BYTES + 1,
+        onRead: () => reads++
+    });
     Object.assign(global.imports.gi.Soup, soupDouble);
     const soup = global.imports.gi.Soup;
 
@@ -874,8 +892,105 @@ test("httpGetJson refuses a streamed response that declares itself oversized", (
     });
 
     assert.equal(received, null);
-    assert.equal(streamed, false, "the declared length is refused before any read");
+    assert.equal(reads, 0, "the declared length is refused before any read");
+    // T743: the refusal used to happen *before* send_finish, so neither the
+    // async result nor the connection behind it was ever reclaimed. The stream
+    // is taken and immediately released; send_finish does not read the body,
+    // so refusing still costs nothing but the headers.
+    assert.deepEqual(soupDouble.streams.map((stream) => stream.closed), [1],
+        "and the connection it would have used is released, not stranded");
     assert.match(logged[0], /declares more than/);
+});
+
+// T743: libsoup holds the connection until the body stream is closed, and GJS
+// closes it only on finalization — which a compositor process does not reach
+// promptly. Every exit from the capped read releases it: a body that finished,
+// one that outgrew the cap, and one that errored mid-read.
+test("httpGetJson releases the response stream however the read ends", () => {
+    const utils = loadIoUtils();
+    global.logError = () => {};
+
+    const finished = makeStreamingSoup({ chunks: [Buffer.from('{"ok":true}')] });
+    Object.assign(global.imports.gi.Soup, finished);
+    utils.httpGetJson(new global.imports.gi.Soup.Session(),
+        "https://example.test/x", () => {});
+    assert.deepEqual(finished.streams.map((stream) => stream.closed), [1],
+        "a body read to EOF releases its connection");
+
+    const oversized = makeStreamingSoup({
+        chunks: [Buffer.alloc(utils.MAX_RESPONSE_BYTES + 1, 0x61)]
+    });
+    Object.assign(global.imports.gi.Soup, oversized);
+    utils.httpGetJson(new global.imports.gi.Soup.Session(),
+        "https://example.test/x", () => {});
+    assert.deepEqual(oversized.streams.map((stream) => stream.closed), [1],
+        "so does one abandoned at the cap");
+
+    const broken = makeStreamingSoup({});
+    Object.assign(global.imports.gi.Soup, broken);
+    const realSendFinish = broken.Session.prototype.send_finish;
+    broken.Session.prototype.send_finish = function(...args) {
+        const stream = realSendFinish.apply(this, args);
+        stream.read_bytes_finish = () => {
+            throw new Error("read reset");
+        };
+        return stream;
+    };
+    utils.httpGetJson(new global.imports.gi.Soup.Session(),
+        "https://example.test/x", () => {});
+    assert.deepEqual(broken.streams.map((stream) => stream.closed), [1],
+        "and so does one that errored mid-read");
+});
+
+// close() is Gio's, so it can raise; a failure is reported rather than thrown
+// back into the read callback, where it would look like a transport error.
+test("a response stream that refuses to close is reported, not rethrown", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    const soupDouble = makeStreamingSoup({ chunks: [Buffer.from('{"ok":true}')] });
+    const realSendFinish = soupDouble.Session.prototype.send_finish;
+    soupDouble.Session.prototype.send_finish = function(...args) {
+        const stream = realSendFinish.apply(this, args);
+        stream.close = () => {
+            throw new Error("stream close failed");
+        };
+        return stream;
+    };
+    Object.assign(global.imports.gi.Soup, soupDouble);
+
+    let received = "unset";
+    utils.httpGetJson(new global.imports.gi.Soup.Session(),
+        "https://example.test/x", (data) => {
+            received = data;
+        });
+
+    assert.deepEqual(received, { ok: true }, "the body still reaches the caller");
+    assert.ok(logged.some((line) => /stream close failed/.test(line)));
+});
+
+// a Soup old enough to hand back a stream with no close() must still work
+test("a response stream with no close() is not an error", () => {
+    const utils = loadIoUtils();
+    global.logError = (message) => assert.fail(`unexpected log: ${message}`);
+
+    const soupDouble = makeStreamingSoup({ chunks: [Buffer.from('{"ok":true}')] });
+    const realSendFinish = soupDouble.Session.prototype.send_finish;
+    soupDouble.Session.prototype.send_finish = function(...args) {
+        const stream = realSendFinish.apply(this, args);
+        delete stream.close;
+        return stream;
+    };
+    Object.assign(global.imports.gi.Soup, soupDouble);
+
+    let received = "unset";
+    utils.httpGetJson(new global.imports.gi.Soup.Session(),
+        "https://example.test/x", (data) => {
+            received = data;
+        });
+
+    assert.deepEqual(received, { ok: true });
 });
 
 test("httpGetJson reports a stream that fails to open", () => {

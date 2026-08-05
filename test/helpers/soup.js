@@ -50,7 +50,10 @@ function buildMessage(fixture, method, url) {
 
 function soupStream(data) {
     let delivered = false;
-    return {
+    // libsoup keeps the connection until the body stream is closed, so the
+    // double counts the closes the way it counts the reads
+    const stream = {
+        closed: 0,
         read_bytes_async(_count, _priority, _cancellable, callback) {
             callback(this, {});
         },
@@ -58,8 +61,12 @@ function soupStream(data) {
             const chunk = delivered ? Buffer.alloc(0) : Buffer.from(data);
             delivered = true;
             return { get_data: () => chunk };
+        },
+        close() {
+            stream.closed++;
         }
     };
+    return stream;
 }
 
 class SoupSession {
@@ -83,8 +90,10 @@ class SoupSession {
     }
 
     send_finish(result) {
-        return this.fixture.onFinish ?
+        const stream = this.fixture.onFinish ?
             this.fixture.onFinish(result) : soupStream(this.fixture.data);
+        this.fixture.streams.push(stream);
+        return stream;
     }
 }
 
@@ -110,7 +119,8 @@ function makeSoup3(options = {}) {
         onFinish: fixtureOption(options, "onFinish", null),
         messageMethods: fixtureOption(options, "messageMethods", {}),
         messages: [],
-        sessions: []
+        sessions: [],
+        streams: []
     };
     const Session = boundSessionClass(fixture);
     Object.assign(Session.prototype, fixtureOption(options, "sessionMethods", {}));
@@ -120,7 +130,8 @@ function makeSoup3(options = {}) {
         Message: { new: (method, url) => buildMessage(fixture, method, url) },
         Session,
         messages: fixture.messages,
-        sessions: fixture.sessions
+        sessions: fixture.sessions,
+        streams: fixture.streams
     };
 }
 
