@@ -79,14 +79,6 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         return this._timer_id;
     }
 
-    get debounceId() {
-        return this._debounce_id;
-    }
-
-    get retryId() {
-        return this._retry_id;
-    }
-
     stop() {
         this._active = false;
         this._generation++;

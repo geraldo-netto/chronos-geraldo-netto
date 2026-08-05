@@ -317,7 +317,7 @@ test("the geocoder is asked in the language the session runs in", () => {
     assert.equal(Weather.geocodeLanguage("it"), "it");
     // a locale that names no language, or names it in more than two letters, is
     // not a language the geocoder knows: ask in English rather than in nonsense
-    assert.equal(Weather.geocodeLanguage("C"), Weather.GEOCODE_LANGUAGE_FALLBACK);
+    assert.equal(Weather.geocodeLanguage("C"), "en");
     assert.equal(Weather.geocodeLanguage("POSIX"), "en");
 
     // no locale given: the session's own is what the search is run in
@@ -856,12 +856,13 @@ test("provider sessions carry an explicit HTTP timeout", () => {
     // weather is off by default, so the session is built when something first
     // asks for it — not once per applet at startup for every user who never
     // turns weather on
-    assert.equal(provider._session.created, null);
+    const repository = provider._reading_repository;
+    assert.equal(repository.session.created, null);
 
-    const session = provider._getHttpSession();
+    const session = repository.getHttpSession();
     assert.equal(session.timeout, Weather.HTTP_TIMEOUT_SECONDS);
     assert.equal(session.idle_timeout, Weather.HTTP_TIMEOUT_SECONDS);
-    assert.equal(provider._getHttpSession(), session, "and it is built once");
+    assert.equal(repository.getHttpSession(), session, "and it is built once");
     assert.ok(Weather.HTTP_TIMEOUT_SECONDS > 0);
 });
 
@@ -871,11 +872,12 @@ test("provider sessions carry an explicit HTTP timeout", () => {
 test("a provider given its HTTP is not handed a session it cannot use", () => {
     const Weather = loadWeather();
     const injected = new Weather.WeatherProvider({ httpGetJson() {} });
-    assert.equal(injected._session.created, null);
+    assert.equal(injected._reading_repository.session.created, null);
 
     const session = { abort() { this.aborted = true; } };
     const given = new Weather.WeatherProvider({ httpSession: session });
-    assert.equal(given._getHttpSession(), session, "and a session it is given is the one it uses");
+    assert.equal(given._reading_repository.getHttpSession(), session,
+        "and a session it is given is the one it uses");
 
     given.destroy();
     assert.equal(session.aborted, true);

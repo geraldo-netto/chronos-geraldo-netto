@@ -190,10 +190,6 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
             Math.max(0, params.entrySeconds) * 1000 : GEOCODE_CACHE_MILLISECONDS;
     }
 
-    get cache() {
-        return this._geocode_cache;
-    }
-
     placeFor(location) {
         return this._freshPlace(locationCacheKey(location));
     }
@@ -375,10 +371,6 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
         this._httpGetJson = params.httpGetJson;
         // a caller can hand in its own chain; the shipped one is the default
         this._providers = params.providers || FORECAST_PROVIDERS;
-    }
-
-    get lastProvider() {
-        return this._last_forecast_provider;
     }
 
     // no units: a reading is unit-free, and the URLs all ask for Celsius. What

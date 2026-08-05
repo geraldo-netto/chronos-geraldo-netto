@@ -247,7 +247,7 @@ test("a provider whose refresh fails schedules its own retry", () => {
         (text, error) => reports.push([text, error]));
 
     assert.ok(provider._scheduler.timerId > 0, "the normal refresh timer is armed");
-    assert.ok(provider._scheduler.retryId > 0, "and a retry is queued after the failure");
+
     // the delay is the 30s backoff plus up to 30s of jitter, so it is a range
     const retryTimer = timers.find((timer) => timer.seconds >= 30 && timer.seconds < 60);
     assert.ok(retryTimer, "the retry runs long before the next refresh period");
@@ -259,7 +259,11 @@ test("a provider whose refresh fails schedules its own retry", () => {
     assert.ok(reports.length > before);
 
     provider.destroy();
-    assert.equal(provider._scheduler.retryId, 0, "destroy clears the retry");
+    // the retry timer is released on destroy: firing it again must not reach
+    // a dead provider
+    const afterDestroy = reports.length;
+    retryTimer.callback();
+    assert.equal(reports.length, afterDestroy, "destroy clears the retry");
 });
 
 test("panel weather settles an unknown place but retries a service outage", () => {
@@ -314,8 +318,10 @@ test("the geocode cache is bounded and re-resolves an edited location", () => {
         resolve(city);
     }
 
-    assert.equal(resolver.cache.size, 3, "the map does not grow with every string typed");
-    assert.equal(resolver.cache.has("rome"), false, "the oldest entry is evicted");
+    assert.equal(resolver.placeFor("rome"), null, "the oldest entry is evicted");
+    for (const kept of ["oslo", "paris", "lisbon"]) {
+        assert.ok(resolver.placeFor(kept), `${kept} is still cached`);
+    }
 
     // an ambiguous name that resolved wrong must not stay pinned
     const before = geocodes;
@@ -593,11 +599,10 @@ test("weather refresh scheduler owns timer and debounce lifecycles", () => {
     scheduler.queue({ showWeather: true, location: "Paris", units: "si" }, (settings) => {
         refreshes.push(settings.location);
     });
-    assert.equal(scheduler.debounceId, 402);
+    assert.equal(debounces.length, 2, "the second keystroke arms a new debounce");
     assert.deepEqual(removed, [401]);
     assert.equal(debounces[1].milliseconds, 17);
     assert.equal(debounces[1].callback(), false);
-    assert.equal(scheduler.debounceId, 0);
 
     scheduler.schedule({ showWeather: false, location: "Rome", units: "si" }, () => refreshes.push("disabled"));
     assert.equal(scheduler.timerId, 0);
@@ -629,12 +634,13 @@ test("stopping the scheduler drops a debounce that never fired", () => {
     scheduler.queue({ showWeather: true, location: "Rom", units: "si" }, () => {
         throw new Error("a stopped scheduler must not schedule");
     });
-    assert.equal(scheduler.debounceId, 22);
+    assert.equal(scheduled.length, 1, "a debounce is armed");
 
     scheduler.stop();
 
     assert.deepEqual(removed, [22]);
-    assert.equal(scheduler.debounceId, 0);
+    scheduler.stop();
+    assert.deepEqual(removed, [22], "the id is released, not removed twice");
     assert.equal(scheduled.length, 1, "the queued refresh never ran");
 });
 
@@ -784,7 +790,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
     // the cache key is the resolver's own business — the port hands back a place
     // and an error, which is what both production callbacks take. That the two
     // spellings share one key is asserted through the cache and the request count.
-    assert.equal(resolver.cache.get("rome").place, resolved[0].place);
+    assert.equal(resolver.placeFor("rome"), resolved[0].place);
     assert.equal(requests.filter((request) => request.url.includes("geocoding-api")).length, 1);
     assert.equal(requests.filter((request) => request.url.includes("nominatim.openstreetmap.org")).length, 1);
     assert.equal(
@@ -1031,7 +1037,6 @@ test("weather forecast resolver owns fallback and last-success ordering", () => 
         { text: "🌨 7°C", error: "", providerName: Weather.WEATHER_PROVIDER_NAMES.MET_NO },
         { text: "🌨 7°C", error: "", providerName: Weather.WEATHER_PROVIDER_NAMES.MET_NO }
     ]);
-    assert.equal(resolver.lastProvider, Weather.WEATHER_PROVIDER_NAMES.MET_NO);
     // Open-Meteo, then the METAR service, then MET.no
     assert.equal(requests[0].url.includes("api.open-meteo.com"), true);
     assert.equal(requests[1].url.includes("aviationweather.gov"), true);
@@ -1324,7 +1329,6 @@ test("refresh falls back to MET.no forecast with required user agent", () => {
     });
 
     assert.deepEqual(result, { text: "🌧 10°C", error: "", providerName: Weather.WEATHER_PROVIDER_NAMES.MET_NO });
-    assert.equal(provider._forecast_resolver.lastProvider, Weather.WEATHER_PROVIDER_NAMES.MET_NO);
     assert.equal(requests.length, 4);
     assert.ok(requests[1].url.includes("api.open-meteo.com"));
     assert.ok(requests[2].url.includes("aviationweather.gov"));
@@ -1396,7 +1400,9 @@ test("a forecast backend can be added without editing the resolver", () => {
     // the provider's own request options reach the HTTP helper unchanged
     assert.deepEqual(asked.at(-1).options, { headers: { "User-Agent": "test" } });
     assert.deepEqual(result, { text: "☀ 21°C", error: "", provider: "Local station" });
-    assert.equal(resolver.lastProvider, "Local station",
+    asked.length = 0;
+    resolver.refresh({ latitude: 1, longitude: 2 }, () => true, () => {});
+    assert.equal(asked[0].url, "https://local.example/now",
         "and the one that worked is tried first next time");
 });
 
@@ -1574,7 +1580,7 @@ test("destroy aborts the session and suppresses pending weather callbacks", () =
 
     // nothing asked for a session — httpGetJson is injected — so there is none
     // to abort, and destroy() must not trip over that
-    assert.equal(provider._session.created, null);
+    assert.equal(provider._reading_repository.session.created, null);
     assert.deepEqual(values, []);
     assert.equal(pending.length, 1);
 
@@ -1863,7 +1869,7 @@ test("refresh caches geocode results by normalized location", () => {
     provider.refresh({ showWeather: true, location: "rome", units: "si" }, (reading) => values.push(shown(reading)));
 
     assert.deepEqual(values, ["⛅ 10°C", "⛅ 10°C"]);
-    assert.equal(provider._location_resolver.cache.has("rome"), true);
+    assert.ok(provider._reading_repository.locationResolver.placeFor("rome"));
     assert.equal(requests.filter((url) => url.includes("geocoding-api")).length, 1);
     assert.equal(requests.filter((url) => url.includes("/v1/forecast")).length, 2);
 });

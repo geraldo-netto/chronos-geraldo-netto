@@ -186,7 +186,6 @@ function gjsImportsMock() {
                         },
                         weatherServiceAdapters: {
                             GEOCODE_CANDIDATE_COUNT: 10,
-                            GEOCODE_LANGUAGE_FALLBACK: "en",
                             WEATHER_USER_AGENT: "agent",
                             WEATHER_PROVIDER_NAMES: {},
                             AVIATION_WEATHER_BBOX_DEGREES: 1,
@@ -310,7 +309,7 @@ const EXPORTS = {
         "MAX_WEATHER_LOCATION_LENGTH", "normalizeWeatherLocation",
         "WEATHER_ERROR_MARKER", "WEATHER_PENDING_TEXT", "WEATHER_ERRORS",
         "WEATHER_CONDITIONS", "normalizeUnits", "formatTemperature"],
-    weatherServiceAdapters: ["GEOCODE_CANDIDATE_COUNT", "GEOCODE_LANGUAGE_FALLBACK",
+    weatherServiceAdapters: ["GEOCODE_CANDIDATE_COUNT",
         "WEATHER_USER_AGENT", "WEATHER_PROVIDER_NAMES", "AVIATION_WEATHER_BBOX_DEGREES",
         "weatherIcon", "geocodeUrl", "geocodeLanguage", "nominatimGeocodeUrl",
         "forecastUrl", "metNoForecastUrl", "aviationWeatherUrl", "aviationWeatherIcon",

@@ -147,19 +147,6 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         this._reading_repository = params.readingRepository ||
             new WeatherReadingRepository(params);
         this._owns_reading_repository = !params.readingRepository;
-        // Compatibility-visible references for diagnostics and focused tests;
-        // the repository remains the only object that drives them.
-        this._location_resolver = this._reading_repository.locationResolver;
-        this._forecast_resolver = this._reading_repository.forecastResolver;
-        this._session = this._reading_repository.session;
-    }
-
-    _getHttpSession() {
-        return this._reading_repository.getHttpSession();
-    }
-
-    _httpGetJson(url, callback, options = {}) {
-        this._reading_repository.httpGetJson(url, callback, options);
     }
 
     placeFor(location) {

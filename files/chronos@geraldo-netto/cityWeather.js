@@ -103,15 +103,10 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._reading_repository = params.readingRepository ||
             new WeatherProviders.WeatherReadingRepository(params);
         this._owns_reading_repository = !params.readingRepository;
-        this._session = this._reading_repository.session;
         // "always online" is the pre-monitor behavior; the composition root
         // injects the real Gio.NetworkMonitor-backed answer
         this._isOnline = params.isOnline || (() => true);
         this._retry_ceiling_reported = false;
-    }
-
-    _getHttpSession() {
-        return this._reading_repository.getHttpSession();
     }
 
     // `city` is the geocoded city — what the reading is *of* — and not the clock's

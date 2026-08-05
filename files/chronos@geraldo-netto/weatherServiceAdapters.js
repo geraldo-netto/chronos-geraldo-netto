@@ -39,7 +39,6 @@ var MIN_TRUSTED_GEOCODE_POPULATION = 1000; // NOSONAR [S3504] -- GJS importer ex
 var GEOCODE_CANDIDATE_COUNT = 10; // NOSONAR [S3504] -- GJS importer export
 var MAX_GEOCODE_PLACE_NAME_LENGTH = WeatherFormat.MAX_WEATHER_LOCATION_LENGTH; // NOSONAR [S3504] -- GJS importer export
 const MAX_GEOCODE_TIMEZONE_LENGTH = 255;
-var GEOCODE_LANGUAGE_FALLBACK = LocaleQuery.MESSAGE_LANGUAGE_FALLBACK; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_USER_AGENT = "chronos@geraldo-netto Cinnamon applet (https://github.com/geraldo-netto/cinnamon-chronos)"; // NOSONAR [S3504] -- GJS importer export
 // Stable inventory order for cross-runtime disclosures: place services first,
 // then forecast-only fallbacks. Provider execution order lives in the separate
@@ -487,7 +486,7 @@ function nominatimGeocodePlace(data, query) {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { GEOCODE_CANDIDATE_COUNT, GEOCODE_LANGUAGE_FALLBACK,
+    module.exports = { GEOCODE_CANDIDATE_COUNT,
         MAX_GEOCODE_PLACE_NAME_LENGTH,
         WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES,
         weatherIcon, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, forecastUrl,

@@ -377,9 +377,10 @@ test("a session it is given is the one it uses and the one it aborts", () => {
     const session = { abort() { this.aborted = true; } };
     const provider = new CityWeather.CityWeatherProvider({ httpSession: session });
 
-    assert.equal(provider._session.created, null, "and it is still lazy");
-    assert.equal(provider._getHttpSession(), session);
-    assert.equal(provider._getHttpSession(), session, "asked twice, built once");
+    const repository = provider._reading_repository;
+    assert.equal(repository.session.created, null, "and it is still lazy");
+    assert.equal(repository.getHttpSession(), session);
+    assert.equal(repository.getHttpSession(), session, "asked twice, built once");
 
     provider.destroy();
     assert.equal(session.aborted, true);
@@ -409,8 +410,9 @@ test("destroy aborts the session and turns schedule and refresh into no-ops", ()
     // the resolvers are stubbed, so nothing asks for the session on its own;
     // build it so there is a live one for destroy to abort (the session is lazy
     // now — a provider whose feature is never used never allocates one)
-    assert.equal(provider._session.created, null, "the session is not built at construction");
-    provider._getHttpSession();
+    assert.equal(provider._reading_repository.session.created, null,
+        "the session is not built at construction");
+    provider._reading_repository.getHttpSession();
 
     provider.refresh(settings, () => updates++);
     assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));

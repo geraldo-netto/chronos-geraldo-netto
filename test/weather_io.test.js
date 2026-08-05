@@ -31,7 +31,7 @@ test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
     const provider = new Weather.WeatherProvider();
     let parsed = null;
 
-    provider._httpGetJson("https://example.test/weather", (data) => {
+    provider._reading_repository.httpGetJson("https://example.test/weather", (data) => {
         parsed = data;
     }, {
         headers: {
@@ -59,7 +59,7 @@ test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
     const providerError = new WeatherError.WeatherProvider();
     let failed = "unset";
 
-    providerError._httpGetJson("https://example.test/weather", (data) => {
+    providerError._reading_repository.httpGetJson("https://example.test/weather", (data) => {
         failed = data;
     });
 
@@ -97,7 +97,7 @@ test("built-in Soup 3 JSON loader does not catch callback errors", () => {
     let calls = 0;
 
     assert.throws(() => {
-        provider._httpGetJson("https://example.test/weather", (data) => {
+        provider._reading_repository.httpGetJson("https://example.test/weather", (data) => {
             calls++;
             if (data) {
                 throw new Error("callback boom");
@@ -118,7 +118,7 @@ test("built-in Soup 3 JSON loader does not catch callback errors", () => {
     };
     let errorCalls = 0;
     assert.throws(() => {
-        provider._httpGetJson("https://example.test/weather", () => {
+        provider._reading_repository.httpGetJson("https://example.test/weather", () => {
             errorCalls++;
             throw new Error("error-path boom");
         });
@@ -133,7 +133,7 @@ test("built-in JSON loader handles parse failures", () => {
     const provider = new Weather.WeatherProvider();
     let value = "unset";
 
-    provider._httpGetJson("https://example.test/weather", (data) => {
+    provider._reading_repository.httpGetJson("https://example.test/weather", (data) => {
         value = data;
     });
 
@@ -163,7 +163,7 @@ test("default GLib timers drive scheduled and queued refresh callbacks", () => {
     assert.equal(timeoutSeconds[0].cb(), true);
 
     provider.queue({ showWeather: true, location: "Paris", units: "si" }, () => {});
-    assert.equal(provider._scheduler.debounceId, 202);
+    assert.deepEqual(timeoutMillis.length, 1, "the keystroke armed a debounce");
     assert.equal(timeoutMillis[0].cb(), false);
     assert.ok(refreshes >= 2);
 
