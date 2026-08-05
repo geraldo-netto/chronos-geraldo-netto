@@ -73,6 +73,7 @@ const proxy = {
 class ProxyInstance {
     constructor() {
         this.status = 2;
+        this.g_name_owner = "calendar-owner";
         this.connections = {};
         this.disconnected = [];
         this.next_signal_id = 1;
@@ -413,8 +414,57 @@ test("service found connects the proxy and emits ready", () => {
     assert.ok(proxy.pendingCancellable, "proxy construction carries an owned cancellable");
     assert.equal(manager._server_connection._proxy_cancellable, null);
     assert.ok(manager._server_connection._inited);
-    assert.equal(Object.keys(proxy.instance.connections).length, 4);
+    assert.equal(Object.keys(proxy.instance.connections).length, 5);
     assert.equal(emitted(manager, "events-manager-ready").length, 1);
+});
+
+test("calendar-server owner loss invalidates the proxy and reconnects", () => {
+    const manager = readyManager();
+    const vanished = proxy.instance;
+    vanished.g_name_owner = null;
+
+    vanished.signal("notify::g-name-owner", null);
+
+    assert.equal(manager._server_connection._calendar_server, null);
+    assert.equal(manager._server_connection._inited, false);
+    assert.equal(manager.is_active(), false);
+    assert.equal(Object.keys(vanished.connections).length, 0);
+    assert.equal(emitted(manager, "has-calendars-changed").length, 1);
+    assert.ok(manager._server_connection._server_retry_id > 0);
+
+    fireTimer(manager._server_connection._server_retry_id);
+    assert.equal(gio.watches.length, 2, "retry re-arms discovery");
+    gio.watches.at(-1).foundCb(null, "eds", "owner");
+    proxy.pendingReadyCb(null, "reconnected");
+
+    assert.ok(manager._server_connection._inited);
+    assert.ok(manager.is_active());
+    assert.equal(emitted(manager, "events-manager-ready").length, 2);
+});
+
+test("a proxy constructed without an owner is never published as ready", () => {
+    const manager = makeManager();
+    manager.start_events();
+    gio.watches.at(-1).foundCb(null, "eds", "owner");
+
+    // Make the instance ownerless before CalendarServerConnection inspects it.
+    const originalFinish = global.imports.gi.Cinnamon.CalendarServerProxy.new_for_bus_finish;
+    global.imports.gi.Cinnamon.CalendarServerProxy.new_for_bus_finish = (res) => {
+        const instance = originalFinish(res);
+        instance.g_name_owner = null;
+        return instance;
+    };
+    try {
+        proxy.pendingReadyCb(null, "ownerless");
+    } finally {
+        global.imports.gi.Cinnamon.CalendarServerProxy.new_for_bus_finish = originalFinish;
+    }
+
+    assert.equal(manager._server_connection._calendar_server, null);
+    assert.equal(manager._server_connection._inited, false);
+    assert.equal(emitted(manager, "events-manager-ready").length, 0);
+    assert.equal(emitted(manager, "has-calendars-changed").length, 1);
+    assert.ok(manager._server_connection._server_retry_id > 0);
 });
 
 test("proxy ready after destroy connects nothing", () => {
@@ -542,7 +592,7 @@ test("destroy cancels watch, retry and timers and disconnects proxy signals", ()
     manager.destroy();
 
     assert.equal(timers.pending.size, 0);
-    assert.equal(server.disconnected.length, 4);
+    assert.equal(server.disconnected.length, 5);
     assert.equal(manager._server_connection._calendar_server, null);
     assert.ok(manager._destroyed);
 });

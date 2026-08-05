@@ -101,6 +101,16 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
                 "client-disappeared", this.callbacks.onClientDisappeared));
             this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
                 "notify::status", this._handle_status_notify.bind(this)));
+            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
+                "notify::g-name-owner", this._handle_name_owner_notify.bind(this)));
+
+            // A proxy can finish construction after its process has already
+            // disappeared. Treat it like the same owner-loss transition rather
+            // than publishing a connection that cannot serve requests.
+            if (!this._calendar_server.g_name_owner) {
+                this._handle_name_owner_notify(this._calendar_server);
+                return;
+            }
 
             this._inited = true;
             this._server_retry_attempts = 0;
@@ -158,6 +168,19 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
 
         this._cached_state = this._calendar_server.status;
         this.callbacks.onStatusChanged();
+    }
+
+    _handle_name_owner_notify(server) {
+        if (server !== this._calendar_server || server.g_name_owner) {
+            return;
+        }
+
+        this._disconnectServer();
+        this._calendar_server = null;
+        this._inited = false;
+        this._cached_state = STATUS_UNKNOWN;
+        this.callbacks.onStatusChanged();
+        this.queueRetry();
     }
 
     _disconnectServer() {
