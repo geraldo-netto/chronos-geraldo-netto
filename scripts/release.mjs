@@ -493,6 +493,23 @@ export async function checkRelease(projectRoot, tag, releaseBranch = RELEASE_BRA
     });
 }
 
+// The bump used to re-serialise every target, and `JSON.stringify(metadata,
+// null, 4)` is not byte-preserving for the shipped manifest: `"cinnamon-version":
+// ["5.4"]` expands to three lines, so changing one value emitted a four-line diff
+// in the twelve-line file Cinnamon parses at load. The documented recipe stages
+// that file wholesale, handing the reviewer unrelated churn. `package.json` and
+// `package-lock.json` do round-trip identically at indent 2, so only the manifest
+// needs its own writer.
+export function patchManifestVersion(original, nextVersion) {
+    const patched = original.replace(/^(\s*"version"\s*:\s*)"[^"]*"/m,
+        (match, prefix) => prefix + JSON.stringify(nextVersion));
+    const expected = { ...JSON.parse(original), version: nextVersion };
+    if (JSON.stringify(JSON.parse(patched)) !== JSON.stringify(expected)) {
+        throw new Error("metadata.json version could not be replaced in place");
+    }
+    return patched;
+}
+
 async function bumpReleaseLocked(root, nextVersion) {
     const files = await readReleaseFiles(root);
     const currentVersion = validateReleaseFiles(files);
@@ -510,7 +527,7 @@ async function bumpReleaseLocked(root, nextVersion) {
     const after = [
         JSON.stringify(files.pkg, null, 2) + "\n",
         JSON.stringify(files.lock, null, 2) + "\n",
-        JSON.stringify(files.metadata, null, 4) + "\n"
+        patchManifestVersion(files.original[2], nextVersion)
     ];
     await writeReleaseTransaction(root, {
         version: 1,

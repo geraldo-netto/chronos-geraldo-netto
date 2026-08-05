@@ -120,9 +120,25 @@ test("release tags are annotated, checked out, and on the release branch", async
 
 test("the release bump updates every version owner", async (t) => {
     const temporary = await makeReleaseFixture(t);
+    const manifestPath = path.join(temporary, "files", UUID, "metadata.json");
+    const manifestBefore = await fs.readFile(manifestPath, "utf8");
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease, checkRelease } = await import(releaseUrl);
     await bumpRelease(temporary, "0.0.2");
+
+    // The manifest was re-serialised wholesale, and `JSON.stringify(m, null, 4)`
+    // expands `"cinnamon-version": ["5.4"]` to three lines: a one-value change
+    // produced a four-line diff in the twelve-line file Cinnamon parses at load,
+    // and the documented recipe stages it wholesale.
+    const manifestAfter = await fs.readFile(manifestPath, "utf8");
+    const changed = manifestBefore.split("\n")
+        .map((line, index) => [line, manifestAfter.split("\n")[index]])
+        .filter(([before, after]) => before !== after);
+    assert.equal(manifestBefore.split("\n").length, manifestAfter.split("\n").length,
+        "the bump must not reflow the shipped manifest");
+    assert.deepEqual(changed,
+        [['    "version": "0.0.1",', '    "version": "0.0.2",']],
+        "exactly the version line changes");
 
     const pkg = JSON.parse(await fs.readFile(path.join(temporary, "package.json"), "utf8"));
     const lock = JSON.parse(await fs.readFile(path.join(temporary, "package-lock.json"), "utf8"));
@@ -137,6 +153,17 @@ test("the release bump updates every version owner", async (t) => {
     await assert.rejects(
         bumpRelease(temporary, "0.0.2"),
         /must be greater than 0\.0\.2/);
+});
+
+test("an in-place manifest bump refuses a document it cannot patch", async () => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { patchManifestVersion } = await import(releaseUrl);
+    assert.equal(patchManifestVersion('{\n    "version": "1.0.0",\n    "a": [1]\n}\n', "1.0.1"),
+        '{\n    "version": "1.0.1",\n    "a": [1]\n}\n');
+    // no top-level version line to patch: silently writing the document back
+    // unchanged would leave the manifest behind the other version owners
+    assert.throws(() => patchManifestVersion('{\n    "a": 1\n}\n', "1.0.1"),
+        /could not be replaced in place/);
 });
 
 // T530 regression: these validators are the tag-gated release integrity check,
