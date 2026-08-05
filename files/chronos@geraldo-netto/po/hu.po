@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-05 22:44+0200\n"
+"POT-Creation-Date: 2026-08-05 23:21+0200\n"
 "PO-Revision-Date: 2024-11-24 20:59+0100\n"
 "Last-Translator: Vajda Örs <ors0092@gmail.com>\n"
 "Language-Team: \n"
@@ -417,11 +417,11 @@ msgstr "Az ünnepnapi szolgáltatás nem érhető el"
 msgid "Holiday data unavailable"
 msgstr "Az ünnepnapi adatok nem érhetők el"
 
-#: 5.4/calendarAnnotations.js:227
+#: 5.4/calendarAnnotations.js:231
 msgid "Holiday data: loading…"
 msgstr "Ünnepnapi adatok: betöltés…"
 
-#: 5.4/calendarAnnotations.js:268
+#: 5.4/calendarAnnotations.js:272
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Ünnepnapi adatok: %s"

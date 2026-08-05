@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-05 22:44+0200\n"
+"POT-Creation-Date: 2026-08-05 23:21+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -415,11 +415,11 @@ msgstr "Dịch vụ ngày lễ không khả dụng"
 msgid "Holiday data unavailable"
 msgstr "Dữ liệu ngày lễ không khả dụng"
 
-#: 5.4/calendarAnnotations.js:227
+#: 5.4/calendarAnnotations.js:231
 msgid "Holiday data: loading…"
 msgstr "Dữ liệu ngày lễ: đang tải…"
 
-#: 5.4/calendarAnnotations.js:268
+#: 5.4/calendarAnnotations.js:272
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dữ liệu ngày lễ: %s"
