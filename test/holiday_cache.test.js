@@ -396,6 +396,43 @@ test("the years the user scrolled past are not kept for the session", () => {
     assert.equal(cache.matchMonth(2055, 1).size, 1, "the year on screen is still there");
 });
 
+// T725: eviction calls _rebuildIndex, which replays `data` through _addUnique —
+// and _addUnique ends in _touchYear. Every eviction therefore rewrote the whole
+// recency order into `data` insertion order, so the LRU degenerated to
+// FIFO-by-first-fetch and the *most* recently used year could be evicted next.
+test("eviction picks the least recently used year, not the first fetched", () => {
+    const { HolidayCache } = loadHolidays();
+    const { MAX_CACHED_YEARS } = require(holidayCachePath);
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    cache.setPlace("ita", "global");
+
+    const fetchYear = (year) => cache.recordFetch(year, "global", new Date().toUTCString(),
+        [{ year, month: 1, day: 1, region: "global", name: "New Year", flags: [] }]);
+
+    // fill the cache newest-first, so data insertion order is the reverse of
+    // recency and the two orders cannot be confused for each other
+    fetchYear(2026);
+    for (let year = 2025; year > 2025 - (MAX_CACHED_YEARS - 1); year--) {
+        fetchYear(year);
+    }
+    assert.equal(cache._yearUse.size, MAX_CACHED_YEARS);
+
+    // a failed attempt on a ninth year evicts one and touches 2027. The evicted
+    // year must be 2026 — the oldest use — and 2027 must be the newest, which is
+    // exactly what recordAttempt's own _touchYear is for.
+    cache.recordAttempt(2027, "global");
+    assert.equal(cache.cachedYears().includes(2026), false, "the oldest use is evicted");
+    assert.equal(cache.cachedYears().at(-1), 2027, "the year just used is the newest");
+
+    // and the retry throttle survives a sibling year, which is the point: with
+    // the order rewritten, 2027 was evicted next and its stale() flipped back to
+    // true, so a down provider was refetched on every update instead of hourly
+    assert.equal(cache.stale(2027, "global"), false, "the retry backoff holds");
+    cache.recordAttempt(2028, "global");
+    assert.equal(cache.stale(2027, "global"), false,
+        "a sibling year must not evict the attempt that throttles the retry");
+});
+
 test("destroying the provider drops the holidays it was holding", () => {
     const { HolidayCache } = loadHolidays();
     const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});

@@ -641,14 +641,31 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         month.set(`${single.month}/${single.day}`, single);
     }
 
+    // Replaying `data` runs `_addUnique`, which ends in `_touchYear` — so the
+    // rebuild used to rewrite the whole recency order into `data` insertion
+    // order, discarding everything `matchMonth` and `recordAttempt` had
+    // recorded. Eviction then picked the first-fetched year instead of the
+    // least-recently-used one, and a just-recorded failed attempt became the
+    // next victim after a single sibling year, losing the RETRY_PERIOD guard
+    // that `recordAttempt`'s own `_touchYear` exists to hold. Reindexing is
+    // bookkeeping, not use: restore the order the replay overwrote.
+    //
+    // The snapshot is exact rather than merged, because every year with rows is
+    // in it by construction — `_addUnique` touched it when the row first
+    // arrived — and years with no rows at all (an attempt recorded but nothing
+    // fetched) must survive too, since their stamp is what the retry throttle
+    // reads.
     _rebuildIndex() {
         const holidays = this.data;
+        const yearOrder = Array.from(this._yearUse.keys());
         this.data = [];
         this._holidayIndex.clear();
         this._monthIndex.clear();
         this._matchedMonthCache.clear();
 
         holidays.forEach((single) => this.addUnique(single));
+
+        this._yearUse = new Map(yearOrder.map((year) => [year, true]));
     }
 
     addUnique (single) {
