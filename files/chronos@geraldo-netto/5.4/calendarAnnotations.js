@@ -169,6 +169,10 @@ class CalendarHolidayAnnotator {
         // last outstanding answer may replace the pending marker with a final
         // status, or a slow January looks like a month with no holidays
         this._awaited = 0;
+        // every provider that answered this pass without an error. The grid can
+        // span two calendar years, each with its own cached status, so the
+        // months on screen may legitimately come from different services.
+        this._pass_providers = new Set();
     }
 
     // the header builds the label and gives it to us; nothing else writes it
@@ -285,16 +289,32 @@ class CalendarHolidayAnnotator {
 
     _reportProvider(error, providerName) {
         if (error) {
+            // the retained error names the service that produced it, which is
+            // more use than a list of everyone who answered
             this.setStatus(error, providerName);
-        } else if (this.error) {
-            // an error already reported this pass stays; a sibling month's
-            // success must not soften it
-        } else if (this._awaited > 0) {
-            // other months of this pass are still in flight: the pending
-            // marker is still the truth, so this answer renders nothing
-        } else {
-            this.setStatus("", providerName);
+            return;
         }
+
+        if (providerName) {
+            this._pass_providers.add(providerName);
+        }
+
+        // an error already reported this pass stays — a sibling month's success
+        // must not soften it — and while other months are still in flight the
+        // pending marker is still the truth, so this answer renders nothing
+        if (this.error || this._awaited > 0) {
+            return;
+        }
+
+        this.setStatus("", this._passProviderCredit());
+    }
+
+    // Holidays from two calendar years both appear on the grid, so both sources
+    // are owed the credit. The last callback to arrive used to supply it alone,
+    // which meant completion timing chose which service was named. Sorted, so
+    // the same set of answers always reads the same way.
+    _passProviderCredit() {
+        return Array.from(this._pass_providers).sort().join(", ");
     }
 
     _reconcileCells(dates, cells) {
@@ -363,6 +383,9 @@ class CalendarHolidayAnnotator {
             cells
         };
         this._awaited = monthList.length;
+        // pass state, like _awaited: a cached month answers inside the dispatch
+        // loop below, so this has to be empty before the first one does
+        this._pass_providers = new Set();
         for (let month of monthList) {
             const [y, m] = month.split('/');
             holiday.getHolidays(y, m, (dates, error, providerName) => {

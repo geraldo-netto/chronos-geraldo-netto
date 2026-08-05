@@ -1343,6 +1343,76 @@ test("the pending marker survives until every in-flight month answers", () => {
         "the final answer renders the provider credit");
 });
 
+// T702: a 42-day grid spans two calendar years, each with its own cached
+// status, so adjacent months are legitimately served by different fallback
+// providers. Holidays from both were shown, but the annotator kept one
+// provider string and the last callback to arrive supplied it alone — so
+// completion timing decided which service got the credit.
+test("the grid credits every provider that answered, whatever the order", () => {
+    const runPass = (answerOrder) => {
+        const pending = new Map();
+        const label = new MockActor();
+        const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
+            holidayGeneration: 3,
+            holidayProvider: {
+                active: true,
+                getHolidays(y, m, cb) {
+                    pending.set(`${y}/${m}`, cb);
+                }
+            }
+        }));
+        annotator.attachLabel(label);
+        annotator.annotate(new Set(["2026/12", "2027/1"]), new Map(), 3);
+
+        // December is served by Nager.Date, January by Enrico
+        const providers = { "2026/12": "Nager.Date", "2027/1": "Enrico" };
+        for (const month of answerOrder) {
+            pending.get(month)(new Map(), "", providers[month]);
+        }
+        return annotator;
+    };
+
+    const december_first = runPass(["2026/12", "2027/1"]);
+    const january_first = runPass(["2027/1", "2026/12"]);
+
+    const credit = (annotator) => annotator.monthLabel.tooltip.texts.at(-1);
+    assert.ok(credit(december_first).includes("Enrico"));
+    assert.ok(credit(december_first).includes("Nager.Date"),
+        "both sources on the grid are named, not just the last one to answer");
+    assert.equal(credit(december_first), credit(january_first),
+        "and which one answered first cannot change what the user is told");
+
+    // the same pass run twice renders the same string, so no repaint churn
+    assert.equal(december_first.provider, "Enrico, Nager.Date");
+});
+
+// A failure still names the service that produced it: that is more use than a
+// list of everyone who answered, and a sibling month's success must not soften
+// an error that is still true.
+test("a failed month keeps its own provider in the credit", () => {
+    const pending = new Map();
+    const label = new MockActor();
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
+        holidayGeneration: 3,
+        holidayProvider: {
+            active: true,
+            getHolidays(y, m, cb) {
+                pending.set(`${y}/${m}`, cb);
+            }
+        }
+    }));
+    annotator.attachLabel(label);
+    annotator.annotate(new Set(["2026/12", "2027/1"]), new Map(), 3);
+
+    pending.get("2026/12")(new Map(), "Holiday service unavailable", "Nager.Date");
+    pending.get("2027/1")(new Map(), "", "Enrico");
+
+    assert.equal(annotator.error, "Holiday service unavailable");
+    assert.equal(annotator.provider, "Nager.Date",
+        "the error names the service that failed, not the one that worked");
+    assert.match(label.text, /⚠/);
+});
+
 test("CalendarHolidayAnnotator owns provider status and cell annotations", () => {
     const cell = {
         button: new MockActor({ style_class: "calendar-work-day" }),
