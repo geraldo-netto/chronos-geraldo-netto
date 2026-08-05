@@ -31,7 +31,34 @@ const gjsGlobals = {
     console: "readonly"
 };
 
+// Every config object below carries a `files` restriction, and ESLint applies
+// no rules to a file no object matches. `dist/` is the packager's own output —
+// a copy of `files/`, invisible to ESLint because it only reads `.gitignore`
+// for its default patterns — so without this the run lints it twice and reports
+// it clean whatever it contains.
+const IGNORED = { ignores: ["dist/**"] };
+
+// The recommended set, the module dialect and the Node globals are the same for
+// `scripts/**/*.mjs` and for the root-level `.mjs` files (this config among
+// them, which no `files` entry used to match: it linted with zero rules).
+function nodeModuleConfig(files) {
+    return {
+        files,
+        ...js.configs.recommended,
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: "module",
+            globals: { process: "readonly" }
+        },
+        rules: {
+            ...js.configs.recommended.rules,
+            "no-unused-vars": ["error", { args: "none" }]
+        }
+    };
+}
+
 export default [
+    IGNORED,
     {
         files: ["files/**/*.js"],
         // The config used to list three rules and extend nothing, so unreachable
@@ -66,19 +93,8 @@ export default [
             "prefer-const": "off"
         }
     },
-    {
-        files: ["scripts/**/*.mjs"],
-        ...js.configs.recommended,
-        languageOptions: {
-            ecmaVersion: 2022,
-            sourceType: "module",
-            globals: { process: "readonly" }
-        },
-        rules: {
-            ...js.configs.recommended.rules,
-            "no-unused-vars": ["error", { args: "none" }]
-        }
-    },
+    nodeModuleConfig(["scripts/**/*.mjs"]),
+    nodeModuleConfig(["*.mjs"]),
     {
         files: ["test/**/*.js"],
         ...js.configs.recommended,
