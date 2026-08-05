@@ -87,12 +87,21 @@ test("teardown of a partially constructed applet is a safe no-op", () => {
 
 test("on_applet_removed_from_panel tears everything down", () => {
     const torn = [];
+    let eventConsumers = 3;
     const stub = Object.assign(Object.create(Proto), {
         _constructed: true,
         instance_id: 7,
-        _providerLifecycle: { destroy: () => torn.push(["lifecycle"]) },
-        _calendar: { destroy: () => torn.push(["calendar"]) },
-        event_list: { destroy: () => torn.push(["list"]) },
+        _providerLifecycle: {
+            destroy() {
+                torn.push(["lifecycle"]);
+                assert.equal(eventConsumers, 0,
+                    "a terminal producer notification has no live UI subscriber");
+                throw new Error("producer teardown failed");
+            }
+        },
+        _menuBuilder: { destroy: () => { eventConsumers--; torn.push(["builder"]); } },
+        _calendar: { destroy: () => { eventConsumers--; torn.push(["calendar"]); } },
+        event_list: { destroy: () => { eventConsumers--; torn.push(["list"]); } },
         menu: { destroy: () => torn.push(["menu"]) },
         menuManager: { removeMenu: () => torn.push(["unmanage"]) },
         settings: { finalize: () => torn.push(["settings"]) }
@@ -100,7 +109,8 @@ test("on_applet_removed_from_panel tears everything down", () => {
     Proto.on_applet_removed_from_panel.call(stub);
     // the menu is parented to Main.uiGroup: nothing else would ever destroy it
     assert.deepEqual(torn, [
-        ["lifecycle"], ["calendar"], ["list"], ["unmanage"], ["menu"], ["settings"]
+        ["builder"], ["calendar"], ["list"], ["unmanage"], ["menu"],
+        ["lifecycle"], ["settings"]
     ]);
 });
 

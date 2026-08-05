@@ -555,9 +555,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // to a destroyed applet — pressing it opened a menu that was gone
             () => Main.keybindingManager.removeXletHotKey(this, "calendar-open"),
             () => destroyIfPresent(this._settingsBinder),
-            () => destroyIfPresent(this._providerLifecycle),
             // the menu builder connects five signals on the events manager and
-            // the event list, and nothing used to disconnect them
+            // the event list. Detach every consumer before its producer so a
+            // terminal notification cannot enter UI teardown.
             () => destroyIfPresent(this._menuBuilder),
             () => destroyIfPresent(this._calendar),
             () => destroyIfPresent(this.event_list),
@@ -568,6 +568,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // closures
             () => removeOwnedMenu(this),
             () => destroyIfPresent(this.menu),
+            () => destroyIfPresent(this._providerLifecycle),
             () => finalizeIfPresent(this.settings),
             // the locale query's deadline and its retry are module-level timers
             // with no other owner: without this the retry can still spawn
