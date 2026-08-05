@@ -144,9 +144,9 @@ class AppletEventListCoordinator {
         if (showEvents !== this._appliedShowEvents) {
             this._appliedShowEvents = showEvents;
             this.manager.select_date(this.selectedDate(), true);
-            // the column above is this coordinator's own; the grid's dots
-            // gate on the calendar's events_enabled, which only manager
-            // signals recompute — and a settings flip fires none of them
+            // The column above is this coordinator's own; the grid's dots
+            // gate on event-data availability, which only manager signals
+            // recompute — and a settings flip fires none of them.
             this.onEnabledChanged();
         }
     }

@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T677 | decoupling; architecture / modularity / SOLID; state machine integrity; UI / UX | Medium | open | M | Decouple calendar browsing and selection from Evolution-event availability. | **[verified]** `events_enabled` is derived from `events_manager.is_active()` (`5.4/calendar.js:782-784`), whose state is false when **Show calendar events** is off, EDS is unavailable, or no calendars exist (`eventsManager.js:760-762`, `calendarServerConnection.js:185-187`). The same state is wired into `CalendarNavigationController` (`5.4/calendar.js:707-715`), which blocks every key, scroll, and header browse (`5.4/calendarNavigation.js:153-167,195-212,233-239`), while day clicks independently refuse at `5.4/calendar.js:385-390`. Thus an event-column integration toggle also locks the otherwise independent holiday calendar, contradicting README's standalone grid-navigation contract (`README.md:192,254-255`) and coupling presentation navigation to an optional provider's lifecycle. Split `canBrowse`/`canSelect` from `eventsAvailable` (or keep a displayed-month state separate from agenda selection), and cover holidays-only, events-disabled, no-calendars, and EDS-unavailable paths across mouse, keyboard, scroll, and header buttons. |
 
 ## Rejected
 

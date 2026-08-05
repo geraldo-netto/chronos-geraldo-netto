@@ -164,7 +164,6 @@ test("navigation controller owns no-op, cancellation, and focus boundaries", () 
     const controller = new NavigationModule.CalendarNavigationController({
         actor: () => ({}),
         dayCells: () => [],
-        eventsEnabled: () => true,
         emitSelected() { emitted++; },
         update: () => updates++,
         setDate() {},
@@ -196,7 +195,6 @@ function browse(fromDate, yearChange, monthChange) {
     let queued = null;
     const stub = {
         _navigation: new NavigationModule.CalendarNavigationController({
-            eventsEnabled: () => true,
             queueDate: (date) => { queued = date; }
         }, fromDate)
     };
@@ -453,7 +451,7 @@ function makeHost(overrides = {}) {
         selectedDate: new Date(2026, 6, 9),
         weekStart: 0,
         weekendLength: 2,
-        eventsEnabled: true,
+        eventDataAvailable: true,
         eventsManager: null,
         holidayProvider: null,
         holidayGeneration: 0,
@@ -786,41 +784,58 @@ test("the grid is navigable from the keyboard and announces its days", () => {
     assert.ok(MockActor.focused, "and the newly selected day has focus once it does");
 });
 
-test("events-off selection stays locked for keyboard and scroll input", () => {
-    const cal = makeCalendar();
-    const selected = new Date(2026, 6, 9);
+test("holidays-only navigation stays live for every event-unavailable state", () => {
     const Clutter = global.imports.gi.Clutter;
-    const press = (symbol) => cal._onKeyPress(null, {
-        get_key_symbol: () => symbol
-    });
-    const scroll = (direction) => cal._onScroll(null, {
-        get_scroll_direction: () => direction,
-        get_scroll_delta: () => [0, 2]
-    });
-    cal.setDate(selected, true);
-    cal.events_enabled = false;
+    const states = [
+        { name: "events disabled", showEvents: false, edsReady: true, hasCalendars: true },
+        { name: "EDS unavailable", showEvents: true, edsReady: false, hasCalendars: true },
+        { name: "no calendars", showEvents: true, edsReady: true, hasCalendars: false }
+    ];
 
-    for (const symbol of [
-        Clutter.KEY_Left,
-        Clutter.KEY_Right,
-        Clutter.KEY_Up,
-        Clutter.KEY_Down,
-        Clutter.KEY_Page_Up,
-        Clutter.KEY_Page_Down,
-        Clutter.KEY_Home
-    ]) {
-        assert.equal(press(symbol), Clutter.EVENT_PROPAGATE);
-    }
-    for (const direction of [
-        Clutter.ScrollDirection.DOWN,
-        Clutter.ScrollDirection.SMOOTH
-    ]) {
-        scroll(direction);
-    }
+    for (const state of states) {
+        const manager = makeEventsManager(["#ff0000"]);
+        manager.is_active = () => state.showEvents && state.edsReady && state.hasCalendars;
+        const holiday = makeHolidayStub({
+            "2026/9": { "9/14": ["Holiday", []] }
+        });
+        const cal = new CalendarModule.Calendar(makeSettings(), manager, holiday,
+            makeDesktopSettings());
+        cal.setDate(new Date(2026, 6, 9), true);
 
-    assert.equal(cal.getSelectedDate().getTime(), selected.getTime());
-    assert.equal(cal._navigation.queuedDate, null);
-    assert.equal(cal._navigation.scrollAccumulator, 0);
+        assert.equal(cal.event_data_available, false, state.name);
+        assert.ok(cal._gridView.dayCells.every((cell) => cell.dot_box.children.length === 0),
+            `${state.name}: unavailable event data draws no dots`);
+
+        const day10 = cal._gridView.dayCells.find((cell) =>
+            cell.date.getFullYear() === 2026 && cell.date.getMonth() === 6 &&
+            cell.date.getDate() === 10);
+        day10.button.fire("clicked");
+        assert.equal(cal.getSelectedDate().getDate(), 10,
+            `${state.name}: mouse selection remains live`);
+
+        assert.equal(cal._onKeyPress(null, {
+            get_key_symbol: () => Clutter.KEY_Right
+        }), Clutter.EVENT_STOP, `${state.name}: keyboard navigation remains live`);
+        assert.equal(cal.getSelectedDate().getDate(), 11);
+
+        cal._onScroll(null, {
+            get_scroll_direction: () => Clutter.ScrollDirection.DOWN
+        });
+        cal._navigation.flushQueuedDate();
+        assert.equal(cal.getSelectedDate().getMonth(), 7,
+            `${state.name}: scroll navigation remains live`);
+
+        headerNavButton(cal._topBoxMonth, "calendar-change-month-forward").fire("clicked");
+        cal._navigation.flushQueuedDate();
+        assert.equal(cal.getSelectedDate().getMonth(), 8,
+            `${state.name}: header navigation remains live`);
+
+        const holidayCell = cal._gridView.dayCells.find((cell) =>
+            cell.date.getFullYear() === 2026 && cell.date.getMonth() === 8 &&
+            cell.date.getDate() === 14);
+        assert.ok(holidayCell.button.style_class.includes("calendar-holiday-day"),
+            `${state.name}: holiday annotations follow the browsed month`);
+    }
 });
 
 // the handler sits on the table, which is the ancestor of the month and year
@@ -899,10 +914,9 @@ test("CalendarDayCellRenderer builds reusable clickable cells", () => {
     assert.equal(selected.getDate(), 14);
 });
 
-// the cells are built once and reused, so a click can land on a cell that is not
-// currently showing a date, and clicking one while events are off must not move
-// the selection out from under the user
-test("a day cell click selects nothing when it holds no date or events are off", () => {
+// The cells are built once and reused, so a click can land on a cell that is not
+// currently showing a date. Optional event data must not control selection.
+test("a day cell click requires a date but not event data", () => {
     let selected = null;
     const host = makeHost({ selectDate(date) { selected = date; } });
     const renderer = new CalendarModule.CalendarDayCellRenderer(host);
@@ -911,14 +925,15 @@ test("a day cell click selects nothing when it holds no date or events are off",
     empty.button.fire("clicked");
     assert.equal(selected, null, "a cell with no date selects nothing");
 
-    host.eventsEnabled = false;
+    host.eventDataAvailable = false;
     const dated = renderer.build();
     dated.date = new Date(2026, 6, 14);
     dated.button.fire("clicked");
-    assert.equal(selected, null, "and neither does one clicked while events are off");
+    assert.equal(selected.getDate(), 14,
+        "a dated cell remains selectable without event data");
 });
 
-// T581: events_enabled was recomputed only from the manager-ready and
+// T581: event-data availability was recomputed only from manager-ready and
 // calendars-changed signals, but the show-events setting participates in
 // is_active() and changes through the applet's settings path — so cached
 // event dots stayed on the grid after the user switched events off.
@@ -934,15 +949,15 @@ test("switching events off clears the grid without a manager signal", () => {
 
     // the user switches show-events off: is_active() flips, no signal fires
     active = false;
-    cal.refreshEventsEnabled();
+    cal.refreshEventDataAvailability();
     cal._idle_do_update();
-    assert.equal(cal.events_enabled, false);
+    assert.equal(cal.event_data_available, false);
     assert.doesNotMatch(day9().accessible_name, /event/,
         "the cached dots and counts are gone");
 
     // ...and switching back on restores them from the still-indexed data
     active = true;
-    cal.refreshEventsEnabled();
+    cal.refreshEventDataAvailability();
     cal._idle_do_update();
     assert.match(day9().accessible_name, /1 event$/);
 });
@@ -963,7 +978,7 @@ test("the grid host is the whole contract the collaborators get", () => {
         selectedDate: () => selectedDate,
         weekStart: () => 1,
         weekendLength: () => 1,
-        eventsEnabled: () => true,
+        eventDataAvailable: () => true,
         eventsManager,
         holidayProvider: () => holiday,
         holidayGeneration: () => 4,
@@ -979,7 +994,7 @@ test("the grid host is the whole contract the collaborators get", () => {
     assert.equal(host.selectedDate, selectedDate);
     assert.equal(host.weekStart, 1);
     assert.equal(host.weekendLength, 1);
-    assert.equal(host.eventsEnabled, true);
+    assert.equal(host.eventDataAvailable, true);
     assert.equal(host.eventsManager, eventsManager);
     assert.equal(host.holidayProvider, holiday);
     assert.equal(host.holidayGeneration, 4);
@@ -2024,9 +2039,9 @@ test("calendar wrappers cover scroll, style, holiday refresh, and selected-date 
     cal._queue_update = () => queued++;
     cal.refreshHolidays();
     cal.refreshToday();
-    cal._update_events_enabled();
+    cal._update_event_data_availability();
     assert.equal(queued, 3);
-    assert.equal(cal.events_enabled, true);
+    assert.equal(cal.event_data_available, true);
 
     cal._selectedDate = new Date();
     assert.equal(cal.getSelectedDate(), cal._selectedDate);
@@ -2065,21 +2080,22 @@ test("the month and year nav buttons reach their handlers through the clicked si
         "previous month, next month, previous year, next year");
 });
 
-test("events-off selection stays locked for every header navigation button", () => {
+test("event-unavailable calendars keep every header navigation button live", () => {
     const cal = makeCalendar();
     const selected = new Date(2026, 6, 9);
-    cal.setDate(selected, true);
-    cal.events_enabled = false;
+    cal.event_data_available = false;
 
-    for (const [box, styleClass] of [
-        [cal._topBoxMonth, "calendar-change-month-back"],
-        [cal._topBoxMonth, "calendar-change-month-forward"],
-        [cal._topBoxYear, "calendar-change-month-back"],
-        [cal._topBoxYear, "calendar-change-month-forward"]
+    for (const [box, styleClass, expectedYear, expectedMonth] of [
+        [cal._topBoxMonth, "calendar-change-month-back", 2026, 5],
+        [cal._topBoxMonth, "calendar-change-month-forward", 2026, 7],
+        [cal._topBoxYear, "calendar-change-month-back", 2025, 6],
+        [cal._topBoxYear, "calendar-change-month-forward", 2027, 6]
     ]) {
+        cal.setDate(selected, true);
         headerNavButton(box, styleClass).fire("clicked");
-        assert.equal(cal.getSelectedDate().getTime(), selected.getTime());
-        assert.equal(cal._navigation.queuedDate, null);
+        cal._navigation.flushQueuedDate();
+        assert.equal(cal.getSelectedDate().getFullYear(), expectedYear);
+        assert.equal(cal.getSelectedDate().getMonth(), expectedMonth);
     }
 });
 

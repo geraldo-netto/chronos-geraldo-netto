@@ -189,8 +189,8 @@ class CalendarGridHost {
         return this.port.weekendLength();
     }
 
-    get eventsEnabled() {
-        return this.port.eventsEnabled();
+    get eventDataAvailable() {
+        return this.port.eventDataAvailable();
     }
 
     get eventsManager() {
@@ -383,7 +383,7 @@ class CalendarDayCellRenderer {
         // reads cell.date so the reused button always selects the date
         // it currently displays
         cell.button.connect('clicked', () => {
-            if (!this.host.eventsEnabled || !cell.date) {
+            if (!cell.date) {
                 return;
             }
             this.host.selectDate(new Date(cell.date.getTime())); // NOSONAR [S7719] -- accepted compatible form
@@ -426,8 +426,9 @@ class CalendarEventDotRenderer {
     }
 
     update(cell, iter, dateUnixKey) {
-        const color_set = this.host.eventsManager.get_colors_for_unix_key(dateUnixKey);
-        const colors = (this.host.eventsEnabled && color_set !== null) ?
+        const color_set = this.host.eventDataAvailable ?
+            this.host.eventsManager.get_colors_for_unix_key(dateUnixKey) : null;
+        const colors = color_set !== null ?
             color_set.map((color) => StyleUtils.safeCssColor(color)) : [];
 
         // the dots are the only sign that a day has events, and they are 4px of
@@ -659,11 +660,17 @@ class Calendar {
             this._queue_update();
         });
 
-        this.events_enabled = true;
+        // Event data is optional presentation state. It controls dots only;
+        // the calendar remains independently browsable and selectable for
+        // dates and holidays when Evolution, its calendars, or the setting is
+        // unavailable.
+        this.event_data_available = this.events_manager.is_active();
         this._events_manager_signal_ids = [
             this.events_manager.connect("events-updated", this._events_updated.bind(this)),
-            this.events_manager.connect("events-manager-ready", this._update_events_enabled.bind(this)),
-            this.events_manager.connect("has-calendars-changed", this._update_events_enabled.bind(this))
+            this.events_manager.connect("events-manager-ready",
+                this._update_event_data_availability.bind(this)),
+            this.events_manager.connect("has-calendars-changed",
+                this._update_event_data_availability.bind(this))
         ];
 
         // Find the ordering for month/year in the calendar heading
@@ -689,7 +696,7 @@ class Calendar {
             selectedDate: () => this._selectedDate,
             weekStart: () => this._weekStart,
             weekendLength: () => this.weekend_length,
-            eventsEnabled: () => this.events_enabled,
+            eventDataAvailable: () => this.event_data_available,
             eventsManager: this.events_manager,
             holidayProvider: () => this.holiday,
             holidayGeneration: () => this._holiday_update_generation,
@@ -713,7 +720,6 @@ class Calendar {
         this._navigation = new CalendarNavigationController({
             actor: () => this.actor,
             dayCells: () => this._gridView.dayCells,
-            eventsEnabled: () => this.events_enabled,
             emitSelected: (date) => this.emit('selected-date-changed', date),
             update: () => this._update(),
             setDate: (date, forceReload) => this.setDate(date, forceReload),
@@ -785,8 +791,8 @@ class Calendar {
         this._gridHost.reportIssue("holidays", "");
     }
 
-    _update_events_enabled(em) {
-        this.events_enabled = this.events_manager.is_active();
+    _update_event_data_availability() {
+        this.event_data_available = this.events_manager.is_active();
         this._queue_update();
     }
 
@@ -794,8 +800,8 @@ class Calendar {
     // fires the applet's settings handler, not the manager's signals — so the
     // grid kept stale event dots after the user switched events off. The
     // applet calls this beside the event-column coordinator.
-    refreshEventsEnabled() {
-        this._update_events_enabled();
+    refreshEventDataAvailability() {
+        this._update_event_data_availability();
     }
 
     _headerSignature() {

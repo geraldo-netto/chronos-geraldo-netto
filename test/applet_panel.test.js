@@ -98,10 +98,10 @@ test("turning world clocks off stops the city weather that was fetched for them"
     assert.equal(scheduled.length, 2);
 });
 
-// T581 wiring: the grid's events_enabled is recomputed from manager signals,
+// T581 wiring: the grid's event-data availability is recomputed from manager signals,
 // and flipping show-events fires none of them — the coordinator's apply pass
 // is the only place that can tell the calendar.
-test("turning events off reaches the calendar grid's enable state", () => {
+test("turning events off reaches the calendar grid's data-availability state", () => {
     const refreshed = [];
     const coordinator = new CoordinatorModule.AppletEventListCoordinator({
         manager: { is_active: () => false, select_date: () => {} },
