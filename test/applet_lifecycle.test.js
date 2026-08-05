@@ -450,10 +450,12 @@ test("the default weather graph shares one reading repository", () => {
 test("bindSystemSignals refetches on logind resume and unsubscribes on destroy", () => {
     const resumed = [];
     const rescheduled = [];
+    const timezoneChanges = [];
     const captured = {};
     const unsubscribed = [];
     const context = {
         onResume: () => resumed.push(true),
+        onTimezoneChanged: () => timezoneChanges.push(true),
         desktopSettings: { connectClockFormatChanged: () => [1, 2] }
     };
     global.imports.gi.Gio.DBus = {
@@ -490,9 +492,19 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
         emit(false);
         assert.deepEqual(resumed, [true], "the weather is refetched on wake");
         assert.deepEqual(rescheduled, [true], "resume also corrects the local-day source");
-        captured.PropertiesChanged.cb();
-        assert.deepEqual(rescheduled, [true, true],
+        const changed = (properties) => ({
+            deep_unpack: () => ["org.freedesktop.timedate1", properties, []]
+        });
+        captured.PropertiesChanged.cb(null, null, null, null, null,
+            changed({ NTP: true }));
+        assert.deepEqual(timezoneChanges, [],
+            "unrelated timedate properties do not rebuild world clocks");
+        captured.PropertiesChanged.cb(null, null, null, null, null,
+            changed({ Timezone: "Europe/Rome" }));
+        assert.deepEqual(rescheduled, [true, true, true],
             "timezone and system-clock changes recompute the next midnight");
+        assert.deepEqual(timezoneChanges, [true],
+            "timezone changes reach the applet composition root");
 
         lifecycle.destroy();
         assert.deepEqual(unsubscribed, [55, 56], "system-bus subscriptions are released");
@@ -1200,9 +1212,11 @@ test("provider initialization wires hover and event manager signals", () => {
             bindRegions() {}
         },
         _calendar: null,
-        _updateClockAndDate: () => calls.push(["clock"])
+        _updateClockAndDate: () => calls.push(["clock"]),
+        _onTimezoneChanged: () => calls.push(["timezone"])
     });
     Proto._initProviders.call(stub);
+    stub._providerLifecycle.context.onTimezoneChanged();
     stub.show_weather = true;
     stub.show_worldclocks = true;
     stub.weather_location = "Rome";
@@ -1241,6 +1255,7 @@ test("provider initialization wires hover and event manager signals", () => {
     assert.ok(calls.some((row) => row[0] === "weather"));
     assert.ok(calls.some((row) => row[0] === "connect" && row[1] === "events-manager-ready"));
     assert.ok(calls.some((row) => row[0] === "clock"));
+    assert.ok(calls.some((row) => row[0] === "timezone"));
     // the holiday provider initializes with its provider siblings
     assert.ok(calls.some((row) => row[0] === "holiday-init"));
     assert.ok(stub.holiday_provider);

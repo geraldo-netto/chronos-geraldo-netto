@@ -966,3 +966,66 @@ test("world-clock setting changes repaint retained weather through the presenter
     assert.match(rendered.at(-1)[0].weather, /12°C/,
         "the rebuilt row immediately reuses the cached Tokyo reading");
 });
+
+test("OS timezone changes reconcile popup and city-weather clock projections", () => {
+    const originalNewLocal = global.imports.gi.GLib.TimeZone.new_local;
+    const configured = [
+        { label: "Rome", timezone: "Europe/Rome" },
+        { label: "Tokyo", timezone: "Asia/Tokyo" }
+    ];
+    const popupSelections = [];
+    const citySelections = [];
+    const refreshes = [];
+    let localTimezone = "Europe/Berlin";
+    global.imports.gi.GLib.TimeZone.new_local = () => ({
+        get_identifier: () => localTimezone
+    });
+
+    try {
+        const stub = Object.assign(Object.create(Proto), {
+            show_weather: true,
+            show_worldclocks: true,
+            weather_units: "si",
+            worldclock_settings: { clocks: configured },
+            _worldclocks: {
+                buildClocks(clocks) {
+                    popupSelections.push(rootModules.worldclockData.selectUserClocks(clocks)
+                        .map((clock) => clock.label));
+                }
+            },
+            _updateClockAndDate: (force) => refreshes.push(force),
+            _guarded: (source, fn) => fn()
+        });
+        stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
+            weatherProvider: {},
+            cityWeatherProvider: {
+                schedule(settings) {
+                    citySelections.push(settings.cities.map((city) => city.label));
+                }
+            },
+            settings: () => ({
+                showWeather: stub.show_weather,
+                showWorldclocks: stub.show_worldclocks,
+                units: stub.weather_units
+            }),
+            worldclocks: () => stub.worldclock_settings.clocks,
+            onChanged: () => {},
+            guard: (source, fn) => fn()
+        });
+
+        Proto._onTimezoneChanged.call(stub);
+        localTimezone = "Europe/Rome";
+        Proto._onTimezoneChanged.call(stub);
+        localTimezone = "Europe/Berlin";
+        Proto._onTimezoneChanged.call(stub);
+
+        assert.deepEqual(popupSelections, [
+            ["Rome", "Tokyo"], ["Tokyo"], ["Rome", "Tokyo"]
+        ]);
+        assert.deepEqual(citySelections, popupSelections,
+            "popup and weather scheduling use the same effective list in both directions");
+        assert.deepEqual(refreshes, [true, true, true]);
+    } finally {
+        global.imports.gi.GLib.TimeZone.new_local = originalNewLocal;
+    }
+});

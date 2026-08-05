@@ -180,6 +180,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             }),
             onSettingsChanged: () => this._onSettingsChanged(),
             onResume: () => this._onResume(),
+            onTimezoneChanged: () => this._onTimezoneChanged(),
             onDayChanged: () => this._guarded(
                 "day-rollover", () => this._onDayChanged())
         });
@@ -309,11 +310,20 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
     // settings emit (emitter, key, oldValue, newValue)
     _onWorldclocksChanged() {
-        this._guarded("worldclocks-settings", () => {
-            this._worldclocks.buildClocks(this.worldclock_settings.clocks);
-            this._updateClockAndDate(true);
-            this._scheduleCityWeatherRefresh();
-        });
+        this._guarded("worldclocks-settings", () => this._reconcileWorldclocks());
+    }
+
+    _onTimezoneChanged() {
+        this._guarded("timezone", () => this._reconcileWorldclocks());
+    }
+
+    // The saved list does not change when the OS timezone does, but its
+    // effective projection does: a configured row can become the built-in local
+    // row, or stop colliding with it. Rebuild both consumers from the same list.
+    _reconcileWorldclocks() {
+        this._worldclocks.buildClocks(this.worldclock_settings.clocks);
+        this._updateClockAndDate(true);
+        this._scheduleCityWeatherRefresh();
     }
 
     _setKeybinding() {

@@ -397,7 +397,15 @@ class AppletProviderLifecycle {
                 "/org/freedesktop/timedate1",
                 null,
                 Gio.DBusSignalFlags.NONE,
-                () => this._dayRollover.reschedule());
+                (connection, sender, path, iface, signal, params) => {
+                    this._dayRollover.reschedule();
+                    const unpacked = params.deep_unpack();
+                    const changed = unpacked[1];
+                    if (changed &&
+                        Object.getOwnPropertyDescriptor(changed, "Timezone") !== undefined) {
+                        context.onTimezoneChanged();
+                    }
+                });
         }
     }
 
