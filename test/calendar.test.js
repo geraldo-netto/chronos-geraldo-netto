@@ -1405,8 +1405,8 @@ function makeDot(width, height) {
     };
 }
 
-function allocateDots(count, boxWidth, maxRows = null) {
-    const dots = Array.from({ length: count }, () => makeDot(10, 10));
+function allocateDots(count, boxWidth, maxRows = null, dotWidth = 10, dotHeight = 10) {
+    const dots = Array.from({ length: count }, () => makeDot(dotWidth, dotHeight));
     const actor = {
         get_children: () => dots,
         get_theme_node: () => ({
@@ -1489,6 +1489,21 @@ test("dot box: theme max-rows caps the allocated rows", () => {
     const allocated = dots.filter((d) => d.allocations.length);
     assert.equal(allocated.length, 10);
     assert.ok(allocated.every((d) => d.allocations[0].y1 === 0));
+});
+
+test("dot box: a dot wider than its cell still gets one slot per row", () => {
+    const dots = allocateDots(3, 5, null, 10);
+    assert.equal(dots[0].allocations.length, 1);
+    assert.equal(dots[1].allocations.length, 1);
+    assert.equal(dots[2].allocations.length, 0, "the default two-row limit still applies");
+    assert.deepEqual(dots.slice(0, 2).map((dot) => dot.allocations[0].y1), [0, 10]);
+});
+
+test("dot box: invalid theme metrics fall back to visible positive dimensions", () => {
+    const dots = allocateDots(3, 100, 0, 0, 0);
+    assert.ok(dots.every((dot) => dot.allocations.length === 1));
+    assert.ok(dots.every((dot) => dot.allocations[0].x2 - dot.allocations[0].x1 === 1));
+    assert.ok(dots.every((dot) => dot.allocations[0].y2 - dot.allocations[0].y1 === 1));
 });
 
 test("dot box: empty box allocates nothing and does not throw", () => {

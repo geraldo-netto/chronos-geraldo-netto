@@ -577,7 +577,11 @@ class CalendarGridView {
             const [, nw] = dot.get_preferred_width(-1);
             const [, nh] = dot.get_preferred_height(-1);
             const [found, rows] = actor.get_theme_node().lookup_double("max-rows", false);
-            this.dotMetrics = { nw, nh, max_rows: found ? Math.trunc(rows) : 2 };
+            const width = Number.isFinite(nw) && nw > 0 ? nw : 1;
+            const height = Number.isFinite(nh) && nh > 0 ? nh : 1;
+            const maxRows = found && Number.isFinite(rows) && rows >= 1 ?
+                Math.trunc(rows) : 2;
+            this.dotMetrics = { nw: width, nh: height, max_rows: maxRows };
         }
         return this.dotMetrics;
     }
@@ -588,9 +592,11 @@ class CalendarGridView {
             return;
         }
 
-        const boxWidth = box.x2 - box.x1;
+        const allocatedWidth = box.x2 - box.x1;
+        const boxWidth = Number.isFinite(allocatedWidth) && allocatedWidth > 0 ?
+            allocatedWidth : 0;
         const { nw, nh, max_rows: maxRows } = this.metricsFor(actor, children[0]);
-        const perRow = Math.trunc(boxWidth / nw);
+        const perRow = Math.max(1, Math.trunc(boxWidth / nw));
         const rowCount = Math.min(maxRows, Math.ceil(children.length / perRow));
         let childIndex = 0;
         for (let row = 0; row < rowCount; row++) {
