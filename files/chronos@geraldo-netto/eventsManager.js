@@ -134,7 +134,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
         this._gc_timer_id = 0;
 
-        this._reload_today_id = 0;
+        this._reload_selected_id = 0;
 
         this._fetch_retry_id = 0;
         this._fetch_retry_attempts = 0;
@@ -160,7 +160,6 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // to a torn-down manager
         this._fetch_cancellable = new Gio.Cancellable();
 
-        this._force_reload_pending = false;
     }
 
     // read-only views of collaborator state, for the callers inside this
@@ -421,7 +420,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._resync_overflow_pending = true;
         this._mark_event_overflow();
         this._emit_event_index_changed();
-        this.queue_reload_today(true);
+        this.queue_reload_selected();
     }
 
     _accumulate_event_overflow(pending, result, flush, inputOverflowed) {
@@ -523,16 +522,15 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             this._event_index.remove([uids_string]);
         }
 
-        // the reload below re-selects today, but selectDate early-returns on an
-        // unchanged date, so the removed event's row would stay on screen until
-        // the user picked another day: re-feed the open list here
+        // Re-feed the open list here: a targeted removal does not need an
+        // authoritative reload, but its row must disappear immediately.
         this._emit_selected_date_events_changed(false);
 
         const currentMonth = this._window_coordinator.current_month_year;
         if (ambiguous && currentMonth) {
             this.fetch_month_events(currentMonth, true);
-        } else {
-            this.queue_reload_today(ambiguous);
+        } else if (ambiguous) {
+            this.queue_reload_selected();
         }
 
         this.emit("events-updated");
@@ -548,7 +546,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // entire list.
         this._event_index.clear();
         this._emit_event_index_changed();
-        this.queue_reload_today(true);
+        this.queue_reload_selected();
     }
 
     _handle_status_changed() {
@@ -561,7 +559,6 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             this._fetch_retry_attempts = 0;
             this._setRefreshFailed(false);
         }
-        this.queue_reload_today(true);
         this.emit("has-calendars-changed");
     }
 
@@ -721,10 +718,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         });
     }
 
-    _cancel_reload_today() {
-        if (this._reload_today_id > 0) {
-            Mainloop.source_remove(this._reload_today_id);
-            this._reload_today_id = 0;
+    _cancel_reload_selected() {
+        if (this._reload_selected_id > 0) {
+            Mainloop.source_remove(this._reload_selected_id);
+            this._reload_selected_id = 0;
         }
     }
 
@@ -749,7 +746,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
         this._server_connection.destroy();
         this._stop_gc_timer();
-        this._cancel_reload_today();
+        this._cancel_reload_selected();
         this._cancel_fetch_retry();
 
         // A month of EventData, four GLib.DateTime each, and the applet that owns
@@ -762,21 +759,18 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._destroyed = true;
     }
 
-    queue_reload_today(force) {
-        this._cancel_reload_today();
-
-        if (force) {
-            this._force_reload_pending = true;
-        }
-
-        this._reload_today_id = Mainloop.idle_add(this._idle_do_reload_today.bind(this));
+    queue_reload_selected() {
+        this._cancel_reload_selected();
+        this._reload_selected_id = Mainloop.idle_add(
+            this._idle_do_reload_selected.bind(this));
     }
 
-    _idle_do_reload_today() {
-        this._reload_today_id = 0;
-
-        this.select_date(new Date(), this._force_reload_pending);
-        this._force_reload_pending = false;
+    _idle_do_reload_selected() {
+        this._reload_selected_id = 0;
+        this._window_coordinator.reloadSelected(
+            () => this.is_active(),
+            (month_year, force) => this.fetch_month_events(month_year, force),
+            (name, ...args) => this.emit(name, ...args));
 
         return GLib.SOURCE_REMOVE;
     }

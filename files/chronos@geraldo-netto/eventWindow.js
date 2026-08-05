@@ -85,6 +85,21 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
             delay_no_events_box,
             Boolean(this.index.overflowed));
     }
+
+    reloadSelected(isActive, fetchMonthEvents, emit) {
+        // Background calendar-server transitions refresh data; they do not own
+        // navigation. If the applet has not selected a date yet, its composition
+        // root will do so when the provider-ready/status signal reaches it.
+        if (!isActive() || this.current_selected_signature === null) {
+            return;
+        }
+
+        const selected = this.current_selected_date;
+        fetchMonthEvents(month_year_only(selected), true);
+        emit("selected-date-changed", selected);
+        emit("selected-date-events-changed",
+            this.index.get(selected), false, Boolean(this.index.overflowed));
+    }
 };
 
 if (typeof module !== "undefined") {

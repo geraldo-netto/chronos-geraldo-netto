@@ -353,7 +353,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
     _onDayChanged() {
         this._calendar.refreshToday();
-        this.events_manager.queue_reload_today(false);
         this._updateClockAndDate(true);
     }
 

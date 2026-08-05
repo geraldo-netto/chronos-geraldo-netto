@@ -159,7 +159,13 @@ class AppletEventListCoordinator {
     }
 
     calendarsChanged(showEvents) {
-        this.guard("calendars-changed", () => this.update(showEvents()));
+        this.guard("calendars-changed", () => {
+            this.update(showEvents());
+            // Status transitions are the one reload path whose authoritative
+            // target lives outside EventsManager. Ask the calendar port instead
+            // of letting the manager invent "today" behind the view's back.
+            this.manager.select_date(this.selectedDate(), true);
+        });
     }
 }
 

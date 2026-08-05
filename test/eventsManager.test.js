@@ -587,7 +587,7 @@ test("destroy cancels watch, retry and timers and disconnects proxy signals", ()
     const manager = readyManager();
     manager._server_connection.queueRetry();
     manager._start_gc_timer();
-    manager.queue_reload_today(false);
+    manager.queue_reload_selected();
     const server = proxy.instance;
     manager.destroy();
 
@@ -876,6 +876,9 @@ test("fuzz: queued signal bursts stay within record and byte budgets", () => {
 
 test("a mutation flood collapses to one bounded authoritative resync", () => {
     const manager = readyManager();
+    const browsed = new FakeDateTime(20 * DAY_US);
+    manager._window_coordinator.current_selected_date = browsed;
+    manager._window_coordinator.current_selected_signature = "2000-1-20";
     const events = Array.from({ length: 60 }, (_unused, index) => eventVariant({
         id: `before-resync-${index}`,
         startUnix: 10 * DAY_S + index,
@@ -906,12 +909,14 @@ test("a mutation flood collapses to one bounded authoritative resync", () => {
     drainEventMutations(manager);
     assert.equal(manager._event_index.get(new FakeDateTime(10 * DAY_US)), null);
     assert.equal(manager._event_index.overflowed, true);
-    assert.equal(manager._force_reload_pending, true);
+    assert.ok(manager._reload_selected_id > 0);
     assert.equal(manager._resync_overflow_pending, true);
     assert.equal(manager._queued_event_records, 0);
     assert.equal(manager._resync_mutation_queued, false);
 
-    fireTimer(manager._reload_today_id);
+    fireTimer(manager._reload_selected_id);
+    assert.equal(manager.current_selected_date.to_unix(), browsed.to_unix(),
+        "the resync reloads the browsed date instead of navigating to today");
     assert.equal(manager._resync_overflow_pending, false);
     assert.equal(manager._event_index.overflowed, false);
     assert.equal(emitted(manager, "selected-date-events-changed").at(-1).args[2],
@@ -1223,6 +1228,9 @@ test("an oversized removal payload resyncs without retaining the bytes", () => {
 
 test("ambiguous removed-event IDs clear and force-refetch the window", () => {
     const manager = readyManager();
+    const browsed = new FakeDateTime(20 * DAY_US);
+    manager._window_coordinator.current_selected_date = browsed;
+    manager._window_coordinator.current_selected_signature = "2000-1-20";
     const ambiguousUid = "calendar-source:meeting::2026";
     manager._window_coordinator.current_month_year = new FakeDateTime(10 * DAY_US);
     const varray = {
@@ -1239,23 +1247,40 @@ test("ambiguous removed-event IDs clear and force-refetch the window", () => {
         "a lossy delimiter payload cannot leave the intended event behind");
     assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true,
         "the currently browsed window is repopulated from the calendar server");
-    assert.equal(manager._reload_today_id, 0, "the user's selection is not moved back to today");
+    assert.equal(manager._reload_selected_id, 0,
+        "the direct current-window fetch needs no second queued reload");
+    assert.equal(manager.current_selected_date.to_unix(), browsed.to_unix(),
+        "the removal does not own navigation");
     assert.ok(emitted(manager, "events-updated").length >= 2);
+});
+
+test("ambiguous removals defer reload until a selected window exists", () => {
+    const manager = readyManager();
+
+    proxy.instance.signal("events-removed", "calendar-source:meeting::2026");
+
+    assert.ok(manager._reload_selected_id > 0,
+        "startup races retain one bounded reload instead of inventing a month");
 });
 
 test("client disappearance rebuilds the event map via a forced reload", () => {
     const manager = readyManager();
+    const browsed = new FakeDateTime(20 * DAY_US);
+    manager._window_coordinator.current_selected_date = browsed;
+    manager._window_coordinator.current_selected_signature = "2000-1-20";
     manager._event_index.eventsByDate[123] = {};
     const gridUpdates = emitted(manager, "events-updated").length;
     const agendaUpdates = emitted(manager, "selected-date-events-changed").length;
     proxy.instance.signal("client-disappeared", "uid");
     assert.deepEqual(manager._event_index.eventsByDate, {});
-    assert.ok(manager._force_reload_pending);
-    assert.ok(manager._reload_today_id > 0);
+    assert.ok(manager._reload_selected_id > 0);
     assert.equal(emitted(manager, "events-updated").length, gridUpdates + 1,
         "the grid clears dots even when the replacement fetch is empty");
     assert.equal(emitted(manager, "selected-date-events-changed").length,
         agendaUpdates + 1, "the open agenda sees the same invalidation");
+    fireTimer(manager._reload_selected_id);
+    assert.equal(manager.current_selected_date.to_unix(), browsed.to_unix(),
+        "client disappearance refetches without changing the browsed date");
 });
 
 test("status notifications reload only on real, known transitions", () => {
@@ -1273,6 +1298,8 @@ test("status notifications reload only on real, known transitions", () => {
     proxy.instance.status = 1;
     proxy.instance.signal("notify::status", null);
     assert.equal(emitted(manager, "has-calendars-changed").length, 1);
+    assert.equal(manager._reload_selected_id, 0,
+        "status leaves the reload target to the calendar-aware composition root");
 });
 
 test("fetch_month_events requests the 42-cell window and resets on month change", () => {
@@ -1988,15 +2015,16 @@ test("EventsManager receives its boundary collaborators", () => {
     assert.throws(() => new EventsManager({ showEvents: true }), /requires its connection/);
 });
 
-test("idle reload today consumes the force flag and selects today", () => {
-    const manager = makeManager();
-    const calls = [];
-    manager._reload_today_id = 9;
-    manager._force_reload_pending = true;
-    manager.select_date = (date, force) => calls.push([date instanceof Date, force]);
+test("idle background reload refetches the selected date without navigating", () => {
+    const manager = readyManager();
+    const selected = new FakeDateTime(20 * DAY_US);
+    manager._window_coordinator.current_selected_date = selected;
+    manager._window_coordinator.current_selected_signature = "2000-1-20";
+    manager._reload_selected_id = 9;
 
-    assert.equal(manager._idle_do_reload_today(), false);
-    assert.equal(manager._reload_today_id, 0);
-    assert.equal(manager._force_reload_pending, false);
-    assert.deepEqual(calls, [[true, true]]);
+    assert.equal(manager._idle_do_reload_selected(), false);
+    assert.equal(manager._reload_selected_id, 0);
+    assert.equal(manager.current_selected_date, selected);
+    assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true);
+    assert.equal(emitted(manager, "selected-date-changed").at(-1).args[0], selected);
 });

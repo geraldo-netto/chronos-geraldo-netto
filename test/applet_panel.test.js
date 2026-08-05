@@ -892,6 +892,8 @@ test("event-manager readiness toggles the event list and reselects", () => {
     assert.equal(forced, true);
     Proto._has_calendars_changed.call(stub);
     assert.equal(stub.event_list.actor.visible, true);
+    assert.equal(selected, 2,
+        "status changes force the calendar's selected date back through the manager");
     assert.deepEqual(unavailable, [false, false]);
 });
 
