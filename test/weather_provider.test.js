@@ -474,17 +474,28 @@ test("the retry counter stops at the ceiling instead of counting up forever", ()
 
     // an outage that never clears: fifty more failures do not push the counter
     // past the ceiling, and the delay stays pinned at the refresh period
+    const armedBeforeCeiling = schedules.length;
     for (let attempt = 0; attempt < 50; attempt++) {
-        scheduler.retry(() => {});
+        assert.equal(scheduler.retry(() => {}), false,
+            "a spent budget arms nothing");
     }
     assert.equal(scheduler._retry_attempts, MAX_RETRY_ATTEMPTS,
         "the counter is clamped, not incremented");
     assert.equal(schedules.at(-1), 1800, "the backoff is still capped at the refresh period");
+    // T704: the chain used to run forever beside the periodic timer, so a
+    // persistent outage kept two request streams alive for the whole session
+    assert.equal(schedules.length, armedBeforeCeiling,
+        "past the ceiling the periodic timer is the only schedule left");
 
     // and one success puts it all back
     scheduler.succeeded();
     assert.equal(scheduler._retry_attempts, 0);
     assert.equal(scheduler.retriesExhausted(), false);
+    assert.equal(scheduler.retry(() => {}), true, "a reset budget arms again");
+
+    // weather switched off refuses too, and says so the same way
+    scheduler.stop();
+    assert.equal(scheduler.retry(() => {}), false);
 });
 
 test("the retry is jittered, so every machine does not come back at once", () => {

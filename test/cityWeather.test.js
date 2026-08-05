@@ -1111,3 +1111,61 @@ test("an offline city round dispatches nothing, keeps readings, and arms no retr
     assert.equal(provider.errorFor("Lisboa"), "");
     assert.deepEqual(provider.recordFor("Tokyo"), R("⛅ 19°C"));
 });
+
+// T704: the scheduler saturated its attempt counter but went on arming retries
+// forever, so a persistent outage ran a second request stream beside the
+// periodic timer — while the provider logged, once, that it was "falling back
+// to the normal refresh period". The transition it announced never happened.
+test("a spent retry budget hands the cities back to the periodic timer", () => {
+    const CityWeather = loadCityWeather();
+    const Weather = require(path.join(APPLET_DIR, "weatherFormat.js"));
+    const logged = [];
+    const originalLog = global.log;
+    global.log = (message) => logged.push(String(message));
+
+    const armed = [];
+    // "Atlantis" is absent from the resolver table, so every round fails
+    const provider = new CityWeather.CityWeatherProvider(Object.assign({
+        httpGetJson() {},
+        scheduleTimer(seconds) {
+            armed.push(seconds);
+            return armed.length;
+        },
+        scheduleDebounceTimer: () => 0,
+        removeTimer() {},
+        random: () => 0
+    }, stubResolvers({ Lisboa: "☀ 28°C" })));
+    const settings = { showWeather: true, units: "si", cities: ["Atlantis"] };
+
+    try {
+        // schedule() arms the periodic timer and runs the first, failing round
+        provider.schedule(settings, () => {});
+        const periodicTimers = armed.length;
+
+        // every failure past the ceiling must arm nothing
+        for (let attempt = 0; attempt < Weather.MAX_RETRY_ATTEMPTS + 20; attempt++) {
+            provider._retry(settings, () => {});
+        }
+
+        assert.equal(provider._scheduler.retriesExhausted(), true);
+        assert.equal(armed.length, periodicTimers + Weather.MAX_RETRY_ATTEMPTS,
+            "the budget buys exactly MAX_RETRY_ATTEMPTS retries, then stops");
+
+        const ceilingLines = logged.filter((line) => /falling back to the normal/.test(line));
+        assert.equal(ceilingLines.length, 1,
+            "the transition is announced once, and now it is true when announced");
+
+        // a recovery makes the budget — and the next announcement — live again
+        provider._scheduler.succeeded();
+        provider._retry(settings, () => {});
+        assert.equal(armed.length, periodicTimers + Weather.MAX_RETRY_ATTEMPTS + 1,
+            "a reset budget arms again");
+        for (let attempt = 0; attempt < Weather.MAX_RETRY_ATTEMPTS + 5; attempt++) {
+            provider._retry(settings, () => {});
+        }
+        assert.equal(logged.filter((line) => /falling back to the normal/.test(line)).length, 2,
+            "...and running out a second time is news again");
+    } finally {
+        global.log = originalLog;
+    }
+});

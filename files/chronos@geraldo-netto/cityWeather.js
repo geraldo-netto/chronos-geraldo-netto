@@ -107,6 +107,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         // "always online" is the pre-monitor behavior; the composition root
         // injects the real Gio.NetworkMonitor-backed answer
         this._isOnline = params.isOnline || (() => true);
+        this._retry_ceiling_reported = false;
     }
 
     _getHttpSession() {
@@ -184,12 +185,21 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     // happened to reschedule it — or forever, if the network was down at every
     // tick. The backoff, its ceiling and its jitter are the scheduler's.
     _retry(settings, callback) {
-        const wasSaturated = this._scheduler.retriesExhausted();
-        this._scheduler.retry(() => this.refresh(settings, callback));
+        if (this._scheduler.retry(() => this.refresh(settings, callback))) {
+            // the budget is live again after a recovery, so the next time it
+            // runs out is news again
+            this._retry_ceiling_reported = false;
+            return;
+        }
 
-        // said once, when the backoff reaches its ceiling — not on every retry
-        // for the rest of the session
-        if (!wasSaturated && this._scheduler.retriesExhausted() && global.log) {
+        // The scheduler refused: either weather is off, or the budget is spent
+        // and the periodic timer is the schedule from here. Only the second is
+        // worth a line, and only the first time it happens.
+        if (!this._scheduler.retriesExhausted() || this._retry_ceiling_reported) {
+            return;
+        }
+        this._retry_ceiling_reported = true;
+        if (global.log) {
             global.log("city weather: still failing after " +
                 Weather.MAX_RETRY_ATTEMPTS +
                 " attempts; falling back to the normal refresh period");

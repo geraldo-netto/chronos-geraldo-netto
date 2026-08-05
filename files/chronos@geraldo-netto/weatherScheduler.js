@@ -134,9 +134,17 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
     // A failed refresh used to wait out the full 30-minute period, so 20
     // seconds of no network at login left the panel showing an error for half
     // an hour. Retry sooner, backing off toward the normal period.
+    //
+    // Answers whether a retry was armed. Past the ceiling it arms nothing: the
+    // budget used to saturate while the chain went on forever, so a persistent
+    // outage ran a second request stream alongside the periodic timer for the
+    // rest of the session — and the caller announcing a "falling back to the
+    // normal refresh period" transition described one that never happened.
+    // Spent budget means the periodic timer is the schedule again, until a
+    // success resets it.
     retry(refresh) {
-        if (!this._active) {
-            return;
+        if (!this._active || this.retriesExhausted()) {
+            return false;
         }
 
         if (this._retry_id > 0) {
@@ -160,6 +168,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
             refresh();
             return GLib.SOURCE_REMOVE;
         });
+        return true;
     }
 
     // the backoff has reached its ceiling: the caller can say so once, rather
