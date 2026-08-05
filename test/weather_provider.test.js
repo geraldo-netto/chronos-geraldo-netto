@@ -536,6 +536,33 @@ test("stopping the scheduler drops a debounce that never fired", () => {
     assert.equal(scheduled.length, 1, "the queued refresh never ran");
 });
 
+test("stopped periodic and retry callbacks cannot revive an old schedule", () => {
+    const Weather = loadWeather();
+    const timers = [];
+    const refreshes = [];
+    const scheduler = new Weather.WeatherRefreshScheduler({
+        scheduleTimer(_seconds, callback) {
+            timers.push(callback);
+            return timers.length;
+        },
+        removeTimer() {}
+    });
+
+    scheduler.schedule({ showWeather: true, location: "Rome", units: "si" },
+        () => refreshes.push("refresh"));
+    scheduler.retry(() => refreshes.push("retry"));
+    const [periodic, retry] = timers;
+
+    scheduler.stop();
+    scheduler.schedule({ showWeather: true, location: "Paris", units: "si" },
+        () => refreshes.push("new"));
+
+    assert.equal(periodic(), false);
+    assert.equal(retry(), false);
+    assert.deepEqual(refreshes, ["refresh", "new"],
+        "callbacks from the prior generation stay terminal after reactivation");
+});
+
 test("a geocode answered after a newer refresh or a destroy is dropped", () => {
     const Weather = loadWeather();
     const pending = [];
@@ -1433,6 +1460,42 @@ test("queue debounces weather refreshes before scheduling", () => {
 
     provider.stop();
     assert.deepEqual(removed, [101, 42]);
+});
+
+test("queue applies the weather opt-out immediately and invalidates in-flight work", () => {
+    const Weather = loadWeather();
+    const requests = [];
+    const timers = [];
+    const debounces = [];
+    const reports = [];
+    const provider = new Weather.WeatherProvider({
+        httpGetJson(url, callback) {
+            requests.push({ url, callback });
+        },
+        scheduleTimer(_seconds, callback) {
+            timers.push(callback);
+            return timers.length;
+        },
+        scheduleDebounceTimer(_milliseconds, callback) {
+            debounces.push(callback);
+            return 20;
+        },
+        removeTimer() {}
+    });
+    const active = { showWeather: true, location: "Rome", units: "si" };
+
+    provider.schedule(active, (...args) => reports.push(args));
+    assert.equal(requests.length, 1);
+    assert.equal(timers.length, 1);
+
+    provider.queue({ ...active, showWeather: false }, (...args) => reports.push(args));
+    assert.equal(debounces.length, 0, "the opt-out bypasses the edit debounce");
+    assert.deepEqual(reports.at(-1), [null, "", ""], "the visible state clears synchronously");
+
+    requests[0].callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
+    assert.equal(requests.length, 1, "the stale geocode starts no forecast");
+    assert.equal(timers[0](), false, "the old periodic callback is terminal");
+    assert.deepEqual(reports, [[null, "", "", true], [null, "", ""]]);
 });
 
 test("refresh ignores stale geocode and forecast callbacks", () => {

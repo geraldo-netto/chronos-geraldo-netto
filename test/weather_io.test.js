@@ -162,11 +162,17 @@ test("default GLib timers drive scheduled and queued refresh callbacks", () => {
     assert.equal(provider._scheduler.timerId, 101);
     assert.equal(timeoutSeconds[0].cb(), true);
 
-    provider.queue({ showWeather: false, location: "", units: "si" }, () => {});
+    provider.queue({ showWeather: true, location: "Paris", units: "si" }, () => {});
     assert.equal(provider._scheduler.debounceId, 202);
     assert.equal(timeoutMillis[0].cb(), false);
     assert.ok(refreshes >= 2);
-    assert.deepEqual(removed, [101]);
+
+    const cleared = [];
+    provider.queue({ showWeather: false, location: "", units: "si" },
+        (...args) => cleared.push(args));
+    assert.equal(timeoutMillis.length, 1, "the opt-out does not arm another debounce");
+    assert.deepEqual(cleared, [[null, "", ""]]);
+    assert.deepEqual(removed, [101, 101]);
 });
 
 test("version shim forwards the shared weather provider module", () => {

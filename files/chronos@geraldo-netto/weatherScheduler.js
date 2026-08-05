@@ -52,6 +52,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         this._retry_id = 0;
         this._retry_attempts = 0;
         this._active = false;
+        this._generation = 0;
         this._scheduleTimer = params.scheduleTimer || ((seconds, callback) => {
             return GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, seconds, callback);
         });
@@ -87,6 +88,9 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
     }
 
     stop() {
+        this._active = false;
+        this._generation++;
+
         if (this._debounce_id > 0) {
             this._removeTimer(this._debounce_id);
             this._debounce_id = 0;
@@ -110,6 +114,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         // the first refresh can fail before the periodic timer is armed, so
         // record whether weather is on before running it
         this._active = Boolean(this._isActive(settings));
+        const generation = this._generation;
 
         refresh();
 
@@ -118,6 +123,9 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         }
 
         this._timer_id = this._scheduleTimer(this._refresh_seconds, () => {
+            if (!this._active || generation !== this._generation) {
+                return GLib.SOURCE_REMOVE;
+            }
             refresh();
             return GLib.SOURCE_CONTINUE;
         });
@@ -142,9 +150,13 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
             random: this._random
         });
         this._retry_attempts = Math.min(this._retry_attempts + 1, MAX_RETRY_ATTEMPTS);
+        const generation = this._generation;
 
         this._retry_id = this._scheduleTimer(delay, () => {
             this._retry_id = 0;
+            if (!this._active || generation !== this._generation) {
+                return GLib.SOURCE_REMOVE;
+            }
             refresh();
             return GLib.SOURCE_REMOVE;
         });

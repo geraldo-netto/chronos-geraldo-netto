@@ -246,6 +246,15 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
 
         this._forgetIfLocationChanged(settings.location);
 
+        if (!settings.showWeather) {
+            // Opting out is a state transition, not an edit to debounce. Drop
+            // timers and invalidate the in-flight request before clearing the
+            // presentation so no old callback can restart network work.
+            this.stop();
+            callback(null, "", "");
+            return;
+        }
+
         this._scheduler.queue(settings, (queuedSettings) => this.schedule(queuedSettings, callback));
     }
 
