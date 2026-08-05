@@ -2,7 +2,7 @@ import os
 from unittest import mock
 
 from helpers.settings_widgets_fixture import (
-    APPLET_DIR, WORLDCLOCKS_PATH, BaseWidget, DialogSettings, Entry, FakeSettings,
+    APPLET_DIR, COMMON_PATH, WORLDCLOCKS_PATH, BaseWidget, DialogSettings, Entry, FakeSettings,
     FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model,
     importlib, install_stubs, json, load_module, random, requires_pytz, sys,
     tearDownModule as teardown_fixture, types, unittest,
@@ -917,3 +917,67 @@ class SettingsWidgetsTest(unittest.TestCase):
             sys.path = saved_path
             for name in set(sys.modules) - set(saved_modules):
                 del sys.modules[name]
+
+
+class CompletionInputBoundsTest(unittest.TestCase):
+    """T734: the timezone entry was unbounded and the needle was folded per row."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_bounds_test")
+        cls.common = load_module(COMMON_PATH, "settings_widgets_bounds_common_test")
+
+    def test_the_timezone_entry_is_bounded_like_the_label_column(self):
+        # The label column has always carried a max_length and this one did not,
+        # so ListEditEntry's `if max_length` guard skipped set_max_length and the
+        # entry accepted arbitrary text — which the match func then scanned once
+        # per row of the several-hundred-row model, per keystroke, on the GTK
+        # main thread. No IANA identifier exceeds a few dozen characters.
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        lengths = {}
+
+        def script(dialog):
+            for widget in BaseWidget.instances:
+                lengths[widget.kwargs["label"]] = widget.bind_object.max_length
+            return 0  # ResponseType.CANCEL
+
+        GtkDialog.on_run = script
+        clocks.open_add_edit_dialog()
+
+        self.assertEqual(lengths["Timezone"], self.common.MAX_COMPLETION_INPUT_LENGTH)
+        self.assertEqual(lengths["Display name"], self.module.MAX_CLOCK_INPUT_LABEL_LENGTH)
+        # comfortably clear of the longest real identifier
+        self.assertGreater(
+            self.common.MAX_COMPLETION_INPUT_LENGTH,
+            len("America/Argentina/ComodRivadavia"))
+
+    def test_the_needle_is_folded_once_per_keystroke_not_once_per_row(self):
+        # Both matchers' docstrings claimed "the needle is folded once by the
+        # caller" while calling completion_key() per row — three fresh copies of
+        # the whole key for each of ~600 rows, on every character typed.
+        folds = []
+        original = self.common.completion_key
+
+        def counting_fold(text):
+            folds.append(text)
+            return original(text)
+
+        with mock.patch.object(self.common, "completion_key", counting_fold):
+            self.common._LAST_COMPLETION_KEY = (None, "")
+            model = [["Rome", "Europe/Rome", "rome europe/rome"]] * 600
+            for row in range(len(model)):
+                self.common.plain_completion_match(None, "rom", row, model)
+
+            self.assertEqual(folds, ["rom"], "600 rows, one fold")
+
+            # a new keystroke folds again
+            self.common.plain_completion_match(None, "rome", 0, model)
+            self.assertEqual(folds, ["rom", "rome"])
+
+        # and the result is unchanged either way
+        self.common._LAST_COMPLETION_KEY = (None, "")
+        model = [["Rome", "Europe/Rome", "rome europe/rome"]]
+        self.assertTrue(self.common.plain_completion_match(None, "ROM", 0, model))
+        self.assertFalse(self.common.plain_completion_match(None, "oslo", 0, model))
+        self.assertFalse(self.common.plain_completion_match(None, "   ", 0, model))
+        self.assertFalse(self.common.plain_completion_match(None, None, 0, model))

@@ -74,6 +74,10 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
 
         self.entry = self.content_widget.get_child()
         self.entry.set_placeholder_text(COUNTRY_HINT)
+        # the longest country offered is 24 characters; without a bound the
+        # entry took arbitrary text and the match func scanned it once per row
+        # of the model on every keystroke, on the GTK main thread
+        self.entry.set_max_length(common.MAX_COMPLETION_INPUT_LENGTH)
         self.completion = self.attach_completion()
 
         self.pack_start(self.label, False, False, 0)

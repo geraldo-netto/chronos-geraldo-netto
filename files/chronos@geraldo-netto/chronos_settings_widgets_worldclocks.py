@@ -110,7 +110,7 @@ def timezone_completion_match(completion, key, tree_iter, model) -> bool:
     Substring, not prefix: people type the city, and the city sits at the end of
     the identifier (America/Argentina/Buenos_Aires).
     """
-    needle = completion_key(key)
+    needle = common.folded_completion_key(key)
     if not needle:
         return False
 
@@ -488,6 +488,12 @@ class ClockDialogBuilder:
         timezone_column = dict(schema_columns[1])
         timezone_column["completions"] = self.clocks_list.completions
         timezone_column["placeholder"] = TIMEZONE_TEXT_HINT
+        # the label column has always been bounded and this one was not, so
+        # ListEditEntry's `if max_length` guard skipped set_max_length and the
+        # entry accepted arbitrary text — which the match func then scanned once
+        # per row of the several-hundred-row completion model, per keystroke,
+        # on the GTK main thread
+        timezone_column["max_length"] = common.MAX_COMPLETION_INPUT_LENGTH
 
         columns = [label_column, timezone_column]
 
