@@ -87,6 +87,50 @@ test("transient failures keep reporting the last good reading", () => {
     assert.equal(reports[2].reading, null);
 });
 
+test("panel weather counts suspend time before a failed wake refresh", () => {
+    const Weather = loadWeather();
+    const reading = { condition: "☀", temperatureC: 20 };
+    const reports = [];
+    let civilNow = 1_000_000;
+    const elapsedNow = 2_000_000;
+    let fail = false;
+    let forecasts = 0;
+    const provider = new Weather.WeatherProvider({
+        elapsedNow: () => elapsedNow,
+        freshnessNow: () => civilNow,
+        cacheSeconds: Weather.REFRESH_SECONDS,
+        scheduleTimer: () => 1,
+        removeTimer() {},
+        locationResolver: {
+            resolve(_location, _isCurrent, callback) {
+                callback({ latitude: 1, longitude: 2 }, "");
+            },
+            forget() {}
+        },
+        forecastResolver: {
+            refresh(_place, _isCurrent, callback) {
+                forecasts++;
+                callback(fail ? null : reading,
+                    fail ? Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE : "",
+                    fail ? "" : Weather.WEATHER_PROVIDER_NAMES.OPEN_METEO);
+            }
+        }
+    });
+    const settings = { showWeather: true, location: "Rome", units: "si" };
+
+    provider.schedule(settings, (...args) => reports.push(args));
+    fail = true;
+    civilNow += (Weather.staleAfterSeconds(Weather.REFRESH_SECONDS) + 1) * 1000;
+    provider.schedule(settings, (...args) => reports.push(args));
+
+    assert.equal(forecasts, 2,
+        "a suspend-aged repository entry cannot satisfy the wake refresh");
+    assert.equal(reports.at(-1)[0], null,
+        "a failed wake refresh cannot revive the pre-suspend reading");
+    assert.equal(reports.at(-1)[1], Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE);
+    assert.equal(elapsedNow, 2_000_000, "request-pacing time did not advance during sleep");
+});
+
 test("weather display state owns stale reading reporting", () => {
     const Weather = loadWeather();
     const state = new Weather.WeatherDisplayState();
@@ -872,7 +916,7 @@ test("shared reading repository coalesces one remote read per refresh period", (
     const reports = [];
     let now = 10000;
     const repository = new Weather.WeatherReadingRepository({
-        elapsedNow: () => now,
+        freshnessNow: () => now,
         cacheSeconds: Weather.REFRESH_SECONDS,
         httpGetJson(url, callback) {
             requests.push(url);
@@ -936,7 +980,7 @@ test("shared reading cache expires entries and evicts the least recently used", 
         forget() {}
     };
     const repository = new Weather.WeatherReadingRepository({
-        elapsedNow: () => now,
+        freshnessNow: () => now,
         cacheSeconds: 10,
         maxCacheEntries: 3,
         locationResolver,

@@ -76,8 +76,8 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._readings = new Map();
         this._errors = new Map();
         this._applied_signature = null;
-        this._elapsed_now = params.elapsedNow || params.now ||
-            ElapsedTime.monotonicMilliseconds;
+        this._freshness_now = params.freshnessNow || params.now ||
+            ElapsedTime.civilMilliseconds;
         this._refresh_seconds = params.refreshSeconds || CITY_REFRESH_SECONDS;
         // derived from the period this provider actually refreshes on, not from
         // the module default: staleFor() used to read the constant and ignore
@@ -152,14 +152,14 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     // ...but a reading nobody has managed to refresh for two whole periods is
     // not the weather any more, and saying so is the difference between a
     // temperature and a temperature from this morning
-    staleFor(city, now = this._elapsed_now()) {
+    staleFor(city, now = this._freshness_now()) {
         const reading = this._readingFor(city);
         if (!reading) {
             return false;
         }
 
         return Weather.readingIsStale(
-            reading.elapsedAt, now, this._stale_after_seconds);
+            reading.freshAt, now, this._stale_after_seconds);
     }
 
     _readingFor(city) {
@@ -433,7 +433,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             {
                 record: reading,
                 provider: provider || "",
-                elapsedAt: this._elapsed_now()
+                freshAt: this._freshness_now()
             });
         // the panel is repainted once, when the round finishes
         round.changed = true;

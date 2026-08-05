@@ -615,7 +615,7 @@ test("a city that fails to read is retried, and says so once it is old", () => {
     let clock = 1000000;
     const provider = new CityWeather.CityWeatherProvider({
         httpGetJson() {},
-        elapsedNow: () => clock,
+        freshnessNow: () => clock,
         // the jitter has its own test; this one is about the backoff under it
         random: () => 0,
         scheduleTimer: (seconds, callback) => {
@@ -665,6 +665,49 @@ test("a city that fails to read is retried, and says so once it is old", () => {
     assert.deepEqual(provider.recordFor("Rome"), R("🌧 12°C"));
     assert.equal(provider.staleFor("Rome"), false);
     assert.equal(timers.length, 3, "and no further retry is queued");
+});
+
+test("city weather counts suspend time before a failed wake refresh", () => {
+    const CityWeather = loadCityWeather();
+    const Weather = require(weatherPath);
+    let civilNow = 1_000_000;
+    const elapsedNow = 2_000_000;
+    let fail = false;
+    let forecasts = 0;
+    const provider = new CityWeather.CityWeatherProvider({
+        elapsedNow: () => elapsedNow,
+        freshnessNow: () => civilNow,
+        cacheSeconds: CityWeather.CITY_REFRESH_SECONDS,
+        scheduleTimer: () => 1,
+        removeTimer() {},
+        locationResolver: {
+            resolve(_city, _isCurrent, callback) {
+                callback({ latitude: 1, longitude: 2 }, "");
+            },
+            forget() {}
+        },
+        forecastResolver: {
+            refresh(_place, _isCurrent, callback) {
+                forecasts++;
+                callback(fail ? null : R("☀ 20°C"),
+                    fail ? Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE : "",
+                    fail ? "" : "Open-Meteo");
+            }
+        }
+    });
+    const settings = { showWeather: true, units: "si", cities: ["Rome"] };
+
+    provider.schedule(settings, () => {});
+    fail = true;
+    civilNow += (Weather.staleAfterSeconds(CityWeather.CITY_REFRESH_SECONDS) + 1) * 1000;
+    provider.schedule(settings, () => {}, true);
+
+    assert.equal(forecasts, 2,
+        "the forced wake round cannot reuse a suspend-aged repository entry");
+    assert.equal(provider.staleFor("Rome"), true,
+        "the retained pre-suspend city reading is visibly stale after failure");
+    assert.equal(provider.errorFor("Rome"), Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE);
+    assert.equal(elapsedNow, 2_000_000, "request-pacing time did not advance during sleep");
 });
 
 test("a city weather outage that never clears is logged, not just retried", () => {
@@ -880,7 +923,7 @@ test("staleness follows the refresh period the provider was given", () => {
     const provider = new CityWeather.CityWeatherProvider(Object.assign({
         httpGetJson() {},
         refreshSeconds: 60,
-        elapsedNow: () => now
+        freshnessNow: () => now
     }, stubResolvers({ Lisbon: "☀ 20°C" }, calls)));
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => {});
@@ -903,7 +946,7 @@ test("staleness at the default period is still two refresh periods", () => {
     const calls = {};
     const provider = new CityWeather.CityWeatherProvider(Object.assign({
         httpGetJson() {},
-        elapsedNow: () => now
+        freshnessNow: () => now
     }, stubResolvers({ Lisbon: "☀ 20°C" }, calls)));
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => {});

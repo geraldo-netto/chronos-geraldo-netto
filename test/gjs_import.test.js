@@ -85,6 +85,7 @@ function gjsImportsMock() {
                             MAX_CLOCKS: 8
                         },
                         elapsedTime: {
+                            civilMilliseconds() { return 1000; },
                             monotonicMilliseconds() { return 2500; },
                             monotonicSeconds() { return 2.5; }
                         },
@@ -290,7 +291,7 @@ const EXPORTS = {
         "validCoordinates", "validDayBounds", "sunAltitude", "moonAltitude",
         "calculateAstronomyEvents"],
     clockLimits: ["MAX_CLOCKS"],
-    elapsedTime: ["monotonicMilliseconds", "monotonicSeconds"],
+    elapsedTime: ["civilMilliseconds", "monotonicMilliseconds", "monotonicSeconds"],
     dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
@@ -377,8 +378,12 @@ for (const [moduleName, symbols] of Object.entries(EXPORTS)) {
     });
 }
 
-test("elapsed time exposes one monotonic clock in milliseconds and seconds", () => {
+test("elapsed time exposes civil freshness and monotonic pacing clocks", () => {
     const context = nativeImport("elapsedTime");
+    const before = Date.now();
+    const civil = context.civilMilliseconds();
+    const after = Date.now();
+    assert.ok(civil >= before && civil <= after);
     assert.equal(context.monotonicMilliseconds(), 2500);
     assert.equal(context.monotonicSeconds(), 2.5);
 });

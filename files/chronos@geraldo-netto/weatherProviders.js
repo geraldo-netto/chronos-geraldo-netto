@@ -399,8 +399,8 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
 var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
         this._destroyed = false;
-        this._elapsed_now = params.elapsedNow || params.now ||
-            ElapsedTime.monotonicMilliseconds;
+        this._freshness_now = params.freshnessNow || params.now ||
+            ElapsedTime.civilMilliseconds;
         this._cache_milliseconds = Math.max(0, Number(params.cacheSeconds) || 0) * 1000;
         this._cache = params.readingCache || new Map();
         const requestedMax = Number(params.maxCacheEntries);
@@ -451,7 +451,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             this._cache.delete(key);
             return null;
         }
-        const age = this._elapsed_now() - cached.startedAtElapsed;
+        const age = this._freshness_now() - cached.startedAtFresh;
         if (!Number.isFinite(age) || age < 0 || age >= this._cache_milliseconds) {
             this._cache.delete(key);
             return null;
@@ -463,7 +463,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         return cached;
     }
 
-    _rememberReading(key, reading, provider, startedAtElapsed, place) {
+    _rememberReading(key, reading, provider, startedAtFresh, place) {
         this._cache.delete(key);
         while (this._cache.size >= this._max_cache_entries) {
             const oldest = this._cache.keys().next();
@@ -472,7 +472,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             }
             this._cache.delete(oldest.value);
         }
-        this._cache.set(key, { reading, provider, startedAtElapsed, place });
+        this._cache.set(key, { reading, provider, startedAtFresh, place });
     }
 
     refresh(location, isCurrent, callback) {
@@ -501,7 +501,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         }
 
         const request = {
-            startedAtElapsed: this._elapsed_now(),
+            startedAtFresh: this._freshness_now(),
             subscribers: [subscriber],
             place: null
         };
@@ -552,7 +552,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         this._inflight.delete(key);
         if (reading && !error && this._cache_milliseconds > 0) {
             this._rememberReading(
-                key, reading, provider, request.startedAtElapsed, request.place);
+                key, reading, provider, request.startedAtFresh, request.place);
         }
 
         for (const subscriber of request.subscribers) {

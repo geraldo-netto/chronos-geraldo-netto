@@ -62,9 +62,9 @@ class WeatherDisplayState {
         this._last_good_reading = null; // NOSONAR [S7757] -- accepted compatible form
         this._last_good_provider = "";
         this._last_good_key = "";
-        this._last_good_elapsed_at = 0;
-        this._elapsed_now = params.elapsedNow || params.now ||
-            ElapsedTime.monotonicMilliseconds;
+        this._last_good_fresh_at = 0;
+        this._freshness_now = params.freshnessNow || params.now ||
+            ElapsedTime.civilMilliseconds;
         // Two refresh periods with nothing getting through means nobody is
         // refreshing this successfully any more, and what is on the panel is
         // not the weather. The rule, and the derivation from the refresh period,
@@ -96,18 +96,18 @@ class WeatherDisplayState {
         this._last_good_reading = null;
         this._last_good_provider = "";
         this._last_good_key = "";
-        this._last_good_elapsed_at = 0;
+        this._last_good_fresh_at = 0;
     }
 
     // a reading nobody has managed to refresh for two periods is no longer a
     // reading, and showing it is worse than showing nothing
-    isStale(now = this._elapsed_now()) {
+    isStale(now = this._freshness_now()) {
         if (!this._last_good_reading) {
             return false;
         }
 
         return WeatherFormat.readingIsStale(
-            this._last_good_elapsed_at, now, this._stale_after_seconds);
+            this._last_good_fresh_at, now, this._stale_after_seconds);
     }
 
     // The forecast resolver reports the unit-free reading record, and nothing
@@ -119,7 +119,7 @@ class WeatherDisplayState {
                 this._last_good_reading = reading;
                 this._last_good_provider = provider;
                 this._last_good_key = staleKey;
-                this._last_good_elapsed_at = this._elapsed_now();
+                this._last_good_fresh_at = this._freshness_now();
             } else if (error && this._last_good_reading && this._last_good_key === staleKey &&
                 !this.isStale()) {
                 callback(this._last_good_reading, error, this._last_good_provider);
