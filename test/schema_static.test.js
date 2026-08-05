@@ -500,16 +500,19 @@ test("CI runs the gates the README promises", () => {
         "every downloaded file must still match the gated tree");
     assert.match(releaseJob, /test -f chronos@geraldo-netto\/files\//,
         "the downloaded artifact must have the expected package root");
-    for (const executable of [
-        "5.4/settings_widgets.py",
-        "chronos_settings_widgets_common.py",
-        "po/makepot"
-    ]) {
-        assert.match(releaseJob,
-            new RegExp(`stat -c '%a' chronos@geraldo-netto/files/chronos@geraldo-netto/${executable
-                .replaceAll(".", "\\.")}\\)" = 755`),
-            `${executable} must retain its tracked executable mode`);
-    }
+    // The modes were asserted from a hand-listed trio while the index tracks
+    // more than that, and `sha256sum -c` cannot cover the gap: a digest carries
+    // no mode bits. Drive the assertion from the index so a newly tracked
+    // executable is verified without anyone remembering to add a line.
+    assert.match(releaseJob,
+        /git -C "\$GITHUB_WORKSPACE" ls-files --stage -- README\.md files info\.json screenshot\.png/,
+        "the executable set is read from the index, not hand-listed");
+    assert.match(releaseJob, /\$1 ~ \/\^100755 \//,
+        "only the tracked 0755 entries are asserted");
+    assert.match(releaseJob, /test -s tracked-executables/,
+        "an empty list must fail rather than vacuously pass");
+    assert.match(releaseJob, /test "\$mode" = 755/,
+        "every listed entry must still be executable after the round trip");
     assert.match(workflow, /release:check -- "\$GITHUB_REF_NAME"/,
         "the tag must match every version owner");
     // pyflakes is what lint:py runs, and lint:py now fails when it is missing:

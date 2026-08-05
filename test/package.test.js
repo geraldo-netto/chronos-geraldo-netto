@@ -32,7 +32,7 @@ test("the packaging command stages only the Cinnamon Spices applet tree", async 
     await fs.writeFile(junk, "ignored bytecode");
     t.after(() => fs.rm(junk, { force: true }));
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "package-spices.mjs")).href;
-    const { buildSpicesPackage } = await import(scriptUrl);
+    const { buildSpicesPackage, listTrackedSpicesFiles } = await import(scriptUrl);
 
     await assert.rejects(
         buildSpicesPackage({ sourceRoot: ROOT, outputRoot: ROOT }),
@@ -61,11 +61,13 @@ test("the packaging command stages only the Cinnamon Spices applet tree", async 
         .sort();
     assert.deepEqual(actualFiles, expectedFiles,
         "the package is exactly the tracked Spices manifest");
-    for (const executable of [
-        "files/chronos@geraldo-netto/5.4/settings_widgets.py",
-        "files/chronos@geraldo-netto/chronos_settings_widgets_common.py",
-        "files/chronos@geraldo-netto/po/makepot"
-    ]) {
+    // Derived from the index rather than hand-listed: a subset drifted to half
+    // the tracked 0755 entries once already, and the release job's mode check
+    // was written from the same stale trio.
+    const tracked = await listTrackedSpicesFiles(ROOT);
+    const executables = tracked.filter(({ mode }) => mode === 0o755).map(({ relative }) => relative);
+    assert.ok(executables.length >= 3, "the tracked executable set is not empty");
+    for (const executable of executables) {
         const mode = (await fs.stat(path.join(output, ...executable.split("/")))).mode & 0o777;
         assert.equal(mode, 0o755, `${executable} keeps its executable index mode`);
     }
