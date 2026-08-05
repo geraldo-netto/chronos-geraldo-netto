@@ -1411,6 +1411,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
             calls.push(["holiday-for-date", date]);
             return date === "gdate" ? ["Republic Day", ["public_holiday"]] : null;
         }
+        getSelectedDate() { return null; }
         refreshHolidays() {}
     };
     EventView52.EventList = class {

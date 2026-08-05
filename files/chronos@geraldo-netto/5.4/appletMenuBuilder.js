@@ -155,6 +155,10 @@ class AppletMenuBuilder {
 
         box.add_actor(calbox);
 
+        // the heading has no writer until a selection changes, so seed it from
+        // the calendar's own selection rather than leaving it blank until one does
+        this._selectDateInColumn(calendar.getSelectedDate());
+
         const worldclocks = new Worldclocks.Worldclocks(calbox);
         const astronomy = new AstronomyView.AstronomyView(calbox);
         this._addSettingsMenuItems(issueReporter.label);
@@ -375,7 +379,10 @@ class AppletMenuBuilder {
         // this id used to be discarded — the one connect in the applet with no
         // owner, in the file whose comment above says why that is not acceptable
         this._calendar_signal_ids.push(
-            calendar.connect("selected-date-changed", () => context.onSelectedDateChanged()));
+            calendar.connect("selected-date-changed", (unused, date) => {
+                this._selectDateInColumn(date);
+                context.onSelectedDateChanged();
+            }));
         this._calendar_signal_ids.push(
             calendar.connect("holidays-changed", () => this._renderAgenda()));
 
@@ -383,6 +390,32 @@ class AppletMenuBuilder {
         calbox.add_actor(calendar.actor);
         this._renderAgenda();
         return calendar;
+    }
+
+    // The column's date heading and its holiday row used to come only from the
+    // events manager's "selected-date-changed", and `EventWindowCoordinator`
+    // returns before emitting anything when `isActive()` is false. With "Show
+    // events" on and evolution-data-server absent — or present with every
+    // calendar disabled — that signal never fires for the life of the session,
+    // while the column stays on screen: the heading was built with no text and
+    // had no other writer, so it rendered permanently blank, and
+    // `_selectedEventDate` stayed pinned to the applet's start date, so clicking
+    // through the grid moved the dots while the column kept announcing the
+    // holiday of the day the applet was added.
+    //
+    // The calendar's own signal fires regardless of event availability, and it
+    // fires first, so the events-manager handler still owns the rendering
+    // whenever it is going to run at all — this only fills the gap it leaves.
+    _selectDateInColumn(date) {
+        if (!this._eventList || !date) {
+            return;
+        }
+
+        this._eventList.set_date(date);
+        this._selectedEventDate = date;
+        if (!this.context.eventsManager.is_active()) {
+            this._renderAgenda();
+        }
     }
 
     _renderAgenda() {

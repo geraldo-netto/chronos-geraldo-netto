@@ -1448,6 +1448,7 @@ test("the menu builder disconnects the calendar signal too", () => {
         }
         disconnect(id) { disconnected.push(id); }
         holidayForDate() { return null; }
+        getSelectedDate() { return null; }
     };
 
     try {
@@ -1525,4 +1526,72 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
     presenter.updateClockAndDate();
     assert.equal(written.length, 2, "a changed clock still lands");
     assert.match(written[1], /22:04/);
+});
+
+// T721: `EventWindowCoordinator.selectDate()` returns before any emission when
+// `isActive()` is false, and the events manager's "selected-date-changed" was
+// the only writer of the column's date heading and of `_selectedEventDate`.
+// With "Show events" on and evolution-data-server absent — or present with
+// every calendar disabled — that signal never fires for the life of the
+// session, while the column stays on screen. So the heading rendered
+// permanently blank, and the holiday row stayed pinned to the applet's start
+// date while clicking through the grid moved the dots and the cell highlight.
+test("the event column follows the grid even with no calendar service", () => {
+    const holidays = { "2026-03-17": ["St Patrick's Day", ["public_holiday"]] };
+    // local components, not toISOString(): the grid selects local days, and a
+    // UTC key is off by one for most of the world
+    const key = (date) => `${date.getFullYear()}-` +
+        `${String(date.getMonth() + 1).padStart(2, "0")}-` +
+        `${String(date.getDate()).padStart(2, "0")}`;
+    const eventsManager = {
+        connect: () => 1,
+        disconnect() {},
+        // evolution-data-server is absent: nothing is ever emitted
+        is_active: () => false
+    };
+    const builder = new AppletModule.AppletMenuBuilder({
+        menu: { addActor() {}, addMenuItem() {}, toggle() {} },
+        contextMenu: { addMenuItem() {} },
+        desktopSettings: { use24h: true },
+        calendarSettings: {},
+        eventsManager,
+        holidayProvider: null,
+        onSelectedDateChanged() {},
+        onGoHome() {},
+        onLaunchSettings() {}
+    });
+
+    const dates = [];
+    const agendas = [];
+    builder._eventList = {
+        set_date: (date) => dates.push(key(date)),
+        set_events: (agenda) => agendas.push(agenda)
+    };
+    builder._calendar = {
+        holidayForDate: (date) => holidays[key(date)] || null
+    };
+
+    builder._selectDateInColumn(new Date(2026, 2, 16));
+    builder._selectDateInColumn(new Date(2026, 2, 17));
+
+    assert.deepEqual(dates, ["2026-03-16", "2026-03-17"],
+        "the heading tracks the day the user clicked");
+    assert.equal(agendas.length, 2, "and the column is redrawn for it");
+    // no events and no holiday composes to nothing at all
+    assert.equal(agendas[0], null);
+    assert.equal(agendas[1].hasHolidays, true,
+        "the holiday row is the selected day's, not the start date's");
+    assert.deepEqual(agendas[1].get_event_list().map((row) => row.summary || row),
+        ["St Patrick's Day"]);
+
+    // with a live service the events manager still owns the render, so the
+    // column is not drawn twice for one click
+    eventsManager.is_active = () => true;
+    builder._selectDateInColumn(new Date(2026, 2, 18));
+    assert.deepEqual(dates.at(-1), "2026-03-18", "the heading is still updated");
+    assert.equal(agendas.length, 2, "but the redraw is left to the events manager");
+
+    // and nothing is attempted before the column exists
+    builder._eventList = null;
+    assert.doesNotThrow(() => builder._selectDateInColumn(new Date(2026, 2, 19)));
 });
