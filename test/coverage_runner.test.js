@@ -74,14 +74,19 @@ test("the coverage runner discovers and executes nested JavaScript tests", (t) =
     assert.equal(fs.readFileSync(marker, "utf8"), "yes");
 });
 
-test("the shipped manifest makes an unloaded nested module fail coverage", async (t) => {
+function appletSourceTree(t) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "chronos-coverage-sources-"));
     t.after(() => fs.rmSync(root, { recursive: true, force: true }));
     const nested = path.join(root, "files", "chronos@geraldo-netto", "6.0");
     fs.mkdirSync(nested, { recursive: true });
+    fs.writeFileSync(path.join(root, "development-only.js"), "module.exports = 2;\n");
+    return { root, nested };
+}
+
+test("the shipped manifest makes an unloaded nested module fail coverage", async (t) => {
+    const { root, nested } = appletSourceTree(t);
     const unloaded = path.join(nested, "unloaded.js");
     fs.writeFileSync(unloaded, "module.exports = 1;\n");
-    fs.writeFileSync(path.join(root, "development-only.js"), "module.exports = 2;\n");
     assert.equal(spawnSync("git", ["init", "--quiet", root]).status, 0);
     assert.equal(spawnSync("git", ["-C", root, "add", "."]).status, 0);
 
@@ -90,4 +95,23 @@ test("the shipped manifest makes an unloaded nested module fail coverage", async
     const failures = missingCoverageFailures({ files: [] }, files);
     assert.equal(failures.length, 1);
     assert.match(failures[0], /6\.0[/\\]unloaded\.js: no test loads it/);
+});
+
+// The list came from `git ls-files --stage`, so a module written but not yet
+// staged escaped the gate entirely: not instrumented, and not reported as
+// unmeasured either.
+test("an unstaged new applet module is still held to the coverage gate", async (t) => {
+    const { root, nested } = appletSourceTree(t);
+    const staged = path.join(nested, "staged.js");
+    fs.writeFileSync(staged, "module.exports = 1;\n");
+    assert.equal(spawnSync("git", ["init", "--quiet", root]).status, 0);
+    assert.equal(spawnSync("git", ["-C", root, "add", "."]).status, 0);
+    const unstaged = path.join(nested, "brand-new.js");
+    fs.writeFileSync(unstaged, "module.exports = 3;\n");
+
+    const files = await shippedJavaScriptFiles(root);
+    assert.deepEqual(files, [unstaged, staged]);
+    const failures = missingCoverageFailures({ files: [] }, files);
+    assert.equal(failures.length, 2);
+    assert.match(failures.join("\n"), /brand-new\.js: no test loads it/);
 });

@@ -46,15 +46,18 @@ function discoverJavaScriptTests(root = path.join(APPLET_DIR, "test")) {
     return recursiveFiles(root, (name) => name.endsWith(".test.js"));
 }
 
+// The list used to come from `git ls-files --stage`, so a newly written module
+// that had not been `git add`ed yet was neither instrumented nor reported as
+// unmeasured: the gate printed "every file meets 98/90/100" over a file sitting
+// at 0 %. The packager still reads the index — that is the right source for
+// what ships — but the gate has to hold whatever is on disk, which is also what
+// the Python half already does.
 async function shippedJavaScriptFiles(sourceRoot = APPLET_DIR) {
     const packagerUrl = pathToFileURL(
         path.join(APPLET_DIR, "scripts", "package-spices.mjs")).href;
-    const { listTrackedSpicesFiles, UUID } = await import(packagerUrl);
-    const prefix = `files/${UUID}/`;
-    return (await listTrackedSpicesFiles(sourceRoot))
-        .map(({ relative }) => relative)
-        .filter((relative) => relative.startsWith(prefix) && relative.endsWith(".js"))
-        .map((relative) => path.join(sourceRoot, ...relative.split("/")));
+    const { UUID } = await import(packagerUrl);
+    return recursiveFiles(path.join(sourceRoot, "files", UUID),
+        (name) => name.endsWith(".js"));
 }
 
 async function coverageSourceFiles(sourceRoot = APPLET_DIR) {
