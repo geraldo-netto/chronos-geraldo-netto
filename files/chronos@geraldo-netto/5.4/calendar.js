@@ -897,7 +897,12 @@ class Calendar {
     _buildHeader() {
         let offsetCols = this.show_week_numbers ? 1 : 0;
         this.actor.destroy_all_children();
-        // the day-cell actors died with the table children
+        // The day-cell actors died with the table children. An annotation pass
+        // still in flight captured those cells, and its generation guard only
+        // watches for a *newer pass* — destroy() already strands in-flight
+        // passes this way; a rebuild kills the same actors and must too, or the
+        // async holiday answer writes tooltips onto disposed buttons.
+        this._holiday_update_generation++;
         this._gridView.reset();
 
         // Top line of the calendar '<| September |> <| 2009 |>'

@@ -2489,6 +2489,43 @@ test("holiday reconciliation waits for every displayed month", () => {
     assert.equal(day15.holiday_name, "Replacement observance");
 });
 
+// T707: at session start the LC_TIME locale answer rebuilds the header while the
+// holiday cache read is still in flight. The rebuild destroys all 42 day-cell
+// actors, but the pass guard only watched for a *newer pass*, so the async
+// answer annotated disposed buttons — eleven Gjs-CRITICALs per login.
+test("a header rebuild strands the annotation pass that captured the old cells", () => {
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const cal = makeCalendar({ holiday });
+    cal.setDate(new Date(2026, 6, 9), true);
+
+    const oldDay15 = cal._gridView.dayCells.find((cell) => cell.button.label === "15");
+    const pending = new Map();
+    holiday.getHolidays = (y, m, callback) => pending.set(`${y}/${m}`, callback);
+    cal._update();
+
+    // the locale answer lands: header rebuilt, every old day cell destroyed
+    cal._buildHeader();
+
+    // ...then the holiday answer for the stranded pass arrives
+    for (const callback of pending.values()) {
+        callback(new Map([
+            ["7/15", ["Replacement observance", ["religious_holiday"]]]
+        ]), "", "stub-provider");
+    }
+
+    assert.equal(oldDay15.holiday_name || "", "",
+        "a stranded pass must not annotate cells that died with the rebuild");
+    assert.equal(cal.holidayForDate(new Date(2026, 6, 15)), null,
+        "nor publish dates the visible grid does not carry");
+
+    // the next update owns fresh cells and annotates them normally
+    const restored = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    holiday.getHolidays = restored.getHolidays.bind(restored);
+    cal._update();
+    const newDay14 = cal._gridView.dayCells.find((cell) => cell.button.label === "14");
+    assert.equal(newDay14.holiday_name, "Bastille Day");
+});
+
 // All 42 day cells were can_focus, so the grid was 42 tab stops. From the cell the
 // menu focuses on open, a keyboard user pressed Tab up to 42 times to reach the
 // world clocks or "Date and Time Settings" — and there was no way out of the grid
