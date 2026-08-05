@@ -60,6 +60,11 @@ const FIRST_WEEKDAY_KEY = SettingsFacade.FIRST_DAY_OF_WEEK_KEY;
 // same applet, two different orders.
 const ACCESSIBLE_DATE_FORMAT = DateFormats.DATE_FORMAT_FULL;
 const ACCESSIBLE_DATE_FORMAT_FALLBACK = DateFormats.DATE_FORMAT_FULL_FALLBACK;
+// Geometry remains the primary limit, but a broken or unusually permissive
+// theme must not turn one dense day into an arbitrary number of actors.
+const MAX_EVENT_DOTS_PER_CELL = 64;
+const EVENT_DOT_OVERFLOW_NOTICE =
+    _("Some calendar events were hidden to keep the desktop responsive.");
 
 const _lcAbday = LocaleQuery.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
 const _lcFirstWorkday = LocaleQuery.lazyLocaleValue(
@@ -213,7 +218,11 @@ class CalendarGridHost {
     }
 
     allocateDotBox(actor, box, flags) {
-        this.port.allocateDotBox(actor, box, flags);
+        return this.port.allocateDotBox(actor, box, flags);
+    }
+
+    dotCapacityChanged() {
+        this.port.dotCapacityChanged();
     }
 
     // the cell renderer draws the dots and the annotator renames the cell it
@@ -334,6 +343,9 @@ class CalendarDayCellRenderer {
         if (cell.event_count > 0) {
             parts.push(ngettext("%d event", "%d events", cell.event_count).format(cell.event_count));
         }
+        if (cell.event_dots_overflowed) {
+            parts.push(EVENT_DOT_OVERFLOW_NOTICE);
+        }
         if (cell.holiday_name) {
             parts.push(cell.holiday_name.split("\n").join(", ")); // NOSONAR [S7781] -- accepted compatible form
         }
@@ -353,6 +365,11 @@ class CalendarDayCellRenderer {
             selected: false,
             rendered_style: "",
             dot_key: "",
+            // The first allocation replaces this hard safety ceiling with the
+            // cell's exact themed capacity. Until then, startup stays bounded
+            // without deliberately under-rendering ordinary event days.
+            dot_capacity: MAX_EVENT_DOTS_PER_CELL,
+            event_dots_overflowed: false,
             holiday_styled: false,
             holiday_tooltip_set: false,
             // what the cell's tooltip currently says, so identical text is not
@@ -377,8 +394,14 @@ class CalendarDayCellRenderer {
 
         cell.group.add_actor(cell.button);
 
-        cell.dot_box.connect('allocate',
-            (actor, box, flags) => this.host.allocateDotBox(actor, box, flags));
+        cell.dot_box.connect('allocate', (actor, box, flags) => {
+            const capacity = this.host.allocateDotBox(actor, box, flags);
+            if (Number.isSafeInteger(capacity) && capacity >= 1 &&
+                capacity !== cell.dot_capacity) {
+                cell.dot_capacity = capacity;
+                this.host.dotCapacityChanged();
+            }
+        });
         cell.group.add_actor(cell.dot_box);
 
         // reads cell.date so the reused button always selects the date
@@ -426,18 +449,30 @@ class CalendarEventDotRenderer {
         this.host = host;
     }
 
+    _projectColors(colorSet, requestedCapacity) {
+        const eventCount = colorSet !== null ? colorSet.length : 0;
+        const capacity = Number.isSafeInteger(requestedCapacity) && requestedCapacity >= 1 ?
+            Math.min(requestedCapacity, MAX_EVENT_DOTS_PER_CELL) : MAX_EVENT_DOTS_PER_CELL;
+        const colors = colorSet !== null ? colorSet.slice(0, capacity)
+            .map((color) => StyleUtils.safeCssColor(color)) : [];
+        return { eventCount, colors };
+    }
+
     update(cell, iter, dateUnixKey) {
         const color_set = this.host.eventDataAvailable ?
             this.host.eventsManager.get_colors_for_unix_key(dateUnixKey) : null;
-        const colors = color_set !== null ?
-            color_set.map((color) => StyleUtils.safeCssColor(color)) : [];
+        const { eventCount, colors } = this._projectColors(color_set, cell.dot_capacity);
 
         // the dots are the only sign that a day has events, and they are 4px of
         // colour: the count goes into the cell's name so it can be said as well
         // as seen
-        cell.event_count = colors.length;
+        cell.event_count = eventCount;
+        cell.event_dots_overflowed = eventCount > colors.length;
 
-        const dot_key = colors.join("|");
+        // Only the bounded visual projection participates in actor reuse. The
+        // real count above still refreshes the accessible name when hidden
+        // events are added or removed beyond the visible prefix.
+        const dot_key = `${colors.length}:${colors.join("|")}`;
         if (dot_key === cell.dot_key) {
             return;
         }
@@ -591,7 +626,7 @@ class CalendarGridView {
     allocateDotBox(actor, box, flags) {
         const children = actor.get_children();
         if (children.length === 0) {
-            return;
+            return 0;
         }
 
         const allocatedWidth = box.x2 - box.x1;
@@ -599,10 +634,12 @@ class CalendarGridView {
             allocatedWidth : 0;
         const { nw, nh, max_rows: maxRows } = this.metricsFor(actor, children[0]);
         const perRow = Math.max(1, Math.trunc(boxWidth / nw));
-        const rowCount = Math.min(maxRows, Math.ceil(children.length / perRow));
+        const capacity = Math.min(MAX_EVENT_DOTS_PER_CELL, maxRows * perRow);
+        const visibleCount = Math.min(children.length, capacity);
+        const rowCount = Math.min(maxRows, Math.ceil(visibleCount / perRow));
         let childIndex = 0;
         for (let row = 0; row < rowCount; row++) {
-            const rowDots = Math.min(children.length - row * perRow, perRow);
+            const rowDots = Math.min(visibleCount - row * perRow, perRow);
             const childBox = new Clutter.ActorBox();
             childBox.x1 = Math.floor((boxWidth - nw * rowDots) / 2);
             childBox.y1 = row * nh;
@@ -614,6 +651,7 @@ class CalendarGridView {
                 childBox.x2 += nw;
             }
         }
+        return capacity;
     }
 }
 
@@ -704,6 +742,7 @@ class Calendar {
             selectDate: (date) => this.setDate(date, false),
             allocateDotBox: (actor, box, flags) =>
                 this._gridView.allocateDotBox(actor, box, flags),
+            dotCapacityChanged: () => this._queue_update(),
             renderDots: (cell, iter, key) => this._eventDotRenderer.update(cell, iter, key),
             nameCell: (cell) => this._dayCellRenderer.applyAccessibleName(cell),
             reportIssue,
@@ -1060,6 +1099,7 @@ if (typeof module !== "undefined") {
         CalendarGridView,
         CalendarDayCellRenderer,
         CalendarEventDotRenderer,
+        MAX_EVENT_DOTS_PER_CELL,
         _isWorkDay,
         _sameDay,
         _today

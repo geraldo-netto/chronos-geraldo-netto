@@ -463,6 +463,7 @@ function makeHost(overrides = {}) {
         holidayGeneration: 0,
         selectDate() {},
         allocateDotBox() {},
+        dotCapacityChanged() {},
         renderDots() {},
         nameCell() {},
         reportIssue() {},
@@ -976,6 +977,7 @@ test("the grid host is the whole contract the collaborators get", () => {
     const named = [];
     const dots = [];
     let holidayChanges = 0;
+    let capacityChanges = 0;
     let selected = null;
     const eventsManager = { get_colors_for_unix_key: () => null };
     const holiday = { country: "ita" };
@@ -989,7 +991,11 @@ test("the grid host is the whole contract the collaborators get", () => {
         holidayProvider: () => holiday,
         holidayGeneration: () => 4,
         selectDate: (date) => { selected = date; },
-        allocateDotBox: (...args) => allocations.push(args),
+        allocateDotBox: (...args) => {
+            allocations.push(args);
+            return 7;
+        },
+        dotCapacityChanged: () => { capacityChanges++; },
         renderDots: (...args) => dots.push(args),
         nameCell: (cell) => named.push(cell),
         reportIssue() {},
@@ -1011,8 +1017,10 @@ test("the grid host is the whole contract the collaborators get", () => {
     // already shows
     assert.equal(selected, date);
 
-    host.allocateDotBox("actor", "box", "flags");
+    assert.equal(host.allocateDotBox("actor", "box", "flags"), 7);
     assert.deepEqual(allocations, [["actor", "box", "flags"]]);
+    host.dotCapacityChanged();
+    assert.equal(capacityChanges, 1);
 
     host.renderDots("cell", "iter", 99);
     assert.deepEqual(dots, [["cell", "iter", 99]]);
@@ -1029,8 +1037,13 @@ test("the grid host is the whole contract the collaborators get", () => {
 // is what the suite did — proves nothing about whether the signal reaches it.
 test("a day cell's dot box allocates through the host", () => {
     const allocations = [];
+    let capacityChanges = 0;
     const host = makeHost({
-        allocateDotBox: (actor, box, flags) => allocations.push([actor, box, flags])
+        allocateDotBox(actor, box, flags) {
+            allocations.push([actor, box, flags]);
+            return 8;
+        },
+        dotCapacityChanged: () => { capacityChanges++; }
     });
     const renderer = new CalendarModule.CalendarDayCellRenderer(host);
     const cell = renderer.build();
@@ -1041,10 +1054,28 @@ test("a day cell's dot box allocates through the host", () => {
     assert.equal(allocations.length, 1, "the allocate signal reaches the calendar");
     assert.equal(allocations[0][0], cell.dot_box);
     assert.equal(allocations[0][1], box);
+    assert.equal(cell.dot_capacity, 8);
+    assert.equal(capacityChanges, 1);
+
+    cell.dot_box.fire("allocate", box, 0);
+    assert.equal(capacityChanges, 1, "an unchanged capacity does not queue another update");
 
     const calendar = makeCalendar();
     calendar._update();
-    calendar._gridView.dayCells[0].dot_box.fire("allocate", box, 0);
+    const actualCell = calendar._gridView.dayCells[0];
+    actualCell.dot_box.add_actor(makeDot());
+    calendar._gridView.dotMetrics = { nw: 10, nh: 10, max_rows: 2 };
+    global.imports.gi.Clutter.ActorBox = class {
+        constructor() {
+            this.x1 = 0;
+            this.y1 = 0;
+            this.x2 = 0;
+            this.y2 = 0;
+        }
+    };
+    actualCell.dot_box.fire("allocate", box, 0);
+    assert.equal(actualCell.dot_capacity, 8);
+    assert.equal(calendar._update_id, 1, "a real capacity change queues a bounded redraw");
 });
 
 // St gives every actor set_accessible_name; a plain double does not, and the
@@ -1115,6 +1146,35 @@ test("CalendarEventDotRenderer owns dot actor reuse and cleanup", () => {
     renderer.update(cell, new Date(2026, 6, 9), 1);
     assert.equal(cell.dot_box.children.length, 0);
     assert.equal(firstDot.destroyed, true);
+});
+
+test("CalendarEventDotRenderer bounds dense days without losing the accessible count", () => {
+    const colors = Array.from({ length: 2000 }, (_unused, index) =>
+        `rgb(${index % 255}, 0, 0)`);
+    const renderer = new CalendarModule.CalendarEventDotRenderer(makeHost({
+        eventsManager: { get_colors_for_unix_key: () => colors }
+    }));
+    const cell = {
+        accessible_date: "Thursday, 9 July 2026",
+        button: new MockActor(),
+        dot_capacity: 3,
+        dot_key: "",
+        dot_box: new MockActor(),
+        holiday_name: "",
+        is_today: false,
+        selected: false
+    };
+
+    renderer.update(cell, new Date(2026, 6, 9), 1);
+
+    assert.equal(cell.event_count, 2000);
+    assert.equal(cell.event_dots_overflowed, true);
+    assert.equal(cell.dot_box.children.length, 3);
+    assert.ok(cell.dot_key.length < 100, "the reuse key follows visible dots, not all events");
+
+    new CalendarModule.CalendarDayCellRenderer({}).applyAccessibleName(cell);
+    assert.match(cell.accessible_name, /2000 events/);
+    assert.match(cell.accessible_name, /hidden to keep the desktop responsive/);
 });
 
 // T07b: placement for representative month shapes
@@ -1443,7 +1503,8 @@ function allocateDots(count, boxWidth, maxRows = null, dotWidth = 10, dotHeight 
         }
     };
     const cal = makeCalendar();
-    cal._gridView.allocateDotBox(actor, { x1: 0, y1: 0, x2: boxWidth, y2: 20 }, {});
+    dots.capacity = cal._gridView.allocateDotBox(
+        actor, { x1: 0, y1: 0, x2: boxWidth, y2: 20 }, {});
     return dots;
 }
 
@@ -1488,6 +1549,7 @@ test("dot box: the theme is asked once, and again only when it changes", () => {
 
 test("dot box: dots that fit stay centered on one row", () => {
     const dots = allocateDots(3, 100);
+    assert.equal(dots.capacity, 20, "the renderer receives the shared layout capacity");
     assert.equal(dots[0].allocations.length, 1);
     // 100 - 30 = 70, start at 35
     assert.equal(dots[0].allocations[0].x1, 35);
@@ -1507,6 +1569,7 @@ test("dot box: overflow wraps to the second row and stops at max rows", () => {
 
 test("dot box: theme max-rows caps the allocated rows", () => {
     const dots = allocateDots(25, 100, 1); // only one row allowed
+    assert.equal(dots.capacity, 10);
     const allocated = dots.filter((d) => d.allocations.length);
     assert.equal(allocated.length, 10);
     assert.ok(allocated.every((d) => d.allocations[0].y1 === 0));
@@ -1514,6 +1577,7 @@ test("dot box: theme max-rows caps the allocated rows", () => {
 
 test("dot box: a dot wider than its cell still gets one slot per row", () => {
     const dots = allocateDots(3, 5, null, 10);
+    assert.equal(dots.capacity, 2);
     assert.equal(dots[0].allocations.length, 1);
     assert.equal(dots[1].allocations.length, 1);
     assert.equal(dots[2].allocations.length, 0, "the default two-row limit still applies");
