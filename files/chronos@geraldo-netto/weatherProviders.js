@@ -50,6 +50,11 @@ const WeatherServiceAdapters = IS_NODE ?
 
 const WEATHER_ERRORS = WeatherFormat.WEATHER_ERRORS;
 const MAX_GEOCODE_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES;
+// How long a resolved place is believed. Coordinates do not move, so this is
+// not a freshness window — it is the window in which a wrong or transient
+// resolution can correct itself without the user having to type a different
+// city and type this one back.
+var GEOCODE_CACHE_MILLISECONDS = 24 * 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
 const WEATHER_PROVIDER_NAMES = WeatherServiceAdapters.WEATHER_PROVIDER_NAMES;
 const WEATHER_USER_AGENT = WeatherServiceAdapters.WEATHER_USER_AGENT;
 const geocodeUrl = WeatherServiceAdapters.geocodeUrl;
@@ -179,6 +184,10 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         this._max_entries = params.maxCacheEntries || MAX_GEOCODE_CACHE_ENTRIES;
         this._httpGetJson = params.httpGetJson;
         this._nominatim_queue = params.nominatimQueue || NOMINATIM_REQUEST_QUEUE;
+        this._resolved_now = params.resolvedNow || params.now ||
+            ElapsedTime.civilMilliseconds;
+        this._entry_milliseconds = Number.isFinite(params.entrySeconds) ?
+            Math.max(0, params.entrySeconds) * 1000 : GEOCODE_CACHE_MILLISECONDS;
     }
 
     get cache() {
@@ -186,7 +195,33 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
     }
 
     placeFor(location) {
-        return this._geocode_cache.get(locationCacheKey(location)) || null;
+        return this._freshPlace(locationCacheKey(location));
+    }
+
+    // The sibling reading cache expires — `_freshReading` drops anything past
+    // `cacheSeconds` — so a stale *reading* self-corrects within the refresh
+    // period while a stale *place* never did: `resolve()` short-circuited on any
+    // hit forever, and the only invalidation path in production is
+    // `_forgetIfLocationChanged`, which does nothing when the text is unchanged.
+    // One glitched or ambiguous geocode round therefore pinned the wrong
+    // coordinates — for the panel temperature and the astronomy sunrise/sunset
+    // alike — for the whole Cinnamon session, with no timer and no retry.
+    //
+    // A day is ample: place coordinates are static, so this is a correction
+    // window rather than a freshness window.
+    _freshPlace(cacheKey) {
+        const entry = this._geocode_cache.get(cacheKey);
+        if (!entry) {
+            return null;
+        }
+
+        const age = this._resolved_now() - entry.resolvedAt;
+        if (!Number.isFinite(age) || age < 0 || age >= this._entry_milliseconds) {
+            this._geocode_cache.delete(cacheKey);
+            return null;
+        }
+
+        return entry.place;
     }
 
     // every debounced keystroke in the location entry resolves a place, so
@@ -199,7 +234,7 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
             }
         }
 
-        this._geocode_cache.set(cacheKey, place);
+        this._geocode_cache.set(cacheKey, { place, resolvedAt: this._resolved_now() });
     }
 
     // an ambiguous name that resolved to the wrong city would otherwise stay
@@ -216,7 +251,7 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         }
 
         const cacheKey = locationCacheKey(normalized);
-        const cachedPlace = this._geocode_cache.get(cacheKey);
+        const cachedPlace = this._freshPlace(cacheKey);
         if (cachedPlace) {
             callback(cachedPlace, "");
             return;
@@ -573,7 +608,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
 if (typeof module !== "undefined") {
     module.exports = {
         GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
-        MAX_WEATHER_READING_CACHE_ENTRIES,
+        MAX_WEATHER_READING_CACHE_ENTRIES, GEOCODE_CACHE_MILLISECONDS,
         NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
         WeatherLocationResolver, WeatherForecastResolver, WeatherReadingRepository
     };

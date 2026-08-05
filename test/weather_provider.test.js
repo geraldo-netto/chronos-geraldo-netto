@@ -704,6 +704,55 @@ test("a geocode answered after a newer refresh or a destroy is dropped", () => {
     assert.deepEqual(values, []);
 });
 
+// T730: the resolved-place cache had a size bound but no expiry, and `resolve()`
+// short-circuited on any hit forever after. The sibling reading cache does
+// expire, so a stale *reading* self-corrected within the refresh period while a
+// stale *place* never did — one glitched geocode round pinned the wrong
+// coordinates for the panel temperature and the astronomy sunrise/sunset for the
+// life of the Cinnamon session, and the only production invalidation
+// (`_forgetIfLocationChanged`) does nothing when the typed text is unchanged.
+test("a wrongly geocoded place expires instead of pinning for the session", () => {
+    const Weather = loadWeather();
+    let clock = 1000;
+    const answers = [
+        { results: [{ name: "Rome", latitude: 0, longitude: 0, population: 5000 }] },
+        { results: [{ name: "Rome", latitude: 41.9, longitude: 12.5, population: 2800000 }] }
+    ];
+    let rounds = 0;
+    const resolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
+        now: () => clock,
+        httpGetJson(_url, callback) {
+            rounds++;
+            callback(answers.shift());
+        }
+    });
+    const resolve = () => {
+        let got = null;
+        resolver.resolve("Rome", () => true, (place) => { got = place; });
+        return got;
+    };
+
+    assert.deepEqual([resolve().latitude, resolve().latitude], [0, 0]);
+    assert.equal(rounds, 1, "a fresh entry is not re-fetched");
+
+    // still inside the window: the same wrong answer, no new request
+    clock += Weather.GEOCODE_CACHE_MILLISECONDS - 1;
+    assert.equal(resolve().latitude, 0);
+    assert.equal(rounds, 1);
+
+    // past it: asked again, and the correction lands
+    clock += 1;
+    assert.equal(resolve().latitude, 41.9);
+    assert.equal(rounds, 2);
+    assert.equal(resolver.placeFor("Rome").latitude, 41.9);
+
+    // a clock that jumped backwards is not a licence to believe an entry
+    // indefinitely either
+    clock -= Weather.GEOCODE_CACHE_MILLISECONDS;
+    assert.equal(resolver.placeFor("Rome"), null);
+});
+
 test("weather location resolver owns geocode fallback and cache", () => {
     const Weather = loadWeather();
     const requests = [];
@@ -735,7 +784,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
     // the cache key is the resolver's own business — the port hands back a place
     // and an error, which is what both production callbacks take. That the two
     // spellings share one key is asserted through the cache and the request count.
-    assert.equal(resolver.cache.get("rome"), resolved[0].place);
+    assert.equal(resolver.cache.get("rome").place, resolved[0].place);
     assert.equal(requests.filter((request) => request.url.includes("geocoding-api")).length, 1);
     assert.equal(requests.filter((request) => request.url.includes("nominatim.openstreetmap.org")).length, 1);
     assert.equal(
