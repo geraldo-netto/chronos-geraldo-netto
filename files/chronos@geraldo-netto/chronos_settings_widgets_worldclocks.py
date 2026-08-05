@@ -649,6 +649,22 @@ class ClocksList(JSONSettingsList):
     def completions(self):
         return self.timezone_resolver.completions
 
+    def on_setting_changed(self, *args):
+        """Repopulate the tree, then re-judge the Add button against it.
+
+        Cinnamon calls update_button_sensitivity only from List.__init__,
+        List.list_changed and the tree selection's "changed" signal. Its
+        on_setting_changed clears and repopulates the model and calls none of
+        them — and that is the path "Reset to defaults" and "Import from a
+        file" take, through JSONSettingsHandler.do_key_update. With eight
+        clocks saved and no row selected, a reset emptied the tree while the Add
+        button stayed insensitive and still tooltipped "No more than 8 clocks
+        can be added.", so no clock could be added until the settings window was
+        closed and reopened.
+        """
+        super().on_setting_changed(*args)
+        self.update_button_sensitivity()
+
     def update_button_sensitivity(self, *args):
         super().update_button_sensitivity(*args)
         if not self.show_buttons:

@@ -145,6 +145,39 @@ class SettingsWidgetsTest(unittest.TestCase):
                 self.assertEqual(clocks.model.rows, [])
                 self.assertTrue(clocks.add_button.sensitive)
 
+    def test_a_reset_reopens_the_add_button(self):
+        # T733: Cinnamon calls update_button_sensitivity from List.__init__,
+        # List.list_changed and the tree selection's "changed" signal only. Its
+        # on_setting_changed clears and repopulates the model and calls none of
+        # them — and that is the path "Reset to defaults" and "Import from a
+        # file" take, through JSONSettingsHandler.do_key_update. With the cap
+        # reached and no row selected, the tree emptied while the Add button
+        # stayed dead and still explained itself with the cap message, until the
+        # settings window was closed and reopened.
+        full = [{"label": "Clock %d" % i, "timezone": "Europe/Rome"}
+                for i in range(self.module.MAX_CLOCKS)]
+        settings = FakeSettings({"worldclocks": full})
+        clocks = self.module.ClocksList({"value": full}, "worldclocks", settings)
+
+        self.assertFalse(clocks.add_button.sensitive)
+        self.assertEqual(clocks.add_button.tooltip, self.module.CLOCK_LIMIT_MESSAGE)
+
+        # the overflow menu resets the key, and Cinnamon repopulates the tree
+        settings.values["worldclocks"] = []
+        clocks.on_setting_changed()
+
+        self.assertEqual(clocks.model.rows, [])
+        self.assertTrue(clocks.add_button.sensitive,
+                        "a clock can be added again without reopening the window")
+        self.assertEqual(clocks.add_button.tooltip, "")
+
+        # and importing a list that is full again closes it back up
+        settings.values["worldclocks"] = full
+        clocks.on_setting_changed()
+
+        self.assertFalse(clocks.add_button.sensitive)
+        self.assertEqual(clocks.add_button.tooltip, self.module.CLOCK_LIMIT_MESSAGE)
+
     def test_clock_entry_serializer_owns_dialog_data_and_output_shape(self):
         serializer = self.module.ClockEntrySerializer()
 

@@ -502,6 +502,17 @@ class JSONSettingsList:
     def update_button_sensitivity(self, *args):
         self.super_args = args
 
+    # Cinnamon's List.on_setting_changed clears and repopulates the model and
+    # calls update_button_sensitivity for none of it — which is the whole reason
+    # a reset left the Add button judging a tree that no longer existed. The
+    # double has to have the same hole, or the override that fills it is
+    # asserted against a base class that never needed one.
+    def on_setting_changed(self, *args):
+        getter = getattr(self.settings, "get_value", None)
+        rows = getter(self.key) if callable(getter) else []
+        self.model.rows = list(rows if isinstance(rows, list) else [])
+        self.model.count = len(self.model.rows)
+
     def get_toplevel(self):
         return None
 
