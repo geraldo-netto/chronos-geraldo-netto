@@ -298,6 +298,42 @@ class CountryComboBoxTest(unittest.TestCase):
         self.assertFalse(kept_open, "the focus change carries on")
         self.assertEqual(settings.writes, [])
 
+    def test_a_country_typed_in_full_is_accepted_when_focus_leaves(self):
+        # T728: GtkComboBox's entry handler sets the active item to -1 on every
+        # edit, so get_active_iter() is None while typing and on_combo_changed
+        # returns early. restore_entry_text then rewrote the entry from
+        # self.value, so typing "Brazil" over "Portugal" and pressing Tab
+        # snapped back to Portugal and holidays kept coming from Portugal —
+        # with no error text, no error style and no message anywhere.
+        widget, settings = self.combo("prt")
+        widget.content_widget.type_text("Brazil")
+
+        kept_open = widget.on_entry_focus_out()
+
+        self.assertEqual(widget.value, "bra")
+        self.assertEqual(settings.values["country"], "bra")
+        self.assertEqual(widget.entry.get_property("text"), "Brazil")
+        self.assertFalse(kept_open, "the focus change carries on")
+
+    def test_a_typed_country_is_matched_the_way_the_completion_matches(self):
+        # the completion folds case and underscores, so focus-out must not be
+        # stricter than the popup the user was just choosing from
+        widget, settings = self.combo("prt")
+        widget.content_widget.type_text("  united kingdom  ")
+
+        widget.on_entry_focus_out()
+
+        self.assertEqual(settings.values["country"], "gbr")
+        self.assertEqual(widget.entry.get_property("text"), "United Kingdom")
+
+    def test_the_off_switch_can_be_typed_too(self):
+        widget, settings = self.combo("bra")
+        widget.content_widget.type_text("None (disable holidays)")
+
+        widget.on_entry_focus_out()
+
+        self.assertEqual(settings.values["country"], "none")
+
     def test_a_country_the_schema_does_not_list_selects_nothing(self):
         # a settings file written by an older version, or by hand
         widget, _settings = self.combo("atlantis")

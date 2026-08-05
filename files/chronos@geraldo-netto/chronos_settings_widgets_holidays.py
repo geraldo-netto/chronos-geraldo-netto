@@ -63,9 +63,14 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
 
         self.model = Gtk.ListStore(str, str, str)
         self.option_map = {}
+        # the same rows keyed by their folded label, so a name typed in full can
+        # be matched on focus-out without walking the model
+        self.typed_map = {}
         for value, label in country_options(info.get("options", {})):
-            self.option_map[value] = self.model.append(
-                [value, label, completion_key(label)])
+            folded = completion_key(label)
+            tree_iter = self.model.append([value, label, folded])
+            self.option_map[value] = tree_iter
+            self.typed_map[folded] = tree_iter
 
         self.label = SettingsLabel(info.get("description", ""))
         self.content_widget = Gtk.ComboBox.new_with_model_and_entry(self.model)
@@ -133,6 +138,23 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         return False
 
     def restore_entry_text(self):
+        # A country typed out in full used to be thrown away. GtkComboBox's
+        # entry-contents-changed handler sets the active item to -1 on every
+        # edit, so get_active_iter() is None while typing and on_combo_changed
+        # returns early; then focus-out rewrote the entry from self.value.
+        # Typing "Brazil" over "Portugal" and pressing Tab snapped back to
+        # Portugal, the key was never written, and holidays kept coming from
+        # Portugal — with no error text, no error style and no message anywhere,
+        # unlike the sibling widgets, which either commit on focus-out
+        # (WeatherLocationEntry.on_commit) or say why the input was refused
+        # (TIMEZONE_INVALID_PREVIEW). Restore only when nothing matches.
+        typed = self.typed_map.get(completion_key(self.entry.get_text()))
+        if typed is not None:
+            # set_active_iter fills the entry from the model and emits 'changed',
+            # which is what writes the value
+            self.content_widget.set_active_iter(typed)
+            return
+
         tree_iter = self.option_map.get(self.value)
         # "" and not None: set_text is annotated non-nullable, and None raises
         # out of the focus handler and takes the settings window with it
