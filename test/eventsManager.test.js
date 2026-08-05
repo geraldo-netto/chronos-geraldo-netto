@@ -442,7 +442,12 @@ test("calendar-server owner loss invalidates the proxy and reconnects", () => {
     assert.equal(emitted(manager, "events-manager-ready").length, 2);
 });
 
-test("a proxy constructed without an owner is never published as ready", () => {
+// T705: org.cinnamon.CalendarServer is D-Bus activatable and idle-exits without
+// clients, so "no owner yet" is the normal first-connection state — the first
+// call_set_time_range() is what starts the process. Treating it as an owner
+// loss dropped the proxy before anything ever called it: events never worked
+// and the reconnect loop spun, with its log line, for the whole session.
+test("a proxy built before the activatable server has an owner is published", () => {
     const manager = makeManager();
     manager.start_events();
     gio.watches.at(-1).foundCb(null, "eds", "owner");
@@ -460,11 +465,46 @@ test("a proxy constructed without an owner is never published as ready", () => {
         global.imports.gi.Cinnamon.CalendarServerProxy.new_for_bus_finish = originalFinish;
     }
 
+    assert.equal(manager._server_connection._calendar_server, proxy.instance);
+    assert.ok(manager._server_connection._inited);
+    assert.ok(manager.is_active(), "an ownerless activatable server is usable");
+    assert.equal(emitted(manager, "events-manager-ready").length, 1);
+    assert.equal(manager._server_connection._server_retry_id, 0,
+        "nothing to retry: the first call activates the server");
+
+    // ...and the call that activates the service actually goes out
+    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    assert.equal(proxy.instance.set_time_range_calls.length, 1);
+
+    // an owner the proxy *did* have going away is still a real disconnect
+    proxy.instance.g_name_owner = null;
+    proxy.instance.signal("notify::g-name-owner", null);
     assert.equal(manager._server_connection._calendar_server, null);
-    assert.equal(manager._server_connection._inited, false);
-    assert.equal(emitted(manager, "events-manager-ready").length, 0);
-    assert.equal(emitted(manager, "has-calendars-changed").length, 1);
     assert.ok(manager._server_connection._server_retry_id > 0);
+});
+
+test("the calendar support line is logged once, not per reconnect", () => {
+    const logged = [];
+    const originalLog = global.log;
+    global.log = (message) => logged.push(String(message));
+    try {
+        const manager = readyManager();
+
+        // idle-exit: the owner goes away, the connection retries and reconnects
+        proxy.instance.g_name_owner = null;
+        proxy.instance.signal("notify::g-name-owner", null);
+        fireTimer(manager._server_connection._server_retry_id);
+        gio.watches.at(-1).foundCb(null, "eds", "owner");
+        proxy.pendingReadyCb(null, "reconnected");
+
+        assert.ok(manager._server_connection._inited, "the reconnect succeeded");
+    } finally {
+        global.log = originalLog;
+    }
+
+    const supportLines = logged.filter((line) => /Calendar events supported/.test(line));
+    assert.equal(supportLines.length, 1,
+        "a session-long retry cadence must not repeat the support statement");
 });
 
 test("proxy ready after destroy connects nothing", () => {

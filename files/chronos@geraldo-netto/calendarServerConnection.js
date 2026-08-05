@@ -40,6 +40,7 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         this._cached_state = STATUS_UNKNOWN;
         this._inited = false;
         this._destroyed = false;
+        this._support_logged = false;
         this._random = params.random || Math.random;
     }
 
@@ -61,7 +62,13 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         this._bus_watch_id = 0;
 
         if (this._calendar_server == null) {
-            log(UUID + ": Calendar events supported.");
+            // once per connection lifetime: reconnects after an owner loss go
+            // through here again, and a session-long retry cadence must not
+            // repeat a support statement that cannot have changed
+            if (!this._support_logged) {
+                this._support_logged = true;
+                log(UUID + ": Calendar events supported.");
+            }
 
             this._proxy_cancellable = new Gio.Cancellable();
             try {
@@ -104,14 +111,15 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
             this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
                 "notify::g-name-owner", this._handle_name_owner_notify.bind(this)));
 
-            // A proxy can finish construction after its process has already
-            // disappeared. Treat it like the same owner-loss transition rather
-            // than publishing a connection that cannot serve requests.
-            if (!this._calendar_server.g_name_owner) {
-                this._handle_name_owner_notify(this._calendar_server);
-                return;
-            }
-
+            // No owner is the normal first-connection state, not a dead
+            // server: org.cinnamon.CalendarServer is D-Bus activatable and
+            // idle-exits without clients, and DO_NOT_AUTO_START_AT_CONSTRUCTION
+            // only suppresses activation while the proxy is built — the first
+            // call_set_time_range() is what starts the process. Treating "no
+            // owner yet" as an owner loss dropped the proxy before anything
+            // ever called it: events never worked and the reconnect loop spun
+            // for the whole session. Losing an owner the proxy did have stays
+            // an owner loss, and notify::g-name-owner handles it above.
             this._inited = true;
             this._server_retry_attempts = 0;
             this.callbacks.onReady();
