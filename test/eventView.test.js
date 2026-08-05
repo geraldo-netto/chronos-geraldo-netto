@@ -232,7 +232,7 @@ global.imports = {
         // only coerced to NONE by luck — looked deliberate here
         Pango: { EllipsizeMode: { NONE: 0, START: 1, MIDDLE: 2, END: 3 } },
         Cinnamon: {},
-        Atk: { Role: { LIST: 1, LIST_ITEM: 2, PUSH_BUTTON: 3 } },
+        Atk: { Role: { LIST: 1, LIST_ITEM: 2, PUSH_BUTTON: 3, LABEL: 4 } },
         Gtk: { PolicyType: { NEVER: 0, AUTOMATIC: 1 } },
         Gio: {},
         Soup: { MAJOR_VERSION: 3, Session: class {} },
@@ -1204,9 +1204,13 @@ test("EventRow activation covers mouse, keyboard, and current all-day branches",
 test("the empty-state button stops being a button when there is nothing to launch", () => {
     global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
     const list = new EventView.EventList(desktopSettings());
+    list.set_date(new FakeDateTime(10 * DAY_US));
+    const heading = list.selected_date_label.text;
 
     assert.equal(list.no_events_button.options.can_focus, true);
     assert.equal(list.no_events_button.options.reactive, true);
+    assert.equal(list.selected_date_label.can_focus, true);
+    assert.match(list.selected_date_label.accessible_name, /Open the calendar app/);
 
     list.set_unavailable(true);
 
@@ -1216,6 +1220,12 @@ test("the empty-state button stops being a button when there is nothing to launc
     assert.equal(list.no_events_button.style_class, "",
         "and it does not look like a button either");
     assert.match(list.no_events_label.text, /no calendar service is running/);
+    assert.equal(list.selected_date_label.can_focus, false,
+        "the date heading does not keep a dead keyboard stop");
+    assert.equal(list.selected_date_label.reactive, false);
+    assert.equal(list.selected_date_label.accessible_role, global.imports.gi.Atk.Role.LABEL);
+    assert.equal(list.selected_date_label.accessible_name, heading);
+    assert.equal(TooltipDouble.forActor(list.selected_date_label).text, "");
 
     // ...and it launches nothing, whatever reaches it
     const launched = [];
@@ -1227,6 +1237,12 @@ test("the empty-state button stops being a button when there is nothing to launc
     list.set_unavailable(false);
     assert.equal(list.no_events_button.can_focus, true);
     assert.equal(list.no_events_button.style_class, "calendar-events-no-events-button");
+    assert.equal(list.selected_date_label.can_focus, true);
+    assert.equal(list.selected_date_label.accessible_role,
+        global.imports.gi.Atk.Role.PUSH_BUTTON);
+    assert.match(list.selected_date_label.accessible_name, /Open the calendar app/);
+    assert.equal(TooltipDouble.forActor(list.selected_date_label).text,
+        "Open the calendar app");
 });
 
 // the box declares itself a list and had no name, so a screen reader announced

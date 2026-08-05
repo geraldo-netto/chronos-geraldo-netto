@@ -356,6 +356,7 @@ class EventList {
         this._delayNoEventsBox = false;
         this._eventsOverflowed = false;
         this._renderer = new EventListRenderer(this);
+        this._selected_date_tooltip = null;
 
         this.actor = new St.BoxLayout(
             {
@@ -395,11 +396,39 @@ class EventList {
                 label.accessible_role = Atk.Role.PUSH_BUTTON;
             }
 
-            new Tooltips.Tooltip(label, _("Open the calendar app")); // NOSONAR [S1848] -- constructor registers handlers
+            this._selected_date_tooltip =
+                new Tooltips.Tooltip(label, _("Open the calendar app"));
             label.connect("button-press-event", this._onDateButtonPress.bind(this));
             label.connect("key-press-event", this._onDateKeyPress.bind(this));
         }
         return label;
+    }
+
+    _canLaunchCalendar() {
+        return this._calendar_launcher.isAvailable() && !this._unavailable;
+    }
+
+    _syncSelectedDateAccessibility(canLaunch) {
+        if (this.selected_date_label.set_accessible_role && Atk.Role) {
+            this.selected_date_label.accessible_role = canLaunch ?
+                Atk.Role.PUSH_BUTTON : Atk.Role.LABEL;
+        }
+        if (this.selected_date_label.set_accessible_name) {
+            const dateText = this.selected_date_label.text || "";
+            this.selected_date_label.set_accessible_name(canLaunch ?
+                joinPhrases(dateText, _("Open the calendar app")) : dateText);
+        }
+    }
+
+    _syncSelectedDateLauncher() {
+        const canLaunch = this._canLaunchCalendar();
+        this.selected_date_label.reactive = canLaunch;
+        this.selected_date_label.can_focus = canLaunch;
+        this._syncSelectedDateAccessibility(canLaunch);
+
+        if (this._selected_date_tooltip) {
+            this._selected_date_tooltip.set_text(canLaunch ? _("Open the calendar app") : "");
+        }
     }
 
     _buildOverflowView() {
@@ -572,14 +601,9 @@ class EventList {
         const dateText = locale_cap(DateFormats.formatDateWithFallback(
             (format) => gdate.format(format), DATE_FORMAT_FULL, DATE_FORMAT_FULL_FALLBACK));
         this.selected_date_label.set_text(dateText);
-
         // the date first, because that is what this heading is for; what
-        // clicking it does comes after
-        if (this.selected_date_label.set_accessible_name) {
-            this.selected_date_label.set_accessible_name(
-                this._calendar_launcher.isAvailable() ?
-                    joinPhrases(dateText, _("Open the calendar app")) : dateText);
-        }
+        // clicking it does comes after, only while that action is live
+        this._syncSelectedDateLauncher();
 
         this.selected_date = gdate;
     }
@@ -721,6 +745,7 @@ class EventList {
             return;
         }
         this._unavailable = unavailable;
+        this._syncSelectedDateLauncher();
         this._syncIssues();
 
         // In the unavailable state the button announced only the error sentence —
