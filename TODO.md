@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T697 | release integrity / i18n wiring | Low | open | S | Regenerate the translation template after production source lines moved. | **[verified]** `npm run i18n:check` fails because the committed POT's source references still point to the pre-edit lines for panel-weather strings, event-view strings, and the world-clock dialog (`po/chronos@geraldo-netto.pot:327-338,480-502,554-559`). A clean `po/makepot` regeneration changes those references to `5.4/appletPanelStatus.js:490,514,525-526,659`, `5.4/eventView.js:767,869,900`, and `chronos_settings_widgets_worldclocks.py:298,303`; no msgid changed. The repository's consistency gate intentionally compares the regenerated template byte-for-byte apart from its creation date (`scripts/check-i18n.mjs:152-175`), so the current tree cannot pass its declared i18n check. Regenerate the POT, merge the catalogs if required, and rerun the gate. |
 
 ## Rejected
 

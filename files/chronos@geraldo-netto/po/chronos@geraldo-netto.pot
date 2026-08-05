@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-08-05 19:27+0200\n"
+"POT-Creation-Date: 2026-08-05 20:50+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -324,16 +324,16 @@ msgstr ""
 msgid "Fair"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:486
-#: 5.4/appletPanelStatus.js:655
+#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:490
+#: 5.4/appletPanelStatus.js:659
 msgid "Weather: loading…"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:510
+#: 5.4/appletPanelStatus.js:514
 msgid "No weather for this timezone"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:521 5.4/appletPanelStatus.js:522
+#: 5.4/appletPanelStatus.js:525 5.4/appletPanelStatus.js:526
 #, javascript-format
 msgid "%s Last known reading"
 msgstr ""
@@ -478,7 +478,7 @@ msgid "Loading…"
 msgstr ""
 
 #: 5.4/eventView.js:222 5.4/eventView.js:232 5.4/eventView.js:377
-#: 5.4/eventView.js:763
+#: 5.4/eventView.js:767
 msgid "No Events"
 msgstr ""
 
@@ -494,11 +494,11 @@ msgstr ""
 msgid "Add an event"
 msgstr ""
 
-#: 5.4/eventView.js:865
+#: 5.4/eventView.js:869
 msgid "Ended"
 msgstr ""
 
-#: 5.4/eventView.js:896
+#: 5.4/eventView.js:900
 msgid "In progress"
 msgstr ""
 
@@ -551,11 +551,11 @@ msgid ""
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
 msgstr ""
 
-#: chronos_settings_widgets_worldclocks.py:288
+#: chronos_settings_widgets_worldclocks.py:298
 msgid "Add new entry"
 msgstr ""
 
-#: chronos_settings_widgets_worldclocks.py:293
+#: chronos_settings_widgets_worldclocks.py:303
 msgid "Edit entry"
 msgstr ""
 
