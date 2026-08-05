@@ -74,6 +74,7 @@ function loadWeather(soupOverrides = {}) {
                 PRIORITY_DEFAULT: 0,
                 SOURCE_CONTINUE: true,
                 SOURCE_REMOVE: false,
+                get_monotonic_time: () => 1000000,
                 timeout_add() {
                     return 2;
                 },

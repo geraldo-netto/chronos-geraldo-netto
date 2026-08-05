@@ -222,6 +222,14 @@ test("cache staleness is deterministic under an injected clock", () => {
     assert.equal(cache.stale(2026, "global", fixedNow), false, "retry backoff holds");
     cache.attempts = { 2026: { global: new Date(fixedNow - 2 * 3600 * 1000).toUTCString() } };
     assert.equal(cache.stale(2026, "global", fixedNow), true, "retry window expired");
+
+    // The stamp was valid when loaded, but the user then corrected the system
+    // clock backwards. A negative persisted age is stale in the safe direction.
+    cache.years = { 2026: { global: new Date(fixedNow + 1000).toUTCString() } };
+    assert.equal(cache.stale(2026, "global", fixedNow), true);
+    cache.years = {};
+    cache.attempts = { 2026: { global: new Date(fixedNow + 1000).toUTCString() } };
+    assert.equal(cache.stale(2026, "global", fixedNow), true);
 });
 
 test("holiday validation rejects out-of-range months and days", () => {

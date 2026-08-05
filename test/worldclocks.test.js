@@ -264,6 +264,7 @@ function loadWorldclocks(options = {}) {
         gi: {
             Pango: { EllipsizeMode: { NONE: 0, END: 3 } },
             GLib: {
+                get_monotonic_time: () => 1000000,
                 // GLib >= 2.68, which is what Cinnamon 5.4 ships: new_identifier
                 // answers null for a zone it does not know. The pre-2.68
                 // TimeZone.new() path the applet used to carry is gone.
@@ -320,6 +321,9 @@ function reloadWorldclocks() {
     const appletModules = {
         localeText: require(localeTextPath),
         textUtils,
+        elapsedTime: {
+            monotonicSeconds: () => 1
+        },
         dateFormats: {
             MAX_DATE_FORMAT_LENGTH: 256,
             MAX_CLOCK_STAMP_LENGTH: 256,
@@ -412,13 +416,15 @@ test("the local row follows the system timezone when it changes", () => {
         return fakeTimeZone(systemZone);
     };
 
-    let now = 1000;
+    let wallNow = 1000;
+    let elapsedNow = 1000;
     GLib.DateTime.new_now_utc = () => ({
-        to_unix: () => now,
+        to_unix: () => wallNow,
         to_timezone: (tz) => makeZonedTime(tz)
     });
 
-    const worldclocks = new Worldclocks({ add_actor() {} });
+    const worldclocks = new Worldclocks(
+        { add_actor() {} }, { elapsedNow: () => elapsedNow });
     worldclocks.buildClocks([]);
     worldclocks.updateClocks();
     assert.equal(worldclocks.clocks[1].display.text, timeIn("Europe/Rome"));
@@ -428,11 +434,13 @@ test("the local row follows the system timezone when it changes", () => {
 
     // the zone is not re-read on every tick — that would build a GLib.TimeZone
     // a second, and the popup only shows minutes
-    now += 5;
+    // A civil-clock correction is irrelevant to the runtime recheck interval.
+    wallNow -= 24 * 60 * 60;
+    elapsedNow += 5;
     worldclocks.updateClocks();
     assert.equal(worldclocks.clocks[1].display.text, timeIn("Europe/Rome"));
 
-    now += 60;
+    elapsedNow += 60;
     worldclocks.updateClocks();
     assert.equal(worldclocks.clocks[1].display.text, timeIn("Asia/Tokyo"),
         "and within the minute the popup agrees with the panel again");

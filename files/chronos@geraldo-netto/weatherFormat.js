@@ -53,7 +53,8 @@ function staleAfterSeconds(refreshSeconds) {
 }
 
 function readingIsStale(readingAt, now, staleAfter) {
-    return (now - readingAt) / 1000 > staleAfter;
+    const age = now - readingAt;
+    return !Number.isFinite(age) || age < 0 || age / 1000 > staleAfter;
 }
 
 function normalizeUnits(units) {

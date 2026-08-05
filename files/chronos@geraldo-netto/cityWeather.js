@@ -25,6 +25,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const ElapsedTime = IS_NODE ?
+    require("./elapsedTime") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].elapsedTime;
 // the parts, not the barrel: requiring ./weather pulled in WeatherProvider — the
 // panel provider this module is the twin of — and its Soup session, for a handful
 // of constants, two resolvers and the refresh clock
@@ -73,7 +76,8 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._readings = new Map();
         this._errors = new Map();
         this._applied_signature = null;
-        this._now = params.now || (() => Date.now());
+        this._elapsed_now = params.elapsedNow || params.now ||
+            ElapsedTime.monotonicMilliseconds;
         this._refresh_seconds = params.refreshSeconds || CITY_REFRESH_SECONDS;
         // derived from the period this provider actually refreshes on, not from
         // the module default: staleFor() used to read the constant and ignore
@@ -148,13 +152,14 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     // ...but a reading nobody has managed to refresh for two whole periods is
     // not the weather any more, and saying so is the difference between a
     // temperature and a temperature from this morning
-    staleFor(city, now = this._now()) {
+    staleFor(city, now = this._elapsed_now()) {
         const reading = this._readingFor(city);
         if (!reading) {
             return false;
         }
 
-        return Weather.readingIsStale(reading.at, now, this._stale_after_seconds);
+        return Weather.readingIsStale(
+            reading.elapsedAt, now, this._stale_after_seconds);
     }
 
     _readingFor(city) {
@@ -425,7 +430,11 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._setError(city.query, "");
         this._readings.set(
             locationCacheKey(city.query),
-            { record: reading, provider: provider || "", at: this._now() });
+            {
+                record: reading,
+                provider: provider || "",
+                elapsedAt: this._elapsed_now()
+            });
         // the panel is repainted once, when the round finishes
         round.changed = true;
         this._cityDone(generation, round, round.settings, callback, true);

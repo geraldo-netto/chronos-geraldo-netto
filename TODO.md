@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T686 | Architecture / reliability | Medium | Todo | M | Separate elapsed-time clocks from civil timestamps and make backward wall-clock jumps fail safely. | Weather rate limiting, in-memory cache TTLs and last-good expiry use `Date.now()` deltas (`weatherProviders.js:69-122,390-445`; `weather.js:55-117`; `cityWeather.js:69-83,148-157`), and the local-timezone recheck uses a Unix timestamp (`5.4/worldclocks.js:139-169`). Moving the system clock backward can retain stale readings/timezones or delay a queued geocode far beyond its one-second interval; holiday freshness can likewise treat negative ages as fresh (`holidayCache.js:785-799`). Introduce an injected monotonic elapsed-time port for session state, keep wall time only for persisted/provider dates, and treat negative persisted ages as stale; test forward/backward jumps. |
 | T689 | I18n / release wiring | Low | Todo | S | Regenerate and commit the translation template so the packaging gate is green. | `npm run i18n:check` fails with “translation template is stale at line 30.” A clean temporary `po/makepot` run shows source-reference drift in `5.4/calendar.js` and `5.4/appletPanelStatus.js` (no msgid changes), so catalogs remain semantically current but the committed POT no longer matches shipped sources. Regenerate `po/chronos@geraldo-netto.pot`, rerun the catalog gate, and keep this mechanical update with the item. |
 
 ## Rejected

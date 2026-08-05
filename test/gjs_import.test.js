@@ -29,6 +29,9 @@ function gjsImportsMock() {
             Gio: {},
             GLib: {
                 SpawnFlags: { SEARCH_PATH: 4 },
+                get_monotonic_time() {
+                    return 2500000;
+                },
                 get_home_dir() {
                     return "/home/test";
                 },
@@ -80,6 +83,10 @@ function gjsImportsMock() {
                         },
                         clockLimits: {
                             MAX_CLOCKS: 8
+                        },
+                        elapsedTime: {
+                            monotonicMilliseconds() { return 2500; },
+                            monotonicSeconds() { return 2.5; }
                         },
                         dateMath: {
                             MSECS_IN_DAY: 86400000,
@@ -283,6 +290,7 @@ const EXPORTS = {
         "validCoordinates", "validDayBounds", "sunAltitude", "moonAltitude",
         "calculateAstronomyEvents"],
     clockLimits: ["MAX_CLOCKS"],
+    elapsedTime: ["monotonicMilliseconds", "monotonicSeconds"],
     dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
@@ -368,6 +376,12 @@ for (const [moduleName, symbols] of Object.entries(EXPORTS)) {
         }
     });
 }
+
+test("elapsed time exposes one monotonic clock in milliseconds and seconds", () => {
+    const context = nativeImport("elapsedTime");
+    assert.equal(context.monotonicMilliseconds(), 2500);
+    assert.equal(context.monotonicSeconds(), 2.5);
+});
 
 // weather.js re-exports weatherFormat through three hand-maintained lists — the
 // `var X = WeatherFormat.X` block, module.exports, and the gate above — and they

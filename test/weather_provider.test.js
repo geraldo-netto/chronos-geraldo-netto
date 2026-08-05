@@ -691,14 +691,14 @@ test("weather location resolver owns geocode fallback and cache", () => {
     }]);
 });
 
-test("Nominatim requests are single-flight and start at least one second apart", () => {
+test("Nominatim requests are single-flight and use bounded elapsed delays", () => {
     const Weather = loadWeather();
     let now = 0;
     const timers = [];
     const starts = [];
     const releases = [];
     const queue = new Weather.NominatimRequestQueue({
-        now: () => now,
+        elapsedNow: () => now,
         schedule(delay, callback) {
             timers.push({ delay, callback });
             return timers.length;
@@ -722,6 +722,15 @@ test("Nominatim requests are single-flight and start at least one second apart",
     now = Weather.NOMINATIM_MIN_INTERVAL_MS;
     assert.equal(timers.shift().callback(), false);
     assert.deepEqual(starts, [0, Weather.NOMINATIM_MIN_INTERVAL_MS]);
+
+    queue.enqueue((release) => {
+        starts.push(now);
+        releases.push(release);
+    });
+    now = 500;
+    releases.shift()();
+    assert.equal(timers.shift().delay, Weather.NOMINATIM_MIN_INTERVAL_MS,
+        "a broken elapsed-time port cannot turn a backward jump into an unbounded wait");
 });
 
 test("panel and city resolvers share the process-wide Nominatim queue", () => {
@@ -863,7 +872,7 @@ test("shared reading repository coalesces one remote read per refresh period", (
     const reports = [];
     let now = 10000;
     const repository = new Weather.WeatherReadingRepository({
-        now: () => now,
+        elapsedNow: () => now,
         cacheSeconds: Weather.REFRESH_SECONDS,
         httpGetJson(url, callback) {
             requests.push(url);
@@ -927,7 +936,7 @@ test("shared reading cache expires entries and evicts the least recently used", 
         forget() {}
     };
     const repository = new Weather.WeatherReadingRepository({
-        now: () => now,
+        elapsedNow: () => now,
         cacheSeconds: 10,
         maxCacheEntries: 3,
         locationResolver,

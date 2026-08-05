@@ -37,6 +37,7 @@ function loadCityWeather(soupOptions = {}) {
                 PRIORITY_DEFAULT: 0,
                 SOURCE_CONTINUE: true,
                 SOURCE_REMOVE: false,
+                get_monotonic_time: () => 1000000,
                 timeout_add: () => 2,
                 timeout_add_seconds: () => 1,
                 source_remove() {}
@@ -614,7 +615,7 @@ test("a city that fails to read is retried, and says so once it is old", () => {
     let clock = 1000000;
     const provider = new CityWeather.CityWeatherProvider({
         httpGetJson() {},
-        now: () => clock,
+        elapsedNow: () => clock,
         // the jitter has its own test; this one is about the backoff under it
         random: () => 0,
         scheduleTimer: (seconds, callback) => {
@@ -879,7 +880,7 @@ test("staleness follows the refresh period the provider was given", () => {
     const provider = new CityWeather.CityWeatherProvider(Object.assign({
         httpGetJson() {},
         refreshSeconds: 60,
-        now: () => now
+        elapsedNow: () => now
     }, stubResolvers({ Lisbon: "☀ 20°C" }, calls)));
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => {});
@@ -902,7 +903,7 @@ test("staleness at the default period is still two refresh periods", () => {
     const calls = {};
     const provider = new CityWeather.CityWeatherProvider(Object.assign({
         httpGetJson() {},
-        now: () => now
+        elapsedNow: () => now
     }, stubResolvers({ Lisbon: "☀ 20°C" }, calls)));
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => {});

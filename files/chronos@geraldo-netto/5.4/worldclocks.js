@@ -22,6 +22,7 @@ const WorldclockData = require("./worldclockData");
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
 const DateFormats = AppletModules.dateFormats;
+const ElapsedTime = AppletModules.elapsedTime;
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
@@ -38,9 +39,10 @@ const selectUserClocks = WorldclockData.selectUserClocks;
 const clockDisplayLabel = WorldclockData.clockDisplayLabel;
 
 var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
-    constructor(box) {
+    constructor(box, params = {}) {
         this.clocks = [];
         this.format = "%H:%M";
+        this._elapsed_now = params.elapsedNow || ElapsedTime.monotonicSeconds;
 
         this.layout = new Clutter.GridLayout();
         this.actor = new St.Widget({
@@ -147,12 +149,14 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // same applet, disagreeing with itself. Re-resolving it every tick would
     // build a GLib.TimeZone a second; the popup shows minutes, so once a minute
     // is enough to be right and cheap enough to not matter.
-    _refreshLocalTimezone(nowSeconds) {
-        if (this._local_tz_checked_at !== undefined &&
-            nowSeconds - this._local_tz_checked_at < LOCAL_TIMEZONE_RECHECK_SECONDS) {
+    _refreshLocalTimezone(nowSeconds = this._elapsed_now()) {
+        const elapsed = nowSeconds - this._local_tz_checked_elapsed;
+        if (this._local_tz_checked_elapsed !== undefined &&
+            Number.isFinite(elapsed) && elapsed >= 0 &&
+            elapsed < LOCAL_TIMEZONE_RECHECK_SECONDS) {
             return;
         }
-        this._local_tz_checked_at = nowSeconds;
+        this._local_tz_checked_elapsed = nowSeconds;
 
         const local = timezoneFromIdentifier(LOCAL_TIMEZONE);
         const identity = timezoneIdentity(local);
@@ -170,7 +174,7 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
 
     getClockEntries() {
         const time = GLib.DateTime.new_now_utc();
-        this._refreshLocalTimezone(time.to_unix ? time.to_unix() : 0);
+        this._refreshLocalTimezone();
 
         return this.clocks.map((clock) => {
             const localTime = clock.tz ? time.to_timezone(clock.tz) : null;

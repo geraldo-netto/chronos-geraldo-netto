@@ -32,6 +32,9 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 const GLib = GjsImports.gi.GLib;
+const ElapsedTime = IS_NODE ?
+    require("./elapsedTime") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].elapsedTime;
 const IoUtils = IS_NODE ?
     require("./ioUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
@@ -71,7 +74,8 @@ var NOMINATIM_MIN_INTERVAL_MS = 1000; // NOSONAR [S3504] -- GJS importer export
 // both the panel and world-clock weather paths share the same budget.
 var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
-        this._now = params.now || (() => Date.now());
+        this._elapsed_now = params.elapsedNow || params.now ||
+            ElapsedTime.monotonicMilliseconds;
         this._schedule = params.schedule || ((delay, callback) =>
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, callback));
         this._jobs = [];
@@ -105,8 +109,13 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
             return;
         }
 
-        const elapsed = this._last_started_at === null ?
-            NOMINATIM_MIN_INTERVAL_MS : this._now() - this._last_started_at;
+        const measuredElapsed = this._last_started_at === null ?
+            NOMINATIM_MIN_INTERVAL_MS : this._elapsed_now() - this._last_started_at;
+        // Monotonic time cannot move backwards, but an injected or broken port
+        // must still delay by at most one normal interval, never by the size of
+        // a civil-clock correction.
+        const elapsed = Number.isFinite(measuredElapsed) && measuredElapsed >= 0 ?
+            measuredElapsed : 0;
         const delay = Math.max(0, NOMINATIM_MIN_INTERVAL_MS - elapsed);
         if (delay > 0) {
             this._jobs.unshift(job);
@@ -119,7 +128,7 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
         }
 
         this._active = true;
-        this._last_started_at = this._now();
+        this._last_started_at = this._elapsed_now();
         let released = false;
         const release = () => {
             if (released) {
@@ -390,7 +399,8 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
 var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
         this._destroyed = false;
-        this._now = params.now || (() => Date.now());
+        this._elapsed_now = params.elapsedNow || params.now ||
+            ElapsedTime.monotonicMilliseconds;
         this._cache_milliseconds = Math.max(0, Number(params.cacheSeconds) || 0) * 1000;
         this._cache = params.readingCache || new Map();
         const requestedMax = Number(params.maxCacheEntries);
@@ -441,7 +451,8 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             this._cache.delete(key);
             return null;
         }
-        if (this._now() - cached.startedAt >= this._cache_milliseconds) {
+        const age = this._elapsed_now() - cached.startedAtElapsed;
+        if (!Number.isFinite(age) || age < 0 || age >= this._cache_milliseconds) {
             this._cache.delete(key);
             return null;
         }
@@ -452,7 +463,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         return cached;
     }
 
-    _rememberReading(key, reading, provider, startedAt, place) {
+    _rememberReading(key, reading, provider, startedAtElapsed, place) {
         this._cache.delete(key);
         while (this._cache.size >= this._max_cache_entries) {
             const oldest = this._cache.keys().next();
@@ -461,7 +472,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             }
             this._cache.delete(oldest.value);
         }
-        this._cache.set(key, { reading, provider, startedAt, place });
+        this._cache.set(key, { reading, provider, startedAtElapsed, place });
     }
 
     refresh(location, isCurrent, callback) {
@@ -489,7 +500,11 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             return;
         }
 
-        const request = { startedAt: this._now(), subscribers: [subscriber], place: null };
+        const request = {
+            startedAtElapsed: this._elapsed_now(),
+            subscribers: [subscriber],
+            place: null
+        };
         this._inflight.set(key, request);
         // A consumer generation decides whether that subscriber still wants the
         // answer. The shared operation continues while any subscriber does: if
@@ -536,7 +551,8 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
 
         this._inflight.delete(key);
         if (reading && !error && this._cache_milliseconds > 0) {
-            this._rememberReading(key, reading, provider, request.startedAt, request.place);
+            this._rememberReading(
+                key, reading, provider, request.startedAtElapsed, request.place);
         }
 
         for (const subscriber of request.subscribers) {

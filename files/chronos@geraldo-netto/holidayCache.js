@@ -142,6 +142,11 @@ function validCachedYears(years, now = Date.now()) {
 
     return checked;
 }
+
+function cachedStampIsFresh(stamp, now, period) {
+    const age = now - new Date(stamp).getTime();
+    return Number.isFinite(age) && age >= 0 && age < period;
+}
 var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -- GJS importer export
     constructor(fn, params = {}) {
         this.fn = fn;
@@ -786,14 +791,14 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     stale(year, region = this.region, now = Date.now()) {
         if (this.years[year]) {
             const retrieved = this.years[year][region];
-            if (retrieved && now - new Date(retrieved).getTime() < UPDATE_PERIOD) {
+            if (retrieved && cachedStampIsFresh(retrieved, now, UPDATE_PERIOD)) {
                 return false;
             }
         }
 
         if (this.attempts[year]) {
             const attempted = this.attempts[year][region];
-            if (attempted && now - new Date(attempted).getTime() < RETRY_PERIOD) {
+            if (attempted && cachedStampIsFresh(attempted, now, RETRY_PERIOD)) {
                 return false;
             }
         }

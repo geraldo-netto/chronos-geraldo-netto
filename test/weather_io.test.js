@@ -304,7 +304,7 @@ test("a last-good panel reading expires like the city readings do", () => {
     const Weather = loadWeather();
     let clock = 1000000;
     const state = new Weather.WeatherDisplayState({
-        now: () => clock,
+        elapsedNow: () => clock,
         staleAfterSeconds: 3600
     });
     const seen = [];
@@ -328,6 +328,11 @@ test("a last-good panel reading expires like the city readings do", () => {
     // and a fresh reading revives it
     state.reporter("rome", report)("🌧 12°C", "", "Open-Meteo", { condition: "🌧", temperatureC: 12 });
     assert.equal(state.isStale(), false);
+
+    // A monotonic clock should never regress. If an injected or broken port
+    // does, fail stale instead of treating a negative age as indefinitely fresh.
+    clock--;
+    assert.equal(state.isStale(), true);
 });
 
 test("a fresh scheduler is inactive and carries the shipped retry period", () => {
