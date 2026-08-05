@@ -71,7 +71,7 @@ function registerLocaleConsumer() {
     // the ladder where it stopped.
     Object.keys(degraded).forEach((env) => {
         if (degraded[env] && !(attempts[env] >= LOCALE_MAX_ATTEMPTS)) { // NOSONAR [S1940] -- mirrors _shouldAsk's cap guard
-            _requestInfo(env, true);
+            _resumeLocaleQuery(env);
         }
     });
     // An env cancelled after the last consumer left is not degraded — that is
@@ -81,9 +81,17 @@ function registerLocaleConsumer() {
     Object.keys(unanswered).forEach((env) => {
         if (unanswered[env]) {
             unanswered[env] = false;
-            _requestInfo(env);
+            _resumeLocaleQuery(env);
         }
     });
+}
+
+// One rule for every place that picks a query back up: a resume carries the
+// env's degraded flag. `_shouldAsk` admits a degraded env only to its own armed
+// retry, so a resume that forgets the flag is silently refused — which is
+// exactly how an env already on the ladder used to stop being asked at all.
+function _resumeLocaleQuery(env) {
+    _requestInfo(env, Boolean(degraded[env]));
 }
 
 function _lastLocaleConsumerLeft() {
@@ -287,6 +295,28 @@ function _shouldAsk(env, force) {
     return !(attempts[env] >= LOCALE_MAX_ATTEMPTS); // NOSONAR [S1940] -- accepted compatible form
 }
 
+// An abandoned query is unfinished, not failed. The last consumer left, but
+// another applet can be added before Gio delivers the cancellation callback:
+// its getInfo() sees the old request still in flight and cannot restart it, so
+// clearing that request here is what makes a resume possible.
+//
+// Whoever is here to want it asks again immediately; with nobody left, the env
+// is remembered so the next first consumer can. Both were true before for an
+// env that had never failed — and neither was for one already on the retry
+// ladder. That env is still flagged degraded (only a success clears it), so the
+// unforced resume was refused by `_shouldAsk`, and because the immediate branch
+// recorded nothing in `unanswered` the process was left with no route back:
+// remove and re-add the applet while a retry is in flight and every locale
+// value stayed on the English defaults, with attempts still unspent.
+function _resumeAbandonedQuery(env) {
+    if (_consumers === 0) {
+        unanswered[env] = true;
+        return;
+    }
+
+    _resumeLocaleQuery(env);
+}
+
 // The two ways a query ends, and the state each one leaves behind. Exactly one of
 // them runs: whichever gets there first, the deadline or the answer.
 function _settlers(env) {
@@ -316,15 +346,7 @@ function _settlers(env) {
                 requested[env] = false;
                 delete _cancellables[env];
                 delete _subprocesses[env];
-                // The last consumer left, but another applet can be added before
-                // Gio delivers the cancellation callback. Its getInfo() sees the
-                // old request in flight and cannot restart it; once this callback
-                // clears that request, resume it for the replacement consumer.
-                if (_consumers > 0) {
-                    _requestInfo(env);
-                } else {
-                    unanswered[env] = true;
-                }
+                _resumeAbandonedQuery(env);
                 return;
             }
 

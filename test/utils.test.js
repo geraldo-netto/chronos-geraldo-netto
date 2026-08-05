@@ -2481,6 +2481,66 @@ test("re-adding an applet restarts a cancellation still settling", () => {
     localeQuery.cancelPendingLocaleQueries();
 });
 
+// T741: T584 covers an env whose retry the teardown cancelled *before* it went
+// out, and T727 covers a never-failed env cancelled mid-flight. The gap was the
+// intersection — a degraded env whose armed retry was already in flight when
+// the last consumer left. `degraded` is only cleared by a success, so the
+// replacement consumer's forced resume was refused (the request is still in
+// flight), and the abandoned branch's own resume then forgot the flag and was
+// refused too. Nothing recorded the env as unfinished either, so it was never
+// asked again: the process stayed on the English defaults for the session with
+// two of three attempts unspent. Remove-and-re-add is what a reload does.
+test("a degraded query cancelled mid-retry is resumed by the replacement applet", () => {
+    global.logError = () => {};
+    const localeQuery = loadLocaleModules({
+        neverAnswers: true,
+        spawnOutput: 'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\nfirst_workday=1\n'
+    });
+    const Subprocess = global.imports.gi.Gio.Subprocess;
+    const Cancellable = global.imports.gi.Gio.Cancellable;
+    const timers = [];
+    global.imports.gi.GLib.timeout_add_seconds = (_priority, seconds, callback) => {
+        timers.push({ seconds, callback });
+        return timers.length;
+    };
+    const fire = (seconds) => {
+        const index = timers.findIndex((timer) => timer.seconds === seconds);
+        assert.notEqual(index, -1, `a ${seconds}s timer is armed`);
+        timers.splice(index, 1)[0].callback();
+    };
+    const abday = localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday);
+
+    // first applet: the query wedges, its deadline fires, the env degrades and
+    // arms the 60 s retry with two attempts left
+    localeQuery.registerLocaleConsumer();
+    assert.equal(abday(), "Sun;Mon;Tue;Wed;Thu;Fri;Sat");
+    fire(5);
+    assert.equal(abday(), "Sun;Mon;Tue;Wed;Thu;Fri;Sat", "the defaults stand in");
+
+    // the retry goes out and is still in flight when the applet is removed
+    fire(60);
+    const retried = Cancellable.last;
+    localeQuery.cancelPendingLocaleQueries();
+    assert.equal(retried.cancelled, true);
+
+    // the replacement applet arrives before Gio delivers the cancellation, so
+    // its own resume cannot restart a request that is still marked in flight
+    localeQuery.registerLocaleConsumer();
+    assert.equal(Cancellable.last, retried,
+        "the cancelled request still owns the env until its callback settles");
+
+    // ...and settling it is what has to pick the query back up
+    Subprocess.settle();
+    assert.notEqual(Cancellable.last, retried,
+        "a degraded env is resumed, not written off with attempts to spare");
+
+    Subprocess.settle();
+    assert.equal(abday(), "Dom;Seg;Ter;Qua;Qui;Sex;Sáb",
+        "and the answer reaches the memo that was holding the defaults");
+
+    localeQuery.cancelPendingLocaleQueries();
+});
+
 // T727: the test above re-adds the applet *before* Gio delivers the
 // cancellation, which is the case the `_consumers > 0` branch covers. Settle
 // first and nothing resumed the query: the abandoned branch deliberately skips
