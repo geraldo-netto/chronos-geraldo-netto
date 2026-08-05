@@ -45,6 +45,9 @@ var MAX_CLOCKS = ClockLimits.MAX_CLOCKS; // NOSONAR [S3504] -- GJS importer expo
 // along — at 48 — for exactly this reason; the other two readouts were not.
 // A city name is a few words.
 var MAX_CLOCK_LABEL_LENGTH = 24; // NOSONAR [S3504] -- GJS importer export
+// Keep persisted/user-facing text available for editing and disclosure, while
+// still bounding every settings value admitted into the compositor process.
+var MAX_CLOCK_INPUT_LABEL_LENGTH = 128; // NOSONAR [S3504] -- GJS importer export
 var LOCAL_TIMEZONE = "local"; // NOSONAR [S3504] -- GJS importer export
 var UTC_TIMEZONE = "UTC"; // NOSONAR [S3504] -- GJS importer export
 // the IANA "no region" area: Etc/UTC, Etc/GMT+3 and the like are offsets, not
@@ -452,7 +455,7 @@ function normalizedClockEntry(clock) {
         return null;
     }
 
-    const label = clockDisplayLabel(clock.label);
+    const label = clockInputLabel(clock.label);
     const timezone = typeof clock.timezone === "string" ? clock.timezone.trim() : "";
     return label && timezone ? { label, timezone } : null;
 }
@@ -474,8 +477,6 @@ function selectUserClocks(clocks) {
             continue;
         }
 
-        // clamped here, where the clocks are chosen, so the popup, the tooltip
-        // and the weather readings all key off the same string
         selected.push(normalized);
         if (selected.length >= MAX_CLOCKS) {
             break;
@@ -488,6 +489,11 @@ function selectUserClocks(clocks) {
 function clockDisplayLabel(label) {
     const normalized = typeof label === "string" ? label.trim() : "";
     return TextUtils.clampText(normalized, MAX_CLOCK_LABEL_LENGTH);
+}
+
+function clockInputLabel(label) {
+    const normalized = typeof label === "string" ? label.trim() : "";
+    return TextUtils.clampText(normalized, MAX_CLOCK_INPUT_LABEL_LENGTH);
 }
 
 if (typeof module !== "undefined") {
@@ -512,7 +518,9 @@ if (typeof module !== "undefined") {
         builtInTimezoneKeys,
         selectUserClocks,
         clockDisplayLabel,
+        clockInputLabel,
         MAX_CLOCK_LABEL_LENGTH,
+        MAX_CLOCK_INPUT_LABEL_LENGTH,
         MAX_ZONE_TAB_BYTES,
         MAX_MEMOIZED_WEATHER_CITIES
     };

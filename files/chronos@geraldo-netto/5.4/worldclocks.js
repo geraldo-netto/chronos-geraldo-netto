@@ -35,6 +35,7 @@ const LOCAL_TIMEZONE_RECHECK_SECONDS = 60;
 const builtinClocks = WorldclockData.builtinClocks;
 const timezoneIdentity = WorldclockData.timezoneIdentity;
 const selectUserClocks = WorldclockData.selectUserClocks;
+const clockDisplayLabel = WorldclockData.clockDisplayLabel;
 
 var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     constructor(box) {
@@ -67,6 +68,8 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         rows.forEach((item, i) => {
             let tz = timezoneFromIdentifier(item.timezone);
             let builtin = i < builtins.length;
+            const fullLabel = item.label;
+            const visibleLabel = builtin ? fullLabel : clockDisplayLabel(fullLabel);
 
             // The display name is free text from the settings dialog, and this
             // label had no max-width, no ellipsize and no tooltip — so a long one
@@ -74,14 +77,14 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
             // the calendar grid across the screen. The 24-character clamp applies
             // to the *panel* label, not to this one.
             let label = new St.Label({
-                text: item.label,
+                text: visibleLabel,
                 x_expand: true,
                 x_align: Clutter.ActorAlign.START,
                 style_class: "calendar-world-label"
             });
             label.get_clutter_text().ellipsize = Pango.EllipsizeMode.END;
             // ellipsized text is text the user cannot read: the hover gives it back
-            new Tooltips.Tooltip(label, item.label); // NOSONAR [S1848] -- constructor registers handlers
+            new Tooltips.Tooltip(label, fullLabel); // NOSONAR [S1848] -- constructor registers handlers
             this.layout.attach(label, 0, i, 1, 1);
 
             let display = new St.Label({
@@ -101,7 +104,8 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
             this.layout.attach(weather, 2, i, 1, 1);
 
             this.clocks.push({
-                label: item.label, timezone: item.timezone, display, weather, tz, builtin,
+                label: visibleLabel, full_label: fullLabel, timezone: item.timezone,
+                display, weather, tz, builtin,
                 rendered_time: null, rendered_name: null, rendered_weather: null
             });
         });

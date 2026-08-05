@@ -45,6 +45,7 @@ LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 # Kept here, not in chronos_timezone_data: schema_static reads this file for the cap and
 # the world-clock list height is checked against it.
 MAX_CLOCKS = 8
+MAX_CLOCK_INPUT_LABEL_LENGTH = 128
 # idles spent waiting for the settings window to be parented before giving up on
 # centering it; without a bound this is a busy loop that never ends
 MAX_CENTER_ATTEMPTS = 100
@@ -190,7 +191,7 @@ def attach_timezone_completion(entry, completions):
 class ListEditEntry(Entry):
     """A text column of the add/edit dialog, optionally autocompleting."""
 
-    def __init__(self, completions=None, placeholder=None, **kwargs):
+    def __init__(self, completions=None, placeholder=None, max_length=None, **kwargs):
         super().__init__(**kwargs)
         self.bind_object = self.content_widget
         # A hint about what to type belongs *in* the empty field, not in the
@@ -199,6 +200,8 @@ class ListEditEntry(Entry):
         # "Timezone" - two names for one thing.
         if placeholder and hasattr(self.bind_object, "set_placeholder_text"):
             self.bind_object.set_placeholder_text(placeholder)
+        if max_length and hasattr(self.bind_object, "set_max_length"):
+            self.bind_object.set_max_length(max_length)
         if completions:
             self.completion = attach_timezone_completion(self.bind_object, completions)
 
@@ -231,10 +234,16 @@ def list_edit_factory(params):
     kwargs = {'label': _(params['title'])}
 
     return ListEditEntry(completions=params.get('completions'),
-                         placeholder=params.get('placeholder'), **kwargs)
+                         placeholder=params.get('placeholder'),
+                         max_length=params.get('max_length'), **kwargs)
 
 def normalize_clock_label(value):
-    return value.strip() if isinstance(value, str) else ""
+    if not isinstance(value, str):
+        return ""
+    normalized = value.strip()
+    if len(normalized) <= MAX_CLOCK_INPUT_LABEL_LENGTH:
+        return normalized
+    return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip() + "…"
 
 
 def normalize_saved_clocks(value) -> list[dict[str, str]]:
@@ -441,11 +450,13 @@ class ClockDialogBuilder:
         # headings already live; the dialog adds what only it needs
         schema_columns = self.clocks_list.settings.get_property(
             self.clocks_list.key, 'columns')
+        label_column = dict(schema_columns[0])
+        label_column["max_length"] = MAX_CLOCK_INPUT_LABEL_LENGTH
         timezone_column = dict(schema_columns[1])
         timezone_column["completions"] = self.clocks_list.completions
         timezone_column["placeholder"] = TIMEZONE_TEXT_HINT
 
-        columns = [schema_columns[0], timezone_column]
+        columns = [label_column, timezone_column]
 
         widgets = {}
         preview_label = Gtk.Label()

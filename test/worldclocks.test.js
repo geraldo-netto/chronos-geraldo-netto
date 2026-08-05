@@ -255,6 +255,7 @@ function loadWorldclocks(options = {}) {
                     constructor(actor, text) {
                         this.actor = actor;
                         this.text = text;
+                        actor.tooltip_text = text;
                     }
                     set_text(text) { this.text = text; }
                 }
@@ -552,20 +553,30 @@ test("a very long clock name is cut down to size", () => {
     const worldclocks = new Worldclocks({ add_actor() {} });
     const max = WorldclockData.MAX_CLOCK_LABEL_LENGTH;
 
+    const fullLabel = "x".repeat(60);
     worldclocks.buildClocks([
-        { label: "x".repeat(60), timezone: "Europe/Rome" },
+        { label: fullLabel, timezone: "Europe/Rome" },
         { label: "Tokyo", timezone: "Asia/Tokyo" }
     ]);
 
     const [long, short] = worldclocks.clocks.filter((clock) => !clock.builtin);
     assert.equal(Array.from(long.label).length, max);
     assert.ok(long.label.endsWith("…"), "and it says it was cut");
+    assert.equal(long.full_label, fullLabel, "the disclosure model keeps the full name");
     assert.equal(short.label, "Tokyo", "a name that fits is untouched");
 
-    // the weather readings are keyed by this label, so both sides must clamp
-    // the same way or a city's temperature is looked up under a name nobody has
-    assert.equal(WorldclockData.selectUserClocks([{ label: "x".repeat(60), timezone: "Europe/Rome" }])[0].label,
-        long.label);
+    const selected = WorldclockData.selectUserClocks(
+        [{ label: fullLabel, timezone: "Europe/Rome" }])[0];
+    assert.equal(selected.label, fullLabel);
+    const popupLabel = worldclocks.layout.children
+        .find((cell) => cell.row === BUILTIN_ROWS && cell.column === 0).child;
+    assert.equal(popupLabel.text, long.label, "only the drawn projection is clamped");
+    assert.equal(popupLabel.tooltip_text, fullLabel, "hover reveals the complete saved label");
+
+    const oversized = WorldclockData.clockInputLabel(
+        "y".repeat(WorldclockData.MAX_CLOCK_INPUT_LABEL_LENGTH + 20));
+    assert.equal(Array.from(oversized).length, WorldclockData.MAX_CLOCK_INPUT_LABEL_LENGTH);
+    assert.ok(oversized.endsWith("…"));
 });
 
 test("configured clocks require visible normalized labels", () => {
@@ -1011,7 +1022,9 @@ function randomClockEntries(random, alphabet) {
 }
 
 function assertClockMatchesEntry(clock, entry) {
-    assert.equal(clock.label, entry.label);
+    const data = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    assert.equal(clock.label, data.clockDisplayLabel(entry.label));
+    assert.equal(clock.full_label, entry.label);
     if (!knownTimeZone(entry.timezone)) {
         assert.equal(clock.display.text, "Invalid timezone");
         assert.equal(clock.display.options.style_class,

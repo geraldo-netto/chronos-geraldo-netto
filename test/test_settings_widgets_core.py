@@ -23,10 +23,11 @@ class SettingsWidgetsTest(unittest.TestCase):
         BaseWidget.instances.clear()
 
     def test_list_edit_factory_entry_widget(self):
-        widget = self.module.list_edit_factory({"title": "Label"})
+        widget = self.module.list_edit_factory({"title": "Label", "max_length": 42})
 
         self.assertIsInstance(widget, Entry)
         self.assertEqual(widget.kwargs["label"], "Label")
+        self.assertEqual(widget.bind_object.max_length, 42)
 
         widget.set_widget_value("Home")
         self.assertEqual(widget.get_widget_value(), "Home")
@@ -157,6 +158,10 @@ class SettingsWidgetsTest(unittest.TestCase):
 
         self.assertEqual(serializer.serialize(" Home ", "Europe/Rome"), ["Home", "Europe/Rome"])
         self.assertEqual(serializer.serialize(" \t ", "Europe/Rome"), ["", "Europe/Rome"])
+        long_label = "x" * (self.module.MAX_CLOCK_INPUT_LABEL_LENGTH + 20)
+        saved = serializer.serialize(long_label, "Europe/Rome")[0]
+        self.assertEqual(len(saved), self.module.MAX_CLOCK_INPUT_LABEL_LENGTH)
+        self.assertTrue(saved.endswith("…"))
 
     def test_clock_entry_serializer_matches_schema_column_order(self):
         schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
