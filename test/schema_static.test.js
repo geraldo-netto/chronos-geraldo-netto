@@ -113,7 +113,8 @@ test("the license is declared everywhere it is claimed, and its text ships", () 
 test("5.4 schema exposes Belgium holiday regions", () => {
     const schema52 = schema("5.4");
 
-    assert.ok(schema52.has_region.default.includes("bel"));
+    assert.ok(require(path.join(appletDir, "holidayConstants.js"))
+        .REGION_COUNTRIES.includes("bel"));
     assert.deepEqual(schema52.region_bel, {
         type: "combobox",
         // the value that means "no region": an unset region and "global" are the
@@ -231,8 +232,20 @@ test("every region the dialog offers is a region the providers understand", () =
     const constants = require(path.join(appletDir, "holidayConstants.js"));
     const regions = constants.REGION_TO_SUBDIVISION;
 
-    assert.deepEqual(data.has_region.default.slice().sort(), Object.keys(regions).sort(),
-        "has_region lists the countries that have a region selector");
+    // The list used to be a `generic` schema default, and Cinnamon keeps a
+    // generic key's stored value across an upgrade: the array froze at whatever
+    // shipped on first install, so a release that added a region-capable country
+    // rendered its combobox — the dependency is on `country` alone — and
+    // discarded every choice, because the key was never bound. It is a release
+    // fact, so it belongs in the catalogue the runtime already reads.
+    assert.equal(data.has_region, undefined,
+        "the region-capable list must not be stored in the user's instance file");
+    assert.deepEqual(constants.REGION_COUNTRIES.slice().sort(), Object.keys(regions).sort(),
+        "REGION_COUNTRIES lists the countries that have a region selector");
+    assert.deepEqual(
+        Object.keys(data).filter((key) => key.startsWith("region_")).sort(),
+        constants.REGION_COUNTRIES.map((country) => `region_${country}`).sort(),
+        "the schema exposes a region combobox for exactly those countries");
 
     for (const country of Object.keys(regions)) {
         const key = `region_${country}`;

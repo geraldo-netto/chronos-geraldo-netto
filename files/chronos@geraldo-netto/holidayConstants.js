@@ -333,7 +333,18 @@ var REGION_TO_SUBDIVISION = { // NOSONAR [S3504] -- GJS importer export
     }
 };
 
+// Which countries get a region selector is a property of the release, not a
+// user choice, but it used to be a `generic` schema default read back out of the
+// *instance* file. Cinnamon keeps the stored value for a generic key across an
+// upgrade, so the array froze at whatever shipped on first install: a release
+// that added a region-capable country still rendered its new combobox — the
+// `dependency: country=<new>` is satisfied by the country key alone — while
+// `bindRegions()` never bound the key, so every choice made in it was discarded
+// and nationwide holidays were requested silently. Deriving it from the
+// subdivision table also removes the second place the list could be wrong.
+var REGION_COUNTRIES = Object.keys(REGION_TO_SUBDIVISION); // NOSONAR [S3504] -- GJS importer export
+
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION };
+    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION, REGION_COUNTRIES };
 }

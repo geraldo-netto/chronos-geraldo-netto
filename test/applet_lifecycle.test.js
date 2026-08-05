@@ -130,7 +130,7 @@ test("an unsupported configured country falls back to none", () => {
     const settings = {
         // "ind" is not one of the countries the combobox offers: an older
         // config could still hold it
-        values: { has_region: [], country: "ind" },
+        values: { country: "ind" },
         bind() {},
         bindWithObject() {},
         connect() { return 1; },
@@ -873,7 +873,6 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     };
     const settings = {
         values: {
-            has_region: ["usa"],
             country: null,
             "show-religious-observances": true,
             "religion-islam": true
@@ -907,9 +906,16 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     assert.ok(lifecycle.holidayProvider);
     assert.deepEqual(calls.find((row) => row[0] === "factory-religions"),
         ["factory-religions", ["islam"]]);
-    assert.deepEqual(calls.filter((row) => row[0] === "bindWithObject"), [
-        ["bindWithObject", "region_usa", "usa"]
-    ]);
+    // Every region-capable country is bound, and the set comes from the shared
+    // catalogue rather than a `has_region` array stored in the instance file:
+    // Cinnamon keeps a generic key's stored value across an upgrade, so a
+    // release that added a country used to render its combobox and discard
+    // every choice made in it.
+    assert.deepEqual(calls.filter((row) => row[0] === "bindWithObject"),
+        rootModules.holidayConstants.REGION_COUNTRIES.map(
+            (country) => ["bindWithObject", `region_${country}`, country]));
+    assert.equal(settings.values.has_region, undefined,
+        "the region-capable list is never read out of the instance file");
     // the country is watched for changes, not bound onto the applet as a
     // property: every read goes through the settings accessor
     assert.deepEqual(calls.filter((row) => row[0] === "connect").map((row) => row[1]), [
@@ -1654,7 +1660,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     };
     global.imports.ui.settings.AppletSettings = class {
         constructor() {
-            this.values = { has_region: [], country: "none", worldclocks: [] };
+            this.values = { country: "none", worldclocks: [] };
         }
         bind(key, prop) {
             this[prop] = this.values[key] || false;

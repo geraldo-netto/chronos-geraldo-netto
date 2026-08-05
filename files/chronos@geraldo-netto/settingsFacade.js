@@ -17,6 +17,9 @@ const IS_NODE = typeof process !== "undefined" &&
 const ReligiousCatalog = IS_NODE ?
     require("./religiousCatalog") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].religiousCatalog;
+const HolidayConstants = IS_NODE ?
+    require("./holidayConstants") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
 
 // The settings boundary: every schema key name lives here, and nothing
 // outside this module passes a raw key string to Cinnamon's settings.
@@ -31,7 +34,6 @@ var SHOW_EVENTS_KEY = "show-events"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_WEEK_NUMBERS_KEY = "show-week-numbers"; // NOSONAR [S3504] -- GJS importer export
 var WEEKEND_LENGTH_KEY = "weekend-length"; // NOSONAR [S3504] -- GJS importer export
 var COUNTRY_KEY = "country"; // NOSONAR [S3504] -- GJS importer export
-var HAS_REGION_KEY = "has_region"; // NOSONAR [S3504] -- GJS importer export
 var REGION_KEY_PREFIX = "region_"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_RELIGIOUS_OBSERVANCES_KEY = "show-religious-observances"; // NOSONAR [S3504] -- GJS importer export
 var RELIGION_KEY_PREFIX = "religion-"; // NOSONAR [S3504] -- GJS importer export
@@ -194,9 +196,11 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
         return inferred || "";
     }
 
-    // countries whose holidays are region-specific; each has its own key
+    // Countries whose holidays are region-specific; each has its own key. This
+    // is a release fact, not a user choice, so it comes from the shared
+    // catalogue rather than the instance file — see REGION_COUNTRIES.
     get regionCountries() {
-        return this._settings.getValue(HAS_REGION_KEY);
+        return HolidayConstants.REGION_COUNTRIES;
     }
 
     // A bind() would also define `country` as a property on the applet, and
@@ -337,7 +341,6 @@ if (typeof module !== "undefined") {
         SHOW_WEEK_NUMBERS_KEY,
         WEEKEND_LENGTH_KEY,
         COUNTRY_KEY,
-        HAS_REGION_KEY,
         REGION_KEY_PREFIX,
         SHOW_RELIGIOUS_OBSERVANCES_KEY,
         RELIGION_KEY_PREFIX,

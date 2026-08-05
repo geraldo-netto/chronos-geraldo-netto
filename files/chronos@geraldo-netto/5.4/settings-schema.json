@@ -334,21 +334,6 @@
             "United States of America": "usa"
         }
     },
-    "has_region": {
-        "type": "generic",
-        "default": [
-            "aus",
-            "bel",
-            "can",
-            "deu",
-            "esp",
-            "nzl",
-            "svk",
-            "che",
-            "gbr",
-            "usa"
-        ]
-    },
     "region_aus": {
         "type": "combobox",
         "default": "global",
