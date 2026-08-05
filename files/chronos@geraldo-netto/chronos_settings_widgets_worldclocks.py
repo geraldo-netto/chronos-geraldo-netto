@@ -432,8 +432,17 @@ class ClockDialogStatePresenter:
         elif choice["timezone"]:
             self._report(widgets, self.clocks_list.format_timezone_preview(values))
         else:
+            # An empty field is not a wrong one. build_content ends by calling
+            # this with both entries still untouched, so the dialog opened with
+            # the Timezone entry and the preview drawn in the theme's error
+            # colour and a generic "Invalid timezone" ATK description on the
+            # entry — telling the user, and a screen reader, that they had
+            # entered something wrong before entering anything, while the
+            # equally empty Display name was left clean. Only text that resolves
+            # to nothing, or a reserved built-in, is invalid; `reserved` already
+            # implies `typed_invalid`.
             self._report(widgets, self.clocks_list.format_timezone_preview(values),
-                         invalid="timezone")
+                         invalid="timezone" if choice["typed_invalid"] else None)
 
         self.dialog.set_response_sensitive(
             Gtk.ResponseType.OK,

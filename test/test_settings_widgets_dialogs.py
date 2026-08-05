@@ -46,6 +46,49 @@ class BuildDialogContentTest(unittest.TestCase):
         self.assertEqual(preview.text, self.module.LABEL_MISSING_PREVIEW)
         self.assertEqual(dialog.sensitivity[-1], (1, False))
 
+    def test_an_untouched_dialog_is_not_marked_invalid(self):
+        # T732: build_content ends by validating with both entries still empty,
+        # and the empty case fell through to _report(..., invalid="timezone").
+        # So Add opened with the untouched Timezone entry and the preview drawn
+        # in the theme's error colour and a generic "Invalid timezone" ATK
+        # description on the entry, while the equally empty Display name was
+        # left clean — the user and a screen reader were told they had entered
+        # something wrong before entering anything.
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        dialog = GtkDialog()
+        preview = GtkLabel()
+        presenter = self.module.ClockDialogStatePresenter(clocks, dialog, preview)
+        entries = {
+            "label": BindObject(),
+            "timezone": BindObject()
+        }
+
+        def widgets_for(label, timezone):
+            return {
+                "label": types.SimpleNamespace(
+                    get_widget_value=lambda: label, bind_object=entries["label"],
+                    set_tooltip_text=lambda text: None),
+                "timezone": types.SimpleNamespace(
+                    get_widget_value=lambda: timezone, bind_object=entries["timezone"],
+                    set_tooltip_text=lambda text: None)
+            }
+
+        presenter.update(widgets_for(None, None))
+        self.assertEqual(preview.text, self.module.TIMEZONE_EMPTY_PREVIEW)
+        self.assertNotIn("error", preview.get_style_context().classes)
+        self.assertEqual(dialog.sensitivity[-1], (1, False),
+            "OK is still held closed; it just does not accuse anyone")
+
+        # text that resolves to nothing *is* wrong, and still says so
+        presenter.update(widgets_for("Home", "Nowhere/Atlantis"))
+        self.assertEqual(preview.text, self.module.TIMEZONE_INVALID_PREVIEW)
+        self.assertIn("error", preview.get_style_context().classes)
+
+        # and clearing the field again takes the accusation back
+        presenter.update(widgets_for("Home", ""))
+        self.assertEqual(preview.text, self.module.TIMEZONE_EMPTY_PREVIEW)
+        self.assertNotIn("error", preview.get_style_context().classes)
+
     def test_builder_returns_widgets_and_wires_preview(self):
         clocks = self.module.ClocksList({
             "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
