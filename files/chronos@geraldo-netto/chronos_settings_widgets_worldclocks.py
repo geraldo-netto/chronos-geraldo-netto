@@ -26,7 +26,7 @@ from typing import Any, Optional
 from gi.repository import Atk, GLib, Gtk
 
 import chronos_settings_widgets_common as common
-from chronos_timezone_data import completion_key
+from chronos_timezone_data import completion_key, is_runtime_builtin_timezone
 from chronos_settings_i18n import _
 
 # i18n: bind the domain to a module-level name. Installing the translator
@@ -246,22 +246,32 @@ def normalize_clock_label(value):
     return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip() + "…"
 
 
+def normalize_saved_clock(row) -> Optional[dict[str, str]]:
+    if not isinstance(row, dict):
+        return None
+    label = normalize_clock_label(row.get("label"))
+    timezone = row.get("timezone")
+    if not label or not isinstance(timezone, str):
+        return None
+    timezone = timezone.strip()
+    if not timezone or is_runtime_builtin_timezone(timezone):
+        return None
+    return {"label": label, "timezone": timezone}
+
+
 def normalize_saved_clocks(value) -> list[dict[str, str]]:
-    """Project saved JSON onto rows the typed Cinnamon list can load."""
+    """Project saved JSON onto the runtime's effective user-clock list."""
     if not isinstance(value, list):
         return []
 
     normalized = []
     for row in value:
-        if not isinstance(row, dict):
+        clock = normalize_saved_clock(row)
+        if clock is None:
             continue
-        label = normalize_clock_label(row.get("label"))
-        timezone = row.get("timezone")
-        if not label or not isinstance(timezone, str):
-            continue
-        timezone = timezone.strip()
-        if timezone:
-            normalized.append({"label": label, "timezone": timezone})
+        normalized.append(clock)
+        if len(normalized) >= MAX_CLOCKS:
+            break
 
     return normalized
 

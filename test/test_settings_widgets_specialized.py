@@ -450,6 +450,37 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         self.assertFalse(module.looks_like_iana(None))
         self.assertIn("utc", module.RESERVED_TIMEZONES)
 
+        self.assertFalse(module.is_runtime_builtin_timezone(
+            None, FIXED_LOCAL_TIMEZONE))
+        self.assertFalse(module.is_runtime_builtin_timezone(
+            "  ", FIXED_LOCAL_TIMEZONE))
+        self.assertTrue(module.is_runtime_builtin_timezone("local", ""))
+
+        original_local_timezone_name = module.local_timezone_name
+        module.local_timezone_name = lambda: FIXED_LOCAL_TIMEZONE
+        try:
+            self.assertTrue(module.is_runtime_builtin_timezone(
+                FIXED_LOCAL_TIMEZONE))
+        finally:
+            module.local_timezone_name = original_local_timezone_name
+
+    def test_a_broken_zoneinfo_alias_names_no_city(self):
+        module = self.load_gi_free()
+
+        class BrokenZoneinfo:
+            def joinpath(self, *_parts):
+                return self
+
+            def is_symlink(self):
+                return True
+
+            def resolve(self, strict):
+                self.strict = strict
+                raise OSError("broken alias")
+
+        module.ZONEINFO_DIRECTORY = BrokenZoneinfo()
+        self.assertEqual(module.local_city_name("Europe/Rome"), "")
+
     def test_builtin_rules_match_the_js_clock_selector(self):
         module = self.load_gi_free()
         fixture = json.loads(
@@ -465,3 +496,51 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         for timezone in fixture["reserved_inputs"]:
             self.assertTrue(resolver.is_reserved(timezone), timezone)
         self.assertFalse(resolver.is_reserved(fixture["ordinary_timezone"]))
+        for timezone in fixture["builtin_identities"] + ["local"]:
+            self.assertTrue(
+                module.is_runtime_builtin_timezone(
+                    timezone, fixture["local_timezone"]), timezone)
+        self.assertFalse(module.is_runtime_builtin_timezone(
+            fixture["ordinary_timezone"], fixture["local_timezone"]))
+
+
+class WorldClockSavedNormalizationTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.module = load_module(
+            WORLDCLOCKS_PATH, "settings_widgets_saved_clock_normalization")
+
+    def test_saved_rows_match_the_runtime_filter_and_cap(self):
+        ordinary = [
+            {"label": "Clock %d" % index, "timezone": "Region/City_%d" % index}
+            for index in range(self.module.MAX_CLOCKS + 1)
+        ]
+        saved = [
+            None,
+            {"label": "", "timezone": "Europe/Rome"},
+            {"label": "UTC duplicate", "timezone": "UTC"},
+            {"label": "Etc duplicate", "timezone": "Etc/UTC"},
+            {"label": "Local marker", "timezone": "local"},
+            {"label": "Local identity", "timezone": FIXED_LOCAL_TIMEZONE},
+        ] + ordinary
+        settings = FakeSettings({"worldclocks": saved})
+
+        clocks = self.module.ClocksList(
+            {"value": saved}, "worldclocks", settings)
+
+        expected = ordinary[:self.module.MAX_CLOCKS]
+        self.assertEqual(settings.values["worldclocks"], expected)
+        self.assertEqual(settings.writes, [("worldclocks", expected)])
+        self.assertEqual(clocks.model.rows, expected)
+        self.assertFalse(clocks.add_button.sensitive)
+
+    def test_an_effective_list_is_not_rewritten(self):
+        saved = [{"label": "Rome", "timezone": "Europe/Rome"}]
+        settings = FakeSettings({"worldclocks": saved})
+
+        clocks = self.module.ClocksList(
+            {"value": saved}, "worldclocks", settings)
+
+        self.assertEqual(clocks.model.rows, saved)
+        self.assertEqual(settings.writes, [])
+        self.assertTrue(clocks.add_button.sensitive)

@@ -78,6 +78,32 @@ def local_timezone_name() -> Optional[str]:
     return zoneinfo_name(target)
 
 
+def is_runtime_builtin_timezone(
+    value: Any,
+    local_timezone: Optional[str] = None,
+) -> bool:
+    """Would the runtime omit this row because it already draws that zone?
+
+    Keep this deliberately lighter than TimezoneResolver.is_reserved(): saved
+    rows already contain identifiers, and opening the settings page must not
+    build the full timezone index merely to migrate its JSON list.
+    """
+    if not isinstance(value, str):
+        return False
+
+    identifier = value.strip()
+    if not identifier:
+        return False
+    if identifier == "local":
+        return True
+
+    local = local_timezone if local_timezone is not None else local_timezone_name()
+    builtin_identities = {"UTC", "Etc/UTC"}
+    if local:
+        builtin_identities.add(local)
+    return identifier in builtin_identities
+
+
 def looks_like_iana(value: Any) -> bool:
     """Area/City, the shape of an IANA identifier.
 

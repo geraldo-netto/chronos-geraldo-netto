@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T693 | settings / state congruence | Baixo | open | S | Normalize persisted world clocks to the runtime selection contract. | `chronos_settings_widgets_worldclocks.py:249-266` retains every structurally valid saved row, and `ClocksList.update_button_sensitivity()` only disables Add once the raw model reaches eight; `worldclockData.js:463-486` separately filters built-in timezone identities and truncates the runtime list to eight. Legacy or hand-edited settings can therefore show clocks the applet silently omits, while a reserved row can consume the settings cap without consuming a runtime slot. Normalize or migrate saved rows with the same built-in filtering and cap (or share a parity-testable selection rule) so settings and runtime expose one state. |
 
 ## Rejected
 
