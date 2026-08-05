@@ -82,12 +82,58 @@ function _parseCacheFile(contents, ok) {
     return parsed && typeof parsed === "object" ? parsed : {};
 }
 
+// The cap was applied inside _parseCacheFile — that is, after
+// load_contents_async had already put the whole file in the compositor's
+// address space. The bound documented an intent nothing enforced: the network
+// body it was written to mirror is refused by a declared-length check *before*
+// the read and a chunked read that stops mid-stream, while the disk path let
+// any size land first. Ask the filesystem how big it is and refuse before
+// issuing the read; the post-read check in _parseCacheFile stays as the
+// backstop for a file that grew between the two calls.
+const FILE_SIZE_ATTRIBUTE = "standard::size";
+
+function _cacheFileWithinCap(source, result) {
+    const size = source.query_info_finish(result).get_size();
+    return !tooBig(size, MAX_CACHE_FILE_BYTES, "the holiday cache file");
+}
+
+function _whenCacheFileIsSane(file, callback, proceed) {
+    file.query_info_async(FILE_SIZE_ATTRIBUTE, Gio.FileQueryInfoFlags.NONE,
+        GLib.PRIORITY_DEFAULT, null, (source, result) => {
+            let within = false;
+            try {
+                within = _cacheFileWithinCap(source, result);
+            } catch (e) {
+                if (global.logError) {
+                    global.logError(e);
+                }
+            }
+
+            if (within) {
+                proceed();
+            } else {
+                callback({});
+            }
+        });
+}
+
 function readJsonFileAsync (file, callback) {
     if (!file.query_exists(null)) {
         callback({});
         return;
     }
 
+    try {
+        _whenCacheFileIsSane(file, callback, () => _loadCacheFile(file, callback));
+    } catch (e) {
+        if (global.logError) {
+            global.logError(e);
+        }
+        callback({});
+    }
+}
+
+function _loadCacheFile(file, callback) {
     try {
         file.load_contents_async(null, (source, result) => {
             let data = {};

@@ -58,6 +58,15 @@ function makeFile(filePath) {
                 close() {}
             };
         },
+        // Gio's async stat, as used by readJsonFileAsync's pre-read cap: the
+        // size is checked before the read is issued, so the compositor never
+        // allocates a hostile cache file
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, { ok: true });
+        },
+        query_info_finish() {
+            return { get_size: () => fs.statSync(filePath).size };
+        },
         // Gio's async read, as used by readJsonFileAsync: the applet must not
         // read the cache synchronously on the compositor thread
         load_contents_async(_cancellable, callback) {
@@ -129,6 +138,7 @@ function loadHolidays(options = {}) {
             },
             Gio: {
                 FileCreateFlags: { NONE: 0 },
+                FileQueryInfoFlags: { NONE: 0 },
                 file_new_for_path(filePath) {
                     return makeFile(filePath);
                 },

@@ -126,6 +126,7 @@ function loadUtils(options = "") {
             },
             Gio: {
                 FileCreateFlags: { NONE: 0, REPLACE_DESTINATION: 2 },
+                FileQueryInfoFlags: { NONE: 0 },
                 Cancellable: LocaleCancellable,
                 BufferedOutputStream: {
                     new_sized(raw) {
@@ -1258,7 +1259,47 @@ test("lazy locale values fuzz mixed locale key/value payloads", () => {
 // it took the sync fallback and the cap on the async path — the only path that
 // runs in the applet — was asserted by nothing. Dropping the bound from it kept
 // the suite green.
-test("an oversized cache file is refused, not parsed", () => {
+// T726: the cap ran inside _parseCacheFile, i.e. after load_contents_async had
+// already put the whole file in the compositor's address space — so a
+// multi-gigabyte cache file OOM'd or stalled the shell instead of being
+// refused. The size is asked for first now, and the parse-time check is the
+// backstop for a file that grew between the two calls.
+test("an oversized cache file is refused before it is read", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    let loads = 0;
+    const file = {
+        query_exists: () => true,
+        query_info_async(attributes, _flags, _priority, _cancellable, callback) {
+            assert.equal(attributes, "standard::size");
+            callback(this, {});
+        },
+        query_info_finish() {
+            return { get_size: () => utils.MAX_CACHE_FILE_BYTES + 1 };
+        },
+        load_contents_async(_cancellable, callback) {
+            loads++;
+            callback(this, {});
+        },
+        load_contents_finish() {
+            throw new Error("the file must never be read");
+        }
+    };
+
+    let received = "unset";
+    utils.readJsonFileAsync(file, (data) => {
+        received = data;
+    });
+
+    assert.deepEqual(received, {}, "a cache file past the cap must not be parsed");
+    assert.equal(loads, 0, "and not a byte of it is buffered first");
+    assert.ok(logged.some((line) => /past the .* cap/.test(line)),
+        "and it says so, rather than silently reading as empty");
+});
+
+test("a cache file that grows past the cap after the stat is still refused", () => {
     const utils = loadIoUtils();
     const logged = [];
     global.logError = (message) => logged.push(String(message));
@@ -1266,6 +1307,13 @@ test("an oversized cache file is refused, not parsed", () => {
     const oversized = JSON.stringify({ padding: "x".repeat(utils.MAX_CACHE_FILE_BYTES) });
     const file = {
         query_exists: () => true,
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        // small when asked, oversized when read
+        query_info_finish() {
+            return { get_size: () => 12 };
+        },
         load_contents_async(_cancellable, callback) {
             callback(this, {});
         },
@@ -1279,9 +1327,53 @@ test("an oversized cache file is refused, not parsed", () => {
         received = data;
     });
 
-    assert.deepEqual(received, {}, "a cache file past the cap must not be parsed");
-    assert.ok(logged.some((line) => /past the .* cap/.test(line)),
-        "and it says so, rather than silently reading as empty");
+    assert.deepEqual(received, {}, "the parse-time backstop still refuses it");
+    assert.ok(logged.some((line) => /past the .* cap/.test(line)));
+});
+
+test("a cache file whose size cannot be read is refused rather than guessed", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    let loads = 0;
+    const file = {
+        query_exists: () => true,
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        query_info_finish() {
+            throw new Error("stat failed");
+        },
+        load_contents_async(_cancellable, callback) {
+            loads++;
+            callback(this, {});
+        },
+        load_contents_finish() {
+            return [true, Buffer.from("{}", "utf8"), null];
+        }
+    };
+
+    let received = "unset";
+    utils.readJsonFileAsync(file, (data) => {
+        received = data;
+    });
+
+    assert.deepEqual(received, {}, "an unknown size is not an implicit permission");
+    assert.equal(loads, 0);
+    assert.ok(logged.some((line) => /stat failed/.test(line)));
+});
+
+test("a cache file with no async stat at all is refused, not read", () => {
+    const utils = loadIoUtils();
+    global.logError = () => {};
+    let received = "unset";
+
+    utils.readJsonFileAsync({ query_exists: () => true }, (data) => {
+        received = data;
+    });
+
+    assert.deepEqual(received, {});
 });
 
 // urlForLog is the applet's only privacy control on the logging path: the
@@ -1316,6 +1408,12 @@ test("readJsonFileAsync reads off the main loop and never throws at the caller",
     const utils = loadIoUtils();
     const asyncFile = (contents, options = {}) => ({
         query_exists: () => options.exists !== false,
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        query_info_finish() {
+            return { get_size: () => Buffer.byteLength(contents || "") };
+        },
         load_contents_async(_cancellable, callback) {
             if (options.throwOnCall) {
                 throw new Error("no reader");

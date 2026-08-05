@@ -1868,6 +1868,12 @@ test("a write that lost a race is merged again, not lost", () => {
     global.imports.gi.Gio.file_new_for_path = (filePath) => ({
         query_exists: () => true,
         get_path: () => filePath,
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, { ok: true });
+        },
+        query_info_finish() {
+            return { get_size: () => Buffer.byteLength(contents) };
+        },
         load_contents_async(_cancellable, callback) {
             callback(this, { ok: true });
         },
