@@ -176,12 +176,11 @@ test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
     assert.equal(capturedUrl, "https://date.nager.at/api/v3/PublicHolidays/2026/US");
     assert.equal(result.retrieved, "Mon, 01 Jan 2026 00:00:00 GMT");
     assert.equal(result.data.length, 2);
+    // The US answers in English, so there is no second name to offer and a
+    // duplicate `en` entry would only make localizeName's choice ambiguous.
     assert.deepEqual(result.data[0], {
         date: { year: 2026, month: 1, day: 1 },
-        name: [
-            { lang: "local", text: "Año Nuevo" },
-            { lang: "en", text: "New Year's Day" }
-        ],
+        name: [{ lang: "en", text: "New Year's Day" }],
         flags: ["public_holiday"]
     });
     assert.deepEqual(result.data[1].date, { year: 2026, month: 3, day: 31 });
@@ -207,6 +206,47 @@ test("NagerDateServiceAdapter translates and filters Nager holidays", () => {
         }
     ], adapter.params("usa", "global", 2026));
     assert.deepEqual(globalRows.map((holiday) => holiday.name[0].text), ["Independence Day"]);
+});
+
+// The adapter tagged the local name `lang: "local"`, and localizeName keeps only
+// the message language or `en`, so nothing could ever select it: the Spanish
+// name was fetched, validated by the record contract, and then discarded on
+// every Spanish desktop. The old test pinned the emission and nothing asserted
+// it was displayed, which is why the gap survived.
+test("Nager's local holiday name reaches a desktop that speaks the language", () => {
+    const { HolidayRecordContract, NagerDateServiceAdapter } = loadHolidays();
+    const { COUNTRY_TO_LANGUAGE, SUPPORTED_COUNTRIES } = require(holidayConstantsPath);
+    const adapter = new NagerDateServiceAdapter();
+
+    const [row] = adapter.translateResponse([{
+        date: "2026-01-01",
+        localName: "Año Nuevo",
+        name: "New Year's Day",
+        global: true,
+        types: ["Public"]
+    }], adapter.params("arg", "global", 2026));
+
+    assert.deepEqual(row.name, [
+        { lang: "es", text: "Año Nuevo" },
+        { lang: "en", text: "New Year's Day" }
+    ]);
+    assert.equal(new HolidayRecordContract().validHoliday(row), true);
+    assert.equal(new HolidayRecordContract("es").localizeName(row), "Año Nuevo");
+    // and a desktop that does not speak it still gets English, not Spanish
+    assert.equal(new HolidayRecordContract("de").localizeName(row), "New Year's Day");
+    assert.equal(new HolidayRecordContract("en").localizeName(row), "New Year's Day");
+
+    // Every country the combobox offers must resolve to a language or its local
+    // name is silently unusable again; English-speaking countries are the
+    // deliberate absences, because their localName equals name.
+    const englishSpeaking = ["aus", "can", "gbr", "imn", "nzl", "sgp", "usa", "zaf"];
+    assert.deepEqual(
+        SUPPORTED_COUNTRIES.filter((country) => !COUNTRY_TO_LANGUAGE[country]).sort(),
+        englishSpeaking.slice().sort());
+    for (const language of Object.values(COUNTRY_TO_LANGUAGE)) {
+        assert.match(language, /^[a-z]{2}$/,
+            `${language} must be the ISO-639-1 form messageLanguage() produces`);
+    }
 });
 
 test("OpenHolidaysServiceAdapter maps countries, regions, and localized holidays", () => {

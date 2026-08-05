@@ -63,6 +63,7 @@ var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS 
 var HOLIDAY_PROVIDER_NAMES = HolidayConstants.HOLIDAY_PROVIDER_NAMES; // NOSONAR [S3504] -- GJS importer export
 var OPEN_HOLIDAYS_COUNTRIES = HolidayConstants.OPEN_HOLIDAYS_COUNTRIES; // NOSONAR [S3504] -- GJS importer export
 var COUNTRY_TO_ISO2 = HolidayConstants.COUNTRY_TO_ISO2; // NOSONAR [S3504] -- GJS importer export
+var COUNTRY_TO_LANGUAGE = HolidayConstants.COUNTRY_TO_LANGUAGE; // NOSONAR [S3504] -- GJS importer export
 var REGION_TO_SUBDIVISION = HolidayConstants.REGION_TO_SUBDIVISION; // NOSONAR [S3504] -- GJS importer export
 var ENRICO_URL = "https://kayaposoft.com/enrico/json/v2.0/?action=getHolidaysForYear"; // NOSONAR [S3504] -- GJS importer export
 
@@ -235,7 +236,7 @@ var IsoHolidayServiceAdapter = class IsoHolidayServiceAdapter { // NOSONAR [S350
 
         return this._finishTranslation({
             date,
-            name: this._name(holiday),
+            name: this._name(holiday, params),
             flags: this._flags(holiday)
         }, holiday);
     }
@@ -318,13 +319,26 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
         return types.map((type) => type === "Public" ? PUBLIC_HOLIDAY_FLAG : type.toLowerCase());
     }
 
-    _name(holiday) {
+    // The local name was tagged `lang: "local"`, which `localizeName` can never
+    // select: it keeps only the message language or `en`. So Nager's Spanish
+    // "Año Nuevo" was fetched, validated, and thrown away on a Spanish desktop,
+    // which read the English name instead. Tag it with the country's real
+    // language — a generic marker would be wrong, because a Spanish desktop
+    // asking for German holidays must still get the English name.
+    //
+    // An English-speaking country contributes nothing here: its `localName`
+    // equals `name`, and a second `en` entry would make the selection
+    // ambiguous. A country with no mapping is likewise left English-only; the
+    // static parity test holds every supported country to a language, so that
+    // is an unreachable guard rather than a silent loss.
+    _name(holiday, params) {
         const name = holiday.name.trim();
         const localName = typeof holiday.localName === "string" ?
             holiday.localName.trim() : "";
-        if (localName && localName !== name) {
+        const lang = COUNTRY_TO_LANGUAGE[params && params.country];
+        if (lang && localName && localName !== name) {
             return [
-                {lang: "local", text: localName},
+                {lang, text: localName},
                 {lang: "en", text: name}
             ];
         }

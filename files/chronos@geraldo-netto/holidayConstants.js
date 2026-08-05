@@ -38,6 +38,77 @@ var SUPPORTED_COUNTRIES = [ // NOSONAR [S3504] -- GJS importer export
     "gbr", "usa"
 ];
 
+// The ISO-639-1 language Nager.Date writes a country's `localName` in.
+//
+// The adapter used to tag that name `lang: "local"`, which `localizeName` can
+// never select — it keeps only the message language or `en` — so the local name
+// was fetched, validated, and then discarded on every non-English desktop. A
+// real language tag is what makes it selectable, and it has to be the country's
+// language rather than a generic "local" marker: a Spanish desktop asking for
+// German holidays must still get the English name, not the German one.
+//
+// Sampled from the live API rather than assumed, because the multilingual
+// countries each pick one: Belgium answers in Dutch, Switzerland in German,
+// Ireland in Irish, Luxembourg in Luxembourgish, the Philippines in Tagalog.
+// Norwegian is tagged `nb` because that is what Nager writes and what a
+// Norwegian desktop's message locale reports; `no` would never match.
+// Countries that answer in English are absent: their `localName` equals `name`,
+// and a second `en` entry would only make the selection ambiguous.
+var COUNTRY_TO_LANGUAGE = { // NOSONAR [S3504] -- GJS importer export
+    ago: "pt",
+    arg: "es",
+    aut: "de",
+    bel: "nl",
+    bih: "bs",
+    blr: "be",
+    bgr: "bg",
+    bra: "pt",
+    che: "de",
+    chl: "es",
+    chn: "zh",
+    col: "es",
+    cyp: "el",
+    cze: "cs",
+    deu: "de",
+    dnk: "da",
+    esp: "es",
+    est: "et",
+    fin: "fi",
+    fra: "fr",
+    grc: "el",
+    hkg: "zh",
+    hrv: "hr",
+    hun: "hu",
+    irl: "ga",
+    isl: "is",
+    isr: "he",
+    ita: "it",
+    jpn: "ja",
+    kor: "ko",
+    ltu: "lt",
+    lux: "lb",
+    lva: "lv",
+    mex: "es",
+    mkd: "mk",
+    mne: "sr",
+    nld: "nl",
+    nor: "nb",
+    per: "es",
+    phl: "tl",
+    pol: "pl",
+    prt: "pt",
+    rou: "ro",
+    rus: "ru",
+    slv: "es",
+    srb: "sr",
+    svk: "sk",
+    svn: "sl",
+    swe: "sv",
+    tur: "tr",
+    ukr: "uk",
+    xkx: "sq"
+};
+
 var OPEN_HOLIDAYS_COUNTRIES = { // NOSONAR [S3504] -- GJS importer export
     aut: true,
     bel: true,
@@ -346,5 +417,5 @@ var REGION_COUNTRIES = Object.keys(REGION_TO_SUBDIVISION); // NOSONAR [S3504] --
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION, REGION_COUNTRIES };
+    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION, REGION_COUNTRIES, COUNTRY_TO_LANGUAGE };
 }
