@@ -11,7 +11,11 @@
 
 var HOLIDAY_ERRORS = { // NOSONAR [S3504] -- GJS importer export
     SERVICE_UNAVAILABLE: "Holiday service unavailable",
-    INVALID_RESPONSE: "Holiday data unavailable"
+    INVALID_RESPONSE: "Holiday data unavailable",
+    // Not a failure: the local observance tables are bounded, and past their
+    // end an enabled religion has no dates to draw. Saying so is the point —
+    // rendering an empty year looked exactly like a month with no observances.
+    RELIGIOUS_DATES_UNAVAILABLE: "Religious dates unavailable for this year"
 };
 var HOLIDAY_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
     ENRICO: "Enrico",

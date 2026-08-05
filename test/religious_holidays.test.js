@@ -78,7 +78,10 @@ test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
     const anchors = {
         2025: [[4, 14], [5, 16], [6, 1], [6, 2]],
         2026: [[4, 3], [5, 5], [5, 21], [5, 22]],
-        2027: [[4, 23], [5, 25], [6, 10], [6, 11]]
+        2027: [[4, 23], [5, 25], [6, 10], [6, 11]],
+        2028: [[4, 12], [5, 14], [5, 30], [5, 31]],
+        2029: [[4, 1], [5, 3], [5, 19], [5, 20]],
+        2030: [[4, 19], [5, 21], [6, 6], [6, 7]]
     };
 
     for (const [yearText, [first, thirtyThird, last, shavuotDate]] of
@@ -112,8 +115,11 @@ test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
 });
 
 test("table dates stay absent outside their documented window", () => {
+    // past the end of every table: the Hebrew rows reach further than the rest,
+    // because Hebcal is a reference implementation the added years were checked
+    // against, so this has to clear the longest window rather than a fixed year
     const rows = ReligiousHolidays.holidaysForYear(
-        2030, ["islam", "judaism", "christianity"]);
+        2031, ["islam", "judaism", "christianity"]);
 
     assert.equal(rows.some((row) => row.flags.includes("islam")), false);
     assert.equal(rows.some((row) => row.name.startsWith("Sefirat HaOmer")), false);
@@ -342,4 +348,60 @@ test("fuzz: merging keeps base names first and mutates neither input", () => {
             assert.ok(merged.has(key), `${key} dropped in the merge`);
         }
     }
+});
+
+// T724: the observance tables cover a bounded window, and past its end a
+// table-backed religion rendered zero rows for the whole year — no marker, no
+// tooltip, no status line, indistinguishable from a month that simply has none.
+// Nothing in the build failed when the window expired either, so the applet
+// would have started answering "no observances" some time in 2028 with no
+// warning to anyone.
+test("the observance tables stay ahead of a rolling horizon", () => {
+    // Every table key must reach at least this far past the current year, or
+    // the suite fails while there is still a release cycle left to publish the
+    // next years' dates.
+    //
+    // One year is deliberately the floor and not the goal: most of the tables
+    // still end in 2027, so a wider horizon would fail today. Raising this
+    // constant as the tables are extended is the point of having it — it turns
+    // an expiry nobody would notice into one nobody can miss.
+    const HORIZON_YEARS = 1;
+    const thisYear = new Date().getFullYear();
+    assert.ok(ReligiousHolidays.TABLE_COVERAGE_END >= thisYear + HORIZON_YEARS,
+        `the religious date tables run out in ${ReligiousHolidays.TABLE_COVERAGE_END}; ` +
+        `they must cover through ${thisYear + HORIZON_YEARS}. Publish the next ` +
+        "years' dates in religiousHolidays.js TABLES.");
+});
+
+test("a year past the tables reports the gap instead of rendering nothing", () => {
+    const beyond = ReligiousHolidays.TABLE_COVERAGE_END + 1;
+    const covered = ReligiousHolidays.TABLE_COVERAGE_END;
+
+    // Christianity is fixed dates and the computus: it never runs out, so it
+    // must not raise the notice for any year.
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(beyond, ["christianity"]), []);
+    assert.ok(ReligiousHolidays.holidaysForYear(beyond, ["christianity"]).length > 0);
+
+    // Islam is entirely table-backed, so past the window it has nothing to draw
+    assert.deepEqual(ReligiousHolidays.holidaysForYear(beyond, ["islam"]), []);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(beyond, ["islam"]), ["islam"]);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(covered, ["islam"]), []);
+
+    // the omer series is table-derived too, so it counts as a gap — past the
+    // Hebrew rows, which reach further than the shared coverage end
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2031, ["judaism"]), ["judaism"]);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2030, ["judaism"]), []);
+
+    // mixed selection names only the religions that actually lost dates, so a
+    // religion whose tables still reach the year is not swept up with the rest
+    assert.deepEqual(
+        ReligiousHolidays.uncoveredReligions(beyond, ["christianity", "islam", "judaism"]),
+        ["islam"]);
+    assert.deepEqual(
+        ReligiousHolidays.uncoveredReligions(2031, ["christianity", "islam", "judaism"]),
+        ["islam", "judaism"]);
+
+    // an unusable year is not a coverage gap; it is a rejected input
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions("nope", ["islam"]), []);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(beyond, []), []);
 });

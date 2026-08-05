@@ -103,6 +103,37 @@ test("religious provider merges public results and preserves provider status", (
     assert.deepEqual(answer.slice(1), ["provider warning", "Public Provider"]);
 });
 
+// T724: past the end of the observance tables a table-backed religion rendered
+// zero rows for the whole year, with no marker, no tooltip and no status line —
+// indistinguishable from a month that simply has no observances.
+test("a year past the observance tables is reported, not silently empty", () => {
+    const { ReligiousHolidayProvider, HOLIDAY_ERRORS } = loadHolidays();
+    const { TABLE_COVERAGE_END } =
+        require("../files/chronos@geraldo-netto/religiousHolidays.js");
+    const beyond = TABLE_COVERAGE_END + 1;
+    const covered = TABLE_COVERAGE_END;
+    const answer = (provider, year) => {
+        let captured;
+        provider.getHolidays(year, 3, (...args) => { captured = args; });
+        return captured;
+    };
+
+    const local = new ReligiousHolidayProvider(religiousBase(), ["islam"]);
+    assert.deepEqual(answer(local, beyond)[0].size, 0, "nothing to draw");
+    assert.equal(answer(local, beyond)[1], HOLIDAY_ERRORS.RELIGIOUS_DATES_UNAVAILABLE);
+    assert.equal(answer(local, covered)[1], "", "a covered year reports nothing");
+
+    // a religion that never runs out must not raise it
+    const computed = new ReligiousHolidayProvider(religiousBase(), ["christianity"]);
+    assert.equal(answer(computed, beyond)[1], "");
+
+    // a real provider failure is the more actionable problem and still wins the
+    // one status label they share
+    const merged = new ReligiousHolidayProvider(religiousBase("ita"), ["islam"]);
+    assert.deepEqual(answer(merged, beyond).slice(1),
+        ["provider warning", "Public Provider"]);
+});
+
 test("religious provider forwards lifecycle and accepts changed selections", () => {
     const { ReligiousHolidayProvider } = loadHolidays();
     const base = religiousBase();

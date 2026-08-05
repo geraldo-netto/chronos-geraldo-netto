@@ -701,17 +701,29 @@ var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S350
         this._base.setPlace(country, region, onUpdated);
     }
 
+    // The observance tables cover a bounded window, and past its end a
+    // table-backed religion rendered zero rows with no marker, no tooltip and
+    // no status line — indistinguishable from a month that simply has none.
+    // The provider status channel already reaches the month label, so say it
+    // there. A real provider failure still wins: the network is the more
+    // actionable problem, and the two would otherwise contend for one label.
+    _coverageError(year) {
+        return ReligiousHolidays.uncoveredReligions(_numericInput(year), this._enabledIds)
+            .length > 0 ? HOLIDAY_ERRORS.RELIGIOUS_DATES_UNAVAILABLE : "";
+    }
+
     getHolidays(year, month, callback) {
         const religious = ReligiousHolidays.monthMap(
             year, month, this._enabledIds, this._translateName);
+        const coverage = this._coverageError(year);
         if (!this._base.active) {
-            callback(religious, "", "");
+            callback(religious, coverage, "");
             return;
         }
 
         this._base.getHolidays(year, month, (publicHolidays, error, providerName) => {
             callback(ReligiousHolidays.mergeMonthMaps(publicHolidays, religious),
-                error, providerName);
+                error || coverage, providerName);
         });
     }
 };

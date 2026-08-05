@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-05 23:21+0200\n"
+"POT-Creation-Date: 2026-08-06 00:29+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -94,164 +94,164 @@ msgstr "神道教"
 msgid "Taoism"
 msgstr "道教"
 
-#: religiousHolidays.js:107
+#: religiousHolidays.js:126
 msgid "Epiphany"
 msgstr "主顯節"
 
-#: religiousHolidays.js:108
+#: religiousHolidays.js:127
 msgid "Good Friday"
 msgstr "耶穌受難日"
 
-#: religiousHolidays.js:109
+#: religiousHolidays.js:128
 msgid "Easter Sunday"
 msgstr "復活節週日"
 
-#: religiousHolidays.js:110
+#: religiousHolidays.js:129
 msgid "Pentecost"
 msgstr "五旬節"
 
-#: religiousHolidays.js:111
+#: religiousHolidays.js:130
 msgid "All Saints' Day"
 msgstr "諸聖節"
 
-#: religiousHolidays.js:112
+#: religiousHolidays.js:131
 msgid "Christmas Day"
 msgstr "聖誕節"
 
-#: religiousHolidays.js:115
+#: religiousHolidays.js:134
 msgid "Islamic New Year"
 msgstr "伊斯蘭新年"
 
-#: religiousHolidays.js:116
+#: religiousHolidays.js:135
 msgid "Mawlid"
 msgstr "聖紀節"
 
-#: religiousHolidays.js:117
+#: religiousHolidays.js:136
 msgid "Ramadan begins"
 msgstr "齋月開始"
 
-#: religiousHolidays.js:118
+#: religiousHolidays.js:137
 msgid "Eid al-Fitr"
 msgstr "開齋節"
 
-#: religiousHolidays.js:119
+#: religiousHolidays.js:138
 msgid "Eid al-Adha"
 msgstr "古爾邦節"
 
-#: religiousHolidays.js:122
+#: religiousHolidays.js:141
 msgid "Makar Sankranti"
 msgstr "馬卡爾桑克蘭蒂"
 
-#: religiousHolidays.js:123
+#: religiousHolidays.js:142
 msgid "Maha Shivaratri"
 msgstr "摩訶濕婆夜"
 
-#: religiousHolidays.js:124
+#: religiousHolidays.js:143
 msgid "Holi"
 msgstr "灑紅節"
 
-#: religiousHolidays.js:125
+#: religiousHolidays.js:144
 msgid "Krishna Janmashtami"
 msgstr "克里希納·詹瑪斯達密"
 
-#: religiousHolidays.js:126
+#: religiousHolidays.js:145
 msgid "Diwali"
 msgstr "排燈節"
 
-#: religiousHolidays.js:129
+#: religiousHolidays.js:148
 msgid "Parinirvana Day"
 msgstr "般涅槃日"
 
-#: religiousHolidays.js:130
+#: religiousHolidays.js:149
 msgid "Vesak"
 msgstr "衛塞節"
 
-#: religiousHolidays.js:131
+#: religiousHolidays.js:150
 msgid "Bodhi Day"
 msgstr "菩提日"
 
-#: religiousHolidays.js:134
+#: religiousHolidays.js:153
 msgid "Guru Gobind Singh Jayanti"
 msgstr "古魯·戈賓德·辛格·賈揚蒂"
 
-#: religiousHolidays.js:135
+#: religiousHolidays.js:154
 msgid "Vaisakhi"
 msgstr "瓦薩基"
 
-#: religiousHolidays.js:136
+#: religiousHolidays.js:155
 msgid "Guru Nanak Jayanti"
 msgstr "古魯納納克賈揚蒂"
 
-#: religiousHolidays.js:139
+#: religiousHolidays.js:158
 msgid "Purim"
 msgstr "普珥節"
 
-#: religiousHolidays.js:140
+#: religiousHolidays.js:159
 msgid "Passover begins"
 msgstr "逾越節開始"
 
-#: religiousHolidays.js:141
+#: religiousHolidays.js:160
 #, javascript-format
 msgid "Sefirat HaOmer — Day %s"
 msgstr "數算俄梅珥 — 第 %s 天"
 
-#: religiousHolidays.js:142
+#: religiousHolidays.js:161
 msgid "Shavuot"
 msgstr "五旬節"
 
-#: religiousHolidays.js:143
+#: religiousHolidays.js:162
 msgid "Rosh Hashanah"
 msgstr "猶太新年"
 
-#: religiousHolidays.js:144
+#: religiousHolidays.js:163
 msgid "Yom Kippur"
 msgstr "贖罪日"
 
-#: religiousHolidays.js:145
+#: religiousHolidays.js:164
 msgid "Hanukkah begins"
 msgstr "光明節開始"
 
-#: religiousHolidays.js:148
+#: religiousHolidays.js:167
 msgid "Naw-Rúz"
 msgstr "諾魯茲"
 
-#: religiousHolidays.js:149
+#: religiousHolidays.js:168
 msgid "Ridván begins"
 msgstr "裡茲萬開始"
 
-#: religiousHolidays.js:152
+#: religiousHolidays.js:171
 msgid "Mahavir Jayanti"
 msgstr "馬哈維爾·賈揚蒂"
 
-#: religiousHolidays.js:153
+#: religiousHolidays.js:172
 msgid "Paryushana begins"
 msgstr "帕尤薩納開始"
 
-#: religiousHolidays.js:156
+#: religiousHolidays.js:175
 msgid "Shōgatsu"
 msgstr "正月"
 
-#: religiousHolidays.js:157
+#: religiousHolidays.js:176
 msgid "Hinamatsuri"
 msgstr "女兒節"
 
-#: religiousHolidays.js:158
+#: religiousHolidays.js:177
 msgid "Tanabata"
 msgstr "七夕"
 
-#: religiousHolidays.js:159
+#: religiousHolidays.js:178
 msgid "Shichi-Go-San"
 msgstr "七五三"
 
-#: religiousHolidays.js:162
+#: religiousHolidays.js:181
 msgid "Chinese New Year"
 msgstr "中國新年"
 
-#: religiousHolidays.js:163
+#: religiousHolidays.js:182
 msgid "Qingming"
 msgstr "清明"
 
-#: religiousHolidays.js:164
+#: religiousHolidays.js:183
 msgid "Ghost Festival"
 msgstr "鬼節"
 
@@ -414,11 +414,15 @@ msgstr "假日服務無法使用"
 msgid "Holiday data unavailable"
 msgstr "假日資料無法使用"
 
-#: 5.4/calendarAnnotations.js:231
+#: 5.4/calendarAnnotations.js:64
+msgid "Religious dates unavailable for this year"
+msgstr "本年度無宗教節日資料"
+
+#: 5.4/calendarAnnotations.js:233
 msgid "Holiday data: loading…"
 msgstr "假日資料：載入中…"
 
-#: 5.4/calendarAnnotations.js:272
+#: 5.4/calendarAnnotations.js:274
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "假日資料：%s"

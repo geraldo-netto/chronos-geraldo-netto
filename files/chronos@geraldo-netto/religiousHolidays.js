@@ -85,12 +85,19 @@ const TABLES = {
     "guru-gobind-singh-jayanti": { 2025: [1, 6], 2026: [1, 6], 2027: [1, 14] },
     "vaisakhi": { 2025: [4, 14], 2026: [4, 14], 2027: [4, 14] },
     "guru-nanak-jayanti": { 2025: [11, 5], 2026: [11, 24], 2027: [11, 14] },
-    "purim": { 2025: [3, 14], 2026: [3, 3], 2027: [3, 23] },
-    "passover-start": { 2025: [4, 13], 2026: [4, 2], 2027: [4, 22] },
-    "shavuot": { 2025: [6, 2], 2026: [5, 22], 2027: [6, 11] },
-    "rosh-hashanah": { 2025: [9, 23], 2026: [9, 12], 2027: [10, 2] },
-    "yom-kippur": { 2025: [10, 2], 2026: [9, 21], 2027: [10, 11] },
-    "hanukkah-start": { 2025: [12, 15], 2026: [12, 5], 2027: [12, 25] },
+    // The Hebrew rows run further than the rest because they are the ones with
+    // a reference implementation to check against: 2028-2030 come from Hebcal,
+    // whose answers reproduce the published 2025-2027 rows above exactly, and
+    // hanukkah-start is 25 Kislev — the first daytime civil day, per this
+    // table's convention — not the evening the first candle is lit. The omer
+    // invariant below (passover + 50 = shavuot) holds for all six years, which
+    // is a second independent check on the added anchors.
+    "purim": { 2025: [3, 14], 2026: [3, 3], 2027: [3, 23], 2028: [3, 12], 2029: [3, 1], 2030: [3, 19] },
+    "passover-start": { 2025: [4, 13], 2026: [4, 2], 2027: [4, 22], 2028: [4, 11], 2029: [3, 31], 2030: [4, 18] },
+    "shavuot": { 2025: [6, 2], 2026: [5, 22], 2027: [6, 11], 2028: [5, 31], 2029: [5, 20], 2030: [6, 7] },
+    "rosh-hashanah": { 2025: [9, 23], 2026: [9, 12], 2027: [10, 2], 2028: [9, 21], 2029: [9, 10], 2030: [9, 28] },
+    "yom-kippur": { 2025: [10, 2], 2026: [9, 21], 2027: [10, 11], 2028: [9, 30], 2029: [9, 19], 2030: [10, 7] },
+    "hanukkah-start": { 2025: [12, 15], 2026: [12, 5], 2027: [12, 25], 2028: [12, 13], 2029: [12, 2], 2030: [12, 21] },
     "naw-ruz": { 2025: [3, 20], 2026: [3, 20], 2027: [3, 20] },
     "ridvan-start": { 2025: [4, 21], 2026: [4, 21], 2027: [4, 21] },
     "mahavir-jayanti": { 2025: [4, 10], 2026: [3, 31], 2027: [4, 18] },
@@ -99,6 +106,18 @@ const TABLES = {
     "qingming": { 2025: [4, 4], 2026: [4, 5], 2027: [4, 5] },
     "ghost-festival": { 2025: [9, 6], 2026: [8, 27], 2027: [8, 16] }
 };
+
+// The last year every table key can answer for. Below this the tables are
+// exhausted and a table-backed religion silently renders nothing, which is
+// indistinguishable from "no observances this month" — so the horizon is
+// asserted by the suite and reported to the user rather than left to expire
+// quietly. Computed rather than written down: an added row moves it by itself.
+function _tableCoverageEnd() {
+    return Math.min(...Object.values(TABLES).map(
+        (dates) => Math.max(...Object.keys(dates).map(Number))));
+}
+
+var TABLE_COVERAGE_END = _tableCoverageEnd(); // NOSONAR [S3504] -- GJS importer export
 
 // entry kinds: {fixed: [month, day]} | {easter: offsetDays} |
 // {table: "key"} | {series: "omer"}
@@ -304,6 +323,22 @@ function holidaysForYear(year, enabledIds = religionIds(), translateName = _) {
     return rows;
 }
 
+// Which of the enabled religions lose observances in this year because their
+// tables do not reach it. A religion whose entries are all fixed or computus-
+// derived (Christianity) is never affected; one whose entries are entirely
+// table-backed (Islam, Judaism, Sikhism, Bahá'í, Jainism, Taoism) renders an
+// empty year, which the grid cannot distinguish from a month with nothing in
+// it. Reported rather than rendered blank.
+function uncoveredReligions(year, enabledIds = religionIds()) {
+    if (!_validYear(year)) {
+        return [];
+    }
+
+    return enabledReligionIds(enabledIds).filter((id) =>
+        (OBSERVANCES[id] || []).some((entry) =>
+            (entry.table || entry.series) && _datesOf(entry, year).length === 0));
+}
+
 // the calendar hands over the strings its "year/month" keys split into, so
 // numbers and numeric strings coerce; anything else (booleans, arrays) would
 // coerce too, and true reading as January is not a conversion anyone asked for
@@ -368,6 +403,8 @@ if (typeof module !== "undefined") {
         enabledReligionIds,
         holidaysForYear,
         monthMap,
-        mergeMonthMaps
+        mergeMonthMaps,
+        uncoveredReligions,
+        TABLE_COVERAGE_END
     };
 }

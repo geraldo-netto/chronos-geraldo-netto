@@ -59,7 +59,9 @@ function setTooltipText(owner, tooltip, text) {
 // holiday providers report canonical error ids; translate at display time.
 const HOLIDAY_ERROR_TEXT = {
     [Holidays.HOLIDAY_ERRORS.SERVICE_UNAVAILABLE]: _("Holiday service unavailable"),
-    [Holidays.HOLIDAY_ERRORS.INVALID_RESPONSE]: _("Holiday data unavailable")
+    [Holidays.HOLIDAY_ERRORS.INVALID_RESPONSE]: _("Holiday data unavailable"),
+    [Holidays.HOLIDAY_ERRORS.RELIGIOUS_DATES_UNAVAILABLE]:
+        _("Religious dates unavailable for this year")
 };
 
 // The passthrough fallback is what let a provider's raw JSON sentence become UI
