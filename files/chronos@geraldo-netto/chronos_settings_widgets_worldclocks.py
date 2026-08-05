@@ -237,10 +237,33 @@ def list_edit_factory(params):
                          placeholder=params.get('placeholder'),
                          max_length=params.get('max_length'), **kwargs)
 
+def sanitize_control_characters(value):
+    """Collapse C0/C1 control characters to a single space.
+
+    The twin of textUtils.sanitizeControlCharacters, applied for the same
+    reason: a Display name pasted with an embedded newline reaches the popup
+    row's label and the monospace panel tooltip verbatim, growing the row a
+    second line and misaligning every column of the table. The runtime filters
+    it on read; this stops the dialog persisting it in the first place.
+    """
+    sanitized = []
+    replacing = False
+    for character in value:
+        code = ord(character)
+        if code <= 0x1F or 0x7F <= code <= 0x9F:
+            if not replacing:
+                sanitized.append(" ")
+                replacing = True
+        else:
+            sanitized.append(character)
+            replacing = False
+    return "".join(sanitized)
+
+
 def normalize_clock_label(value):
     if not isinstance(value, str):
         return ""
-    normalized = value.strip()
+    normalized = sanitize_control_characters(value).strip()
     if len(normalized) <= MAX_CLOCK_INPUT_LABEL_LENGTH:
         return normalized
     return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip() + "…"

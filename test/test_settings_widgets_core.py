@@ -163,6 +163,31 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(len(saved), self.module.MAX_CLOCK_INPUT_LABEL_LENGTH)
         self.assertTrue(saved.endswith("…"))
 
+    def test_a_pasted_control_character_is_not_persisted(self):
+        # T729: the dialog clamped and trimmed but never filtered, so a Display
+        # name pasted with an embedded newline was written to the config
+        # verbatim. The runtime now filters it on read; this stops it being
+        # stored at all, and keeps the two sides agreeing about what a label is.
+        serializer = self.module.ClockEntrySerializer()
+
+        self.assertEqual(
+            serializer.serialize("Home\nOffice", "Europe/Rome"),
+            ["Home Office", "Europe/Rome"])
+        # a run collapses to one space, and the edges still trim
+        self.assertEqual(
+            self.module.normalize_clock_label("\r\n Home\v\fOffice \t"), "Home Office")
+        # C1 controls are invisible in the entry but not to Pango
+        self.assertEqual(
+            self.module.normalize_clock_label("HomeOffice"), "Home Office")
+        # a label that is nothing but controls is no label at all
+        self.assertEqual(self.module.normalize_clock_label("\u0085\u0000"), "")
+        self.assertEqual(self.module.normalize_clock_label(None), "")
+        # the clamp still applies after filtering
+        long_label = "x\n" * self.module.MAX_CLOCK_INPUT_LABEL_LENGTH
+        clamped = self.module.normalize_clock_label(long_label)
+        self.assertEqual(len(clamped), self.module.MAX_CLOCK_INPUT_LABEL_LENGTH)
+        self.assertNotIn("\n", clamped)
+
     def test_clock_entry_serializer_matches_schema_column_order(self):
         schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
         column_ids = [column["id"] for column in schema["worldclocks"]["columns"]]

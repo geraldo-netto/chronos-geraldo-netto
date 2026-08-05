@@ -604,6 +604,34 @@ test("configured clocks require visible normalized labels", () => {
     assert.equal(WorldclockData.clockDisplayLabel("\t\n"), "");
 });
 
+// T729: textUtils names "a world clock's label" as exactly what its shared
+// control-character rule is for, and this was the one caller that clamped
+// without it. A Display name pasted with an embedded newline reached the popup
+// row's St.Label verbatim — a second line that shifts the calendar grid — and
+// became one cell of the monospace panel tooltip, whose padding is computed
+// from the cell's code-point count, so the newline both split the row and
+// misaligned every column of the table.
+test("a pasted control character cannot reach a clock label", () => {
+    loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+
+    assert.equal(WorldclockData.clockInputLabel("Home\nOffice"), "Home Office");
+    // a run of them collapses to one space, and the edges still trim
+    assert.equal(WorldclockData.clockInputLabel("\r\n Home\u000b\u000cOffice \t"),
+        "Home Office");
+    // C1 controls are invisible in a text field but not to Pango
+    assert.equal(WorldclockData.clockInputLabel("HomeOffice"), "Home Office");
+    // a label that is nothing but controls is no label at all
+    assert.deepEqual(WorldclockData.selectUserClocks(
+        [{ label: "\u0085\u0000", timezone: "Asia/Tokyo" }]), []);
+
+    // and the whole stored read path goes through it
+    assert.deepEqual(
+        WorldclockData.selectUserClocks([{ label: "Home\nOffice", timezone: "Europe/Rome" }]),
+        [{ label: "Home Office", timezone: "Europe/Rome" }]);
+});
+
 // Cinnamon fires a text entry's changed signal on every keystroke, and
 // updateFormatString used to call buildClocks: typing a 20-character custom
 // format destroyed and rebuilt every label, re-resolved every GLib.TimeZone and

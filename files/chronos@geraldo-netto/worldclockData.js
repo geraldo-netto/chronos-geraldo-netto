@@ -491,8 +491,15 @@ function clockDisplayLabel(label) {
     return TextUtils.clampText(normalized, MAX_CLOCK_LABEL_LENGTH);
 }
 
+// textUtils names "a world clock's label" as exactly what its shared rule is
+// for, and this was the one caller that clamped without it. A Display name
+// pasted with an embedded newline reached the popup row's St.Label verbatim, so
+// the row grew a second line and shifted the calendar grid, and the same string
+// became one cell of the monospace panel tooltip whose padding is computed from
+// the cell's code-point count — splitting the row and misaligning every column.
 function clockInputLabel(label) {
-    const normalized = typeof label === "string" ? label.trim() : "";
+    const normalized = typeof label === "string" ?
+        TextUtils.sanitizeControlCharacters(label).trim() : "";
     return TextUtils.clampText(normalized, MAX_CLOCK_INPUT_LABEL_LENGTH);
 }
 
