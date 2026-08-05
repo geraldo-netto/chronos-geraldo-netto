@@ -1271,7 +1271,6 @@ test("an oversized cache file is refused before it is read", () => {
 
     let loads = 0;
     const file = {
-        query_exists: () => true,
         query_info_async(attributes, _flags, _priority, _cancellable, callback) {
             assert.equal(attributes, "standard::size");
             callback(this, {});
@@ -1306,7 +1305,6 @@ test("a cache file that grows past the cap after the stat is still refused", () 
 
     const oversized = JSON.stringify({ padding: "x".repeat(utils.MAX_CACHE_FILE_BYTES) });
     const file = {
-        query_exists: () => true,
         query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
             callback(this, {});
         },
@@ -1338,7 +1336,6 @@ test("a cache file whose size cannot be read is refused rather than guessed", ()
 
     let loads = 0;
     const file = {
-        query_exists: () => true,
         query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
             callback(this, {});
         },
@@ -1369,11 +1366,68 @@ test("a cache file with no async stat at all is refused, not read", () => {
     global.logError = () => {};
     let received = "unset";
 
-    utils.readJsonFileAsync({ query_exists: () => true }, (data) => {
+    utils.readJsonFileAsync({}, (data) => {
         received = data;
     });
 
     assert.deepEqual(received, {});
+});
+
+// T744: the async stat T726 added was preceded by a blocking query_exists(null)
+// — a synchronous stat on the compositor thread, in the function whose own
+// header says the read is asynchronous so the shell stays responsive. The async
+// stat already answers "is it there", so nothing needs the sync one; what it
+// was actually load-bearing for was keeping the ordinary first run, where no
+// cache has ever been written, off the error log.
+test("the cache read never stats the file synchronously", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    let loads = 0;
+    let received = "unset";
+    utils.readJsonFileAsync({
+        query_exists() {
+            throw new Error("readJsonFileAsync must not block the compositor on a stat");
+        },
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        query_info_finish() {
+            // what Gio raises for a cache that has never been written
+            throw new Error("Error opening file /cache/holidays.json: No such file or directory");
+        },
+        load_contents_async(_cancellable, callback) {
+            loads++;
+            callback(this, {});
+        }
+    }, (data) => {
+        received = data;
+    });
+
+    assert.deepEqual(received, {}, "a missing cache reads as no cache");
+    assert.equal(loads, 0, "and is never opened");
+    assert.deepEqual(logged, [],
+        "a cache that has never been written is not a fault worth logging");
+});
+
+// ...but a stat that fails for any other reason still is: reading it as "no
+// cache" silently is fine, doing so with nothing in the log is not.
+test("a cache file whose stat fails for another reason is still reported", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    utils.readJsonFileAsync({
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, {});
+        },
+        query_info_finish() {
+            throw new Error("Error opening file: Permission denied");
+        }
+    }, () => {});
+
+    assert.ok(logged.some((line) => /Permission denied/.test(line)));
 });
 
 // urlForLog is the applet's only privacy control on the logging path: the
@@ -1407,11 +1461,13 @@ test("fuzz: the log sanitizer never lets a query or fragment through", () => {
 test("readJsonFileAsync reads off the main loop and never throws at the caller", () => {
     const utils = loadIoUtils();
     const asyncFile = (contents, options = {}) => ({
-        query_exists: () => options.exists !== false,
         query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
             callback(this, {});
         },
         query_info_finish() {
+            if (options.missing) {
+                throw new Error("Error opening file /cache/holidays.json: No such file or directory");
+            }
             return { get_size: () => Buffer.byteLength(contents || "") };
         },
         load_contents_async(_cancellable, callback) {
@@ -1438,7 +1494,7 @@ test("readJsonFileAsync reads off the main loop and never throws at the caller",
     assert.deepEqual(read(asyncFile('{"usa":{"holidays":[]}}')), { usa: { holidays: [] } });
     assert.deepEqual(read(asyncFile("{ not json")), {}, "a corrupt file reads as empty");
     assert.deepEqual(read(asyncFile("null")), {}, "a file that parses to a scalar reads as empty");
-    assert.deepEqual(read(asyncFile("{}", { exists: false })), {}, "a missing file is not read at all");
+    assert.deepEqual(read(asyncFile("{}", { missing: true })), {}, "a missing file is not read at all");
     assert.deepEqual(read(asyncFile("{}", { throwOnFinish: true })), {});
     assert.deepEqual(read(asyncFile("{}", { throwOnCall: true })), {});
 });

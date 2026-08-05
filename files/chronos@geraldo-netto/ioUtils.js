@@ -97,6 +97,14 @@ function _cacheFileWithinCap(source, result) {
     return !tooBig(size, MAX_CACHE_FILE_BYTES, "the holiday cache file");
 }
 
+// The stat below answers "is there a cache file, and how big is it" in one
+// asynchronous call, so a missing one is an ordinary G_IO_ERROR_NOT_FOUND
+// rather than a fault. This used to be a `file.query_exists(null)` above the
+// read — a blocking stat on the compositor thread, in the function whose header
+// says the read is asynchronous so the shell stays responsive, on every applet
+// construction and reload. It was load-bearing for one thing only: keeping the
+// first run, where the cache has simply never been written, off the error log.
+// That is this branch's job now.
 function _whenCacheFileIsSane(file, callback, proceed) {
     file.query_info_async(FILE_SIZE_ATTRIBUTE, Gio.FileQueryInfoFlags.NONE,
         GLib.PRIORITY_DEFAULT, null, (source, result) => {
@@ -104,7 +112,7 @@ function _whenCacheFileIsSane(file, callback, proceed) {
             try {
                 within = _cacheFileWithinCap(source, result);
             } catch (e) {
-                if (global.logError) {
+                if (!_isMissingFile(e) && global.logError) {
                     global.logError(e);
                 }
             }
@@ -118,11 +126,6 @@ function _whenCacheFileIsSane(file, callback, proceed) {
 }
 
 function readJsonFileAsync (file, callback) {
-    if (!file.query_exists(null)) {
-        callback({});
-        return;
-    }
-
     try {
         _whenCacheFileIsSane(file, callback, () => _loadCacheFile(file, callback));
     } catch (e) {
@@ -209,16 +212,26 @@ function writeJsonFileAsync (file, data, onDone, etag = null) {
     }
 }
 
-function _isWrongEtag(error) {
+// Gio reports both of these as a GError code; a host without IOErrorEnum, and a
+// test double raising a plain Error, are matched on the message instead.
+function _matchesIoError(error, codeName, fallbackPattern) {
     if (!error) {
         return false;
     }
 
     if (Gio.IOErrorEnum && typeof error.matches === "function") {
-        return error.matches(Gio.io_error_quark(), Gio.IOErrorEnum.WRONG_ETAG);
+        return error.matches(Gio.io_error_quark(), Gio.IOErrorEnum[codeName]);
     }
 
-    return /wrong.?etag/i.test(String(error && error.message ? error.message : error)); // NOSONAR [S6582] -- accepted compatible form
+    return fallbackPattern.test(String(error && error.message ? error.message : error)); // NOSONAR [S6582] -- accepted compatible form
+}
+
+function _isWrongEtag(error) {
+    return _matchesIoError(error, "WRONG_ETAG", /wrong.?etag/i);
+}
+
+function _isMissingFile(error) {
+    return _matchesIoError(error, "NOT_FOUND", /no such file|not found|ENOENT/i);
 }
 
 function _setRequestHeaders(message, headers) {
