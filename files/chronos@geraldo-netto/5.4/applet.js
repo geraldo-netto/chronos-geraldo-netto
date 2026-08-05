@@ -259,6 +259,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             onShowWorldclocksChanged: this._onShowWorldclocksChanged.bind(this),
             onShowAstronomyChanged: this._onShowAstronomyChanged.bind(this),
             onWeatherSettingsChanged: this._onWeatherSettingsChanged.bind(this),
+            onWeatherUnitsChanged: this._onWeatherUnitsChanged.bind(this),
             onKeybindingChanged: () => this._guarded(
                 "keybinding-settings", () => this._setKeybinding())
         });
@@ -420,6 +421,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             this._updateClockAndDate();
             this._queueWeatherRefresh();
         });
+    }
+
+    _onWeatherUnitsChanged() {
+        this._guarded("weather-units-settings", () => this._updateClockAndDate());
     }
 
     on_custom_format_button_pressed() {

@@ -1590,13 +1590,19 @@ test("applets bind only weather settings to debounced refresh", () => {
     const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "applet.js"), "utf8");
     const lifecycle = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "appletLifecycle.js"), "utf8");
     const facade = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "settingsFacade.js"), "utf8");
-    // the weather keys are bound as one group, so a general settings change
-    // cannot drag a weather refetch along with it
-    assert.match(facade, /var WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\["show-weather", "show_weather"\],\s*\["weather-units", "weather_units"\]/);
+    // request and presentation settings are separate, so changing units cannot
+    // drag a weather refetch along with it
+    assert.match(facade, /var WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\["show-weather", "show_weather"\]/);
+    assert.match(facade, /var WEATHER_PRESENTATION_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\["weather-units", "weather_units"\]/);
     // ...and the location travels with them, mirrored rather than bound: its
     // widget makes its schema type "custom", which Cinnamon's bind() refuses
     assert.match(facade, /var CUSTOM_WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\[WEATHER_LOCATION_KEY, "weather_location"\]/);
-    assert.match(lifecycle, /bindWeatherKeys\(applet, this\.handlers\.onWeatherSettingsChanged\)/);
+    assert.match(lifecycle,
+        /bindWeatherKeys\([\s\S]*?this\.handlers\.onWeatherSettingsChanged,[\s\S]*?this\.handlers\.onWeatherUnitsChanged\)/);
+
+    const unitSettingsChanged = source.match(/_onWeatherUnitsChanged\(\) \{([\s\S]*?)\n {4}\}/);
+    assert.ok(unitSettingsChanged);
+    assert.doesNotMatch(unitSettingsChanged[1], /_scheduleWeatherRefresh|_queueWeatherRefresh/);
 
     const generalSettingsChanged = source.match(/_onSettingsChanged\(\) \{([\s\S]*?)\n {4}\}/);
     assert.ok(generalSettingsChanged);

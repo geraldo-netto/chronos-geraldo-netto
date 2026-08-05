@@ -532,7 +532,9 @@ test("settings binding wires schema keys and creates settings facades", () => {
         _onPanelFormatChanged: () => binds.push(["effect", "panel-format"]),
         _onTooltipFormatChanged: () => binds.push(["effect", "tooltip-format"]),
         _onShowWorldclocksChanged: () => binds.push(["effect", "worldclocks"]),
-        _onShowAstronomyChanged: () => binds.push(["effect", "astronomy"])
+        _onShowAstronomyChanged: () => binds.push(["effect", "astronomy"]),
+        _onWeatherSettingsChanged: () => binds.push(["effect", "weather-request"]),
+        _onWeatherUnitsChanged: () => binds.push(["effect", "weather-units"])
     });
     Proto._bindSettings.call(stub);
     callbacks["show-events"]();
@@ -540,6 +542,8 @@ test("settings binding wires schema keys and creates settings facades", () => {
     callbacks["custom-tooltip-format"]();
     callbacks["show-worldclocks"]();
     callbacks["show-astronomy"]();
+    callbacks["show-weather"]();
+    callbacks["weather-units"]();
     keybindingChanged();
     global.imports.ui.settings.AppletSettings = original;
 
@@ -555,7 +559,9 @@ test("settings binding wires schema keys and creates settings facades", () => {
         ["effect", "panel-format"],
         ["effect", "tooltip-format"],
         ["effect", "worldclocks"],
-        ["effect", "astronomy"]
+        ["effect", "astronomy"],
+        ["effect", "weather-request"],
+        ["effect", "weather-units"]
     ]);
     assert.equal(binds.filter((row) => row[0] === "hotkey").length, 2,
         "initial binding and a changed accelerator both install the hotkey");
@@ -1114,9 +1120,12 @@ test("settings and weather changes update dependent views", () => {
     });
     Proto._onSettingsChanged.call(stub);
     Proto._onWeatherSettingsChanged.call(stub);
+    Proto._onWeatherUnitsChanged.call(stub);
     assert.equal(stub.event_list.actor.visible, true);
     assert.ok(calls.some((row) => row[0] === "select" && row[1] === true));
     assert.ok(calls.some((row) => row[0] === "weather"));
+    assert.equal(calls.filter((row) => row[0] === "weather").length, 1,
+        "unit changes repaint without queueing a request");
 });
 
 test("panel settings dispatch only their dependent workflows", () => {
@@ -1128,7 +1137,10 @@ test("panel settings dispatch only their dependent workflows", () => {
         _updateClockAndDate: () => calls.push("clock"),
         _updateAstronomy: () => calls.push("astronomy"),
         _eventListCoordinator: { apply: () => calls.push("events") },
-        _weatherCoordinator: { applyShowWorldclocks: () => calls.push("cities") }
+        _weatherCoordinator: {
+            applyShowWorldclocks: () => calls.push("cities"),
+            queue: () => calls.push("weather")
+        }
     });
 
     const invoke = (method) => {
@@ -1143,6 +1155,8 @@ test("panel settings dispatch only their dependent workflows", () => {
     assert.deepEqual(invoke("_onShowWorldclocksChanged"),
         ["format", "clock", "cities"]);
     assert.deepEqual(invoke("_onShowAstronomyChanged"), ["astronomy"]);
+    assert.deepEqual(invoke("_onWeatherSettingsChanged"), ["clock", "weather"]);
+    assert.deepEqual(invoke("_onWeatherUnitsChanged"), ["clock"]);
 });
 
 test("provider initialization wires hover and event manager signals", () => {

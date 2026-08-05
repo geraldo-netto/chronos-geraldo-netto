@@ -149,7 +149,10 @@ class AppletSettingsBinder {
 
         panel.migrateDateFormatDefaults();
         panel.bindPanelKeys(this.handlers);
-        panel.bindWeatherKeys(applet, this.handlers.onWeatherSettingsChanged);
+        panel.bindWeatherKeys(
+            applet,
+            this.handlers.onWeatherSettingsChanged,
+            this.handlers.onWeatherUnitsChanged);
         // a user who never opens the settings dialog still gets a weather
         // location: the one their own timezone names
         panel.fillEmptyWeatherLocation(applet, WorldclockData.localCityName());

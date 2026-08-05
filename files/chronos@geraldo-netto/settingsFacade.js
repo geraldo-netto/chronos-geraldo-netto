@@ -61,7 +61,9 @@ var PANEL_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     [SHOW_ASTRONOMY_KEY, "show_astronomy", "onShowAstronomyChanged"]
 ];
 var WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
-    ["show-weather", "show_weather"],
+    ["show-weather", "show_weather"]
+];
+var WEATHER_PRESENTATION_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     ["weather-units", "weather_units"]
 ];
 
@@ -276,16 +278,20 @@ var PanelSettings = class PanelSettings { // NOSONAR [S3504] -- GJS importer exp
         this._settings.setValue(DATE_FORMAT_DEFAULTS_MIGRATED_KEY, true);
     }
 
-    bindWeatherKeys(target, callback) {
+    bindWeatherKeys(target, requestCallback, presentationCallback) {
         for (let [key, property] of WEATHER_KEYS) {
-            this._settings.bind(key, property, callback);
+            this._settings.bind(key, property, requestCallback);
+        }
+
+        for (let [key, property] of WEATHER_PRESENTATION_KEYS) {
+            this._settings.bind(key, property, presentationCallback);
         }
 
         for (let [key, property] of CUSTOM_WEATHER_KEYS) {
             target[property] = this._settings.getValue(key);
             this._settings.connect("changed::" + key, () => {
                 target[property] = this._settings.getValue(key);
-                callback();
+                requestCallback();
             });
         }
     }
@@ -347,6 +353,7 @@ if (typeof module !== "undefined") {
         NO_HOLIDAYS,
         PANEL_KEYS,
         WEATHER_KEYS,
+        WEATHER_PRESENTATION_KEYS,
         CUSTOM_WEATHER_KEYS
     };
 }

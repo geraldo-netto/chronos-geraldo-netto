@@ -390,13 +390,19 @@ test("the location reaches the applet even though Cinnamon cannot bind it", () =
     };
     const applet = {};
     let refreshes = 0;
+    let repaints = 0;
 
-    new SettingsFacade.PanelSettings(settings).bindWeatherKeys(applet, () => refreshes++);
+    new SettingsFacade.PanelSettings(settings).bindWeatherKeys(
+        applet, () => refreshes++, () => repaints++);
 
     assert.deepEqual(bound.map(([key]) => key), ["show-weather", "weather-units"],
         "the custom-widget key is not among the bound ones");
     assert.equal(applet.weather_location, "Genoa",
         "and it still reaches the applet, through the mirror");
+
+    bound.find(([key]) => key === "weather-units")[2]();
+    assert.equal(repaints, 1, "units repaint retained readings");
+    assert.equal(refreshes, 0, "units do not enter the request path");
 
     // a changed:: signal is emitted for every key, bound or not
     values["weather-location"] = "Lisbon";

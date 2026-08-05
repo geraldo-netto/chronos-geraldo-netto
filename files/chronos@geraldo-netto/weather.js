@@ -227,13 +227,9 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     // The user edited the location: re-resolve it rather than answering from a hit
     // that may have been wrong.
     //
-    // Only when it actually changed. This runs for *every* weather key — the
-    // handler is one — so flipping °C to °F dropped the geocode and re-issued the
-    // geocoding request and the forecast request. The reading record is unit-free
-    // on purpose and _staleKey() deliberately excludes the units ("the same reading
-    // serves both"), so a unit toggle needs a re-render, not two round trips; and
-    // on an Open-Meteo outage the geocode falls through to Nominatim, whose usage
-    // policy is one request a second.
+    // Only when it actually changed. Unit changes are routed around this request
+    // path because the retained reading is deliberately unit-free; one reading
+    // serves both display systems.
     _forgetIfLocationChanged(location) {
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
         const key = normalized ? WeatherProviders.locationCacheKey(normalized) : "";
