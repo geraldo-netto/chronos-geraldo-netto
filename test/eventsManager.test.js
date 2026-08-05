@@ -770,8 +770,9 @@ test("queued event chunks retain the delivery watermark across a newer fetch", (
     assert.equal(indexed._events["old-fetch-25"].last_update_timestamp,
         deliveryWatermark, "later chunks keep the signal's ingress watermark");
     drainEventMutations(manager);
+    fireTimer(manager._gc_timer_id);
     assert.equal(manager._event_index.get(month), null,
-        "successful replacement completion culls after the old chunks drain");
+        "successful replacement completion culls once the stream settles");
 });
 
 test("a successful empty range fetch clears stale events and reports the empty state", () => {
@@ -789,9 +790,93 @@ test("a successful empty range fetch clears stale events and reports the empty s
 
     manager.fetch_month_events(month, true);
 
+    // T699: the acknowledgement only says the request was accepted — the
+    // server has merely *started* each calendar's asynchronous view — so the
+    // stale rows stay up until the signal stream settles, rather than the
+    // calendar flashing empty on every forced refresh
+    assert.ok(manager._event_index.get(month),
+        "the last known events survive the acknowledgement");
+    assert.ok(manager._gc_timer_id > 0, "and the quiet window is armed instead");
+
+    // no events follow: the range really is empty, and the window says so
+    fireTimer(manager._gc_timer_id);
+
     assert.equal(manager._event_index.get(month), null);
     assert.equal(emitted(manager, "events-updated").length, updatesBefore + 1);
     assert.equal(emitted(manager, "selected-date-events-changed").at(-1).args[0], null);
+});
+
+// T699: cinnamon-calendar-server completes SetTimeRange as soon as it has
+// *started* each calendar's asynchronous get_view(); the view is finished,
+// connected and started later, and its initial objects-added signals later
+// still. Treating the acknowledgement as delivery erased the month before its
+// snapshot arrived.
+test("a delayed non-empty snapshot is not erased by its own acknowledgement", () => {
+    const manager = readyManager();
+    const server = proxy.instance;
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    manager.fetch_month_events(month, true);
+    registerDays(manager, makeEventData({
+        id: "already-on-screen",
+        startUnix: 10 * DAY_S,
+        endUnix: 10 * DAY_S + 60
+    }));
+
+    // the forced refresh is acknowledged before the server's views deliver
+    manager.fetch_month_events(month, true);
+    drainEventMutations(manager);
+    assert.ok(manager._event_index.get(month),
+        "the calendar does not flash empty while the snapshot is in flight");
+
+    // ...and the snapshot lands during the quiet window
+    server.signal("events-added-or-updated", eventArrayVariant([eventVariant({
+        id: "delivered-late",
+        startUnix: 10 * DAY_S + 120,
+        endUnix: 10 * DAY_S + 180
+    })]));
+    drainEventMutations(manager);
+    fireTimer(manager._gc_timer_id);
+
+    const indexed = manager._event_index.get(month);
+    assert.ok(indexed, "the delivered snapshot is what survives");
+    assert.ok(indexed._events["delivered-late"], "the new event is indexed");
+    assert.equal(indexed._events["already-on-screen"], undefined,
+        "and the superseded one is culled, once the stream has settled");
+});
+
+// The server reports a view that fails to open only on its own stdout, so a
+// failed view and a month with no events look identical from here. What must
+// not happen is the pair being told apart *wrongly* — erasing on the
+// acknowledgement made every failure look like a confirmed empty month.
+test("a view that never delivers keeps the last events until the window closes", () => {
+    const manager = readyManager();
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    manager.fetch_month_events(month, true);
+    registerDays(manager, makeEventData({
+        id: "last-known",
+        startUnix: 10 * DAY_S,
+        endUnix: 10 * DAY_S + 60
+    }));
+
+    manager.fetch_month_events(month, true);
+    drainEventMutations(manager);
+
+    // the view failed server-side: no signal will ever arrive for this range
+    assert.ok(manager._event_index.get(month)._events["last-known"],
+        "the acknowledgement alone is not evidence the month is empty");
+    assert.ok(manager._gc_timer_id > 0);
+
+    // a mutation still draining defers the window rather than culling mid-stream
+    manager._event_mutations.push({ type: "resync" });
+    assert.equal(fireTimer(manager._gc_timer_id), false);
+    assert.ok(manager._event_index.get(month), "an undrained queue defers the cull");
+    assert.ok(manager._gc_timer_id > 0, "and re-arms the window");
+    manager._event_mutations.length = 0;
+
+    fireTimer(manager._gc_timer_id);
+    assert.equal(manager._event_index.get(month), null);
 });
 
 test("a queued stale fetch completion cannot reconcile a newer generation", () => {
@@ -818,6 +903,12 @@ test("a queued stale fetch completion cannot reconcile a newer generation", () =
         "the old marker becomes inert once a newer fetch starts");
 
     server.complete_time_range(1, { id: "current-empty-success" });
+    drainEventMutations(manager);
+    // the current generation owns reconciliation — but it reconciles when the
+    // signal stream settles (T699), not on the acknowledgement itself
+    assert.equal(manager._event_index.get(month).length, events.length,
+        "the acknowledgement alone erases nothing");
+    fireTimer(manager._gc_timer_id);
     assert.equal(manager._event_index.get(month), null,
         "the current generation still owns authoritative reconciliation");
 });

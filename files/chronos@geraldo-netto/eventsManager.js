@@ -484,15 +484,25 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this.emit("events-updated");
     }
 
+    // The acknowledgement means the request was accepted, not that its events
+    // have been delivered. cinnamon-calendar-server completes the D-Bus method
+    // as soon as it has *started* each calendar's asynchronous get_view();
+    // the view is finished, connected and started later, and the initial
+    // objects-added signals later still — or never, because a view that fails
+    // to open is reported only to the server's own stdout.
+    //
+    // Culling here therefore erased the month's rows and dots before its
+    // snapshot could arrive: every forced refresh flashed an empty calendar,
+    // and a failed view was indistinguishable from a month with no events.
+    // Reconciliation belongs to the quiet-window timer, which re-arms while
+    // mutations are still draining and culls once the signal stream has
+    // actually settled. Until it does, the last known events stay on screen.
     _apply_fetch_complete(mutation) {
         if (mutation.generation !== this._fetch_generation) {
             return;
         }
 
-        this._stop_gc_timer();
-        if (this._event_index.cull(mutation.watermark)) {
-            this._emit_event_index_changed();
-        }
+        this._start_gc_timer();
     }
 
     _handle_removed_events(server, uids_string) {
