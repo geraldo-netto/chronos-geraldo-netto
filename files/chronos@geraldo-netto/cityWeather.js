@@ -104,6 +104,9 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             new WeatherProviders.WeatherReadingRepository(params);
         this._owns_reading_repository = !params.readingRepository;
         this._session = this._reading_repository.session;
+        // "always online" is the pre-monitor behavior; the composition root
+        // injects the real Gio.NetworkMonitor-backed answer
+        this._isOnline = params.isOnline || (() => true);
     }
 
     _getHttpSession() {
@@ -271,16 +274,12 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             return;
         }
 
-        const wanted = new Set(cities.map((city) => locationCacheKey(city.query)));
-        for (const key of Array.from(this._readings.keys())) {
-            if (!wanted.has(key)) {
-                this._readings.delete(key);
-            }
-        }
-        for (const key of Array.from(this._errors.keys())) {
-            if (!wanted.has(key)) {
-                this._errors.delete(key);
-            }
+        this._forgetRemovedCities(
+            new Set(cities.map((city) => locationCacheKey(city.query))));
+
+        if (!this._isOnline()) {
+            this._offlineRound(cities, callback);
+            return;
         }
 
         // the round is done when every city has answered one way or the other;
@@ -291,6 +290,38 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         round.pump = () => this._pumpRound(round, generation, callback);
         for (let started = 0; started < GEOCODE_CONCURRENCY; started++) {
             round.pump();
+        }
+    }
+
+    // a reading or an error for a city the user has since removed must not
+    // outlive the clock row that showed it
+    _forgetRemovedCities(wanted) {
+        for (const key of Array.from(this._readings.keys())) {
+            if (!wanted.has(key)) {
+                this._readings.delete(key);
+            }
+        }
+        for (const key of Array.from(this._errors.keys())) {
+            if (!wanted.has(key)) {
+                this._errors.delete(key);
+            }
+        }
+    }
+
+    // Offline is a state, not eight per-service failures: dispatch nothing,
+    // keep the readings (staleness already says how old they are), and arm no
+    // retry — the network monitor's next flip is the retry. succeeded() also
+    // cancels a backoff left over from a failure that has just become
+    // explainable.
+    _offlineRound(cities, callback) {
+        let changed = false;
+        for (const city of cities) {
+            changed = this._setError(
+                city.query, Weather.WEATHER_ERRORS.OFFLINE) || changed;
+        }
+        this._scheduler.succeeded();
+        if (changed) {
+            callback(this);
         }
     }
 

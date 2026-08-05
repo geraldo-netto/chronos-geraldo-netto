@@ -73,7 +73,8 @@ function alignedTooltipCell(cell, column, cells, widths) {
 const WEATHER_ERROR_TEXT = {
     [Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND]: _("Location not found"),
     [Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE]: _("Weather service unavailable"),
-    [Weather.WEATHER_ERRORS.NO_LOCATION]: _("Set a weather location")
+    [Weather.WEATHER_ERRORS.NO_LOCATION]: _("Set a weather location"),
+    [Weather.WEATHER_ERRORS.OFFLINE]: _("No network connection")
 };
 
 function translateWeatherError(error) {

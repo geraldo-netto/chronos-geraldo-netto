@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 21:36+0200\n"
+"POT-Creation-Date: 2026-08-05 22:44+0200\n"
 "PO-Revision-Date: 2024-11-28 17:19+0100\n"
 "Last-Translator: qadzek\n"
 "Language-Team: \n"
@@ -26,7 +26,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A %-e %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:328
+#: 5.4/calendar.js:337
 msgid "Today"
 msgstr "Vandaag"
 
@@ -255,11 +255,11 @@ msgstr "Qingming"
 msgid "Ghost Festival"
 msgstr "Spookfestival"
 
-#: worldclockData.js:62 chronos_settings_widgets_worldclocks.py:53
+#: worldclockData.js:65 chronos_settings_widgets_worldclocks.py:54
 msgid "Invalid timezone"
 msgstr "Ongeldige tijdzone"
 
-#: worldclockData.js:63
+#: worldclockData.js:66
 msgid "Local time"
 msgstr "Lokale tijd"
 
@@ -268,11 +268,11 @@ msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "De agenda-applet heeft een fout aangetroffen. Controleer het systeemlogboek."
 
-#: 5.4/appletMenuBuilder.js:286 5.4/appletMenuBuilder.js:292
+#: 5.4/appletMenuBuilder.js:306 5.4/appletMenuBuilder.js:312
 msgid "Go to today"
 msgstr "Ga naar vandaag"
 
-#: 5.4/appletMenuBuilder.js:387
+#: 5.4/appletMenuBuilder.js:407
 msgid "Date and Time Settings"
 msgstr "Instellingen voor datum en tijd"
 
@@ -292,48 +292,52 @@ msgstr "Weerdienst niet beschikbaar"
 msgid "Set a weather location"
 msgstr "Stel een weerlocatie in"
 
-#: 5.4/appletPanelStatus.js:85
+#: 5.4/appletPanelStatus.js:77
+msgid "No network connection"
+msgstr "Geen netwerkverbinding"
+
+#: 5.4/appletPanelStatus.js:86
 msgid "Clear"
 msgstr "Helder"
 
-#: 5.4/appletPanelStatus.js:86
+#: 5.4/appletPanelStatus.js:87
 msgid "Partly cloudy"
 msgstr "Gedeeltelijk bewolkt"
 
-#: 5.4/appletPanelStatus.js:87
+#: 5.4/appletPanelStatus.js:88
 msgid "Cloudy"
 msgstr "Bewolkt"
 
-#: 5.4/appletPanelStatus.js:88
+#: 5.4/appletPanelStatus.js:89
 msgid "Rain"
 msgstr "Regen"
 
-#: 5.4/appletPanelStatus.js:89
+#: 5.4/appletPanelStatus.js:90
 msgid "Snow"
 msgstr "Sneeuw"
 
-#: 5.4/appletPanelStatus.js:90
+#: 5.4/appletPanelStatus.js:91
 msgid "Showers"
 msgstr "Buien"
 
-#: 5.4/appletPanelStatus.js:91
+#: 5.4/appletPanelStatus.js:92
 msgid "Thunderstorm"
 msgstr "Onweer"
 
-#: 5.4/appletPanelStatus.js:92
+#: 5.4/appletPanelStatus.js:93
 msgid "Fair"
 msgstr "Mooi weer"
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:485
-#: 5.4/appletPanelStatus.js:638
+#: 5.4/appletPanelStatus.js:113 5.4/appletPanelStatus.js:491
+#: 5.4/appletPanelStatus.js:660
 msgid "Weather: loading…"
 msgstr "Weer: laden…"
 
-#: 5.4/appletPanelStatus.js:509
+#: 5.4/appletPanelStatus.js:515
 msgid "No weather for this timezone"
 msgstr "Geen weer voor deze tijdzone"
 
-#: 5.4/appletPanelStatus.js:520 5.4/appletPanelStatus.js:521
+#: 5.4/appletPanelStatus.js:526 5.4/appletPanelStatus.js:527
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Laatst bekende meting"
@@ -364,39 +368,45 @@ msgstr "De maan staat de hele dag boven de horizon"
 msgid "Moon is below the horizon all day"
 msgstr "De maan staat de hele dag onder de horizon"
 
-#: 5.4/calendar.js:331
+#: 5.4/calendar.js:67 5.4/eventView.js:46
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr ""
+"Sommige agenda-afspraken zijn verborgen om het bureaublad responsief te "
+"houden."
+
+#: 5.4/calendar.js:340
 msgid "Selected"
 msgstr "Geselecteerd"
 
-#: 5.4/calendar.js:335
+#: 5.4/calendar.js:344
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d afspraak"
 msgstr[1] "%d afspraken"
 
-#: 5.4/calendar.js:526
+#: 5.4/calendar.js:562
 #, javascript-format
 msgid "Week %s"
 msgstr "Week %s"
 
-#: 5.4/calendar.js:868
+#: 5.4/calendar.js:924
 msgid "Previous month"
 msgstr "Vorige maand"
 
-#: 5.4/calendar.js:898
+#: 5.4/calendar.js:954
 msgid "Next month"
 msgstr "Volgende maand"
 
-#: 5.4/calendar.js:902
+#: 5.4/calendar.js:958
 msgid "Previous year"
 msgstr "Vorig jaar"
 
-#: 5.4/calendar.js:913
+#: 5.4/calendar.js:969
 msgid "Next year"
 msgstr "Volgend jaar"
 
-#: 5.4/calendar.js:926
+#: 5.4/calendar.js:982
 msgid "Week"
 msgstr "Week"
 
@@ -417,13 +427,7 @@ msgstr "Feestdaggegevens: laden…"
 msgid "Holiday data: %s"
 msgstr "Feestdaggegevens: %s"
 
-#: 5.4/eventView.js:45
-msgid "Some calendar events were hidden to keep the desktop responsive."
-msgstr ""
-"Sommige agenda-afspraken zijn verborgen om het bureaublad responsief te "
-"houden."
-
-#: 5.4/eventView.js:47
+#: 5.4/eventView.js:48
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -431,86 +435,86 @@ msgstr ""
 "Agenda-afspraken zijn niet beschikbaar — er draait geen agendadienst. "
 "Installeer of activeer Evolution Data Server."
 
-#: 5.4/eventView.js:49
+#: 5.4/eventView.js:50
 msgid "Calendar events could not be refreshed."
 msgstr "De agenda-afspraken konden niet worden vernieuwd."
 
-#: 5.4/eventView.js:62
+#: 5.4/eventView.js:63
 msgid "Public holiday and religious observance"
 msgstr "Officiële feestdag en religieuze viering"
 
-#: 5.4/eventView.js:65
+#: 5.4/eventView.js:66
 msgid "Public holiday"
 msgstr "Officiële feestdag"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:69
 msgid "Religious observance"
 msgstr "Religieuze viering"
 
-#: 5.4/eventView.js:70
+#: 5.4/eventView.js:71
 msgid "Holiday"
 msgstr "Feestdag"
 
-#: 5.4/eventView.js:111
+#: 5.4/eventView.js:112
 msgid "Starting in a few minutes"
 msgstr "Begint over enkele minuten"
 
-#: 5.4/eventView.js:118
+#: 5.4/eventView.js:119
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Begint over %d minuut"
 msgstr[1] "Begint over %d minuten"
 
-#: 5.4/eventView.js:128
+#: 5.4/eventView.js:129
 msgid "This evening"
 msgstr "Vanavond"
 
-#: 5.4/eventView.js:131
+#: 5.4/eventView.js:132
 msgid "Starting later today"
 msgstr "Start later vandaag"
 
-#: 5.4/eventView.js:134
+#: 5.4/eventView.js:135
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Over %d uur"
 msgstr[1] "Over %d uren"
 
-#: 5.4/eventView.js:217
+#: 5.4/eventView.js:218
 msgid "Loading…"
 msgstr "Laden…"
 
-#: 5.4/eventView.js:221 5.4/eventView.js:231 5.4/eventView.js:375
-#: 5.4/eventView.js:736
+#: 5.4/eventView.js:222 5.4/eventView.js:232 5.4/eventView.js:377
+#: 5.4/eventView.js:767
 msgid "No Events"
 msgstr "Geen evenementen"
 
-#: 5.4/eventView.js:397 5.4/eventView.js:579
+#: 5.4/eventView.js:400 5.4/eventView.js:419 5.4/eventView.js:430
 msgid "Open the calendar app"
 msgstr "Agendatoepassing openen"
 
-#: 5.4/eventView.js:510
+#: 5.4/eventView.js:540
 msgid "Events for the selected day"
 msgstr "Afspraken van de geselecteerde dag"
 
-#: 5.4/eventView.js:563
+#: 5.4/eventView.js:593
 msgid "Add an event"
 msgstr "Een afspraak toevoegen"
 
-#: 5.4/eventView.js:838
+#: 5.4/eventView.js:869
 msgid "Ended"
 msgstr "Afgelopen"
 
-#: 5.4/eventView.js:869
+#: 5.4/eventView.js:900
 msgid "In progress"
 msgstr "Bezig"
 
-#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:238 5.4/worldclocks.js:239
 msgid "World clocks"
 msgstr "Wereldklokken"
 
-#: 5.4/worldclocks.js:230
+#: 5.4/worldclocks.js:238
 #, javascript-format
 msgid "Source: %s"
 msgstr "Bron: %s"
@@ -523,33 +527,33 @@ msgstr "Typ de naam van een land"
 msgid "City or town (e.g. Lisbon)"
 msgstr "Stad of plaats (bijv. Lissabon)"
 
-#: chronos_settings_widgets_worldclocks.py:51
+#: chronos_settings_widgets_worldclocks.py:52
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Stad of tijdzone (bijv. Buenos Aires)"
 
-#: chronos_settings_widgets_worldclocks.py:52
+#: chronos_settings_widgets_worldclocks.py:53
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Op te slaan tijdzone: %s"
 
-#: chronos_settings_widgets_worldclocks.py:54
+#: chronos_settings_widgets_worldclocks.py:55
 msgid "No timezone selected"
 msgstr "Geen tijdzone geselecteerd"
 
-#: chronos_settings_widgets_worldclocks.py:55
+#: chronos_settings_widgets_worldclocks.py:56
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC en lokale tijd worden al als ingebouwde klokken getoond"
 
-#: chronos_settings_widgets_worldclocks.py:56
+#: chronos_settings_widgets_worldclocks.py:57
 msgid "Enter a display name for this clock"
 msgstr "Voer een weergavenaam in voor deze klok"
 
-#: chronos_settings_widgets_worldclocks.py:60
+#: chronos_settings_widgets_worldclocks.py:61
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "Er kunnen niet meer dan %d klokken worden toegevoegd."
 
-#: chronos_settings_widgets_worldclocks.py:63
+#: chronos_settings_widgets_worldclocks.py:64
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -558,11 +562,11 @@ msgstr ""
 "kunnen typen; zonder deze wordt alleen een volledige aanduiding zoals "
 "America/Sao_Paulo geaccepteerd."
 
-#: chronos_settings_widgets_worldclocks.py:279
+#: chronos_settings_widgets_worldclocks.py:298
 msgid "Add new entry"
 msgstr "Nieuwe invoer toevoegen"
 
-#: chronos_settings_widgets_worldclocks.py:284
+#: chronos_settings_widgets_worldclocks.py:303
 msgid "Edit entry"
 msgstr "Invoer bewerken"
 

@@ -180,6 +180,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             }),
             onSettingsChanged: () => this._onSettingsChanged(),
             onResume: () => this._onResume(),
+            onNetworkRestored: () => this._onNetworkRestored(),
             onTimezoneChanged: () => this._onTimezoneChanged(),
             onDayChanged: () => this._guarded(
                 "day-rollover", () => this._onDayChanged())
@@ -347,6 +348,15 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     _onResume() {
         this._guarded("resume", () => {
             this._updateClockAndDate();
+            this._scheduleWeatherRefresh({ force: true });
+        });
+    }
+
+    // The network came back: the offline short-circuit reported instantly and
+    // armed no retry, so this flip is the retry it deferred. Forced, because
+    // the settings have not changed — the world has, like a resume.
+    _onNetworkRestored() {
+        this._guarded("network-restored", () => {
             this._scheduleWeatherRefresh({ force: true });
         });
     }

@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 21:36+0200\n"
+"POT-Creation-Date: 2026-08-05 22:44+0200\n"
 "PO-Revision-Date: 2025-04-03 19:37+0300\n"
 "Last-Translator: Kimmo Kujansuu <mrkujansuu@gmail.com>\n"
 "Language-Team: \n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A %-e. %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:328
+#: 5.4/calendar.js:337
 msgid "Today"
 msgstr "Tänään"
 
@@ -257,11 +257,11 @@ msgstr "Qingming"
 msgid "Ghost Festival"
 msgstr "Nälkäisten aaveiden juhla"
 
-#: worldclockData.js:62 chronos_settings_widgets_worldclocks.py:53
+#: worldclockData.js:65 chronos_settings_widgets_worldclocks.py:54
 msgid "Invalid timezone"
 msgstr "Virheellinen aikavyöhyke"
 
-#: worldclockData.js:63
+#: worldclockData.js:66
 msgid "Local time"
 msgstr "Paikallinen aika"
 
@@ -269,11 +269,11 @@ msgstr "Paikallinen aika"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Kalenterisovelmassa tapahtui virhe. Tarkista järjestelmäloki."
 
-#: 5.4/appletMenuBuilder.js:286 5.4/appletMenuBuilder.js:292
+#: 5.4/appletMenuBuilder.js:306 5.4/appletMenuBuilder.js:312
 msgid "Go to today"
 msgstr "Siirry tähän päivään"
 
-#: 5.4/appletMenuBuilder.js:387
+#: 5.4/appletMenuBuilder.js:407
 msgid "Date and Time Settings"
 msgstr "Päivän ja ajan asetukset"
 
@@ -293,48 +293,52 @@ msgstr "Sääpalvelu ei ole käytettävissä"
 msgid "Set a weather location"
 msgstr "Aseta sääsijainti"
 
-#: 5.4/appletPanelStatus.js:85
+#: 5.4/appletPanelStatus.js:77
+msgid "No network connection"
+msgstr "Ei verkkoyhteyttä"
+
+#: 5.4/appletPanelStatus.js:86
 msgid "Clear"
 msgstr "Selkeää"
 
-#: 5.4/appletPanelStatus.js:86
+#: 5.4/appletPanelStatus.js:87
 msgid "Partly cloudy"
 msgstr "Puolipilvistä"
 
-#: 5.4/appletPanelStatus.js:87
+#: 5.4/appletPanelStatus.js:88
 msgid "Cloudy"
 msgstr "Pilvistä"
 
-#: 5.4/appletPanelStatus.js:88
+#: 5.4/appletPanelStatus.js:89
 msgid "Rain"
 msgstr "Sadetta"
 
-#: 5.4/appletPanelStatus.js:89
+#: 5.4/appletPanelStatus.js:90
 msgid "Snow"
 msgstr "Lunta"
 
-#: 5.4/appletPanelStatus.js:90
+#: 5.4/appletPanelStatus.js:91
 msgid "Showers"
 msgstr "Sadekuuroja"
 
-#: 5.4/appletPanelStatus.js:91
+#: 5.4/appletPanelStatus.js:92
 msgid "Thunderstorm"
 msgstr "Ukkosta"
 
-#: 5.4/appletPanelStatus.js:92
+#: 5.4/appletPanelStatus.js:93
 msgid "Fair"
 msgstr "Poutaa"
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:485
-#: 5.4/appletPanelStatus.js:638
+#: 5.4/appletPanelStatus.js:113 5.4/appletPanelStatus.js:491
+#: 5.4/appletPanelStatus.js:660
 msgid "Weather: loading…"
 msgstr "Sää: ladataan…"
 
-#: 5.4/appletPanelStatus.js:509
+#: 5.4/appletPanelStatus.js:515
 msgid "No weather for this timezone"
 msgstr "Ei säätietoja tälle aikavyöhykkeelle"
 
-#: 5.4/appletPanelStatus.js:520 5.4/appletPanelStatus.js:521
+#: 5.4/appletPanelStatus.js:526 5.4/appletPanelStatus.js:527
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Viimeisin tunnettu lukema"
@@ -365,39 +369,44 @@ msgstr "Kuu on horisontin yläpuolella koko päivän"
 msgid "Moon is below the horizon all day"
 msgstr "Kuu on horisontin alapuolella koko päivän"
 
-#: 5.4/calendar.js:331
+#: 5.4/calendar.js:67 5.4/eventView.js:46
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr ""
+"Joitakin kalenteritapahtumia piilotettiin, jotta työpöytä pysyy nopeana."
+
+#: 5.4/calendar.js:340
 msgid "Selected"
 msgstr "Valittu"
 
-#: 5.4/calendar.js:335
+#: 5.4/calendar.js:344
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d tapahtuma"
 msgstr[1] "%d tapahtumaa"
 
-#: 5.4/calendar.js:526
+#: 5.4/calendar.js:562
 #, javascript-format
 msgid "Week %s"
 msgstr "Viikko %s"
 
-#: 5.4/calendar.js:868
+#: 5.4/calendar.js:924
 msgid "Previous month"
 msgstr "Edellinen kuukausi"
 
-#: 5.4/calendar.js:898
+#: 5.4/calendar.js:954
 msgid "Next month"
 msgstr "Seuraava kuukausi"
 
-#: 5.4/calendar.js:902
+#: 5.4/calendar.js:958
 msgid "Previous year"
 msgstr "Edellinen vuosi"
 
-#: 5.4/calendar.js:913
+#: 5.4/calendar.js:969
 msgid "Next year"
 msgstr "Seuraava vuosi"
 
-#: 5.4/calendar.js:926
+#: 5.4/calendar.js:982
 msgid "Week"
 msgstr "Viikko"
 
@@ -418,12 +427,7 @@ msgstr "Juhlapäivätiedot: ladataan…"
 msgid "Holiday data: %s"
 msgstr "Juhlapäivätiedot: %s"
 
-#: 5.4/eventView.js:45
-msgid "Some calendar events were hidden to keep the desktop responsive."
-msgstr ""
-"Joitakin kalenteritapahtumia piilotettiin, jotta työpöytä pysyy nopeana."
-
-#: 5.4/eventView.js:47
+#: 5.4/eventView.js:48
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -431,86 +435,86 @@ msgstr ""
 "Kalenteritapahtumat eivät ole käytettävissä — kalenteripalvelua ei ole "
 "käynnissä. Asenna tai ota käyttöön Evolution Data Server."
 
-#: 5.4/eventView.js:49
+#: 5.4/eventView.js:50
 msgid "Calendar events could not be refreshed."
 msgstr "Kalenteritapahtumia ei voitu päivittää."
 
-#: 5.4/eventView.js:62
+#: 5.4/eventView.js:63
 msgid "Public holiday and religious observance"
 msgstr "Yleinen vapaapäivä ja uskonnollinen merkkipäivä"
 
-#: 5.4/eventView.js:65
+#: 5.4/eventView.js:66
 msgid "Public holiday"
 msgstr "Yleinen vapaapäivä"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:69
 msgid "Religious observance"
 msgstr "Uskonnollinen merkkipäivä"
 
-#: 5.4/eventView.js:70
+#: 5.4/eventView.js:71
 msgid "Holiday"
 msgstr "Juhlapäivä"
 
-#: 5.4/eventView.js:111
+#: 5.4/eventView.js:112
 msgid "Starting in a few minutes"
 msgstr "Alkaa muutamassa minuutissa"
 
-#: 5.4/eventView.js:118
+#: 5.4/eventView.js:119
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Alkaa %d minuutin kuluttua"
 msgstr[1] "Alkaa %d minuutin kuluttua"
 
-#: 5.4/eventView.js:128
+#: 5.4/eventView.js:129
 msgid "This evening"
 msgstr "Tänä iltana"
 
-#: 5.4/eventView.js:131
+#: 5.4/eventView.js:132
 msgid "Starting later today"
 msgstr "Alkaa tänään myöhemmin"
 
-#: 5.4/eventView.js:134
+#: 5.4/eventView.js:135
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "%d tunti"
 msgstr[1] "%d tuntia"
 
-#: 5.4/eventView.js:217
+#: 5.4/eventView.js:218
 msgid "Loading…"
 msgstr "Ladataan…"
 
-#: 5.4/eventView.js:221 5.4/eventView.js:231 5.4/eventView.js:375
-#: 5.4/eventView.js:736
+#: 5.4/eventView.js:222 5.4/eventView.js:232 5.4/eventView.js:377
+#: 5.4/eventView.js:767
 msgid "No Events"
 msgstr "Ei tapahtumia"
 
-#: 5.4/eventView.js:397 5.4/eventView.js:579
+#: 5.4/eventView.js:400 5.4/eventView.js:419 5.4/eventView.js:430
 msgid "Open the calendar app"
 msgstr "Avaa kalenterisovellus"
 
-#: 5.4/eventView.js:510
+#: 5.4/eventView.js:540
 msgid "Events for the selected day"
 msgstr "Valitun päivän tapahtumat"
 
-#: 5.4/eventView.js:563
+#: 5.4/eventView.js:593
 msgid "Add an event"
 msgstr "Lisää tapahtuma"
 
-#: 5.4/eventView.js:838
+#: 5.4/eventView.js:869
 msgid "Ended"
 msgstr "Päättynyt"
 
-#: 5.4/eventView.js:869
+#: 5.4/eventView.js:900
 msgid "In progress"
 msgstr "Meneillään"
 
-#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:238 5.4/worldclocks.js:239
 msgid "World clocks"
 msgstr "Maailmankellot"
 
-#: 5.4/worldclocks.js:230
+#: 5.4/worldclocks.js:238
 #, javascript-format
 msgid "Source: %s"
 msgstr "Lähde: %s"
@@ -523,33 +527,33 @@ msgstr "Kirjoita maan nimi"
 msgid "City or town (e.g. Lisbon)"
 msgstr "Kaupunki tai paikkakunta (esim. Lissabon)"
 
-#: chronos_settings_widgets_worldclocks.py:51
+#: chronos_settings_widgets_worldclocks.py:52
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Kaupunki tai aikavyöhyke (esim. Buenos Aires)"
 
-#: chronos_settings_widgets_worldclocks.py:52
+#: chronos_settings_widgets_worldclocks.py:53
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Tallennettava aikavyöhyke: %s"
 
-#: chronos_settings_widgets_worldclocks.py:54
+#: chronos_settings_widgets_worldclocks.py:55
 msgid "No timezone selected"
 msgstr "Aikavyöhykettä ei ole valittu"
 
-#: chronos_settings_widgets_worldclocks.py:55
+#: chronos_settings_widgets_worldclocks.py:56
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC ja paikallinen aika näytetään jo sisäänrakennettuina kelloina"
 
-#: chronos_settings_widgets_worldclocks.py:56
+#: chronos_settings_widgets_worldclocks.py:57
 msgid "Enter a display name for this clock"
 msgstr "Anna tälle kellolle näyttönimi"
 
-#: chronos_settings_widgets_worldclocks.py:60
+#: chronos_settings_widgets_worldclocks.py:61
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "Enintään %d kelloa voidaan lisätä."
 
-#: chronos_settings_widgets_worldclocks.py:63
+#: chronos_settings_widgets_worldclocks.py:64
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -558,11 +562,11 @@ msgstr ""
 "kirjoittaa kaupungin nimen; ilman sitä hyväksytään vain täydellinen "
 "tunniste, kuten America/Sao_Paulo."
 
-#: chronos_settings_widgets_worldclocks.py:279
+#: chronos_settings_widgets_worldclocks.py:298
 msgid "Add new entry"
 msgstr "Lisää uusi kohde"
 
-#: chronos_settings_widgets_worldclocks.py:284
+#: chronos_settings_widgets_worldclocks.py:303
 msgid "Edit entry"
 msgstr "Muokkaa merkintää"
 

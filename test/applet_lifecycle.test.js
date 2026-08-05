@@ -431,13 +431,19 @@ test("provider lifecycle tears down provider and system resources", () => {
 
 test("the default weather graph shares one reading repository", () => {
     const lifecycleModule = require(path.join(APPLET_DIR, "5.4", "appletLifecycle.js"));
+    const networkState = lifecycleModule.DEFAULT_FACTORIES.networkState();
     const repository = lifecycleModule.DEFAULT_FACTORIES.weatherRepository();
-    const panel = lifecycleModule.DEFAULT_FACTORIES.weatherProvider(repository);
-    const cities = lifecycleModule.DEFAULT_FACTORIES.cityWeatherProvider(repository);
+    const panel = lifecycleModule.DEFAULT_FACTORIES.weatherProvider(repository, networkState);
+    const cities = lifecycleModule.DEFAULT_FACTORIES.cityWeatherProvider(repository, networkState);
 
     assert.equal(panel._reading_repository, repository);
     assert.equal(cities._reading_repository, repository);
     assert.equal(repository._cache_milliseconds, Weather.REFRESH_SECONDS * 1000);
+
+    // ...and one network monitor, which fails open on a host without one
+    // (this stub Gio has no NetworkMonitor at all)
+    assert.equal(panel._isOnline(), true);
+    assert.equal(cities._isOnline(), true);
 
     panel.destroy();
     cities.destroy();
@@ -453,8 +459,10 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
     const timezoneChanges = [];
     const captured = {};
     const unsubscribed = [];
+    const restored = [];
     const context = {
         onResume: () => resumed.push(true),
+        onNetworkRestored: () => restored.push(true),
         onTimezoneChanged: () => timezoneChanges.push(true),
         desktopSettings: { connectClockFormatChanged: () => [1, 2] }
     };
@@ -477,7 +485,22 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
             reschedule: () => rescheduled.push(true),
             destroy() {}
         };
+        // T708: the network monitor's flip is the retry the offline weather
+        // short-circuit deferred; only the online edge refetches
+        let networkFlip = null;
+        lifecycle.networkState = {
+            destroyed: 0,
+            onChanged(callback) { networkFlip = callback; },
+            destroy() { this.destroyed++; }
+        };
         lifecycle.bindSystemSignals();
+
+        assert.equal(typeof networkFlip, "function",
+            "bindSystemSignals subscribes to availability flips");
+        networkFlip(false);
+        assert.deepEqual(restored, [], "going offline refetches nothing");
+        networkFlip(true);
+        assert.deepEqual(restored, [true], "coming back online refetches the weather");
 
         assert.equal(captured.PrepareForSleep.member, "PrepareForSleep");
         assert.equal(lifecycle._logind_sleep_signal_id, 55);
@@ -510,6 +533,8 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
         assert.deepEqual(unsubscribed, [55, 56], "system-bus subscriptions are released");
         assert.equal(lifecycle._logind_sleep_signal_id, 0);
         assert.equal(lifecycle._timedate_signal_id, 0);
+        assert.equal(lifecycle.networkState.destroyed, 1,
+            "the network monitor subscription is released with the rest");
     } finally {
         delete global.imports.gi.Gio.DBus;
         delete global.imports.gi.Gio.DBusSignalFlags;
@@ -1729,6 +1754,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     context.onEventsManagerReady();
     context.onHasCalendarsChanged();
     context.onResume();
+    context.onNetworkRestored();
     context.onDayChanged();
     context.onHolidayPlaceChanged();
     context.onPanelHover(true);
@@ -1745,7 +1771,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     applet._providerLifecycle.connectClockNotify(() => calls.push(["clock-notify"]));
 
     assert.deepEqual(calls.filter((row) => row[0] !== "settings" && row[0] !== "tick"), [
-        ["events-ready"], ["calendars"], ["weather"], ["today"],
+        ["events-ready"], ["calendars"], ["weather"], ["weather"], ["today"],
         ["holidays"], ["launch-settings"]
     ]);
 

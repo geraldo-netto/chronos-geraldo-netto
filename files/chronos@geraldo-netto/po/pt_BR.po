@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-04 21:36+0200\n"
+"POT-Creation-Date: 2026-08-05 22:44+0200\n"
 "PO-Revision-Date: 2021-10-02 18:47-0300\n"
 "Last-Translator: Marcelo Aof\n"
 "Language-Team: \n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e de %B de %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:328
+#: 5.4/calendar.js:337
 msgid "Today"
 msgstr "Hoje"
 
@@ -257,11 +257,11 @@ msgstr "Qingming"
 msgid "Ghost Festival"
 msgstr "Festival dos Fantasmas"
 
-#: worldclockData.js:62 chronos_settings_widgets_worldclocks.py:53
+#: worldclockData.js:65 chronos_settings_widgets_worldclocks.py:54
 msgid "Invalid timezone"
 msgstr "Fuso horário inválido"
 
-#: worldclockData.js:63
+#: worldclockData.js:66
 msgid "Local time"
 msgstr "Hora local"
 
@@ -270,11 +270,11 @@ msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "O applet de calendário encontrou um erro. Verifique o registro do sistema."
 
-#: 5.4/appletMenuBuilder.js:286 5.4/appletMenuBuilder.js:292
+#: 5.4/appletMenuBuilder.js:306 5.4/appletMenuBuilder.js:312
 msgid "Go to today"
 msgstr "Ir para hoje"
 
-#: 5.4/appletMenuBuilder.js:387
+#: 5.4/appletMenuBuilder.js:407
 msgid "Date and Time Settings"
 msgstr "Configurações de Data e Hora"
 
@@ -294,48 +294,52 @@ msgstr "Serviço de clima indisponível"
 msgid "Set a weather location"
 msgstr "Defina um local para o clima"
 
-#: 5.4/appletPanelStatus.js:85
+#: 5.4/appletPanelStatus.js:77
+msgid "No network connection"
+msgstr "Sem conexão de rede"
+
+#: 5.4/appletPanelStatus.js:86
 msgid "Clear"
 msgstr "Céu limpo"
 
-#: 5.4/appletPanelStatus.js:86
+#: 5.4/appletPanelStatus.js:87
 msgid "Partly cloudy"
 msgstr "Parcialmente nublado"
 
-#: 5.4/appletPanelStatus.js:87
+#: 5.4/appletPanelStatus.js:88
 msgid "Cloudy"
 msgstr "Nublado"
 
-#: 5.4/appletPanelStatus.js:88
+#: 5.4/appletPanelStatus.js:89
 msgid "Rain"
 msgstr "Chuva"
 
-#: 5.4/appletPanelStatus.js:89
+#: 5.4/appletPanelStatus.js:90
 msgid "Snow"
 msgstr "Neve"
 
-#: 5.4/appletPanelStatus.js:90
+#: 5.4/appletPanelStatus.js:91
 msgid "Showers"
 msgstr "Pancadas de chuva"
 
-#: 5.4/appletPanelStatus.js:91
+#: 5.4/appletPanelStatus.js:92
 msgid "Thunderstorm"
 msgstr "Tempestade"
 
-#: 5.4/appletPanelStatus.js:92
+#: 5.4/appletPanelStatus.js:93
 msgid "Fair"
 msgstr "Tempo bom"
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:485
-#: 5.4/appletPanelStatus.js:638
+#: 5.4/appletPanelStatus.js:113 5.4/appletPanelStatus.js:491
+#: 5.4/appletPanelStatus.js:660
 msgid "Weather: loading…"
 msgstr "Clima: carregando…"
 
-#: 5.4/appletPanelStatus.js:509
+#: 5.4/appletPanelStatus.js:515
 msgid "No weather for this timezone"
 msgstr "Sem meteorologia para este fuso horário"
 
-#: 5.4/appletPanelStatus.js:520 5.4/appletPanelStatus.js:521
+#: 5.4/appletPanelStatus.js:526 5.4/appletPanelStatus.js:527
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última leitura conhecida"
@@ -366,39 +370,45 @@ msgstr "A Lua fica acima do horizonte o dia todo"
 msgid "Moon is below the horizon all day"
 msgstr "A Lua fica abaixo do horizonte o dia todo"
 
-#: 5.4/calendar.js:331
+#: 5.4/calendar.js:67 5.4/eventView.js:46
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr ""
+"Alguns eventos do calendário foram ocultados para manter a área de trabalho "
+"responsiva."
+
+#: 5.4/calendar.js:340
 msgid "Selected"
 msgstr "Selecionado"
 
-#: 5.4/calendar.js:335
+#: 5.4/calendar.js:344
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d evento"
 msgstr[1] "%d eventos"
 
-#: 5.4/calendar.js:526
+#: 5.4/calendar.js:562
 #, javascript-format
 msgid "Week %s"
 msgstr "Semana %s"
 
-#: 5.4/calendar.js:868
+#: 5.4/calendar.js:924
 msgid "Previous month"
 msgstr "Mês anterior"
 
-#: 5.4/calendar.js:898
+#: 5.4/calendar.js:954
 msgid "Next month"
 msgstr "Próximo mês"
 
-#: 5.4/calendar.js:902
+#: 5.4/calendar.js:958
 msgid "Previous year"
 msgstr "Ano anterior"
 
-#: 5.4/calendar.js:913
+#: 5.4/calendar.js:969
 msgid "Next year"
 msgstr "Próximo ano"
 
-#: 5.4/calendar.js:926
+#: 5.4/calendar.js:982
 msgid "Week"
 msgstr "Semana"
 
@@ -419,13 +429,7 @@ msgstr "Dados de feriados: carregando…"
 msgid "Holiday data: %s"
 msgstr "Dados de feriados: %s"
 
-#: 5.4/eventView.js:45
-msgid "Some calendar events were hidden to keep the desktop responsive."
-msgstr ""
-"Alguns eventos do calendário foram ocultados para manter a área de trabalho "
-"responsiva."
-
-#: 5.4/eventView.js:47
+#: 5.4/eventView.js:48
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -433,86 +437,86 @@ msgstr ""
 "Os eventos do calendário estão indisponíveis — nenhum serviço de calendário "
 "está em execução. Instale ou ative o Evolution Data Server."
 
-#: 5.4/eventView.js:49
+#: 5.4/eventView.js:50
 msgid "Calendar events could not be refreshed."
 msgstr "Não foi possível atualizar os eventos do calendário."
 
-#: 5.4/eventView.js:62
+#: 5.4/eventView.js:63
 msgid "Public holiday and religious observance"
 msgstr "Feriado público e celebração religiosa"
 
-#: 5.4/eventView.js:65
+#: 5.4/eventView.js:66
 msgid "Public holiday"
 msgstr "Feriado público"
 
-#: 5.4/eventView.js:68
+#: 5.4/eventView.js:69
 msgid "Religious observance"
 msgstr "Celebração religiosa"
 
-#: 5.4/eventView.js:70
+#: 5.4/eventView.js:71
 msgid "Holiday"
 msgstr "Feriado"
 
-#: 5.4/eventView.js:111
+#: 5.4/eventView.js:112
 msgid "Starting in a few minutes"
 msgstr "Começando em alguns minutos"
 
-#: 5.4/eventView.js:118
+#: 5.4/eventView.js:119
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Começa em %d minuto"
 msgstr[1] "Começa em %d minutos"
 
-#: 5.4/eventView.js:128
+#: 5.4/eventView.js:129
 msgid "This evening"
 msgstr "Esta noite"
 
-#: 5.4/eventView.js:131
+#: 5.4/eventView.js:132
 msgid "Starting later today"
 msgstr "Começando mais tarde hoje"
 
-#: 5.4/eventView.js:134
+#: 5.4/eventView.js:135
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Em %d hora"
 msgstr[1] "Em %d horas"
 
-#: 5.4/eventView.js:217
+#: 5.4/eventView.js:218
 msgid "Loading…"
 msgstr "Carregando…"
 
-#: 5.4/eventView.js:221 5.4/eventView.js:231 5.4/eventView.js:375
-#: 5.4/eventView.js:736
+#: 5.4/eventView.js:222 5.4/eventView.js:232 5.4/eventView.js:377
+#: 5.4/eventView.js:767
 msgid "No Events"
 msgstr "Sem eventos"
 
-#: 5.4/eventView.js:397 5.4/eventView.js:579
+#: 5.4/eventView.js:400 5.4/eventView.js:419 5.4/eventView.js:430
 msgid "Open the calendar app"
 msgstr "Abrir o aplicativo de calendário"
 
-#: 5.4/eventView.js:510
+#: 5.4/eventView.js:540
 msgid "Events for the selected day"
 msgstr "Eventos do dia selecionado"
 
-#: 5.4/eventView.js:563
+#: 5.4/eventView.js:593
 msgid "Add an event"
 msgstr "Adicionar um evento"
 
-#: 5.4/eventView.js:838
+#: 5.4/eventView.js:869
 msgid "Ended"
 msgstr "Encerrado"
 
-#: 5.4/eventView.js:869
+#: 5.4/eventView.js:900
 msgid "In progress"
 msgstr "Em andamento"
 
-#: 5.4/worldclocks.js:230 5.4/worldclocks.js:231
+#: 5.4/worldclocks.js:238 5.4/worldclocks.js:239
 msgid "World clocks"
 msgstr "Relógios mundiais"
 
-#: 5.4/worldclocks.js:230
+#: 5.4/worldclocks.js:238
 #, javascript-format
 msgid "Source: %s"
 msgstr "Fonte: %s"
@@ -525,33 +529,33 @@ msgstr "Digite o nome de um país"
 msgid "City or town (e.g. Lisbon)"
 msgstr "Cidade ou município (por exemplo, Lisboa)"
 
-#: chronos_settings_widgets_worldclocks.py:51
+#: chronos_settings_widgets_worldclocks.py:52
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Cidade ou fuso horário (por exemplo, Buenos Aires)"
 
-#: chronos_settings_widgets_worldclocks.py:52
+#: chronos_settings_widgets_worldclocks.py:53
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Fuso horário a salvar: %s"
 
-#: chronos_settings_widgets_worldclocks.py:54
+#: chronos_settings_widgets_worldclocks.py:55
 msgid "No timezone selected"
 msgstr "Nenhum fuso horário selecionado"
 
-#: chronos_settings_widgets_worldclocks.py:55
+#: chronos_settings_widgets_worldclocks.py:56
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC e hora local já são exibidos como relógios integrados"
 
-#: chronos_settings_widgets_worldclocks.py:56
+#: chronos_settings_widgets_worldclocks.py:57
 msgid "Enter a display name for this clock"
 msgstr "Digite um nome de exibição para este relógio"
 
-#: chronos_settings_widgets_worldclocks.py:60
+#: chronos_settings_widgets_worldclocks.py:61
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "Não é possível adicionar mais de %d relógios."
 
-#: chronos_settings_widgets_worldclocks.py:63
+#: chronos_settings_widgets_worldclocks.py:64
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -560,11 +564,11 @@ msgstr ""
 "para digitar o nome de uma cidade; sem ele, apenas um identificador completo "
 "como America/Sao_Paulo é aceito."
 
-#: chronos_settings_widgets_worldclocks.py:279
+#: chronos_settings_widgets_worldclocks.py:298
 msgid "Add new entry"
 msgstr "Adicionar novo relógio"
 
-#: chronos_settings_widgets_worldclocks.py:284
+#: chronos_settings_widgets_worldclocks.py:303
 msgid "Edit entry"
 msgstr "Editar relógio"
 

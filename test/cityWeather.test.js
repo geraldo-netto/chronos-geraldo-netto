@@ -1056,3 +1056,58 @@ test("a resume re-reads the cities even though nothing about them changed", () =
     provider.schedule(settings, () => {}, true);
     assert.equal(rounds.length, 2, "a resume re-reads the cities");
 });
+
+// T708: at login the applet raced NetworkManager: every city burned a failing
+// provider chain against a link that was still coming up, then showed "Weather
+// service unavailable" until a backoff timer guessed right. Offline is now a
+// state consulted before the round starts: nothing is dispatched, the readings
+// are kept, and the network monitor's flip — not a timer — is the retry.
+test("an offline city round dispatches nothing, keeps readings, and arms no retry", () => {
+    const CityWeather = loadCityWeather();
+    const Weather = require(path.join(APPLET_DIR, "weatherFormat.js"));
+    let online = true;
+    const calls = {};
+    const scheduler = {
+        retried: 0,
+        successes: 0,
+        stop() {},
+        schedule() {},
+        queue() {},
+        retry() { this.retried++; },
+        succeeded() { this.successes++; }
+    };
+    const provider = new CityWeather.CityWeatherProvider(Object.assign({
+        httpGetJson() {},
+        isOnline: () => online,
+        scheduler
+    }, stubResolvers({ Lisboa: "☀ 28°C", Tokyo: "⛅ 19°C" }, calls)));
+    const settings = { showWeather: true, units: "si", cities: ["Lisboa", "Tokyo"] };
+    let updates = 0;
+
+    provider.refresh(settings, () => updates++);
+    assert.deepEqual(provider.recordFor("Lisboa"), R("☀ 28°C"));
+    const requestsWhileOnline = calls.geocodes.length;
+
+    online = false;
+    provider.refresh(settings, () => updates++);
+
+    assert.equal(calls.geocodes.length, requestsWhileOnline,
+        "no request may leave an offline host");
+    assert.deepEqual(provider.recordFor("Lisboa"), R("☀ 28°C"),
+        "the last reading survives; staleness already says how old it is");
+    assert.equal(provider.errorFor("Lisboa"), Weather.WEATHER_ERRORS.OFFLINE);
+    assert.equal(provider.errorFor("Tokyo"), Weather.WEATHER_ERRORS.OFFLINE);
+    assert.equal(scheduler.retried, 0, "the monitor's flip is the retry, not a timer");
+    assert.ok(scheduler.successes >= 1, "a leftover backoff is cancelled");
+    assert.equal(updates, 2, "the offline round repaints once");
+
+    // a second offline round changes nothing and stays silent
+    provider.refresh(settings, () => updates++);
+    assert.equal(updates, 2);
+
+    // the network returns: the same provider reads normally again
+    online = true;
+    provider.refresh(settings, () => updates++);
+    assert.equal(provider.errorFor("Lisboa"), "");
+    assert.deepEqual(provider.recordFor("Tokyo"), R("⛅ 19°C"));
+});

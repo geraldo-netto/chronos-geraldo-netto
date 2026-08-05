@@ -15,6 +15,7 @@ const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Mainloop = imports.mainloop;
 const Settings = imports.ui.settings;
+const IoUtils = imports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 const EventsManagerModule = require("./eventsManager");
 const Weather = require("./weather");
 const WeatherFormat = require("./weatherFormat");
@@ -221,14 +222,17 @@ class AppletSettingsBinder {
 // cares about; the rest is the shipped wiring.
 const DEFAULT_FACTORIES = {
     clock: () => new CinnamonDesktop.WallClock(),
+    networkState: () => new IoUtils.NetworkState(),
     weatherRepository: () => new Weather.WeatherReadingRepository({
         cacheSeconds: WeatherFormat.REFRESH_SECONDS
     }),
-    weatherProvider: (repository) => new Weather.WeatherProvider({
-        readingRepository: repository
+    weatherProvider: (repository, networkState) => new Weather.WeatherProvider({
+        readingRepository: repository,
+        isOnline: () => networkState.isOnline()
     }),
-    cityWeatherProvider: (repository) => new CityWeather.CityWeatherProvider({
-        readingRepository: repository
+    cityWeatherProvider: (repository, networkState) => new CityWeather.CityWeatherProvider({
+        readingRepository: repository,
+        isOnline: () => networkState.isOnline()
     }),
     eventsManager: (eventsSettings) => EventsManagerModule.createEventsManager(eventsSettings),
     holidayProvider: (religiousIds) => Holidays.createHolidayProvider({ religiousIds })
@@ -242,6 +246,7 @@ class AppletProviderLifecycle {
         this.context = context;
         this.factories = Object.assign({}, DEFAULT_FACTORIES, factories); // NOSONAR [S6661] -- accepted compatible form
         this.clock = null;
+        this.networkState = null;
         this.weatherRepository = null;
         this.weatherProvider = null;
         this.cityWeatherProvider = null;
@@ -262,9 +267,12 @@ class AppletProviderLifecycle {
         const context = this.context;
 
         this.clock = this.factories.clock();
+        this.networkState = this.factories.networkState();
         this.weatherRepository = this.factories.weatherRepository();
-        this.weatherProvider = this.factories.weatherProvider(this.weatherRepository);
-        this.cityWeatherProvider = this.factories.cityWeatherProvider(this.weatherRepository);
+        this.weatherProvider = this.factories.weatherProvider(
+            this.weatherRepository, this.networkState);
+        this.cityWeatherProvider = this.factories.cityWeatherProvider(
+            this.weatherRepository, this.networkState);
 
         this._actor_signal_ids.push(context.actor.connect("enter-event", () => {
             context.onPanelHover(true);
@@ -367,11 +375,28 @@ class AppletProviderLifecycle {
         this._dayRollover.start(this.context.onDayChanged);
     }
 
+    // A refresh that failed for lack of a network should recover the moment
+    // the network does, not a backoff period later. The providers consult the
+    // same monitor before dispatching at all, so the pair is: offline
+    // short-circuits quietly, this flip is its retry.
+    _bindNetworkSignals(context) {
+        if (!this.networkState) {
+            return;
+        }
+        this.networkState.onChanged((available) => {
+            if (available) {
+                context.onNetworkRestored();
+            }
+        });
+    }
+
     bindSystemSignals() {
         const context = this.context;
 
         this._desktop_settings_signal_ids =
             context.desktopSettings.connectClockFormatChanged(context.onSettingsChanged);
+
+        this._bindNetworkSignals(context);
 
         // logind's PrepareForSleep is true on the way into sleep and false on
         // resume, so refresh on the false transition.
@@ -471,6 +496,7 @@ class AppletProviderLifecycle {
             () => this._releaseClockNotify(),
             () => this._dayRollover.destroy(),
             () => this._releaseActorSignals(),
+            () => this.networkState && this.networkState.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this.weatherProvider && this.weatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this.cityWeatherProvider && this.cityWeatherProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this.weatherRepository && this.weatherRepository.destroy(), // NOSONAR [S6582] -- accepted compatible form

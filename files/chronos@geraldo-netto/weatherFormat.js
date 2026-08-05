@@ -32,7 +32,10 @@ var WEATHER_PENDING_TEXT = "…"; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_ERRORS = { // NOSONAR [S3504] -- GJS importer export
     LOCATION_NOT_FOUND: "Location not found",
     SERVICE_UNAVAILABLE: "Weather service unavailable",
-    NO_LOCATION: "Set a weather location"
+    NO_LOCATION: "Set a weather location",
+    // a state, not a provider failure: nothing was dispatched, so nothing is
+    // "unavailable" — and recovery rides the network monitor, not the backoff
+    OFFLINE: "No network connection"
 };
 
 // The glyph is the normalized condition class. Presenters translate the word

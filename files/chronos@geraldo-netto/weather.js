@@ -140,6 +140,9 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         this._resolved_place_key = "";
         this._resolved_place = null;
         this._display_state = params.displayState || new WeatherDisplayState(params);
+        // "always online" is the pre-monitor behavior; the composition root
+        // injects the real Gio.NetworkMonitor-backed answer
+        this._isOnline = params.isOnline || (() => true);
         this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(params);
         this._reading_repository = params.readingRepository ||
             new WeatherReadingRepository(params);
@@ -280,6 +283,14 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         }
 
         const report = this._refreshReporter(settings, callback);
+        if (!this._isOnline()) {
+            // offline is a state, not a provider failure: dispatch nothing and
+            // arm no retry — the network monitor's next flip is the retry. The
+            // reporter keeps the last reading, so recovery shows it as stale
+            // rather than blank.
+            report(null, WeatherFormat.WEATHER_ERRORS.OFFLINE, "", null);
+            return;
+        }
         this._reading_repository.refresh(location,
             () => this._isCurrent(generation), report);
     }
@@ -293,9 +304,12 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         const report = this._display_state.reporter(key,
             (reading, error, provider) => {
                 // Service outages may recover before the normal period. A name
-                // that both geocoders answered but could not resolve will not.
+                // that both geocoders answered but could not resolve will not —
+                // and neither will a missing network, whose recovery signal is
+                // the monitor's flip, not a timer.
                 if (error &&
-                    error !== WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND) {
+                    error !== WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND &&
+                    error !== WeatherFormat.WEATHER_ERRORS.OFFLINE) {
                     this._scheduler.retry(() => this.refresh(settings, callback));
                 } else {
                     this._scheduler.succeeded();

@@ -1262,6 +1262,8 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
     const issues = presenter.issueStatus(entries, model.issues);
     assert.match(issues, /Invalid time format/);
     assert.match(issues, /Weather service unavailable/);
+    assert.equal(PanelStatusModule.translateWeatherError(Weather.WEATHER_ERRORS.OFFLINE),
+        "No network connection", "the offline state has its own words");
     assert.match(issues, /Invalid timezone.*Broken/);
     assert.match(issues, /Tokyo.*Location not found/);
     assert.match(issues, /Lisbon.*Last known reading/);
@@ -1342,6 +1344,13 @@ test("resuming forces the city weather past its unchanged-settings guard", () =>
     // ...and an ordinary settings change does not force it
     Proto._scheduleWeatherRefresh.call(stub);
     assert.deepEqual(scheduled.at(-1), ["cities", false]);
+
+    // T708: the network coming back is the retry the offline short-circuit
+    // deferred — same shape as a resume: the settings have not changed, the
+    // world has, so the city half is forced past its unchanged-settings guard
+    scheduled.length = 0;
+    Proto._onNetworkRestored.call(stub);
+    assert.deepEqual(scheduled, [["panel"], ["cities", true]]);
 });
 
 // The menu builder connects six signals — three on the events manager, three on the

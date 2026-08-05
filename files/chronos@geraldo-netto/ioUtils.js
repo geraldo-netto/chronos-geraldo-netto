@@ -453,6 +453,69 @@ function _downgraded(message, url) {
 // once in holidays.js, with the same lazy create, the same two timeouts and the
 // same guarded abort. A cancellable, a connection cap or a proxy setting was
 // three edits, two of them in the providers that fan out to eight cities.
+// The network monitor is the one authority on whether dispatching an HTTP
+// request has any point: at login the applet raced NetworkManager and burned
+// its whole first refresh on DNS failures — five stack-traced error rounds —
+// while the link was still coming up, then waited out a blind backoff timer
+// that the actual network-up moment could have replaced. Lazy like the HTTP
+// session, for the same reason: weather may be off. Fail open — a host with
+// no usable monitor must degrade to the old always-try behavior, never to
+// weather that silently stays off.
+var NetworkState = class NetworkState { // NOSONAR [S3504] -- GJS importer export
+    constructor(params = {}) {
+        this._create = params.createMonitor || (() => Gio.NetworkMonitor.get_default());
+        this._monitor = null;
+        this._signal_id = 0;
+    }
+
+    _get() {
+        if (this._monitor === null) {
+            try {
+                // `false` remembers a failed construction so a broken host pays
+                // for it once, not on every refresh tick
+                this._monitor = this._create() || false;
+            } catch (e) {
+                if (global.logError) {
+                    global.logError(e);
+                }
+                this._monitor = false;
+            }
+        }
+        return this._monitor;
+    }
+
+    isOnline() {
+        const monitor = this._get();
+        return !monitor || monitor.network_available !== false;
+    }
+
+    // The callback fires only when availability actually flips: the monitor
+    // emits network-changed for VPNs, metering and captive-portal probes that
+    // do not change whether dispatch is worthwhile.
+    onChanged(callback) {
+        const monitor = this._get();
+        if (!monitor || typeof monitor.connect !== "function" || this._signal_id) {
+            return;
+        }
+        let lastAvailable = this.isOnline();
+        this._signal_id = monitor.connect("network-changed", () => {
+            const available = this.isOnline();
+            if (available === lastAvailable) {
+                return;
+            }
+            lastAvailable = available;
+            callback(available);
+        });
+    }
+
+    destroy() {
+        if (this._monitor && this._signal_id) {
+            this._monitor.disconnect(this._signal_id);
+        }
+        this._signal_id = 0;
+    }
+};
+
 var LazyHttpSession = class LazyHttpSession { // NOSONAR [S3504] -- GJS importer export
     constructor(create) {
         this._create = create || (() => createHttpSession({
@@ -489,6 +552,7 @@ if (typeof module !== "undefined") {
     module.exports = {
         createHttpSession,
         LazyHttpSession,
+        NetworkState,
         decodeUtf8,
         HTTP_TIMEOUT_SECONDS,
         HTTP_DEADLINE_SECONDS,

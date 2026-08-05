@@ -87,6 +87,53 @@ test("transient failures keep reporting the last good reading", () => {
     assert.equal(reports[2].reading, null);
 });
 
+// T708: at login the applet raced NetworkManager and burned its first refresh
+// on DNS errors, then waited out a blind backoff. Offline is consulted before
+// dispatch: nothing goes out, no retry is armed — the network monitor's flip
+// is the retry — and the state says "no network" instead of blaming the
+// weather service.
+test("an offline panel refresh dispatches nothing and arms no retry", () => {
+    const Weather = loadWeather();
+    let online = false;
+    const scheduler = {
+        retried: 0,
+        successes: 0,
+        stop() {},
+        schedule() {},
+        queue() {},
+        retry() { this.retried++; },
+        succeeded() { this.successes++; }
+    };
+    const provider = new Weather.WeatherProvider({
+        isOnline: () => online,
+        scheduler,
+        httpGetJson(url, callback) {
+            if (!online) {
+                throw new Error("no request may leave an offline host");
+            }
+            if (url.includes("geocoding-api")) {
+                callback({ results: [{ latitude: 38.7, longitude: -9.1, population: 505000 }] });
+            } else {
+                callback({ current_weather: { weathercode: 0, temperature: 21.5 } });
+            }
+        }
+    });
+
+    const reports = [];
+    const settings = { showWeather: true, location: "Lisboa", units: "si" };
+    provider.refresh(settings, (reading, error) => reports.push({ reading, error }));
+
+    assert.deepEqual(reports, [{ reading: null, error: Weather.WEATHER_ERRORS.OFFLINE }]);
+    assert.equal(scheduler.retried, 0, "the monitor's flip is the retry, not a timer");
+    assert.equal(scheduler.successes, 1, "a leftover backoff is cancelled");
+
+    // the network returns: the same provider fetches normally again
+    online = true;
+    provider.refresh(settings, (reading, error) => reports.push({ reading, error }));
+    assert.deepEqual(reports[1],
+        { reading: { condition: "☀", temperatureC: 21.5 }, error: "" });
+});
+
 test("panel weather counts suspend time before a failed wake refresh", () => {
     const Weather = loadWeather();
     const reading = { condition: "☀", temperatureC: 20 };

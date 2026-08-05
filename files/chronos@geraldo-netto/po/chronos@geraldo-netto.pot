@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-08-05 20:50+0200\n"
+"POT-Creation-Date: 2026-08-05 22:44+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -268,11 +268,11 @@ msgstr ""
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 
-#: 5.4/appletMenuBuilder.js:286 5.4/appletMenuBuilder.js:292
+#: 5.4/appletMenuBuilder.js:306 5.4/appletMenuBuilder.js:312
 msgid "Go to today"
 msgstr ""
 
-#: 5.4/appletMenuBuilder.js:387
+#: 5.4/appletMenuBuilder.js:407
 msgid "Date and Time Settings"
 msgstr ""
 
@@ -292,48 +292,52 @@ msgstr ""
 msgid "Set a weather location"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:85
-msgid "Clear"
+#: 5.4/appletPanelStatus.js:77
+msgid "No network connection"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:86
-msgid "Partly cloudy"
+msgid "Clear"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:87
-msgid "Cloudy"
+msgid "Partly cloudy"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:88
-msgid "Rain"
+msgid "Cloudy"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:89
-msgid "Snow"
+msgid "Rain"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:90
-msgid "Showers"
+msgid "Snow"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:91
-msgid "Thunderstorm"
+msgid "Showers"
 msgstr ""
 
 #: 5.4/appletPanelStatus.js:92
+msgid "Thunderstorm"
+msgstr ""
+
+#: 5.4/appletPanelStatus.js:93
 msgid "Fair"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:112 5.4/appletPanelStatus.js:490
-#: 5.4/appletPanelStatus.js:659
+#: 5.4/appletPanelStatus.js:113 5.4/appletPanelStatus.js:491
+#: 5.4/appletPanelStatus.js:660
 msgid "Weather: loading…"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:514
+#: 5.4/appletPanelStatus.js:515
 msgid "No weather for this timezone"
 msgstr ""
 
-#: 5.4/appletPanelStatus.js:525 5.4/appletPanelStatus.js:526
+#: 5.4/appletPanelStatus.js:526 5.4/appletPanelStatus.js:527
 #, javascript-format
 msgid "%s Last known reading"
 msgstr ""
@@ -384,23 +388,23 @@ msgstr[1] ""
 msgid "Week %s"
 msgstr ""
 
-#: 5.4/calendar.js:919
+#: 5.4/calendar.js:924
 msgid "Previous month"
 msgstr ""
 
-#: 5.4/calendar.js:949
+#: 5.4/calendar.js:954
 msgid "Next month"
 msgstr ""
 
-#: 5.4/calendar.js:953
+#: 5.4/calendar.js:958
 msgid "Previous year"
 msgstr ""
 
-#: 5.4/calendar.js:964
+#: 5.4/calendar.js:969
 msgid "Next year"
 msgstr ""
 
-#: 5.4/calendar.js:977
+#: 5.4/calendar.js:982
 msgid "Week"
 msgstr ""
 

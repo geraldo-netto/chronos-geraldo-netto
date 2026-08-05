@@ -1,6 +1,6 @@
 const {
     assert, test, vm, fs, shimPath, shown, loadWeather, makeSoup3,
-    immediateNominatimQueue
+    immediateNominatimQueue, ioUtilsPath
 } = require("./helpers/weatherFixture");
 
 test("built-in Soup 3 JSON loader reports parsed data and HTTP errors", () => {
@@ -512,4 +512,90 @@ test("switching between Celsius and Fahrenheit re-renders instead of refetching"
         "and it is the same unit-free record, whatever the panel is about to render it as");
     assert.equal(shown(readings[1], "metric"), "☀ 21°C");
     assert.equal(shown(readings[1], "imperial"), "☀ 70°F");
+});
+
+// T708: NetworkState is the one authority on whether dispatching a request has
+// any point. It fails open — a host with no usable monitor must degrade to the
+// old always-try behavior, never to weather that silently stays off.
+test("NetworkState fails open and answers lazily from the monitor", () => {
+    const IoUtils = require(ioUtilsPath);
+
+    const bare = new IoUtils.NetworkState({ createMonitor: () => null });
+    assert.equal(bare.isOnline(), true, "no monitor: the old always-try behavior");
+    assert.doesNotThrow(() => bare.onChanged(() => {}));
+    assert.doesNotThrow(() => bare.destroy());
+
+    let creations = 0;
+    const errors = [];
+    const originalLogError = global.logError;
+    global.logError = (e) => errors.push(e);
+    try {
+        const throwing = new IoUtils.NetworkState({
+            createMonitor: () => {
+                creations++;
+                throw new Error("no monitor on this host");
+            }
+        });
+        assert.equal(throwing.isOnline(), true);
+        assert.equal(throwing.isOnline(), true);
+    } finally {
+        global.logError = originalLogError;
+    }
+    assert.equal(creations, 1, "a broken host pays for construction once");
+    assert.equal(errors.length, 1, "...and the failure is logged, not swallowed");
+
+    let built = 0;
+    const monitor = { network_available: false, connect: () => 7, disconnect() {} };
+    const state = new IoUtils.NetworkState({
+        createMonitor: () => {
+            built++;
+            return monitor;
+        }
+    });
+    assert.equal(built, 0, "no monitor until somebody asks");
+    assert.equal(state.isOnline(), false);
+    monitor.network_available = true;
+    assert.equal(state.isOnline(), true);
+    assert.equal(built, 1);
+
+    // a monitor that cannot notify still answers isOnline and tears down safely
+    const inert = new IoUtils.NetworkState({
+        createMonitor: () => ({ network_available: true })
+    });
+    assert.doesNotThrow(() => inert.onChanged(() => {}));
+    assert.doesNotThrow(() => inert.destroy());
+});
+
+test("NetworkState reports only real availability flips", () => {
+    const IoUtils = require(ioUtilsPath);
+    const handlers = {};
+    const monitor = {
+        network_available: false,
+        disconnected: [],
+        connect(name, cb) {
+            handlers[name] = cb;
+            return 42;
+        },
+        disconnect(id) {
+            this.disconnected.push(id);
+        }
+    };
+    const state = new IoUtils.NetworkState({ createMonitor: () => monitor });
+    const flips = [];
+    state.onChanged((available) => flips.push(available));
+    state.onChanged((available) => flips.push(["duplicate", available]));
+
+    handlers["network-changed"]();          // still offline: not a flip
+    monitor.network_available = true;
+    handlers["network-changed"]();          // offline -> online
+    handlers["network-changed"]();          // VPN/portal noise: same value
+    monitor.network_available = false;
+    handlers["network-changed"]();          // online -> offline
+
+    assert.deepEqual(flips, [true, false],
+        "one signal per flip, no duplicate subscriptions, no noise");
+
+    state.destroy();
+    assert.deepEqual(monitor.disconnected, [42]);
+    assert.doesNotThrow(() => state.destroy(), "a second teardown is not an error");
 });
