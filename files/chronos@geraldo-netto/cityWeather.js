@@ -72,7 +72,6 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._generation = 0;
         this._readings = new Map();
         this._errors = new Map();
-        this._last_provider = "";
         this._applied_signature = null;
         this._now = params.now || (() => Date.now());
         this._refresh_seconds = params.refreshSeconds || CITY_REFRESH_SECONDS;
@@ -107,10 +106,6 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         return this._reading_repository.getHttpSession();
     }
 
-    get lastProvider() {
-        return this._last_provider;
-    }
-
     // `city` is the geocoded city — what the reading is *of* — and not the clock's
     // label, which is the user's own name for the row and is not unique.
     //
@@ -121,6 +116,11 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     recordFor(city) {
         const reading = this._readingFor(city);
         return reading ? reading.record : null;
+    }
+
+    providerFor(city) {
+        const reading = this._readingFor(city);
+        return reading ? reading.provider : "";
     }
 
     errorFor(city) {
@@ -261,7 +261,6 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             // for a city the user has since removed
             this._readings.clear();
             this._errors.clear();
-            this._last_provider = "";
             this._scheduler.succeeded();
             callback(this);
             return;
@@ -426,8 +425,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._setError(city.query, "");
         this._readings.set(
             locationCacheKey(city.query),
-            { record: reading, at: this._now() });
-        this._last_provider = provider || this._last_provider;
+            { record: reading, provider: provider || "", at: this._now() });
         // the panel is repainted once, when the round finishes
         round.changed = true;
         this._cityDone(generation, round, round.settings, callback, true);

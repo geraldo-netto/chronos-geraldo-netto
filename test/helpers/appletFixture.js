@@ -253,8 +253,8 @@ function legacyCityStale(applet, city) {
         applet.cityWeatherStale(city));
 }
 
-function legacyCityProviderName(applet) {
-    return applet.cityWeatherProviderName ? applet.cityWeatherProviderName() : "";
+function legacyCityProviderName(applet, city) {
+    return applet.cityWeatherProviderName ? applet.cityWeatherProviderName(city) : "";
 }
 
 function legacyWeatherCoordinator(applet) {
@@ -265,7 +265,7 @@ function legacyWeatherCoordinator(applet) {
         providerName: applet.weatherProvider || "",
         cityReading: (city) => legacyCityReading(applet, city),
         cityStale: (city) => legacyCityStale(applet, city),
-        cityProviderName: () => legacyCityProviderName(applet)
+        cityProviderName: (city) => legacyCityProviderName(applet, city)
     });
 }
 

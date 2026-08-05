@@ -220,8 +220,8 @@ class PanelView {
         return this.port.cityWeatherError(city);
     }
 
-    cityWeatherProviderName() {
-        return this.port.cityWeatherProviderName();
+    cityWeatherProviderName(city) {
+        return this.port.cityWeatherProviderName(city);
     }
 
     formattedClock() {
@@ -506,7 +506,7 @@ class AppletPanelStatusPresenter {
         // still in flight and a fetch that failed said, so the row looked broken
         // rather than inapplicable.
         if (!city) {
-            return { cells: ["", _("No weather for this timezone")], issue: "" };
+            return { cells: ["", _("No weather for this timezone")], issue: "", source: "" };
         }
 
         const record = view.cityWeatherReading(city);
@@ -524,8 +524,22 @@ class AppletPanelStatusPresenter {
 
         return {
             cells: record ? this._readingCells(record, rowError) : ["", rowError],
-            issue
+            issue,
+            source: record ? view.cityWeatherProviderName(city) : ""
         };
+    }
+
+    _weatherSource(entry, cityModel, showWeather) {
+        if (!showWeather) {
+            return "";
+        }
+        if (cityModel) {
+            return cityModel.source;
+        }
+        if (entry.timezone === WorldclockData.UTC_TIMEZONE || !this.view.weatherReading) {
+            return "";
+        }
+        return this.view.weatherProvider;
     }
 
     _clockRenderRow(entry, showWeather) {
@@ -539,6 +553,7 @@ class AppletPanelStatusPresenter {
         return {
             cells: cells.concat(weatherCells),
             issue: cityModel ? cityModel.issue : "",
+            source: this._weatherSource(entry, cityModel, showWeather),
             popupEntry: weather ? Object.assign({}, entry, { weather }) : entry // NOSONAR [S6661] -- accepted compatible form
         };
     }
@@ -564,6 +579,7 @@ class AppletPanelStatusPresenter {
             popupEntries: rows.map((row) => row.popupEntry),
             rows: rows.map((row) => row.cells),
             issues: rows.map((row) => row.issue).filter((issue) => issue),
+            sources: [...new Set(rows.map((row) => row.source).filter((source) => source))],
             status
         };
     }
@@ -669,10 +685,6 @@ class AppletPanelStatusPresenter {
             ...renderIssues
         ];
         return [...new Set(issues.filter((issue) => issue))].join("\n");
-    }
-
-    weatherSourceName() {
-        return this.view.weatherProvider || this.view.cityWeatherProviderName() || "";
     }
 
     getFormattedToday() {
@@ -792,7 +804,7 @@ class AppletPanelStatusPresenter {
         // or screen-reader user never got any of it — and the provider credit is
         // a courtesy the data services are owed.
         view.updateWorldclocks(clockModel.popupEntries);
-        view.setWeatherSource(view.showWeather ? this.weatherSourceName() : "");
+        view.setWeatherSource(view.showWeather ? clockModel.sources.join(", ") : "");
     }
 }
 

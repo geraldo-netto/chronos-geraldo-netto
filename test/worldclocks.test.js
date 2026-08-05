@@ -682,9 +682,13 @@ test("the clock list names the weather service that answered", () => {
     assert.match(worldclocks.actor.accessible_name, /World clocks/);
     assert.match(worldclocks.actor.accessible_name, /Open-Meteo/);
 
+    worldclocks.setWeatherSource("Open-Meteo, MET Norway");
+    assert.match(worldclocks.actor.accessible_name, /Open-Meteo, MET Norway/,
+        "mixed displayed readings credit every distinct provider");
+
     // written once: the name is rebuilt every tick and St compares by pointer
     const first = worldclocks.actor.accessible_name;
-    worldclocks.setWeatherSource("Open-Meteo");
+    worldclocks.setWeatherSource("Open-Meteo, MET Norway");
     assert.equal(worldclocks.actor.accessible_name, first);
 
     // with weather off there is no source, and the list is just the list

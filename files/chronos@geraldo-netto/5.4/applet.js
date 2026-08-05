@@ -81,7 +81,7 @@ function createPanelPort(applet) {
         cityWeatherReading: (city) => applet._weatherCoordinator.cityReading(city),
         cityWeatherStale: (city) => applet._weatherCoordinator.cityStale(city),
         cityWeatherError: (city) => applet._weatherCoordinator.cityError(city),
-        cityWeatherProviderName: () => applet._weatherCoordinator.cityProviderName(),
+        cityWeatherProviderName: (city) => applet._weatherCoordinator.cityProviderName(city),
         formattedClock: () => applet.clock.get_clock(),
         formatClock: (format) => applet.clock.get_clock_for_format(format),
         setClockFormatString: (format) => applet.clock.set_format_string(format),

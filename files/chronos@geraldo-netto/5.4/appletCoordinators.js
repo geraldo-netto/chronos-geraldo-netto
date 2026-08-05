@@ -106,8 +106,8 @@ class AppletWeatherCoordinator {
         return this.cityWeatherProvider ? this.cityWeatherProvider.errorFor(city) : "";
     }
 
-    cityProviderName() {
-        return this.cityWeatherProvider ? this.cityWeatherProvider.lastProvider : "";
+    cityProviderName(city) {
+        return this.cityWeatherProvider ? this.cityWeatherProvider.providerFor(city) : "";
     }
 }
 

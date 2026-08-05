@@ -144,7 +144,7 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
         cityReading: (city) => (city === "Tokyo" ?
             { condition: "\ud83c\udf27", temperatureC: 12 } : null),
         cityStale: () => false,
-        cityProviderName: () => "Open-Meteo"
+        cityProviderName: (city) => city === "Tokyo" ? "Aviation Weather" : ""
     });
 
     Proto._updateClockAndDate.call(stub);
@@ -153,8 +153,34 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
     assert.ok(tokyo.weather.includes("12\u00b0C"), "the row carries the city's own reading");
     assert.ok(tokyo.weather.includes("Rain"), "and the condition in words, not an emoji");
 
-    assert.ok(calls.weatherSource.includes("Open-Meteo"),
-        "and the service that answered is named where the popup can say it");
+    assert.equal(calls.weatherSource, "Aviation Weather",
+        "the city source is named without borrowing the unrelated panel source");
+});
+
+test("world-clock attribution aggregates the providers of displayed readings", () => {
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: true,
+        weather_units: "si",
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherProvider: "Open-Meteo",
+        cityWeatherReading: (city) => ({
+            "New York": { condition: "🌧", temperatureC: 12 },
+            Tokyo: { condition: "☁", temperatureC: 18 }
+        })[city] || null,
+        cityWeatherProviderName: (city) => ({
+            "New York": "Aviation Weather",
+            Tokyo: "MET Norway"
+        })[city] || ""
+    });
+    const entries = [
+        tooltipEntry("UTC", "UTC", "11 Jul 01:52", true),
+        tooltipEntry("Local time", "local", "11 Jul 22:52", true),
+        tooltipEntry("New York", "America/New_York", "11 Jul 18:52", false),
+        tooltipEntry("Tokyo", "Asia/Tokyo", "12 Jul 11:52", false)
+    ];
+
+    assert.deepEqual(panelStatus(stub)._clockRenderModel(entries).sources,
+        ["Open-Meteo", "Aviation Weather", "MET Norway"]);
 });
 
 test("one render model serves tooltip and popup weather", () => {

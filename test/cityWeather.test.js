@@ -128,7 +128,9 @@ test("every world-clock city gets its own reading", () => {
     // a city that will not geocode simply has no temperature; its clock row
     // still shows the time
     assert.equal(provider.recordFor("Atlantis"), null);
-    assert.equal(provider.lastProvider, "Open-Meteo");
+    assert.equal(provider.providerFor("São Paulo"), "Open-Meteo");
+    assert.equal(provider.providerFor("Tokyo"), "Open-Meteo");
+    assert.equal(provider.providerFor("Atlantis"), "");
     // the callback rebuilds the whole panel label and tooltip, padding every
     // column to its widest cell: a round of eight cities used to trigger eight
     // of them, for one set of readings nobody can read until they are all in
@@ -151,15 +153,15 @@ test("readings are dropped when weather is off or the city is removed", () => {
 
     provider.refresh({ showWeather: true, units: "si", cities: [] }, () => {});
     assert.equal(provider.recordFor("Tokyo"), null, "an empty clock list clears its reading");
-    assert.equal(provider.lastProvider, "", "an empty clock list clears its attribution");
+    assert.equal(provider.providerFor("Tokyo"), "", "an empty clock list clears its attribution");
 
     provider.refresh({ showWeather: true, units: "si", cities: ["Tokyo"] }, () => {});
-    assert.equal(provider.lastProvider, "Open-Meteo");
+    assert.equal(provider.providerFor("Tokyo"), "Open-Meteo");
 
     // weather is opt-in: with it off, no city is read and nothing is kept
     provider.refresh({ showWeather: false, units: "si", cities: ["Tokyo"] }, () => {});
     assert.equal(provider.recordFor("Tokyo"), null);
-    assert.equal(provider.lastProvider, "", "disabled weather carries no stale attribution");
+    assert.equal(provider.providerFor("Tokyo"), "", "disabled weather carries no stale attribution");
 });
 
 test("duplicate and blank cities are asked for once, and only eight at most", () => {
@@ -438,6 +440,7 @@ test("recordFor answers null for anything that is not a city name", () => {
 
     for (const input of ["", "   ", null, undefined, 42, {}, [], true, NaN]) {
         assert.equal(provider.recordFor(input), null);
+        assert.equal(provider.providerFor(input), "");
         assert.equal(provider.errorFor(input), "");
     }
 
@@ -472,7 +475,7 @@ test("a forecast that fails or comes back empty keeps the previous reading", () 
     answer = ["", "Weather service unavailable", ""];
     provider.refresh(settings, () => updates++);
     assert.deepEqual(provider.recordFor("Rome"), R("☀ 20°C"));
-    assert.equal(provider.lastProvider, "Open-Meteo");
+    assert.equal(provider.providerFor("Rome"), "Open-Meteo");
     assert.equal(provider.errorFor("Rome"), "Weather service unavailable");
     assert.equal(updates, 2, "a new failure redraws once so the footer can report it");
 
@@ -486,7 +489,43 @@ test("a forecast that fails or comes back empty keeps the previous reading", () 
     answer = ["☀ 21°C", "", "MET.no"];
     provider.refresh(settings, () => updates++);
     assert.equal(provider.errorFor("Rome"), "", "a successful refresh clears the issue");
+    assert.equal(provider.providerFor("Rome"), "MET.no");
     assert.equal(updates, 3);
+});
+
+test("each retained city reading keeps the provider that supplied it", () => {
+    const CityWeather = loadCityWeather();
+    const providers = { Lisbon: "MET Norway", Tokyo: "Aviation Weather" };
+    let failTokyo = false;
+    const provider = new CityWeather.CityWeatherProvider({
+        httpGetJson() {},
+        locationResolver: {
+            resolve(city, _isCurrent, callback) {
+                callback({ city }, "");
+            }
+        },
+        forecastResolver: {
+            refresh(place, _isCurrent, callback) {
+                if (place.city === "Tokyo" && failTokyo) {
+                    callback(null, "Weather service unavailable", "");
+                    return;
+                }
+                callback(R(place.city === "Tokyo" ? "🌧 12°C" : "☀ 20°C"),
+                    "", providers[place.city]);
+            }
+        }
+    });
+    const settings = { showWeather: true, units: "si", cities: ["Lisbon", "Tokyo"] };
+
+    provider.refresh(settings, () => {});
+    assert.equal(provider.providerFor("Lisbon"), "MET Norway");
+    assert.equal(provider.providerFor("Tokyo"), "Aviation Weather");
+
+    failTokyo = true;
+    provider.refresh(settings, () => {});
+    assert.deepEqual(provider.recordFor("Tokyo"), R("🌧 12°C"));
+    assert.equal(provider.providerFor("Tokyo"), "Aviation Weather",
+        "a failed round retains both the last-good reading and its source");
 });
 
 test("the geocoder is asked about the timezone's city, never the user's label", () => {

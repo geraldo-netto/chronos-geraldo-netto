@@ -127,7 +127,7 @@ test("city weather readings and provider name come from the city provider", () =
             recordFor: (city) => (city === "Tokyo" ? { condition: "☀", temperatureC: 30 } : null),
             staleFor: (city) => city === "Tokyo",
             errorFor: (city) => city === "Tokyo" ? "service-unavailable" : "",
-            lastProvider: "Open-Meteo"
+            providerFor: (city) => city === "Tokyo" ? "Open-Meteo" : ""
         },
         settings: () => ({}),
         worldclocks: () => [],
@@ -139,7 +139,8 @@ test("city weather readings and provider name come from the city provider", () =
     assert.equal(coordinator.cityStale("Tokyo"), true);
     assert.equal(coordinator.cityError("Tokyo"), "service-unavailable");
     assert.equal(coordinator.cityError("Nowhere"), "");
-    assert.equal(coordinator.cityProviderName(), "Open-Meteo");
+    assert.equal(coordinator.cityProviderName("Tokyo"), "Open-Meteo");
+    assert.equal(coordinator.cityProviderName("Nowhere"), "");
 
     const withoutCityProvider = new CoordinatorModule.AppletWeatherCoordinator({
         weatherProvider: {},
@@ -152,7 +153,7 @@ test("city weather readings and provider name come from the city provider", () =
     assert.equal(withoutCityProvider.cityReading("Tokyo"), null);
     assert.equal(withoutCityProvider.cityStale("Tokyo"), false);
     assert.equal(withoutCityProvider.cityError("Tokyo"), "");
-    assert.equal(withoutCityProvider.cityProviderName(), "");
+    assert.equal(withoutCityProvider.cityProviderName("Tokyo"), "");
 });
 
 test("city weather contracts fail loudly when a double is incomplete", () => {
@@ -461,7 +462,7 @@ test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", (
         "the second must not change the key when the rendered tooltip is the same");
 });
 
-test("the tooltip names no source when neither provider has answered", () => {
+test("a clock model names no source when no displayed reading has one", () => {
     // a plain object, not an applet: a half-built applet has no city provider
     // methods at all
     const stub = {
@@ -473,11 +474,11 @@ test("the tooltip names no source when neither provider has answered", () => {
     };
     // a half-built applet has no city provider to ask, and the panel provider
     // has not landed a reading yet: the tooltip simply has no Source line
-    assert.equal(panelStatus(stub).weatherSourceName(), "");
+    assert.deepEqual(panelStatus(stub)._clockRenderModel([]).sources, []);
     assert.equal(panelStatus(stub).buildTooltipText([]), "");
 
     stub.cityWeatherProviderName = () => "";
-    assert.equal(panelStatus(stub).weatherSourceName(), "");
+    assert.deepEqual(panelStatus(stub)._clockRenderModel([]).sources, []);
 });
 
 test("translateWeatherError translates the known failures and passes others through", () => {
