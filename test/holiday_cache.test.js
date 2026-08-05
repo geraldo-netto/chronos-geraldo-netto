@@ -886,6 +886,48 @@ test("a fetch that lands after the place was cleared is not persisted", () => {
     assert.deepEqual(saved, [], "there is no country to file it under");
 });
 
+// T745: clearPlace() set country to null and stopped, so choosing "None
+// (disable holidays)" kept the previous country's rows, both indexes, the month
+// memo, the year LRU and the freshness stamps alive for the rest of the
+// session. Nothing reads them again — the facade reports inactive with no
+// country, and re-selecting the same country reloads from disk anyway.
+test("clearing the place releases the rows it was holding", () => {
+    const { HolidayCache, GLOBAL_REGION } = loadHolidays();
+    let loads = 0;
+    const stored = {
+        years: { 2026: { [GLOBAL_REGION]: new Date().toUTCString() } },
+        holidays: [
+            { year: 2026, month: 1, day: 1, region: GLOBAL_REGION, name: "Capodanno", flags: [] },
+            { year: 2026, month: 8, day: 15, region: GLOBAL_REGION, name: "Ferragosto", flags: [] }
+        ]
+    };
+    const cache = new HolidayCache((_country, done) => {
+        loads++;
+        done({ years: { ...stored.years }, holidays: stored.holidays.map((row) => ({ ...row })) });
+    }, () => {});
+
+    cache.setPlace("ita", GLOBAL_REGION);
+    cache.recordAttempt(2026, GLOBAL_REGION);
+    assert.equal(cache.matchMonth(2026, 1).size, 1, "the month memo is warm");
+    assert.equal(cache.data.length, 2);
+    assert.deepEqual(cache.cachedYears(), [2026]);
+
+    cache.clearPlace();
+
+    assert.equal(cache.country, null);
+    assert.deepEqual(cache.data, [], "the rows go with the place");
+    assert.deepEqual(cache.years, {}, "and so do the freshness stamps");
+    assert.deepEqual(cache.attempts, {}, "and the retry stamps");
+    assert.deepEqual(cache.cachedYears(), [], "and the year LRU");
+    assert.equal(cache.matchMonth(2026, 1).size, 0,
+        "so a month the grid asks for after the clear is genuinely empty");
+
+    // and nothing was lost that mattered: the same country reloads from disk
+    cache.setPlace("ita", GLOBAL_REGION);
+    assert.equal(loads, 2, "re-selecting a cleared country reads it again");
+    assert.equal(cache.matchMonth(2026, 1).get("1/1")[0], "Capodanno");
+});
+
 test("a cache directory that cannot be created degrades instead of throwing", () => {
     const { HolidayCacheRepository, HolidayCache, HolidayService } = loadHolidays();
     const logged = [];

@@ -749,11 +749,29 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._pruneYears();
     }
 
+    // The rows, the two indexes, the month memo, the year LRU and the freshness
+    // stamps all describe a country that is no longer selected, and nothing
+    // reads them again: with no country the facade reports inactive, so the
+    // annotator never asks, and re-selecting the same country takes setPlace's
+    // `changed` branch and reloads from disk regardless. Held, they kept up to
+    // MAX_EXPANDED_HOLIDAY_ROWS rows and their indexes alive for the rest of the
+    // session for a user who simply switched holidays off.
+    _dropCachedPlace() {
+        this.data = [];
+        this.years = {};
+        this.attempts = {};
+        this._yearUse.clear();
+        this._holidayIndex.clear();
+        this._monthIndex.clear();
+        this._matchedMonthCache.clear();
+    }
+
     clearPlace() {
         if (!this._isActive()) {
             return;
         }
         this.country = null;
+        this._dropCachedPlace();
         // a load still in flight was for a place that no longer exists; whoever
         // queued behind it gets the no-country answer now instead of never
         this._flushReady();
@@ -771,13 +789,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this.region = GLOBAL_REGION;
         this._onReady = [];
         this._loading = false;
-        this.data = [];
-        this._yearUse.clear();
-        this._holidayIndex.clear();
-        this._monthIndex.clear();
-        this._matchedMonthCache.clear();
-        this.years = {};
-        this.attempts = {};
+        this._dropCachedPlace();
     }
 
     recordAttempt(year, region, attempted = new Date().toUTCString()) {
