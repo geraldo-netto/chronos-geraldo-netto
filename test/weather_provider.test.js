@@ -1562,15 +1562,87 @@ test("queue debounces weather refreshes before scheduling", () => {
     assert.deepEqual(removed, [101]);
     assert.equal(scheduledDebounces.length, 2);
     assert.equal(scheduledDebounces[1].milliseconds, 25);
-    assert.equal(scheduledRefreshes.length, 0);
-    assert.equal(refreshes, 0);
+    assert.equal(scheduledRefreshes.length, 0, "no network work before the edit settles");
+    // T703: each edit retires the old place's state at once — the panel is not
+    // left showing the previous city while the keystrokes settle — but only
+    // the replacement request is debounced
+    assert.equal(refreshes, 2, "each edit says so synchronously");
 
     assert.equal(scheduledDebounces[1].callback(), false);
     assert.equal(scheduledRefreshes.length, 1);
-    assert.equal(refreshes, 2, "pending placeholder plus the reading");
+    assert.equal(refreshes, 4, "pending placeholder plus the reading");
 
     provider.stop();
     assert.deepEqual(removed, [101, 42]);
+});
+
+// T703: queue() moved the resolved location key but left the request
+// generation, the timers and the retained reading alone until the 750 ms
+// debounce fired. In that window an in-flight callback was still "current", so
+// the previous city's reading was stored and painted under the new city's
+// name, and an old retry could arm more work with the previous settings.
+test("editing the location retires the old city's work before the debounce", () => {
+    const Weather = loadWeather();
+    const reports = [];
+    const armed = [];
+    let respondLisbon = null;
+    const provider = new Weather.WeatherProvider({
+        debounceMs: 750,
+        httpGetJson(url, callback) {
+            if (url.includes("geocoding-api") && url.includes("Lisbon")) {
+                // the geocode for the first city never comes back in time
+                respondLisbon = () => callback(
+                    { results: [{ latitude: 38, longitude: -9, population: 505000 }] });
+                return;
+            }
+            if (url.includes("geocoding-api")) {
+                callback({ results: [{ latitude: 35, longitude: 139, population: 8000000 }] });
+                return;
+            }
+            callback({ current_weather: { weathercode: 0, temperature: 31 } });
+        },
+        scheduleDebounceTimer: (milliseconds, callback) => {
+            armed.push({ kind: "debounce", callback });
+            return armed.length;
+        },
+        scheduleTimer: (seconds, callback) => {
+            armed.push({ kind: "timer", seconds, callback });
+            return armed.length;
+        },
+        removeTimer() {}
+    });
+    const report = (reading, error, provider_name, pending) =>
+        reports.push({ reading, error, pending: Boolean(pending) });
+
+    // Lisbon is asked for and hangs; its periodic timer is armed
+    provider.schedule({ showWeather: true, location: "Lisbon", units: "si" }, report);
+    assert.deepEqual(reports.at(-1), { reading: null, error: "", pending: true });
+    const armedForLisbon = armed.length;
+
+    // the user retypes: Tokyo. The edit is debounced, the invalidation is not.
+    reports.length = 0;
+    provider.queue({ showWeather: true, location: "Tokyo", units: "si" }, report);
+    assert.deepEqual(reports, [{ reading: null, error: "", pending: true }],
+        "the panel stops claiming Lisbon's slot the moment the place changes");
+
+    // Lisbon's geocode finally answers, inside the debounce window
+    respondLisbon();
+    assert.deepEqual(reports, [{ reading: null, error: "", pending: true }],
+        "a retired request paints nothing");
+    assert.equal(provider._display_state.hasReading(), false,
+        "nor is another city's reading retained");
+
+    // ...and Lisbon's armed timers cannot dispatch the old settings either
+    for (const timer of armed.slice(0, armedForLisbon)) {
+        if (timer.kind === "timer") {
+            assert.equal(timer.callback(), false, "the old periodic timer retires itself");
+        }
+    }
+
+    // the debounce settles: Tokyo, and only Tokyo, is fetched
+    armed.filter((timer) => timer.kind === "debounce").at(-1).callback();
+    assert.deepEqual(reports.at(-1),
+        { reading: { condition: "☀", temperatureC: 31 }, error: "", pending: false });
 });
 
 test("queue applies the weather opt-out immediately and invalidates in-flight work", () => {

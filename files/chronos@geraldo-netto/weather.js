@@ -236,11 +236,30 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     _forgetIfLocationChanged(location) {
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
         const key = normalized ? WeatherProviders.locationCacheKey(normalized) : "";
-        if (key && key !== this._resolved_location_key) {
+        const changed = key !== this._resolved_location_key;
+        if (key && changed) {
             this._reading_repository.forget(normalized);
         }
 
         this._setLocationKey(key);
+        return changed;
+    }
+
+    // The panel is showing a place the user has just stopped asking about.
+    // Everything attached to it is now wrong, and none of it is an edit worth
+    // debouncing: the request generation retires the in-flight callback, the
+    // scheduler's timers would otherwise re-dispatch the old settings during
+    // the debounce window, and the retained reading is another city's
+    // temperature. Only the replacement network request waits for the
+    // keystrokes to settle.
+    _invalidateForNewLocation(settings, callback) {
+        this.stop();
+        this._display_state.forgetUnless(this._staleKey(settings));
+        // Say so synchronously. The panel used to keep the old city's number,
+        // unmarked, for the whole debounce — and if a stale callback landed in
+        // that window it refreshed it, which read as the new city's weather.
+        callback(null, "", "",
+            Boolean(WeatherFormat.normalizeWeatherLocation(settings.location)));
     }
 
     queue(settings, callback) {
@@ -248,7 +267,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             return;
         }
 
-        this._forgetIfLocationChanged(settings.location);
+        const locationChanged = this._forgetIfLocationChanged(settings.location);
 
         if (!settings.showWeather) {
             // Opting out is a state transition, not an edit to debounce. Drop
@@ -257,6 +276,10 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             this.stop();
             callback(null, "", "");
             return;
+        }
+
+        if (locationChanged) {
+            this._invalidateForNewLocation(settings, callback);
         }
 
         this._scheduler.queue(settings, (queuedSettings) => this.schedule(queuedSettings, callback));
