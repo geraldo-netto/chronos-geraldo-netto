@@ -167,7 +167,34 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return Boolean(selected && selected.get_ids().includes(id));
     }
 
+    // The server can overlap views during a rapid range change: it cancels and
+    // replaces the shared view_cancellable, but the old asynchronous callback
+    // tests that shared *current* field rather than the cancellable it started
+    // with, so a superseded view can still start and deliver last. Its UIDs
+    // then overwrote the newer revision — reverting a reschedule, and
+    // inheriting the current watermark so the reconciliation cull could not
+    // undo it. Revision order decides, because arrival order does not.
+    _isSupersededRevision(data) {
+        const existing = this._eventsById.get(data.id);
+        return Boolean(existing) && data.superseded_by(existing);
+    }
+
+    // the stale delivery is still evidence that the event is live upstream
+    _refreshLiveness(id, timestamp) {
+        for (const eventList of Object.values(this.eventsByDate)) {
+            eventList.touch(id, timestamp);
+        }
+    }
+
     register(data, timestamp, currentSelectedDate) {
+        // Before the bounds: a stale revision carries the pre-reschedule dates,
+        // so letting it through here could drop a live event as out-of-window
+        // on the strength of a snapshot that has already been superseded.
+        if (this._isSupersededRevision(data)) {
+            this._refreshLiveness(data.id, timestamp);
+            return { changed: false, selected_changed: false };
+        }
+
         const bounds = this._registrationBounds(data);
         if (bounds === null) {
             const selected_changed = this._selectedDayHas(data.id, currentSelectedDate);

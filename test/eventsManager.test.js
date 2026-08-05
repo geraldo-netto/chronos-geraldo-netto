@@ -2159,3 +2159,90 @@ test("idle background reload refetches the selected date without navigating", ()
     assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true);
     assert.equal(emitted(manager, "selected-date-changed").at(-1).args[0], selected);
 });
+
+// T700: cinnamon-calendar-server can overlap views during a rapid range
+// change. It cancels and replaces the shared view_cancellable, but the old
+// asynchronous callback tests that shared *current* field rather than the
+// cancellable it started with, so a superseded view still starts and can
+// deliver last. Arrival order therefore does not order revisions — `modified`
+// does, and it was compared only for equality, never for precedence.
+test("a superseded revision cannot overwrite a newer one", () => {
+    const manager = readyManager();
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    manager.fetch_month_events(month, true);
+
+    // the user moved the event to day 11 and renamed it; EDS bumped modTime
+    const current = makeEventData({
+        id: "moved-event", summary: "Standup (moved)", modTime: 200,
+        startUnix: 11 * DAY_S, endUnix: 11 * DAY_S + 1800
+    });
+    registerDays(manager, current);
+    assert.ok(manager._event_index.get(new FakeDateTime(11 * DAY_US)),
+        "the newer revision sits on day 11");
+
+    // the losing view finally delivers the pre-move snapshot
+    const stale = makeEventData({
+        id: "moved-event", summary: "Standup", modTime: 100,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 1800
+    });
+    const result = manager._event_index.register(stale, 77, month);
+
+    assert.deepEqual(result, { changed: false, selected_changed: false },
+        "a superseded delivery changes nothing");
+    assert.equal(manager._event_index.get(month), null,
+        "and cannot resurrect the event on the day it was moved off");
+    const day11 = manager._event_index.get(new FakeDateTime(11 * DAY_US));
+    assert.equal(day11.get_event_list()[0].summary, "Standup (moved)",
+        "the newer revision is intact");
+
+    // ...and the stale delivery still counted as proof the event is live, so
+    // the reconciliation cull that follows does not delete what it kept
+    assert.equal(day11.get_event_list()[0].last_update_timestamp, 77);
+    assert.equal(manager._event_index.cull(77), false,
+        "the kept revision survives a cull at the stale delivery's watermark");
+    assert.ok(manager._event_index.get(new FakeDateTime(11 * DAY_US)));
+});
+
+test("an equal or newer revision still applies, and unordered ones fall through", () => {
+    const manager = readyManager();
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    manager.fetch_month_events(month, true);
+
+    registerDays(manager, makeEventData({
+        id: "ev", summary: "first", modTime: 100,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }));
+
+    // a newer revision wins
+    registerDays(manager, makeEventData({
+        id: "ev", summary: "second", modTime: 101,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }));
+    assert.equal(eventSummaries(manager).get("ev"), "second");
+
+    // the same revision redelivered is not superseded — it is the same event,
+    // and the colour-only update path still has to reach it
+    registerDays(manager, makeEventData({
+        id: "ev", summary: "second", modTime: 101,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }));
+    assert.equal(eventSummaries(manager).get("ev"), "second");
+
+    // an older revision loses, whatever order it turns up in
+    registerDays(manager, makeEventData({
+        id: "ev", summary: "older", modTime: 100,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }));
+    assert.equal(eventSummaries(manager).get("ev"), "second");
+
+    // a payload whose revision is not a usable number says nothing about
+    // ordering, so it keeps the previous last-writer-wins behaviour rather
+    // than being silently dropped
+    registerDays(manager, makeEventData({
+        id: "ev", summary: "unordered", modTime: NaN,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }));
+    assert.equal(eventSummaries(manager).get("ev"), "unordered");
+});

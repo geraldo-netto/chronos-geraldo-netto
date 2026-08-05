@@ -200,6 +200,17 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
     equal(other_event) {
         return this.id === other_event.id && this.modified === other_event.modified;
     }
+
+    // `modified` is the EDS revision of this component, so it orders two
+    // snapshots of the same UID causally — arrival order does not. A payload
+    // whose revision fields are not both numbers says nothing about ordering;
+    // that falls through to the previous last-writer-wins behaviour rather
+    // than silently dropping an update.
+    superseded_by(other_event) {
+        return Number.isFinite(this.modified) &&
+            Number.isFinite(other_event.modified) &&
+            this.modified < other_event.modified;
+    }
 };
 
 var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer export
@@ -251,6 +262,21 @@ var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer exp
         this._events[event_data.id] = event_data;
         this._mark_changed();
 
+        return true;
+    }
+
+    // A superseded snapshot still proves the event exists upstream, so its
+    // liveness is refreshed even though its content is discarded — otherwise
+    // the reconciliation cull that follows would delete the newer revision
+    // that was kept in its place.
+    touch(id, last_update_timestamp) {
+        const existing = this._events[id];
+
+        if (existing === undefined) {
+            return false;
+        }
+
+        existing.last_update_timestamp = last_update_timestamp;
         return true;
     }
 
