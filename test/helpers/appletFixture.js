@@ -300,6 +300,7 @@ function suffixStub(overrides = {}) {
 
 function updateStub({ menuOpen = false } = {}) {
     const calls = { label: [], tooltip: [], weatherStatus: [], selected: 0,
+        rowRefreshes: 0,
         worldTicks: 0, dayText: [], clockEntries: 0, lastEntries: null };
     const clockEntries = [
         { label: "UTC", timezone: "UTC", time: "UTC:%H:%M", builtin: true },
@@ -346,6 +347,7 @@ function updateStub({ menuOpen = false } = {}) {
             }
         },
         events_manager: { select_date: () => calls.selected++ },
+        event_list: { refresh_time_state: () => calls.rowRefreshes++ },
         set_applet_label: (text) => calls.label.push(text),
         set_applet_tooltip: (text) => calls.tooltip.push(text)
     });

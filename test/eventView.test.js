@@ -875,6 +875,11 @@ test("EventList set_events covers empty, delayed, reuse, and scroll paths", () =
     list.set_events(dataList, false);
     assert.equal(list._rows[0], beforeRows[0], "same timestamp refreshes row variations");
 
+    let timeRefreshes = 0;
+    list._rows[0].update_variations = () => timeRefreshes++;
+    list.refresh_time_state();
+    assert.equal(timeRefreshes, 1, "clock ticks repaint rows through a no-fetch seam");
+
     // destroying the list tears down every source the renderer armed: the class
     // that arms a timer is the class that removes it
     list._renderer._no_events_timeout_id = 31;

@@ -485,6 +485,7 @@ test("_updateClockAndDate with the menu closed only updates the label", () => {
     assert.equal(calls.label.length, 1);
     assert.equal(calls.tooltip.length, 0, "tooltip untouched while not hovered");
     assert.equal(calls.selected, 0, "no event-selection churn while closed");
+    assert.equal(calls.rowRefreshes, 0, "hidden event rows are untouched");
     assert.equal(calls.worldTicks, 0, "hidden clocks not updated");
     // nothing on a closed panel shows a clock, so a closed tick converts no
     // timezone: that was a GLib.DateTime per configured city, every second
@@ -541,6 +542,7 @@ test("_updateClockAndDate with the menu open refreshes the full view", () => {
     const { stub, calls } = updateStub({ menuOpen: true });
     Proto._updateClockAndDate.call(stub);
     assert.equal(calls.selected, 1);
+    assert.equal(calls.rowRefreshes, 1, "visible countdowns refresh without a fetch");
     assert.equal(calls.worldTicks, 1);
     assert.equal(calls.lastEntries.length, 4);
     assert.equal(calls.lastEntries.filter((entry) => entry.builtin).length, 1,
@@ -633,6 +635,7 @@ test("the panel presenter reads and writes through a view it is given", () => {
         setClockFormatString: () => true,
         todaySelected: () => true,
         selectEventsDate: () => written.push(["events"]),
+        refreshEventRows: () => written.push(["event-times"]),
         getClockEntries: () => [],
         updateWorldclocks: () => written.push(["clocks"]),
         setWeatherSource: (source) => written.push(["source", source]),

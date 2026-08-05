@@ -164,7 +164,7 @@ class EventListRenderer {
 
         if (event_data_list != null &&
             event_data_list.timestamp === this.list.currentTimestamp) {
-            this._refreshExistingRows();
+            this.refreshTimeState();
             return;
         }
 
@@ -186,7 +186,7 @@ class EventListRenderer {
         }
     }
 
-    _refreshExistingRows() {
+    refreshTimeState() {
         const now = GLib.DateTime.new_now_local();
         const today = date_only(now);
         this.list.rows.forEach((row) => {
@@ -736,6 +736,10 @@ class EventList {
             row.use_24h = use24h;
             row.update_variations();
         }
+    }
+
+    refresh_time_state() {
+        this._renderer.refreshTimeState();
     }
 
     // events are on but no calendar service answered: hiding the column made

@@ -98,6 +98,7 @@ function createPanelPort(applet) {
         getClockEntries: () => applet._worldclocks.getClockEntries(),
         todaySelected: () => applet._calendar.todaySelected(),
         selectEventsDate: () => applet.events_manager.select_date(applet._calendar.getSelectedDate()),
+        refreshEventRows: () => applet.event_list.refresh_time_state(),
         homeButton: () => applet.go_home_button,
         focusSelectedDay: () => applet._calendar && applet._calendar.focusSelectedDay && // NOSONAR [S6582] -- accepted compatible form
             applet._calendar.focusSelectedDay()

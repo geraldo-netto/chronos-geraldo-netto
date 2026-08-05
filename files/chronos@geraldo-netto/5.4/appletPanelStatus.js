@@ -297,6 +297,10 @@ class PanelView {
         this.port.selectEventsDate();
     }
 
+    refreshEventRows() {
+        this.port.refreshEventRows();
+    }
+
     setHomeEnabled(enabled) {
         // this runs on every open-menu tick, and these writes were the one
         // undiffed path left in it: reactive/can_focus self-diff in Clutter,
@@ -799,6 +803,7 @@ class AppletPanelStatusPresenter {
         view.setWeatherStatus(this.issueStatus(clockEntries, clockModel.issues));
 
         view.selectEventsDate();
+        view.refreshEventRows();
 
         // The per-city temperature, the condition in words and the service that
         // answered lived only in the panel's mouse tooltip, so a keyboard-only
