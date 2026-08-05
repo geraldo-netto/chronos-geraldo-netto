@@ -294,7 +294,7 @@ const EXPORTS = {
     dateFormats: ["MSECS_IN_DAY", "MAX_DATE_FORMAT_LENGTH", "MAX_CLOCK_STAMP_LENGTH",
         "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "monthWindowStartOffset", "dateFormatWithinLimit", "dateFormatOrDefault",
-        "clampClockStamp"],
+        "clampClockStamp", "formatDateWithFallback"],
     providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale",

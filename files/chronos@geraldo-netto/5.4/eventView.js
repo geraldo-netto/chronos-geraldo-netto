@@ -30,6 +30,7 @@ const joinPhrases = LocaleText.joinPhrases;
 const ngettext = LocaleText.translatePlural;
 
 const DATE_FORMAT_FULL = DateFormats.DATE_FORMAT_FULL;
+const DATE_FORMAT_FULL_FALLBACK = DateFormats.DATE_FORMAT_FULL_FALLBACK;
 const DAY_FORMAT = DateFormats.DAY_FORMAT;
 
 const locale_cap = EventFormat.localeCap;
@@ -568,7 +569,8 @@ class EventList {
             return;
         }
 
-        const dateText = locale_cap(gdate.format(DATE_FORMAT_FULL));
+        const dateText = locale_cap(DateFormats.formatDateWithFallback(
+            (format) => gdate.format(format), DATE_FORMAT_FULL, DATE_FORMAT_FULL_FALLBACK));
         this.selected_date_label.set_text(dateText);
 
         // the date first, because that is what this heading is for; what

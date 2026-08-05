@@ -138,7 +138,8 @@ function badFormatFallback(view, message) {
 // used to turn into a TypeError on every menu open for that locale. The
 // untranslated msgid is known-valid, so the header falls back to it.
 function _localizedStamp(view, format, fallback) {
-    const stamp = view.formatClock(format) || view.formatClock(fallback) || "";
+    const stamp = DateFormats.formatDateWithFallback(
+        (candidate) => view.formatClock(candidate), format, fallback);
     return stamp.capitalize();
 }
 

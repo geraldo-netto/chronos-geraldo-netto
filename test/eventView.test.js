@@ -622,6 +622,21 @@ test("the selected-date label is reachable from the keyboard and explains itself
     assert.equal(list.selected_date_label.accessible_role,
         global.imports.gi.Atk.Role.PUSH_BUTTON);
 
+    const originalFormat = FakeDateTime.prototype.format;
+    let failedPrimary = false;
+    FakeDateTime.prototype.format = function (format) {
+        if (!failedPrimary) {
+            failedPrimary = true;
+            return null;
+        }
+        return originalFormat.call(this, format);
+    };
+    list.set_date(new FakeDateTime(11 * DAY_US));
+    assert.match(list.selected_date_label.text,
+        new RegExp(rootModules.dateFormats.DATE_FORMAT_FULL_FALLBACK.replace(
+            /[.*+?^${}()|[\]\\]/g, "\\$&")));
+    FakeDateTime.prototype.format = originalFormat;
+
     // Enter, KP_Enter and space activate it; anything else is left alone
     const press = (symbol) =>
         list.selected_date_label.handlers["key-press-event"][0](

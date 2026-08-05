@@ -6,6 +6,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 const GLib = imports.gi.GLib;
+const DateFormats = imports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats;
 
 function sameDay(dateA, dateB) {
     if (!dateA || !dateB) {
@@ -22,10 +23,11 @@ function isToday(date, today = new Date()) {
 
 // Date.prototype.toLocaleFormat is a removed SpiderMonkey extension. Noon
 // avoids local DST transitions while GLib performs the locale-aware format.
-function formatJsDate(jsDate, format) {
+function formatJsDate(jsDate, format, fallback = format) {
     const dt = GLib.DateTime.new_local(
         jsDate.getFullYear(), jsDate.getMonth() + 1, jsDate.getDate(), 12, 0, 0);
-    return dt ? dt.format(format) : "";
+    return dt ? DateFormats.formatDateWithFallback(
+        (candidate) => dt.format(candidate), format, fallback) : "";
 }
 
 if (typeof module !== "undefined") {

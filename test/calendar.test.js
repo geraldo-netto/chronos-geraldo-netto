@@ -150,6 +150,12 @@ test("calendar date formatting owns the GLib boundary", () => {
     assert.equal(CalendarDateModule.formatJsDate(date, "%Y"), "2026");
 
     const newLocal = global.imports.gi.GLib.DateTime.new_local;
+    global.imports.gi.GLib.DateTime.new_local = () => ({
+        format: (format) => format === "bad" ? null : "fallback date"
+    });
+    assert.equal(CalendarDateModule.formatJsDate(date, "bad", "known-good"),
+        "fallback date");
+
     global.imports.gi.GLib.DateTime.new_local = () => null;
     assert.equal(CalendarDateModule.formatJsDate(date, "%Y"), "");
     global.imports.gi.GLib.DateTime.new_local = newLocal;

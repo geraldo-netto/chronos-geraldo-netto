@@ -1468,6 +1468,21 @@ test("date-format boundaries count code points and clamp rendered stamps", () =>
     assert.equal(formats.dateFormatOrDefault("x".repeat(maxFormat + 1), "%H:%M"),
         "%H:%M");
 
+    const requested = [];
+    assert.equal(formats.formatDateWithFallback((format) => {
+        requested.push(format);
+        return format === "bad" ? null : "safe date";
+    }, "bad", "known-good"), "safe date");
+    assert.deepEqual(requested, ["bad", "known-good"]);
+    let duplicateAttempts = 0;
+    assert.equal(formats.formatDateWithFallback(() => {
+        duplicateAttempts++;
+        return null;
+    }, "bad", "bad"), "");
+    assert.equal(duplicateAttempts, 2);
+    assert.equal(Array.from(formats.formatDateWithFallback(
+        () => "x".repeat(200000), "valid")).length, maxStamp);
+
     const stamp = formats.clampClockStamp("x".repeat(200000));
     assert.equal(Array.from(stamp).length, maxStamp);
     assert.ok(stamp.endsWith(formats.TEXT_ELLIPSIS));

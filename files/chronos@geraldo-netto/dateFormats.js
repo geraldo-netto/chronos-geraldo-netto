@@ -77,6 +77,21 @@ function clampClockStamp(stamp) {
     return TextUtils.clampText(stamp, MAX_CLOCK_STAMP_LENGTH);
 }
 
+// Translated date formats cross two trust boundaries: the msgstr supplies the
+// strftime program, then the formatter supplies compositor text. Keep the
+// fallback and output cap together so every presenter degrades identically.
+function formatDateWithFallback(formatter, format, fallback = format) {
+    const render = (candidate) => {
+        const stamp = formatter(candidate);
+        return typeof stamp === "string" && stamp ? clampClockStamp(stamp) : "";
+    };
+    const primary = render(format);
+    if (primary) {
+        return primary;
+    }
+    return render(fallback);
+}
+
 if (typeof module !== "undefined") {
     module.exports = {
         MSECS_IN_DAY,
@@ -90,6 +105,7 @@ if (typeof module !== "undefined") {
         monthWindowStartOffset,
         dateFormatWithinLimit,
         dateFormatOrDefault,
-        clampClockStamp
+        clampClockStamp,
+        formatDateWithFallback
     };
 }

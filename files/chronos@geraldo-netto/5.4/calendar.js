@@ -59,6 +59,7 @@ const FIRST_WEEKDAY_KEY = SettingsFacade.FIRST_DAY_OF_WEEK_KEY;
 // 2026" while their screen reader said "Saturday, 12 July 2026". Same date,
 // same applet, two different orders.
 const ACCESSIBLE_DATE_FORMAT = DateFormats.DATE_FORMAT_FULL;
+const ACCESSIBLE_DATE_FORMAT_FALLBACK = DateFormats.DATE_FORMAT_FULL_FALLBACK;
 
 const _lcAbday = LocaleQuery.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
 const _lcFirstWorkday = LocaleQuery.lazyLocaleValue(
@@ -120,7 +121,7 @@ class CalendarMonthWindow {
         // the name depends only on the date in the slot, so it belongs here
         // with the rest of the per-month work
         this.accessibleDates = this.days.map((day) =>
-            _formatJsDate(day, ACCESSIBLE_DATE_FORMAT));
+            _formatJsDate(day, ACCESSIBLE_DATE_FORMAT, ACCESSIBLE_DATE_FORMAT_FALLBACK));
         this.months = new Set();
 
         for (const day of this.days) {
