@@ -183,7 +183,7 @@ class AppletSettingsBinder {
     // compositor thread, so wait for the added-to-panel callback and then yield
     // to the low-priority idle queue before reading it. A user choice made in
     // the meantime still wins because the facade only fills the empty sentinel.
-    deferInitialHolidayCountry() {
+    deferInitialHolidayCountry(onCountryInferred) {
         const holiday = this.holidaySettings;
         if (!holiday || this._country_inference_idle_id > 0 ||
                 (holiday.country !== "" && holiday.country != null)) {
@@ -192,8 +192,18 @@ class AppletSettingsBinder {
 
         this._country_inference_idle_id = Mainloop.idle_add(() => {
             this._country_inference_idle_id = 0;
-            holiday.fillInitialCountryFromTimezone(() =>
+            // The write below notifies nobody: Cinnamon's setValue mutates
+            // settingsData in place and saves, and changed::<key> is emitted
+            // only from _checkSettings, which only remoteUpdate reaches. So
+            // connectCountryChanged does not fire for our own write, and
+            // initHolidayProvider has already taken its clearPlace() branch on
+            // the empty country — a first install marked no holidays at all
+            // until Cinnamon restarted. Apply the inferred country here.
+            const inferred = holiday.fillInitialCountryFromTimezone(() =>
                 HolidayConstants.countryFromIso2(WorldclockData.localCountryCode()));
+            if (inferred && onCountryInferred) {
+                onCountryInferred(inferred);
+            }
             return GLib.SOURCE_REMOVE;
         });
     }

@@ -185,6 +185,12 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
     // opt-out and must survive an upgrade. Resolve only the empty sentinel,
     // then replace it with either a country or "none": every later value is a
     // user choice, and an existing choice does not cost a tzdata read.
+    //
+    // The returned country is not a convenience — it is the only notification
+    // there is. See connectCountryChanged below: this write emits nothing, so a
+    // caller that discards the return value leaves the provider on whatever
+    // place it already had. `fillEmptyWeatherLocation` compensates for the same
+    // silence by assigning `target.weather_location` by hand.
     fillInitialCountryFromTimezone(resolveCountry) {
         const current = this.country;
         if (current !== "" && current != null) {
@@ -207,7 +213,14 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
     // nothing reads it: every read goes through the accessor above. The bind
     // existed for its change callback alone — a producer with no consumer, and
     // a second way to ask the same question that could disagree with the first.
-    // Cinnamon emits changed::<key> for every key whether it is bound or not.
+    //
+    // This fires for a *remote* change — the settings dialog writing over D-Bus
+    // — and only for that. Cinnamon's `setValue` mutates `settingsData` in place
+    // and saves; `changed::<key>` is emitted from `_checkSettings`, which
+    // `remoteUpdate` alone reaches. Our own writes are therefore silent, and
+    // cannot even notify retroactively, because `_checkSettings` reloads from
+    // the file `setValue` has already written. Any self-write that something
+    // must react to has to say so in-band.
     connectCountryChanged(callback) {
         return this._settings.connect("changed::" + COUNTRY_KEY, callback);
     }

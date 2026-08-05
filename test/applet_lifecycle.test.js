@@ -652,22 +652,32 @@ test("holiday-country inference yields startup and preserves later choices", () 
     });
 
     try {
+        const applied = [];
         Proto._bindSettings.call(stub);
         assert.equal(timezoneReads, 0, "construction performs no tzdata I/O");
         assert.equal(values.country, "");
-        stub._settingsBinder.deferInitialHolidayCountry();
+        stub._settingsBinder.deferInitialHolidayCountry(
+            (country) => applied.push(country));
         assert.equal(idles.length, 1, "inference waits on the main-loop idle");
         assert.equal(idles[0](), false);
         assert.equal(values.country, "ita");
+        // T720: the write emits no changed::country — Cinnamon runs its bind
+        // callbacks from _checkSettings, which only remoteUpdate reaches — so
+        // the inferred country has to be applied in band or the provider stays
+        // on the cleared place initHolidayProvider left it in.
+        assert.deepEqual(applied, ["ita"]);
 
         values.country = "none";
         Proto._bindSettings.call(stub);
-        stub._settingsBinder.deferInitialHolidayCountry();
+        stub._settingsBinder.deferInitialHolidayCountry(
+            (country) => applied.push(country));
         assert.equal(idles.length, 1, "an explicit choice schedules no read");
 
         values.country = "";
         Proto._bindSettings.call(stub);
-        stub._settingsBinder.deferInitialHolidayCountry();
+        stub._settingsBinder.deferInitialHolidayCountry(
+            (country) => applied.push(country));
+        assert.deepEqual(applied, ["ita"], "only a resolved country is applied");
         stub._settingsBinder.destroy();
     } finally {
         global.imports.ui.settings.AppletSettings = originalSettings;
@@ -678,6 +688,58 @@ test("holiday-country inference yields startup and preserves later choices", () 
 
     assert.equal(timezoneReads, 1, "tzdata is read only for the initial default");
     assert.deepEqual(removed, [10], "teardown cancels an inference that never ran");
+});
+
+// T720: the inferred country is applied in band because Cinnamon's own write
+// notifies nobody. An unresolvable timezone must not fire that path — the
+// facade has already written "none" and the provider is already cleared — and a
+// caller that wants no callback must still get the write.
+test("holiday-country inference applies nothing when the timezone maps nowhere", () => {
+    const originalSettings = global.imports.ui.settings.AppletSettings;
+    const originalCountryCode = rootModules.worldclockData.localCountryCode;
+    const originalIdleAdd = global.imports.mainloop.idle_add;
+    const idles = [];
+    const applied = [];
+    const values = {
+        "date-format-defaults-migrated": true,
+        "weather-location": "Rome",
+        country: ""
+    };
+
+    global.imports.ui.settings.AppletSettings = class {
+        bind() {}
+        connect() { return 1; }
+        getValue(key) { return values[key]; }
+        setValue(key, value) { values[key] = value; }
+    };
+    // a zone with no ISO-3166 country the applet supports
+    rootModules.worldclockData.localCountryCode = () => "";
+    global.imports.mainloop.idle_add = (callback) => idles.push(callback);
+
+    const stub = Object.assign(Object.create(Proto), {
+        instance_id: 7,
+        _setKeybinding() {}
+    });
+
+    try {
+        Proto._bindSettings.call(stub);
+        stub._settingsBinder.deferInitialHolidayCountry((country) => applied.push(country));
+        idles[0]();
+        assert.equal(values.country, "none", "the empty sentinel is still resolved");
+        assert.deepEqual(applied, [], "nothing to re-place: the provider is already clear");
+
+        // the write itself must not depend on a caller wanting a callback
+        values.country = "";
+        rootModules.worldclockData.localCountryCode = () => "IT";
+        Proto._bindSettings.call(stub);
+        stub._settingsBinder.deferInitialHolidayCountry();
+        idles[1]();
+        assert.equal(values.country, "ita");
+    } finally {
+        global.imports.ui.settings.AppletSettings = originalSettings;
+        rootModules.worldclockData.localCountryCode = originalCountryCode;
+        global.imports.mainloop.idle_add = originalIdleAdd;
+    }
 });
 
 // T653: AppletSettings registers itself with Cinnamon's settings manager at
@@ -1581,14 +1643,21 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
         // and Cinnamon calls on_applet_added_to_panel() anyway
         _constructed: true,
         _settingsBinder: {
-            deferInitialHolidayCountry: () => calls.push(["country-inference"])
+            // running the callback is the point: the inference's write emits no
+            // changed::country, so this is the only path that re-places the
+            // holiday provider in the session that inferred the country
+            deferInitialHolidayCountry: (apply) => {
+                calls.push(["country-inference"]);
+                apply("ita");
+            }
         },
         _providerLifecycle: {
             connectClockNotify: (cb) => {
                 calls.push(["clock-connect"]);
                 calls.clockCallback = cb;
             },
-            startDayRollover: () => calls.push(["day-rollover-start"])
+            startDayRollover: () => calls.push(["day-rollover-start"]),
+            onHolidayPlaceChanged: () => calls.push(["holiday-place-applied"])
         },
         _onSettingsChanged: () => calls.push(["settings"]),
         _updateClockAndDate: () => calls.push(["clock-notify"]),
@@ -1601,6 +1670,8 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
     assert.ok(calls.some((row) => row[0] === "clock-connect"));
     assert.ok(calls.some((row) => row[0] === "day-rollover-start"));
     assert.ok(calls.some((row) => row[0] === "country-inference"));
+    assert.ok(calls.some((row) => row[0] === "holiday-place-applied"),
+        "the inferred country reaches the holiday provider in the same session");
     assert.ok(calls.some((row) => row[0] === "clock-notify"));
 
     const reset = Object.assign(Object.create(Proto), {

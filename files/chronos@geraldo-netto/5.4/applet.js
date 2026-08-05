@@ -549,7 +549,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         // to survive
         this._guarded("added-to-panel", () => {
             this._onSettingsChanged();
-            this._settingsBinder.deferInitialHolidayCountry();
+            this._settingsBinder.deferInitialHolidayCountry(() =>
+                this._guarded("holiday-country-inference",
+                    () => this._providerLifecycle.onHolidayPlaceChanged()));
 
             this._providerLifecycle.connectClockNotify(() => this._clockNotify());
             this._providerLifecycle.startDayRollover();
