@@ -109,7 +109,7 @@ function nominatimGeocodeUrl(location) {
         return "";
     }
     return "https://nominatim.openstreetmap.org/search?q=" +
-        encodeURIComponent(normalized) + "&format=json&limit=1";
+        encodeURIComponent(normalized) + "&format=json&limit=" + GEOCODE_CANDIDATE_COUNT;
 }
 
 function forecastUrl(place) {
@@ -358,7 +358,12 @@ function placeCandidate(place) {
 
     return {
         name: geocodePlaceName(place.name),
+        // what the typed name is compared against; for Open-Meteo the place name
+        // is already bare, but a Nominatim hit carries its whole administrative
+        // chain and only its leading component is the place
+        matchName: geocodePlaceName(place.name),
         population: place.population,
+        rankWeight: place.population,
         latitude,
         longitude,
         timezone: geocodeTimezone(place.timezone)
@@ -372,12 +377,16 @@ function placeCandidate(place) {
 // thirty-person hamlet shares its name with the city.
 function placeRank(place, query) {
     const typed = String(query || "").trim();
-    const name = String(place.name || "");
-    const population = Number(place.population);
+    const name = String(place.matchName || "");
+    // Open-Meteo publishes population; Nominatim publishes `importance`, its own
+    // relevance score. Both answer "how likely is this the one they meant" on
+    // their own scale, and a weight is only ever compared against another hit
+    // from the same provider, so one field carries both.
+    const weight = Number(place.rankWeight);
     const exact = name.toLowerCase() === typed.toLowerCase() ? 2 : 0;
     const folded = foldPlaceName(name) === foldPlaceName(typed) ? 1 : 0;
 
-    return [exact || folded, Number.isFinite(population) ? population : 0];
+    return [exact || folded, Number.isFinite(weight) ? weight : 0];
 }
 
 function betterPlace(candidate, best, query) {
@@ -417,12 +426,7 @@ function openMeteoGeocodePlace(data, query) {
     };
 }
 
-function nominatimGeocodePlace(data) {
-    if (!Array.isArray(data) || !data.length) {
-        return null;
-    }
-
-    const place = data[0];
+function nominatimCandidate(place) {
     if (!place || typeof place !== "object") {
         return null;
     }
@@ -434,10 +438,51 @@ function nominatimGeocodePlace(data) {
         return null;
     }
 
+    // a non-string display_name is no name, not its coercion: `7` must read as
+    // "" the way geocodePlaceName already treats it
+    const displayName = typeof place.display_name === "string" ? place.display_name : "";
+
     return {
-        name: geocodePlaceName(place.display_name),
+        name: geocodePlaceName(displayName),
+        // display_name is the place followed by its administrative chain
+        // ("Genoa, Liguria, Italy"); only the leading component is the name the
+        // user could have typed
+        matchName: geocodePlaceName(displayName.split(",")[0].trim()),
+        rankWeight: place.importance,
         latitude,
         longitude
+    };
+}
+
+// Open-Meteo refuses a candidate below MIN_TRUSTED_GEOCODE_POPULATION so that
+// "the next geocoder in the queue arbitrates it" — but the next geocoder could
+// not arbitrate anything: it asked for one hit, took data[0] with no population
+// floor and no comparison against the name at all, and silently dropped the
+// `query` every normalizer is handed. Whatever OSM ranked first became the
+// resolved place, which is precisely the ambiguous-namesake case the floor
+// exists for, with no marker distinguishing it from a confident hit.
+//
+// Ask for the same handful of candidates and run the same ranking. Nominatim
+// publishes no population, so `importance` — its own relevance score — is the
+// tiebreaker, and the typed name decides first, exactly as it does upstream.
+function nominatimGeocodePlace(data, query) {
+    if (!Array.isArray(data) || !data.length) {
+        return null;
+    }
+
+    const best = data.reduce((currentBest, result) => {
+        const candidate = nominatimCandidate(result);
+        return candidate ? betterPlace(candidate, currentBest, query) : currentBest;
+    }, null);
+
+    if (!best) {
+        return null;
+    }
+
+    return {
+        name: best.name,
+        latitude: best.latitude,
+        longitude: best.longitude
     };
 }
 

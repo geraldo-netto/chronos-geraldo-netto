@@ -89,7 +89,8 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
     );
     assert.equal(
         Weather.nominatimGeocodeUrl(" New York "),
-        "https://nominatim.openstreetmap.org/search?q=New%20York&format=json&limit=1"
+        "https://nominatim.openstreetmap.org/search?q=New%20York&format=json&limit=" +
+        Weather.GEOCODE_CANDIDATE_COUNT
     );
     assert.equal(Weather.locationCacheKey(" New York "), "new york");
     const maximum = Weather.MAX_WEATHER_LOCATION_LENGTH;

@@ -929,6 +929,65 @@ test("a tiny exact Open-Meteo namesake falls through to Nominatim", () => {
     });
 });
 
+// T722: the test above is the case that already worked, because OSM happened to
+// rank the right city first. Nominatim was asked for `limit=1` and
+// `nominatimGeocodePlace` took data[0] with no name comparison and no use of the
+// query at all — it silently dropped the second argument every normalizer is
+// handed — so the arbitration Open-Meteo's population floor defers to could not
+// happen. Whatever OSM ranked first became the panel temperature and the
+// AstronomyView sunrise/sunset, with nothing marking it as a guess.
+test("the fallback geocoder arbitrates by the typed name, not by OSM's order", () => {
+    const Weather = loadWeather();
+    const requests = [];
+    const resolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
+        httpGetJson(url, callback) {
+            requests.push(url);
+            if (url.includes("geocoding-api")) {
+                // below the population floor: deliberately left to the fallback
+                callback({ results: [
+                    { name: "Genova", country: "Italy", population: 30,
+                        latitude: 45.21604, longitude: 11.87211 }
+                ] });
+                return;
+            }
+            callback([
+                // OSM's own order puts a more "important" administrative area
+                // and a namesake abroad ahead of the city that was asked for
+                { lat: "44.5", lon: "9.0", display_name: "Città Metropolitana di Genova, Italia",
+                    importance: 0.72 },
+                { lat: "14.61667", lon: "-91.83333", display_name: "Génova, Quetzaltenango, Guatemala",
+                    importance: 0.55 },
+                { lat: "44.4072600", lon: "8.9338624", display_name: "Genova, Liguria, Italia",
+                    importance: 0.51 }
+            ]);
+        }
+    });
+    let resolved = null;
+
+    resolver.resolve("Genova", () => true, (place) => { resolved = place; });
+
+    assert.match(requests[1], /limit=10/, "a handful of candidates, not one");
+    assert.deepEqual(resolved,
+        { name: "Genova, Liguria, Italia", latitude: 44.40726, longitude: 8.9338624 },
+        "the exact typed name outranks OSM's importance order");
+
+    // with nothing matching the typed name, importance still decides — refusing
+    // outright would leave a legitimately spelled place with no weather at all
+    const byImportance = Weather.nominatimGeocodePlace([
+        { lat: "1", lon: "1", display_name: "Somewhere Else", importance: 0.1 },
+        { lat: "2", lon: "2", display_name: "Another Place", importance: 0.9 }
+    ], "Genova");
+    assert.equal(byImportance.name, "Another Place");
+
+    // and an accent-only difference is still the place they meant
+    const folded = Weather.nominatimGeocodePlace([
+        { lat: "1", lon: "1", display_name: "Elsewhere, Nowhere", importance: 0.99 },
+        { lat: "2", lon: "2", display_name: "Génova, Liguria, Italia", importance: 0.01 }
+    ], "Genova");
+    assert.match(folded.name, /^Génova/);
+});
+
 test("weather forecast resolver owns fallback and last-success ordering", () => {
     const Weather = loadWeather();
     const requests = [];
