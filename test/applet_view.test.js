@@ -1176,6 +1176,64 @@ test("the shared footer deduplicates issues and disappears after recovery", () =
     assert.equal(label.visible, false);
 });
 
+// T706: reloading the applet disposed the footer label with the menu, then a
+// later teardown step reported an issue and _render() wrote into the disposed
+// St.Label — three Gjs-CRITICALs and Cinnamon's orphan-label warning per reload.
+test("a detached footer reporter swallows issues instead of writing the label", () => {
+    const { AppletIssueReporter } = require(
+        path.join(APPLET_DIR, "5.4", "appletMenuBuilder.js"));
+    const label = {
+        text: "stale",
+        visible: true,
+        writes: 0,
+        set_text(text) {
+            this.text = text;
+            this.writes++;
+        },
+        set_accessible_name(name) { this.accessible_name = name; }
+    };
+    const reporter = new AppletIssueReporter(label);
+    reporter.set("weather", "Weather service unavailable");
+    const writesBeforeDetach = label.writes;
+
+    reporter.detach();
+
+    assert.doesNotThrow(() => reporter.set("panel", "Weather service unavailable"));
+    assert.doesNotThrow(() => reporter.set("weather", ""));
+    assert.equal(label.writes, writesBeforeDetach,
+        "no write reaches a label whose actor died with the menu");
+});
+
+test("destroying the menu builder detaches its issue reporter", () => {
+    const builder = new AppletModule.AppletMenuBuilder({
+        eventsManager: { connect: () => 1, disconnect() {} }
+    });
+    const label = {
+        text: "",
+        visible: false,
+        writes: 0,
+        set_text(text) {
+            this.text = text;
+            this.writes++;
+        }
+    };
+    const { AppletIssueReporter } = require(
+        path.join(APPLET_DIR, "5.4", "appletMenuBuilder.js"));
+    builder._issueReporter = new AppletIssueReporter(label);
+    const writesBeforeDestroy = label.writes;
+
+    builder.destroy();
+
+    builder._issueReporter.set("calendar-service", "no calendar service is running");
+    assert.equal(label.writes, writesBeforeDestroy,
+        "an issue reported after teardown never touches the footer label");
+
+    // ...and a builder torn down before build() has no reporter to detach
+    assert.doesNotThrow(() => new AppletModule.AppletMenuBuilder({
+        eventsManager: { connect: () => 1, disconnect() {} }
+    }).destroy());
+});
+
 test("the footer aggregates weather, clocks, city readings, and format errors", () => {
     let footer = null;
     const view = {

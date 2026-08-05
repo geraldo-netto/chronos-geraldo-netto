@@ -75,7 +75,18 @@ class AppletIssueReporter {
         return messages;
     }
 
+    // Teardown steps that run after the menu is destroyed — provider aborts,
+    // settings finalize — can still report issues, and this label's actor dies
+    // with the menu. A detached reporter swallows them instead of writing into
+    // a disposed St.Label.
+    detach() {
+        this.label = null;
+    }
+
     _render() {
+        if (!this.label) {
+            return;
+        }
         const text = this._messages()
             .map((message) => ISSUE_MARKER + " " + message)
             .join("\n");
@@ -107,6 +118,7 @@ class AppletMenuBuilder {
         this._delayNoEventsBox = false;
         this._eventsOverflowed = false;
         this._menu_items = [];
+        this._issueReporter = null;
     }
 
     build() {
@@ -236,6 +248,14 @@ class AppletMenuBuilder {
 
     destroy() {
         const steps = [
+            // first, so an issue reported by any later teardown step — here or
+            // in the applet's remaining destroy steps — cannot reach the
+            // footer label once its actor's fate is out of this builder's hands
+            () => {
+                if (this._issueReporter) {
+                    this._issueReporter.detach();
+                }
+            },
             () => {
                 this._disconnectAll(this.context.eventsManager, this._events_manager_signal_ids);
                 this._events_manager_signal_ids = [];
