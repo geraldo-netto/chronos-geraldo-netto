@@ -318,11 +318,10 @@ class SettingsWidgetsTest(unittest.TestCase):
         with mock.patch.dict(os.environ, {"TZ": "Asia/Calcutta"}, clear=True):
             with mock.patch.object(os, "readlink") as readlink:
                 resolver = fresh.TimezoneResolver(fake_pytz, None)
-
-        readlink.assert_not_called()
-        self.assertIn("Asia/Calcutta", resolver.builtin_timezones)
-        self.assertTrue(resolver.is_reserved("Asia/Calcutta"))
-        self.assertFalse(resolver.is_reserved("Asia/Kolkata"))
+                self.assertIn("Asia/Calcutta", resolver.builtin_timezones)
+                self.assertTrue(resolver.is_reserved("Asia/Calcutta"))
+                self.assertFalse(resolver.is_reserved("Asia/Kolkata"))
+                readlink.assert_not_called()
 
         with mock.patch.dict(
                 os.environ,
@@ -348,6 +347,26 @@ class SettingsWidgetsTest(unittest.TestCase):
         # a zone that is not a built-in is still perfectly fine
         self.assertFalse(resolver.is_reserved("Europe/Rome"))
         self.assertEqual(resolver.normalize("Europe/Rome"), "Europe/Rome")
+
+    def test_the_cached_resolver_refreshes_the_local_builtin_identity(self):
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["America/Sao_Paulo", "Europe/Rome"],
+            common_timezones=["America/Sao_Paulo", "Europe/Rome"]
+        )
+        local = ["America/Sao_Paulo"]
+        resolver = self.module.common.TimezoneResolver(
+            fake_pytz, None, local_timezone_provider=lambda: local[0])
+        completions = resolver.completions
+
+        self.assertTrue(resolver.is_reserved("America/Sao_Paulo"))
+        self.assertFalse(resolver.is_reserved("Europe/Rome"))
+
+        local[0] = "Europe/Rome"
+
+        self.assertFalse(resolver.is_reserved("America/Sao_Paulo"))
+        self.assertTrue(resolver.is_reserved("Europe/Rome"))
+        self.assertIs(resolver.completions, completions,
+                      "refreshing the built-ins must retain the static index")
 
     def test_the_dialog_says_why_a_built_in_zone_was_refused(self):
         fake_pytz = types.SimpleNamespace(

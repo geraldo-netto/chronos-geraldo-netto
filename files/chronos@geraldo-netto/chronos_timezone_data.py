@@ -160,6 +160,7 @@ class TimezoneResolver:
         pytz_module: Any,
         available_timezones_func: Optional[Callable[[], Iterable[str]]],
         local_timezone: Optional[str] = None,
+        local_timezone_provider: Optional[Callable[[], Optional[str]]] = None,
     ) -> None:
         self.has_timezone_data = pytz_module is not None
         self.timezone_map = {}
@@ -167,12 +168,17 @@ class TimezoneResolver:
         self.fallback_timezone_map = {}
         self.completions = []
 
-        # the zones the applet already draws a row for: a clock on any of these
-        # is a clock the popup will never show
-        local = local_timezone if local_timezone is not None else local_timezone_name()
-        self.builtin_timezones = {"UTC", "Etc/UTC"}
-        if local:
-            self.builtin_timezones.add(local)
+        # Keep the expensive timezone index for the process, but not the one
+        # piece of it the operating system can change underneath that process.
+        # An explicitly supplied zone is a stable test/embedding override;
+        # production instances re-read the local identity before validation.
+        self._local_timezone_provider = (
+            (lambda: local_timezone)
+            if local_timezone is not None
+            else (local_timezone_provider or local_timezone_name)
+        )
+        self.builtin_timezones = set()
+        self.refresh_builtin_timezones()
 
         # Warned here rather than at import: importing a module should define
         # things, not emit them. At import time cinnamon-settings has not
@@ -247,6 +253,13 @@ class TimezoneResolver:
         """pytz, or zoneinfo, or nothing at all."""
         return self.has_timezone_data or bool(self.fallback_timezone_map)
 
+    def refresh_builtin_timezones(self) -> None:
+        """Refresh the dynamic local row without rebuilding the zone index."""
+        local = self._local_timezone_provider()
+        self.builtin_timezones = {"UTC", "Etc/UTC"}
+        if local:
+            self.builtin_timezones.add(local)
+
     def is_reserved(self, value: Any) -> bool:
         """Would this clock be dropped for colliding with a built-in row?
 
@@ -266,6 +279,7 @@ class TimezoneResolver:
         if text.lower() in RESERVED_TIMEZONES:
             return True
 
+        self.refresh_builtin_timezones()
         resolved = self._resolve(text)
         return bool(resolved) and resolved in self.builtin_timezones
 
