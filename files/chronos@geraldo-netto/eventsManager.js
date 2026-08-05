@@ -194,13 +194,20 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _perform_gc() {
+        this._gc_timer_id = 0;
+        // A large authoritative delivery spans several idle turns. Culling in
+        // its middle mistakes the unprocessed tail for deleted events.
+        if (this._event_mutations.length > 0) {
+            this._start_gc_timer();
+            return GLib.SOURCE_REMOVE;
+        }
+
         let any_removed = this._event_index.cull(this.last_update_timestamp);
 
         if (any_removed) {
             this._emit_event_index_changed();
         }
 
-        this._gc_timer_id = 0;
         return GLib.SOURCE_REMOVE;
     }
 
@@ -344,6 +351,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             this._apply_event_resync();
             return true;
         }
+        if (mutation.type === "fetch-complete") {
+            this._apply_fetch_complete(mutation);
+            return true;
+        }
         this._apply_client_disappeared();
         return true;
     }
@@ -439,7 +450,12 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._accumulate_event_overflow(
             pending, result, flush, inputOverflowed);
 
-        this._start_gc_timer();
+        // A later fetch may have superseded a chunk that was already queued.
+        // Its completion marker owns reconciliation; the old delivery must not
+        // arm a timer that culls against the newer watermark.
+        if (watermark === this.last_update_timestamp) {
+            this._start_gc_timer();
+        }
 
         if (!flush) {
             this._pending_emit = pending;
@@ -467,6 +483,17 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     _emit_event_index_changed() {
         this._emit_selected_date_events_changed(false);
         this.emit("events-updated");
+    }
+
+    _apply_fetch_complete(mutation) {
+        if (mutation.generation !== this._fetch_generation) {
+            return;
+        }
+
+        this._stop_gc_timer();
+        if (this._event_index.cull(mutation.watermark)) {
+            this._emit_event_index_changed();
+        }
     }
 
     _handle_removed_events(server, uids_string) {
@@ -551,8 +578,8 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         const timestamp = this._window_coordinator.fetchMonthEvents(
             month_year,
             force,
-            (start, end, forceReload, cancellable) => this._dispatchMonthFetch(
-                retry, start, end, forceReload, cancellable),
+            (start, end, forceReload, cancellable, watermark) => this._dispatchMonthFetch(
+                retry, start, end, forceReload, cancellable, watermark),
             GLib.get_monotonic_time,
             this._fetch_cancellable
         );
@@ -562,7 +589,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
     }
 
-    _dispatchMonthFetch(retry, start, end, force, cancellable) {
+    _dispatchMonthFetch(retry, start, end, force, cancellable, watermark) {
         if (!retry) {
             // A fresh user/server-driven request supersedes the old retry chain.
             // Do this only after EventWindowCoordinator decides to dispatch:
@@ -572,10 +599,12 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             this._fetch_retry_attempts = 0;
         }
 
+        this._stop_gc_timer();
+        this.last_update_timestamp = watermark;
         const generation = ++this._fetch_generation;
         this._server_connection.setTimeRange(
             start, end, force, cancellable,
-            (server, res) => this.call_finished(generation, server, res));
+            (server, res) => this.call_finished(generation, watermark, server, res));
 
         // Keep the warning if dispatch itself throws. Once a range call has
         // started, however, the old mutation-flood marker no longer describes
@@ -587,7 +616,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
     }
 
-    call_finished(generation, server, res) {
+    call_finished(generation, watermark, server, res) {
         let failure = null;
         try {
             // Gio requires every result to be finished, including stale and
@@ -608,6 +637,15 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         if (!failure) {
             this._fetch_retry_attempts = 0;
             this._setRefreshFailed(false);
+            // Signals emitted for SetTimeRange are ordered ahead of its reply,
+            // but their bounded decoding may still be draining across idles.
+            // Queue reconciliation behind that stream, including when the
+            // successful response emitted no event signal at all.
+            this._enqueue_event_mutation({
+                type: "fetch-complete",
+                generation,
+                watermark
+            });
         } else {
             // the month's events never arrived. Without a retry the grid keeps
             // the previous month's events and shows nothing for this one, and

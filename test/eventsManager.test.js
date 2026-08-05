@@ -675,14 +675,61 @@ test("queued event chunks retain the delivery watermark across a newer fetch", (
     manager.fetch_month_events(month, true);
     const replacementWatermark = manager.last_update_timestamp;
     assert.ok(replacementWatermark > deliveryWatermark);
-    drainEventMutations(manager);
-
+    fireTimer(manager._event_batch_ids[0]);
     const indexed = manager._event_index.get(month);
     assert.equal(indexed._events["old-fetch-25"].last_update_timestamp,
         deliveryWatermark, "later chunks keep the signal's ingress watermark");
-    assert.equal(manager._event_index.cull(replacementWatermark), true);
+    drainEventMutations(manager);
     assert.equal(manager._event_index.get(month), null,
-        "events absent from the replacement payload are culled");
+        "successful replacement completion culls after the old chunks drain");
+});
+
+test("a successful empty range fetch clears stale events and reports the empty state", () => {
+    const manager = readyManager();
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    manager.fetch_month_events(month, true);
+    registerDays(manager, makeEventData({
+        id: "deleted-upstream",
+        startUnix: 10 * DAY_S,
+        endUnix: 10 * DAY_S + 60
+    }));
+    assert.ok(manager._event_index.get(month));
+    const updatesBefore = emitted(manager, "events-updated").length;
+
+    manager.fetch_month_events(month, true);
+
+    assert.equal(manager._event_index.get(month), null);
+    assert.equal(emitted(manager, "events-updated").length, updatesBefore + 1);
+    assert.equal(emitted(manager, "selected-date-events-changed").at(-1).args[0], null);
+});
+
+test("a queued stale fetch completion cannot reconcile a newer generation", () => {
+    const manager = readyManager();
+    const server = proxy.instance;
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    server.defer_time_ranges = true;
+
+    manager.fetch_month_events(month, true);
+    const events = Array.from({ length: 26 }, (_unused, index) => eventVariant({
+        id: `stale-fetch-${index}`,
+        startUnix: 10 * DAY_S + index * 60,
+        endUnix: 10 * DAY_S + index * 60 + 30
+    }));
+    server.signal("events-added-or-updated", eventArrayVariant(events));
+    server.complete_time_range(0, { id: "older-success" });
+    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+        ["add", "fetch-complete"]);
+
+    manager.fetch_month_events(month, true);
+    drainEventMutations(manager);
+    assert.equal(manager._event_index.get(month).length, events.length,
+        "the old marker becomes inert once a newer fetch starts");
+
+    server.complete_time_range(1, { id: "current-empty-success" });
+    assert.equal(manager._event_index.get(month), null,
+        "the current generation still owns authoritative reconciliation");
 });
 
 test("an oversized event message is rejected before any child is materialized", () => {
@@ -1265,6 +1312,36 @@ test("a gc round that culls nothing tells nobody", () => {
         "nothing was culled, so nothing was said");
 });
 
+test("gc defers until a chunked event mutation stream has drained", () => {
+    const manager = readyManager();
+    const day = new FakeDateTime(10 * DAY_US);
+    registerDays(manager, makeEventData({
+        id: "stale-before-delivery",
+        startUnix: 10 * DAY_S,
+        endUnix: 10 * DAY_S + 30
+    }));
+    manager.last_update_timestamp = 100;
+    const events = Array.from({ length: 26 }, (_unused, index) => eventVariant({
+        id: `fresh-${index}`,
+        startUnix: 10 * DAY_S + 60 + index * 60,
+        endUnix: 10 * DAY_S + 90 + index * 60
+    }));
+
+    proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
+    const firstGc = manager._gc_timer_id;
+    assert.ok(manager._event_mutations.length > 0);
+    fireTimer(firstGc);
+
+    assert.ok(manager._gc_timer_id > 0);
+    assert.notEqual(manager._gc_timer_id, firstGc);
+    assert.ok(manager._event_index.get(day).get_ids().includes("stale-before-delivery"),
+        "the incomplete stream is not reconciled early");
+
+    drainEventMutations(manager);
+    fireTimer(manager._gc_timer_id);
+    assert.ok(!manager._event_index.get(day).get_ids().includes("stale-before-delivery"));
+});
+
 test("a failed month fetch is retried with backoff", () => {
     const manager = readyManager();
     const server = proxy.instance;
@@ -1633,8 +1710,8 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     const emittedEvents = [];
     // the coordinator is handed a setTimeRange function now, not the proxy: the
     // connection owns the proxy and exposes this bound method
-    const setTimeRange = (start, end, force) => {
-        calls.push({ start, end, force });
+    const setTimeRange = (start, end, force, cancellable, watermark) => {
+        calls.push({ start, end, force, cancellable, watermark });
     };
     let timestamp = 40;
     const month = new FakeDateTime(40 * DAY_US);
@@ -1642,12 +1719,14 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     assert.equal(coordinator.fetchMonthEvents(
         month, false, setTimeRange, () => ++timestamp), 41);
     assert.equal(calls[0].end - calls[0].start, 42 * DAY_S - 1);
+    assert.equal(calls[0].watermark, 41);
     assert.equal(index._windowStart.to_unix(), calls[0].start);
     assert.equal(index._windowEnd.to_unix(), calls[0].end - (DAY_S - 1));
     assert.equal(coordinator.fetchMonthEvents(
         month, false, setTimeRange, () => ++timestamp), null);
     assert.equal(coordinator.fetchMonthEvents(
         month, true, setTimeRange, () => ++timestamp), 42);
+    assert.equal(calls[1].watermark, 42);
     assert.equal(calls.length, 2);
 
     const selected = new FakeDateTime(50 * DAY_US);

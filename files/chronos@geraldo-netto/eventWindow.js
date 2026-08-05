@@ -48,8 +48,12 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
             day_one.get_day_of_week(), Cinnamon.util_get_week_start()));
         const end = start.add_days(42).add_seconds(-1);
         this.index.setWindow(start, end);
-        setTimeRange(start.to_unix(), end.to_unix(), force, cancellable);
-        return timestampNow();
+        // Take the reconciliation watermark before dispatch. A test double can
+        // complete synchronously, and production signals may arrive as soon as
+        // the method is sent; both must stamp records with this same fetch.
+        const timestamp = timestampNow();
+        setTimeRange(start.to_unix(), end.to_unix(), force, cancellable, timestamp);
+        return timestamp;
     }
 
     selectDate(date, force, isActive, fetchMonthEvents, emit) {
