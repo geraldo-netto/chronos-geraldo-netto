@@ -2280,6 +2280,31 @@ test("an OS timezone change discards the indexed buckets and refetches", () => {
     assert.equal(proxy.instance.set_time_range_calls.length, before + 1);
 });
 
+// T793: the bounded GVariant decode and the "::" batching grammar are wire
+// vocabulary, and they lived in the orchestrator — duck-typing the wire object
+// and reasoning about its byte size — while both files' headers said the
+// boundary ran between them. A change to the server payload forced edits in
+// eventsManager and eventData and never in the adapter named for it, and the
+// harness could only reach the bounding logic through EventsManager.
+test("the wire decoding is reachable at the adapter that owns it", () => {
+    const CalendarServer = require(path.join(
+        __dirname, "..", "files", "chronos@geraldo-netto", "calendarServerConnection.js"));
+
+    assert.equal(typeof CalendarServer.boundedEventVariants, "function");
+    assert.equal(CalendarServer.MAX_EVENT_SIGNAL_BYTES, 4 * 1024 * 1024);
+
+    // one in-contract UID decodes to itself and keeps the targeted path
+    assert.equal(CalendarServer.decodeRemovedUids("one-uid", 64), "one-uid");
+    // the delimiter cannot be decoded losslessly, because a UID is TEXT and may
+    // contain it: null is the caller's signal to resync
+    assert.equal(CalendarServer.decodeRemovedUids("a::b", 64), null);
+    assert.equal(CalendarServer.decodeRemovedUids("x".repeat(65), 64), null,
+        "and an oversized payload is not kept in the queue to say the same thing");
+    for (const junk of [null, undefined, 42, {}, []]) {
+        assert.equal(CalendarServer.decodeRemovedUids(junk, 64), null);
+    }
+});
+
 // T794: the index is shared mutable state with two owners. EventWindowCoordinator
 // owns the window; EventsManager drops the contents from five paths. Dropping
 // and re-windowing used to be two separate public calls, so between a clear and

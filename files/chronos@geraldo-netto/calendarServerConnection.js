@@ -28,6 +28,96 @@ var EDS_BUS_NAME = "org.gnome.evolution.dataserver.Calendar8"; // NOSONAR [S3504
 var SERVER_RETRY_SECONDS = 5; // NOSONAR [S3504] -- GJS importer export
 var SERVER_RETRY_MAX_SECONDS = 300; // NOSONAR [S3504] -- GJS importer export
 
+var MAX_EVENT_SIGNAL_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
+
+function validateEventVariantLimits(varray, recordLimit, byteLimit) {
+    if (!varray || !Number.isInteger(recordLimit) || recordLimit < 0 ||
+        !Number.isInteger(byteLimit) || byteLimit < 0) {
+        throw new Error("calendar event array or limit is invalid");
+    }
+}
+
+function eventVariantBytes(varray, byteLimit) {
+    if (typeof varray.get_size !== "function") {
+        return { retainedBytes: 0, overflowed: false };
+    }
+
+    const retainedBytes = varray.get_size();
+    if (!Number.isFinite(retainedBytes) || retainedBytes < 0) {
+        throw new Error("calendar event array has an invalid byte size");
+    }
+    return {
+        retainedBytes,
+        overflowed: retainedBytes > MAX_EVENT_SIGNAL_BYTES ||
+            retainedBytes > byteLimit
+    };
+}
+
+function boundedVariantChildren(varray, recordLimit, retainedBytes) {
+    const count = varray.n_children();
+    if (!Number.isInteger(count) || count < 0) {
+        throw new Error("calendar event array has an invalid child count");
+    }
+
+    const accepted = Math.min(count, recordLimit);
+    const events = [];
+    for (let index = 0; index < accepted; index++) {
+        events.push(varray.get_child_value(index));
+    }
+    return { events, overflowed: count > accepted, retainedBytes };
+}
+
+function boundedUnpackedEvents(varray, recordLimit, retainedBytes) {
+    // Test doubles and older proxy wrappers expose only unpack(). The retained
+    // prefix is still bounded even though those non-production adapters have
+    // already materialized their array.
+    if (typeof varray.unpack !== "function") {
+        throw new Error("calendar event array cannot be unpacked");
+    }
+    const unpacked = varray.unpack();
+    if (!Array.isArray(unpacked)) {
+        throw new Error("calendar event payload is not an array");
+    }
+    return {
+        events: unpacked.slice(0, recordLimit),
+        overflowed: unpacked.length > recordLimit,
+        retainedBytes
+    };
+}
+
+function boundedEventVariants(varray, recordLimit, byteLimit = MAX_EVENT_SIGNAL_BYTES) {
+    validateEventVariantLimits(varray, recordLimit, byteLimit);
+    const bytes = eventVariantBytes(varray, byteLimit);
+    if (bytes.overflowed) {
+        return { events: [], overflowed: true, retainedBytes: 0 };
+    }
+
+    // Production receives a GLib.Variant. Inspect and copy only the prefix that
+    // fits instead of unpacking an attacker-sized array in one compositor turn.
+    if (typeof varray.n_children === "function" &&
+        typeof varray.get_child_value === "function") {
+        return boundedVariantChildren(
+            varray, recordLimit, bytes.retainedBytes);
+    }
+    return boundedUnpackedEvents(varray, recordLimit, bytes.retainedBytes);
+}
+
+// cinnamon-calendar-server batches IDs with "::", but an iCalendar component UID
+// is TEXT and may contain that exact sequence — so a string carrying the
+// delimiter cannot be decoded losslessly to one UID. And the payload is
+// unbounded TEXT off the wire, which would sit whole in the caller's queue:
+// anything longer than one in-contract UID cannot name an indexed event either.
+//
+// Both cases answer null, which is the caller's signal to drop the window and
+// ask the authoritative source again. A delimiter-free UID within the bound
+// decodes to itself and keeps the fast targeted path.
+function decodeRemovedUids(uids_string, maxUidLength) {
+    if (typeof uids_string !== "string" || uids_string.length > maxUidLength) {
+        return null;
+    }
+    return uids_string.indexOf("::") === -1 ? uids_string : null; // NOSONAR [S7765] -- accepted compatible form
+}
+
 var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S3504] -- GJS importer export
     constructor(callbacks, params = {}) {
         this.callbacks = callbacks;
@@ -244,5 +334,6 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
 
 if (typeof module !== "undefined") {
     module.exports = { CalendarServerConnection, SERVER_RETRY_SECONDS,
-        SERVER_RETRY_MAX_SECONDS, EDS_BUS_NAME };
+        SERVER_RETRY_MAX_SECONDS, EDS_BUS_NAME, MAX_EVENT_SIGNAL_BYTES,
+        boundedEventVariants, decodeRemovedUids };
 }

@@ -22,6 +22,14 @@ const APPLET_MODULES = IS_NODE ?
 const ProviderUtils = APPLET_MODULES ? APPLET_MODULES.providerUtils : require("./providerUtils");
 const CalendarServerModule = APPLET_MODULES ? APPLET_MODULES.calendarServerConnection : require("./calendarServerConnection");
 const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
+// The wire vocabulary belongs to the adapter named for it: the bounded decode
+// of a GVariant payload, its byte ceiling, and the "::" batching grammar of the
+// removal signal. This module had all three, duck-typing the wire object and
+// reasoning about its byte size, while both files' headers said the boundary
+// ran between them.
+const MAX_EVENT_SIGNAL_BYTES = CalendarServerModule.MAX_EVENT_SIGNAL_BYTES;
+const boundedEventVariants = CalendarServerModule.boundedEventVariants;
+const decodeRemovedUids = CalendarServerModule.decodeRemovedUids;
 const EventIndexModule = APPLET_MODULES ? APPLET_MODULES.eventIndex : require("./eventIndex");
 const EventWindowModule = APPLET_MODULES ? APPLET_MODULES.eventWindow : require("./eventWindow");
 
@@ -40,82 +48,9 @@ var FETCH_RETRY_MAX_ATTEMPTS = 5; // NOSONAR [S3504] -- GJS importer export
 var EVENT_BATCH_CHUNK = 25; // NOSONAR [S3504] -- GJS importer export
 // The DBus daemon has a much larger message ceiling. Chronos needs a lower
 // product limit because this payload lands inside the desktop compositor.
-var MAX_EVENT_SIGNAL_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_RECORDS = 2000; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_BYTES = 8 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_MUTATIONS = 256; // NOSONAR [S3504] -- GJS importer export
-
-function validateEventVariantLimits(varray, recordLimit, byteLimit) {
-    if (!varray || !Number.isInteger(recordLimit) || recordLimit < 0 ||
-        !Number.isInteger(byteLimit) || byteLimit < 0) {
-        throw new Error("calendar event array or limit is invalid");
-    }
-}
-
-function eventVariantBytes(varray, byteLimit) {
-    if (typeof varray.get_size !== "function") {
-        return { retainedBytes: 0, overflowed: false };
-    }
-
-    const retainedBytes = varray.get_size();
-    if (!Number.isFinite(retainedBytes) || retainedBytes < 0) {
-        throw new Error("calendar event array has an invalid byte size");
-    }
-    return {
-        retainedBytes,
-        overflowed: retainedBytes > MAX_EVENT_SIGNAL_BYTES ||
-            retainedBytes > byteLimit
-    };
-}
-
-function boundedVariantChildren(varray, recordLimit, retainedBytes) {
-    const count = varray.n_children();
-    if (!Number.isInteger(count) || count < 0) {
-        throw new Error("calendar event array has an invalid child count");
-    }
-
-    const accepted = Math.min(count, recordLimit);
-    const events = [];
-    for (let index = 0; index < accepted; index++) {
-        events.push(varray.get_child_value(index));
-    }
-    return { events, overflowed: count > accepted, retainedBytes };
-}
-
-function boundedUnpackedEvents(varray, recordLimit, retainedBytes) {
-    // Test doubles and older proxy wrappers expose only unpack(). The retained
-    // prefix is still bounded even though those non-production adapters have
-    // already materialized their array.
-    if (typeof varray.unpack !== "function") {
-        throw new Error("calendar event array cannot be unpacked");
-    }
-    const unpacked = varray.unpack();
-    if (!Array.isArray(unpacked)) {
-        throw new Error("calendar event payload is not an array");
-    }
-    return {
-        events: unpacked.slice(0, recordLimit),
-        overflowed: unpacked.length > recordLimit,
-        retainedBytes
-    };
-}
-
-function boundedEventVariants(varray, recordLimit, byteLimit = MAX_EVENT_SIGNAL_BYTES) {
-    validateEventVariantLimits(varray, recordLimit, byteLimit);
-    const bytes = eventVariantBytes(varray, byteLimit);
-    if (bytes.overflowed) {
-        return { events: [], overflowed: true, retainedBytes: 0 };
-    }
-
-    // Production receives a GLib.Variant. Inspect and copy only the prefix that
-    // fits instead of unpacking an attacker-sized array in one compositor turn.
-    if (typeof varray.n_children === "function" &&
-        typeof varray.get_child_value === "function") {
-        return boundedVariantChildren(
-            varray, recordLimit, bytes.retainedBytes);
-    }
-    return boundedUnpackedEvents(varray, recordLimit, bytes.retainedBytes);
-}
 
 var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer export
     constructor(settings, params = {}) {
@@ -559,26 +494,17 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _handle_removed_events(server, uids_string) {
-        // The payload is unbounded TEXT off the wire, and it would sit whole
-        // in the mutation queue until the idle drains it. Anything longer
-        // than one in-contract UID cannot name an indexed event, and the
-        // multi-UID batch path resyncs anyway — so an oversized payload
-        // collapses to the same authoritative resync without keeping the
-        // bytes. null is that resync signal.
-        const bounded = typeof uids_string === "string" &&
-            uids_string.length <= EventDataModule.MAX_EVENT_UID_LENGTH ?
-            uids_string : null;
-        this._enqueue_event_mutation({ type: "remove", uids: bounded });
+        this._enqueue_event_mutation({
+            type: "remove",
+            uids: decodeRemovedUids(uids_string, EventDataModule.MAX_EVENT_UID_LENGTH)
+        });
     }
 
     _apply_removed_events(uids_string) {
-        // cinnamon-calendar-server batches IDs with "::", but an iCalendar
-        // component UID is TEXT and may contain that exact sequence. A string
-        // with the delimiter therefore cannot be decoded losslessly: clear the
-        // window and ask the authoritative source again. A delimiter-free
-        // single ID is unambiguous and keeps the fast targeted path. null is
-        // the ingress bound's oversized-payload marker: same resync.
-        const ambiguous = uids_string === null || uids_string.indexOf("::") !== -1;
+        // null is what the adapter answers for a payload it could not decode to
+        // one UID — oversized, or carrying the "::" batch delimiter. Either way
+        // the window is dropped and the authoritative source asked again.
+        const ambiguous = uids_string === null;
 
         // A targeted removal for an event this index never held changes
         // nothing on screen, and the two signals below are not cheap: one
