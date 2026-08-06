@@ -106,14 +106,20 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         // the first refresh can fail before the periodic timer is armed, so
         // record whether weather is on before running it
         this._active = Boolean(this._isActive(settings));
-        const generation = this._generation;
 
-        refresh();
-
-        if (!this._active) {
-            return;
+        // Armed before the first refresh runs, not after. A refresh that raises
+        // used to leave no periodic timer at all, so weather stopped updating
+        // for the rest of the session unless a resume, a network restore or a
+        // settings change happened to reschedule it — and the applet's _guarded
+        // catches and logs that throw, which is exactly why the loss was silent.
+        if (this._active) {
+            this._armPeriodic(refresh, this._generation);
         }
 
+        refresh();
+    }
+
+    _armPeriodic(refresh, generation) {
         this._timer_id = this._scheduleTimer(this._refresh_seconds, () => {
             if (!this._active || generation !== this._generation) {
                 return GLib.SOURCE_REMOVE;

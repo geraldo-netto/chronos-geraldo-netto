@@ -1984,6 +1984,57 @@ test("tryProvidersInOrder falls back and retains the first failure", () => {
     assert.deepEqual(exhausted, { error: "a" }, "first failure reported, not last");
 });
 
+// REGRESSION: attempt() was called bare, so a provider that raised rather than
+// answering unwound the chain — neither onSuccess nor onExhausted ever ran, and
+// failing over is the one thing this machinery exists to do.
+test("a provider that raises fails over instead of unwinding the chain", () => {
+    const ProviderUtils = loadProviderUtils();
+    const logged = [];
+    global.log = () => {};
+    global.logError = (error) => logged.push(error);
+
+    const boom = new Error("provider exploded");
+    let success = null;
+    ProviderUtils.tryProvidersInOrder(
+        [{ name: "a" }, { name: "b" }],
+        (provider, onResult) => {
+            if (provider.name === "a") {
+                throw boom;
+            }
+            onResult("good");
+        },
+        (result) => Boolean(result),
+        (provider, result) => { success = { provider: provider.name, result }; },
+        () => { throw new Error("should not exhaust"); }
+    );
+
+    assert.deepEqual(success, { provider: "b", result: "good" },
+        "the raise is one provider's failure, not the chain's");
+    assert.deepEqual(logged, [boom], "and it is reported rather than swallowed");
+});
+
+// the other half: a throw travelling back out through an attempt that already
+// answered belongs to onSuccess, and must not be retried against the next
+// provider as though the first one had failed
+test("a throw out of onSuccess is not mistaken for a provider failure", () => {
+    const ProviderUtils = loadProviderUtils();
+    const attempts = [];
+    global.log = () => {};
+
+    assert.throws(() => ProviderUtils.tryProvidersInOrder(
+        [{ name: "a" }, { name: "b" }],
+        (provider, onResult) => {
+            attempts.push(provider.name);
+            onResult("good");
+        },
+        () => true,
+        () => { throw new Error("consumer exploded"); },
+        () => { throw new Error("should not exhaust"); }
+    ), /consumer exploded/);
+
+    assert.deepEqual(attempts, ["a"], "the chain does not advance past it");
+});
+
 test("fuzz: tryProvidersInOrder always terminates with success or exhaustion", () => {
     const ProviderUtils = loadProviderUtils();
     const rand = makeRandom(77);

@@ -486,22 +486,51 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         }
 
         const region = this.region;
-        this.service.fetchYear(this.country, region, year, (data, params, date) => {
-            // The fetch may finish after the applet was removed from the panel —
-            // running callbacks then would touch destroyed actors — or after the
-            // user picked another country, in which case this.cache now holds that
-            // country's data and writing to it would file France's holidays under
-            // Japan, mark Japan's year fresh for the update period, and persist the
-            // lot. setPlace() has already emptied the inflight map, and the new
-            // place's request may already have refilled it under this very key — so
-            // touching it here is how the old response used to delete the *new*
-            // request's callbacks. This response owns nothing any more.
-            if (!this._isCurrentPlace(generation)) {
-                return;
-            }
+        try {
+            this.service.fetchYear(this.country, region, year, (data, params, date) => {
+                // The fetch may finish after the applet was removed from the panel —
+                // running callbacks then would touch destroyed actors — or after the
+                // user picked another country, in which case this.cache now holds that
+                // country's data and writing to it would file France's holidays under
+                // Japan, mark Japan's year fresh for the update period, and persist the
+                // lot. setPlace() has already emptied the inflight map, and the new
+                // place's request may already have refilled it under this very key — so
+                // touching it here is how the old response used to delete the *new*
+                // request's callbacks. This response owns nothing any more.
+                if (!this._isCurrentPlace(generation)) {
+                    return;
+                }
 
-            this._acceptYear(year, region, inflightKey, generation, data, params, date);
-        });
+                this._acceptYear(year, region, inflightKey, generation, data, params, date);
+            });
+        } catch (e) {
+            this._abandonYear(inflightKey, generation, e);
+        }
+    }
+
+    // The key was marked in flight one statement above, and fetchYear can raise
+    // before it has a callback to answer through — a disposed session, a
+    // provider chain that throws while composing its request. Leaving the key
+    // behind blocks every later fetch of this year for the whole session and
+    // strands the month label on its pending marker: the same hazard
+    // _acceptYear's finally exists to prevent, on the path that dispatches
+    // rather than the one that answers.
+    //
+    // A throw arriving after the key settled came back out through a waiting
+    // callback that fetchYear ran synchronously, and is still that callback's.
+    _abandonYear (inflightKey, generation, error) {
+        if (!this._inflight.has(inflightKey)) {
+            throw error;
+        }
+
+        this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
+        if (global.logError) {
+            global.logError(error);
+        }
+
+        for (let waiting of this._inflight.settle(inflightKey, generation)) {
+            waiting();
+        }
     }
 
     staleCache (year, now = Date.now()) {

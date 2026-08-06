@@ -100,10 +100,38 @@ function logProviderFailover(provider) {
     }
 }
 
+// Failing over is the whole point of this chain, and a provider that raises
+// rather than answering used to be the one failure it could not survive: the
+// throw unwound every pending step and neither onSuccess nor onExhausted ever
+// ran, so the caller was left waiting on a chain that had stopped.
+//
+// A raise before the provider answered is that provider's failure, and reported
+// as one. A throw travelling back out through an attempt that already answered
+// belongs to onSuccess, onExhausted or a later step, and is left alone.
+function attemptOrFail(attempt, provider, onResult) {
+    let answered = false;
+    const answer = (result) => {
+        answered = true;
+        onResult(result);
+    };
+
+    try {
+        attempt(provider, answer);
+    } catch (e) {
+        if (answered) {
+            throw e;
+        }
+        if (typeof global !== "undefined" && global.logError) {
+            global.logError(e);
+        }
+        answer(null);
+    }
+}
+
 function tryProvidersInOrder(providers, attempt, accept, onSuccess, onExhausted) {
     const step = (index, firstFailure) => {
         const provider = providers[index];
-        attempt(provider, (result) => {
+        attemptOrFail(attempt, provider, (result) => {
             if (accept(result)) {
                 onSuccess(provider, result);
                 return;

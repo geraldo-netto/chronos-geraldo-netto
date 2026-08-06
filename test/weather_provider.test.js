@@ -768,6 +768,40 @@ test("stopping the scheduler drops a debounce that never fired", () => {
     assert.equal(scheduled.length, 1, "the queued refresh never ran");
 });
 
+// REGRESSION: the periodic timer was armed only after the first refresh
+// returned, so a refresh that raised left no timer at all and weather stopped
+// updating for the rest of the session — until a resume, a network restore or a
+// settings change happened to reschedule it. The applet's _guarded catches and
+// logs the throw, which is exactly why the loss was silent.
+test("a first refresh that raises still leaves the periodic timer armed", () => {
+    const Weather = loadWeather();
+    const timers = [];
+    const scheduler = new Weather.WeatherRefreshScheduler({
+        scheduleTimer(_seconds, callback) {
+            timers.push(callback);
+            return timers.length;
+        },
+        removeTimer() {}
+    });
+
+    let refreshes = 0;
+    const refresh = () => {
+        refreshes++;
+        throw new Error("no network stack");
+    };
+    assert.throws(() => scheduler.schedule(
+        { showWeather: true, location: "Rome", units: "si" }, refresh),
+    /no network stack/);
+
+    assert.equal(refreshes, 1);
+    assert.equal(timers.length, 1, "the periodic timer is armed regardless");
+    assert.ok(scheduler.timerId > 0);
+
+    // and it keeps trying: the next period runs the refresh again
+    assert.throws(() => timers[0](), /no network stack/);
+    assert.equal(refreshes, 2, "weather recovers on its own once the network is back");
+});
+
 test("stopped periodic and retry callbacks cannot revive an old schedule", () => {
     const Weather = loadWeather();
     const timers = [];
@@ -1384,6 +1418,74 @@ test("shared reading cache expires entries and evicts the least recently used", 
     assert.equal(repository._cache.has("city c"), false,
         "an expired entry is removed before its replacement arrives");
     assert.equal(pendingPlaces.length, 1);
+
+    repository.destroy();
+});
+
+// REGRESSION: the flight was recorded before the resolve was dispatched, so a
+// resolver that raised pinned that location's key for good — every later
+// refresh for it found an active request and joined a flight that could never
+// complete.
+test("a location resolve that raises frees the flight instead of pinning it", () => {
+    const Weather = loadWeather();
+    let raise = true;
+    const resolves = [];
+    const repository = new Weather.WeatherReadingRepository({
+        cacheSeconds: 0,
+        locationResolver: {
+            resolve(location, _isCurrent, callback) {
+                resolves.push(location);
+                if (raise) {
+                    throw new Error("geocoder disposed");
+                }
+                callback({ name: location, latitude: 1, longitude: 2 }, "");
+            },
+            forget() {}
+        },
+        forecastResolver: {
+            refresh(_place, _isCurrent, callback) {
+                callback({ condition: "☀", temperatureC: 7 }, "", "test");
+            }
+        }
+    });
+    global.logError = () => {};
+
+    const answers = [];
+    repository.refresh("Rome", () => true,
+        (reading, error) => answers.push({ reading, error }));
+
+    assert.deepEqual(answers,
+        [{ reading: null, error: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE }],
+        "the subscriber is settled rather than left waiting on the flight");
+    assert.equal(repository._inflight.size, 0, "and the key is released");
+
+    raise = false;
+    repository.refresh("Rome", () => true,
+        (reading) => answers.push({ reading, error: "" }));
+    assert.equal(resolves.length, 2, "a later refresh starts a new flight");
+    assert.equal(answers.length, 2);
+
+    repository.destroy();
+});
+
+// the other half: once the request has settled, a throw coming back out through
+// a subscriber's own callback is still that subscriber's
+test("a throw from a settled subscriber is not reported as a resolve failure", () => {
+    const Weather = loadWeather();
+    const repository = new Weather.WeatherReadingRepository({
+        cacheSeconds: 0,
+        locationResolver: {
+            resolve(_location, _isCurrent, callback) {
+                callback(null, Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND);
+            },
+            forget() {}
+        }
+    });
+
+    assert.throws(() => repository.refresh("Rome", () => true, () => {
+        throw new Error("consumer exploded");
+    }), /consumer exploded/);
+    assert.equal(repository._inflight.size, 0, "the flight settled before the throw");
 
     repository.destroy();
 });

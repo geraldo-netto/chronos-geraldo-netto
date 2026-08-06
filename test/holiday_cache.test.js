@@ -2383,6 +2383,70 @@ test("a throw while storing a fetch never wedges the year", () => {
     assert.equal(fetches, 2);
 });
 
+// REGRESSION: the key was marked in flight and *then* dispatched, with no
+// finally on the dispatch itself — so a fetchYear that raised left the key
+// behind and blocked every later fetch of that year for the life of the place
+// selection, stranding the month label on its pending marker. The same hazard
+// _acceptYear's finally already prevents, on the path that dispatches.
+test("a fetch that raises on dispatch never wedges the year", () => {
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        () => {}
+    );
+    let fetches = 0;
+    const service = {
+        fetchYear() {
+            fetches++;
+            throw new Error("session disposed mid-reload");
+        },
+        validResponse: () => true
+    };
+    const enrico = new HolidayService(service, cache, { record: service });
+    enrico.country = "usa";
+    enrico.region = "global";
+    global.logError = () => {};
+
+    let callbacks = 0;
+    enrico.retrieveForYear(2026, () => callbacks++);
+    assert.equal(callbacks, 1, "the waiting callback still runs");
+    assert.equal(enrico.last_error, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE);
+    assert.equal(enrico.fetching(2026), false, "the in-flight key must be released");
+
+    enrico.retrieveForYear(2026, () => callbacks++);
+    assert.equal(fetches, 2, "and the year can be fetched again");
+});
+
+// the other half: once the year has settled, a throw coming back out through a
+// waiting callback the fetch ran synchronously is that callback's own
+test("a throw from a settled year's callback is not reported as a fetch failure", () => {
+    const { HolidayService, HolidayCache } = loadHolidays();
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        () => {}
+    );
+    const service = {
+        fetchYear(_country, _region, _year, callback) {
+            callback([holiday("Boom", 2026, 1, 1)],
+                { year: 2026, region: "global", providerName: "Enrico" }, null);
+        },
+        validResponse: () => true,
+        expandHoliday() {
+            throw new Error("bad payload");
+        }
+    };
+    const enrico = new HolidayService(service, cache, { record: service });
+    enrico.country = "usa";
+    enrico.region = "global";
+    global.logError = () => {};
+
+    assert.throws(() => enrico.retrieveForYear(2026, () => {
+        throw new Error("consumer exploded");
+    }), /consumer exploded/);
+    assert.equal(enrico.fetching(2026), false,
+        "the year settled before the callback ran, and stays settled");
+});
+
 test("a fresh year answers from the cache without a fetch", () => {
     const { HolidayService, HolidayCache } = loadHolidays();
     const cache = new HolidayCache(

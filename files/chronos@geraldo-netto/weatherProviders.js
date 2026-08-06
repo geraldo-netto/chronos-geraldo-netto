@@ -599,9 +599,34 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         // the panel changes location while a city still wants the old one, that
         // city must not inherit the panel's cancellation.
         const requestIsCurrent = () => this._requestIsCurrent(key, request);
-        this.locationResolver.resolve(normalized, requestIsCurrent,
-            (place, error) => this._placeResolved(
-                key, request, requestIsCurrent, place, error));
+        try {
+            this.locationResolver.resolve(normalized, requestIsCurrent,
+                (place, error) => this._placeResolved(
+                    key, request, requestIsCurrent, place, error));
+        } catch (e) {
+            this._abandonRequest(key, request, requestIsCurrent, e);
+        }
+    }
+
+    // The flight was recorded one statement above, so a resolve that raises
+    // before it has a callback to answer through used to pin this location's
+    // key forever: every later refresh for it found an active request and
+    // joined a flight that could never complete. Report it through the same
+    // no-place path a geocode failure takes, which settles the subscribers and
+    // frees the key.
+    //
+    // A throw arriving once the request has settled came back out through a
+    // subscriber's own callback, and is still theirs.
+    _abandonRequest(key, request, requestIsCurrent, error) {
+        if (this._inflight.get(key) !== request) {
+            throw error;
+        }
+
+        if (global.logError) {
+            global.logError(error);
+        }
+        this._placeResolved(key, request, requestIsCurrent, null,
+            WEATHER_ERRORS.SERVICE_UNAVAILABLE);
     }
 
     _placeResolved(key, request, requestIsCurrent, place, error) {
