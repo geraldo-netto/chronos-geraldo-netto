@@ -180,7 +180,7 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         # never fires focus-out, and the name the user typed would go with it
         self.content_widget.connect("destroy", self.on_commit)
 
-    def ensure_completion(self, *args) -> bool:
+    def ensure_completion(self, *args) -> bool:  # NOSONAR [S3516] -- False propagates the GTK focus event
         if self._completion_loaded:
             return False
 

@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T925 | maintainability; GTK compatibility | Low | open | S | Sonar treats `ensure_completion`'s required constant GTK event return as a pointless method. | **[found 2026-08-07 in Sonar new-code audit; python:S3516]** Returning `False` is the GTK signal contract that propagates both focus-in paths, including the already-loaded fast path. Keep the behavior and add a targeted `NOSONAR` rationale instead of inventing a data-dependent return. |
 | T926 | maintainability | Low | open | S | The new-clock serializer builds a constant-`None` dictionary with a comprehension. | **[found 2026-08-07 in Sonar new-code audit; python:S7519]** Replace it with `dict.fromkeys(CLOCK_COLUMN_IDS)`; immutable `None` makes the result exactly equivalent. |
 | T927 | CI; maintainability | Low | open | S | The Bash-only archive script uses two legacy `test` commands despite already requiring Bash. | **[found 2026-08-07 in Sonar new-code audit; shelldre:S7688]** Use `[[ -s ... ]]` and arithmetic comparison for the manifest cardinality guard, preserving `set -euo pipefail`. |
 | T928 | test coverage; diagnostics | Low | open | S | Eight composite assertions hide which individual precondition failed. | **[found 2026-08-07 in Sonar new-code audit; javascript:S9073]** Split astronomy cache, elapsed-clock bounds, religious-row shape, schema-parity, locale teardown, and similar assertions so each failure names one invariant. |
