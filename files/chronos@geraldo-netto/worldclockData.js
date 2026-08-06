@@ -56,6 +56,9 @@ var MAX_CLOCK_LABEL_CELLS = 24; // NOSONAR [S3504] -- GJS importer export
 // Keep persisted/user-facing text available for editing and disclosure, while
 // still bounding every settings value admitted into the compositor process.
 var MAX_CLOCK_INPUT_LABEL_LENGTH = 128; // NOSONAR [S3504] -- GJS importer export
+// Same as the settings entry's bound: imported/hand-edited rows must not reach
+// GLib timezone construction or memo keys with text the editor cannot create.
+var MAX_CLOCK_TIMEZONE_LENGTH = 64; // NOSONAR [S3504] -- GJS importer export
 var LOCAL_TIMEZONE = "local"; // NOSONAR [S3504] -- GJS importer export
 var UTC_TIMEZONE = "UTC"; // NOSONAR [S3504] -- GJS importer export
 // the IANA "no region" area: Etc/UTC, Etc/GMT+3 and the like are offsets, not
@@ -532,7 +535,8 @@ function normalizedClockEntry(clock) {
 
     const label = clockInputLabel(clock.label);
     const timezone = typeof clock.timezone === "string" ? clock.timezone.trim() : "";
-    return label && timezone ? { label, timezone } : null;
+    return label && timezone && timezone.length <= MAX_CLOCK_TIMEZONE_LENGTH ?
+        { label, timezone } : null;
 }
 
 function selectUserClocks(clocks) {
@@ -612,6 +616,7 @@ if (typeof module !== "undefined") {
         clockInputLabel,
         MAX_CLOCK_LABEL_CELLS,
         MAX_CLOCK_INPUT_LABEL_LENGTH,
+        MAX_CLOCK_TIMEZONE_LENGTH,
         MAX_ZONE_TAB_BYTES,
         MAX_MEMOIZED_WEATHER_CITIES
     };

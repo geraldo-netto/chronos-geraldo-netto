@@ -675,6 +675,21 @@ test("configured clocks require visible normalized labels", () => {
     assert.equal(WorldclockData.clockDisplayLabel("\t\n"), "");
 });
 
+test("configured timezones use the settings editor length bound", () => {
+    loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const maximum = WorldclockData.MAX_CLOCK_TIMEZONE_LENGTH;
+    const exact = "R/" + "x".repeat(maximum - 2);
+    const oversized = exact + "x";
+
+    assert.equal(maximum, 64);
+    assert.deepEqual(WorldclockData.selectUserClocks([
+        { label: "Too long", timezone: oversized },
+        { label: "Exact", timezone: exact }
+    ]), [{ label: "Exact", timezone: exact }]);
+});
+
 // T729: textUtils names "a world clock's label" as exactly what its shared
 // control-character rule is for, and this was the one caller that clamped
 // without it. A Display name pasted with an embedded newline reached the popup

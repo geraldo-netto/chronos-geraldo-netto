@@ -839,6 +839,18 @@ class WorldClockSavedNormalizationTest(unittest.TestCase):
         self.assertEqual(clocks.model.rows, expected)
         self.assertFalse(clocks.add_button.sensitive)
 
+    def test_saved_timezone_uses_the_editor_length_bound(self):
+        maximum = self.module.common.MAX_COMPLETION_INPUT_LENGTH
+        exact = "R/" + "x" * (maximum - 2)
+        oversized = exact + "x"
+
+        self.assertEqual(
+            self.module.normalize_saved_clock(
+                {"label": "Exact", "timezone": exact}, FIXED_LOCAL_TIMEZONE),
+            {"label": "Exact", "timezone": exact})
+        self.assertIsNone(self.module.normalize_saved_clock(
+            {"label": "Too long", "timezone": oversized}, FIXED_LOCAL_TIMEZONE))
+
     def count_local_timezone_reads(self, answer=FIXED_LOCAL_TIMEZONE):
         """Count the one place the local zone is read from.
 

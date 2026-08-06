@@ -863,10 +863,12 @@ test("the clock cap is the same in schema, JS, Python, and the README", () => {
 // shortened saved value with no feedback in the dialog - and worldclockData's
 // own comment records that a past drift on the Etc guard already made the two
 // sides write different weather-location keys.
-test("the label clamp and the no-region area are the same in JS and Python", () => {
+test("clock text clamps and the no-region area are the same in JS and Python", () => {
     const worldclockData = fs.readFileSync(path.join(appletDir, "worldclockData.js"), "utf8");
     const widgets = fs.readFileSync(
         path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
+    const commonWidgets = fs.readFileSync(
+        path.join(appletDir, "chronos_settings_widgets_common.py"), "utf8");
     const timezoneData = fs.readFileSync(
         path.join(appletDir, "chronos_timezone_data.py"), "utf8");
 
@@ -874,6 +876,12 @@ test("the label clamp and the no-region area are the same in JS and Python", () 
     const pyClamp = /^MAX_CLOCK_INPUT_LABEL_LENGTH = (\d+)$/m.exec(widgets);
     assert.ok(jsClamp && pyClamp, "both sides must declare the label clamp");
     assert.equal(Number(jsClamp[1]), Number(pyClamp[1]));
+
+    const jsTimezoneClamp = /^var MAX_CLOCK_TIMEZONE_LENGTH = (\d+);/m.exec(worldclockData);
+    const pyTimezoneClamp = /^MAX_COMPLETION_INPUT_LENGTH = (\d+)$/m.exec(commonWidgets);
+    assert.ok(jsTimezoneClamp && pyTimezoneClamp,
+        "runtime and editor must declare the timezone clamp");
+    assert.equal(Number(jsTimezoneClamp[1]), Number(pyTimezoneClamp[1]));
 
     const jsArea = /^var TZ_NO_REGION = "([^"]+)";/m.exec(worldclockData);
     const pyArea = /^TZ_NO_REGION = '([^']+)'$/m.exec(timezoneData);

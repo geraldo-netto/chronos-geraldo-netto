@@ -59,6 +59,7 @@ MAX_CLOCKS = 8
 # that could be kept is already more tolerance than a real list needs.
 MAX_SAVED_CLOCK_ROWS = MAX_CLOCKS * 8
 MAX_CLOCK_INPUT_LABEL_LENGTH = 128
+MAX_CLOCK_TIMEZONE_LENGTH = common.MAX_COMPLETION_INPUT_LENGTH
 # idles spent waiting for the settings window to be parented before giving up on
 # centering it; without a bound this is a busy loop that never ends
 MAX_CENTER_ATTEMPTS = 100
@@ -243,7 +244,8 @@ def normalize_saved_clock(row, local_timezone=None) -> Optional[dict[str, str]]:
     if not label or not isinstance(timezone, str):
         return None
     timezone = timezone.strip()
-    if not timezone or is_runtime_builtin_timezone(timezone, local_timezone):
+    if (not timezone or len(timezone) > MAX_CLOCK_TIMEZONE_LENGTH or
+            is_runtime_builtin_timezone(timezone, local_timezone)):
         return None
     return {"label": label, "timezone": timezone}
 
