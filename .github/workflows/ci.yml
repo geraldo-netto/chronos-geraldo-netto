@@ -14,9 +14,14 @@ on:
     branches: [develop]
     tags: ['v*']
   pull_request:
+  schedule:
+    # the dependency audit only: an advisory can land against an untouched
+    # repository, and nothing else here changes without a commit
+    - cron: '17 6 * * 1'
 
 jobs:
   gates:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -53,10 +58,6 @@ jobs:
 
       - run: npm ci
 
-      # Node packages are development tooling only; none enters the Spices
-      # artifact. Audit that toolchain and fail on high/critical advisories.
-      - run: npm run audit:deps
-
       - run: npm run lint
 
       # both suites, both coverage gates: JS 98/90/100 per file, Python 98 lines.
@@ -65,6 +66,28 @@ jobs:
       - run: npm test
         env:
           CHRONOS_REQUIRE_PYTZ: "1"
+
+  # Node packages are development tooling only; none enters the Spices
+  # artifact, so an advisory against one cannot reach a user. `npm audit`
+  # queries registry.npmjs.org at run time, and this job used to sit inside
+  # `gates`, which `packaging` needs and `release` needs after it: a newly
+  # published advisory against any of the locked dev packages turned an
+  # unchanged commit red and blocked cutting a tag, and re-running the same SHA
+  # was not reproducible. It reports on its own now, and the weekly run means an
+  # advisory published between commits is still seen.
+  audit:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22.13.0'
+          cache: npm
+
+      - run: npm ci
+      - run: npm run audit:deps
 
   packaging:
     needs: gates

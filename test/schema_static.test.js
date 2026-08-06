@@ -474,6 +474,22 @@ test("CI runs the gates the README promises", () => {
         "release jobs must not resolve an unsupported early Node 22 runtime");
     assert.match(workflow, /packaging:[\s\S]*needs: gates/,
         "packaging runs only after the Node gate job passes");
+    // T817: npm audit queries registry.npmjs.org at run time. Inside `gates` it
+    // sat upstream of packaging and release, so an advisory published against
+    // one of the locked dev packages turned an unchanged commit red and blocked
+    // cutting a tag, and re-running the same SHA was not reproducible.
+    assert.match(workflow, /^ {2}audit:\n {4}runs-on:/m,
+        "the dependency audit reports on its own");
+    assert.doesNotMatch(
+        workflow.slice(workflow.indexOf("  gates:"), workflow.indexOf("  audit:")),
+        /run: npm run audit:deps/,
+        "and never from inside the job the release chain needs");
+    assert.doesNotMatch(workflow, /needs:[^\n]*\baudit\b/,
+        "nothing waits on a live registry query");
+    assert.match(workflow, /^ {2}schedule:\n(?: {4}#[^\n]*\n)* {4}- cron: /m,
+        "an advisory can land against an untouched repository");
+    assert.match(workflow, /^ {2}gates:\n {4}if: github\.event_name != 'schedule'$/m,
+        "and the weekly tick runs only that audit");
     assert.match(workflow, /run: npm run i18n:check/,
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,
