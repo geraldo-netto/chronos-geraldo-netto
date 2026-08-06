@@ -935,6 +935,70 @@ test("desktop clock-format changes repaint existing event rows", () => {
         "an unchanged show-events setting does not refetch the selected date");
 });
 
+// Every row in the column shows the same selected day, so the day is the
+// column's value and not each row's. Identity is the assertion: two equal
+// GLib.DateTimes would render the same and still be the per-row construction
+// this exists to remove.
+test("the selected day is derived once per refresh and shared by every row", () => {
+    const list = new EventView.EventList(desktopSettings(true));
+    const events = [11, 13, 15].map((hour) => makeRowEvent({
+        id: `ev-${hour}`,
+        startUnix: 50 * DAY_S + hour * 3600,
+        endUnix: 50 * DAY_S + (hour + 1) * 3600
+    }));
+    list.set_events({ timestamp: 92, get_event_list: () => events }, false);
+    assert.equal(list._rows.length, 3, "three rows to share the value");
+
+    const seen = [];
+    for (const row of list._rows) {
+        const real = row.update_variations.bind(row);
+        row.update_variations = (now, today, selectedDay) => {
+            seen.push({ now, today, selectedDay });
+            real(now, today, selectedDay);
+        };
+    }
+
+    list.refresh_time_state();
+    assert.equal(seen.length, 3);
+    for (const pass of seen) {
+        assert.ok(pass.selectedDay, "the day is passed in, not left to the row's default");
+        assert.equal(pass.selectedDay, seen[0].selectedDay, "one day object for the column");
+        assert.equal(pass.now, seen[0].now);
+        assert.equal(pass.today, seen[0].today);
+    }
+    assert.equal(seen[0].selectedDay.to_unix(),
+        rootModules.eventData.date_only(list.selected_date).to_unix(),
+        "and it is the selected day, not some other date");
+
+    // a format change takes the same shared values rather than each row's
+    // defaults, and skips the walk entirely when no row is stale
+    seen.length = 0;
+    list.desktop_settings.use24h = false;
+    list.refresh_time_format();
+    assert.equal(seen.length, 3, "every row is repainted for a real format change");
+    assert.equal(seen[2].selectedDay, seen[0].selectedDay);
+
+    seen.length = 0;
+    list.refresh_time_format();
+    assert.equal(seen.length, 0, "an unchanged format repaints nothing");
+
+    // Browsing away from today is what separates the selected day from today:
+    // an event that starts on the selected day renders as a plain time range,
+    // and the same event judged against today does not.
+    const browsed = new EventView.EventList(desktopSettings(true));
+    browsed.set_date(new FakeDateTime(52 * DAY_US));
+    browsed.set_events({
+        timestamp: 93,
+        get_event_list: () => [makeRowEvent({
+            startUnix: 52 * DAY_S + 14 * 3600,
+            endUnix: 52 * DAY_S + 15 * 3600
+        })]
+    }, false);
+    browsed.refresh_time_state();
+    assert.equal(browsed._rows[0].event_time.text, "14:00  →  15:00",
+        "the range is read against the selected day, not against today");
+});
+
 test("same-tick list mutations rebuild all event rows", () => {
     // This suite's monotonic clock is deliberately frozen at 1. The renderer
     // and data list must still agree that adding a second event is a new

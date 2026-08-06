@@ -186,11 +186,14 @@ class EventListRenderer {
         }
     }
 
+    // The three values below are the column's, not each row's, and this runs
+    // for every row on every tick while the menu is open.
     refreshTimeState() {
         const now = GLib.DateTime.new_now_local();
         const today = date_only(now);
+        const selectedDay = date_only(this.list.selectedDate);
         this.list.rows.forEach((row) => {
-            row.update_variations(now, today);
+            row.update_variations(now, today, selectedDay);
         });
     }
 
@@ -735,12 +738,19 @@ class EventList {
 
     refresh_time_format() {
         const use24h = Boolean(this.desktop_settings.use24h);
-        for (const row of this._rows) {
-            if (row.use_24h === use24h) {
-                continue;
-            }
+        // Each row used to fall back to update_variations()' defaults, so a
+        // format change built its own now, today and selected day per row.
+        const stale = this._rows.filter((row) => row.use_24h !== use24h);
+        if (stale.length === 0) {
+            return;
+        }
+
+        const now = GLib.DateTime.new_now_local();
+        const today = date_only(now);
+        const selectedDay = date_only(this.selected_date);
+        for (const row of stale) {
             row.use_24h = use24h;
-            row.update_variations();
+            row.update_variations(now, today, selectedDay);
         }
     }
 
@@ -859,7 +869,10 @@ class EventRowPresenter {
         this.row.event_time.set_style_pseudo_class(pseudoClass);
     }
 
-    update(now = GLib.DateTime.new_now_local(), today = date_only(now)) {
+    // `selectedDay` is the whole column's, not this row's: every row in the
+    // list shows the same selected day, and deriving it here meant one
+    // GLib.DateTime per row per tick for a value the caller already has.
+    update(now, today, selectedDay) {
         if (this.row.event.is_holiday) {
             this.row.is_current_or_next = false;
             this._setTimeStyleClass("calendar-event-time-present");
@@ -869,13 +882,12 @@ class EventRowPresenter {
             this._announce();
             return;
         }
-        const selectedDateOnly = date_only(this.row.selected_date);
         const state = EventFormat.classifyEventDisplayState(this.row.event, now, today);
         this.row.is_current_or_next = state.is_current_or_next;
 
         this._applyState(state);
         this._setTimeText(EventFormat.formatEventTimeRange(
-            this.row.event, selectedDateOnly, today,
+            this.row.event, selectedDay, today,
             {
                 timeFormat: this.row.use_24h ? "%H:%M" : "%-l:%M %p",
                 dayFormat: DAY_FORMAT,
@@ -1084,8 +1096,9 @@ class EventRow {
         return this._calendar_launcher;
     }
 
-    update_variations(now = GLib.DateTime.new_now_local(), today = date_only(now)) {
-        this._presenter.update(now, today);
+    update_variations(now = GLib.DateTime.new_now_local(), today = date_only(now),
+        selectedDay = date_only(this.selected_date)) {
+        this._presenter.update(now, today, selectedDay);
     }
 }
 Signals.addSignalMethods(EventRow.prototype);
