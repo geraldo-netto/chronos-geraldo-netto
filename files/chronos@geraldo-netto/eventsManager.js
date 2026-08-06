@@ -103,39 +103,6 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._fetch_coordinator.lastUpdateTimestamp = value;
     }
 
-    // Compatibility views for the existing failure-injection suite. These are
-    // projections only; the facade owns none of either state machine's data.
-    get _destroyed() {
-        return this._mutation_stream.destroyed;
-    }
-    set _destroyed(value) {
-        this._mutation_stream.destroyed = value;
-        this._fetch_coordinator.destroyed = value;
-    }
-    get _event_mutations() { return this._mutation_stream.mutations; }
-    get _event_batch_ids() { return this._mutation_stream.batchIds; }
-    set _event_batch_ids(value) { this._mutation_stream.batchIds = value; }
-    get _queued_event_records() { return this._mutation_stream.queuedRecords; }
-    get _queued_event_bytes() { return this._mutation_stream.queuedBytes; }
-    get _resync_mutation_queued() { return this._mutation_stream.resyncQueued; }
-    set _resync_mutation_queued(value) { this._mutation_stream.resyncQueued = value; }
-    get _pending_emit() { return this._mutation_stream.pendingEmit; }
-    set _pending_emit(value) { this._mutation_stream.pendingEmit = value; }
-    get _emit_idle_id() { return this._mutation_stream.emitIdleId; }
-    get _gc_timer_id() { return this._fetch_coordinator.gcTimerId; }
-    get _reload_selected_id() { return this._fetch_coordinator.reloadSelectedId; }
-    set _reload_selected_id(value) { this._fetch_coordinator.reloadSelectedId = value; }
-    get _fetch_retry_id() { return this._fetch_coordinator.fetchRetryId; }
-    get _fetch_retry_attempts() { return this._fetch_coordinator.fetchRetryAttempts; }
-    get _refresh_failed() { return this._fetch_coordinator.refreshFailed; }
-    set _refresh_failed(value) { this._fetch_coordinator.refreshFailed = value; }
-    get _resync_overflow_pending() {
-        return this._fetch_coordinator.resyncOverflowPending;
-    }
-    set _resync_overflow_pending(value) {
-        this._fetch_coordinator.resyncOverflowPending = value;
-    }
-
     start_events() {
         this._server_connection.start();
     }
@@ -173,44 +140,12 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._mutation_stream.enqueue(mutation);
     }
 
-    _apply_next_event_mutation() {
-        this._mutation_stream.applyNext();
-    }
-
-    _schedule_event_mutation() {
-        this._mutation_stream.schedule();
-    }
-
-    _queue_pending_emit() {
-        this._mutation_stream.queuePendingEmit();
-    }
-
-    _apply_event_overflow() {
-        this._mutation_stream.applyOverflow();
-    }
-
-    _apply_event_resync(mutation = {}) {
-        this._mutation_stream.applyResync(mutation);
-    }
-
-    _start_gc_timer() {
-        this._fetch_coordinator.startGcTimer();
-    }
-
-    _queue_fetch_retry() {
-        this._fetch_coordinator.queueFetchRetry();
-    }
-
     fetch_month_events(monthYear, force, retry = false) {
         this._fetch_coordinator.fetchMonthEvents(monthYear, force, retry);
     }
 
     queue_reload_selected() {
         this._fetch_coordinator.queueReloadSelected();
-    }
-
-    _idle_do_reload_selected() {
-        return this._fetch_coordinator.idleDoReloadSelected();
     }
 
     refresh_for_timezone_change() {

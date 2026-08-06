@@ -59,19 +59,6 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         this._emitIdleId = 0;
     }
 
-    get destroyed() { return this._destroyed; }
-    set destroyed(value) { this._destroyed = Boolean(value); }
-    get mutations() { return this._eventMutations; }
-    get batchIds() { return this._eventBatchIds; }
-    set batchIds(value) { this._eventBatchIds = value; }
-    get queuedRecords() { return this._queuedEventRecords; }
-    get queuedBytes() { return this._queuedEventBytes; }
-    get resyncQueued() { return this._resyncMutationQueued; }
-    set resyncQueued(value) { this._resyncMutationQueued = Boolean(value); }
-    get pendingEmit() { return this._pendingEmit; }
-    set pendingEmit(value) { this._pendingEmit = value; }
-    get emitIdleId() { return this._emitIdleId; }
-
     hasPendingMutations() {
         return this._eventMutations.length > 0;
     }

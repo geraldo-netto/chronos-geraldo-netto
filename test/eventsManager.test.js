@@ -301,16 +301,16 @@ function registerDays(manager, data) {
 // burst of one-instance recurrence signals repaints once instead of once per
 // instance. A test that asserts what a delivery painted has to let that run.
 function settleEmits(manager) {
-    if (manager._emit_idle_id > 0) {
-        fireTimer(manager._emit_idle_id);
+    if (manager._mutation_stream._emitIdleId > 0) {
+        fireTimer(manager._mutation_stream._emitIdleId);
     }
 }
 
 function drainEventMutations(manager, limit = 1000) {
-    for (let turn = 0; turn < limit && manager._event_batch_ids.length > 0; turn++) {
-        fireTimer(manager._event_batch_ids[0]);
+    for (let turn = 0; turn < limit && manager._mutation_stream._eventBatchIds.length > 0; turn++) {
+        fireTimer(manager._mutation_stream._eventBatchIds[0]);
     }
-    assert.deepEqual(manager._event_batch_ids, [], "the mutation queue must settle");
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, [], "the mutation queue must settle");
     settleEmits(manager);
 }
 
@@ -410,8 +410,8 @@ test("server connection owns state; the manager keeps only used accessors", () =
     assert.equal(emitted(manager, "has-calendars-changed").length, 1);
 
     const inactive = makeManager(false);
-    inactive._start_gc_timer();
-    assert.equal(inactive._gc_timer_id, 0);
+    inactive._fetch_coordinator.startGcTimer();
+    assert.equal(inactive._fetch_coordinator._gcTimerId, 0);
 
     const watching = makeManager();
     watching.start_events();
@@ -700,7 +700,7 @@ test("a month fetch in flight is cancelled when the applet goes away", () => {
 test("destroy cancels watch, retry and timers and disconnects proxy signals", () => {
     const manager = readyManager();
     manager._server_connection.queueRetry();
-    manager._start_gc_timer();
+    manager._fetch_coordinator.startGcTimer();
     manager.queue_reload_selected();
     const server = proxy.instance;
     manager.destroy();
@@ -708,7 +708,8 @@ test("destroy cancels watch, retry and timers and disconnects proxy signals", ()
     assert.equal(timers.pending.size, 0);
     assert.equal(server.disconnected.length, 5);
     assert.equal(manager._server_connection._calendar_server, null);
-    assert.ok(manager._destroyed);
+    assert.ok(manager._mutation_stream._destroyed);
+    assert.ok(manager._fetch_coordinator._destroyed);
 });
 
 // The grid rebuild is not free: "events-updated" tears the 42 day cells' dots down
@@ -819,12 +820,12 @@ test("a huge event delivery is spread across turns", () => {
     assert.ok(built() < events.length, "the rest does not land in the same turn");
 
     // drain the idles the batch queued
-    for (let guard = 0; guard < 10 && manager._event_batch_ids.length > 0; guard++) {
-        fireTimer(manager._event_batch_ids[0]);
+    for (let guard = 0; guard < 10 && manager._mutation_stream._eventBatchIds.length > 0; guard++) {
+        fireTimer(manager._mutation_stream._eventBatchIds[0]);
     }
 
     assert.equal(built(), events.length, "every event arrives");
-    assert.deepEqual(manager._event_batch_ids, [], "and nothing is left armed");
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, [], "and nothing is left armed");
 });
 
 test("queued event chunks retain the delivery watermark across a newer fetch", () => {
@@ -840,17 +841,17 @@ test("queued event chunks retain the delivery watermark across a newer fetch", (
     }));
 
     proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
-    assert.equal(manager._queued_event_records, 1, "one old-fetch event waits for an idle");
+    assert.equal(manager._mutation_stream._queuedEventRecords, 1, "one old-fetch event waits for an idle");
 
     manager.fetch_month_events(month, true);
     const replacementWatermark = manager.last_update_timestamp;
     assert.ok(replacementWatermark > deliveryWatermark);
-    fireTimer(manager._event_batch_ids[0]);
+    fireTimer(manager._mutation_stream._eventBatchIds[0]);
     const indexed = manager._event_index.get(month);
     assert.equal(indexed._events["old-fetch-25"].last_update_timestamp,
         deliveryWatermark, "later chunks keep the signal's ingress watermark");
     drainEventMutations(manager);
-    fireTimer(manager._gc_timer_id);
+    fireTimer(manager._fetch_coordinator._gcTimerId);
     assert.equal(manager._event_index.get(month), null,
         "successful replacement completion culls once the stream settles");
 });
@@ -876,10 +877,10 @@ test("a successful empty range fetch clears stale events and reports the empty s
     // calendar flashing empty on every forced refresh
     assert.ok(manager._event_index.get(month),
         "the last known events survive the acknowledgement");
-    assert.ok(manager._gc_timer_id > 0, "and the quiet window is armed instead");
+    assert.ok(manager._fetch_coordinator._gcTimerId > 0, "and the quiet window is armed instead");
 
     // no events follow: the range really is empty, and the window says so
-    fireTimer(manager._gc_timer_id);
+    fireTimer(manager._fetch_coordinator._gcTimerId);
 
     assert.equal(manager._event_index.get(month), null);
     assert.equal(emitted(manager, "events-updated").length, updatesBefore + 1);
@@ -916,7 +917,7 @@ test("a delayed non-empty snapshot is not erased by its own acknowledgement", ()
         endUnix: 10 * DAY_S + 180
     })]));
     drainEventMutations(manager);
-    fireTimer(manager._gc_timer_id);
+    fireTimer(manager._fetch_coordinator._gcTimerId);
 
     const indexed = manager._event_index.get(month);
     assert.ok(indexed, "the delivered snapshot is what survives");
@@ -946,16 +947,16 @@ test("a view that never delivers keeps the last events until the window closes",
     // the view failed server-side: no signal will ever arrive for this range
     assert.ok(manager._event_index.get(month)._events["last-known"],
         "the acknowledgement alone is not evidence the month is empty");
-    assert.ok(manager._gc_timer_id > 0);
+    assert.ok(manager._fetch_coordinator._gcTimerId > 0);
 
     // a mutation still draining defers the window rather than culling mid-stream
-    manager._event_mutations.push({ type: "resync" });
-    assert.equal(fireTimer(manager._gc_timer_id), false);
+    manager._mutation_stream._eventMutations.push({ type: "resync" });
+    assert.equal(fireTimer(manager._fetch_coordinator._gcTimerId), false);
     assert.ok(manager._event_index.get(month), "an undrained queue defers the cull");
-    assert.ok(manager._gc_timer_id > 0, "and re-arms the window");
-    manager._event_mutations.length = 0;
+    assert.ok(manager._fetch_coordinator._gcTimerId > 0, "and re-arms the window");
+    manager._mutation_stream._eventMutations.length = 0;
 
-    fireTimer(manager._gc_timer_id);
+    fireTimer(manager._fetch_coordinator._gcTimerId);
     assert.equal(manager._event_index.get(month), null);
 });
 
@@ -974,7 +975,7 @@ test("a queued stale fetch completion cannot reconcile a newer generation", () =
     }));
     server.signal("events-added-or-updated", eventArrayVariant(events));
     server.complete_time_range(0, { id: "older-success" });
-    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+    assert.deepEqual(manager._mutation_stream._eventMutations.map((mutation) => mutation.type),
         ["add", "fetch-complete"]);
 
     manager.fetch_month_events(month, true);
@@ -988,7 +989,7 @@ test("a queued stale fetch completion cannot reconcile a newer generation", () =
     // signal stream settles (T699), not on the acknowledgement itself
     assert.equal(manager._event_index.get(month).length, events.length,
         "the acknowledgement alone erases nothing");
-    fireTimer(manager._gc_timer_id);
+    fireTimer(manager._fetch_coordinator._gcTimerId);
     assert.equal(manager._event_index.get(month), null,
         "the current generation still owns authoritative reconciliation");
 });
@@ -1012,8 +1013,8 @@ test("an oversized event message is rejected before any child is materialized", 
     global.log = originalLog;
     assert.equal(childReads, 0, "the byte ceiling is checked before children");
     assert.equal(manager._event_index.overflowed, true);
-    assert.equal(manager._queued_event_records, 0);
-    assert.equal(manager._queued_event_bytes, 0);
+    assert.equal(manager._mutation_stream._queuedEventRecords, 0);
+    assert.equal(manager._mutation_stream._queuedEventBytes, 0);
     assert.equal(emitted(manager, "selected-date-events-changed").at(-1).args[2],
         true, "the UI receives an explicit overflow state");
     assert.ok(logged.some((line) => /safety limit/.test(line)));
@@ -1034,20 +1035,20 @@ test("a large signal retains and indexes only the bounded prefix", () => {
     proxy.instance.signal(
         "events-added-or-updated", eventArrayVariant(events, 1024 * 1024));
 
-    const retained = manager._event_mutations
+    const retained = manager._mutation_stream._eventMutations
         .filter((mutation) => mutation.type === "add")
         .reduce((count, mutation) =>
             count + mutation.events.filter(Boolean).length, 0);
     assert.equal(retained, MAX_QUEUED_EVENT_RECORDS - 25);
-    assert.equal(manager._queued_event_records, retained);
-    assert.equal(manager._queued_event_bytes, 1024 * 1024);
+    assert.equal(manager._mutation_stream._queuedEventRecords, retained);
+    assert.equal(manager._mutation_stream._queuedEventBytes, 1024 * 1024);
 
     drainEventMutations(manager);
     const day = manager._event_index.get(new FakeDateTime(10 * DAY_US));
     assert.equal(day.length, MAX_QUEUED_EVENT_RECORDS);
     assert.equal(manager._event_index.overflowed, true);
-    assert.equal(manager._queued_event_records, 0);
-    assert.equal(manager._queued_event_bytes, 0);
+    assert.equal(manager._mutation_stream._queuedEventRecords, 0);
+    assert.equal(manager._mutation_stream._queuedEventBytes, 0);
 });
 
 test("fuzz: queued signal bursts stay within record and byte budgets", () => {
@@ -1066,14 +1067,14 @@ test("fuzz: queued signal bursts stay within record and byte budgets", () => {
         proxy.instance.signal(
             "events-added-or-updated", eventArrayVariant(events, bytes));
 
-        const retained = manager._event_mutations
+        const retained = manager._mutation_stream._eventMutations
             .filter((mutation) => mutation.type === "add")
             .reduce((total, mutation) =>
                 total + mutation.events.filter(Boolean).length, 0);
         assert.ok(retained <= MAX_QUEUED_EVENT_RECORDS);
-        assert.equal(retained, manager._queued_event_records);
-        assert.ok(manager._queued_event_bytes <= MAX_QUEUED_EVENT_BYTES);
-        assert.ok(manager._event_mutations
+        assert.equal(retained, manager._mutation_stream._queuedEventRecords);
+        assert.ok(manager._mutation_stream._queuedEventBytes <= MAX_QUEUED_EVENT_BYTES);
+        assert.ok(manager._mutation_stream._eventMutations
             .filter((mutation) => mutation.type === "overflow").length <= 1);
     }
 
@@ -1081,8 +1082,8 @@ test("fuzz: queued signal bursts stay within record and byte budgets", () => {
     const day = manager._event_index.get(new FakeDateTime(10 * DAY_US));
     assert.ok(day.length <= MAX_QUEUED_EVENT_RECORDS);
     assert.equal(manager._event_index.overflowed, true);
-    assert.equal(manager._queued_event_records, 0);
-    assert.equal(manager._queued_event_bytes, 0);
+    assert.equal(manager._mutation_stream._queuedEventRecords, 0);
+    assert.equal(manager._mutation_stream._queuedEventBytes, 0);
 });
 
 test("a mutation flood collapses to one bounded authoritative resync", () => {
@@ -1102,10 +1103,10 @@ test("a mutation flood collapses to one bounded authoritative resync", () => {
         proxy.instance.signal("events-removed", `removed-${index}`);
     }
 
-    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+    assert.deepEqual(manager._mutation_stream._eventMutations.map((mutation) => mutation.type),
         ["add", "resync"]);
-    assert.equal(manager._queued_event_records, 35);
-    assert.equal(manager._resync_mutation_queued, true);
+    assert.equal(manager._mutation_stream._queuedEventRecords, 35);
+    assert.equal(manager._mutation_stream._resyncMutationQueued, true);
 
     let inspected = false;
     proxy.instance.signal("events-added-or-updated", {
@@ -1120,15 +1121,15 @@ test("a mutation flood collapses to one bounded authoritative resync", () => {
     drainEventMutations(manager);
     assert.equal(manager._event_index.get(new FakeDateTime(10 * DAY_US)), null);
     assert.equal(manager._event_index.overflowed, true);
-    assert.ok(manager._reload_selected_id > 0);
-    assert.equal(manager._resync_overflow_pending, true);
-    assert.equal(manager._queued_event_records, 0);
-    assert.equal(manager._resync_mutation_queued, false);
+    assert.ok(manager._fetch_coordinator._reloadSelectedId > 0);
+    assert.equal(manager._fetch_coordinator._resyncOverflowPending, true);
+    assert.equal(manager._mutation_stream._queuedEventRecords, 0);
+    assert.equal(manager._mutation_stream._resyncMutationQueued, false);
 
-    fireTimer(manager._reload_selected_id);
+    fireTimer(manager._fetch_coordinator._reloadSelectedId);
     assert.equal(manager.current_selected_date.to_unix(), browsed.to_unix(),
         "the resync reloads the browsed date instead of navigating to today");
-    assert.equal(manager._resync_overflow_pending, false);
+    assert.equal(manager._fetch_coordinator._resyncOverflowPending, false);
     assert.equal(manager._event_index.overflowed, false);
     assert.equal(emitted(manager, "selected-date-events-changed").at(-1).args[2],
         false, "the replacement range starts with a clean warning state");
@@ -1170,7 +1171,7 @@ test("a malformed event-array adapter is reported and becomes overflow", () => {
     global.logError = originalLogError;
     assert.ok(errors.some((line) => /cannot be unpacked/.test(line)));
     assert.equal(manager._event_index.overflowed, true);
-    assert.equal(manager._event_mutations.length, 0);
+    assert.equal(manager._mutation_stream._eventMutations.length, 0);
 });
 
 // The chunking is there to keep the compositor responsive. Emitting per chunk
@@ -1192,8 +1193,8 @@ test("a chunked delivery repaints once, not once per chunk", () => {
     assert.equal(emitted(manager, "events-updated").length, 0,
         "nothing is repainted while the batch is still arriving");
 
-    for (let guard = 0; guard < 20 && manager._event_batch_ids.length > 0; guard++) {
-        fireTimer(manager._event_batch_ids[0]);
+    for (let guard = 0; guard < 20 && manager._mutation_stream._eventBatchIds.length > 0; guard++) {
+        fireTimer(manager._mutation_stream._eventBatchIds[0]);
     }
     settleEmits(manager);
 
@@ -1321,12 +1322,12 @@ test("a delivery cut short by teardown repaints nothing", () => {
     }));
 
     proxy.instance.signal("events-added-or-updated", { unpack: () => events });
-    const queued = manager._event_batch_ids.slice();
-    manager._destroyed = true;
+    const queued = manager._mutation_stream._eventBatchIds.slice();
+    manager._mutation_stream._destroyed = true;
     queued.forEach((id) => timers.pending.has(id) && fireTimer(id));
 
     assert.equal(emitted(manager, "events-updated").length, 0);
-    assert.equal(manager._pending_emit, null);
+    assert.equal(manager._mutation_stream._pendingEmit, null);
 });
 
 test("a chunked delivery still in flight is cancelled on teardown", () => {
@@ -1338,12 +1339,12 @@ test("a chunked delivery still in flight is cancelled on teardown", () => {
     }));
 
     proxy.instance.signal("events-added-or-updated", { unpack: () => events });
-    assert.ok(manager._event_batch_ids.length > 0, "chunks are still queued");
-    const queued = manager._event_batch_ids.slice();
+    assert.ok(manager._mutation_stream._eventBatchIds.length > 0, "chunks are still queued");
+    const queued = manager._mutation_stream._eventBatchIds.slice();
 
     manager.destroy();
 
-    assert.deepEqual(manager._event_batch_ids, []);
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, []);
     for (const id of queued) {
         assert.equal(timers.pending.has(id), false, "the queued chunk was removed");
     }
@@ -1351,19 +1352,19 @@ test("a chunked delivery still in flight is cancelled on teardown", () => {
 
 test("the mutation queue arms once and becomes terminal on teardown", () => {
     const manager = readyManager();
-    manager._apply_next_event_mutation();
-    assert.deepEqual(manager._event_batch_ids, [], "an empty queue arms nothing");
+    manager._mutation_stream.applyNext();
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, [], "an empty queue arms nothing");
 
-    manager._event_batch_ids.push(999);
-    manager._schedule_event_mutation();
-    assert.deepEqual(manager._event_batch_ids, [999], "an armed queue gets no duplicate idle");
-    manager._event_batch_ids = [];
+    manager._mutation_stream._eventBatchIds.push(999);
+    manager._mutation_stream.schedule();
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, [999], "an armed queue gets no duplicate idle");
+    manager._mutation_stream._eventBatchIds = [];
 
     manager.destroy();
     manager._enqueue_event_mutation({ type: "client-disappeared" });
-    manager._schedule_event_mutation();
-    assert.deepEqual(manager._event_mutations, []);
-    assert.deepEqual(manager._event_batch_ids, []);
+    manager._mutation_stream.schedule();
+    assert.deepEqual(manager._mutation_stream._eventMutations, []);
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, []);
 });
 
 test("a synchronous mutation failure recovers through one resync", () => {
@@ -1378,17 +1379,17 @@ test("a synchronous mutation failure recovers through one resync", () => {
             id: "failed", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
         })]
     }), /index failed/);
-    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+    assert.deepEqual(manager._mutation_stream._eventMutations.map((mutation) => mutation.type),
         ["resync"]);
-    assert.equal(manager._queued_event_records, 0);
-    assert.equal(manager._queued_event_bytes, 0);
-    assert.equal(manager._event_batch_ids.length, 1,
+    assert.equal(manager._mutation_stream._queuedEventRecords, 0);
+    assert.equal(manager._mutation_stream._queuedEventBytes, 0);
+    assert.equal(manager._mutation_stream._eventBatchIds.length, 1,
         "recovery is runnable before the error surfaces");
 
     manager._event_index.addOrUpdate = addOrUpdate;
-    fireTimer(manager._event_batch_ids[0]);
-    assert.deepEqual(manager._event_mutations, []);
-    assert.ok(manager._reload_selected_id > 0);
+    fireTimer(manager._mutation_stream._eventBatchIds[0]);
+    assert.deepEqual(manager._mutation_stream._eventMutations, []);
+    assert.ok(manager._fetch_coordinator._reloadSelectedId > 0);
 });
 
 test("an idle mutation failure drops its uncertain tail and keeps draining", () => {
@@ -1405,16 +1406,16 @@ test("an idle mutation failure drops its uncertain tail and keeps draining", () 
         throw new Error("idle index failed");
     };
 
-    assert.throws(() => fireTimer(manager._event_batch_ids[0]), /idle index failed/);
-    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+    assert.throws(() => fireTimer(manager._mutation_stream._eventBatchIds[0]), /idle index failed/);
+    assert.deepEqual(manager._mutation_stream._eventMutations.map((mutation) => mutation.type),
         ["resync"], "the failed head and now-uncertain tail are released");
-    assert.equal(manager._queued_event_records, 0);
-    assert.equal(manager._event_batch_ids.length, 1);
+    assert.equal(manager._mutation_stream._queuedEventRecords, 0);
+    assert.equal(manager._mutation_stream._eventBatchIds.length, 1);
 
     manager._event_index.addOrUpdate = addOrUpdate;
-    fireTimer(manager._event_batch_ids[0]);
-    assert.deepEqual(manager._event_mutations, []);
-    assert.ok(manager._reload_selected_id > 0);
+    fireTimer(manager._mutation_stream._eventBatchIds[0]);
+    assert.deepEqual(manager._mutation_stream._eventMutations, []);
+    assert.ok(manager._fetch_coordinator._reloadSelectedId > 0);
 });
 
 test("a failed mutation idle registration resyncs without a phantom source", () => {
@@ -1443,11 +1444,11 @@ test("a failed mutation idle registration resyncs without a phantom source", () 
             global.logError = originalLogError;
         }
 
-        assert.deepEqual(manager._event_mutations, [],
+        assert.deepEqual(manager._mutation_stream._eventMutations, [],
             "the uncertain partial delivery is replaced synchronously");
-        assert.deepEqual(manager._event_batch_ids, [],
+        assert.deepEqual(manager._mutation_stream._eventBatchIds, [],
             "no invalid source id can suppress later scheduling");
-        assert.equal(manager._reload_selected_id, 0,
+        assert.equal(manager._fetch_coordinator._reloadSelectedId, 0,
             "the replacement reload also falls back synchronously");
         assert.deepEqual(manager._event_index.eventsByDate, {});
         assert.equal(logged.length, 2,
@@ -1482,9 +1483,9 @@ test("the synchronous reload fallback contains a throwing consumer", () => {
         global.logError = originalLogError;
     }
 
-    assert.deepEqual(manager._event_mutations, []);
-    assert.deepEqual(manager._event_batch_ids, []);
-    assert.equal(manager._resync_mutation_queued, false);
+    assert.deepEqual(manager._mutation_stream._eventMutations, []);
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, []);
+    assert.equal(manager._mutation_stream._resyncMutationQueued, false);
     assert.ok(logged.some((line) => /selected-date listener failed/.test(line)),
         "the contained consumer failure stays visible");
 });
@@ -1494,14 +1495,14 @@ test("a resync notification failure cannot create a retry loop", () => {
     manager.connect("events-updated", () => {
         throw new Error("grid listener failed");
     });
-    manager._event_mutations.push({ type: "resync" });
-    manager._resync_mutation_queued = true;
+    manager._mutation_stream._eventMutations.push({ type: "resync" });
+    manager._mutation_stream._resyncMutationQueued = true;
 
-    assert.throws(() => manager._apply_next_event_mutation(), /grid listener failed/);
-    assert.deepEqual(manager._event_mutations, [],
+    assert.throws(() => manager._mutation_stream.applyNext(), /grid listener failed/);
+    assert.deepEqual(manager._mutation_stream._eventMutations, [],
         "the secured resync is not repeated just to notify again");
-    assert.deepEqual(manager._event_batch_ids, []);
-    assert.ok(manager._reload_selected_id > 0,
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, []);
+    assert.ok(manager._fetch_coordinator._reloadSelectedId > 0,
         "the authoritative reload was queued before notification");
 });
 
@@ -1573,7 +1574,7 @@ test("an oversized removal payload resyncs without retaining the bytes", () => {
     assert.deepEqual(manager._event_index.eventsByDate, {}, "the window is cleared");
     assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true,
         "and repopulated from the authoritative server");
-    assert.ok(!JSON.stringify(manager._event_mutations).includes("yyyyyyyy"),
+    assert.ok(!JSON.stringify(manager._mutation_stream._eventMutations).includes("yyyyyyyy"),
         "the payload is not parked in the mutation queue");
 });
 
@@ -1598,7 +1599,7 @@ test("ambiguous removed-event IDs clear and force-refetch the window", () => {
         "a lossy delimiter payload cannot leave the intended event behind");
     assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true,
         "the currently browsed window is repopulated from the calendar server");
-    assert.equal(manager._reload_selected_id, 0,
+    assert.equal(manager._fetch_coordinator._reloadSelectedId, 0,
         "the direct current-window fetch needs no second queued reload");
     assert.equal(manager.current_selected_date.to_unix(), browsed.to_unix(),
         "the removal does not own navigation");
@@ -1610,7 +1611,7 @@ test("ambiguous removals defer reload until a selected window exists", () => {
 
     proxy.instance.signal("events-removed", "calendar-source:meeting::2026");
 
-    assert.ok(manager._reload_selected_id > 0,
+    assert.ok(manager._fetch_coordinator._reloadSelectedId > 0,
         "startup races retain one bounded reload instead of inventing a month");
 });
 
@@ -1624,12 +1625,12 @@ test("client disappearance rebuilds the event map via a forced reload", () => {
     const agendaUpdates = emitted(manager, "selected-date-events-changed").length;
     proxy.instance.signal("client-disappeared", "uid");
     assert.deepEqual(manager._event_index.eventsByDate, {});
-    assert.ok(manager._reload_selected_id > 0);
+    assert.ok(manager._fetch_coordinator._reloadSelectedId > 0);
     assert.equal(emitted(manager, "events-updated").length, gridUpdates + 1,
         "the grid clears dots even when the replacement fetch is empty");
     assert.equal(emitted(manager, "selected-date-events-changed").length,
         agendaUpdates + 1, "the open agenda sees the same invalidation");
-    fireTimer(manager._reload_selected_id);
+    fireTimer(manager._fetch_coordinator._reloadSelectedId);
     assert.equal(manager.current_selected_date.to_unix(), browsed.to_unix(),
         "client disappearance refetches without changing the browsed date");
 });
@@ -1649,7 +1650,7 @@ test("status notifications reload only on real, known transitions", () => {
     proxy.instance.status = 1;
     proxy.instance.signal("notify::status", null);
     assert.equal(emitted(manager, "has-calendars-changed").length, 1);
-    assert.equal(manager._reload_selected_id, 0,
+    assert.equal(manager._fetch_coordinator._reloadSelectedId, 0,
         "status leaves the reload target to the calendar-aware composition root");
 });
 
@@ -1709,8 +1710,8 @@ test("gc timer culls stale events and reports", () => {
     manager.last_update_timestamp = 10 ** 9;
     // the ingest above emits too; this round's emits are the ones being asserted
     const before = emitted(manager, "events-updated").length;
-    manager._start_gc_timer();
-    fireTimer(manager._gc_timer_id);
+    manager._fetch_coordinator.startGcTimer();
+    fireTimer(manager._fetch_coordinator._gcTimerId);
     // the emptied day is dropped, so the day reads as "no events" instead of
     // rendering an empty list
     assert.equal(manager._event_index.eventsByDate[10 * DAY_S], undefined);
@@ -1733,8 +1734,8 @@ test("a gc round that culls nothing tells nobody", () => {
     });
     manager.last_update_timestamp = 0;
     const before = emitted(manager, "events-updated").length;
-    manager._start_gc_timer();
-    fireTimer(manager._gc_timer_id);
+    manager._fetch_coordinator.startGcTimer();
+    fireTimer(manager._fetch_coordinator._gcTimerId);
 
     assert.equal(emitted(manager, "events-updated").length, before,
         "nothing was culled, so nothing was said");
@@ -1756,17 +1757,17 @@ test("gc defers until a chunked event mutation stream has drained", () => {
     }));
 
     proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
-    const firstGc = manager._gc_timer_id;
-    assert.ok(manager._event_mutations.length > 0);
+    const firstGc = manager._fetch_coordinator._gcTimerId;
+    assert.ok(manager._mutation_stream._eventMutations.length > 0);
     fireTimer(firstGc);
 
-    assert.ok(manager._gc_timer_id > 0);
-    assert.notEqual(manager._gc_timer_id, firstGc);
+    assert.ok(manager._fetch_coordinator._gcTimerId > 0);
+    assert.notEqual(manager._fetch_coordinator._gcTimerId, firstGc);
     assert.ok(manager._event_index.get(day).has("stale-before-delivery"),
         "the incomplete stream is not reconciled early");
 
     drainEventMutations(manager);
-    fireTimer(manager._gc_timer_id);
+    fireTimer(manager._fetch_coordinator._gcTimerId);
     assert.ok(!manager._event_index.get(day).has("stale-before-delivery"));
 });
 
@@ -1784,19 +1785,19 @@ test("a failed month fetch is retried with backoff", () => {
     manager.select_date(new Date(50 * DAY_S * 1000), true);
     const initialCalls = server.set_time_range_calls.length;
     assert.ok(initialCalls > 0);
-    assert.ok(manager._fetch_retry_id > 0, "a failed fetch schedules a retry");
+    assert.ok(manager._fetch_coordinator._fetchRetryId > 0, "a failed fetch schedules a retry");
     assert.deepEqual(
         emitted(manager, "refresh-error-changed").map((signal) => signal.args[0]),
         [true], "the footer is told as soon as the refresh fails");
 
-    fireTimer(manager._fetch_retry_id);
+    fireTimer(manager._fetch_coordinator._fetchRetryId);
     assert.equal(server.set_time_range_calls.length, initialCalls + 1, "the month is refetched");
     assert.equal(server.set_time_range_calls.at(-1).force, true);
 
     // the second retry succeeds and the attempt counter resets
-    fireTimer(manager._fetch_retry_id);
-    assert.equal(manager._fetch_retry_attempts, 0);
-    assert.equal(manager._fetch_retry_id, 0);
+    fireTimer(manager._fetch_coordinator._fetchRetryId);
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 0);
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0);
     assert.deepEqual(
         emitted(manager, "refresh-error-changed").map((signal) => signal.args[0]),
         [true, false], "a successful retry clears the footer issue");
@@ -1810,19 +1811,19 @@ test("a synchronous month dispatch failure enters the retry state", () => {
         this.set_time_range_calls.push({ start, end, force, cancellable, cb });
         throw new Error("range dispatch failed");
     };
-    manager._resync_overflow_pending = true;
+    manager._fetch_coordinator._resyncOverflowPending = true;
 
     assert.doesNotThrow(() =>
         manager.select_date(new Date(50 * DAY_S * 1000), true));
-    assert.equal(manager._refresh_failed, true);
-    assert.ok(manager._fetch_retry_id > 0);
-    assert.equal(manager._resync_overflow_pending, true,
+    assert.equal(manager._fetch_coordinator._refreshFailed, true);
+    assert.ok(manager._fetch_coordinator._fetchRetryId > 0);
+    assert.equal(manager._fetch_coordinator._resyncOverflowPending, true,
         "a replacement that never dispatched cannot retire the overflow warning");
 
     server.call_set_time_range = normalDispatch;
-    fireTimer(manager._fetch_retry_id);
-    assert.equal(manager._refresh_failed, false);
-    assert.equal(manager._fetch_retry_attempts, 0);
+    fireTimer(manager._fetch_coordinator._fetchRetryId);
+    assert.equal(manager._fetch_coordinator._refreshFailed, false);
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 0);
     assert.equal(server.set_time_range_calls.length, 2);
 });
 
@@ -1837,8 +1838,8 @@ test("an exception after the range callback is not a dispatch failure", () => {
 
     assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
         /after callback/);
-    assert.equal(manager._refresh_failed, false);
-    assert.equal(manager._fetch_retry_id, 0,
+    assert.equal(manager._fetch_coordinator._refreshFailed, false);
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0,
         "a result that already succeeded must not be retried as a dispatch failure");
 });
 
@@ -1848,20 +1849,20 @@ test("a failing refresh-error listener cannot suppress fetch retry", () => {
         throw new Error("range failed");
     };
     manager.connect("refresh-error-changed", () => {
-        assert.equal(manager._refresh_failed, true);
-        assert.ok(manager._fetch_retry_id > 0, "retry exists before notification");
+        assert.equal(manager._fetch_coordinator._refreshFailed, true);
+        assert.ok(manager._fetch_coordinator._fetchRetryId > 0, "retry exists before notification");
         throw new Error("refresh listener failed");
     });
 
     assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
         /refresh listener failed/);
-    assert.equal(manager._refresh_failed, true);
-    assert.ok(manager._fetch_retry_id > 0);
+    assert.equal(manager._fetch_coordinator._refreshFailed, true);
+    assert.ok(manager._fetch_coordinator._fetchRetryId > 0);
 });
 
 test("a failing refresh-error listener cannot suppress fetch reconciliation", () => {
     const manager = readyManager();
-    manager._refresh_failed = true;
+    manager._fetch_coordinator._refreshFailed = true;
     const queued = [];
     const enqueue = manager._enqueue_event_mutation.bind(manager);
     manager._enqueue_event_mutation = (mutation) => {
@@ -1869,7 +1870,7 @@ test("a failing refresh-error listener cannot suppress fetch reconciliation", ()
         enqueue(mutation);
     };
     manager.connect("refresh-error-changed", () => {
-        assert.equal(manager._refresh_failed, false);
+        assert.equal(manager._fetch_coordinator._refreshFailed, false);
         assert.equal(queued.at(-1).type, "fetch-complete",
             "reconciliation exists before notification");
         throw new Error("refresh listener failed");
@@ -1877,9 +1878,9 @@ test("a failing refresh-error listener cannot suppress fetch reconciliation", ()
 
     assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
         /refresh listener failed/);
-    assert.equal(manager._refresh_failed, false);
+    assert.equal(manager._fetch_coordinator._refreshFailed, false);
     assert.equal(queued.at(-1).type, "fetch-complete");
-    assert.equal(manager._fetch_retry_id, 0);
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0);
 });
 
 test("only the latest month completion owns refresh and retry state", () => {
@@ -1890,28 +1891,28 @@ test("only the latest month completion owns refresh and retry state", () => {
     manager.fetch_month_events(new FakeDateTime(40 * DAY_US), true);
     manager.fetch_month_events(new FakeDateTime(80 * DAY_US), true);
     server.complete_time_range(1, { id: "new-failure", error: new Error("new failed") });
-    const retryId = manager._fetch_retry_id;
-    assert.equal(manager._refresh_failed, true);
+    const retryId = manager._fetch_coordinator._fetchRetryId;
+    assert.equal(manager._fetch_coordinator._refreshFailed, true);
     assert.ok(retryId > 0);
-    assert.equal(manager._fetch_retry_attempts, 1);
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 1);
 
     server.complete_time_range(0, { id: "old-success" });
-    assert.equal(manager._refresh_failed, true,
+    assert.equal(manager._fetch_coordinator._refreshFailed, true,
         "an older success cannot hide the current failure");
-    assert.equal(manager._fetch_retry_id, retryId,
+    assert.equal(manager._fetch_coordinator._fetchRetryId, retryId,
         "an older success cannot cancel the current retry");
-    assert.equal(manager._fetch_retry_attempts, 1);
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 1);
 
     manager.fetch_month_events(new FakeDateTime(120 * DAY_US), true);
-    assert.equal(manager._fetch_retry_id, 0,
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0,
         "a fresh request replaces the previous month's retry");
     manager.fetch_month_events(new FakeDateTime(160 * DAY_US), true);
     server.complete_time_range(3, { id: "new-success" });
     server.complete_time_range(2, { id: "old-failure", error: new Error("old failed") });
-    assert.equal(manager._refresh_failed, false,
+    assert.equal(manager._fetch_coordinator._refreshFailed, false,
         "an older failure cannot replace the current success");
-    assert.equal(manager._fetch_retry_id, 0);
-    assert.equal(manager._fetch_retry_attempts, 0);
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0);
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 0);
     assert.deepEqual(
         server.finished_time_ranges.map((result) => result.id),
         ["new-failure", "old-success", "new-success", "old-failure"],
@@ -1945,9 +1946,9 @@ function completeFuzzRanges(manager, server, failures, order, round) {
         if (completed === failures.length - 1) {
             expectedFailure = failures[completed];
         }
-        assert.equal(manager._refresh_failed, expectedFailure);
-        assert.equal(manager._fetch_retry_id > 0, expectedFailure);
-        assert.equal(manager._fetch_retry_attempts, expectedFailure ? 1 : 0);
+        assert.equal(manager._fetch_coordinator._refreshFailed, expectedFailure);
+        assert.equal(manager._fetch_coordinator._fetchRetryId > 0, expectedFailure);
+        assert.equal(manager._fetch_coordinator._fetchRetryAttempts, expectedFailure ? 1 : 0);
     }
 }
 
@@ -1977,16 +1978,16 @@ test("fuzz: range completion permutations follow the latest request", () => {
 test("destroy cancels one queued fetch retry and duplicate queues are ignored", () => {
     const manager = readyManager();
 
-    manager._queue_fetch_retry();
-    const retryId = manager._fetch_retry_id;
+    manager._fetch_coordinator.queueFetchRetry();
+    const retryId = manager._fetch_coordinator._fetchRetryId;
     assert.ok(timers.pending.has(retryId));
 
-    manager._queue_fetch_retry();
-    assert.equal(manager._fetch_retry_id, retryId,
+    manager._fetch_coordinator.queueFetchRetry();
+    assert.equal(manager._fetch_coordinator._fetchRetryId, retryId,
         "one failure chain owns one retry timer");
 
     manager.destroy();
-    assert.equal(manager._fetch_retry_id, 0);
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0);
     assert.equal(timers.pending.has(retryId), false,
         "destroy removes the queued callback from the main loop");
 });
@@ -1996,14 +1997,14 @@ test("a dispatched fetch retry becomes a no-op after teardown", () => {
     manager.select_date(new Date(50 * DAY_S * 1000), true);
     const callsBefore = proxy.instance.set_time_range_calls.length;
 
-    manager._queue_fetch_retry();
-    const retryId = manager._fetch_retry_id;
+    manager._fetch_coordinator.queueFetchRetry();
+    const retryId = manager._fetch_coordinator._fetchRetryId;
     // Model the narrow race where GLib has dispatched the callback just before
     // destroy can remove its source.
-    manager._destroyed = true;
+    manager._fetch_coordinator._destroyed = true;
 
     assert.equal(fireTimer(retryId), false);
-    assert.equal(manager._fetch_retry_id, 0);
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0);
     assert.equal(proxy.instance.set_time_range_calls.length, callsBefore,
         "a late callback cannot touch the calendar server");
 });
@@ -2024,21 +2025,21 @@ test("a retry that fires after the calendar server died stands down with a full 
     };
 
     manager.select_date(new Date(50 * DAY_S * 1000), true);
-    assert.ok(manager._fetch_retry_id > 0, "a failed fetch schedules a retry");
-    assert.equal(manager._fetch_retry_attempts, 1);
+    assert.ok(manager._fetch_coordinator._fetchRetryId > 0, "a failed fetch schedules a retry");
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 1);
 
     // EDS disappears entirely while the retry is queued
     manager._server_connection._calendar_server = null;
     const callsBefore = server.set_time_range_calls.length;
 
-    assert.doesNotThrow(() => fireTimer(manager._fetch_retry_id));
+    assert.doesNotThrow(() => fireTimer(manager._fetch_coordinator._fetchRetryId));
 
     assert.equal(server.set_time_range_calls.length, callsBefore, "nothing is called on a dead proxy");
-    assert.equal(manager._fetch_retry_attempts, 0,
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 0,
         "an attempt that made no request costs nothing");
     // there is nothing to poll for: the name reappearing, a status change and
     // the user re-enabling events all end in a forced fetch of their own
-    assert.equal(manager._fetch_retry_id, 0, "and no pointless polling is left armed");
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0, "and no pointless polling is left armed");
 });
 
 test("a fetch that keeps failing gives up out loud", () => {
@@ -2053,13 +2054,13 @@ test("a fetch that keeps failing gives up out loud", () => {
 
     manager.select_date(new Date(50 * DAY_S * 1000), true);
     // each retry fires, fails, and queues the next one until the budget is out
-    for (let attempt = 0; attempt < 10 && manager._fetch_retry_id > 0; attempt++) {
-        fireTimer(manager._fetch_retry_id);
+    for (let attempt = 0; attempt < 10 && manager._fetch_coordinator._fetchRetryId > 0; attempt++) {
+        fireTimer(manager._fetch_coordinator._fetchRetryId);
     }
     global.log = originalLog;
 
-    assert.equal(manager._fetch_retry_id, 0, "the chain ends");
-    assert.equal(manager._fetch_retry_attempts, 5,
+    assert.equal(manager._fetch_coordinator._fetchRetryId, 0, "the chain ends");
+    assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 5,
         "the fifth retry exhausts the budget; a sixth is never armed");
     assert.equal(proxy.instance.set_time_range_calls.length, 6,
         "one initial fetch plus exactly five retries reach EDS");
@@ -2115,9 +2116,9 @@ test("a burst of one-instance deliveries repaints once", () => {
                 endUnix: (10 + 7 * week) * DAY_S + 5400
             })]
         });
-        assert.deepEqual(manager._event_mutations, [],
+        assert.deepEqual(manager._mutation_stream._eventMutations, [],
             "each signal drains inside its own handler, so nothing queues up");
-        armed.add(manager._emit_idle_id);
+        armed.add(manager._mutation_stream._emitIdleId);
     }
 
     assert.equal(emitted(manager, "events-updated").length, 0,
@@ -2141,12 +2142,12 @@ test("a chunked delivery arms no announcement until its last chunk", () => {
     }));
 
     proxy.instance.signal("events-added-or-updated", { unpack: () => events });
-    assert.equal(manager._emit_idle_id, 0, "the first chunk is not the whole delivery");
+    assert.equal(manager._mutation_stream._emitIdleId, 0, "the first chunk is not the whole delivery");
 
     // GLib would run this idle before the batch's own — it was added first — so
     // an announcement armed here paints a partial day and clears the
     // accumulator the remaining chunks are still filling
-    fireTimer(manager._event_batch_ids[0]);
+    fireTimer(manager._mutation_stream._eventBatchIds[0]);
     settleEmits(manager);
     assert.equal(emitted(manager, "events-updated").length, 0,
         "a mid-batch chunk announces nothing");
@@ -2166,7 +2167,7 @@ test("a removal settles the deliveries queued behind it first", () => {
         })]
     });
     // no settle: the delivery is still on the idle when the removal lands
-    assert.ok(manager._emit_idle_id > 0, "the delivery is waiting to announce itself");
+    assert.ok(manager._mutation_stream._emitIdleId > 0, "the delivery is waiting to announce itself");
 
     const order = [];
     manager.connect("selected-date-events-changed", (em, list) =>
@@ -2176,7 +2177,7 @@ test("a removal settles the deliveries queued behind it first", () => {
 
     assert.deepEqual(order, [1, 0],
         "the addition is announced before the removal that superseded it");
-    assert.equal(manager._emit_idle_id, 0, "and its idle is spent, not left armed");
+    assert.equal(manager._mutation_stream._emitIdleId, 0, "and its idle is spent, not left armed");
 });
 
 // A reselect emits the selected day itself, so a delivery still on the idle
@@ -2192,7 +2193,7 @@ test("a reselect settles a delivery still waiting on its idle", () => {
             id: "standup", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
         })]
     });
-    assert.ok(manager._emit_idle_id > 0);
+    assert.ok(manager._mutation_stream._emitIdleId > 0);
 
     const order = [];
     manager.connect("selected-date-events-changed", () => order.push("column"));
@@ -2200,7 +2201,7 @@ test("a reselect settles a delivery still waiting on its idle", () => {
 
     manager.select_date(new Date(Date.UTC(1970, 0, 12)), true);
 
-    assert.equal(manager._emit_idle_id, 0, "the delivery has had its say");
+    assert.equal(manager._mutation_stream._emitIdleId, 0, "the delivery has had its say");
     assert.equal(order[0], "column",
         "and had it before the reselect announced a different day");
 });
@@ -2214,20 +2215,20 @@ test("a destroyed manager never fires its pending announcement", () => {
             id: "standup", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
         })]
     });
-    const idle = manager._emit_idle_id;
+    const idle = manager._mutation_stream._emitIdleId;
     assert.ok(idle > 0);
 
     manager.destroy();
 
-    assert.equal(manager._emit_idle_id, 0);
+    assert.equal(manager._mutation_stream._emitIdleId, 0);
     assert.equal(timers.pending.has(idle), false, "the idle is removed, not just forgotten");
 
     // Destroyed is terminal, the way it is for the clock handler: no path
-    // reaches this today — _apply_next_event_mutation refuses first — but the
+    // reaches this today — applyNext refuses first — but the
     // whole point of the teardown is that nothing announces itself afterwards.
-    manager._pending_emit = { events_changed: true };
-    manager._queue_pending_emit();
-    assert.equal(manager._emit_idle_id, 0, "a destroyed manager arms nothing");
+    manager._mutation_stream._pendingEmit = { events_changed: true };
+    manager._mutation_stream.queuePendingEmit();
+    assert.equal(manager._mutation_stream._emitIdleId, 0, "a destroyed manager arms nothing");
 });
 
 test("a removal the index never held repaints nothing", () => {
@@ -2291,8 +2292,8 @@ test("culling the selected day's last event reports no events, not an empty list
     // the event is deleted in the calendar app: the next fetch omits it, and
     // the gc culls it
     manager.last_update_timestamp = 10 ** 9;
-    manager._start_gc_timer();
-    fireTimer(manager._gc_timer_id);
+    manager._fetch_coordinator.startGcTimer();
+    fireTimer(manager._fetch_coordinator._gcTimerId);
 
     assert.deepEqual(emitted, [null], "the event list must fall back to the No Events placeholder");
 });
@@ -2555,10 +2556,10 @@ test("an OS timezone change discards the indexed buckets and refetches", () => {
 
     assert.deepEqual(manager._event_index.eventsByDate, {},
         "old-zone buckets can never match a new-zone lookup");
-    assert.ok(manager._reload_selected_id > 0, "and the window is asked for again");
+    assert.ok(manager._fetch_coordinator._reloadSelectedId > 0, "and the window is asked for again");
 
     const before = proxy.instance.set_time_range_calls.length;
-    fireTimer(manager._reload_selected_id);
+    fireTimer(manager._fetch_coordinator._reloadSelectedId);
     assert.equal(proxy.instance.set_time_range_calls.length, before + 1);
 });
 
@@ -2633,7 +2634,7 @@ test("re-stating the window of the month on screen keeps what is indexed", () =>
     assert.equal(index.hasEvent("kept"), true);
 });
 
-// T802: _apply_event_resync marks the index overflowed as a temporary warning
+// T802: applyResync marks the index overflowed as a temporary warning
 // that stands until the authoritative replacement request is dispatched, and a
 // dispatched range call is its only retirement point. reloadSelected declines
 // when the service is gone or no day has been selected, so no range call ran and
@@ -2645,22 +2646,22 @@ test("a resync whose reload declines does not leave the overflow warning behind"
     manager.select_date(new Date(10 * DAY_S * 1000), true);
 
     // the calendar server goes away between the resync and the idle
-    manager._apply_event_resync();
+    manager._mutation_stream.applyResync();
     assert.equal(manager._event_index.overflowed, true, "the temporary warning is up");
-    assert.equal(manager._resync_overflow_pending, true);
+    assert.equal(manager._fetch_coordinator._resyncOverflowPending, true);
 
     const dispatches = proxy.instance.set_time_range_calls.length;
     manager._window_coordinator.current_selected_signature = null;
-    fireTimer(manager._reload_selected_id);
+    fireTimer(manager._fetch_coordinator._reloadSelectedId);
 
     assert.equal(proxy.instance.set_time_range_calls.length, dispatches,
         "the reload declined, so no replacement was ever requested");
-    assert.equal(manager._resync_overflow_pending, false);
+    assert.equal(manager._fetch_coordinator._resyncOverflowPending, false);
     assert.equal(manager._event_index.overflowed, false,
         "and the warning goes with the request that was never made");
 
     // a genuine overflow after that is its own warning, and survives
-    manager._apply_event_overflow();
+    manager._mutation_stream.applyOverflow();
     assert.equal(manager._event_index.overflowed, true);
     manager.select_date(new Date(40 * DAY_S * 1000), true);
     assert.equal(manager._event_index.overflowed, true,
@@ -2694,7 +2695,7 @@ test("an OS timezone change re-keys the selection along with the buckets", () =>
             SELECTED_DAY * DAY_S + SHIFT_S,
             "the selected day is the same day, resolved in the zone now current");
 
-        fireTimer(manager._reload_selected_id);
+        fireTimer(manager._fetch_coordinator._reloadSelectedId);
         // the server re-delivers the day's events, which the index now files
         // under the new-zone key
         proxy.instance.signal("events-added-or-updated", eventArrayVariant([eventVariant({
@@ -3094,10 +3095,10 @@ test("idle background reload refetches the selected date without navigating", ()
     const selected = new FakeDateTime(20 * DAY_US);
     manager._window_coordinator.current_selected_date = selected;
     manager._window_coordinator.current_selected_signature = "2000-1-20";
-    manager._reload_selected_id = 9;
+    manager._fetch_coordinator._reloadSelectedId = 9;
 
-    assert.equal(manager._idle_do_reload_selected(), false);
-    assert.equal(manager._reload_selected_id, 0);
+    assert.equal(manager._fetch_coordinator.idleDoReloadSelected(), false);
+    assert.equal(manager._fetch_coordinator._reloadSelectedId, 0);
     assert.equal(manager.current_selected_date, selected);
     assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true);
     assert.equal(emitted(manager, "selected-date-changed").at(-1).args[0], selected);

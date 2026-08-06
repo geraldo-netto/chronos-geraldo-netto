@@ -54,18 +54,6 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
 
     get lastUpdateTimestamp() { return this._lastUpdateTimestamp; }
     set lastUpdateTimestamp(value) { this._lastUpdateTimestamp = value; }
-    set destroyed(value) { this._destroyed = Boolean(value); }
-    get gcTimerId() { return this._gcTimerId; }
-    get reloadSelectedId() { return this._reloadSelectedId; }
-    set reloadSelectedId(value) { this._reloadSelectedId = value; }
-    get fetchRetryId() { return this._fetchRetryId; }
-    get fetchRetryAttempts() { return this._fetchRetryAttempts; }
-    get refreshFailed() { return this._refreshFailed; }
-    set refreshFailed(value) { this._refreshFailed = Boolean(value); }
-    get resyncOverflowPending() { return this._resyncOverflowPending; }
-    set resyncOverflowPending(value) {
-        this._resyncOverflowPending = Boolean(value);
-    }
 
     stopGcTimer() {
         if (this._gcTimerId > 0) {

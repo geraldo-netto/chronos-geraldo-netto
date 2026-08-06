@@ -452,6 +452,9 @@ test("event orchestration depends on extracted boundary collaborators", () => {
     assert.doesNotMatch(manager,
         /this\._event_mutations\s*=|this\._fetch_retry_id\s*=|this\._gc_timer_id\s*=/,
     "the facade does not own either collaborator's mutable state");
+    assert.doesNotMatch(manager,
+        /get _event_mutations|get _fetch_retry_id|_apply_next_event_mutation\(|_start_gc_timer\(/,
+    "the facade does not mirror collaborator state or operations for tests");
     assert.match(mutationStream, /class EventMutationStream/);
     assert.match(mutationStream, /MAX_QUEUED_EVENT_MUTATIONS/);
     assert.doesNotMatch(mutationStream, /setTimeRange|fetchMonthEvents/);
