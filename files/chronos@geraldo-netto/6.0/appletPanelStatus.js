@@ -24,6 +24,7 @@ const SettingsFacade = require("./settingsFacade");
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
+const fillTemplate = TextUtils.fillTemplate;
 
 const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 // Eight world clocks plus a weather reading reached the old 80-character cap
@@ -559,8 +560,9 @@ class AppletPanelStatusPresenter {
         if (!rowError && view.cityWeatherStale(city)) {
             // one msgid: the marker is a glyph the phrase is built around, and a
             // translator has to be able to put it where it belongs
-            rowError = _("%s Last known reading").replace("%s", Weather.WEATHER_ERROR_MARKER);
-            const stale = _("%s Last known reading").replace("%s", "").trim();
+            rowError = fillTemplate(_("%s Last known reading"),
+                [Weather.WEATHER_ERROR_MARKER]);
+            const stale = fillTemplate(_("%s Last known reading"), [""]).trim();
             issue = joinPhrases(entry.label, stale);
         }
 

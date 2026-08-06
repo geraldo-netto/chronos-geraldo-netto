@@ -210,9 +210,36 @@ function clampToWidth(text, maxCells) {
     return prefix.join("").replace(/\s+$/, "") + TEXT_ELLIPSIS; // NOSONAR [S8786] -- prefix width is bounded
 }
 
+// The parts are an event summary from whatever ICS or CalDAV feed the user
+// subscribed to, a holiday name from a third-party service, and a provider's own
+// error string. They were passed as the *replacement* argument of
+// String.prototype.replace, where `$&`, `` $` ``, `$'` and `$1` are expanded as
+// replacement patterns — so a summary containing $& was announced with the
+// matched text spliced into it.
+//
+// Worse, and much easier to hit: the substitutions were chained, so the second
+// .replace("%s", right) scanned the string the first one had already built. An
+// event called "50%sale" made the screen reader announce
+// "10:00 — 50In progressale — %s".
+//
+// A function replacement expands nothing, and the template is scanned once: a %s
+// inside a substituted value is text, not a placeholder.
+//
+// It was private, so eight production sites went on writing the unsafe form it
+// was written to eliminate - latent only because of what the values they
+// substitute happen to contain today, which is the argument this comment
+// rejects. It is the shared rule now, and a static test refuses the raw form.
+function fillTemplate(template, values) {
+    let index = 0;
+
+    return template.replace(/%s/g, () => // NOSONAR [S7781] -- accepted compatible form
+        index < values.length ? values[index++] : "%s");
+}
+
 if (typeof module !== "undefined") {
     module.exports = {
         clampText,
+        fillTemplate,
         clampToWidth,
         displayWidth,
         sanitizeControlCharacters,

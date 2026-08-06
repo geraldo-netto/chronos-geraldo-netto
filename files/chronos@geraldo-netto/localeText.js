@@ -13,6 +13,9 @@
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const GLib = GjsImports.gi.GLib;
 const Gettext = GjsImports.gettext;
+const TextUtils = typeof require === "function" && typeof process !== "undefined" ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const UUID = "chronos@geraldo-netto";
 
 // The applet can be installed per-user or system-wide, and its catalogs follow
@@ -83,28 +86,7 @@ function joinPhrases(...parts) {
         return "";
     }
 
-    return kept.reduce((left, right) => _fillTemplate(_("%s — %s"), [left, right])); // NOSONAR [S6959] -- nonempty input is guarded
-}
-
-// The parts are an event summary from whatever ICS or CalDAV feed the user
-// subscribed to, a holiday name from a third-party service, and a provider's own
-// error string. They were passed as the *replacement* argument of
-// String.prototype.replace, where `$&`, `` $` ``, `$'` and `$1` are expanded as
-// replacement patterns — so a summary containing $& was announced with the
-// matched text spliced into it.
-//
-// Worse, and much easier to hit: the substitutions were chained, so the second
-// .replace("%s", right) scanned the string the first one had already built. An
-// event called "50%sale" made the screen reader announce
-// "10:00 — 50In progressale — %s".
-//
-// A function replacement expands nothing, and the template is scanned once: a %s
-// inside a substituted value is text, not a placeholder.
-function _fillTemplate(template, values) {
-    let index = 0;
-
-    return template.replace(/%s/g, () => // NOSONAR [S7781] -- accepted compatible form
-        index < values.length ? values[index++] : "%s");
+    return kept.reduce((left, right) => TextUtils.fillTemplate(_("%s — %s"), [left, right])); // NOSONAR [S6959] -- nonempty input is guarded
 }
 
 if (typeof module !== "undefined") {

@@ -26,6 +26,7 @@ const ElapsedTime = AppletModules.elapsedTime;
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
+const fillTemplate = AppletModules.textUtils.fillTemplate;
 
 const MAX_CLOCKS = WorldclockData.MAX_CLOCKS;
 const INVALID_TIMEZONE_TEXT = WorldclockData.INVALID_TIMEZONE_TEXT;
@@ -239,7 +240,8 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // the service that answered is a courtesy the data providers are owed, and
     // it was named only in the tooltip
     setWeatherSource(source) {
-        const name = source ? joinPhrases(_("World clocks"), _("Source: %s").replace("%s", source)) :
+        const name = source ?
+            joinPhrases(_("World clocks"), fillTemplate(_("Source: %s"), [source])) :
             _("World clocks");
 
         if (this._rendered_source === name) {

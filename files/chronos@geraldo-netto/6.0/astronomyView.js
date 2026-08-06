@@ -15,6 +15,7 @@ const St = imports.gi.St;
 const Astronomy = require("./astronomy");
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
+const TextUtils = AppletModules.textUtils;
 const WorldclockData = AppletModules.worldclockData;
 const _ = LocaleText.translate;
 const MISSING_EVENT_TIME = "—";
@@ -48,8 +49,10 @@ function civilDayBounds(now, timezone) {
     return Astronomy.validDayBounds(bounds.startMs, bounds.endMs) ? bounds : null;
 }
 
+// The chained form verbatim: the second replace scanned the string the first
+// one had built, so a rise time containing %s consumed the set time.
 function replaceTimes(template, rise, set) {
-    return template.replace("%s", rise).replace("%s", set);
+    return TextUtils.fillTemplate(template, [rise, set]);
 }
 
 function bodyLine(body, riseTemplate, alwaysUpText, alwaysDownText, formatTime) {

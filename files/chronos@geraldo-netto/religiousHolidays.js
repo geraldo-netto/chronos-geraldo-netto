@@ -38,6 +38,9 @@ const HebrewCalendar = IS_NODE ?
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     AppletModules.holidayConstants;
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    AppletModules.textUtils;
 const monthHolidayEntry = HolidayConstants.monthHolidayEntry;
 
 // Translation marker for observance names. Religion labels live in the shared
@@ -354,7 +357,8 @@ function _datesOf(entry, year) {
 
 function _nameOf(entry, count, translateName) {
     const name = translateName(entry.name);
-    return count === null ? name : name.replace("%s", String(count));
+    return count === null ? name :
+        TextUtils.fillTemplate(name, [String(count)]);
 }
 
 // expanded rows in the shape the holiday cache emits: the religion's label is

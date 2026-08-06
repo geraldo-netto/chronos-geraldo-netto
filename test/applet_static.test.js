@@ -286,6 +286,23 @@ test("calendars surface holiday provider failures", () => {
 });
 
 // request URLs carry the configured country; they must never reach the log
+// T787: fillTemplate was written to eliminate two real defects, and it was
+// private. Eight production sites went on writing the raw form it replaced:
+// a value passed as the replacement argument of String.prototype.replace has
+// `$&`, `` $` ``, `$'` and `$1` expanded, and a chained pair rescans the string
+// the first call built ("50%sale" announced as "50In progressale"). An absence
+// has no behaviour to drive, and what makes any given site latent is what its
+// values happen to contain today - which is exactly what a static rule is for.
+test("no production string substitution rescans what it just built", () => {
+    for (const file of jsSources()) {
+        if (file === "textUtils.js") {
+            continue;
+        }
+        assert.doesNotMatch(source(file), /\.replace\(\s*"%s"/,
+            `${file} must fill templates with TextUtils.fillTemplate`);
+    }
+});
+
 test("holiday requests never log a raw URL", () => {
     const code = source("holidays.js");
     assert.doesNotMatch(code, /global\.log\([^)]*\burl\b/);

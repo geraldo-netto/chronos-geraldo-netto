@@ -11,6 +11,7 @@
 const Tooltips = imports.ui.tooltips;
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
+const TextUtils = AppletModules.textUtils;
 const CalendarDate = require("./calendarDate");
 // only the flag and error-id constants are read here; requiring the holidays
 // barrel would link the cache repository, every vendor adapter and the HTTP
@@ -312,7 +313,8 @@ class CalendarHolidayAnnotator {
             return this.provider ? joinPhrases(reason, this.provider) : reason;
         }
 
-        return this.provider ? _("Holiday data: %s").replace("%s", this.provider) : "";
+        return this.provider ?
+            TextUtils.fillTemplate(_("Holiday data: %s"), [this.provider]) : "";
     }
 
     // the warning glyph is decorative: on its own it reads as an unnamed

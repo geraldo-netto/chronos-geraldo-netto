@@ -80,6 +80,7 @@ function loadView() {
             appletManager: { applets: { "chronos@geraldo-netto": {
                 astronomy,
                 localeText: { translate: (text) => text },
+                textUtils: require(path.join(appletDir, "textUtils.js")),
                 worldclockData: {
                     LOCAL_TIMEZONE: "local",
                     timezoneFromIdentifier,
@@ -152,6 +153,24 @@ test("row formatting covers ordinary, missing, and continuous-horizon events", (
         "", "up", "down", () => ""), "up");
     assert.equal(View.bodyLine({ rise: null, set: null, state: "alwaysDown" },
         "", "up", "down", () => ""), "down");
+});
+
+// T787: this was the chained form verbatim -
+// template.replace("%s", rise).replace("%s", set) - so the second call scanned
+// the string the first one had built. A rise time carrying %s ate the set time,
+// and one carrying $& or $' expanded as a replacement pattern. Both come from
+// the user's own clock format string.
+test("a sunrise time cannot consume the sunset time beside it", () => {
+    const View = loadView();
+
+    assert.equal(View.replaceTimes("Rise %s / Set %s", "06%s00", "18:00"),
+        "Rise 06%s00 / Set 18:00");
+    assert.equal(View.replaceTimes("Rise %s / Set %s", "$&$'", "18:00"),
+        "Rise $&$' / Set 18:00");
+    // a template with fewer values than placeholders leaves the rest standing
+    // rather than inserting "undefined"
+    assert.equal(View.replaceTimes("Rise %s / Set %s / %s", "06:00", "18:00"),
+        "Rise 06:00 / Set 18:00 / %s");
 });
 
 test("default time formatting uses the desktop clock convention and fails closed", () => {

@@ -318,6 +318,21 @@ test("prefix, other day selected: all-day event starting today shows Today", () 
     assert.equal(prefix(event, selected), "t(Today)");
 });
 
+// T787: the substituted value is a strftime result rendered from a
+// user-editable format string, and it was passed as the replacement argument of
+// String.prototype.replace - where $&, $`, $' and $1 are replacement patterns,
+// not text. A clock format containing one of them spliced the matched text into
+// what the screen reader announced.
+test("a time format carrying a replacement pattern is substituted as text", () => {
+    const selected = dateOnly(new FakeDateTime(TODAY.usec + 2 * DAY_US));
+    const event = makeEvent({ startUs: NOW.usec + HOUR_US, endUs: TODAY.usec + 3 * DAY_US });
+    const opts = Object.assign({}, OPTS, { timeFormat: "$& $` $' %H:%M" }); // NOSONAR [S6661] -- deliberate test seam
+
+    assert.equal(
+        EventFormat.formatRangePrefix(event, selected, TODAY, opts),
+        `t(${event.start.format(opts.timeFormat)} Today)`);
+});
+
 test("prefix, other day selected: start in next few days shows uncapitalized weekday", () => {
     const selected = dateOnly(new FakeDateTime(TODAY.usec + 5 * DAY_US));
     const event = makeEvent({ startUs: TODAY.usec + 2 * DAY_US, endUs: TODAY.usec + 6 * DAY_US });

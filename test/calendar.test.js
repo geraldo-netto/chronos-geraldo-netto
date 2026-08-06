@@ -122,6 +122,8 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery =
     require(path.join(APPLET_DIR, "localeQuery.js"));
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].localeText =
     require(path.join(APPLET_DIR, "localeText.js"));
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils =
+    require(path.join(APPLET_DIR, "textUtils.js"));
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].styleUtils =
     require(path.join(APPLET_DIR, "styleUtils.js"));
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].eventData =

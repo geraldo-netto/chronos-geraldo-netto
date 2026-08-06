@@ -9,10 +9,18 @@
 
 /* eslint camelcase: "off" */
 
-// Pure helpers for the event-row label logic in 6.0/eventView.js. No GJS
-// imports on purpose: everything operates on the EventData day-comparison
-// interface and injected formatting options, so Node tests can drive the
-// full matrix of date permutations without Clutter or GLib.
+// Pure helpers for the event-row label logic in 6.0/eventView.js. No toolkit
+// on purpose: everything operates on the EventData day-comparison interface
+// and injected formatting options, so Node tests can drive the full matrix of
+// date permutations without Clutter or GLib. textUtils is the one import, and
+// it reaches for neither.
+
+/* global imports */
+const TextUtils = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node) ? // NOSONAR [S6582] -- accepted compatible form
+    require("./textUtils") :
+    imports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+const fillTemplate = TextUtils.fillTemplate;
 
 var EVENT_PHASE_PAST = "past"; // NOSONAR [S3504] -- GJS importer export
 var EVENT_PHASE_UPCOMING = "upcoming"; // NOSONAR [S3504] -- GJS importer export
@@ -106,7 +114,7 @@ function _prefixForOtherDaySelected(event, selected_date, today, opts) {
         // "14:30 Today" into "Heute 14:30" if the pieces never meet. String
         // .format() is a GJS extension and this module is deliberately free of
         // GJS, so the placeholder is filled by hand.
-        return _("%s Today").replace("%s", event.start.format(opts.timeFormat));
+        return fillTemplate(_("%s Today"), [event.start.format(opts.timeFormat)]);
     }
 
     if (event.started_before_date_only(today.add_days(NEARBY_DAY_WINDOW))) {
@@ -148,7 +156,7 @@ function _suffixForOtherDaySelected(event, selected_date, today, opts) {
         if (event.all_day) {
             return _("Today");
         }
-        return _("%s Today").replace("%s", event.end.format(opts.timeFormat));
+        return fillTemplate(_("%s Today"), [event.end.format(opts.timeFormat)]);
     }
 
     if (event.ends_on_date_only(selected_date) && !event.all_day) {
