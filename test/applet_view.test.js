@@ -473,12 +473,13 @@ test("a clock model names no source when no displayed reading has one", () => {
         weatherReading: null,
         weatherError: "",
         weatherProvider: "",
-        worldclocks: []
+        worldclocks: [],
+        clock: clockStub()
     };
     // a half-built applet has no city provider to ask, and the panel provider
     // has not landed a reading yet: the tooltip simply has no Source line
     assert.deepEqual(panelStatus(stub)._clockRenderModel([]).sources, []);
-    assert.equal(panelStatus(stub).buildTooltipText([]), "");
+    assert.doesNotMatch(panelStatus(stub).buildTooltipText([]), /Source/);
 
     stub.cityWeatherProviderName = () => "";
     assert.deepEqual(panelStatus(stub)._clockRenderModel([]).sources, []);
@@ -942,11 +943,14 @@ test("the tooltip never adds a standalone date/time header", () => {
         weatherError: "",
         worldclocks: [],
         cityWeatherReading: () => null,
-        cityWeatherProviderName: () => ""
+        cityWeatherProviderName: () => "",
+        clock: clockStub({ get_clock_for_format: () => "date-line" })
     };
 
     const presenter = panelStatus(base);
-    assert.equal(presenter.buildTooltipText([]), "");
+    // T820: with no table there is nothing to head, and the configured tooltip
+    // format has to render somewhere — that line is the tooltip, not a header
+    assert.equal(presenter.buildTooltipText([]), "date-line");
     const lines = presenter.buildTooltipText([
         tooltipEntry("UTC", "UTC", "04 Jul 09:05", true)
     ]).split("\n");
@@ -1126,7 +1130,9 @@ test("a weather failure explains itself even with no world clocks", () => {
         weatherProvider: "",
         cityWeatherReading: () => null,
         cityWeatherStale: () => false,
-        cityWeatherProviderName: () => ""
+        cityWeatherProviderName: () => "",
+        customTooltipFormat: "%d %b %H:%M",
+        formatClock: () => "12 Jul 14:03"
     };
 
     const failed = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
@@ -1137,7 +1143,8 @@ test("a weather failure explains itself even with no world clocks", () => {
     const tooltip = failed.buildTooltipText([]);
     assert.match(tooltip, /Weather service unavailable/,
         "hovering a bare ⚠ has to say what went wrong");
-    assert.doesNotMatch(tooltip, /Sunday, 12 July 2026/, "there is no standalone date line");
+    // the weather line is what the ⚠ needs explained, and it follows the stamp
+    assert.equal(tooltip.split("\n")[0], "12 Jul 14:03");
 
     // the configured-nothing case: a lone ⚠ that never said what to do about it
     const unset = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
@@ -1156,13 +1163,14 @@ test("a weather failure explains itself even with no world clocks", () => {
     }));
     assert.match(pending.buildTooltipText([]), /loading/);
 
-    // a working reading says nothing extra: the temperature is on the panel
+    // a working reading says nothing extra: the temperature is on the panel,
+    // and the stamp is all that is left
     const fine = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
         weatherReading: { condition: "☀", temperatureC: 20 },
         weatherUnits: "metric",
         weatherError: ""
     }));
-    assert.equal(fine.buildTooltipText([]), "");
+    assert.equal(fine.buildTooltipText([]), "12 Jul 14:03");
 });
 
 test("a keyboard-opened popup shows weather status without world clocks", () => {
@@ -1301,7 +1309,9 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
         setClockFormatString: () => false,
         setWorldclockFormat() {},
         setWorldclocksVisible() {},
-        setWeatherStatus: (text) => { footer = text; }
+        setWeatherStatus: (text) => { footer = text; },
+        customTooltipFormat: "%H:%M",
+        formatClock: () => "14:03"
     };
     const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
     presenter.updateFormatString();
@@ -1332,14 +1342,19 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
 });
 
 // T608: _tooltipFormatIssue was cleared only inside tooltipClockStamp, on a
-// successfully rendered stamp. With world clocks off no stamp ever renders, so
+// successfully rendered stamp. With world clocks off no stamp ever rendered, so
 // a user who set a bad custom-tooltip-format, disabled clocks, then fixed the
-// format kept the "Invalid time format" footer for the rest of the session.
-test("a tooltip-format issue does not outlive the last renderable clock row", () => {
+// format kept the "Invalid time format" footer for the rest of the session —
+// and issueStatus papered over it by dropping the warning whenever the table
+// was empty, whether or not the format had been fixed. T820 gave the clock-less
+// tooltip a stamp of its own, so one rule now raises and retires the warning.
+test("a tooltip-format issue is raised and retired by whatever renders the stamp", () => {
     const view = {
         customTooltipFormat: "%broken",
         desktopSettings: { use24h: true },
-        showWeather: false
+        showWeather: false,
+        formattedClock: () => "12:00",
+        formatClock: (fmt) => fmt === "%broken" ? "" : "stamp"
     };
     const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
     const entry = {
@@ -1352,13 +1367,15 @@ test("a tooltip-format issue does not outlive the last renderable clock row", ()
     let model = presenter._clockRenderModel([entry]);
     assert.match(presenter.issueStatus([entry], model.issues), /Invalid time format/);
 
-    // clocks off: no row renders, so the issue no longer applies
+    // clocks off: the clock-less line renders the same broken format, so the
+    // warning stands instead of being dropped for want of a row to hang it on
+    model = presenter._clockRenderModel([]);
+    assert.match(presenter.issueStatus([], model.issues), /Invalid time format/);
+
+    // ...and fixing it clears the warning without waiting for the clocks back
+    view.customTooltipFormat = "%H:%M";
     model = presenter._clockRenderModel([]);
     assert.equal(presenter.issueStatus([], model.issues), "");
-
-    // ...and returning clocks with the format still broken re-raises it
-    model = presenter._clockRenderModel([entry]);
-    assert.match(presenter.issueStatus([entry], model.issues), /Invalid time format/);
 });
 
 // The applet's resume path drives both readouts. The city half needs to be forced

@@ -431,6 +431,25 @@ class AppletPanelStatusPresenter {
         return DEFAULT_DATE_TIME_FORMAT;
     }
 
+    // A stamp rendered from the configured format is the proof it is usable,
+    // and the only thing that can retire the warning it left behind.
+    _acceptTooltipFormat() {
+        if (this._tooltipFormatWasRejected) {
+            return;
+        }
+        this._invalidTooltipFormat = null;
+        this._tooltipFormatIssue = "";
+    }
+
+    _rejectTooltipFormat(format) {
+        if (this._invalidTooltipFormat === format) {
+            return;
+        }
+        this._invalidTooltipFormat = format;
+        this._tooltipFormatIssue = INVALID_TIME_FORMAT_TEXT;
+        global.logError("Calendar applet: bad tooltip time format string - check your string.");
+    }
+
     // The change-detection key and the rendered row both use this stamp. An
     // invalid configured format falls back inside the row instead of creating a
     // separate error/header line that breaks the table shape.
@@ -442,21 +461,33 @@ class AppletPanelStatusPresenter {
         const format = this.tooltipClockFormat();
         const stamp = entry.localTime.format(format);
         if (stamp) {
-            if (!this._tooltipFormatWasRejected) {
-                this._invalidTooltipFormat = null;
-                this._tooltipFormatIssue = "";
-            }
+            this._acceptTooltipFormat();
             return DateFormats.clampClockStamp(stamp);
         }
 
-        if (this._invalidTooltipFormat !== format) {
-            this._invalidTooltipFormat = format;
-            this._tooltipFormatIssue = INVALID_TIME_FORMAT_TEXT;
-            global.logError("Calendar applet: bad tooltip time format string - check your string.");
-        }
+        this._rejectTooltipFormat(format);
 
         return DateFormats.clampClockStamp(
             entry.localTime.format(DEFAULT_DATE_TIME_FORMAT) || entry.time);
+    }
+
+    // The same stamp for the local zone, taken from the panel clock rather than
+    // from a world-clock row. custom-tooltip-format is a tooltip setting the
+    // settings page advertises unconditionally, and its only reader was the
+    // per-row stamp above — so with the world clocks switched off it rendered
+    // nowhere, and the panel was left with no tooltip at all.
+    tooltipLocalStamp() {
+        const format = this.tooltipClockFormat();
+        const stamp = this.view.formatClock(format);
+        if (stamp) {
+            this._acceptTooltipFormat();
+            return DateFormats.clampClockStamp(stamp);
+        }
+
+        this._rejectTooltipFormat(format);
+
+        return DateFormats.clampClockStamp(
+            this.view.formatClock(DEFAULT_DATE_TIME_FORMAT) || this.view.formattedClock());
     }
 
     // a temperature cell and a condition cell, rendered from the reading record.
@@ -567,9 +598,10 @@ class AppletPanelStatusPresenter {
         };
     }
 
-    _clockModelKey(rows, status) {
+    _clockModelKey(rows, localStamp, status) {
         return [
             rows.map((row) => row.cells.join("\u0001")).join("\u0002"),
+            localStamp,
             status
         ].join("\u0003");
     }
@@ -582,13 +614,18 @@ class AppletPanelStatusPresenter {
         const rows = clockEntries.map(
             (entry) => this._clockRenderRow(entry, this.view.showWeather));
         const status = rows.length ? "" : this.weatherStatusLine();
+        // With a table on screen the local stamp is already one of its rows —
+        // the built-in "Local time" clock — so a header line above it would say
+        // the same thing twice. With no table it is the tooltip.
+        const localStamp = rows.length ? "" : this.tooltipLocalStamp();
 
         return {
-            key: this._clockModelKey(rows, status),
+            key: this._clockModelKey(rows, localStamp, status),
             popupEntries: rows.map((row) => row.popupEntry),
             rows: rows.map((row) => row.cells),
             issues: rows.map((row) => row.issue).filter((issue) => issue),
             sources: [...new Set(rows.map((row) => row.source).filter((source) => source))],
+            localStamp,
             status
         };
     }
@@ -619,6 +656,8 @@ class AppletPanelStatusPresenter {
 
         if (model.rows.length) {
             lines.push(...this.alignTooltipRows(model.rows));
+        } else if (model.localStamp) {
+            lines.push(model.localStamp);
         }
 
         // The weather's failure and its "loading" reached the user only through
@@ -672,15 +711,6 @@ class AppletPanelStatusPresenter {
 
     issueStatus(clockEntries, renderIssues) {
         const view = this.view;
-        // The tooltip format only renders world-clock rows, and only a
-        // rendered stamp clears its issue — so with clocks switched off a
-        // fixed format could never clear the warning it left behind. With no
-        // renderable row the issue no longer applies; a still-broken format
-        // re-raises it from the first stamp after clocks return.
-        if (!clockEntries.length) {
-            this._invalidTooltipFormat = null;
-            this._tooltipFormatIssue = "";
-        }
         const issues = [
             this._formatIssue,
             this._tooltipFormatIssue,

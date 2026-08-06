@@ -822,13 +822,68 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
         /20°C.*⚠ boom/);
 });
 
-test("the tooltip is empty when there are no clocks or weather status", () => {
+// T820: custom-tooltip-format is shipped, defaulted and described in the
+// schema, and its only reader was tooltipClockStamp — once per world-clock row.
+// With show-worldclocks off there are no rows, so the format rendered nowhere,
+// _tooltipText produced "" and set_applet_tooltip("") left the panel with no
+// tooltip at all, in the one configuration where it has nothing else to say.
+test("the tooltip still carries the configured stamp with the clocks off", () => {
     const stub = Object.assign(Object.create(Proto), {
         show_weather: false,
-        worldclocks: []
+        show_worldclocks: false,
+        custom_tooltip_format: "%A %H:%M",
+        worldclocks: [],
+        clock: clockStub({ get_clock_for_format: (format) => "rendered " + format })
     });
 
-    assert.equal(panelStatus(stub).buildTooltipText([]), "");
+    assert.equal(panelStatus(stub).buildTooltipText([]), "rendered %A %H:%M");
+});
+
+// ...and the change-detection key had nothing but the status line in it once
+// the rows were gone, so a stamp written that way would never be written again.
+test("the tooltip is rewritten when the clock-less stamp moves on", () => {
+    let stamp = "09:05";
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: false,
+        show_worldclocks: false,
+        worldclocks: [],
+        clock: clockStub({ get_clock_for_format: () => stamp })
+    });
+    const written = [];
+    const presenter = panelStatus(stub);
+    presenter.view.setTooltip = (text) => written.push(text);
+
+    presenter._setTooltipModel(presenter._clockRenderModel([]));
+    presenter._setTooltipModel(presenter._clockRenderModel([]));
+    stamp = "09:06";
+    presenter._setTooltipModel(presenter._clockRenderModel([]));
+
+    assert.deepEqual(written, ["09:05", "09:06"]);
+});
+
+// A format the clock cannot render falls back, and says so once — the same
+// contract the per-row stamp has, now reachable with no row to hang it on.
+test("an unrenderable format falls back on the clock-less line too", () => {
+    const stub = Object.assign(Object.create(Proto), {
+        show_weather: false,
+        show_worldclocks: false,
+        custom_tooltip_format: "%broken",
+        worldclocks: [],
+        clock: clockStub({
+            get_clock: () => "panel",
+            get_clock_for_format: (format) => (format === "%broken" ? "" : "fallback")
+        })
+    });
+    const presenter = panelStatus(stub);
+
+    assert.equal(presenter.buildTooltipText([]), "fallback");
+    assert.match(presenter.issueStatus([], []), /Invalid time format/);
+
+    // and fixing it clears the warning, which before T820 only a rendered
+    // world-clock row could do
+    stub.custom_tooltip_format = "%H:%M";
+    assert.equal(presenter.buildTooltipText([]), "fallback");
+    assert.equal(presenter.issueStatus([], []), "");
 });
 
 test("the weather coordinator stores state and refreshes the clock line", () => {
