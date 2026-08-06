@@ -353,7 +353,20 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         return expanded;
     }
 
-    addData (data, params, retrieved) {
+    // `requested` is the year and region this response was asked for. The
+    // envelope the adapter echoes back is a different thing: _validFetchedData
+    // checked only that params.year was an integer, and the rows were then filed
+    // under whatever it said, while _acceptYear throttled the *requested* year.
+    // The port contract says params carries "at least providerName and year"
+    // without requiring it to match the request.
+    //
+    // Not reachable with the three shipped adapters, each of which builds params
+    // from the request - a contract gap rather than a live bug. But it is the one
+    // place the record contract stops at the payload and does not cover the
+    // envelope, and a fourth provider filing rows under one year while stamping
+    // another would leave the requested year rendering empty and suppressed for
+    // RETRY_PERIOD with last_error "".
+    addData (data, params, retrieved, requested) {
         this.last_provider = params && params.providerName ? params.providerName : ""; // NOSONAR [S6582] -- accepted compatible form
 
         if (!data) {
@@ -379,14 +392,14 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             return;
         }
 
-        if (!this._validFetchedData(data, params)) {
+        if (!this._validFetchedData(data, params, requested)) {
             this._rejectHolidayData(params, HOLIDAY_ERRORS.INVALID_RESPONSE);
             return;
         }
 
         this.last_error = "";
-        const regionId = params.region || GLOBAL_REGION;
-        this.cache.recordFetch(params.year, regionId, retrieved, this.expandData(data, regionId));
+        const regionId = requested.region || GLOBAL_REGION;
+        this.cache.recordFetch(requested.year, regionId, retrieved, this.expandData(data, regionId));
         // a fetch that landed is written; persist() writes only the reachable
         // window but keeps the whole of the session's data in memory, so a year
         // the user browsed to still renders and is not refetched every update.
@@ -401,10 +414,12 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             HOLIDAY_ERRORS.INVALID_RESPONSE;
     }
 
-    _validFetchedData(data, params) {
-        return Boolean(params) &&
-            Number.isInteger(params.year) &&
-            this.record.validResponse(data, params.year);
+    _validFetchedData(data, params, requested) {
+        return Boolean(params) && Boolean(requested) &&
+            params.year === requested.year &&
+            (params.region || GLOBAL_REGION) === (requested.region || GLOBAL_REGION) &&
+            Number.isInteger(requested.year) &&
+            this.record.validResponse(data, requested.year);
     }
 
     // An adapter can name one of the app's own failure states rather than
@@ -455,7 +470,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
 
         let callbacks;
         try {
-            this.addData(data, params, date);
+            this.addData(data, params, date, { year, region });
         } catch (e) {
             // a payload that survives validation can still throw while being
             // expanded or persisted; leaving the key behind would block every

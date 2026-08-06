@@ -165,7 +165,8 @@ test("HolidayService expands provider rows before recording cache fetches", () =
         { year: 2026, month: 1, day: 1, region: "global", name: "Fetched", flags: [] }
     ]);
 
-    enrico.addData([{ name: "Fetched" }], { year: 2026, region: "global" }, STAMP);
+    enrico.addData([{ name: "Fetched" }], { year: 2026, region: "global" }, STAMP,
+        { year: 2026, region: "global" });
     assert.equal(recorded[0].year, 2026);
     assert.deepEqual(recorded[0].holidays[0], {
         year: 2026, month: 1, day: 1, region: "global", name: "Fetched", flags: []
@@ -196,7 +197,8 @@ test("a rejected response is neither recorded nor written", () => {
         expandHoliday: (holiday) => [holiday]
     }, cache);
 
-    enrico.addData([{ junk: true }], { year: 2026, region: "global" }, STAMP);
+    enrico.addData([{ junk: true }], { year: 2026, region: "global" }, STAMP,
+        { year: 2026, region: "global" });
 
     assert.equal(cache.recorded, undefined);
     assert.equal(cache.persisted, undefined, "a rejected payload must not reach the cache file");
@@ -1216,7 +1218,8 @@ test("HolidayService localizes, deduplicates, caches, and matches holidays by mo
         holiday("New Year", 2026, 1, 1),
         holiday("Second Name", 2026, 1, 1),
         holiday("Other Month", 2026, 2, 1)
-    ], { year: 2026, region: "global" }, new Date().toUTCString());
+    ], { year: 2026, region: "global" }, new Date().toUTCString(),
+    { year: 2026, region: "global" });
 
     const holidays = enrico.matchMonth(2026, 1);
 
@@ -1380,6 +1383,44 @@ test("HolidayService retrieveForYear builds params and addData ignores provider 
     assert.equal(enrico.last_error, "Holiday data unavailable");
 });
 
+// T800: _validFetchedData checked only that params.year was an integer, and the
+// rows were then filed under whatever the adapter echoed back, while _acceptYear
+// throttled the *requested* year. The port contract says params carries "at
+// least providerName and year" without requiring it to match the request, so a
+// provider that stamped one year and answered another would leave the requested
+// year rendering empty, suppressed for RETRY_PERIOD, with last_error "".
+test("a response filed under the wrong year is refused, not stored under it", () => {
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const record = {
+        validResponse: () => true,
+        expandHoliday: (entry) => [entry]
+    };
+    const service = new HolidayService({ fetchYear() {} },
+        new HolidayCache(() => {}, () => {}), { record });
+    global.logError = () => {};
+    const rows = [holiday("New Year", 2026, 1, 1)];
+
+    service.addData(rows, { year: 2027, region: "global", providerName: "Drifty" },
+        STAMP, { year: 2026, region: "global" });
+    assert.equal(service.cache.data.length, 0, "not under 2027, and not under 2026");
+    assert.equal(service.cache.years[2026], undefined);
+    assert.equal(service.last_error, HOLIDAY_ERRORS.INVALID_RESPONSE,
+        "and the year says why rather than rendering empty and fresh");
+
+    // the region half of the envelope is the same contract
+    service.addData(rows, { year: 2026, region: "ca", providerName: "Drifty" },
+        STAMP, { year: 2026, region: "global" });
+    assert.equal(service.cache.data.length, 0);
+
+    // an envelope that agrees is stored under the request, which is what the
+    // grid and the throttle both ask about
+    service.addData(rows, { year: 2026, region: "global", providerName: "Drifty" },
+        STAMP, { year: 2026, region: "global" });
+    assert.equal(service.cache.data.length, 1);
+    assert.deepEqual(service.cache.years[2026], { global: STAMP });
+    assert.equal(service.last_error, "");
+});
+
 // T799: IsoHolidayServiceAdapter signals "I cannot serve this country" with an
 // explicit HOLIDAY_ERRORS member, and _rejectHolidayData funnelled every
 // data.error through one branch that hard-coded INVALID_RESPONSE. Reachable
@@ -1467,7 +1508,8 @@ test("HolidayService validates remote payloads before caching", () => {
         [{ date: { year: 2026, month: 1, day: 1 }, name: [{ lang: "en", text: "Bad" }], flags: "public" }],
         [holiday("Wrong year", 2027, 1, 1)]
     ]) {
-        enrico.addData(payload, { year: 2026, region: "global", providerName: "Schema Test" }, STAMP);
+        enrico.addData(payload, { year: 2026, region: "global", providerName: "Schema Test" },
+            STAMP, { year: 2026, region: "global" });
     }
 
     assert.equal(enrico.cache.data.length, 0);
@@ -1477,7 +1519,8 @@ test("HolidayService validates remote payloads before caching", () => {
     assert.ok(logged.every((line) => line ===
         `holiday provider Schema Test could not supply 2026: ${HOLIDAY_ERRORS.INVALID_RESPONSE}`));
 
-    enrico.addData([holiday("Valid", 2026, 1, 1)], { year: 2026, region: "global" }, STAMP);
+    enrico.addData([holiday("Valid", 2026, 1, 1)], { year: 2026, region: "global" }, STAMP,
+        { year: 2026, region: "global" });
     assert.equal(enrico.cache.data.length, 1);
     assert.deepEqual(enrico.cache.years[2026], { global: STAMP });
     assert.equal(enrico.last_error, "");
