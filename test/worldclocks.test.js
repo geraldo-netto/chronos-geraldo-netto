@@ -1271,13 +1271,29 @@ test("timezoneWeatherCity memoizes per identifier and leaves local alone", () =>
         assert.equal(WorldclockData.timezoneWeatherCity(WorldclockData.LOCAL_TIMEZONE),
             "Rome");
 
-        // the memo is bounded: overflowing it clears and keeps answering
-        for (let i = 0; i <= WorldclockData.MAX_MEMOIZED_WEATHER_CITIES; i++) {
+        // The memo is bounded, and it gives up its least recently used entry
+        // rather than all of them. US/Eastern went in first, so a plain
+        // insertion order would evict it first however often it is asked for;
+        // reading it once during the fill is what moves it out of the way.
+        assert.equal(WorldclockData.timezoneWeatherCity("Europe/Rome"), "Rome");
+
+        const cap = WorldclockData.MAX_MEMOIZED_WEATHER_CITIES;
+        for (let i = 0; i < cap; i++) {
             assert.equal(WorldclockData.timezoneWeatherCity(`Fill/Zone${i}`), "");
+            if (i === 0) {
+                assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+            }
         }
-        const beforeRefill = readlinks;
+
+        const afterFill = readlinks;
         assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
-        assert.ok(readlinks > beforeRefill, "the cleared entry is resolved again");
+        assert.equal(readlinks, afterFill,
+            "the zone that was read during the fill is still remembered");
+
+        // ...and the one that was not is the one that went, on its own: a
+        // wholesale clear would have taken US/Eastern with it
+        assert.equal(WorldclockData.timezoneWeatherCity("Europe/Rome"), "Rome");
+        assert.ok(readlinks > afterFill, "the evicted entry is resolved again");
     } finally {
         GLib.file_read_link = originalReadLink;
         GLib.TimeZone.new_local = originalNewLocal;
@@ -1893,5 +1909,61 @@ test("regression: exact jurisdiction aliases beat their cross-country targets", 
         aliasReads = 0;
         assert.equal(WorldclockData.localCountryCode(), testCase.code);
         assert.equal(aliasReads, 0, `${testCase.zone} must be matched before its symlink`);
+    }
+});
+
+// The memo is module state on an importer-loaded root module, so it outlives
+// every applet instance and is shared by all of them — the same shape as the
+// Nominatim spacing queue and the locale query handles, which are both released
+// by the last instance to leave rather than the first.
+test("the timezone-to-city memo is released by the last consumer, not the first", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+    const originalReadLink = GLib.file_read_link;
+    let readlinks = 0;
+    GLib.file_read_link = (filename) => {
+        readlinks++;
+        return originalReadLink(filename);
+    };
+
+    try {
+        // two applets on the panel
+        WorldclockData.registerWorldclockConsumer();
+        WorldclockData.registerWorldclockConsumer();
+
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        const resolved = readlinks;
+        assert.ok(resolved > 0);
+
+        WorldclockData.releaseWorldclockConsumer();
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(readlinks, resolved,
+            "one of two leaving takes nothing from the one still running");
+
+        WorldclockData.releaseWorldclockConsumer();
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.ok(readlinks > resolved, "the last one out empties the table");
+
+        // A teardown with nobody registered must not drive the count below
+        // zero: two applets would then start from -1, and the first one to
+        // leave would empty the table under the one still running.
+        WorldclockData.releaseWorldclockConsumer();
+        WorldclockData.registerWorldclockConsumer();
+        WorldclockData.registerWorldclockConsumer();
+
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        const held = readlinks;
+
+        WorldclockData.releaseWorldclockConsumer();
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(readlinks, held,
+            "one of two leaving still takes nothing from the other");
+
+        WorldclockData.releaseWorldclockConsumer();
+        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.ok(readlinks > held, "and the second one does");
+    } finally {
+        GLib.file_read_link = originalReadLink;
     }
 });

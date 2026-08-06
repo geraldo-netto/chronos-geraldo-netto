@@ -319,11 +319,18 @@ test("one failing teardown step does not strand the rest", () => {
 // for. The composition root is where both ends of the count belong: it builds
 // the provider graph and it tears it down.
 test("the composition root registers and releases its weather consumer", () => {
+    const WorldclockData = rootModules.worldclockData;
     const originalRegister = Weather.registerWeatherConsumer;
     const originalCancel = Weather.cancelPendingWeatherRequests;
+    const originalClockRegister = WorldclockData.registerWorldclockConsumer;
+    const originalClockRelease = WorldclockData.releaseWorldclockConsumer;
     const calls = [];
     Weather.registerWeatherConsumer = () => calls.push("register");
     Weather.cancelPendingWeatherRequests = () => calls.push("release");
+    // the timezone-to-city memo behind the per-clock weather is module state on
+    // the same footing, and it is claimed and given back at the same two points
+    WorldclockData.registerWorldclockConsumer = () => calls.push("register:clocks");
+    WorldclockData.releaseWorldclockConsumer = () => calls.push("release:clocks");
 
     try {
         const lifecycle = new AppletModule.AppletProviderLifecycle({
@@ -352,14 +359,18 @@ test("the composition root registers and releases its weather consumer", () => {
         });
 
         lifecycle.initProviders();
-        assert.deepEqual(calls, ["register"], "one instance, one consumer");
+        assert.deepEqual(calls, ["register", "register:clocks"],
+            "one instance, one consumer of each shared table");
 
         lifecycle.destroy();
-        assert.deepEqual(calls, ["register", "release"],
-            "and the teardown gives it back");
+        assert.deepEqual(calls,
+            ["register", "register:clocks", "release", "release:clocks"],
+            "and the teardown gives both back");
     } finally {
         Weather.registerWeatherConsumer = originalRegister;
         Weather.cancelPendingWeatherRequests = originalCancel;
+        WorldclockData.registerWorldclockConsumer = originalClockRegister;
+        WorldclockData.releaseWorldclockConsumer = originalClockRelease;
     }
 });
 

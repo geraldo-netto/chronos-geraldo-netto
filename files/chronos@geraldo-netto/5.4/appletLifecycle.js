@@ -280,6 +280,9 @@ class AppletProviderLifecycle {
         // budget for every instance on the panel — so, like the locale query,
         // it is released by the last instance to leave rather than the first.
         Weather.registerWeatherConsumer();
+        // ...and the timezone-to-city memo behind the per-clock weather, for
+        // the same reason: one module-level table, every instance on the panel
+        WorldclockData.registerWorldclockConsumer();
         this.clock = this.factories.clock();
         this.networkState = this.factories.networkState();
         this.weatherRepository = this.factories.weatherRepository();
@@ -529,7 +532,8 @@ class AppletProviderLifecycle {
             () => this._releaseEventsManager(),
             () => this._releaseDesktopSettings(),
             () => this._releaseLogind(),
-            () => Weather.cancelPendingWeatherRequests()
+            () => Weather.cancelPendingWeatherRequests(),
+            () => WorldclockData.releaseWorldclockConsumer()
         ];
 
         for (const step of steps) {

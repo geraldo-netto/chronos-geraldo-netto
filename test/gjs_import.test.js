@@ -209,6 +209,8 @@ function gjsImportsMock() {
                             nominatimGeocodePlace() {}
                         },
                         worldclockData: {
+                            registerWorldclockConsumer() {},
+                            releaseWorldclockConsumer() {},
                             MAX_CLOCKS: 8,
                             LOCAL_TIMEZONE: "local",
                             INVALID_TIMEZONE_TEXT: "Invalid timezone",
@@ -352,7 +354,8 @@ const EXPORTS = {
         "timezoneIdentity", "timezoneCityName", "timezoneWeatherCity", "regionalTimezoneIdentifier",
         "localTimezoneFromSources",
         "countryCodeFromZoneTab", "localCountryCode", "builtInTimezoneKeys",
-        "selectUserClocks", "clockDisplayLabel", "clockInputLabel"],
+        "selectUserClocks", "clockDisplayLabel", "clockInputLabel",
+        "registerWorldclockConsumer", "releaseWorldclockConsumer"],
     eventData: ["js_date_to_gdatetime", "date_only", "month_year_only", "dt_equals",
         "EventData", "EventDataList"],
     calendarServerConnection: ["CalendarServerConnection", "SERVER_RETRY_SECONDS",

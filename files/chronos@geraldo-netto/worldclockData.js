@@ -146,15 +146,46 @@ function timezoneWeatherCity(timezone) {
         return resolveTimezoneWeatherCity(timezone);
     }
     if (weatherCityMemo.has(timezone)) {
-        return weatherCityMemo.get(timezone);
+        // A Map iterates in insertion order, so re-inserting on a hit is what
+        // makes the first key the least recently used one. Without it the
+        // eviction below drops whichever zone happened to be resolved first,
+        // which may be the one asked about every tick.
+        const remembered = weatherCityMemo.get(timezone);
+        weatherCityMemo.delete(timezone);
+        weatherCityMemo.set(timezone, remembered);
+        return remembered;
     }
 
     const city = resolveTimezoneWeatherCity(timezone);
     if (weatherCityMemo.size >= MAX_MEMOIZED_WEATHER_CITIES) {
-        weatherCityMemo.clear();
+        // the oldest one, not all of them: clearing the memo wholesale sent
+        // every configured clock back through a GLib.TimeZone construction and
+        // a synchronous readlink chase, on the compositor thread
+        weatherCityMemo.delete(weatherCityMemo.keys().next().value);
     }
     weatherCityMemo.set(timezone, city);
     return city;
+}
+
+// The memo lives on the importer-loaded root module, so it outlives every
+// applet instance on the panel — and it is shared by all of them, like the
+// Nominatim spacing queue and the locale query handles. The last one to leave
+// releases it; the first to arrive claims it before anything can throw.
+let _worldclockConsumers = 0;
+
+function registerWorldclockConsumer() {
+    _worldclockConsumers++;
+}
+
+function releaseWorldclockConsumer() {
+    if (_worldclockConsumers > 0) {
+        _worldclockConsumers--;
+    }
+    if (_worldclockConsumers > 0) {
+        return;
+    }
+
+    weatherCityMemo.clear();
 }
 
 // The city the machine's own timezone names, for a weather location nobody has
@@ -516,6 +547,8 @@ if (typeof module !== "undefined") {
         timezoneIdentity,
         timezoneCityName,
         timezoneWeatherCity,
+        registerWorldclockConsumer,
+        releaseWorldclockConsumer,
         regionalTimezoneIdentifier,
         localTimezoneFromSources,
         timezoneAliasTarget,
