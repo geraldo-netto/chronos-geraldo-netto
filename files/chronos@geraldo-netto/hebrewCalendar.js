@@ -152,7 +152,10 @@ function _gregorianLeapYear(year) {
 function _fixedFromGregorian(year, month, day) {
     const priorYear = year - 1;
     const marchOnward = month > 2;
-    const leapCorrection = marchOnward ? (_gregorianLeapYear(year) ? -1 : -2) : 0;
+    let leapCorrection = 0;
+    if (marchOnward) {
+        leapCorrection = _gregorianLeapYear(year) ? -1 : -2;
+    }
 
     return 365 * priorYear + Math.floor(priorYear / 4) -
         Math.floor(priorYear / 100) + Math.floor(priorYear / 400) +
@@ -178,7 +181,10 @@ function _gregorianFromFixed(fixed) {
     const year = _gregorianYearFromFixed(fixed);
     const priorDays = fixed - _fixedFromGregorian(year, 1, 1);
     const marchOnward = fixed >= _fixedFromGregorian(year, 3, 1);
-    const correction = marchOnward ? (_gregorianLeapYear(year) ? 1 : 2) : 0;
+    let correction = 0;
+    if (marchOnward) {
+        correction = _gregorianLeapYear(year) ? 1 : 2;
+    }
     const month = Math.floor((12 * (priorDays + correction) + 373) / 367);
 
     return [year, month, fixed - _fixedFromGregorian(year, month, 1) + 1];

@@ -600,10 +600,14 @@ class AppletPanelStatusPresenter {
 
     _clockRenderRow(entry, showWeather) {
         const cells = [entry.label, this.tooltipClockStamp(entry)];
-        const cityModel = showWeather && !entry.builtin ?
-            this._cityWeatherModel(entry) : null;
-        const weatherCells = !showWeather ? [] :
-            (cityModel ? cityModel.cells : this._builtinWeatherCells(entry));
+        let cityModel = null;
+        if (showWeather && !entry.builtin) {
+            cityModel = this._cityWeatherModel(entry);
+        }
+        let weatherCells = [];
+        if (showWeather) {
+            weatherCells = cityModel ? cityModel.cells : this._builtinWeatherCells(entry);
+        }
         const weather = weatherCells.filter(Boolean).join(", ");
 
         // The joined string is for the places that have room for a sentence —
