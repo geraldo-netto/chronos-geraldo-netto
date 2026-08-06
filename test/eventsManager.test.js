@@ -2279,6 +2279,62 @@ test("an OS timezone change discards the indexed buckets and refetches", () => {
     assert.equal(proxy.instance.set_time_range_calls.length, before + 1);
 });
 
+// T778: the buckets were re-keyed and the selection was not. The re-delivered
+// events registered under new-zone keys while reloadSelected looked the day up
+// with the old-zone one, so the grid kept painting dots — calendar.js derives
+// its own keys — while the event column stayed empty for the rest of the
+// session, or until the user forced a re-selection.
+test("an OS timezone change re-keys the selection along with the buckets", () => {
+    const manager = readyManager();
+    const SELECTED_DAY = 10;
+    manager._window_coordinator.current_selected_date =
+        new FakeDateTime(SELECTED_DAY * DAY_US);
+    manager.select_date(new Date(SELECTED_DAY * DAY_S * 1000), true);
+
+    // the OS moves one hour east: the same calendar day now starts at a
+    // different absolute second, which is what re-keys every bucket
+    const clock = global.imports.gi.GLib.DateTime;
+    const originalNewLocal = clock.new_local;
+    const SHIFT_S = 3600;
+    clock.new_local = (year, month, day) =>
+        new FakeDateTime(day * DAY_US + SHIFT_S * 1000000);
+
+    try {
+        manager.refresh_for_timezone_change();
+
+        assert.equal(manager._window_coordinator.current_selected_date.to_unix(),
+            SELECTED_DAY * DAY_S + SHIFT_S,
+            "the selected day is the same day, resolved in the zone now current");
+
+        fireTimer(manager._reload_selected_id);
+        // the server re-delivers the day's events, which the index now files
+        // under the new-zone key
+        proxy.instance.signal("events-added-or-updated", eventArrayVariant([eventVariant({
+            id: "after-the-change",
+            startUnix: SELECTED_DAY * DAY_S + SHIFT_S + 60,
+            endUnix: SELECTED_DAY * DAY_S + SHIFT_S + 120
+        })]));
+        drainEventMutations(manager);
+
+        const delivered = emitted(manager, "selected-date-events-changed").at(-1);
+        assert.ok(delivered.args[0], "the column is given the day's events");
+        assert.deepEqual(delivered.args[0].get_event_list().map((row) => row.id),
+            ["after-the-change"]);
+    } finally {
+        clock.new_local = originalNewLocal;
+    }
+});
+
+test("a timezone change before any selection renormalizes nothing", () => {
+    const manager = readyManager();
+    const untouched = manager._window_coordinator.current_selected_date;
+
+    manager.refresh_for_timezone_change();
+
+    assert.equal(manager._window_coordinator.current_selected_date, untouched,
+        "there is no chosen day to re-key, and epoch zero is not one");
+});
+
 // Only clear() and the full-range resync used to retire the flag, so garbage
 // collecting a flood back down to a handful left the event column still
 // telling the user rows were hidden on a day now holding three.

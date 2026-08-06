@@ -86,6 +86,24 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
             Boolean(this.index.overflowed));
     }
 
+    // `current_selected_date` is itself a GLib.DateTime built in the zone that
+    // was current when the day was picked, so re-keying the index without it
+    // leaves `index.get()` asking for a key nothing registers under any more:
+    // the grid keeps painting dots, because calendar.js derives its own keys,
+    // while the event column stays empty until a forced re-selection.
+    //
+    // The calendar day the user chose does not change with the zone — only the
+    // absolute second it starts at does. `date_only` reads the components back
+    // out and hands them to `new_local`, which resolves them in the zone that
+    // is current now. `current_selected_signature` is that same calendar day
+    // spelled out, so it survives the change and still means what it says.
+    renormalizeSelectedDate() {
+        if (this.current_selected_signature === null) {
+            return;
+        }
+        this.current_selected_date = date_only(this.current_selected_date);
+    }
+
     reloadSelected(isActive, fetchMonthEvents, emit) {
         // Background calendar-server transitions refresh data; they do not own
         // navigation. If the applet has not selected a date yet, its composition

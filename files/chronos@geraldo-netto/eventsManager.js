@@ -843,6 +843,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     // more, so drop it and ask the server again rather than let the two drift.
     refresh_for_timezone_change() {
         this._event_index.clear();
+        this._window_coordinator.renormalizeSelectedDate();
         this.queue_reload_selected();
     }
 
