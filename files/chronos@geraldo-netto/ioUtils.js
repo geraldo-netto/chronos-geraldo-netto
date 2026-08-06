@@ -453,6 +453,27 @@ function _sendStreaming(session, message, url, cancellable, deliver, fail) {
     });
 }
 
+// send_async can raise before it has a callback to answer through: the
+// four-argument Soup 3 signature on a libsoup 2.4 host, a session Cinnamon
+// disposed while the applet was reloading, a priority that fails to marshal.
+// Nothing above settles then — the deadline stays armed for its full 60 s and
+// the caller, which reads "no answer yet" as "still in flight", waits forever.
+// Report it through the same null-data port every other network failure uses.
+//
+// A throw out of the caller's own callback arrives here the same way once the
+// send has already delivered, and that one is not ours to convert: it belongs
+// to the caller, and reporting it would call back a second time.
+function _dispatchOrFail(send, hasSettled, fail) {
+    try {
+        send();
+    } catch (e) {
+        if (hasSettled()) {
+            throw e;
+        }
+        fail(e);
+    }
+}
+
 function _newRequestMessage(url, headers) {
     try {
         const message = Soup.Message.new("GET", url);
@@ -512,7 +533,12 @@ function httpGetJson(session, url, callback, options = {}) {
 
     // Each path below calls back exactly once, and always outside its try: a
     // throw from the callback must not be swallowed as if it were a read error.
+    // `settled` is how _dispatchOrFail tells a failed send apart from such a
+    // throw travelling back out through a send that answered synchronously.
+    let settled = false;
+
     const fail = (e) => {
+        settled = true;
         disarmDeadline();
         if (global.logError) {
             global.logError(e);
@@ -521,6 +547,7 @@ function httpGetJson(session, url, callback, options = {}) {
     };
 
     const deliver = (body) => {
+        settled = true;
         disarmDeadline();
         let data = null;
         try {
@@ -533,7 +560,10 @@ function httpGetJson(session, url, callback, options = {}) {
         callback(data, message);
     };
 
-    _sendStreaming(session, message, url, cancellable, deliver, fail);
+    _dispatchOrFail(
+        () => _sendStreaming(session, message, url, cancellable, deliver, fail),
+        () => settled,
+        fail);
 }
 
 // every endpoint this applet speaks to is https; a redirect that lands on

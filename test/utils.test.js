@@ -395,6 +395,41 @@ test("a request that completes disarms its deadline", () => {
     assert.deepEqual(removed, [9], "the settled request released its timer");
 });
 
+// REGRESSION: the send was dispatched outside every try. A raise before the
+// first byte — the four-argument signature on a libsoup 2.4 host, a session
+// Cinnamon disposed mid-reload — left the deadline armed for its full 60 s
+// holding the cancellable, and never called back at all, so every caller that
+// reads "no answer yet" as "still in flight" waited for an answer that could
+// never come.
+test("a send that raises before it starts is reported, not left in flight", () => {
+    const utils = loadIoUtils();
+    const removed = [];
+    const logged = [];
+    global.imports.gi.GLib.timeout_add_seconds = () => 11;
+    global.imports.gi.GLib.source_remove = (id) => removed.push(id);
+    global.logError = (error) => logged.push(error);
+
+    const boom = new Error("send_async: too few arguments");
+    let settled = "unset";
+    let calls = 0;
+    utils.httpGetJson({
+        send_async() {
+            throw boom;
+        }
+    }, "https://example.test/raises", (data, message) => {
+        calls++;
+        settled = { data, message };
+    });
+
+    assert.equal(calls, 1, "the caller is answered exactly once");
+    assert.equal(settled.data, null,
+        "through the same null-data port as any other network failure");
+    assert.equal(settled.message, global.imports.gi.Soup.messages[0]);
+    assert.deepEqual(removed, [11],
+        "and the deadline is disarmed rather than left holding the cancellable");
+    assert.deepEqual(logged, [boom], "the raise itself is not swallowed");
+});
+
 // T580 defense in depth: readJsonFileAsync refuses a cache file past its cap,
 // so writing one only parks bytes the next startup throws away — and the
 // serialize itself was the amplification the flag bound exists to prevent.
