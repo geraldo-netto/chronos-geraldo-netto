@@ -24,6 +24,7 @@ const Holidays = require("./holidays");
 const SettingsFacade = require("./settingsFacade");
 const WorldclockData = require("./worldclockData");
 const HolidayConstants = require("./holidayConstants");
+const LocaleQuery = imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 
 const NO_HOLIDAYS = SettingsFacade.NO_HOLIDAYS;
 const SUPPORTED_COUNTRIES = HolidayConstants.SUPPORTED_COUNTRIES;
@@ -234,7 +235,8 @@ const DEFAULT_FACTORIES = {
     clock: () => new CinnamonDesktop.WallClock(),
     networkState: () => new IoUtils.NetworkState(),
     weatherRepository: () => new Weather.WeatherReadingRepository({
-        cacheSeconds: WeatherFormat.REFRESH_SECONDS
+        cacheSeconds: WeatherFormat.REFRESH_SECONDS,
+        language: LocaleQuery.messageLanguage
     }),
     weatherProvider: (repository, networkState) => new Weather.WeatherProvider({
         readingRepository: repository,

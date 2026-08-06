@@ -11,6 +11,26 @@ test("weather cache and debounce defaults stay at their shipped bounds", () => {
     assert.equal(Weather.WEATHER_DEBOUNCE_MS, 750);
 });
 
+test("the location resolver injects its message language into geocoding", () => {
+    const Weather = loadWeather();
+    const requests = [];
+    const resolver = new Weather.WeatherLocationResolver({
+        language: () => "it",
+        httpGetJson(url, callback) {
+            requests.push(url);
+            callback({ results: [{
+                name: "Genova", country: "Italia",
+                latitude: 44.40726, longitude: 8.9338624,
+                population: 558745
+            }] });
+        }
+    });
+
+    resolver.resolve("Genova", () => true, () => {});
+
+    assert.match(requests[0], /[?&]language=it(?:&|$)/);
+});
+
 test("enabled weather without a location reports the setup hint", () => {
     const Weather = loadWeather();
     const provider = new Weather.WeatherProvider({ httpGetJson() { throw new Error("no request expected"); } });

@@ -291,6 +291,7 @@ var GEOCODE_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
 var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
         this._providers = params.providers || GEOCODE_PROVIDERS;
+        this._language = params.language || "en";
         this._geocode_cache = params.cache || new Map();
         this._max_entries = params.maxCacheEntries || MAX_GEOCODE_CACHE_ENTRIES;
         this._httpGetJson = params.httpGetJson;
@@ -387,9 +388,11 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         // `url` is built per lookup; the rest of the provider is fixed. The
         // normalizer is bound to the same lookup, because choosing between the
         // hits a geocoder returns needs the name they were asked about.
+        const language = typeof this._language === "function" ?
+            this._language() : this._language;
         const providers = this._providers.map((provider) => ({
             name: provider.name,
-            url: provider.url(location),
+            url: provider.url(location, language),
             normalize: (data) => provider.normalize(data, location),
             options: provider.options,
             requestQueue: this._requestQueueFor(provider)
@@ -592,6 +595,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         this.locationResolver = params.locationResolver || new WeatherLocationResolver({
             cache: params.geocodeCache,
             httpGetJson: this.httpGetJson,
+            language: params.language,
             requestQueue: params.requestQueue
         });
         this.forecastResolver = params.forecastResolver || new WeatherForecastResolver({

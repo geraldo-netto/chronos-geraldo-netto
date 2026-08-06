@@ -548,6 +548,9 @@ test("the default weather graph shares one reading repository", () => {
     assert.equal(panel._reading_repository, repository);
     assert.equal(cities._reading_repository, repository);
     assert.equal(repository._cache_milliseconds, Weather.REFRESH_SECONDS * 1000);
+    assert.equal(repository.locationResolver._language,
+        rootModules.localeQuery.messageLanguage,
+        "the composition root supplies the live session language");
 
     // ...and one network monitor, which fails open on a host without one
     // (this stub Gio has no NetworkMonitor at all)

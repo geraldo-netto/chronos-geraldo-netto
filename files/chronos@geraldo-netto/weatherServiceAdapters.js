@@ -20,9 +20,6 @@ const IS_NODE = typeof process !== "undefined" &&
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
-const LocaleQuery = IS_NODE ?
-    require("./localeQuery") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
@@ -96,7 +93,9 @@ function weatherIcon(weatherCode) {
 }
 
 function geocodeLanguage(locale) {
-    return LocaleQuery.messageLanguage(locale);
+    const language = String(locale || "en")
+        .toLowerCase().split(/[._@:-]/)[0];
+    return (/^[a-z]{2}$/).test(language) ? language : "en";
 }
 
 // Open-Meteo ranks a search by the language it is asked in, not only by the name

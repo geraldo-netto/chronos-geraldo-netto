@@ -14,8 +14,6 @@ const serviceAdaptersPath = path.join(
 const ioUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const formatPath = path.join(
     __dirname, "..", "..", "files", "chronos@geraldo-netto", "weatherFormat.js");
-const localeQueryPath = path.join(
-    __dirname, "..", "..", "files", "chronos@geraldo-netto", "localeQuery.js");
 const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "weather.js");
 const schema52Path = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "settings-schema.json");
 
@@ -54,12 +52,6 @@ function loadWeather(soupOverrides = {}) {
     // weather delegates its HTTP path to ioUtils; reload it so it captures
     // this call's Soup mock instead of a previous test's
     delete require.cache[require.resolve(ioUtilsPath)];
-    // localeQuery captures GLib at load, and the session's message language is
-    // what the geocoder is asked in: reload it with the rest so it binds this
-    // call's GLib rather than an earlier test file's
-    delete require.cache[require.resolve(localeQueryPath)];
-    // ...and the adapters hold the localeQuery module object itself, so they
-    // have to come back with it or they keep the old one
     delete require.cache[require.resolve(serviceAdaptersPath)];
 
     const soup = Object.assign(makeSoup3({ data: "{}" }), soupOverrides);

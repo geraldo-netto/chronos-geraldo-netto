@@ -367,7 +367,7 @@ function withSessionLocale(locale, assertions) {
     }
 }
 
-test("the geocoder is asked in the language the session runs in", () => {
+test("the geocoder normalizes an injected language and has an inert default", () => {
     const Weather = loadWeather();
 
     assert.equal(Weather.geocodeLanguage("pt_BR.UTF-8"), "pt");
@@ -377,9 +377,10 @@ test("the geocoder is asked in the language the session runs in", () => {
     assert.equal(Weather.geocodeLanguage("C"), "en");
     assert.equal(Weather.geocodeLanguage("POSIX"), "en");
 
-    // no locale given: the session's own is what the search is run in
+    // A bare wire adapter owns no desktop state. The composition root injects
+    // the live message language into the resolver that calls it.
     withSessionLocale("de_DE.UTF-8", () => {
-        assert.equal(Weather.geocodeLanguage(), "de");
+        assert.equal(Weather.geocodeLanguage(), "en");
     });
     withSessionLocale("", () => {
         assert.equal(Weather.geocodeLanguage(), "en");
