@@ -1033,6 +1033,15 @@ test("the disclosed holiday services are the provider registry", () => {
         "the privacy description must name both holiday request fields");
 });
 
+test("README distinguishes visible world clocks from accessible attribution", () => {
+    const readme = fs.readFileSync(readmePath, "utf8");
+
+    assert.match(readme, /popup visibly shows each city's time and\s+temperature/);
+    assert.match(readme, /world-clock table's accessible name credits/);
+    assert.match(readme, /popup and the panel tooltip/);
+    assert.doesNotMatch(readme, /world-clock\s+focus that Chronos keeps in the panel and the popup/);
+});
+
 test("README documents weather privacy data flow", () => {
     const readme = fs.readFileSync(readmePath, "utf8");
 

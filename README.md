@@ -411,15 +411,16 @@ looked up and the tooltip shows times only.
 
 Hovering the panel gives the whole table — UTC first, then local time, then
 each configured city — as `city  date time  temperature  condition`. The
-service that answered is named in the world-clock popup rather than under the
-table, which is a table of times. Each row uses **Date format for tooltip**, whose
-default is the fixed day-month, 24-hour order `11 Jul 22:52`, independent of the
-desktop clock preference. The columns are as wide as their longest cell, so any
-city name lines up, and the condition is spelled out rather than drawn: the
-weather emoji are taller than the text font and would space the rows unevenly.
-UTC is a time scale, not a place, so it carries no temperature; a reading nobody
-has managed to refresh for an hour is marked as the last known one rather than
-shown as current.
+tooltip remains only that table. The popup visibly shows each city's time and
+temperature; its world-clock table's accessible name credits every weather
+service that supplied a displayed reading. Each tooltip row uses **Date format
+for tooltip**, whose default is the fixed day-month, 24-hour order `11 Jul
+22:52`, independent of the desktop clock preference. The columns are as wide as
+their longest cell, so any city name lines up, and the condition is spelled out
+rather than drawn: the weather emoji are taller than the text font and would
+space the rows unevenly. UTC is a time scale, not a place, so it carries no
+temperature; a reading nobody has managed to refresh for an hour is marked as
+the last known one rather than shown as current.
 
 The city a world clock's weather is looked up for comes from its **timezone**,
 not from the name you gave the clock: a clock called "Mom's place" is looked up
@@ -497,7 +498,7 @@ It is a derived work. The original applets, and their authors, are:
   design and the screenshot is a current Chronos capture; neither is a
   `calendar@ccprog` asset anymore.
 - **`calendar@simonwiles.net`** — Simon Wiles (`simonwiles`): the world-clock
-  focus that Chronos keeps in the panel and the popup.
+  focus that Chronos keeps in the popup and the panel tooltip.
 
 Both upstreams live in
 [linuxmint/cinnamon-spices-applets](https://github.com/linuxmint/cinnamon-spices-applets).
