@@ -240,8 +240,15 @@ test("6.0 strftime help opens over HTTPS", () => {
 test("event managers expose teardown and applets call it", () => {
     const code = source("eventsManager.js");
     const connection = source("calendarServerConnection.js");
+    const mutationStream = source("eventMutationStream.js");
+    const fetchCoordinator = source("eventFetchCoordinator.js");
     assert.match(connection, /this\._calendar_server_signal_ids = \[\];/);
-    assert.match(code, /destroy\(\) \{[\s\S]*?this\._server_connection\.destroy\(\);[\s\S]*?this\._stop_gc_timer\(\);[\s\S]*?this\._cancel_reload_selected\(\);/);
+    assert.match(code,
+        /destroy\(\) \{[\s\S]*?this\._fetch_coordinator\.destroy\(\);[\s\S]*?this\._mutation_stream\.destroy\(\);[\s\S]*?this\._server_connection\.destroy\(\);[\s\S]*?this\._event_index\.discard\(\);/);
+    assert.match(fetchCoordinator,
+        /destroy\(\) \{[\s\S]*?this\._fetchCancellable\.cancel\(\);[\s\S]*?this\.stopGcTimer\(\);[\s\S]*?this\.cancelReloadSelected\(\);[\s\S]*?this\.cancelFetchRetry\(\);/);
+    assert.match(mutationStream,
+        /destroy\(\) \{[\s\S]*?for \(const id of this\._eventBatchIds\)[\s\S]*?this\.cancelPendingEmit\(\);[\s\S]*?this\._clearQueue\(\);/);
     assert.match(connection,
         /const signalIds = this\._calendar_server_signal_ids;[\s\S]*?this\._calendar_server_signal_ids = \[\];[\s\S]*?for \(let id of signalIds\) \{[\s\S]*?server\.disconnect\(id\);/);
     assert.match(connection, /this\._calendar_server = null;[\s\S]*?this\._inited = false;/);
@@ -432,12 +439,25 @@ test("event fetch window uses the shared week-start offset", () => {
 
 test("event orchestration depends on extracted boundary collaborators", () => {
     const manager = source("eventsManager.js");
+    const mutationStream = source("eventMutationStream.js");
+    const fetchCoordinator = source("eventFetchCoordinator.js");
     const lifecycle = source("6.0/appletLifecycle.js");
 
     assert.doesNotMatch(manager, /class CalendarServerConnection|class EventIndex|class EventWindowCoordinator/);
     assert.match(manager, /params\.serverConnection/);
     assert.match(manager, /params\.eventIndex/);
     assert.match(manager, /params\.windowCoordinator/);
+    assert.match(manager, /new EventMutationStream\(/);
+    assert.match(manager, /new EventFetchCoordinator\(/);
+    assert.doesNotMatch(manager,
+        /this\._event_mutations\s*=|this\._fetch_retry_id\s*=|this\._gc_timer_id\s*=/,
+    "the facade does not own either collaborator's mutable state");
+    assert.match(mutationStream, /class EventMutationStream/);
+    assert.match(mutationStream, /MAX_QUEUED_EVENT_MUTATIONS/);
+    assert.doesNotMatch(mutationStream, /setTimeRange|fetchMonthEvents/);
+    assert.match(fetchCoordinator, /class EventFetchCoordinator/);
+    assert.match(fetchCoordinator, /fetchMonthEvents/);
+    assert.doesNotMatch(fetchCoordinator, /boundedEventVariants|decodeRemovedUids/);
     assert.match(lifecycle, /EventsManagerModule\.createEventsManager\(eventsSettings\)/);
 });
 

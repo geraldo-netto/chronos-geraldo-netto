@@ -82,6 +82,18 @@ function gjsImportsMock() {
                         eventWindow: {
                             EventWindowCoordinator: class {}
                         },
+                        eventMutationStream: {
+                            EventMutationStream: class {},
+                            MAX_QUEUED_EVENT_RECORDS: 2000,
+                            MAX_QUEUED_EVENT_BYTES: 8388608,
+                            MAX_QUEUED_EVENT_MUTATIONS: 256
+                        },
+                        eventFetchCoordinator: {
+                            EventFetchCoordinator: class {},
+                            FETCH_RETRY_SECONDS: 5,
+                            FETCH_RETRY_MAX_SECONDS: 120,
+                            FETCH_RETRY_MAX_ATTEMPTS: 5
+                        },
                         clockLimits: {
                             MAX_CLOCKS: 8
                         },
@@ -371,6 +383,11 @@ const EXPORTS = {
         "SERVER_RETRY_MAX_SECONDS", "EDS_BUS_NAME"],
     eventIndex: ["EventIndex"],
     eventWindow: ["EventWindowCoordinator"],
+    eventMutationStream: ["EventMutationStream", "EVENT_BATCH_CHUNK",
+        "MAX_QUEUED_EVENT_RECORDS", "MAX_QUEUED_EVENT_BYTES",
+        "MAX_QUEUED_EVENT_MUTATIONS"],
+    eventFetchCoordinator: ["EventFetchCoordinator", "FETCH_RETRY_SECONDS",
+        "FETCH_RETRY_MAX_SECONDS", "FETCH_RETRY_MAX_ATTEMPTS"],
     eventsManager: ["EventsManager", "createEventsManager", "SERVER_RETRY_SECONDS", "EDS_BUS_NAME"],
     eventFormat: ["EVENT_PHASE_PAST", "EVENT_PHASE_UPCOMING", "EVENT_PHASE_CURRENT",
         "dtEquals", "classifyEventDisplayState", "localeCap", "formatRangePrefix",

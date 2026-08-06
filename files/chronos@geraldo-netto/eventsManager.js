@@ -8,49 +8,48 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
-// Signal/timer orchestration for calendar events. Boundary adapters, indexing,
-// and date-window policy are constructor dependencies assembled by the factory.
+// Signal-facing facade for calendar events. The connection owns DBus, the
+// mutation stream owns ordered payload application, the fetch coordinator owns
+// range/retry/reconciliation state, and the index/window collaborators own data.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
-const Gio = GjsImports.gi.Gio;
-const GLib = GjsImports.gi.GLib;
-const Mainloop = GjsImports.mainloop;
 const Signals = GjsImports.signals;
 const APPLET_MODULES = IS_NODE ?
     null : GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
-const ProviderUtils = APPLET_MODULES ? APPLET_MODULES.providerUtils : require("./providerUtils");
-const CalendarServerModule = APPLET_MODULES ? APPLET_MODULES.calendarServerConnection : require("./calendarServerConnection");
-const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
-// The wire vocabulary belongs to the adapter named for it: the bounded decode
-// of a GVariant payload, its byte ceiling, and the "::" batching grammar of the
-// removal signal. This module had all three, duck-typing the wire object and
-// reasoning about its byte size, while both files' headers said the boundary
-// ran between them.
-const MAX_EVENT_SIGNAL_BYTES = CalendarServerModule.MAX_EVENT_SIGNAL_BYTES;
-const boundedEventVariants = CalendarServerModule.boundedEventVariants;
-const decodeRemovedUids = CalendarServerModule.decodeRemovedUids;
-const EventIndexModule = APPLET_MODULES ? APPLET_MODULES.eventIndex : require("./eventIndex");
-const EventWindowModule = APPLET_MODULES ? APPLET_MODULES.eventWindow : require("./eventWindow");
+const CalendarServerModule = IS_NODE ?
+    require("./calendarServerConnection") :
+    APPLET_MODULES.calendarServerConnection;
+const EventIndexModule = IS_NODE ?
+    require("./eventIndex") :
+    APPLET_MODULES.eventIndex;
+const EventWindowModule = IS_NODE ?
+    require("./eventWindow") :
+    APPLET_MODULES.eventWindow;
+const EventMutationStreamModule = IS_NODE ?
+    require("./eventMutationStream") :
+    APPLET_MODULES.eventMutationStream;
+const EventFetchCoordinatorModule = IS_NODE ?
+    require("./eventFetchCoordinator") :
+    APPLET_MODULES.eventFetchCoordinator;
 
 const CalendarServerConnection = CalendarServerModule.CalendarServerConnection;
 const EventIndex = EventIndexModule.EventIndex;
 const EventWindowCoordinator = EventWindowModule.EventWindowCoordinator;
+const EventMutationStream = EventMutationStreamModule.EventMutationStream;
+const EventFetchCoordinator = EventFetchCoordinatorModule.EventFetchCoordinator;
+
 var EDS_BUS_NAME = CalendarServerModule.EDS_BUS_NAME; // NOSONAR [S3504] -- GJS importer export
 var SERVER_RETRY_SECONDS = CalendarServerModule.SERVER_RETRY_SECONDS; // NOSONAR [S3504] -- GJS importer export
 var SERVER_RETRY_MAX_SECONDS = CalendarServerModule.SERVER_RETRY_MAX_SECONDS; // NOSONAR [S3504] -- GJS importer export
-
-// A month fetch that fails takes the month's events with it; retry it a few
-// times with backoff before giving up.
-var FETCH_RETRY_SECONDS = 5; // NOSONAR [S3504] -- GJS importer export
-var FETCH_RETRY_MAX_SECONDS = 120; // NOSONAR [S3504] -- GJS importer export
-var FETCH_RETRY_MAX_ATTEMPTS = 5; // NOSONAR [S3504] -- GJS importer export
-var EVENT_BATCH_CHUNK = 25; // NOSONAR [S3504] -- GJS importer export
-// The DBus daemon has a much larger message ceiling. Chronos needs a lower
-// product limit because this payload lands inside the desktop compositor.
-var MAX_QUEUED_EVENT_RECORDS = 2000; // NOSONAR [S3504] -- GJS importer export
-var MAX_QUEUED_EVENT_BYTES = 8 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
-var MAX_QUEUED_EVENT_MUTATIONS = 256; // NOSONAR [S3504] -- GJS importer export
+var FETCH_RETRY_SECONDS = EventFetchCoordinatorModule.FETCH_RETRY_SECONDS; // NOSONAR [S3504] -- GJS importer export
+var FETCH_RETRY_MAX_SECONDS = EventFetchCoordinatorModule.FETCH_RETRY_MAX_SECONDS; // NOSONAR [S3504] -- GJS importer export
+var FETCH_RETRY_MAX_ATTEMPTS = EventFetchCoordinatorModule.FETCH_RETRY_MAX_ATTEMPTS; // NOSONAR [S3504] -- GJS importer export
+var MAX_QUEUED_EVENT_RECORDS = EventMutationStreamModule.MAX_QUEUED_EVENT_RECORDS; // NOSONAR [S3504] -- GJS importer export
+var MAX_QUEUED_EVENT_BYTES = EventMutationStreamModule.MAX_QUEUED_EVENT_BYTES; // NOSONAR [S3504] -- GJS importer export
+var MAX_QUEUED_EVENT_MUTATIONS = EventMutationStreamModule.MAX_QUEUED_EVENT_MUTATIONS; // NOSONAR [S3504] -- GJS importer export
+var MAX_EVENT_SIGNAL_BYTES = CalendarServerModule.MAX_EVENT_SIGNAL_BYTES; // NOSONAR [S3504] -- GJS importer export
+var boundedEventVariants = CalendarServerModule.boundedEventVariants; // NOSONAR [S3504] -- GJS importer export
 
 var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer export
     constructor(settings, params = {}) {
@@ -59,450 +58,103 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
 
         this.settings = settings;
-        this._random = params.random || Math.random;
         this._server_connection = params.serverConnection;
-        this.last_update_timestamp = 0;
         this._event_index = params.eventIndex;
         this._window_coordinator = params.windowCoordinator;
 
-        this._destroyed = false;
+        this._mutation_stream = params.mutationStream || new EventMutationStream({
+            eventIndex: this._event_index,
+            currentSelectedDate: () => this.current_selected_date,
+            currentWatermark: () => this.last_update_timestamp,
+            onMutationApplied: () => this._fetch_coordinator.onMutationApplied(),
+            onSelectedDateChanged: (delay) =>
+                this._emit_selected_date_events_changed(delay),
+            onEventsUpdated: () => this.emit("events-updated"),
+            onEventIndexChanged: () => this._emit_event_index_changed(),
+            onResync: (mutation) => this._fetch_coordinator.requestResync(mutation),
+            onFetchComplete: (mutation) =>
+                this._fetch_coordinator.onFetchComplete(mutation),
+            onAmbiguousRemoval: () =>
+                this._fetch_coordinator.reloadAfterAmbiguousRemoval(),
+            onClientDisappeared: () => this.queue_reload_selected()
+        });
 
-        this._gc_timer_id = 0;
-
-        this._reload_selected_id = 0;
-
-        this._fetch_retry_id = 0;
-        this._fetch_retry_attempts = 0;
-        this._refresh_failed = false;
-        this._fetch_generation = 0;
-        // Calendar-server signals are one ordered mutation stream. A large
-        // add/update occupies several idle turns, so later updates, removals
-        // and client disappearance must wait behind its tail.
-        this._event_mutations = [];
-        // At most one idle advances that stream.
-        this._event_batch_ids = [];
-        this._queued_event_records = 0;
-        this._queued_event_bytes = 0;
-        this._overflow_mutation_queued = false;
-        this._resync_mutation_queued = false;
-        this._pending_emit = null;
-        // ...and at most one idle announces it, so a burst of one-instance
-        // deliveries repaints once rather than once per instance.
-        this._emit_idle_id = 0;
-        // A mutation-flood resync uses overflow as a temporary warning until
-        // its authoritative replacement request has actually been dispatched.
-        // Payload limits reached after that boundary are independent warnings.
-        this._resync_overflow_pending = false;
-        // handed to every call_set_time_range so a reply that is still in
-        // flight when the applet goes away is cancelled rather than delivered
-        // to a torn-down manager
-        this._fetch_cancellable = new Gio.Cancellable();
-
+        this._fetch_coordinator = params.fetchCoordinator || new EventFetchCoordinator({
+            serverConnection: this._server_connection,
+            eventIndex: this._event_index,
+            windowCoordinator: this._window_coordinator,
+            isActive: () => this.is_active(),
+            enqueueMutation: (mutation) => this._enqueue_event_mutation(mutation),
+            mutationsPending: () => this._mutation_stream.hasPendingMutations(),
+            emit: (name, ...args) => this.emit(name, ...args),
+            emitEventIndexChanged: () => this._emit_event_index_changed(),
+            random: params.random || Math.random
+        });
     }
 
-    // read-only views of collaborator state, for the callers inside this
-    // class; everything else reaches through _server_connection /
-    // _event_index / _window_coordinator directly
     get current_selected_date() {
         return this._window_coordinator.current_selected_date;
+    }
+
+    get last_update_timestamp() {
+        return this._fetch_coordinator.lastUpdateTimestamp;
+    }
+    set last_update_timestamp(value) {
+        this._fetch_coordinator.lastUpdateTimestamp = value;
+    }
+
+    // Compatibility views for the existing failure-injection suite. These are
+    // projections only; the facade owns none of either state machine's data.
+    get _destroyed() {
+        return this._mutation_stream.destroyed;
+    }
+    set _destroyed(value) {
+        this._mutation_stream.destroyed = value;
+        this._fetch_coordinator.destroyed = value;
+    }
+    get _event_mutations() { return this._mutation_stream.mutations; }
+    get _event_batch_ids() { return this._mutation_stream.batchIds; }
+    set _event_batch_ids(value) { this._mutation_stream.batchIds = value; }
+    get _queued_event_records() { return this._mutation_stream.queuedRecords; }
+    get _queued_event_bytes() { return this._mutation_stream.queuedBytes; }
+    get _resync_mutation_queued() { return this._mutation_stream.resyncQueued; }
+    set _resync_mutation_queued(value) { this._mutation_stream.resyncQueued = value; }
+    get _pending_emit() { return this._mutation_stream.pendingEmit; }
+    set _pending_emit(value) { this._mutation_stream.pendingEmit = value; }
+    get _emit_idle_id() { return this._mutation_stream.emitIdleId; }
+    get _gc_timer_id() { return this._fetch_coordinator.gcTimerId; }
+    get _reload_selected_id() { return this._fetch_coordinator.reloadSelectedId; }
+    set _reload_selected_id(value) { this._fetch_coordinator.reloadSelectedId = value; }
+    get _fetch_retry_id() { return this._fetch_coordinator.fetchRetryId; }
+    get _fetch_retry_attempts() { return this._fetch_coordinator.fetchRetryAttempts; }
+    get _refresh_failed() { return this._fetch_coordinator.refreshFailed; }
+    set _refresh_failed(value) { this._fetch_coordinator.refreshFailed = value; }
+    get _resync_overflow_pending() {
+        return this._fetch_coordinator.resyncOverflowPending;
+    }
+    set _resync_overflow_pending(value) {
+        this._fetch_coordinator.resyncOverflowPending = value;
     }
 
     start_events() {
         this._server_connection.start();
     }
 
-    _stop_gc_timer() {
-        if (this._gc_timer_id > 0) {
-            Mainloop.source_remove(this._gc_timer_id);
-            this._gc_timer_id = 0;
-        }
-    }
-
-    _start_gc_timer() {
-        this._stop_gc_timer();
-
-        if (!this.is_active()) {
-            return;
-        }
-
-        this._gc_timer_id = Mainloop.timeout_add_seconds(
-            3, this._perform_gc.bind(this)
-        );
-    }
-
-    _perform_gc() {
-        this._gc_timer_id = 0;
-        // A large authoritative delivery spans several idle turns. Culling in
-        // its middle mistakes the unprocessed tail for deleted events.
-        if (this._event_mutations.length > 0) {
-            this._start_gc_timer();
-            return GLib.SOURCE_REMOVE;
-        }
-
-        let any_removed = this._event_index.cull(this.last_update_timestamp);
-
-        if (any_removed) {
-            this._emit_event_index_changed();
-        }
-
-        return GLib.SOURCE_REMOVE;
-    }
-
-    // This runs inside a DBus signal handler, on the compositor thread. unpack()
-    // materialises the whole array, and each EventData does a deep_unpack plus
-    // several GLib.DateTime constructions, and register() walks up to 50 day
-    // buckets per multi-day event — so a busy shared calendar's initial 42-day
-    // window arrived as one unbounded synchronous burst on the thread that draws
-    // every window on the desktop.
-    //
-    // The batch is chunked across idles. Order is preserved, and the index is
-    // the same at the end; only the time it is allowed to take in one turn
-    // changes.
-    //
-    // What must NOT be chunked is the signals. Every consumer of "events-updated"
-    // rebuilds the whole 42-cell grid, and every consumer of
-    // "selected-date-events-changed" tears down and rebuilds the event column —
-    // so emitting per chunk made a 200-event delivery pay eight full grid
-    // rebuilds and eight column rebuilds where one would do. The chunking traded
-    // one long stall for eight shorter ones plus eight times the downstream work,
-    // which is not the trade it was written to make.
-    //
-    // What changed is accumulated across the chunks and said once, at the end.
     _handle_added_or_updated_events(server, varray) {
-        if (this._resync_mutation_queued) {
-            return;
-        }
-
-        const available = Math.max(
-            0, MAX_QUEUED_EVENT_RECORDS - this._queued_event_records);
-        const availableBytes = Math.max(
-            0, MAX_QUEUED_EVENT_BYTES - this._queued_event_bytes);
-        let decoded;
-        try {
-            decoded = boundedEventVariants(varray, available, availableBytes);
-        } catch (e) {
-            if (global.logError) {
-                global.logError(e);
-            }
-            decoded = { events: [], overflowed: true, retainedBytes: 0 };
-        }
-
-        if (decoded.events.length > 0) {
-            this._enqueue_event_mutation({
-                type: "add",
-                events: decoded.events,
-                index: 0,
-                watermark: this.last_update_timestamp,
-                overflowed: decoded.overflowed,
-                retainedBytes: decoded.retainedBytes
-            });
-        } else if (decoded.overflowed) {
-            this._enqueue_event_mutation({ type: "overflow" });
-        }
+        this._mutation_stream.handleAddedOrUpdated(
+            varray, this.last_update_timestamp);
     }
 
-    _enqueue_event_mutation(mutation) {
-        if (this._destroyed || this._resync_mutation_queued) {
-            return;
-        }
-
-        if (this._event_mutations.length >= MAX_QUEUED_EVENT_MUTATIONS) {
-            this._collapse_event_mutations_to_resync();
-            return;
-        }
-
-        if (mutation.type === "add") {
-            this._queued_event_records += mutation.events.length - mutation.index;
-            this._queued_event_bytes += mutation.retainedBytes;
-        } else if (mutation.type === "overflow") {
-            if (this._overflow_mutation_queued) {
-                return;
-            }
-            this._overflow_mutation_queued = true;
-        }
-        this._event_mutations.push(mutation);
-        if (this._event_mutations.length === 1 &&
-            this._event_batch_ids.length === 0) {
-            this._apply_next_event_mutation();
-        }
+    _handle_removed_events(server, uidsString) {
+        this._mutation_stream.handleRemoved(uidsString);
     }
 
-    _recount_queued_event_payload() {
-        this._queued_event_records = 0;
-        this._queued_event_bytes = 0;
-        for (const mutation of this._event_mutations) {
-            if (mutation.type === "add") {
-                this._queued_event_records += mutation.events.filter(Boolean).length;
-                this._queued_event_bytes += mutation.retainedBytes;
-            }
-        }
+    _handle_client_disappeared(server, uid) {
+        this._mutation_stream.handleClientDisappeared();
     }
 
-    _collapse_event_mutations_to_resync() {
-        // Keep only the mutation already being applied. Everything behind it
-        // can be replaced by one authoritative reload, releasing all retained
-        // variants and preserving eventual server state.
-        const current = this._event_mutations[0];
-        this._event_mutations = current ?
-            [current, { type: "resync" }] : [{ type: "resync" }];
-        this._overflow_mutation_queued =
-            Boolean(current && current.type === "overflow");
-        this._resync_mutation_queued = true;
-        this._recount_queued_event_payload();
-    }
-
-    _apply_add_mutation(mutation) {
-        const start = mutation.index;
-        const end = Math.min(
-            start + EVENT_BATCH_CHUNK, mutation.events.length);
-        const last = end >= mutation.events.length;
-        this._apply_added_or_updated(
-            mutation.events.slice(start, end), mutation.watermark,
-            last, mutation.overflowed);
-        // Release processed child variants while the rest of this signal waits.
-        // Otherwise the array itself keeps the already-indexed payload alive.
-        for (let index = start; index < end; index++) {
-            mutation.events[index] = null;
-        }
-        this._queued_event_records -= end - start;
-        mutation.index = end;
-        if (last) {
-            this._queued_event_bytes -= mutation.retainedBytes;
-        }
-        return last;
-    }
-
-    _apply_event_mutation(mutation) {
-        if (mutation.type === "add") {
-            return this._apply_add_mutation(mutation);
-        }
-
-        // Everything below emits for itself, and the deliveries accumulated so
-        // far are older than what it is about to do.
-        this._flush_pending_emit();
-
-        if (mutation.type === "remove") {
-            this._apply_removed_events(mutation.uids);
-            return true;
-        }
-        if (mutation.type === "overflow") {
-            this._apply_event_overflow();
-            return true;
-        }
-        if (mutation.type === "resync") {
-            this._apply_event_resync(mutation);
-            return true;
-        }
-        if (mutation.type === "fetch-complete") {
-            this._apply_fetch_complete(mutation);
-            return true;
-        }
-        this._apply_client_disappeared();
-        return true;
-    }
-
-    _apply_next_event_mutation() {
-        const mutation = this._event_mutations[0];
-        if (!mutation || this._destroyed) {
-            return;
-        }
-
-        let complete;
-        try {
-            complete = this._apply_event_mutation(mutation);
-        } catch (error) {
-            this._recover_event_mutation_failure(mutation);
-            throw error;
-        }
-
-        if (complete) {
-            if (mutation.type === "overflow") {
-                this._overflow_mutation_queued = false;
-            } else if (mutation.type === "resync") {
-                this._resync_mutation_queued = false;
-            }
-            this._event_mutations.shift();
-        }
-
-        if (this._event_mutations.length > 0) {
-            this._schedule_event_mutation();
-        }
-    }
-
-    _recover_event_mutation_failure(mutation, schedule = true) {
-        // The failed operation may have changed only part of the index. Drop
-        // every retained payload behind it and recover from the authoritative
-        // server instead of guessing which portion committed.
-        const needsResync = mutation.type !== "resync" ||
-            !mutation.recoverySecured;
-        this._event_mutations = needsResync ? [{ type: "resync" }] : [];
-        this._queued_event_records = 0;
-        this._queued_event_bytes = 0;
-        this._overflow_mutation_queued = false;
-        this._resync_mutation_queued = needsResync;
-        this._pending_emit = null;
-        if (needsResync && schedule) {
-            this._schedule_event_mutation();
-        }
-    }
-
-    _schedule_event_mutation() {
-        if (this._destroyed || this._event_batch_ids.length > 0) {
-            return;
-        }
-
-        let sourceId;
-        try {
-            sourceId = Mainloop.idle_add(() => {
-                this._event_batch_ids.shift();
-                if (this._destroyed) {
-                    this._event_mutations = [];
-                    this._queued_event_records = 0;
-                    this._queued_event_bytes = 0;
-                    this._overflow_mutation_queued = false;
-                    this._resync_mutation_queued = false;
-                    this._pending_emit = null;
-                    this._cancel_pending_emit();
-                } else {
-                    this._apply_next_event_mutation();
-                }
-                return GLib.SOURCE_REMOVE;
-            });
-            if (!(sourceId > 0)) {
-                throw new Error("calendar events could not register a mutation idle");
-            }
-        } catch (error) {
-            global.logError(error);
-            const mutation = this._event_mutations[0];
-            if (mutation) {
-                // Scheduling itself is unavailable, so secure the queue through
-                // the same authoritative resync without trying this port again.
-                this._recover_event_mutation_failure(mutation, false);
-                this._apply_next_event_mutation();
-            }
-            return;
-        }
-        this._event_batch_ids.push(sourceId);
-    }
-
-    // `flush` is true on the last chunk of a batch
-    _mark_event_overflow() {
-        const changed = this._event_index.markOverflow();
-        if (changed) {
-            log("calendar events: safety limit reached; some events are hidden");
-        }
-        return changed;
-    }
-
-    _apply_event_overflow() {
-        if (!this._mark_event_overflow()) {
-            return;
-        }
-        this._emit_event_index_changed();
-    }
-
-    _apply_event_resync(mutation = {}) {
-        this._event_index.discard();
-        this._resync_overflow_pending = true;
-        this._mark_event_overflow();
-        this.queue_reload_selected();
-        // Consumer notification is allowed to fail, but only after the
-        // authoritative replacement has become independently runnable.
-        mutation.recoverySecured = true;
-        this._emit_event_index_changed();
-    }
-
-    _accumulate_event_overflow(pending, result, flush, inputOverflowed) {
-        if (result.overflow_changed) {
-            log("calendar events: safety limit reached; some events are hidden");
-            pending.overflow_changed = true;
-        }
-        if (flush && inputOverflowed && this._mark_event_overflow()) {
-            pending.overflow_changed = true;
-        }
-    }
-
-    _apply_added_or_updated(events, watermark, flush, inputOverflowed = false) {
-        const result = this._event_index.addOrUpdate(
-            events, watermark, this.current_selected_date);
-
-        const pending = this._pending_emit ||
-            {
-                selected_date_changed: false,
-                events_changed: false,
-                overflow_changed: false
-            };
-        pending.selected_date_changed =
-            pending.selected_date_changed || result.selected_date_changed;
-        pending.events_changed = pending.events_changed || result.events_changed;
-        this._accumulate_event_overflow(
-            pending, result, flush, inputOverflowed);
-
-        // A later fetch may have superseded a chunk that was already queued.
-        // Its completion marker owns reconciliation; the old delivery must not
-        // arm a timer that culls against the newer watermark.
-        if (watermark === this.last_update_timestamp) {
-            this._start_gc_timer();
-        }
-
-        this._pending_emit = pending;
-        if (flush) {
-            this._queue_pending_emit();
-        }
-    }
-
-    // One recurring event is not one delivery. cinnamon-calendar-server's
-    // recurrence_generated calls emit_events_added_or_updated once per
-    // generated instance, so a weekly meeting inside the 42-day window arrives
-    // as six separate signals and a working calendar as dozens — and each one
-    // drains synchronously inside its own handler, because a single-event
-    // mutation is enqueued into an empty queue and applied on the spot. So the
-    // accumulator above, which exists to say what changed once at the end of a
-    // batch, never saw two of them: measured at six signals for one weekly
-    // event, it emitted "events-updated" six times.
-    //
-    // Deferring by one idle is what lets a burst collapse into a single
-    // repaint. The grid has always absorbed its half this way (calendar.js
-    // queues its update on an idle); this is the same answer for the event
-    // column, which had no such coalescing and re-read the selected day on
-    // every instance.
-    _queue_pending_emit() {
-        if (this._destroyed || this._emit_idle_id > 0) {
-            return;
-        }
-
-        this._emit_idle_id = Mainloop.idle_add(() => {
-            this._emit_idle_id = 0;
-            this._flush_pending_emit();
-            return GLib.SOURCE_REMOVE;
-        });
-    }
-
-    // Anything that emits on its own account settles the accumulated delivery
-    // first, so consumers see the two in the order they happened rather than a
-    // removal followed by the addition it superseded.
-    _flush_pending_emit() {
-        this._cancel_pending_emit();
-        const pending = this._pending_emit;
-        if (!pending) {
-            return;
-        }
-        this._pending_emit = null;
-
-        if (pending.selected_date_changed || pending.overflow_changed) {
-            this._emit_selected_date_events_changed(false);
-        }
-
-        if (pending.events_changed || pending.overflow_changed) {
-            this.emit("events-updated");
-        }
-    }
-
-    _cancel_pending_emit() {
-        if (this._emit_idle_id > 0) {
-            Mainloop.source_remove(this._emit_idle_id);
-            this._emit_idle_id = 0;
-        }
+    _handle_status_changed() {
+        this._fetch_coordinator.handleStatusChanged();
     }
 
     _emit_selected_date_events_changed(delayNoEventsBox) {
@@ -517,387 +169,56 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this.emit("events-updated");
     }
 
-    // The acknowledgement means the request was accepted, not that its events
-    // have been delivered. cinnamon-calendar-server completes the D-Bus method
-    // as soon as it has *started* each calendar's asynchronous get_view();
-    // the view is finished, connected and started later, and the initial
-    // objects-added signals later still — or never, because a view that fails
-    // to open is reported only to the server's own stdout.
-    //
-    // Culling here therefore erased the month's rows and dots before its
-    // snapshot could arrive: every forced refresh flashed an empty calendar,
-    // and a failed view was indistinguishable from a month with no events.
-    // Reconciliation belongs to the quiet-window timer, which re-arms while
-    // mutations are still draining and culls once the signal stream has
-    // actually settled. Until it does, the last known events stay on screen.
-    _apply_fetch_complete(mutation) {
-        if (mutation.generation !== this._fetch_generation) {
-            return;
-        }
-
-        this._start_gc_timer();
+    _enqueue_event_mutation(mutation) {
+        this._mutation_stream.enqueue(mutation);
     }
 
-    _handle_removed_events(server, uids_string) {
-        this._enqueue_event_mutation({
-            type: "remove",
-            uids: decodeRemovedUids(uids_string, EventDataModule.MAX_EVENT_UID_LENGTH)
-        });
+    _apply_next_event_mutation() {
+        this._mutation_stream.applyNext();
     }
 
-    _apply_removed_events(uids_string) {
-        // null is what the adapter answers for a payload it could not decode to
-        // one UID — oversized, or carrying the "::" batch delimiter. Either way
-        // the window is dropped and the authoritative source asked again.
-        const ambiguous = uids_string === null;
-
-        // A targeted removal for an event this index never held changes
-        // nothing on screen, and the two signals below are not cheap: one
-        // re-feeds the open event column, the other rebuilds all 42 grid
-        // cells. The server relays a removal for every event leaving a
-        // calendar's view, and the index is missing plenty of them — a
-        // payload skipped for an unusable time or id, one refused past
-        // MAX_INDEXED_EVENTS, one the quiet-window cull already dropped.
-        // The ambiguous branch is exempt: it cannot know what it is losing,
-        // so it clears and asks the authoritative source again regardless.
-        if (!ambiguous && !this._event_index.hasEvent(uids_string)) {
-            return;
-        }
-
-        if (ambiguous) {
-            this._event_index.discard();
-        } else {
-            this._event_index.remove([uids_string]);
-        }
-
-        // Re-feed the open list here: a targeted removal does not need an
-        // authoritative reload, but its row must disappear immediately.
-        this._emit_selected_date_events_changed(false);
-
-        const currentMonth = this._window_coordinator.current_month_year;
-        if (ambiguous && currentMonth) {
-            this.fetch_month_events(currentMonth, true);
-        } else if (ambiguous) {
-            this.queue_reload_selected();
-        }
-
-        this.emit("events-updated");
+    _schedule_event_mutation() {
+        this._mutation_stream.schedule();
     }
 
-    _handle_client_disappeared(server, uid) {
-        this._enqueue_event_mutation({ type: "client-disappeared" });
+    _queue_pending_emit() {
+        this._mutation_stream.queuePendingEmit();
     }
 
-    _apply_client_disappeared() {
-        // A calendar was removed/disabled. Instead of picking
-        // specific matching events to remove, just rebuild the
-        // entire list.
-        this._event_index.discard();
-        this._emit_event_index_changed();
-        this.queue_reload_selected();
+    _apply_event_overflow() {
+        this._mutation_stream.applyOverflow();
     }
 
-    _handle_status_changed() {
-        if (!this.is_active()) {
-            // No request remains authoritative once the service has no usable
-            // calendars. A late cancellation/failure must not resurrect the
-            // footer warning after this state transition cleared it.
-            this._fetch_generation++;
-            this._cancel_fetch_retry();
-            this._fetch_retry_attempts = 0;
-            this._setRefreshFailed(false);
-        }
-        this.emit("has-calendars-changed");
+    _apply_event_resync(mutation = {}) {
+        this._mutation_stream.applyResync(mutation);
     }
 
-    _setRefreshFailed(failed) {
-        const next = Boolean(failed);
-        if (next === this._refresh_failed) {
-            return;
-        }
-        this._refresh_failed = next;
-        this.emit("refresh-error-changed", next);
-    }
-
-    fetch_month_events(month_year, force, retry = false) {
-        const timestamp = this._window_coordinator.fetchMonthEvents(
-            month_year,
-            force,
-            (start, end, forceReload, cancellable, watermark) => this._dispatchMonthFetch(
-                retry, start, end, forceReload, cancellable, watermark),
-            GLib.get_monotonic_time,
-            this._fetch_cancellable
-        );
-
-        if (timestamp !== null) {
-            this.last_update_timestamp = timestamp;
-        }
-    }
-
-    _dispatchMonthFetch(retry, start, end, force, cancellable, watermark) {
-        if (!retry) {
-            // A fresh user/server-driven request supersedes the old retry chain.
-            // Do this only after EventWindowCoordinator decides to dispatch:
-            // selecting another day in the same month can legitimately skip a
-            // fetch and must not cancel the retry that month still needs.
-            this._cancel_fetch_retry();
-            this._fetch_retry_attempts = 0;
-        }
-
-        this._stop_gc_timer();
-        this.last_update_timestamp = watermark;
-        const generation = ++this._fetch_generation;
-        let callbackStarted = false;
-        try {
-            this._server_connection.setTimeRange(
-                start, end, force, cancellable,
-                (server, res) => {
-                    callbackStarted = true;
-                    this.call_finished(generation, watermark, server, res);
-                });
-        } catch (error) {
-            if (callbackStarted) {
-                throw error;
-            }
-            this._settleMonthFetch(generation, watermark, error);
-            return;
-        }
-
-        // Keep the warning if dispatch itself throws. Once a range call has
-        // started, however, the old mutation-flood marker no longer describes
-        // the replacement payload. selectDate emits the newly cleared state
-        // immediately after this synchronous dispatch boundary.
-        if (this._resync_overflow_pending) {
-            this._resync_overflow_pending = false;
-            this._event_index.clearOverflow();
-        }
-    }
-
-    call_finished(generation, watermark, server, res) {
-        let failure = null;
-        try {
-            // Gio requires every result to be finished, including stale and
-            // cancelled ones. The connection uses the originating callback
-            // proxy so a reconnect cannot finish an old result on a new proxy.
-            this._server_connection.finishSetTimeRange(server, res);
-        } catch (e) {
-            failure = e;
-        }
-
-        this._settleMonthFetch(generation, watermark, failure);
-    }
-
-    _settleMonthFetch(generation, watermark, failure) {
-        // Only the latest dispatched range owns current UI/retry state. The
-        // result above is already drained, so ignoring its state effects leaks
-        // neither Gio resources nor an obsolete failure into the active month.
-        if (this._destroyed || generation !== this._fetch_generation) {
-            return;
-        }
-
-        if (!failure) {
-            this._fetch_retry_attempts = 0;
-            // Signals emitted for SetTimeRange are ordered ahead of its reply,
-            // but their bounded decoding may still be draining across idles.
-            // Queue reconciliation behind that stream, including when the
-            // successful response emitted no event signal at all.
-            this._enqueue_event_mutation({
-                type: "fetch-complete",
-                generation,
-                watermark
-            });
-            this._setRefreshFailed(false);
-        } else {
-            // the month's events never arrived. Without a retry the grid keeps
-            // the previous month's events and shows nothing for this one, and
-            // no other path ever asks again.
-            log(failure);
-            this._queue_fetch_retry();
-            this._setRefreshFailed(true);
-        }
-    }
-
-    _cancel_fetch_retry() {
-        if (this._fetch_retry_id > 0) {
-            Mainloop.source_remove(this._fetch_retry_id);
-            this._fetch_retry_id = 0;
-        }
+    _start_gc_timer() {
+        this._fetch_coordinator.startGcTimer();
     }
 
     _queue_fetch_retry() {
-        if (this._destroyed || this._fetch_retry_id > 0) {
-            return;
-        }
-
-        // A retry chain that gives up says so, once. The month's events are
-        // gone until something unrelated asks again, and the only trace used to
-        // be the per-attempt failure lines — indistinguishable from an outage
-        // that is still being retried.
-        if (this._fetch_retry_attempts >= FETCH_RETRY_MAX_ATTEMPTS) {
-            log("calendar events: giving up on this month after " +
-                FETCH_RETRY_MAX_ATTEMPTS + " attempts; the grid will not " +
-                "refresh until the calendar server or the month changes");
-            return;
-        }
-
-        const delay = ProviderUtils.backoffDelay(this._fetch_retry_attempts, {
-            base: FETCH_RETRY_SECONDS,
-            cap: FETCH_RETRY_MAX_SECONDS,
-            random: this._random
-        });
-        this._fetch_retry_attempts++;
-
-        this._fetch_retry_id = Mainloop.timeout_add_seconds(delay, () => {
-            this._fetch_retry_id = 0;
-
-            const month_year = this._window_coordinator.current_month_year;
-            if (this._destroyed || !month_year) {
-                return GLib.SOURCE_REMOVE;
-            }
-
-            // Every other caller reaches fetch_month_events through is_active(),
-            // which is what proves there is a calendar server to call. This one
-            // did not: if EDS died while the retry was queued, the proxy is null
-            // and call_set_time_range throws inside a GLib callback — and the
-            // retry id is already cleared, so the chain dies there, silently.
-            //
-            // Re-queueing here used to burn an attempt for a fetch that was
-            // never made. Restart evolution-data-server with the menu open and
-            // the five-attempt budget was spent in 155 seconds without a single
-            // request leaving the applet — the chain then died, nothing logged
-            // it, and the grid kept showing the previous month's events.
-            //
-            // There is nothing to poll for. Every route back to life —
-            // the EDS name reappearing, a status change, the user switching
-            // events back on — ends in a forced fetch of its own, so the right
-            // move is to stand down with a full budget for whoever gets there.
-            if (!this.is_active()) {
-                this._fetch_retry_attempts = 0;
-                return GLib.SOURCE_REMOVE;
-            }
-
-            this.fetch_month_events(month_year, true, true);
-
-            return GLib.SOURCE_REMOVE;
-        });
+        this._fetch_coordinator.queueFetchRetry();
     }
 
-    _cancel_reload_selected() {
-        if (this._reload_selected_id > 0) {
-            Mainloop.source_remove(this._reload_selected_id);
-            this._reload_selected_id = 0;
-        }
-    }
-
-    destroy() {
-        // before the proxy is dropped: an in-flight call whose reply lands
-        // after this would dereference it
-        if (this._fetch_cancellable) {
-            this._fetch_cancellable.cancel();
-        }
-
-        for (const id of this._event_batch_ids) {
-            Mainloop.source_remove(id);
-        }
-        this._event_batch_ids = [];
-        this._cancel_pending_emit();
-        this._event_mutations = [];
-        this._queued_event_records = 0;
-        this._queued_event_bytes = 0;
-        this._overflow_mutation_queued = false;
-        this._resync_mutation_queued = false;
-        this._pending_emit = null;
-        this._resync_overflow_pending = false;
-
-        this._server_connection.destroy();
-        this._stop_gc_timer();
-        this._cancel_reload_selected();
-        this._cancel_fetch_retry();
-
-        // A month of EventData, four GLib.DateTime each, and the applet that owns
-        // this outlives its removal from the panel — Cinnamon's Applet has no
-        // destroy(), and AppletContextMenu holds the actor, which holds _delegate.
-        // Releasing the timers and the signals but keeping the data is how ten
-        // add/remove cycles retained 38 MiB.
-        this._event_index.discard();
-
-        this._destroyed = true;
-    }
-
-    // Every bucket is keyed by date_only().to_unix() in the zone that was
-    // current when the event was indexed, and the grid now looks days up in
-    // the new one. None of the retained data addresses the displayed month any
-    // more, so drop it and ask the server again rather than let the two drift.
-    refresh_for_timezone_change() {
-        this._event_index.discard();
-        this._window_coordinator.renormalizeSelectedDate();
-        this.queue_reload_selected();
+    fetch_month_events(monthYear, force, retry = false) {
+        this._fetch_coordinator.fetchMonthEvents(monthYear, force, retry);
     }
 
     queue_reload_selected() {
-        this._cancel_reload_selected();
-        try {
-            const sourceId = Mainloop.idle_add(
-                this._idle_do_reload_selected.bind(this));
-            if (!(sourceId > 0)) {
-                throw new Error("calendar events could not register a reload idle");
-            }
-            this._reload_selected_id = sourceId;
-        } catch (error) {
-            global.logError(error);
-            // Registration failure means there is no source to wait for or
-            // cancel. Complete the authoritative reload in this turn instead.
-            try {
-                this._idle_do_reload_selected();
-            } catch (reloadError) {
-                // A normal GLib callback reports a consumer exception at its
-                // boundary. Mirror that boundary here so mutation recovery
-                // cannot interpret the listener failure as an unsafe resync
-                // and recursively try the unavailable idle port again.
-                global.logError(reloadError);
-                this._retire_stranded_resync_overflow();
-            }
-        }
+        this._fetch_coordinator.queueReloadSelected();
     }
 
     _idle_do_reload_selected() {
-        this._reload_selected_id = 0;
-        this._window_coordinator.reloadSelected(
-            () => this.is_active(),
-            (month_year, force) => this.fetch_month_events(month_year, force),
-            (name, ...args) => this.emit(name, ...args));
-        this._retire_stranded_resync_overflow();
-
-        return GLib.SOURCE_REMOVE;
+        return this._fetch_coordinator.idleDoReloadSelected();
     }
 
-    // The mutation-flood marker is a temporary warning that stands only until
-    // the authoritative replacement request is dispatched, and a dispatched
-    // range call is its one retirement point. But the reload it waits on can
-    // decline: reloadSelected returns before emitting anything when the service
-    // is gone or no day has been selected yet. The marker would then stand over
-    // an emptied index for the rest of the session, and the next genuine
-    // markOverflow() would be silently retired by the first range call after it,
-    // because a stale flag cannot be told from a live one.
-    _retire_stranded_resync_overflow() {
-        if (!this._resync_overflow_pending) {
-            return;
-        }
-
-        this._resync_overflow_pending = false;
-        if (this._event_index.clearOverflow()) {
-            this._emit_event_index_changed();
-        }
+    refresh_for_timezone_change() {
+        this._fetch_coordinator.refreshForTimezoneChange();
     }
 
     select_date(date, force) {
-        this._window_coordinator.selectDate(
-            date,
-            force,
-            () => this.is_active(),
-            (month_year, fetchForce) => this.fetch_month_events(month_year, fetchForce),
-            (name, ...args) => this.emit(name, ...args)
-        );
+        this._fetch_coordinator.selectDate(date, force);
     }
 
     get_colors_for_unix_key(dateUnixKey) {
@@ -907,9 +228,14 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     is_active() {
         return this._server_connection.isActive(this.settings.showEvents);
     }
+
+    destroy() {
+        this._fetch_coordinator.destroy();
+        this._mutation_stream.destroy();
+        this._server_connection.destroy();
+        this._event_index.discard();
+    }
 };
-
-
 
 function createEventsManager(settings, params = {}) {
     const random = params.random || Math.random;
@@ -929,6 +255,8 @@ function createEventsManager(settings, params = {}) {
         serverConnection,
         eventIndex,
         windowCoordinator,
+        mutationStream: params.mutationStream,
+        fetchCoordinator: params.fetchCoordinator,
         random
     });
     return manager;
@@ -938,9 +266,10 @@ Signals.addSignalMethods(EventsManager.prototype);
 
 if (typeof module !== "undefined") {
     module.exports = { EventsManager, createEventsManager, CalendarServerConnection,
-        EventIndex, EventWindowCoordinator, SERVER_RETRY_SECONDS,
-        SERVER_RETRY_MAX_SECONDS, FETCH_RETRY_SECONDS, FETCH_RETRY_MAX_SECONDS,
-        FETCH_RETRY_MAX_ATTEMPTS, EDS_BUS_NAME, MAX_EVENT_SIGNAL_BYTES,
-        MAX_QUEUED_EVENT_RECORDS, MAX_QUEUED_EVENT_BYTES,
-        MAX_QUEUED_EVENT_MUTATIONS, boundedEventVariants };
+        EventIndex, EventWindowCoordinator, EventMutationStream,
+        EventFetchCoordinator, SERVER_RETRY_SECONDS, SERVER_RETRY_MAX_SECONDS,
+        FETCH_RETRY_SECONDS, FETCH_RETRY_MAX_SECONDS, FETCH_RETRY_MAX_ATTEMPTS,
+        EDS_BUS_NAME, MAX_EVENT_SIGNAL_BYTES, MAX_QUEUED_EVENT_RECORDS,
+        MAX_QUEUED_EVENT_BYTES, MAX_QUEUED_EVENT_MUTATIONS,
+        boundedEventVariants };
 }
