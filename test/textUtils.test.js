@@ -5,8 +5,36 @@ const path = require("node:path");
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 
 
-const { clampText, displayWidth, textWithinLimit, normalizeBoundedText, TEXT_ELLIPSIS } =
+const { clampText, displayWidth, textWithinLimit, normalizeBoundedText,
+    sanitizeControlCharacters, TEXT_ELLIPSIS } =
     require(path.join(APPLET_DIR, "textUtils.js"));
+
+// T783: the test was a code-block one — C0 plus C1 — and U+2028 LINE SEPARATOR
+// and U+2029 PARAGRAPH SEPARATOR are categories Zl and Zp, so they went
+// straight through the function whose whole job is to stop a third party's
+// string breaking a line. Pango, GTK and the Cinnamon log all break on them.
+test("the sanitizer removes every character that can break a line", () => {
+    const breaks = [0x00, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x1f, 0x7f, 0x85, 0x9f,
+        0x2028, 0x2029];
+
+    for (const code of breaks) {
+        const point = code.toString(16).padStart(4, "0").toUpperCase();
+        assert.equal(
+            sanitizeControlCharacters("a" + String.fromCodePoint(code) + "b"),
+            "a b", "U+" + point + " must not reach a label or a log line");
+    }
+
+    // a run of them still collapses to one space
+    assert.equal(sanitizeControlCharacters(
+        "a" + String.fromCodePoint(0x2028, 0x0a, 0x2029) + "b"), "a b");
+
+    // and what is not a control is left alone. U+2007 FIGURE SPACE and U+3000
+    // IDEOGRAPHIC SPACE are Zs: they print, so they are text, not breaks.
+    const spaced = "Dia" + String.fromCodePoint(0x2007) + "de" +
+        String.fromCodePoint(0x3000) + "la";
+    assert.equal(sanitizeControlCharacters(spaced), spaced);
+    assert.equal(sanitizeControlCharacters(null), "");
+});
 
 test("clampText counts code points and keeps what it cuts readable", () => {
     assert.equal(clampText("Rome", 10), "Rome", "shorter than the cap is untouched");

@@ -17,6 +17,19 @@
 // Pango.
 var TEXT_ELLIPSIS = "…"; // NOSONAR [S3504] -- GJS importer export
 
+// U+2028 LINE SEPARATOR and U+2029 PARAGRAPH SEPARATOR are categories Zl and
+// Zp, not Cc, so a control-block test alone lets them straight through — and
+// Pango, GTK and the Cinnamon log all break a line on them. They are the exact
+// multi-line break this function exists to prevent: a holiday name or an event
+// summary carrying one grows the label by a row, and a log line carrying one
+// forges a second entry.
+const LINE_SEPARATORS = new Set([0x2028, 0x2029]);
+
+function isRemovedControl(code) {
+    return code <= 0x1f || (code >= 0x7f && code <= 0x9f) ||
+        LINE_SEPARATORS.has(code);
+}
+
 function sanitizeControlCharacters(text) {
     if (typeof text !== "string") {
         return "";
@@ -25,8 +38,7 @@ function sanitizeControlCharacters(text) {
     let replacing = false;
     for (const character of text) {
         const code = character.codePointAt(0);
-        const control = code <= 0x1f || (code >= 0x7f && code <= 0x9f);
-        if (control) {
+        if (isRemovedControl(code)) {
             if (!replacing) {
                 sanitized.push(" ");
                 replacing = true;
