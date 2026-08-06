@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T930 | correctness; performance | Medium | open | S | The manifest-version patch regex has adjacent unbounded whitespace/string regions that Sonar identifies as super-linear. | **[found 2026-08-07 in Sonar new-code audit; javascript:S8786]** Bound the pattern to horizontal JSON whitespace and a single line while preserving prefix bytes and the existing semantic round-trip check. |
 
 ## Rejected, deferred and won't fix
 

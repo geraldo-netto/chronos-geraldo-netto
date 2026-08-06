@@ -533,7 +533,7 @@ export async function checkRelease(projectRoot, tag, releaseBranch = RELEASE_BRA
 // `package-lock.json` do round-trip identically at indent 2, so only the manifest
 // needs its own writer.
 export function patchManifestVersion(original, nextVersion) {
-    const patched = original.replace(/^(\s*"version"\s*:\s*)"[^"]*"/m,
+    const patched = original.replace(/^([ \t]*"version"[ \t]*:[ \t]*)"[^"\r\n]*"/m,
         (match, prefix) => prefix + JSON.stringify(nextVersion));
     const expected = { ...JSON.parse(original), version: nextVersion };
     if (JSON.stringify(JSON.parse(patched)) !== JSON.stringify(expected)) {
