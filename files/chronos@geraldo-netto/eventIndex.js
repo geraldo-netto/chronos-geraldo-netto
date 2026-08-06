@@ -32,6 +32,11 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this._maxEvents = maxEvents;
         this._eventIds = new Set();
         this._eventsById = new Map();
+        // uid -> the day keys that uid occupies. Removal and liveness used to
+        // walk every bucket in the fetched window for every uid, although an
+        // event covers at most MAX_SPANNED_DAYS + 1 of them, and every walk
+        // allocated a fresh pairs array to do it.
+        this._daysById = new Map();
         this._overflowed = false;
         this._windowStart = null;
         this._windowEnd = null;
@@ -47,6 +52,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this.eventsByDate = {};
         this._eventIds.clear();
         this._eventsById.clear();
+        this._daysById.clear();
         this._overflowed = false;
     }
 
@@ -73,12 +79,30 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
     _rebuildEventState() {
         this._eventIds.clear();
         this._eventsById.clear();
-        for (const eventList of Object.values(this.eventsByDate)) {
-            for (const event of eventList.get_stored_events()) {
-                this._eventIds.add(event.id);
-                this._eventsById.set(event.id, event);
-            }
+        this._daysById.clear();
+        for (const [hash, eventList] of Object.entries(this.eventsByDate)) {
+            this._indexBucket(Number(hash), eventList);
         }
+    }
+
+    _indexBucket(hash, eventList) {
+        for (const event of eventList.get_stored_events()) {
+            this._eventIds.add(event.id);
+            this._eventsById.set(event.id, event);
+            this._noteDay(event.id, hash);
+        }
+    }
+
+    // Object keys are strings, so the rebuild coerces back to the number
+    // date.to_unix() produced: a set holding both "864000" and 864000 would
+    // visit the same bucket twice.
+    _noteDay(id, hash) {
+        let days = this._daysById.get(id);
+        if (!days) {
+            days = new Set();
+            this._daysById.set(id, days);
+        }
+        days.add(hash);
     }
 
     get(date) {
@@ -112,13 +136,35 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
     }
 
     _removeFromBuckets(uids) {
-        for (const [hash, eventList] of Object.entries(this.eventsByDate)) {
-            for (const uid of uids) {
-                eventList.delete(uid);
-            }
-            if (eventList.length === 0) {
-                delete this.eventsByDate[hash];
-            }
+        for (const uid of uids) {
+            this._removeUidFromDays(uid);
+        }
+    }
+
+    _removeUidFromDays(uid) {
+        const days = this._daysById.get(uid);
+        if (!days) {
+            return;
+        }
+
+        this._daysById.delete(uid);
+        for (const hash of days) {
+            this._deleteFromBucket(hash, uid);
+        }
+    }
+
+    // A day that has just lost its last event is not a day the grid should
+    // find: getByUnixKey answers on length, but an empty list left behind also
+    // keeps its EventDataList and its gdate_only alive for the whole window.
+    _deleteFromBucket(hash, uid) {
+        const eventList = this.eventsByDate[hash];
+        if (!eventList) {
+            return;
+        }
+
+        eventList.delete(uid);
+        if (eventList.length === 0) {
+            delete this.eventsByDate[hash];
         }
     }
 
@@ -142,6 +188,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         }
 
         const changed = this.eventsByDate[hash].add_or_update(data, timestamp);
+        this._noteDay(data.id, hash);
         return {
             changed,
             selected_changed: changed && dt_equals(date, currentSelectedDate)
@@ -217,8 +264,16 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
 
     // the stale delivery is still evidence that the event is live upstream
     _refreshLiveness(id, timestamp) {
-        for (const eventList of Object.values(this.eventsByDate)) {
-            eventList.touch(id, timestamp);
+        const days = this._daysById.get(id);
+        if (!days) {
+            return;
+        }
+
+        for (const hash of days) {
+            const eventList = this.eventsByDate[hash];
+            if (eventList) {
+                eventList.touch(id, timestamp);
+            }
         }
     }
 

@@ -1886,6 +1886,55 @@ test("EventIndex rebuilds its id state only when a cull actually drops a row", (
     ], 7, selected).events_changed, true, "the culled UID can come back");
 });
 
+// Removal walks the days the uid actually occupies rather than every bucket in
+// the window, so the day map is now load-bearing: if it goes stale, a removed
+// event survives in a bucket the grid still reads, and a rescheduled one is
+// shown on both its old day and its new one. Reschedule and cull are the two
+// paths that rewrite it.
+test("EventIndex removal follows the days a uid occupies, across reschedule and cull", () => {
+    const index = new EventIndex();
+    const selected = new FakeDateTime(10 * DAY_US);
+    const spanning = { id: "span", startUnix: 10 * DAY_S, endUnix: 12 * DAY_S + 60 };
+
+    index.addOrUpdate([
+        eventVariant(spanning),
+        eventVariant({ id: "doomed", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 })
+    ], 5, selected);
+    assert.deepEqual(Array.from(index._daysById.get("span")).sort((a, b) => a - b),
+        [10 * DAY_S, 11 * DAY_S, 12 * DAY_S], "the span's own days, and only those");
+
+    // a reschedule onto a different day must vacate the three it held
+    index.addOrUpdate([eventVariant({
+        id: "span", startUnix: 20 * DAY_S, endUnix: 20 * DAY_S + 60, modTime: 2
+    })], 6, selected);
+    assert.deepEqual(Array.from(index._daysById.get("span")), [20 * DAY_S]);
+    for (const day of [11 * DAY_S, 12 * DAY_S]) {
+        assert.equal(index.getByUnixKey(day), null, `day ${day} was vacated`);
+    }
+
+    // the cull rebuilds the map from the buckets; the keys it reads back are
+    // object keys, so a rebuild that kept them as strings would file the same
+    // day twice and a later lookup would miss
+    assert.equal(index.cull(6), true, "the doomed event is behind the watermark");
+    assert.deepEqual(Array.from(index._daysById.keys()), ["span"]);
+    assert.deepEqual(Array.from(index._daysById.get("span")), [20 * DAY_S]);
+
+    index.remove(["span"]);
+    assert.deepEqual(index.eventsByDate, {}, "no bucket outlives its last event");
+    assert.equal(index._daysById.size, 0);
+
+    // removing a uid the index never held is not an error, and must not
+    // disturb what it does hold
+    index.addOrUpdate([eventVariant({
+        id: "kept", startUnix: 30 * DAY_S, endUnix: 30 * DAY_S + 60
+    })], 7, selected);
+    index.remove(["never-seen"]);
+    assert.equal(index.getByUnixKey(30 * DAY_S).has("kept"), true);
+
+    index.clear();
+    assert.equal(index._daysById.size, 0, "clear() drops the day map with the buckets");
+});
+
 test("EventIndex bounds distinct window events and recovers capacity", () => {
     const index = new EventIndex({}, 3);
     const selected = new FakeDateTime(10 * DAY_US);
