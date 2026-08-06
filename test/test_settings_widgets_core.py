@@ -97,6 +97,35 @@ class SettingsWidgetsTest(unittest.TestCase):
 
         self.assertEqual(len(model.rows), 0)
 
+    def test_two_transforms_over_the_same_rows_get_their_own_model(self):
+        # T838: the key held id(row_columns) and kept the rows alive but not the
+        # function, so a freed callable's address went straight to the next one.
+        # Not hypothetical - CPython reuses the block immediately, and before
+        # this the second call returned the first call's model, folded by the
+        # wrong transform.
+        common = self.module.common
+        common._COMPLETION_MODELS.clear()
+        rows = ["Rome", "Lisbon"]
+
+        lowered = common.completion_model(rows, lambda row: [row, row.lower()])
+        uppered = common.completion_model(rows, lambda row: [row, row.upper()])
+
+        self.assertIsNot(lowered, uppered)
+        self.assertEqual(uppered.rows, [["Rome", "ROME"], ["Lisbon", "LISBON"]])
+
+    def test_the_same_transform_over_the_same_rows_is_built_once(self):
+        # the memo still has to hit, which is the whole reason it exists
+        common = self.module.common
+        common._COMPLETION_MODELS.clear()
+
+        def columns(row):
+            return [row, row.lower()]
+
+        self.assertIs(common.completion_model(["Rome"], columns),
+                      common.completion_model(["Rome"], columns))
+        self.assertIsNot(common.completion_model(["Rome"], columns),
+                         common.completion_model(["Tokyo"], columns))
+
     def test_widget_module_tolerates_missing_stdlib_zoneinfo(self):
         module = load_module(
             WORLDCLOCKS_PATH, "settings_widgets_common_no_zoneinfo_test",

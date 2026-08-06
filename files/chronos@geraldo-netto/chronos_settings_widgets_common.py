@@ -88,7 +88,8 @@ def plain_completion_match(completion, key, tree_iter, model) -> bool:
     return needle in model[tree_iter][-1]
 
 
-# Keyed by what the rows *are*, not by which list object they arrived in.
+# Keyed by what the rows *are*, not by which list object they arrived in, and by
+# the transform itself rather than its address.
 #
 # There were two of these, one per feature. Both were keyed by the content, both
 # lived for the process, and both had this history: the timezone one was keyed
@@ -97,6 +98,12 @@ def plain_completion_match(completion, key, tree_iter, model) -> bool:
 # builds its own resolver and therefore its own completions list, so the memo
 # never hit across instances - it accumulated one 439-row store per settings page
 # ever constructed. A cache that cannot hit is a leak wearing a cache's clothes.
+#
+# Half of that survived the merge as id(row_columns): the key kept the rows
+# alive and nothing kept the *function* alive, so a freed callable's address was
+# free to be handed to the next one. Two transforms over the same rows are not a
+# hypothetical - CPython reuses the block immediately - and the second one was
+# given the first one's columns.
 _COMPLETION_MODELS: dict[tuple, Any] = {}
 
 
@@ -109,7 +116,9 @@ def completion_model(rows, row_columns):
     substring test. The lists never change while cinnamon-settings runs, and
     every page that asks for one asks for the same one.
     """
-    key = (id(row_columns), tuple(rows))
+    # the function, not its address: it is hashable, and holding it in the key
+    # is what stops its identity being recycled under the memo
+    key = (row_columns, tuple(rows))
     cached = _COMPLETION_MODELS.get(key)
     if cached is not None:
         return cached
