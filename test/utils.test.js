@@ -2725,7 +2725,8 @@ test("a settled locale query leaves the teardown nothing to kill", () => {
         "Dom;Seg;Ter;Qua;Qui;Sex;Sáb", "the query answered");
     const child = global.imports.gi.Gio.Subprocess.last;
     const cancellable = global.imports.gi.Gio.Cancellable.last;
-    assert.ok(child && cancellable);
+    assert.ok(child);
+    assert.ok(cancellable);
 
     localeQuery.cancelPendingLocaleQueries();
 

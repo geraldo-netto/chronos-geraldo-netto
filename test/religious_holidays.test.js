@@ -257,9 +257,14 @@ function pickYear(rand) {
 }
 
 function assertWellFormedRow(row) {
-    assert.ok(Number.isInteger(row.month) && row.month >= 1 && row.month <= 12);
-    assert.ok(Number.isInteger(row.day) && row.day >= 1 && row.day <= 31);
-    assert.ok(typeof row.name === "string" && row.name.length > 0);
+    assert.ok(Number.isInteger(row.month));
+    assert.ok(row.month >= 1);
+    assert.ok(row.month <= 12);
+    assert.ok(Number.isInteger(row.day));
+    assert.ok(row.day >= 1);
+    assert.ok(row.day <= 31);
+    assert.equal(typeof row.name, "string");
+    assert.ok(row.name.length > 0);
     assert.equal(row.flags[0], ReligiousHolidays.RELIGIOUS_HOLIDAY_FLAG);
 }
 

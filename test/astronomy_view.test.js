@@ -496,7 +496,9 @@ test("destroying the view drops the zone and day memos it holds", () => {
     view.update({ visible: true, place: {
         latitude: 41.9, longitude: 12.48, timezone: "Asia/Seoul"
     }, use24h: true });
-    assert.ok(view._timezone && view._dayCache && view._renderedKey);
+    assert.ok(view._timezone);
+    assert.ok(view._dayCache);
+    assert.ok(view._renderedKey);
 
     view.destroy();
 

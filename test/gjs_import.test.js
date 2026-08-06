@@ -413,7 +413,8 @@ test("elapsed time exposes civil freshness and monotonic pacing clocks", () => {
     const before = Date.now();
     const civil = context.civilMilliseconds();
     const after = Date.now();
-    assert.ok(civil >= before && civil <= after);
+    assert.ok(civil >= before);
+    assert.ok(civil <= after);
     assert.equal(context.monotonicMilliseconds(), 2500);
     assert.equal(context.monotonicSeconds(), 2.5);
 });

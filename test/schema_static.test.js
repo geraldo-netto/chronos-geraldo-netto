@@ -892,18 +892,20 @@ test("clock text clamps and the no-region area are the same in JS and Python", (
 
     const jsClamp = /^var MAX_CLOCK_INPUT_LABEL_LENGTH = (\d+);/m.exec(worldclockData);
     const pyClamp = /^MAX_CLOCK_INPUT_LABEL_LENGTH = (\d+)$/m.exec(widgets);
-    assert.ok(jsClamp && pyClamp, "both sides must declare the label clamp");
+    assert.ok(jsClamp, "the runtime must declare the label clamp");
+    assert.ok(pyClamp, "the settings editor must declare the label clamp");
     assert.equal(Number(jsClamp[1]), Number(pyClamp[1]));
 
     const jsTimezoneClamp = /^var MAX_CLOCK_TIMEZONE_LENGTH = (\d+);/m.exec(worldclockData);
     const pyTimezoneClamp = /^MAX_COMPLETION_INPUT_LENGTH = (\d+)$/m.exec(commonWidgets);
-    assert.ok(jsTimezoneClamp && pyTimezoneClamp,
-        "runtime and editor must declare the timezone clamp");
+    assert.ok(jsTimezoneClamp, "the runtime must declare the timezone clamp");
+    assert.ok(pyTimezoneClamp, "the settings editor must declare the timezone clamp");
     assert.equal(Number(jsTimezoneClamp[1]), Number(pyTimezoneClamp[1]));
 
     const jsArea = /^var TZ_NO_REGION = "([^"]+)";/m.exec(worldclockData);
     const pyArea = /^TZ_NO_REGION = '([^']+)'$/m.exec(timezoneData);
-    assert.ok(jsArea && pyArea, "both sides must declare the no-region area");
+    assert.ok(jsArea, "the runtime must declare the no-region area");
+    assert.ok(pyArea, "the settings editor must declare the no-region area");
     assert.equal(jsArea[1], pyArea[1]);
 });
 

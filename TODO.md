@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T928 | test coverage; diagnostics | Low | open | S | Eight composite assertions hide which individual precondition failed. | **[found 2026-08-07 in Sonar new-code audit; javascript:S9073]** Split astronomy cache, elapsed-clock bounds, religious-row shape, schema-parity, locale teardown, and similar assertions so each failure names one invariant. |
 | T929 | test coverage; diagnostics | Low | open | S | A release-lock test relies on `fs.access` rejection for failure, which Sonar does not recognize as an assertion. | **[found 2026-08-07 in Sonar new-code audit; javascript:S2699]** Wrap both access checks with `assert.doesNotReject` so the live-lock preservation contract is explicit to readers and the analyzer. |
 | T930 | correctness; performance | Medium | open | S | The manifest-version patch regex has adjacent unbounded whitespace/string regions that Sonar identifies as super-linear. | **[found 2026-08-07 in Sonar new-code audit; javascript:S8786]** Bound the pattern to horizontal JSON whitespace and a single line while preserving prefix bytes and the existing semantic round-trip check. |
 
