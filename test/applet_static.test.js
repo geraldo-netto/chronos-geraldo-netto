@@ -248,7 +248,7 @@ test("event managers expose teardown and applets call it", () => {
     assert.match(fetchCoordinator,
         /destroy\(\) \{[\s\S]*?this\._fetchCancellable\.cancel\(\);[\s\S]*?this\.stopGcTimer\(\);[\s\S]*?this\.cancelReloadSelected\(\);[\s\S]*?this\.cancelFetchRetry\(\);/);
     assert.match(mutationStream,
-        /destroy\(\) \{[\s\S]*?for \(const id of this\._eventBatchIds\)[\s\S]*?this\.cancelPendingEmit\(\);[\s\S]*?this\._clearQueue\(\);/);
+        /reset\(\) \{[\s\S]*?for \(const id of this\._eventBatchIds\)[\s\S]*?this\.cancelPendingEmit\(\);[\s\S]*?this\._clearQueue\(\);[\s\S]*?destroy\(\) \{[\s\S]*?this\.reset\(\);/);
     assert.match(connection,
         /const signalIds = this\._calendar_server_signal_ids;[\s\S]*?this\._calendar_server_signal_ids = \[\];[\s\S]*?for \(let id of signalIds\) \{[\s\S]*?server\.disconnect\(id\);/);
     assert.match(connection, /this\._calendar_server = null;[\s\S]*?this\._inited = false;/);

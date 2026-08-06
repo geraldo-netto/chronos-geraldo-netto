@@ -103,8 +103,14 @@ test("turning world clocks off stops the city weather that was fetched for them"
 // is the only place that can tell the calendar.
 test("turning events off reaches the calendar grid's data-availability state", () => {
     const refreshed = [];
+    const enabled = [];
+    const selected = [];
     const coordinator = new CoordinatorModule.AppletEventListCoordinator({
-        manager: { is_active: () => false, select_date: () => {} },
+        manager: {
+            is_active: () => false,
+            set_enabled: (value) => enabled.push(value),
+            select_date: (...args) => selected.push(args)
+        },
         eventList: () => ({
             actor: {},
             set_reporting_enabled() {},
@@ -124,6 +130,10 @@ test("turning events off reaches the calendar grid's data-availability state", (
 
     coordinator.apply(false);
     assert.equal(refreshed.length, 2, "the flip reaches the grid");
+    assert.deepEqual(enabled, [true, false],
+        "each real setting transition reaches the manager exactly once");
+    assert.equal(selected.length, 1,
+        "disabling clears state instead of starting a fetch that cannot run");
 });
 
 // The per-city temperature, the condition in words and the service that answered

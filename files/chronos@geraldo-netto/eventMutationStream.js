@@ -49,6 +49,7 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         this._onClientDisappeared = params.onClientDisappeared;
 
         this._destroyed = false;
+        this._generation = 0;
         this._eventMutations = [];
         this._eventBatchIds = [];
         this._queuedEventRecords = 0;
@@ -224,23 +225,30 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         }
     }
 
+    _runScheduledMutation(generation) {
+        if (generation !== this._generation) {
+            return GLib.SOURCE_REMOVE;
+        }
+        this._eventBatchIds.shift();
+        if (this._destroyed) {
+            this._clearQueue();
+            this.cancelPendingEmit();
+        } else {
+            this.applyNext();
+        }
+        return GLib.SOURCE_REMOVE;
+    }
+
     schedule() {
         if (this._destroyed || this._eventBatchIds.length > 0) {
             return;
         }
 
         let sourceId;
+        const generation = this._generation;
         try {
-            sourceId = Mainloop.idle_add(() => {
-                this._eventBatchIds.shift();
-                if (this._destroyed) {
-                    this._clearQueue();
-                    this.cancelPendingEmit();
-                } else {
-                    this.applyNext();
-                }
-                return GLib.SOURCE_REMOVE;
-            });
+            sourceId = Mainloop.idle_add(
+                () => this._runScheduledMutation(generation));
             if (!(sourceId > 0)) {
                 throw new Error("calendar events could not register a mutation idle");
             }
@@ -318,8 +326,16 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         }
 
         try {
+            const generation = this._generation;
             const sourceId = Mainloop.idle_add(() => {
+                if (generation !== this._generation) {
+                    return GLib.SOURCE_REMOVE;
+                }
                 this._emitIdleId = 0;
+                if (this._destroyed) {
+                    this._pendingEmit = null;
+                    return GLib.SOURCE_REMOVE;
+                }
                 this.flushPendingEmit();
                 return GLib.SOURCE_REMOVE;
             });
@@ -396,13 +412,18 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         this._pendingEmit = null;
     }
 
-    destroy() {
+    reset() {
+        this._generation++;
         for (const id of this._eventBatchIds) {
             Mainloop.source_remove(id);
         }
         this._eventBatchIds = [];
         this.cancelPendingEmit();
         this._clearQueue();
+    }
+
+    destroy() {
+        this.reset();
         this._destroyed = true;
     }
 };

@@ -137,13 +137,17 @@ class AppletEventListCoordinator {
     }
 
     apply(showEvents) {
-        const list = this.update(showEvents);
+        const enabled = Boolean(showEvents);
+        const list = this.update(enabled);
         if (list) {
             list.refresh_time_format();
         }
-        if (showEvents !== this._appliedShowEvents) {
-            this._appliedShowEvents = showEvents;
-            this.manager.select_date(this.selectedDate(), true);
+        if (enabled !== this._appliedShowEvents) {
+            this._appliedShowEvents = enabled;
+            this.manager.set_enabled(enabled);
+            if (enabled) {
+                this.manager.select_date(this.selectedDate(), true);
+            }
             // The column above is this coordinator's own; the grid's dots
             // gate on event-data availability, which only manager signals
             // recompute — and a settings flip fires none of them.

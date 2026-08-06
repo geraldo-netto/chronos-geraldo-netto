@@ -108,20 +108,47 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _handle_added_or_updated_events(server, varray) {
+        if (!this.is_active()) {
+            return;
+        }
         this._mutation_stream.handleAddedOrUpdated(
             varray, this.last_update_timestamp);
     }
 
     _handle_removed_events(server, uidsString) {
+        if (!this.is_active()) {
+            return;
+        }
         this._mutation_stream.handleRemoved(uidsString);
     }
 
     _handle_client_disappeared(server, uid) {
+        if (!this.is_active()) {
+            return;
+        }
         this._mutation_stream.handleClientDisappeared();
     }
 
     _handle_status_changed() {
+        if (!this.is_active()) {
+            this._quiesce_event_pipeline();
+        }
         this._fetch_coordinator.handleStatusChanged();
+    }
+
+    _quiesce_event_pipeline() {
+        try {
+            this._fetch_coordinator.quiesce();
+        } finally {
+            this._mutation_stream.reset();
+            this._event_index.discard();
+        }
+    }
+
+    set_enabled(enabled) {
+        if (!enabled) {
+            this._quiesce_event_pipeline();
+        }
     }
 
     _emit_selected_date_events_changed(delayNoEventsBox) {

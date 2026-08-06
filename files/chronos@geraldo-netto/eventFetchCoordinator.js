@@ -48,6 +48,7 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
         this._fetchRetryAttempts = 0;
         this._refreshFailed = false;
         this._fetchGeneration = 0;
+        this._activityGeneration = 0;
         this._resyncOverflowPending = false;
         this._fetchCancellable = new Gio.Cancellable();
     }
@@ -68,12 +69,19 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
             return;
         }
 
+        const activityGeneration = this._activityGeneration;
         this._gcTimerId = Mainloop.timeout_add_seconds(
-            3, this._performGc.bind(this));
+            3, () => this._performGc(activityGeneration));
     }
 
-    _performGc() {
+    _performGc(activityGeneration) {
+        if (activityGeneration !== this._activityGeneration) {
+            return GLib.SOURCE_REMOVE;
+        }
         this._gcTimerId = 0;
+        if (this._destroyed) {
+            return GLib.SOURCE_REMOVE;
+        }
         if (this._mutationsPending()) {
             this.startGcTimer();
             return GLib.SOURCE_REMOVE;
@@ -111,13 +119,24 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
     }
 
     handleStatusChanged() {
-        if (!this._isActive()) {
-            this._fetchGeneration++;
-            this.cancelFetchRetry();
-            this._fetchRetryAttempts = 0;
-            this._setRefreshFailed(false);
-        }
         this._emit("has-calendars-changed");
+    }
+
+    quiesce() {
+        if (this._destroyed) {
+            return;
+        }
+
+        this._activityGeneration++;
+        this._fetchGeneration++;
+        this._fetchCancellable.cancel();
+        this._fetchCancellable = new Gio.Cancellable();
+        this.stopGcTimer();
+        this.cancelReloadSelected();
+        this.cancelFetchRetry();
+        this._fetchRetryAttempts = 0;
+        this._resyncOverflowPending = false;
+        this._setRefreshFailed(false);
     }
 
     _setRefreshFailed(failed) {
@@ -186,7 +205,8 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
     }
 
     _settle(generation, watermark, failure) {
-        if (this._destroyed || generation !== this._fetchGeneration) {
+        if (this._destroyed || !this._isActive() ||
+            generation !== this._fetchGeneration) {
             return;
         }
 
@@ -214,6 +234,27 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
         }
     }
 
+    _runFetchRetry(activityGeneration) {
+        if (activityGeneration !== this._activityGeneration) {
+            return GLib.SOURCE_REMOVE;
+        }
+        this._fetchRetryId = 0;
+        if (this._destroyed) {
+            return GLib.SOURCE_REMOVE;
+        }
+        const monthYear = this._windowCoordinator.current_month_year;
+        if (!monthYear) {
+            return GLib.SOURCE_REMOVE;
+        }
+        if (!this._isActive()) {
+            this._fetchRetryAttempts = 0;
+            return GLib.SOURCE_REMOVE;
+        }
+
+        this.fetchMonthEvents(monthYear, true, true);
+        return GLib.SOURCE_REMOVE;
+    }
+
     queueFetchRetry() {
         if (this._destroyed || this._fetchRetryId > 0) {
             return;
@@ -232,21 +273,10 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
             random: this._random
         });
         this._fetchRetryAttempts++;
+        const activityGeneration = this._activityGeneration;
 
-        this._fetchRetryId = Mainloop.timeout_add_seconds(delay, () => {
-            this._fetchRetryId = 0;
-            const monthYear = this._windowCoordinator.current_month_year;
-            if (this._destroyed || !monthYear) {
-                return GLib.SOURCE_REMOVE;
-            }
-            if (!this._isActive()) {
-                this._fetchRetryAttempts = 0;
-                return GLib.SOURCE_REMOVE;
-            }
-
-            this.fetchMonthEvents(monthYear, true, true);
-            return GLib.SOURCE_REMOVE;
-        });
+        this._fetchRetryId = Mainloop.timeout_add_seconds(
+            delay, () => this._runFetchRetry(activityGeneration));
     }
 
     cancelReloadSelected() {
@@ -259,8 +289,18 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
     queueReloadSelected() {
         this.cancelReloadSelected();
         try {
+            const activityGeneration = this._activityGeneration;
             const sourceId = Mainloop.idle_add(
-                this.idleDoReloadSelected.bind(this));
+                () => {
+                    if (activityGeneration !== this._activityGeneration) {
+                        return GLib.SOURCE_REMOVE;
+                    }
+                    if (this._destroyed) {
+                        this._reloadSelectedId = 0;
+                        return GLib.SOURCE_REMOVE;
+                    }
+                    return this.idleDoReloadSelected();
+                });
             if (!(sourceId > 0)) {
                 throw new Error("calendar events could not register a reload idle");
             }
@@ -314,6 +354,8 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
     }
 
     destroy() {
+        this._activityGeneration++;
+        this._fetchGeneration++;
         if (this._fetchCancellable) {
             this._fetchCancellable.cancel();
         }

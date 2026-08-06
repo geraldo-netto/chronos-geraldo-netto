@@ -697,6 +697,112 @@ test("a month fetch in flight is cancelled when the applet goes away", () => {
     assert.equal(logged.length, 0, "a removed applet does not report a fetch failure");
 });
 
+test("disabling events quiesces the pipeline and re-enables from an empty index", () => {
+    const manager = readyManager();
+    const server = proxy.instance;
+    server.defer_time_ranges = true;
+    const selected = new Date(50 * DAY_S * 1000);
+
+    manager.select_date(selected, true);
+    const abandonedFetch = server.set_time_range_calls[0];
+    const events = Array.from({ length: 60 }, (_unused, index) => eventVariant({
+        id: `abandoned-${index}`,
+        startUnix: 10 * DAY_S + index * 60,
+        endUnix: 10 * DAY_S + index * 60 + 30
+    }));
+    server.signal("events-added-or-updated", eventArrayVariant(events));
+    assert.ok(manager._mutation_stream._eventBatchIds.length > 0,
+        "part of the server delivery is still queued");
+    assert.ok(Object.keys(manager._event_index.eventsByDate).length > 0,
+        "the delivered head reached the old index");
+
+    manager._fetch_coordinator.queueFetchRetry();
+    manager.queue_reload_selected();
+    const abandonedSources = [
+        manager._fetch_coordinator._gcTimerId,
+        manager._fetch_coordinator._fetchRetryId,
+        manager._fetch_coordinator._reloadSelectedId,
+        manager._mutation_stream._eventBatchIds[0],
+        manager._mutation_stream._emitIdleId
+    ].filter((id) => id > 0);
+    const abandonedCallbacks = abandonedSources
+        .map((id) => timers.pending.get(id))
+        .filter((callback) => typeof callback === "function");
+
+    manager.settings.showEvents = false;
+    manager.set_enabled(false);
+
+    assert.equal(abandonedFetch.cancellable.cancelled, true,
+        "the disabled feature cancels its in-flight D-Bus request");
+    assert.notEqual(manager._fetch_coordinator._fetchCancellable,
+        abandonedFetch.cancellable, "a later enable owns a fresh cancellable");
+    assert.equal(manager._fetch_coordinator._fetchCancellable.cancelled, false);
+    assert.deepEqual(manager._mutation_stream._eventMutations, []);
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, []);
+    assert.equal(manager._mutation_stream._pendingEmit, null);
+    assert.deepEqual(manager._event_index.eventsByDate, {});
+    assert.equal(manager._event_index.overflowed, false);
+    for (const id of abandonedSources) {
+        assert.equal(timers.pending.has(id), false,
+            "every source owned by the disabled pipeline is removed");
+    }
+
+    const poison = {
+        get_size() {
+            throw new Error("inactive payload was decoded");
+        }
+    };
+    assert.doesNotThrow(() => server.signal("events-added-or-updated", poison));
+    assert.doesNotThrow(() => server.signal("events-removed", "inactive"));
+    assert.doesNotThrow(() => server.signal("client-disappeared", "inactive"));
+    assert.deepEqual(manager._mutation_stream._eventMutations, [],
+        "inactive server signals never enter the mutation stream");
+
+    manager.settings.showEvents = true;
+    manager.set_enabled(true);
+    manager.select_date(selected, true);
+    const replacementFetch = server.set_time_range_calls[1];
+    assert.ok(replacementFetch);
+    assert.notEqual(replacementFetch.cancellable, abandonedFetch.cancellable);
+    assert.equal(replacementFetch.cancellable.cancelled, false);
+    assert.deepEqual(manager._event_index.eventsByDate, {},
+        "same-month re-enable exposes no retained rows before its fetch answers");
+
+    server.complete_time_range(0, { id: "late-disabled-fetch" });
+    assert.deepEqual(manager._mutation_stream._eventMutations, [],
+        "the abandoned completion cannot reconcile the replacement window");
+
+    const replacements = Array.from({ length: 60 }, (_unused, index) => eventVariant({
+        id: `replacement-${index}`, summary: "fresh",
+        startUnix: 10 * DAY_S + index * 60,
+        endUnix: 10 * DAY_S + index * 60 + 30
+    }));
+    server.signal("events-added-or-updated", eventArrayVariant(replacements));
+    const liveBatchIds = manager._mutation_stream._eventBatchIds.slice();
+    const callsBeforeLateSources = server.set_time_range_calls.length;
+    for (const callback of abandonedCallbacks) {
+        assert.equal(callback(), false);
+    }
+    assert.deepEqual(manager._mutation_stream._eventBatchIds, liveBatchIds,
+        "already-dispatched old idles cannot retire replacement idles");
+    assert.equal(server.set_time_range_calls.length, callsBeforeLateSources,
+        "already-dispatched old retries and reloads cannot refetch after re-enable");
+
+    drainEventMutations(manager);
+    assert.equal(manager._event_index.hasEvent("replacement-0"), true);
+    assert.equal(manager._event_index.hasEvent("abandoned-0"), false);
+
+    server.complete_time_range(1, { id: "replacement-fetch" });
+    drainEventMutations(manager);
+    manager.destroy();
+    const terminalGeneration = manager._fetch_coordinator._activityGeneration;
+    const terminalCancellable = manager._fetch_coordinator._fetchCancellable;
+    manager._fetch_coordinator.quiesce();
+    assert.equal(manager._fetch_coordinator._activityGeneration, terminalGeneration,
+        "quiesce cannot reopen a terminal coordinator");
+    assert.equal(manager._fetch_coordinator._fetchCancellable, terminalCancellable);
+});
+
 test("destroy cancels watch, retry and timers and disconnects proxy signals", () => {
     const manager = readyManager();
     manager._server_connection.queueRetry();
