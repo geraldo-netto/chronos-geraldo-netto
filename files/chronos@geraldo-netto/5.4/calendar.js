@@ -34,7 +34,7 @@ const _sameDay = CalendarDate.sameDay;
 const _today = CalendarDate.isToday;
 const CalendarAnnotations = require("./calendarAnnotations");
 const CalendarHolidayAnnotator = CalendarAnnotations.CalendarHolidayAnnotator;
-const setTooltipText = CalendarAnnotations.setTooltipText;
+const releaseHolidayTooltip = CalendarAnnotations.releaseHolidayTooltip;
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
@@ -322,9 +322,10 @@ class CalendarDayCellRenderer {
     }
 
     _clearOldHolidayTooltip(cell, dateChanged) {
-        // clear any holiday annotation from the date previously shown here
+        // whatever holiday the date previously shown here had, this one does
+        // not inherit — and the tooltip that carried it goes with it
         if (dateChanged && cell.holiday_tooltip_set) {
-            setTooltipText(cell, cell.holidayTooltip, "");
+            releaseHolidayTooltip(cell);
             cell.holiday_tooltip_set = false;
         }
     }

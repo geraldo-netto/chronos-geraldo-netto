@@ -95,14 +95,26 @@ global.imports = {
     },
     ui: {
         tooltips: { Tooltip: class {
-            constructor() { this.texts = []; this.shown = false; }
+            constructor(actor) {
+                this.actor = actor;
+                this.texts = [];
+                this.shown = false;
+                this.destroyed = false;
+                Tooltips.live++;
+            }
             set_text(text) { this.texts.push(text); }
             show() { this.shown = true; }
             hide() { this.shown = false; }
+            // Cinnamon's TooltipBase.destroy() disconnects its seven signals
+            // and Tooltip._destroy() drops the label it parked in uiGroup
+            destroy() { this.destroyed = true; Tooltips.live--; }
         } },
         appletManager: { applets: { "chronos@geraldo-netto": {} } }
     }
 };
+const Tooltips = global.imports.ui.tooltips;
+Tooltips.live = 0;
+
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats =
     require(path.join(APPLET_DIR, "dateFormats.js"));
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery =
@@ -1159,7 +1171,8 @@ test("CalendarDayCellRenderer mutates cached state and delegates dots", () => {
     const today = new Date(2026, 6, 9);
     const dateUnixKey = Math.trunc(iter.getTime() / 1000);
     const accessibleDate = "Thursday, 9 July 2026";
-    cell.holidayTooltip = new global.imports.ui.tooltips.Tooltip(cell.button);
+    const tooltip = new global.imports.ui.tooltips.Tooltip(cell.button);
+    cell.holidayTooltip = tooltip;
     cell.holiday_tooltip_set = true;
 
     renderer.update(cell, iter, 2, today, dateUnixKey, accessibleDate);
@@ -1173,7 +1186,10 @@ test("CalendarDayCellRenderer mutates cached state and delegates dots", () => {
     assert.ok(cell.button.style_class.includes("calendar-day-top"));
     assert.ok(cell.button.style_class.includes("calendar-today"));
     assert.equal(cell.holiday_tooltip_set, false);
-    assert.equal(cell.holidayTooltip.texts.at(-1), "");
+    // the slot shows a different day now, so the tooltip that carried the old
+    // day's holiday is handed back rather than blanked and kept
+    assert.equal(cell.holidayTooltip, null);
+    assert.equal(tooltip.destroyed, true);
     assert.deepEqual(dotCalls, [[cell, iter, dateUnixKey]]);
 });
 
@@ -1849,9 +1865,9 @@ test("day cells: holiday annotations do not leak into the next month", () => {
     assert.equal(day14.label, "11");
     assert.ok(!day14.style_class.includes("calendar-nonwork-day"));
     assert.ok(!day14.pseudo.has("selected"));
-    // and its tooltip was cleared
+    // and its tooltip went with the annotation
     const cell = cal._gridView.dayCells.find((c) => c.button === day14);
-    assert.equal(cell.holidayTooltip.texts.at(-1), "");
+    assert.equal(cell.holidayTooltip, null);
 });
 
 test("day cells: geometry change rebuilds the grid with week-number labels", () => {
@@ -2596,6 +2612,44 @@ test("a tooltip is not rewritten with the text it already has", () => {
         /Holiday service unavailable/);
 });
 
+// The 42 cells are reused for every month, and a cell only ever grew a Tooltip
+// — it never gave one back, so browsing a holiday-heavy country left all 42
+// holding one on a month with two. Each carries seven Cinnamon signal
+// connections, one of them on global.stage, and its own Gio.Settings.
+test("a day cell hands its holiday tooltip back when it stops being a holiday", () => {
+    const datesByMonth = { "2026/7": {
+        "7/14": ["Bastille Day", []], "7/15": ["Assumption", []]
+    } };
+    const cal = makeCalendar({ holiday: makeHolidayStub(datesByMonth) });
+    cal.setDate(new Date(2026, 6, 9), true);
+
+    const day14 = cal._gridView.dayCells.find((cell) => cell.button.label === "14");
+    const day15 = cal._gridView.dayCells.find((cell) => cell.button.label === "15");
+    const held = () => cal._gridView.dayCells.filter((cell) => cell.holidayTooltip).length;
+    assert.equal(held(), 2, "one per annotated day");
+    const first = day14.holidayTooltip;
+    const liveAfterAnnotating = Tooltips.live;
+
+    // the month loses one of its holidays
+    delete datesByMonth["2026/7"]["7/14"];
+    cal._update();
+    assert.equal(day14.holidayTooltip, null);
+    assert.equal(first.destroyed, true, "the tooltip is destroyed, not merely blanked");
+    assert.equal(Tooltips.live, liveAfterAnnotating - 1, "and it is not replaced");
+    assert.equal(held(), 1, "only the day that still has one keeps it");
+    assert.equal(day15.holidayTooltip.destroyed, false);
+
+    // ...and the day can become a holiday again. A replacement Tooltip starts
+    // empty, so the text last written to the destroyed one must not go on
+    // suppressing the first write to its successor.
+    datesByMonth["2026/7"]["7/14"] = ["Bastille Day", []];
+    cal._update();
+    assert.notEqual(day14.holidayTooltip, null);
+    assert.notEqual(day14.holidayTooltip, first, "a fresh one, not the destroyed one");
+    assert.equal(day14.holidayTooltip.texts.at(-1), "Bastille Day",
+        "and it actually says the holiday's name");
+});
+
 // Switching holidays off leaves the marks of a country the user is no longer
 // asking about: the cells keep their dates, so nothing in the grid pass clears
 // them, and the annotator used to return early without touching them.
@@ -2615,7 +2669,7 @@ test("switching holidays off clears the marks they left", () => {
     cal._update();
 
     assert.equal(day14.holiday_name, "", "the name goes");
-    assert.equal(day14.holidayTooltip.texts.at(-1), "", "and so does the tooltip");
+    assert.equal(day14.holidayTooltip, null, "and the tooltip goes with it");
     assert.equal(day14.holiday_tooltip_set, false);
     assert.doesNotMatch(day14.button.accessible_name, /Bastille Day/,
         "and the cell stops announcing a holiday the user turned off");
@@ -2641,10 +2695,12 @@ test("an active holiday configuration replaces its old annotations", () => {
     cal._update();
 
     assert.equal(day14.holiday_name, "");
-    assert.equal(day14.holidayTooltip.texts.at(-1), "");
+    assert.equal(day14.holidayTooltip, null);
     assert.equal(day14.holiday_tooltip_set, false);
     assert.doesNotMatch(day14.button.accessible_name, /Bastille Day/);
     assert.equal(day15.holiday_name, "Replacement observance");
+    assert.equal(day15.holidayTooltip.texts.at(-1), "Replacement observance",
+        "the day that gained one gets a working tooltip, not a silenced one");
     assert.match(day15.button.accessible_name, /Replacement observance/);
 });
 

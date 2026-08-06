@@ -77,6 +77,26 @@ function setTooltipText(owner, tooltip, text) {
     tooltip.set_text(text);
 }
 
+// The 42 day cells are reused for every month, so a tooltip left on a cell
+// that no longer carries a holiday accumulates: browse a holiday-heavy country
+// and all 42 end up holding one on a month that has two. A Cinnamon Tooltip is
+// not free to keep — TooltipBase connects seven signals, one of them on
+// global.stage, and Tooltip._init builds its own Gio.Settings for the desktop
+// interface schema — so a cell that stops being a holiday gives its one back.
+function releaseHolidayTooltip(cell) {
+    if (!cell.holidayTooltip) {
+        return false;
+    }
+
+    cell.holidayTooltip.destroy();
+    cell.holidayTooltip = null;
+    // A replacement Tooltip starts empty. Leaving the last text written to the
+    // old one behind would make setTooltipText believe the new one already says
+    // it, and the cell would annotate silently.
+    cell.rendered_tooltip = undefined;
+    return true;
+}
+
 // holiday providers report canonical error ids; translate at display time.
 const HOLIDAY_ERROR_TEXT = {
     [Holidays.HOLIDAY_ERRORS.SERVICE_UNAVAILABLE]: _("Holiday service unavailable"),
@@ -453,9 +473,7 @@ class CalendarHolidayAnnotator {
         }
 
         cell.holiday_name = "";
-        if (cell.holidayTooltip) {
-            setTooltipText(cell, cell.holidayTooltip, "");
-        }
+        releaseHolidayTooltip(cell);
         cell.holiday_tooltip_set = false;
         this.host.nameCell(cell);
     }
@@ -506,6 +524,7 @@ if (typeof module !== "undefined") {
         HOLIDAY_ERROR_TEXT,
         translateHolidayError,
         setTooltipText,
+        releaseHolidayTooltip,
         calendarDateKey
     };
 }
