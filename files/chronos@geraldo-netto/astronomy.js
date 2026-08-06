@@ -121,6 +121,11 @@ function crossingDirection(leftOffset, rightOffset) {
     return "";
 }
 
+function altitudeOffset(timestamp, altitudeFunction, observer) {
+    return altitudeFunction(timestamp, observer.latitude, observer.longitude) -
+        observer.threshold;
+}
+
 function refineCrossing(leftMs, rightMs, leftOffset, altitudeFunction,
     latitude, longitude, threshold) {
     let lower = leftMs;
@@ -151,16 +156,15 @@ function extremeDirection(leftOffset, rightOffset) {
     return 0;
 }
 
-function refineExtreme(leftMs, rightMs, altitudeFunction,
-    latitude, longitude, threshold, direction) {
+function refineExtreme(leftMs, rightMs, altitudeFunction, observer, direction) {
     let lower = leftMs;
     let upper = rightMs;
     for (let attempt = 0; attempt < EXTREME_REFINEMENTS; attempt++) {
         const third = (upper - lower) / 3;
         const first = lower + third;
         const second = upper - third;
-        const firstOffset = altitudeFunction(first, latitude, longitude) - threshold;
-        const secondOffset = altitudeFunction(second, latitude, longitude) - threshold;
+        const firstOffset = altitudeOffset(first, altitudeFunction, observer);
+        const secondOffset = altitudeOffset(second, altitudeFunction, observer);
         if (direction * firstOffset < direction * secondOffset) {
             lower = first;
         } else {
@@ -170,18 +174,17 @@ function refineExtreme(leftMs, rightMs, altitudeFunction,
     const timestamp = (lower + upper) / 2;
     return {
         timestamp,
-        offset: altitudeFunction(timestamp, latitude, longitude) - threshold
+        offset: altitudeOffset(timestamp, altitudeFunction, observer)
     };
 }
 
 function hiddenExtreme(leftMs, rightMs, leftOffset, rightOffset,
-    altitudeFunction, latitude, longitude, threshold) {
+    altitudeFunction, observer) {
     const direction = extremeDirection(leftOffset, rightOffset);
     if (!direction) {
         return null;
     }
-    const point = refineExtreme(leftMs, rightMs, altitudeFunction,
-        latitude, longitude, threshold, direction);
+    const point = refineExtreme(leftMs, rightMs, altitudeFunction, observer, direction);
     return direction * point.offset >= 0 ? point : null;
 }
 
@@ -208,17 +211,18 @@ function recordCrossing(events, direction, timestamp) {
 
 function altitudeEvents(startMs, endMs, latitude, longitude,
     altitudeFunction, threshold) {
+    const observer = Object.freeze({latitude, longitude, threshold});
     let leftMs = startMs;
-    let leftOffset = altitudeFunction(leftMs, latitude, longitude) - threshold;
+    let leftOffset = altitudeOffset(leftMs, altitudeFunction, observer);
     let minimum = leftOffset;
     let maximum = leftOffset;
     const events = { rise: null, set: null };
 
     while (leftMs < endMs) {
         const rightMs = Math.min(leftMs + ASTRONOMY_SAMPLE_MS, endMs);
-        const rightOffset = altitudeFunction(rightMs, latitude, longitude) - threshold;
+        const rightOffset = altitudeOffset(rightMs, altitudeFunction, observer);
         const interior = hiddenExtreme(leftMs, rightMs, leftOffset, rightOffset,
-            altitudeFunction, latitude, longitude, threshold);
+            altitudeFunction, observer);
         const samples = interior ? [interior, { timestamp: rightMs, offset: rightOffset }] :
             [{ timestamp: rightMs, offset: rightOffset }];
         for (const sample of samples) {
