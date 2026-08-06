@@ -743,6 +743,49 @@ test("locale listeners are notified when the query lands, and can unsubscribe", 
     assert.equal(notified, 1, "an unsubscribed listener stops hearing about it");
 });
 
+test("one failing locale listener cannot discard later listeners", () => {
+    const localeQuery = loadLocaleModules('first_workday=3\n');
+    const calls = [];
+    const first = new Error("first locale listener failed");
+    const logged = [];
+    global.logError = (error) => logged.push(error);
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => {
+        calls.push("first");
+        throw first;
+    });
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => calls.push("second"));
+
+    assert.throws(() => localeQuery.getInfo("LC_TIME"), (error) => error === first);
+    assert.deepEqual(calls, ["first", "second"]);
+    assert.deepEqual(logged, [], "a consumer failure is not a locale-query failure");
+    assert.equal(localeQuery.getInfo("LC_TIME").first_workday, 3,
+        "the successful query remains settled");
+});
+
+test("a failing degraded-locale listener cannot prevent retry", () => {
+    const localeQuery = loadLocaleModules({
+        spawnFails() {
+            throw new Error("locale spawn failed");
+        }
+    });
+    const timers = [];
+    global.imports.gi.GLib.timeout_add_seconds = (_priority, seconds, callback) => {
+        timers.push({ seconds, callback });
+        return timers.length;
+    };
+    const calls = [];
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => {
+        calls.push("first");
+        throw new Error("first locale listener failed");
+    });
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => calls.push("second"));
+
+    assert.throws(() => localeQuery.getInfo("LC_TIME"), /first locale listener failed/);
+    assert.deepEqual(calls, ["first", "second"]);
+    assert.equal(timers.at(-1).seconds, 60,
+        "retry is secured before degraded listeners are notified");
+});
+
 test("httpGetJson refuses to parse an oversized response body", () => {
     const utils = loadIoUtils();
     const logged = [];

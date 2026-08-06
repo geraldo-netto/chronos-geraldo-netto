@@ -13,6 +13,11 @@
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const Gio = GjsImports.gi.Gio;
 const GLib = GjsImports.gi.GLib;
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 var MESSAGE_LANGUAGE_FALLBACK = "en"; // NOSONAR [S3504] -- GJS importer export
 // `locale -k` answers in milliseconds when it answers at all; this is a
 // deadline, not a budget
@@ -292,9 +297,10 @@ function _parseInfo(env, output) {
 function _storeInfo(env, info) {
     localeInfoCache[env] = info;
     localeGeneration++;
-    listeners.slice()
+    const callbacks = listeners.slice()
         .filter((entry) => entry.env === env)
-        .forEach((entry) => entry.callback());
+        .map((entry) => entry.callback);
+    ProviderUtils.notifyAll(callbacks);
 }
 
 // the query failed: keep the defaults, but do not pretend the question is
@@ -304,16 +310,14 @@ function _degrade(env) {
     degraded[env] = true;
     attempts[env] = (attempts[env] || 0) + 1;
 
-    _storeInfo(env, _defaultInfo(env));
-
-    if (attempts[env] >= LOCALE_MAX_ATTEMPTS) {
-        return;
+    if (attempts[env] < LOCALE_MAX_ATTEMPTS) {
+        _scheduleTimeout(LOCALE_RETRY_SECONDS, () => {
+            _requestInfo(env, true);
+            return false;
+        });
     }
 
-    _scheduleTimeout(LOCALE_RETRY_SECONDS, () => {
-        _requestInfo(env, true);
-        return false;
-    });
+    _storeInfo(env, _defaultInfo(env));
 }
 
 // `force` is the armed retry's key. Storing the defaults wakes every memo that
@@ -420,21 +424,35 @@ function _armDeadline(env, proc, cancellable, settlers) {
     });
 }
 
+function _finishLocaleOutput(env, source, result) {
+    const [ok, output] = source.communicate_utf8_finish(result);
+    return ok && output ? _parseInfo(env, output) : null;
+}
+
+function _settleLocaleOutput(env, source, result, settlers) {
+    let info;
+    try {
+        info = _finishLocaleOutput(env, source, result);
+    } catch (e) {
+        if (global.logError) {
+            global.logError(e);
+        }
+        settlers.fail();
+        return;
+    }
+
+    // Notification happens outside the parsing catch: listener exceptions are
+    // consumer failures, not a failed locale subprocess.
+    if (info) {
+        settlers.succeed(info);
+    } else {
+        settlers.fail();
+    }
+}
+
 function _readLocaleOutput(env, proc, cancellable, settlers) {
     proc.communicate_utf8_async(null, cancellable, (source, result) => {
-        try {
-            const [ok, output] = source.communicate_utf8_finish(result);
-            if (ok && output) {
-                settlers.succeed(_parseInfo(env, output));
-            } else {
-                settlers.fail();
-            }
-        } catch (e) {
-            if (global.logError) {
-                global.logError(e);
-            }
-            settlers.fail();
-        }
+        _settleLocaleOutput(env, source, result, settlers);
     });
 }
 
@@ -443,6 +461,7 @@ function _requestInfo(env, force = false) {
         return;
     }
     requested[env] = true;
+    let settlers = null;
 
     try {
         // argv form: no shell, no interpolation
@@ -454,11 +473,14 @@ function _requestInfo(env, force = false) {
 
         const cancellable = new Gio.Cancellable();
         _inflight[env] = { cancellable, proc };
-        const settlers = _settlers(env);
+        settlers = _settlers(env);
 
         _armDeadline(env, proc, cancellable, settlers);
         _readLocaleOutput(env, proc, cancellable, settlers);
     } catch (e) {
+        if (settlers && settlers.settled) {
+            throw e;
+        }
         if (global.logError) {
             global.logError(e);
         }
