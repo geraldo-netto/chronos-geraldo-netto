@@ -193,6 +193,28 @@ test("EventDataList: add, update, delete and cull drive length and change flags"
     assert.equal(list.length, 0);
 });
 
+// The index asks this to decide whether the open event column still shows the
+// event it is registering, so a false negative strands a stale row and a false
+// positive rebuilds the column for nothing. A plain object would answer an
+// inherited function for "toString", which is why the backing store has no
+// prototype — assert the membership test inherits that guarantee.
+test("EventDataList: has() reports membership without inheriting Object properties", () => {
+    const list = new EventDataList(new FakeDateTime(10 * DAY_US));
+
+    assert.equal(list.has("ev1"), false, "an empty list holds nothing");
+    for (const id of ["toString", "__proto__", "hasOwnProperty"]) {
+        assert.equal(list.has(id), false, `${id} is not an event`);
+    }
+
+    const ev = new EventData(makeVariant({ startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 }), 1);
+    list.add_or_update(ev, 1);
+    assert.equal(list.has("ev1"), true);
+    assert.equal(list.has("ev2"), false, "a sibling id is not this one");
+
+    list.delete("ev1");
+    assert.equal(list.has("ev1"), false, "a deleted event is gone");
+});
+
 test("EventDataList: cull removes only stale events", () => {
     const list = new EventDataList(new FakeDateTime(10 * DAY_US));
     const oldEv = new EventData(makeVariant({ id: "old", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 }), 1);
