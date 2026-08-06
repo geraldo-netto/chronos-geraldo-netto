@@ -1843,7 +1843,10 @@ test("a day selection draws the event column once, not twice", () => {
         assert.equal(idles.length, 1, "it is marked stale instead");
 
         handlers["selected-date-events-changed"](null, delivered, false, false);
-        assert.deepEqual(drawn, [delivered], "one draw, with the events in it");
+        assert.equal(drawn.length, 1, "one draw");
+        assert.equal(drawn[0].length, 2, "with the events in it");
+        assert.equal(drawn[0].hasHolidays, false,
+            "wrapped either way: the column sees one shape, holiday or not");
         assert.equal(idles.length, 0, "and the stale mark is spent, not left armed");
     } finally {
         restore();

@@ -340,8 +340,20 @@ test("selected-day agenda composes each holiday kind without another data source
             [holiday.name]);
     }
 
-    assert.equal(EventView.composeSelectedDayAgenda(events, null), events,
-        "disabled holidays leave the calendar-server model untouched");
+    // T797: this used to answer the raw EventDataList on a day with no holiday
+    // and a SelectedDayAgenda on a day with one — two unrelated types chosen by
+    // data, so a renderer reading a member only EventDataList carries would
+    // have worked every day except on holidays. One shape whenever there is a
+    // shape at all.
+    const holidayFree = EventView.composeSelectedDayAgenda(events, null);
+    assert.notEqual(holidayFree, events, "the calendar-server model is wrapped");
+    assert.equal(holidayFree.hasHolidays, false);
+    assert.equal(holidayFree.length, 1);
+    assert.deepEqual(holidayFree.get_event_list(), [calendarEvent]);
+
+    // nothing to draw stays nothing to draw: that is what raises the "no
+    // events" box, and the renderer branches on presence rather than on type
+    assert.equal(EventView.composeSelectedDayAgenda(null, null), null);
 });
 
 test("holiday agenda rows are all-day information, not calendar launch controls", () => {
