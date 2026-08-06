@@ -84,8 +84,10 @@ does not ship them. The suites run on Node's built-in test runner and Python's
    # the applets folder does not exist yet on a machine that has never
    # installed a third-party applet; rsync only creates the last component
    mkdir -p ~/.local/share/cinnamon/applets
-   # --exclude keeps stale Python bytecode out of the install
-   rsync -a --exclude '__pycache__' \
+   # --delete removes files upstream no longer ships; --delete-excluded also
+   # clears stale bytecode and editor backups that the source omits
+   rsync -a --delete --delete-excluded \
+         --exclude '__pycache__' --exclude '*~' \
          "cinnamon-chronos/files/chronos@geraldo-netto" \
          ~/.local/share/cinnamon/applets/
    ```

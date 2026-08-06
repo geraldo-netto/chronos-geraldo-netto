@@ -637,6 +637,17 @@ test("the documented install compiles the catalogs the applet reads", () => {
     assert.ok(catalogs.length >= 15, `${catalogs.length} catalogs`);
 });
 
+test("the documented install removes files dropped upstream", () => {
+    const readme = fs.readFileSync(readmePath, "utf8");
+
+    assert.match(readme, /rsync -a --delete --delete-excluded/,
+        "an update must remove stale tracked and excluded files");
+    assert.match(readme, /--exclude '__pycache__' --exclude '\*~'/,
+        "bytecode and editor backups must never remain installed");
+    assert.match(readme, /--delete-excluded also\s+# clears stale bytecode/,
+        "the destructive-looking exclusion cleanup must explain its purpose");
+});
+
 // REGRESSION: dateFormats wraps the two calendar formats in _() precisely so a
 // translator can reorder them — and not one of the fifteen catalogs translated
 // either, so gettext returned the msgid and every locale rendered the US
