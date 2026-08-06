@@ -908,10 +908,16 @@ test("EventList set_events covers empty, delayed, reuse, and scroll paths", () =
     list._renderer._no_events_timeout_id = 31;
     list._renderer._scroll_to_idle_id = 32;
     list._renderer._build_rows_idle_id = 33;
+    const renderedActors = list.events_box.get_children();
     list.destroy();
     assert.ok(removed.includes(31));
     assert.ok(removed.includes(32));
     assert.ok(removed.includes(33));
+    assert.deepEqual(list._rows, [], "the retained applet keeps no row models");
+    assert.equal(list._eventDataList, null,
+        "the selected day's source model is released too");
+    assert.ok(renderedActors.every((actor) => actor.destroyed),
+        "rendered row and separator actors are disposed");
 });
 
 test("desktop clock-format changes repaint existing event rows", () => {

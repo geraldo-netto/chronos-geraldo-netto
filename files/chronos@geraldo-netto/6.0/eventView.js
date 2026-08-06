@@ -810,6 +810,11 @@ class EventList {
     // renderer that removes them
     destroy() {
         this._renderer.destroy();
+        // The applet object remains reachable after panel removal. Release the
+        // row actors and their event records before the surrounding menu actor
+        // is disposed, then drop the selected day's source model as well.
+        this.clearRows();
+        this._eventDataList = null;
         this._reportingEnabled = false;
         this._syncIssues();
     }
