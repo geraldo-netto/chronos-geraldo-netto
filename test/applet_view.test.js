@@ -1712,3 +1712,134 @@ test("the event column follows the grid even with no calendar service", () => {
     builder._eventList = null;
     assert.doesNotThrow(() => builder._selectDateInColumn(new Date(2026, 2, 19)));
 });
+
+// EventWindowCoordinator.selectDate emits the new day and then, in the same
+// synchronous call, that day's events. Drawing on the first one built a column
+// the second replaced: a clear, a "Loading…" write and a 600 ms timer per
+// click — and on a holiday day the holiday row itself, built and torn down.
+function agendaBuilder() {
+    const idles = [];
+    const mainloop = global.imports.mainloop;
+    const original = { idle_add: mainloop.idle_add, source_remove: mainloop.source_remove };
+    let next = 1;
+    mainloop.idle_add = (callback) => {
+        const id = next++;
+        idles.push({ id, callback });
+        return id;
+    };
+    const removed = [];
+    mainloop.source_remove = (id) => {
+        removed.push(id);
+        const at = idles.findIndex((idle) => idle.id === id);
+        if (at >= 0) {
+            idles.splice(at, 1);
+        }
+    };
+
+    const handlers = {};
+    const drawn = [];
+    const builder = new AppletModule.AppletMenuBuilder({
+        menu: { addActor() {}, addMenuItem() {}, toggle() {} },
+        contextMenu: { addMenuItem() {} },
+        desktopSettings: { use24h: true },
+        calendarSettings: {},
+        eventsManager: {
+            connect: (name, handler) => {
+                handlers[name] = handler;
+                return name;
+            },
+            disconnect() {}
+        },
+        holidayProvider: null,
+        onGoHome() {},
+        onSelectedDateChanged() {},
+        onLaunchSettings() {}
+    });
+
+    const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+    const originalEventList = EventView.EventList;
+    EventView.EventList = class {
+        constructor() {
+            this.actor = { add_actor() {} };
+            this.selectedDate = null;
+        }
+        connect() { return 1; }
+        disconnect() {}
+        destroy() {}
+        set_date(date) { this.selectedDate = date; }
+        set_events(agenda) { drawn.push(agenda); }
+    };
+    try {
+        builder._buildEventList({ add_actor() {} });
+    } finally {
+        EventView.EventList = originalEventList;
+    }
+
+    const restore = () => Object.assign(mainloop, original);
+    const fireIdles = () => {
+        while (idles.length) {
+            idles.shift().callback();
+        }
+    };
+    return { builder, handlers, drawn, idles, removed, fireIdles, restore };
+}
+
+test("a day selection draws the event column once, not twice", () => {
+    const { builder, handlers, drawn, idles, restore } = agendaBuilder();
+    try {
+        const delivered = { length: 2, timestamp: 7 };
+
+        // the pair, in the order the coordinator emits them
+        handlers["selected-date-changed"](null, "day-12");
+        assert.deepEqual(drawn, [], "the day alone draws nothing yet");
+        assert.equal(idles.length, 1, "it is marked stale instead");
+
+        handlers["selected-date-events-changed"](null, delivered, false, false);
+        assert.deepEqual(drawn, [delivered], "one draw, with the events in it");
+        assert.equal(idles.length, 0, "and the stale mark is spent, not left armed");
+    } finally {
+        restore();
+        builder.destroy();
+    }
+});
+
+test("a day change with no delivery behind it still redraws the column", () => {
+    const { builder, handlers, drawn, idles, removed, fireIdles, restore } = agendaBuilder();
+    try {
+        // nothing emits this on its own today; if anything ever does, the
+        // column must not keep showing the previous day's events
+        handlers["selected-date-changed"](null, "day-12");
+        assert.deepEqual(drawn, []);
+
+        // a second day change joins the armed draw. Arming another would
+        // strand the first source: only the newest id is tracked.
+        handlers["selected-date-changed"](null, "day-13");
+        assert.equal(idles.length, 1, "one draw is armed, however many days went by");
+
+        fireIdles();
+        assert.deepEqual(drawn, [null], "the safety net draws the empty day");
+        assert.equal(builder._agenda_render_id, 0);
+        // the source that just ran is spent; asking GLib to remove it again is
+        // a critical warning in the log
+        assert.deepEqual(removed, [], "a draw that fired removes nothing");
+    } finally {
+        restore();
+        builder.destroy();
+    }
+});
+
+test("tearing the menu down cancels a column draw still waiting on its idle", () => {
+    const { builder, handlers, drawn, idles, fireIdles, restore } = agendaBuilder();
+    try {
+        handlers["selected-date-changed"](null, "day-12");
+        assert.equal(idles.length, 1);
+
+        builder.destroy();
+
+        assert.equal(idles.length, 0, "the idle is removed, not just forgotten");
+        fireIdles();
+        assert.deepEqual(drawn, [], "nothing draws into the destroyed actors");
+    } finally {
+        restore();
+    }
+});

@@ -12,6 +12,8 @@
 
 const Atk = imports.gi.Atk;
 const Clutter = imports.gi.Clutter;
+const GLib = imports.gi.GLib;
+const Mainloop = imports.mainloop;
 const Pango = imports.gi.Pango;
 const St = imports.gi.St;
 const PopupMenu = imports.ui.popupMenu;
@@ -119,6 +121,7 @@ class AppletMenuBuilder {
         this._eventsOverflowed = false;
         this._menu_items = [];
         this._issueReporter = null;
+        this._agenda_render_id = 0;
     }
 
     build() {
@@ -210,7 +213,7 @@ class AppletMenuBuilder {
                 this._eventDataList = null;
                 this._delayNoEventsBox = true;
                 this._eventsOverflowed = false;
-                this._renderAgenda();
+                this._queueAgendaRender();
             }));
         this._events_manager_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
             context.eventsManager.connect("selected-date-events-changed",
@@ -272,6 +275,9 @@ class AppletMenuBuilder {
 
     destroy() {
         const steps = [
+            // the column may be waiting on an idle to draw itself; the actors
+            // it would draw into are destroyed two steps down
+            () => this._cancelAgendaRender(),
             // first, so an issue reported by any later teardown step — here or
             // in the applet's remaining destroy steps — cannot reach the
             // footer label once its actor's fate is out of this builder's hands
@@ -441,7 +447,39 @@ class AppletMenuBuilder {
         }
     }
 
+    // The two signals arrive together: EventWindowCoordinator.selectDate emits
+    // the new day and then, in the same synchronous call, that day's events. So
+    // rendering on the first one only ever built a column the second one
+    // replaced — a _clearRows, a "Loading…" write and a 600 ms timer armed and
+    // cancelled, on every click, arrow key and go-home. On a day carrying a
+    // holiday it was real actors: composeSelectedDayAgenda(null, holiday) is a
+    // one-row agenda, so the holiday row was built, torn down and built again.
+    //
+    // The day handler marks the column stale and leaves the drawing to the
+    // delivery behind it. The idle is the safety net: nothing emits a day
+    // change on its own today, and if anything ever does, the column must not
+    // keep showing the previous day's events.
+    _queueAgendaRender() {
+        if (this._agenda_render_id > 0) {
+            return;
+        }
+
+        this._agenda_render_id = Mainloop.idle_add(() => {
+            this._agenda_render_id = 0;
+            this._renderAgenda();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    _cancelAgendaRender() {
+        if (this._agenda_render_id > 0) {
+            Mainloop.source_remove(this._agenda_render_id);
+            this._agenda_render_id = 0;
+        }
+    }
+
     _renderAgenda() {
+        this._cancelAgendaRender();
         if (!this._eventList) {
             return;
         }
