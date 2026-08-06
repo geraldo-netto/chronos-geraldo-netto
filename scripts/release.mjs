@@ -31,7 +31,7 @@ const RELEASE_TARGETS = [
     `files/${UUID}/po/${UUID}.pot`
 ];
 const TEMPLATE_VERSION_PATTERN = new RegExp(
-    `^"Project-Id-Version: ${UUID} (.*)\\\\n"$`, "m");
+    String.raw`^"Project-Id-Version: ${UUID} (.*)\\n"$`, "m");
 
 export function parseProcessStartTime(stat) {
     if (typeof stat !== "string") {
@@ -447,7 +447,7 @@ export function templateVersion(template) {
 // churn in the release commit.
 export function patchTemplateVersion(original, nextVersion) {
     const patched = String(original).replace(TEMPLATE_VERSION_PATTERN,
-        `"Project-Id-Version: ${UUID} ${nextVersion}\\n"`);
+        String.raw`"Project-Id-Version: ${UUID} ${nextVersion}\n"`);
     if (templateVersion(patched) !== nextVersion) {
         throw new Error("the translation template version could not be replaced in place");
     }

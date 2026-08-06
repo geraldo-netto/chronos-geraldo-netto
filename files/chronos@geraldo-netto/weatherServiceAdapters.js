@@ -360,10 +360,10 @@ function metNoWeatherReading(forecast) {
 // dakuten are deliberately left alone: they are letters rather than decoration,
 // and folding them would make distinct names collide.
 const OPTIONAL_DIACRITICS = new RegExp(
-    "[\\u0300-\\u036f" +   // Latin, Greek and Cyrillic accents
-    "\\u0483-\\u0489" +     // Cyrillic titlo and friends
-    "\\u0591-\\u05bd\\u05bf\\u05c1\\u05c2\\u05c4\\u05c5\\u05c7" + // Hebrew points
-    "\\u064b-\\u065f\\u0670]", "g");                       // Arabic harakat
+    String.raw`[\u0300-\u036f` +   // Latin, Greek and Cyrillic accents
+    String.raw`\u0483-\u0489` +     // Cyrillic titlo and friends
+    String.raw`\u0591-\u05bd\u05bf\u05c1\u05c2\u05c4\u05c5\u05c7` + // Hebrew points
+    String.raw`\u064b-\u065f\u0670]`, "g");                       // Arabic harakat
 
 // What no normalization can reach: these letters carry the accent in the
 // codepoint itself and have no decomposition at all — which is exactly why a
