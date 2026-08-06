@@ -541,9 +541,11 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         return root
 
     def test_a_zone_in_the_wrong_case_is_not_a_zone_with_no_python_tzdata(self):
-        """T814: with neither pytz nor zoneinfo installed - every Python 3.8 host
-        without python3-pytz, and 3.8 is the declared floor - looks_like_iana was
-        the only check a typed zone got, and it is case-blind. The applet's
+        """T814: with neither pytz nor zoneinfo usable - no python3-pytz, and an
+        interpreter whose zoneinfo import fails or whose tzdata it cannot reach;
+        the dialog runs on the user's Python, which the development floor does
+        not decide - looks_like_iana was the only check a typed zone got, and it
+        is case-blind. The applet's
         lookup is not: GLib.TimeZone.new_identifier searches the zone directory
         case-sensitively. So "america/sao_paulo" was previewed, made the OK
         button sensitive, was saved, and the popup then drew an italic "Invalid

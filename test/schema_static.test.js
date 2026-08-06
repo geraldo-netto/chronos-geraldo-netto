@@ -466,7 +466,14 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
     assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
     assert.equal(pkg.engines.node, ">=22.13.0");
-    assert.match(workflow, /node: '22\.13\.0'\n {12}python: '3\.8'/,
+    // Read the floor out of the README rather than repeating it, so the two
+    // cannot drift: this assertion pinned '3.8' as a literal, which made it a
+    // third place to edit and a silent way for the matrix and the requirements
+    // table to disagree about what is supported.
+    const pythonFloor = /^\| Python 3 \| ≥ (\d+\.\d+) \|/m.exec(readme);
+    assert.ok(pythonFloor, "the README requirements table states a Python floor");
+    assert.match(workflow,
+        new RegExp(`node: '22\\.13\\.0'\\n {12}python: '${pythonFloor[1].replace(".", "\\.")}'`),
         "the supported Node and Python floors are exercised together");
     assert.match(workflow, /node: 26\n {12}python: '3\.14'/,
         "the current development runtimes are exercised together");

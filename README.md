@@ -50,7 +50,7 @@ with the applet:
 | Tool | Version | Needed for | Install |
 | --- | --- | --- | --- |
 | Node.js | **≥ 22.13.0** | the JS suite and its coverage gate | install with `nvm` as described below |
-| Python 3 | ≥ 3.8 | the settings-widget suite | already present |
+| Python 3 | ≥ 3.12 | the settings-widget suite | already present |
 | eslint | `^10` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
@@ -133,7 +133,7 @@ tree, and are copied as real files for archive-based delivery.
 active fuzzy translations with `msgattrib`, and regenerates the translation
 template in a temporary directory to prove it is current. CI runs every check
 and builds the Spices tree after the lint and test gates pass on the supported
-Node 22.13.0 / Python 3.8 floors and the current Node 26 / Python 3.14 pair.
+Node 22.13.0 / Python 3.12 floors and the current Node 26 / Python 3.14 pair.
 
 ### Releasing
 

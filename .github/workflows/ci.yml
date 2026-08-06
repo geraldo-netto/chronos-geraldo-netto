@@ -28,7 +28,7 @@ jobs:
       matrix:
         include:
           - node: '22.13.0'
-            python: '3.8'
+            python: '3.12'
           - node: 26
             python: '3.14'
 
@@ -37,6 +37,13 @@ jobs:
 
       # Exercise both runtime floors and the current development versions
       # without multiplying two independent compatibility axes into four jobs.
+      #
+      # The Python floor was 3.8 and is 3.12. 3.8 went end of life in October
+      # 2024, before ubuntu-24.04 entered actions/python-versions' build matrix,
+      # so pinning the image (which the template comparison below needs) left
+      # this leg asking setup-python for an interpreter that image may carry no
+      # build of — a floor that cannot be provisioned verifies nothing. 3.12 is
+      # what ubuntu-24.04 ships as its system Python.
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ matrix.node }}
