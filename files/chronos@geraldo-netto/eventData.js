@@ -141,9 +141,14 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
         if (!validEventUid(uid)) {
             throw new Error("skipping an event with an unusable id");
         }
+        const localStart = GLib.DateTime.new_from_unix_local(start);
+        const localEnd = GLib.DateTime.new_from_unix_local(end);
+        if (!localStart || !localEnd) {
+            throw new Error("skipping an event with no usable start or end time");
+        }
         this.id = uid;
-        this.start = GLib.DateTime.new_from_unix_local(start);
-        this.end = GLib.DateTime.new_from_unix_local(end);
+        this.start = localStart;
+        this.end = localEnd;
 
         this.all_day = all_day;
         if (this.all_day) {

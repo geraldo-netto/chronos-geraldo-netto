@@ -147,6 +147,33 @@ test("EventData: timed event crossing midnight is multi-day with span 1", () => 
     assert.equal(spanDays(ev), 1);
 });
 
+test("EventData rejects UTC endpoints the local zone cannot represent", () => {
+    const clock = global.imports.gi.GLib.DateTime;
+    const convert = clock.new_from_unix_local;
+    const minimum = -62135596800;
+    const maximum = 253402300799;
+
+    try {
+        for (const [startUnix, endUnix, rejected] of [
+            [maximum, maximum - 1, maximum],
+            [minimum + 1, minimum, minimum]
+        ]) {
+            const calls = [];
+            clock.new_from_unix_local = (unix) => {
+                calls.push(unix);
+                return unix === rejected ? null : new FakeDateTime(unix * 1000000);
+            };
+            assert.throws(() => new EventData(makeVariant({
+                startUnix, endUnix
+            }), 0), /no usable start or end time/);
+            assert.deepEqual(calls, [startUnix, endUnix],
+                "each local endpoint is constructed exactly once");
+        }
+    } finally {
+        clock.new_from_unix_local = convert;
+    }
+});
+
 // The UID comes off whatever ICS or CalDAV feed the user subscribed to, so it
 // is the one string here an outsider chooses. On a plain object, "toString"
 // reads back as an inherited function rather than undefined, and "__proto__"
