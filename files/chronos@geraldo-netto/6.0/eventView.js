@@ -58,8 +58,8 @@ const CalendarLauncher = CalendarLauncherModule.CalendarLauncher;
 const eventUidCanLaunch = CalendarLauncherModule.eventUidCanLaunch;
 
 function holidayAgendaType(flags = []) {
-    const publicHoliday = flags.indexOf(HolidayConstants.PUBLIC_HOLIDAY_FLAG) >= 0;
-    const religiousHoliday = flags.indexOf(HolidayConstants.RELIGIOUS_HOLIDAY_FLAG) >= 0;
+    const publicHoliday = flags.includes(HolidayConstants.PUBLIC_HOLIDAY_FLAG);
+    const religiousHoliday = flags.includes(HolidayConstants.RELIGIOUS_HOLIDAY_FLAG);
     if (publicHoliday && religiousHoliday) {
         return _("Public holiday and religious observance");
     }

@@ -103,7 +103,7 @@ function _nawRuzDay(year) {
         return 21;
     }
 
-    return NAW_RUZ_ON_21_MARCH.indexOf(year) !== -1 ? 21 : 20;
+    return NAW_RUZ_ON_21_MARCH.includes(year) ? 21 : 20;
 }
 
 function _nawRuzDates() {
@@ -259,7 +259,7 @@ function enabledReligionIds(enabledIds) {
     const known = religionIds();
     return enabledIds.filter((id, index) =>
         typeof id === "string" &&
-        known.indexOf(id) !== -1 &&
+        known.includes(id) &&
         enabledIds.indexOf(id) === index);
 }
 

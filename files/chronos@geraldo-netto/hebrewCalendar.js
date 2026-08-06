@@ -115,7 +115,7 @@ function _isFullMonth(year, month) {
 }
 
 function _lastDayOfMonth(year, month) {
-    if (ALWAYS_SHORT_MONTHS.indexOf(month) !== -1) {
+    if (ALWAYS_SHORT_MONTHS.includes(month)) {
         return 29;
     }
 

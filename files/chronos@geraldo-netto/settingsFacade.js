@@ -162,7 +162,7 @@ var CalendarSettings = class CalendarSettings { // NOSONAR [S3504] -- GJS import
     bindWeekendLength(target, property, callback) {
         const normalize = () => {
             const value = this._settings.getValue(WEEKEND_LENGTH_KEY);
-            if (WEEKEND_LENGTH_VALUES.indexOf(value) === -1) {
+            if (!WEEKEND_LENGTH_VALUES.includes(value)) {
                 this._settings.setValue(WEEKEND_LENGTH_KEY, DEFAULT_WEEKEND_LENGTH);
                 return DEFAULT_WEEKEND_LENGTH;
             }
