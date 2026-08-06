@@ -4,8 +4,8 @@ name: CI
 # makes that true. Nothing enforced eslint, pyflakes, either suite or either
 # coverage gate before: the green baseline was one maintainer's machine.
 
-# Every job runs repository and dependency code (npm ci, npm test); none of
-# them writes to the repo, so none of them gets a token that can.
+# Every job executes checked-out repository or dependency code; none writes to
+# the repository, so none gets a token that can.
 permissions:
   contents: read
 
@@ -14,6 +14,7 @@ on:
     branches: [develop]
     tags: ['v*']
   pull_request:
+  workflow_dispatch:
   schedule:
     # the dependency audit only: an advisory can land against an untouched
     # repository, and nothing else here changes without a commit

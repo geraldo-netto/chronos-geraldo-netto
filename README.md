@@ -312,7 +312,9 @@ applet under `files/` as GJS and the suites under `test/` as Node, so run it
 before opening a pull request — a lint failure is a build failure. That is
 literal: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `npm run
 lint` and `npm test` — both suites and both coverage gates — on every pull
-request and on pushes to `develop` and `v*` tags.
+request and on pushes to `develop` and `v*` tags. Maintainers can run the same
+pipeline manually from GitHub Actions or with `gh workflow run CI --ref develop`
+when a push event does not create a run.
 
 ### How the source is laid out (development)
 
