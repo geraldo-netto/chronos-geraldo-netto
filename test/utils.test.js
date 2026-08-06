@@ -2397,6 +2397,37 @@ test("the teardown kills a wedged locale child, not just the read", () => {
         "the wedged child is killed, not abandoned to the session");
 });
 
+// A query that has answered is holding nothing, and the teardown must find
+// nothing to cancel. The handles used to be released only on the abandoned
+// branch, so a finished Gio.Subprocess and its cancellable stayed in the module
+// maps for the life of the compositor and "is a query in flight?" was
+// answerable two ways — the requested flag and the handles — that had to agree.
+// force_exit() on a reaped child is what disagreeing would cost.
+test("a settled locale query leaves the teardown nothing to kill", () => {
+    const localeQuery = loadLocaleModules(
+        'abday="Dom;Seg;Ter;Qua;Qui;Sex;Sáb"\nfirst_workday=1\n');
+    localeQuery.registerLocaleConsumer();
+
+    assert.equal(localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)(),
+        "Dom;Seg;Ter;Qua;Qui;Sex;Sáb", "the query answered");
+    const child = global.imports.gi.Gio.Subprocess.last;
+    const cancellable = global.imports.gi.Gio.Cancellable.last;
+    assert.ok(child && cancellable);
+
+    localeQuery.cancelPendingLocaleQueries();
+
+    assert.ok(!child.forced,
+        "a child that already exited is not force_exit()ed on the way out");
+    assert.equal(cancellable.cancelled, false,
+        "and its cancellable is not cancelled after the fact");
+
+    // ...and the env is not marked abandoned by that teardown, which would make
+    // the next applet resume a query that has already answered
+    localeQuery.registerLocaleConsumer();
+    assert.equal(global.imports.gi.Gio.Subprocess.last, child,
+        "no second `locale` is spawned for an env that is already known");
+});
+
 // The applet is multi-instance, the locale query is process-wide, and the
 // teardown that cancelled it was neither: removing one of two calendar applets
 // cancelled the query the *other* one was still waiting on.

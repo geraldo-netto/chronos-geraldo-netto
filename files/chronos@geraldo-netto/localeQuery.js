@@ -117,8 +117,20 @@ function _cancelPendingTimers() {
     _pendingTimers.clear();
 }
 
+// Every settle path gives back what the query was holding. Only the abandoned
+// branch used to, so a successful or degraded query parked a finished
+// Gio.Subprocess and its cancellable in the module for the life of the
+// compositor — and left "is a query in flight?" answerable two ways that had to
+// agree, with force_exit() on a reaped child as the cost of disagreeing. There
+// is one record now, and holding it is what being in flight means.
+function _releaseQuery(env) {
+    requested[env] = false;
+    delete _inflight[env];
+}
+
 function _cancelPendingRequest(env) {
-    if (!requested[env] || !_cancellables[env]) {
+    const query = _inflight[env];
+    if (!query) {
         return;
     }
     // a cancel we asked for is not a locale that failed: without this the abort
@@ -130,10 +142,10 @@ function _cancelPendingRequest(env) {
     // the teardown just removed it with the rest of the timers. Cancelling the
     // read only stops us waiting: a genuinely wedged `locale` has to be
     // killed here too, or it lingers for the rest of the session.
-    if (_subprocesses[env] && _subprocesses[env].force_exit) {
-        _subprocesses[env].force_exit();
+    if (query.proc && query.proc.force_exit) { // NOSONAR [S6582] -- accepted compatible form
+        query.proc.force_exit();
     }
-    _cancellables[env].cancel();
+    query.cancellable.cancel();
 }
 
 // Called from the applet's teardown. The locale cache itself is deliberately
@@ -145,7 +157,7 @@ function cancelPendingLocaleQueries() {
         return;
     }
     _cancelPendingTimers();
-    Object.keys(requested).forEach(_cancelPendingRequest);
+    Object.keys(_inflight).forEach(_cancelPendingRequest);
 }
 
 const re = /^(\w+)=(.*)$/;
@@ -162,11 +174,10 @@ const DEFAULT_LOCALE_INFO = {
 const localeInfoCache = {};
 // in flight right now
 const requested = {};
-// the cancellable of the query in flight, so a teardown can stop it
-const _cancellables = {};
-// the subprocess in flight, so a teardown can kill a wedged child rather than
-// merely stop reading from it
-const _subprocesses = {};
+// The query in flight for an env: its cancellable, so a teardown can stop the
+// read, and its subprocess, so a teardown can kill a wedged child rather than
+// merely stop reading from it. Present exactly while the query is unsettled.
+const _inflight = {};
 // holding defaults because the query failed, and how many times it has
 const degraded = {};
 const attempts = {};
@@ -260,7 +271,7 @@ function _storeInfo(env, info) {
 // the query failed: keep the defaults, but do not pretend the question is
 // settled. Another attempt is armed, up to a small cap.
 function _degrade(env) {
-    requested[env] = false;
+    _releaseQuery(env);
     degraded[env] = true;
     attempts[env] = (attempts[env] || 0) + 1;
 
@@ -328,7 +339,7 @@ function _settlers(env) {
                 return;
             }
             settled = true;
-            requested[env] = false;
+            _releaseQuery(env);
             degraded[env] = false;
             _storeInfo(env, info);
         },
@@ -343,9 +354,7 @@ function _settlers(env) {
             // clean ladder rather than one rung from permanent English
             if (abandoned[env]) {
                 abandoned[env] = false;
-                requested[env] = false;
-                delete _cancellables[env];
-                delete _subprocesses[env];
+                _releaseQuery(env);
                 _resumeAbandonedQuery(env);
                 return;
             }
@@ -415,8 +424,7 @@ function _requestInfo(env, force = false) {
         proc.init(null);
 
         const cancellable = new Gio.Cancellable();
-        _cancellables[env] = cancellable;
-        _subprocesses[env] = proc;
+        _inflight[env] = { cancellable, proc };
         const settlers = _settlers(env);
 
         _armDeadline(env, proc, cancellable, settlers);
