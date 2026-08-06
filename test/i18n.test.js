@@ -240,6 +240,71 @@ test("the freshness gate accepts a template differing only in creation date", as
     assert.equal(await checkI18n(root, undefined, []), 0);
 });
 
+// T790: the comparison was byte-exact and both its inputs floated —
+// `runs-on: ubuntu-latest` and an unversioned `apt-get install cinnamon
+// gettext`. The committed template is generated on the maintainer's Cinnamon
+// 6.6.9; the runner installs whatever the archive holds. xgettext decides where
+// to wrap a "#:" run and how to fold a long msgid, and neither is content, so a
+// generator swap could fail packaging — and the tag-to-release chain — on an
+// unchanged repository.
+test("the freshness gate compares extracted content, not xgettext's wrapping", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { templateDrift } = await import(scriptUrl);
+    const header = 'msgid ""\nmsgstr ""\n"POT-Creation-Date: 2026-07-01 00:00+0000\\n"\n';
+    const wrapped = header + "\n" +
+        "#. 6.0->settings-schema.json->show-week-numbers->description\n" +
+        "#: 6.0/calendar.js:348 6.0/eventView.js:45\n" +
+        '#: worldclockData.js:20\nmsgid "Week numbers"\nmsgstr ""\n';
+    const rewrapped = header.replace("07-01", "07-18") + "\n" +
+        "#: worldclockData.js:20 6.0/calendar.js:348\n" +
+        "#: 6.0/eventView.js:45\n" +
+        "#. 6.0->settings-schema.json->show-week-numbers->description\n" +
+        'msgid "Week numbers"\nmsgstr ""\n';
+
+    assert.equal(templateDrift(wrapped, rewrapped), null,
+        "same msgid, same places, different wrapping and order");
+
+    // ...and everything that is content still fails
+    assert.match(
+        templateDrift(wrapped, rewrapped.replace("Week numbers", "Week no.")),
+        /"Week no\." is in the source and not in the template/);
+    assert.match(
+        templateDrift(wrapped + '\n#: gone.js:1\nmsgid "Deleted"\nmsgstr ""\n', rewrapped),
+        /"Deleted" is in the template and no longer in the source/);
+    assert.match(
+        templateDrift(wrapped, rewrapped.replace("calendar.js:348", "calendar.js:349")),
+        /"Week numbers" is extracted from .*calendar\.js:349.*template says .*calendar\.js:348/);
+    assert.match(
+        templateDrift(wrapped, rewrapped.replace('"POT-Creation', '"Language: de\\n"\n"POT-Creation')),
+        /header does not match/);
+});
+
+test("the freshness gate distinguishes a plural and a context from their base", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { templateEntries } = await import(scriptUrl);
+    const pot = 'msgid ""\nmsgstr ""\n\n' +
+        '#: a.js:1\nmsgid "Day"\nmsgid_plural "Days"\nmsgstr[0] ""\n\n' +
+        '#: b.js:2\nmsgctxt "column"\nmsgid "Day"\nmsgstr ""\n\n' +
+        '#: c.js:3\nmsgid "Day"\nmsgstr ""\n';
+
+    const entries = templateEntries(pot);
+    assert.equal(entries.size, 3, "the header is not an entry, and the three Days differ");
+    assert.deepEqual([...entries.values()].sort(), ["a.js:1", "b.js:2", "c.js:3"]);
+});
+
+test("an entry extracted from nowhere is still compared", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { templateDrift } = await import(scriptUrl);
+    const header = 'msgid ""\nmsgstr ""\n';
+    const placed = header + '\n#: a.js:1\nmsgid "Loose"\nmsgstr ""\n';
+    const loose = header + '\nmsgid "Loose"\nmsgstr ""\n';
+
+    assert.match(templateDrift(placed, loose),
+        /extracted from nowhere, and the template says a\.js:1/);
+    assert.match(templateDrift(loose, placed),
+        /extracted from a\.js:1, and the template says nowhere/);
+});
+
 test("withoutCreationDate masks the creation date and nothing else", async () => {
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
     const { withoutCreationDate } = await import(scriptUrl);
