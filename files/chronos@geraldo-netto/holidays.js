@@ -74,6 +74,15 @@ function _numericInput(value) {
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
 var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS importer export
+// How much of a provider's own diagnostic reaches the Cinnamon log.
+//
+// This used to borrow the cache module's holiday-name clamp, whose bound is
+// documented there as sizing joined same-day names in a Pango tooltip. The value being
+// clamped here is not a tooltip: it is a line in a log file, and changing the
+// tooltip budget silently changed how much of a provider's diagnostic survived
+// into it - while the service layer took a dependency on the cache module for
+// text formatting it needs for nothing else.
+const MAX_LOGGED_PROVIDER_ERROR = 300;
 
 var Provider = class Provider { // NOSONAR [S3504] -- GJS importer export
     // the session is per provider instance, not per module: a second applet
@@ -415,7 +424,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     }
 
     _remoteErrorText(error) {
-        const bounded = HolidayCacheModule.clampHolidayName(error);
+        const bounded = TextUtils.clampText(error, MAX_LOGGED_PROVIDER_ERROR);
         return TextUtils.sanitizeControlCharacters(bounded) ||
             HOLIDAY_ERRORS.INVALID_RESPONSE;
     }

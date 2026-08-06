@@ -322,6 +322,20 @@ test("no production string substitution rescans what it just built", () => {
     }
 });
 
+// T804: the service layer clamped a provider's diagnostic - a line headed for
+// global.logError - with clampHolidayName, whose bound holidayCache documents as
+// sizing joined same-day holiday names in a Pango tooltip. Changing the tooltip
+// budget silently changed how much of the diagnostic survived into the log, and
+// the service took a dependency on the cache module for text formatting it needs
+// for nothing else.
+test("the holiday service bounds its log lines with its own constant", () => {
+    const code = source("holidays.js");
+
+    assert.match(code, /^const MAX_LOGGED_PROVIDER_ERROR = \d+;$/m);
+    assert.doesNotMatch(code, /clampHolidayName/,
+        "a tooltip budget is not a log-line budget");
+});
+
 test("holiday requests never log a raw URL", () => {
     const code = source("holidays.js");
     assert.doesNotMatch(code, /global\.log\([^)]*\burl\b/);
