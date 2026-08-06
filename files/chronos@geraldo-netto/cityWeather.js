@@ -135,7 +135,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
                 httpSession: params.httpSession,
                 httpGetJson: params.httpGetJson,
                 geocodeCache: params.geocodeCache,
-                nominatimQueue: params.nominatimQueue,
+                requestQueue: params.requestQueue,
                 freshnessNow: params.freshnessNow,
                 now: params.now
             });

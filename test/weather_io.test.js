@@ -75,7 +75,7 @@ test("Soup message construction failures become the normal provider error", () =
         }
     });
     const provider = new Weather.WeatherProvider({
-        nominatimQueue: immediateNominatimQueue()
+        requestQueue: immediateNominatimQueue()
     });
     const results = [];
 

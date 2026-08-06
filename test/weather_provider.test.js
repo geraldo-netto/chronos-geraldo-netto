@@ -236,7 +236,7 @@ test("a provider whose refresh fails schedules its own retry", () => {
     const timers = [];
     let nextId = 900;
     const provider = new Weather.WeatherProvider({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         retrySeconds: 30,
         scheduleTimer(seconds, callback) {
             timers.push({ seconds, callback });
@@ -311,7 +311,7 @@ test("the geocode cache is bounded and re-resolves an edited location", () => {
     const Weather = loadWeather();
     let geocodes = 0;
     const resolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         maxCacheEntries: 3,
         httpGetJson(url, callback) {
             geocodes++;
@@ -351,7 +351,7 @@ test("the geocode cache evicts the least recently used place, not the first", ()
     const Weather = loadWeather();
     let geocodes = 0;
     const resolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         maxCacheEntries: 3,
         httpGetJson(url, callback) {
             geocodes++;
@@ -481,7 +481,7 @@ test("a place its geocoder could not place in time takes the forecast's zone", (
     };
     const repository = new Weather.WeatherReadingRepository({
         httpGetJson,
-        nominatimQueue: { enqueue: (start) => start() },
+        requestQueue: { enqueue: (start) => start() },
         cacheSeconds: 1800
     });
 
@@ -891,7 +891,7 @@ test("a wrongly geocoded place expires instead of pinning for the session", () =
     ];
     let rounds = 0;
     const resolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         now: () => clock,
         httpGetJson(_url, callback) {
             rounds++;
@@ -929,7 +929,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
     const requests = [];
     let current = true;
     const resolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(url, callback, options = {}) {
             requests.push({ url, options });
             if (url.includes("geocoding-api")) {
@@ -965,7 +965,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
 
     const staleRequests = [];
     const staleResolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(url, callback) {
             staleRequests.push({ url, callback });
         }
@@ -981,7 +981,7 @@ test("weather location resolver owns geocode fallback and cache", () => {
     const exhaustedLogs = [];
     global.log = (message) => exhaustedLogs.push(message);
     const unresolvedResolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             callback({ results: [] });
         }
@@ -1147,7 +1147,7 @@ test("a tiny exact Open-Meteo namesake falls through to Nominatim", () => {
     const Weather = loadWeather();
     const requests = [];
     const resolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(url, callback, options = {}) {
             requests.push({ url, options });
             if (url.includes("geocoding-api")) {
@@ -1191,7 +1191,7 @@ test("the fallback geocoder arbitrates by the typed name, not by OSM's order", (
     const Weather = loadWeather();
     const requests = [];
     const resolver = new Weather.WeatherLocationResolver({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(url, callback) {
             requests.push(url);
             if (url.includes("geocoding-api")) {
@@ -1698,7 +1698,7 @@ test("refresh returns empty text when disabled, blank, or unresolved", () => {
     const Weather = loadWeather();
     let calls = 0;
     const provider = new Weather.WeatherProvider({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             calls++;
             callback({ results: [] });
@@ -1718,7 +1718,7 @@ test("refresh reports weather failures with user-visible status", () => {
     const Weather = loadWeather();
     const geocodeFailures = [];
     const provider = new Weather.WeatherProvider({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             callback(null);
         }
@@ -1733,7 +1733,7 @@ test("refresh reports weather failures with user-visible status", () => {
 
     const unresolved = [];
     const unresolvedProvider = new Weather.WeatherProvider({
-        nominatimQueue: immediateNominatimQueue(),
+        requestQueue: immediateNominatimQueue(),
         httpGetJson(_url, callback) {
             callback({ results: [] });
         }
@@ -2393,4 +2393,79 @@ test("applets refresh weather when the system resumes", () => {
     assert.ok(onResume);
     assert.match(onResume[1], /this\._updateClockAndDate\(\);/);
     assert.match(onResume[1], /this\._scheduleWeatherRefresh\(\{ force: true \}\);/);
+});
+
+// T830: GEOCODE_PROVIDERS is a data registry - name, url, normalize, options -
+// and the resolver reached back out and branched on the vendor to decide
+// throttling. A geocoder appended to the registry could not declare a rate
+// limit; it got requestQueue: null and unthrottled dispatch, so the built-in
+// did not use the path a third party would. That is the exact failure mode the
+// sibling comment on FORECAST_PROVIDERS claims was closed there.
+test("a geocoder declares its own rate limit in the registry", () => {
+    const Weather = loadWeather();
+    const dispatched = [];
+    const queued = [];
+    const queue = {
+        enqueue(start) {
+            queued.push(start);
+            start();
+        }
+    };
+    const resolver = new Weather.WeatherLocationResolver({
+        httpGetJson(url, callback) {
+            dispatched.push(url);
+            callback(url.startsWith("https://slow.") ?
+                { lat: 1, lon: 2, display_name: "Rome" } : null);
+        },
+        providers: [
+            {
+                name: "Fast",
+                url: () => "https://fast.example/geocode",
+                normalize: () => null
+            },
+            {
+                name: "Slow",
+                url: () => "https://slow.example/geocode",
+                normalize: (data) => (data ?
+                    { latitude: Number(data.lat), longitude: Number(data.lon),
+                        name: data.display_name } : null),
+                // one line, and this third-party geocoder is throttled like the
+                // built-in one
+                requestQueue: queue
+            }
+        ]
+    });
+
+    let place = null;
+    resolver.resolve("Rome", () => true, (resolved) => { place = resolved; });
+
+    assert.equal(place && place.name, "Rome");
+    assert.deepEqual(dispatched,
+        ["https://fast.example/geocode", "https://slow.example/geocode"]);
+    assert.equal(queued.length, 1,
+        "only the entry that declared a queue goes through one");
+});
+
+// ...and an injected substitute stands in for whichever entries declared one,
+// rather than for a vendor the resolver had to know the name of.
+test("a substitute request queue replaces every declared one", () => {
+    const Weather = loadWeather();
+    const substitute = { calls: 0, enqueue(start) { this.calls++; start(); } };
+    const declared = { calls: 0, enqueue(start) { this.calls++; start(); } };
+    const resolver = new Weather.WeatherLocationResolver({
+        httpGetJson: (url, callback) => callback({ lat: 1, lon: 2, display_name: "Rome" }),
+        requestQueue: substitute,
+        providers: [{
+            name: "Throttled",
+            url: () => "https://throttled.example/geocode",
+            normalize: (data) => ({ latitude: Number(data.lat),
+                longitude: Number(data.lon), name: data.display_name }),
+            requestQueue: declared
+        }]
+    });
+
+    resolver.resolve("Rome", () => true, () => {});
+
+    assert.equal(substitute.calls, 1);
+    assert.equal(declared.calls, 0);
 });

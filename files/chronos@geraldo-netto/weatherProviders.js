@@ -237,7 +237,14 @@ var GEOCODE_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
             headers: {
                 "User-Agent": WEATHER_USER_AGENT
             }
-        }
+        },
+        // A rate limit is a property of the service, so the service's entry
+        // declares it. The resolver used to name this vendor instead — a
+        // geocoder appended to this list got no queue and unthrottled dispatch,
+        // so the built-in did not use the path a third party would, which is
+        // the failure mode the FORECAST_PROVIDERS comment below says was closed
+        // there. Mechanism stays in the queue; policy is this line.
+        requestQueue: NOMINATIM_REQUEST_QUEUE
     }
 ];
 
@@ -247,7 +254,9 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         this._geocode_cache = params.cache || new Map();
         this._max_entries = params.maxCacheEntries || MAX_GEOCODE_CACHE_ENTRIES;
         this._httpGetJson = params.httpGetJson;
-        this._nominatim_queue = params.nominatimQueue || NOMINATIM_REQUEST_QUEUE;
+        // one substitute for whichever registry entries declare a queue: the
+        // parameter used to be named for a vendor too
+        this._request_queue = params.requestQueue || null;
         this._resolved_now = params.resolvedNow || params.now ||
             ElapsedTime.civilMilliseconds;
         this._entry_milliseconds = Number.isFinite(params.entrySeconds) ?
@@ -343,11 +352,18 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
             url: provider.url(location),
             normalize: (data) => provider.normalize(data, location),
             options: provider.options,
-            requestQueue: provider.name === WEATHER_PROVIDER_NAMES.NOMINATIM ?
-                this._nominatim_queue : null
+            requestQueue: this._requestQueueFor(provider)
         }));
 
         this._tryGeocodeProviders(providers, isCurrent, callback);
+    }
+
+    _requestQueueFor(provider) {
+        if (!provider.requestQueue) {
+            return null;
+        }
+
+        return this._request_queue || provider.requestQueue;
     }
 
     _tryGeocodeProviders(providers, isCurrent, callback) {
@@ -526,7 +542,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         this.locationResolver = params.locationResolver || new WeatherLocationResolver({
             cache: params.geocodeCache,
             httpGetJson: this.httpGetJson,
-            nominatimQueue: params.nominatimQueue
+            requestQueue: params.requestQueue
         });
         this.forecastResolver = params.forecastResolver || new WeatherForecastResolver({
             httpGetJson: this.httpGetJson
