@@ -83,8 +83,8 @@ function dt_equals(dt1, dt2) {
 // inside a DBus signal handler, on the compositor thread. The times come from
 // evolution-data-server, which is repeating whatever an ICS or CalDAV feed told
 // it, so they are not ours to trust.
-var MIN_EVENT_UNIX = -62135596800;   // 0001-01-01 // NOSONAR [S3504] -- GJS importer export
-var MAX_EVENT_UNIX = 253402300799;   // 9999-12-31 // NOSONAR [S3504] -- GJS importer export
+var MIN_EVENT_UNIX = -62135596800; // NOSONAR [S3504] -- GJS importer export; 0001-01-01
+var MAX_EVENT_UNIX = 253402300799; // NOSONAR [S3504] -- GJS importer export; 9999-12-31
 
 function eventUnixTime(value) {
     const time = typeof value === "number" ? value : Number(value);
