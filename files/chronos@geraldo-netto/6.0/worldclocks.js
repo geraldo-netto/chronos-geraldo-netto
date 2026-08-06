@@ -191,15 +191,26 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         });
     }
 
-    updateClocks (entries = this.getClockEntries()) {
-        for (const entry of entries) {
-            this._renderClockEntry(entry);
+    updateClocks (rows = this.getClockEntries()) {
+        for (const row of rows) {
+            this.renderRow(row.clock, row);
         }
     }
 
-    _renderClockEntry(entry) {
-        const clock = entry.clock;
-        const text = entry.time;
+    // The row this view draws, declared where it is drawn.
+    //
+    // `time` is this view's own - getClockEntries builds it - and `weather` and
+    // `temperature` are the presenter's. They used to arrive bolted onto the
+    // entry object on the way back through the presenter, so this view read two
+    // fields it never produced and that appear nowhere in its own contract.
+    // Both were optional by absence, because with weather off the undecorated
+    // entry came straight through: a rename or a typo on either side produced
+    // no error at all, and the temperature column and the row's spoken weather
+    // just went blank. That is the failure the comment below records having
+    // been fixed once already - the fix corrected the consumer and left the
+    // contract open.
+    renderRow(clock, { time, weather = "", temperature = "" } = {}) {
+        const text = time;
 
         // a tick is a change in the *panel* clock's rendered string, and a
         // zone on a half-hour offset rolls its minute somewhere else in the
@@ -215,7 +226,7 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         // the time cell says the time — plus this city's weather, which
         // otherwise existed only in the panel's mouse tooltip and so reached
         // neither a keyboard user nor a screen reader.
-        const name = entry.weather ? joinPhrases(text, entry.weather) : text;
+        const name = weather ? joinPhrases(text, weather) : text;
         if (clock.rendered_name !== name) {
             clock.rendered_name = name;
             if (clock.display.set_accessible_name) {
@@ -230,7 +241,7 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         // a whole error sentence in this column whenever the fetch failed, and
         // truncated the reading at the first comma a translation happened to
         // contain.
-        const reading = entry.temperature || "";
+        const reading = temperature;
         if (clock.rendered_weather !== reading && clock.weather) {
             clock.rendered_weather = reading;
             clock.weather.set_text(reading);

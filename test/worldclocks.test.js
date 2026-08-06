@@ -2034,3 +2034,34 @@ test("the timezone-to-city memo is released by the last consumer, not the first"
         GLib.file_read_link = originalReadLink;
     }
 });
+
+// T822: getClockEntries produced {clock, label, timezone, time, localTime,
+// builtin}, and the panel presenter then mutated the shape on the way back -
+// Object.assign over the entry when there was a reading, the bare entry when
+// there was not. So this view read two fields it never produced and that appear
+// nowhere in its own contract, both optional by absence: a rename or a typo on
+// either side produced no error, and the temperature column and the row's
+// spoken weather just went blank. The row is declared here now.
+test("the popup row is the contract this view declares, not what it is handed", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
+    const tokyo = worldclocks.clocks.at(-1);
+
+    // named arguments: the caller says which field is which
+    worldclocks.renderRow(tokyo, { time: "18:00", weather: "12°C, Rain", temperature: "12°C" });
+    assert.equal(tokyo.display.text, "18:00");
+    assert.equal(tokyo.weather.text, "12°C");
+    assert.match(tokyo.display.accessible_name, /Rain/);
+
+    // the weather half is optional because a clock may have none - and it
+    // defaults to empty here rather than to whatever the last row left behind
+    worldclocks.renderRow(tokyo, { time: "18:01" });
+    assert.equal(tokyo.display.text, "18:01");
+    assert.equal(tokyo.weather.text, "");
+    assert.equal(tokyo.display.accessible_name, "18:01");
+
+    // ...and a caller that hands over no row at all draws an empty one rather
+    // than throwing on the compositor thread
+    assert.doesNotThrow(() => worldclocks.renderRow(tokyo));
+});

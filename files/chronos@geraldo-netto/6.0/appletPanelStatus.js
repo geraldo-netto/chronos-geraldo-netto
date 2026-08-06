@@ -600,13 +600,21 @@ class AppletPanelStatusPresenter {
         // reading wide: a row whose fetch failed has no temperature and only an
         // error, and recovering the cell by splitting the join drew that error
         // into the column instead of leaving it empty.
+        //
+        // Named fields of the row Worldclocks.renderRow declares, always both of
+        // them. This used to be Object.assign over the entry when there was a
+        // reading and the bare entry when there was not, so the view read two
+        // fields it never produced and that were optional by absence.
         return {
             cells: cells.concat(weatherCells),
             issue: cityModel ? cityModel.issue : "",
             source: this._weatherSource(entry, cityModel, showWeather),
-            popupEntry: weather ?
-                Object.assign({}, entry, { weather, temperature: weatherCells[0] }) : // NOSONAR [S6661] -- accepted compatible form
-                entry
+            popupEntry: {
+                clock: entry.clock,
+                time: entry.time,
+                weather,
+                temperature: weatherCells[0] || ""
+            }
         };
     }
 

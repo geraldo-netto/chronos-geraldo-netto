@@ -149,7 +149,7 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
 
     Proto._updateClockAndDate.call(stub);
 
-    const tokyo = calls.lastEntries.find((entry) => entry.label === "Tokyo");
+    const tokyo = calls.lastEntries.find((row) => row.clock.label === "Tokyo");
     assert.ok(tokyo.weather.includes("12\u00b0C"), "the row carries the city's own reading");
     assert.ok(tokyo.weather.includes("Rain"), "and the condition in words, not an emoji");
 
@@ -573,7 +573,7 @@ test("_updateClockAndDate with the menu open refreshes the full view", () => {
     assert.equal(calls.rowRefreshes, 1, "visible countdowns refresh without a fetch");
     assert.equal(calls.worldTicks, 1);
     assert.equal(calls.lastEntries.length, 4);
-    assert.equal(calls.lastEntries.filter((entry) => entry.builtin).length, 1,
+    assert.equal(calls.lastEntries.filter((row) => row.clock.builtin).length, 1,
         "menu updates include the built-in rows");
     assert.equal(calls.dayText.length, 1);
 });
@@ -629,7 +629,7 @@ test("_updateClockAndDate forces the full view when asked", () => {
     Proto._updateClockAndDate.call(stub, true);
     assert.equal(calls.selected, 1);
     assert.equal(calls.worldTicks, 1);
-    assert.equal(calls.lastEntries[1].label, "NY");
+    assert.equal(calls.lastEntries[1].clock.label, "NY");
 });
 
 // broader prototype coverage: cheap stubs over the remaining leaf methods
@@ -1019,6 +1019,7 @@ test("world-clock setting changes repaint retained weather through the presenter
             buildClocks(clocks) {
                 ops.push(["build", clocks.length]);
                 rows = clocks.map((clock) => ({
+                    clock,
                     label: clock.label,
                     timezone: clock.timezone,
                     time: "18:00",
@@ -1045,7 +1046,7 @@ test("world-clock setting changes repaint retained weather through the presenter
 
     assert.equal(Object.prototype.hasOwnProperty.call(stub, "worldclocks"), false);
     assert.deepEqual(ops, [["build", 1], ["render"], ["schedule"]]);
-    assert.equal(rendered.at(-1)[0].label, "Office");
+    assert.equal(rendered.at(-1)[0].clock.label, "Office");
     assert.match(rendered.at(-1)[0].weather, /12°C/,
         "the rebuilt row immediately reuses the cached Tokyo reading");
 });

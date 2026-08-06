@@ -353,12 +353,15 @@ function updateStub({ menuOpen = false } = {}) {
     const calls = { label: [], tooltip: [], weatherStatus: [], selected: 0,
         rowRefreshes: 0,
         worldTicks: 0, dayText: [], clockEntries: 0, lastEntries: null };
+    // `clock` is the row's identity: the popup row Worldclocks.renderRow
+    // declares carries the clock, the time and the weather half, and nothing
+    // else — so a test that wants to name a row asks the clock (T822).
     const clockEntries = [
         { label: "UTC", timezone: "UTC", time: "UTC:%H:%M", builtin: true },
         { label: "NY", timezone: "America/New_York", time: "04:00", builtin: false },
         { label: "Tokyo", timezone: "Asia/Tokyo", time: "18:00", builtin: false },
         { label: "Sydney", timezone: "Australia/Sydney", time: "20:00", builtin: false }
-    ];
+    ].map((entry) => Object.assign({ clock: entry }, entry)); // NOSONAR [S6661] -- deliberate test seam
     const stub = Object.assign(Object.create(Proto), {
         clock: clockStub(),
         custom_tooltip_format: "%d %b %H:%M",
