@@ -458,7 +458,8 @@ test("the tooltip key ignores seconds so an unchanged tooltip is not rebuilt", (
         localTime: { format: () => "18 Jul 18:52" }
     });
 
-    assert.equal(presenter._tooltipKey([at("00")]), presenter._tooltipKey([at("59")]),
+    assert.equal(presenter._clockRenderModel([at("00")]).key,
+        presenter._clockRenderModel([at("59")]).key,
         "the second must not change the key when the rendered tooltip is the same");
 });
 

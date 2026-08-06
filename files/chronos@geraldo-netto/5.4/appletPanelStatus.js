@@ -593,10 +593,6 @@ class AppletPanelStatusPresenter {
     // The tooltip can be refreshed more often than its configured timestamp
     // changes. The key uses the rendered row stamps so byte-identical text is not
     // written and laid out again.
-    _tooltipKey(clockEntries) {
-        return this._clockRenderModel(clockEntries).key;
-    }
-
     _setTooltipModel(model) {
         if (this._rendered_tooltip_key === model.key) {
             return;
