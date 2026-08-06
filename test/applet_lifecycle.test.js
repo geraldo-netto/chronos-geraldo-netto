@@ -653,6 +653,7 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
 test("settings binding wires schema keys and creates settings facades", () => {
     const binds = [];
     const callbacks = {};
+    const values = { "weather-units": "si" };
     let keybindingChanged = null;
     const original = global.imports.ui.settings.AppletSettings;
     global.imports.ui.settings.AppletSettings = class {
@@ -666,8 +667,10 @@ test("settings binding wires schema keys and creates settings facades", () => {
                 keybindingChanged = cb;
             }
         }
-        connect() {}
-        getValue() { return []; }
+        connect(signal, callback) {
+            callbacks[signal.replace("changed::", "")] = callback;
+        }
+        getValue(key) { return Object.prototype.hasOwnProperty.call(values, key) ? values[key] : []; }
         setValue(key, value) { binds.push(["setValue", key, value]); }
     };
 
@@ -719,10 +722,13 @@ test("settings binding wires schema keys and creates settings facades", () => {
     // weather silently never loaded for anyone. It is mirrored by hand instead.
     assert.ok(!binds.some((row) => row[0] === "bind" && row[1] === "weather-location"),
         "a custom-widget key cannot be bound; Cinnamon refuses it");
+    assert.ok(!binds.some((row) => row[0] === "bind" && row[1] === "weather-units"),
+        "the custom units widget must use the same explicit mirror");
     // the mirror reads the key and writes the applet property itself: this
     // double answers [] for every getValue, and that is what lands on it
     assert.deepEqual(stub.weather_location, [],
         "the location reaches the applet through the mirror, not through bind()");
+    assert.equal(stub.weather_units, "si");
 });
 
 test("holiday-country inference yields startup and preserves later choices", () => {
@@ -1046,7 +1052,9 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         values: {
             country: null,
             "show-religious-observances": true,
-            "religion-islam": true
+            "religion-islam": true,
+            ...Object.fromEntries(rootModules.holidayConstants.REGION_COUNTRIES.map(
+                (country) => [`region_${country}`, country === "usa" ? "ny" : "global"]))
         },
         bind(key, prop, cb) { calls.push(["bind", key, prop]); },
         connect(signal, callback) {
@@ -1055,8 +1063,7 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
             return Object.keys(listeners).length;
         },
         bindWithObject(obj, key, prop, cb) {
-            calls.push(["bindWithObject", key, prop]);
-            obj[prop] = "ny";
+            throw new Error(`custom region ${key}/${prop} cannot be bound`);
         },
         getValue(key) { return this.values[key]; },
         setValue(key, value) {
@@ -1082,15 +1089,17 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     // Cinnamon keeps a generic key's stored value across an upgrade, so a
     // release that added a country used to render its combobox and discard
     // every choice made in it.
-    assert.deepEqual(calls.filter((row) => row[0] === "bindWithObject"),
-        rootModules.holidayConstants.REGION_COUNTRIES.map(
-            (country) => ["bindWithObject", `region_${country}`, country]));
+    assert.equal(calls.some((row) => row[0] === "bindWithObject"), false);
+    assert.equal(lifecycle.holidayRegions.usa, "ny",
+        "the initial custom value is available before the provider is configured");
     assert.equal(settings.values.has_region, undefined,
         "the region-capable list is never read out of the instance file");
     // the country is watched for changes, not bound onto the applet as a
     // property: every read goes through the settings accessor
     assert.deepEqual(calls.filter((row) => row[0] === "connect").map((row) => row[1]), [
         "changed::country",
+        ...rootModules.holidayConstants.REGION_COUNTRIES.map(
+            (country) => `changed::region_${country}`),
         "changed::show-religious-observances",
         ...rootModules.settingsFacade.RELIGION_IDS.map((id) => `changed::religion-${id}`)
     ]);
@@ -1110,6 +1119,12 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     lifecycle.onHolidayPlaceChanged();
     const place = calls.find((row) => row[0] === "place" && row[1] === "usa" && row[2] === "ny");
     assert.ok(place);
+
+    settings.values.region_usa = "ca";
+    listeners["changed::region_usa"]();
+    assert.ok(calls.some(
+        (row) => row[0] === "place" && row[1] === "usa" && row[2] === "ca"),
+    "a remote custom-widget change reaches the provider in the same signal turn");
 
     // the third argument repaints when the fetch for the new place lands
     const onUpdated = place[3];

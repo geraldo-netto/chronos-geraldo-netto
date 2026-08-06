@@ -369,21 +369,21 @@ test("the desktop settings read the keys the schema does carry", () => {
     assert.deepEqual(connected.at(-1), ["disconnect", 2]);
 });
 
-// REGRESSION: weather-location is drawn by a widget of the applet's own, which
-// makes its schema type "custom" — and Cinnamon binds only the types in its
-// SETTINGS_TYPES table. bind() on it logged "Invalid setting type 'custom'" and
-// bound nothing, so applet.weather_location stayed undefined for the life of the
-// process: every lookup went out with no location and the weather never loaded,
-// for every user, with the cause only in the Cinnamon log.
-test("the location reaches the applet even though Cinnamon cannot bind it", () => {
+// REGRESSION: these are drawn by widgets of the applet's own, which makes their
+// schema type "custom" — and Cinnamon binds only the types in its SETTINGS_TYPES
+// table. bind() on one logs "Invalid setting type 'custom'" and binds nothing.
+test("custom weather settings reach the applet without Cinnamon bindings", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);
 
     const bound = [];
     const listeners = {};
-    const values = { "weather-location": "Genoa" };
+    const values = { "weather-location": "Genoa", "weather-units": "imperial" };
     const settings = {
-        bind: (key, property, callback) => bound.push([key, property, callback]),
+        bind(key, property, callback) {
+            assert.equal(key, "show-weather", "custom keys must never reach bind()");
+            bound.push([key, property, callback]);
+        },
         connect: (signal, callback) => { listeners[signal] = callback; },
         getValue: (key) => values[key],
         setValue: (key, value) => { values[key] = value; }
@@ -395,12 +395,16 @@ test("the location reaches the applet even though Cinnamon cannot bind it", () =
     new SettingsFacade.PanelSettings(settings).bindWeatherKeys(
         applet, () => refreshes++, () => repaints++);
 
-    assert.deepEqual(bound.map(([key]) => key), ["show-weather", "weather-units"],
-        "the custom-widget key is not among the bound ones");
+    assert.deepEqual(bound.map(([key]) => key), ["show-weather"],
+        "neither custom-widget key is among the bound ones");
     assert.equal(applet.weather_location, "Genoa",
         "and it still reaches the applet, through the mirror");
+    assert.equal(applet.weather_units, "imperial",
+        "the saved unit reaches weather rendering on first construction");
 
-    bound.find(([key]) => key === "weather-units")[2]();
+    values["weather-units"] = "si";
+    listeners["changed::weather-units"]();
+    assert.equal(applet.weather_units, "si");
     assert.equal(repaints, 1, "units repaint retained readings");
     assert.equal(refreshes, 0, "units do not enter the request path");
 
@@ -409,6 +413,43 @@ test("the location reaches the applet even though Cinnamon cannot bind it", () =
     listeners["changed::weather-location"]();
     assert.equal(applet.weather_location, "Lisbon");
     assert.equal(refreshes, 1, "and the change refetches the weather, once");
+});
+
+test("custom holiday regions are mirrored before their callback runs", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+    const values = {};
+    const listeners = {};
+    const regionValues = Object.fromEntries(
+        require(path.join(__dirname, "..", "files", "chronos@geraldo-netto",
+            "holidayConstants.js")).REGION_COUNTRIES
+            .map((country) => [`region_${country}`, country === "usa" ? "ny" : "global"]));
+    Object.assign(values, regionValues);
+    const settings = {
+        bindWithObject() {
+            throw new Error("Cinnamon cannot bind a custom region widget");
+        },
+        getValue: (key) => values[key],
+        connect(signal, callback) {
+            listeners[signal] = callback;
+            return Object.keys(listeners).length;
+        }
+    };
+    const target = {};
+    const callbacks = [];
+    const regions = new SettingsFacade.HolidaySettings(settings);
+
+    regions.bindRegions(target, () => callbacks.push(target.usa));
+
+    assert.equal(target.usa, "ny");
+    assert.equal(Object.keys(listeners).length, regions.regionCountries.length);
+    assert.ok(regions.regionCountries.every(
+        (country) => `changed::region_${country}` in listeners));
+
+    values.region_usa = "ca";
+    listeners["changed::region_usa"]();
+    assert.equal(target.usa, "ca");
+    assert.deepEqual(callbacks, ["ca"], "the observer sees the newly mirrored value");
 });
 
 test("an empty weather location is filled with the city the timezone names", () => {

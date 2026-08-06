@@ -71,14 +71,19 @@ var WEATHER_PRESENTATION_KEYS = [ // NOSONAR [S3504] -- GJS importer export
 
 // Keys the settings dialog draws with a widget of its own, which makes their
 // schema type "custom" — and Cinnamon binds only the types in its SETTINGS_TYPES
-// table, which "custom" is not in. settings.bind() on one of these logs
-// "Invalid setting type 'custom'" and binds nothing, so the applet property stays
-// undefined for the life of the process: the location never reaches the geocoder
-// and the weather silently never loads. changed::<key> is still emitted for them,
-// so they are mirrored onto the applet by hand.
+// table, which "custom" is not in. changed::<key> is still emitted for them, so
+// every custom runtime value goes through the explicit mirror below.
 var CUSTOM_WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     [WEATHER_LOCATION_KEY, "weather_location"]
 ];
+
+function mirrorSetting(settings, target, key, property, callback) {
+    target[property] = settings.getValue(key);
+    return settings.connect("changed::" + key, () => {
+        target[property] = settings.getValue(key);
+        callback();
+    });
+}
 
 // Cinnamon's desktop schema, and the three keys this applet reads from it.
 var DESKTOP_SCHEMA = "org.cinnamon.desktop.interface"; // NOSONAR [S3504] -- GJS importer export
@@ -242,7 +247,8 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
 
     bindRegions(target, callback) {
         for (let country of this.regionCountries) {
-            this._settings.bindWithObject(target, REGION_KEY_PREFIX + country, country, callback);
+            mirrorSetting(
+                this._settings, target, REGION_KEY_PREFIX + country, country, callback);
         }
     }
 };
@@ -301,15 +307,11 @@ var PanelSettings = class PanelSettings { // NOSONAR [S3504] -- GJS importer exp
         }
 
         for (let [key, property] of WEATHER_PRESENTATION_KEYS) {
-            this._settings.bind(key, property, presentationCallback);
+            mirrorSetting(this._settings, target, key, property, presentationCallback);
         }
 
         for (let [key, property] of CUSTOM_WEATHER_KEYS) {
-            target[property] = this._settings.getValue(key);
-            this._settings.connect("changed::" + key, () => {
-                target[property] = this._settings.getValue(key);
-                requestCallback();
-            });
+            mirrorSetting(this._settings, target, key, property, requestCallback);
         }
     }
 
