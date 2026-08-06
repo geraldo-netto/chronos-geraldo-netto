@@ -8,13 +8,18 @@
 // this one, or <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
 
 // Religious observances for the ten largest religions, computed locally — no
-// network, no provider. Movable Christian feasts come from the Gregorian
-// computus; lunar and lunisolar calendars (Islamic, Hebrew, Hindu, Chinese,
-// Badí' and the rest) are bounded per-year tables of published dates, because
-// those calendars are observational or astronomical and an arithmetic
-// approximation drifts a day either way — exactly the day the user looks at.
-// Outside the table window a table-backed observance is simply absent; the
-// fixed and computed ones still render for any year.
+// network, no provider.
+//
+// Three kinds of date live here. Movable Christian feasts come from the
+// Gregorian computus. The Hebrew observances come from hebrewCalendar.js, which
+// is exact for any year: that calendar has been rule-based since the arithmetic
+// rules were fixed, so there is nothing to observe and nothing to publish. The
+// rest — Islamic, Hindu, Chinese, Badí' and so on — are bounded per-year tables
+// of published dates, because those calendars are observational or
+// astronomical: the observed date depends on a sighting, a locality, or an
+// ephemeris, and an arithmetic approximation drifts a day either way — exactly
+// the day the user looks at. Outside the table window a table-backed observance
+// is simply absent; the fixed and computed ones still render for any year.
 
 /* global imports */
 /* eslint camelcase: "off" */
@@ -27,6 +32,9 @@ const AppletModules = IS_NODE ? null :
 const ReligiousCatalog = IS_NODE ?
     require("./religiousCatalog") :
     AppletModules.religiousCatalog;
+const HebrewCalendar = IS_NODE ?
+    require("./hebrewCalendar") :
+    AppletModules.hebrewCalendar;
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     AppletModules.holidayConstants;
@@ -64,13 +72,54 @@ function gregorianEaster(year) {
     };
 }
 
+// Naw-Rúz is the Tehran sunset-to-sunset day containing the March equinox, and
+// it is emphatically not something to approximate. In 2026 the equinox falls
+// within about a minute of Tehran sunset; Tehran's ~1190 m elevation moves that
+// sunset five or six minutes on its own, and the Universal House of Justice has
+// never published the sunset model it uses — so a correct textbook
+// implementation lands on either side of that year depending on the refraction
+// constant it happens to pick. These are the published dates instead.
+//
+// Before 2015 the Western convention fixed the year's start to the Gregorian
+// calendar at 21 March. From 2015 the definition became astronomical, and the
+// Bahá'í World Centre published the results for BE 172-221 as a table; those
+// are the only authoritative dates, and they put Naw-Rúz on 21 March in exactly
+// the years listed here and on 20 March in every other year of that window.
+// Nothing authoritative exists past 2065, so the row stops rather than guess —
+// and 2092 and 2096 are 19 March on the best available reckoning, which is
+// enough to show that extrapolating the 20/21 pattern would be wrong.
+const BAHAI_ERA_START = 1844;
+const NAW_RUZ_ASTRONOMICAL_FROM = 2015;
+const NAW_RUZ_TABLE_END = 2065;
+const NAW_RUZ_ON_21_MARCH = [2015, 2018, 2019, 2022, 2023, 2026, 2027, 2031,
+    2035, 2039, 2043, 2047, 2051, 2055];
+
+function _nawRuzDay(year) {
+    if (year < NAW_RUZ_ASTRONOMICAL_FROM) {
+        return 21;
+    }
+
+    return NAW_RUZ_ON_21_MARCH.indexOf(year) !== -1 ? 21 : 20;
+}
+
+function _nawRuzDates() {
+    const dates = {};
+    for (let year = BAHAI_ERA_START; year <= NAW_RUZ_TABLE_END; year++) {
+        dates[year] = [3, _nawRuzDay(year)];
+    }
+
+    return dates;
+}
+
 // Per-year first civil dates for observances tied to observational or
 // astronomical calendars. The intentionally small window is sourced from:
 // https://case.edu/studentlife/dean/interreligious-council-irc/religious-holidays-observances-calendar
 // https://www.xavier.edu/jesuitresource/online-resources/calendar-religious-holidays-and-observances/multi-faith-calendar---next-year
-// https://www.hebcal.com/holidays/
 // Dates can vary by community, location and moon sighting. Multi-day and
 // sunset-starting observances are represented by the first listed civil day.
+//
+// The Hebrew observances used to be here too. They are computed now — see
+// hebrewCalendar.js — which is why Judaism no longer has a coverage horizon.
 const TABLES = {
     "islamic-new-year": { 2025: [6, 27], 2026: [6, 17], 2027: [6, 6] },
     "mawlid": { 2025: [9, 5], 2026: [8, 26], 2027: [8, 15] },
@@ -85,21 +134,7 @@ const TABLES = {
     "guru-gobind-singh-jayanti": { 2025: [1, 6], 2026: [1, 6], 2027: [1, 14] },
     "vaisakhi": { 2025: [4, 14], 2026: [4, 14], 2027: [4, 14] },
     "guru-nanak-jayanti": { 2025: [11, 5], 2026: [11, 24], 2027: [11, 14] },
-    // The Hebrew rows run further than the rest because they are the ones with
-    // a reference implementation to check against: 2028-2030 come from Hebcal,
-    // whose answers reproduce the published 2025-2027 rows above exactly, and
-    // hanukkah-start is 25 Kislev — the first daytime civil day, per this
-    // table's convention — not the evening the first candle is lit. The omer
-    // invariant below (passover + 50 = shavuot) holds for all six years, which
-    // is a second independent check on the added anchors.
-    "purim": { 2025: [3, 14], 2026: [3, 3], 2027: [3, 23], 2028: [3, 12], 2029: [3, 1], 2030: [3, 19] },
-    "passover-start": { 2025: [4, 13], 2026: [4, 2], 2027: [4, 22], 2028: [4, 11], 2029: [3, 31], 2030: [4, 18] },
-    "shavuot": { 2025: [6, 2], 2026: [5, 22], 2027: [6, 11], 2028: [5, 31], 2029: [5, 20], 2030: [6, 7] },
-    "rosh-hashanah": { 2025: [9, 23], 2026: [9, 12], 2027: [10, 2], 2028: [9, 21], 2029: [9, 10], 2030: [9, 28] },
-    "yom-kippur": { 2025: [10, 2], 2026: [9, 21], 2027: [10, 11], 2028: [9, 30], 2029: [9, 19], 2030: [10, 7] },
-    "hanukkah-start": { 2025: [12, 15], 2026: [12, 5], 2027: [12, 25], 2028: [12, 13], 2029: [12, 2], 2030: [12, 21] },
-    "naw-ruz": { 2025: [3, 20], 2026: [3, 20], 2027: [3, 20] },
-    "ridvan-start": { 2025: [4, 21], 2026: [4, 21], 2027: [4, 21] },
+    "naw-ruz": _nawRuzDates(),
     "mahavir-jayanti": { 2025: [4, 10], 2026: [3, 31], 2027: [4, 18] },
     "paryushana-start": { 2025: [8, 20], 2026: [9, 8], 2027: [8, 29] },
     "chinese-new-year": { 2025: [1, 29], 2026: [2, 17], 2027: [2, 6] },
@@ -119,8 +154,8 @@ function _tableCoverageEnd() {
 
 var TABLE_COVERAGE_END = _tableCoverageEnd(); // NOSONAR [S3504] -- GJS importer export
 
-// entry kinds: {fixed: [month, day]} | {easter: offsetDays} |
-// {table: "key"} | {series: "omer"}
+// entry kinds: {fixed: [month, day]} | {easter: offsetDays} | {table: "key"} |
+// {fromTable: "key", offset: days} | {hebrew: "key"} | {series: "omer"}
 const OBSERVANCES = {
     christianity: [
         { name: _("Epiphany"), fixed: [1, 6] },
@@ -155,17 +190,22 @@ const OBSERVANCES = {
         { name: _("Guru Nanak Jayanti"), table: "guru-nanak-jayanti" }
     ],
     judaism: [
-        { name: _("Purim"), table: "purim" },
-        { name: _("Passover begins"), table: "passover-start" },
+        { name: _("Purim"), hebrew: "purim" },
+        { name: _("Passover begins"), hebrew: "passover-start" },
         { name: _("Sefirat HaOmer — Day %s"), series: "omer" },
-        { name: _("Shavuot"), table: "shavuot" },
-        { name: _("Rosh Hashanah"), table: "rosh-hashanah" },
-        { name: _("Yom Kippur"), table: "yom-kippur" },
-        { name: _("Hanukkah begins"), table: "hanukkah-start" }
+        { name: _("Shavuot"), hebrew: "shavuot" },
+        { name: _("Rosh Hashanah"), hebrew: "rosh-hashanah" },
+        { name: _("Yom Kippur"), hebrew: "yom-kippur" },
+        { name: _("Hanukkah begins"), hebrew: "hanukkah-start" }
     ],
     bahai: [
         { name: _("Naw-Rúz"), table: "naw-ruz" },
-        { name: _("Ridván begins"), table: "ridvan-start" }
+        // Ridván day 1 is 13 Jalál, and Badí' months are 19 days each, so it is
+        // day 32 of the year — always Naw-Rúz + 31. Derived rather than
+        // tabulated: the table it replaced had Ridván on 21 April every year
+        // against a Naw-Rúz of 20 March, an offset of 32, so 2025 was a day
+        // late. An arithmetic relation should not be re-typed once a year.
+        { name: _("Ridván begins"), fromTable: "naw-ruz", offset: 31 }
     ],
     jainism: [
         { name: _("Mahavir Jayanti"), table: "mahavir-jayanti" },
@@ -231,15 +271,37 @@ function _easterDate(year, offset) {
     return [date.getMonth() + 1, date.getDate()];
 }
 
+// holidaysForYear asks for each observance separately and monthMap calls it
+// once per month, so a grid render asks for the same year dozens of times. The
+// arithmetic is cheap but not free, and one slot is all the locality it needs.
+let _hebrewYear = 0;
+let _hebrewDates = null;
+
+function _hebrewObservances(year) {
+    if (_hebrewYear !== year) {
+        _hebrewYear = year;
+        _hebrewDates = HebrewCalendar.hebrewObservances(year);
+    }
+
+    return _hebrewDates;
+}
+
 // [month, day] for the entry in the given year, or null when a table-backed
 // observance has no published date for that year
 function _dateOf(entry, year) {
     if (entry.fixed) {
         return entry.fixed;
     }
+    if (entry.hebrew) {
+        return _hebrewObservances(year)[entry.hebrew];
+    }
     if (entry.table) {
         const dates = TABLES[entry.table];
         return (dates && dates[year]) || null;
+    }
+    if (entry.fromTable) {
+        const anchor = TABLES[entry.fromTable][year];
+        return anchor ? _dateAtOffset(year, anchor, entry.offset) : null;
     }
 
     return _easterDate(year, entry.easter);
@@ -260,26 +322,24 @@ function _dateAtOffset(year, [month, day], offset) {
     return [date.getUTCMonth() + 1, date.getUTCDate()];
 }
 
-function _sameDate(left, right) {
-    return left[0] === right[0] && left[1] === right[1];
-}
-
+// The two anchors used to be hand-typed rows, so this guarded them against an
+// editing mistake by re-deriving Shavuot from Passover and refusing the series
+// when they disagreed. They are computed now, and 15 Nisan + 50 = 6 Sivan is a
+// consequence of the fixed month lengths rather than a coincidence of two
+// tables — Nisan is always 30 days and Iyyar always 29. The check moved to
+// hebrewCalendar's suite, which asserts it across 1800-2100 where a real
+// calendar bug would show, instead of on a path no test can now reach.
 function _omerDates(year) {
-    const passover = TABLES["passover-start"][year];
-    const shavuot = TABLES.shavuot[year];
-    if (!passover || !shavuot) {
-        return [];
-    }
-
-    // Both published anchors must agree with the mandated count. If either
-    // table is edited incorrectly, omitting the series is safer than displaying
-    // a confident but wrong religious count.
-    if (!_sameDate(_dateAtOffset(year, passover, OMER_DAY_COUNT + 1), shavuot)) {
-        return [];
-    }
+    const passover = _hebrewObservances(year)["passover-start"];
 
     return Array.from({ length: OMER_DAY_COUNT }, (unused, index) =>
         [_dateAtOffset(year, passover, index + 1), index + 1]);
+}
+
+// Kinds that can run out of published years. The omer counts because it hangs
+// off Passover, and a derived entry because its anchor is a table row.
+function _tableBacked(entry) {
+    return Boolean(entry.table || entry.fromTable || entry.series);
 }
 
 function _datesOf(entry, year) {
@@ -324,11 +384,11 @@ function holidaysForYear(year, enabledIds = religionIds(), translateName = _) {
 }
 
 // Which of the enabled religions lose observances in this year because their
-// tables do not reach it. A religion whose entries are all fixed or computus-
-// derived (Christianity) is never affected; one whose entries are entirely
-// table-backed (Islam, Judaism, Sikhism, Bahá'í, Jainism, Taoism) renders an
-// empty year, which the grid cannot distinguish from a month with nothing in
-// it. Reported rather than rendered blank.
+// tables do not reach it. A religion whose entries are all fixed, computus-
+// derived or Hebrew-computed (Christianity, Judaism) is never affected; one
+// whose entries are entirely table-backed (Islam, Sikhism, Bahá'í, Jainism,
+// Taoism) renders an empty year, which the grid cannot distinguish from a month
+// with nothing in it. Reported rather than rendered blank.
 function uncoveredReligions(year, enabledIds = religionIds()) {
     if (!_validYear(year)) {
         return [];
@@ -336,7 +396,7 @@ function uncoveredReligions(year, enabledIds = religionIds()) {
 
     return enabledReligionIds(enabledIds).filter((id) =>
         (OBSERVANCES[id] || []).some((entry) =>
-            (entry.table || entry.series) && _datesOf(entry, year).length === 0));
+            _tableBacked(entry) && _datesOf(entry, year).length === 0));
 }
 
 // the calendar hands over the strings its "year/month" keys split into, so

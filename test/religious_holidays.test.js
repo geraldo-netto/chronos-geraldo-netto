@@ -115,15 +115,64 @@ test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
 });
 
 test("table dates stay absent outside their documented window", () => {
-    // past the end of every table: the Hebrew rows reach further than the rest,
-    // because Hebcal is a reference implementation the added years were checked
-    // against, so this has to clear the longest window rather than a fixed year
+    // Past the end of every table. Islam is table-backed and goes quiet, which
+    // is the behaviour the window is for. Christianity is the computus and
+    // Judaism is Hebrew arithmetic, so both still answer: the horizon belongs
+    // to the tables, not to the year.
     const rows = ReligiousHolidays.holidaysForYear(
         2031, ["islam", "judaism", "christianity"]);
 
     assert.equal(rows.some((row) => row.flags.includes("islam")), false);
-    assert.equal(rows.some((row) => row.name.startsWith("Sefirat HaOmer")), false);
+    assert.equal(rows.some((row) => row.name.startsWith("Sefirat HaOmer")), true);
     assert.equal(rows.some((row) => row.name === "Easter Sunday (Christianity)"), true);
+});
+
+// REGRESSION: the table put Naw-Rúz on 20 March in every year and Ridván on
+// 21 April in every year — an offset of 32 where the Badí' calendar mandates
+// 31, since Ridván day 1 is 13 Jalál and the months are 19 days each. Three of
+// the six shipped cells were wrong: Ridván 2025 was a day late, and Naw-Rúz
+// 2026 and 2027 a day early. Naw-Rúz is the Tehran sunset-to-sunset day holding
+// the March equinox, and the 2027 equinox is 20:25 UTC — hours after sunset
+// there. Ridván is derived now, so the offset cannot drift again.
+const NAW_RUZ = {
+    // the pre-2015 Western convention: the year began at 21 March outright
+    1844: [3, 21], 1900: [3, 21], 2014: [3, 21],
+    // and from 2015 the Bahá'í World Centre's published astronomical dates
+    2015: [3, 21], 2025: [3, 20], 2026: [3, 21], 2027: [3, 21],
+    2030: [3, 20], 2031: [3, 21], 2055: [3, 21], 2065: [3, 20]
+};
+const RIDVAN_OFFSET_DAYS = 31;
+
+function bahaiRow(year, prefix) {
+    return ReligiousHolidays.holidaysForYear(year, ["bahai"])
+        .find((row) => row.name.startsWith(prefix));
+}
+
+test("Bahá'í dates match the published Naw-Rúz and derive Ridván from it", () => {
+    for (const [key, expected] of Object.entries(NAW_RUZ)) {
+        const year = Number(key);
+        const nawRuz = bahaiRow(year, "Naw-Rúz");
+        const ridvan = bahaiRow(year, "Ridván");
+
+        assert.deepEqual([nawRuz.month, nawRuz.day], expected, `Naw-Rúz ${year}`);
+        assert.equal(
+            (civilStamp(year, ridvan) - civilStamp(year, nawRuz)) /
+                (24 * 60 * 60 * 1000),
+            RIDVAN_OFFSET_DAYS, `Ridván ${year} is not 13 Jalál`);
+    }
+});
+
+// The era begins in 1844 and the authoritative table stops at 2065. Guessing
+// past either end is what the bounded window exists to prevent — and 2092 is
+// 19 March on the best available reckoning, so the 20/21 pattern does not
+// simply continue.
+test("Bahá'í observances stop at both ends of what is published", () => {
+    assert.equal(bahaiRow(1843, "Naw-Rúz"), undefined, "before the Bahá'í era");
+    assert.ok(bahaiRow(1844, "Naw-Rúz"), "the first year of the era");
+    assert.ok(bahaiRow(2065, "Naw-Rúz"), "the last published year");
+    assert.equal(bahaiRow(2066, "Naw-Rúz"), undefined, "past the published table");
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2066, ["bahai"]), ["bahai"],
+        "and the gap is reported rather than rendered blank");
 });
 
 test("same-day observances merge names and unique flags deterministically", () => {
@@ -387,19 +436,21 @@ test("a year past the tables reports the gap instead of rendering nothing", () =
     assert.deepEqual(ReligiousHolidays.uncoveredReligions(beyond, ["islam"]), ["islam"]);
     assert.deepEqual(ReligiousHolidays.uncoveredReligions(covered, ["islam"]), []);
 
-    // the omer series is table-derived too, so it counts as a gap — past the
-    // Hebrew rows, which reach further than the shared coverage end
-    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2031, ["judaism"]), ["judaism"]);
-    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2030, ["judaism"]), []);
+    // Judaism is computed from the Hebrew calendar, not tabulated, so it has no
+    // horizon to run past: it answers for every year the applet accepts, and
+    // must never raise the notice.
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2031, ["judaism"]), []);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(9999, ["judaism"]), []);
+    assert.ok(ReligiousHolidays.holidaysForYear(9999, ["judaism"]).length > 0);
 
     // mixed selection names only the religions that actually lost dates, so a
-    // religion whose tables still reach the year is not swept up with the rest
+    // religion whose dates still reach the year is not swept up with the rest
     assert.deepEqual(
         ReligiousHolidays.uncoveredReligions(beyond, ["christianity", "islam", "judaism"]),
         ["islam"]);
     assert.deepEqual(
         ReligiousHolidays.uncoveredReligions(2031, ["christianity", "islam", "judaism"]),
-        ["islam", "judaism"]);
+        ["islam"]);
 
     // an unusable year is not a coverage gap; it is a rejected input
     assert.deepEqual(ReligiousHolidays.uncoveredReligions("nope", ["islam"]), []);

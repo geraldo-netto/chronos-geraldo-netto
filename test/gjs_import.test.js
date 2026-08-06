@@ -244,6 +244,11 @@ function gjsImportsMock() {
                             RELIGIONS: [],
                             RELIGION_IDS: []
                         },
+                        hebrewCalendar: {
+                            hebrewLeapYear() {},
+                            gregorianFromHebrew() {},
+                            hebrewObservances() {}
+                        },
                         holidayCache: {
                             HolidayCacheRepository: class {},
                             HolidayCache: class {},
@@ -331,6 +336,7 @@ const EXPORTS = {
         "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
         "ReligiousHolidayProvider", "HOLIDAY_ERRORS"],
     religiousCatalog: ["RELIGIONS", "RELIGION_IDS"],
+    hebrewCalendar: ["hebrewLeapYear", "gregorianFromHebrew", "hebrewObservances"],
     religiousHolidays: ["RELIGIOUS_HOLIDAY_FLAG", "RELIGIONS", "gregorianEaster",
         "religionIds", "enabledReligionIds", "holidaysForYear", "monthMap",
         "mergeMonthMaps"],
