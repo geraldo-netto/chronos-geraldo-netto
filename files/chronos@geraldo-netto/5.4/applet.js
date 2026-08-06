@@ -178,6 +178,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
                     this._calendar.refreshHolidays();
                 }
             }),
+            onHolidayCountryUnresolved: () => this._inferHolidayCountry(),
             onSettingsChanged: () => this._onSettingsChanged(),
             onResume: () => this._onResume(),
             onNetworkRestored: () => this._onNetworkRestored(),
@@ -312,6 +313,16 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     // settings emit (emitter, key, oldValue, newValue)
     _onWorldclocksChanged() {
         this._guarded("worldclocks-settings", () => this._reconcileWorldclocks());
+    }
+
+    // Runs at add-to-panel and again whenever the country key returns to the
+    // schema's empty sentinel. deferInitialHolidayCountry only ever fills that
+    // sentinel and guards its own idle, so calling it twice costs nothing and a
+    // user choice made in between still wins.
+    _inferHolidayCountry() {
+        this._settingsBinder.deferInitialHolidayCountry(() =>
+            this._guarded("holiday-country-inference",
+                () => this._providerLifecycle.onHolidayPlaceChanged()));
     }
 
     _onTimezoneChanged() {
@@ -564,9 +575,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         // to survive
         this._guarded("added-to-panel", () => {
             this._onSettingsChanged();
-            this._settingsBinder.deferInitialHolidayCountry(() =>
-                this._guarded("holiday-country-inference",
-                    () => this._providerLifecycle.onHolidayPlaceChanged()));
+            this._inferHolidayCountry();
 
             this._providerLifecycle.connectClockNotify(() => this._clockNotify());
             this._providerLifecycle.startDayRollover();

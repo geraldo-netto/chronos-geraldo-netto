@@ -347,7 +347,18 @@ class AppletProviderLifecycle {
     }
 
     onHolidayPlaceChanged() {
-        const country = this.context.holidaySettings.country || NO_HOLIDAYS;
+        const configured = this.context.holidaySettings.country;
+        // The schema's empty value means "not resolved yet", and a "Reset to
+        // defaults" writes it back on a running applet. Nothing re-ran the
+        // one-time inference, so the key stayed empty for the rest of the
+        // session: holidays silently off, and the Country field blank with only
+        // its placeholder — indistinguishable from a widget that failed to
+        // load. Resolving the sentinel again is exactly what it asks for, and
+        // the inference is idempotent, so the startup call costs nothing.
+        if (configured === "" && this.context.onHolidayCountryUnresolved) {
+            this.context.onHolidayCountryUnresolved();
+        }
+        const country = configured || NO_HOLIDAYS;
 
         if (country === NO_HOLIDAYS) {
             this.holidayProvider.clearPlace();

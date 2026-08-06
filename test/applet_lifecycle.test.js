@@ -1023,6 +1023,42 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         "changing a religion repaints without restarting the applet");
 });
 
+// A "Reset to defaults" writes the schema's empty value back on a running
+// applet, and the one-time timezone inference only ran at add-to-panel. The key
+// stayed empty for the rest of the session — holidays off with no reason given,
+// and the Country field blank with only its placeholder, which is what a widget
+// that failed to load also looks like.
+test("a country reset to the schema default is inferred again, not left blank", () => {
+    const unresolved = [];
+    const settings = {
+        values: { country: "usa" },
+        connect: () => 1,
+        bindWithObject(obj, key, prop) { obj[prop] = ""; },
+        getValue(key) { return this.values[key]; },
+        setValue(key, value) { this.values[key] = value; }
+    };
+    const lifecycle = new AppletModule.AppletProviderLifecycle({
+        holidaySettings: new rootModules.settingsFacade.HolidaySettings(settings),
+        onHolidayPlaceChanged: () => {},
+        onHolidayCountryUnresolved: () => unresolved.push(true)
+    }, {
+        holidayProvider: () => ({
+            setPlace() {}, clearPlace() {}, setEnabledIds() {}
+        })
+    });
+    lifecycle.initHolidayProvider();
+    assert.deepEqual(unresolved, [], "a resolved country asks for nothing");
+
+    settings.values.country = "";
+    lifecycle.onHolidayPlaceChanged();
+    assert.deepEqual(unresolved, [true], "the empty sentinel is resolved again");
+
+    // an explicit opt-out is a choice, not an unresolved key
+    settings.values.country = "none";
+    lifecycle.onHolidayPlaceChanged();
+    assert.deepEqual(unresolved, [true]);
+});
+
 test("applet wrappers open menus, launch settings, and refresh on resume", (t) => {
     const calls = [];
     let hotkeyCallback = null;
@@ -1313,10 +1349,18 @@ test("provider initialization wires hover and event manager signals", () => {
         },
         _calendar: null,
         _updateClockAndDate: () => calls.push(["clock"]),
-        _onTimezoneChanged: () => calls.push(["timezone"])
+        _onTimezoneChanged: () => calls.push(["timezone"]),
+        _settingsBinder: {
+            deferInitialHolidayCountry: () => calls.push(["infer-country"])
+        }
     });
     Proto._initProviders.call(stub);
     stub._providerLifecycle.context.onTimezoneChanged();
+    // the lifecycle fires this when the country key holds the schema's empty
+    // sentinel; only the applet knows the binder that owns the inference
+    stub._providerLifecycle.context.onHolidayCountryUnresolved();
+    assert.ok(calls.some((row) => row[0] === "infer-country"),
+        "an unresolved country reaches the binder's one-time inference");
     stub.show_weather = true;
     stub.show_worldclocks = true;
     stub.weather_location = "Rome";
