@@ -405,21 +405,79 @@ test("fuzz: merging keeps base names first and mutates neither input", () => {
 // Nothing in the build failed when the window expired either, so the applet
 // would have started answering "no observances" some time in 2028 with no
 // warning to anyone.
-test("the observance tables stay ahead of a rolling horizon", () => {
-    // Every table key must reach at least this far past the current year, or
-    // the suite fails while there is still a release cycle left to publish the
-    // next years' dates.
-    //
-    // One year is deliberately the floor and not the goal: most of the tables
-    // still end in 2027, so a wider horizon would fail today. Raising this
-    // constant as the tables are extended is the point of having it — it turns
-    // an expiry nobody would notice into one nobody can miss.
-    const HORIZON_YEARS = 1;
+// The horizon used to be a single hard floor one year ahead of the wall clock.
+// That could not be satisfied: the multi-faith calendars the rows come from
+// publish about one academic year ahead, so the gate was guaranteed to go red
+// on 2027-01-01 months before the data that would clear it existed. A red suite
+// nobody can fix is one people learn to ignore, which is worse than the silent
+// expiry it was added to prevent.
+//
+// Two levels instead, because there are two different situations:
+//
+//   hard floor — the tables no longer answer for the current year. The applet
+//                is rendering nothing for months a user is looking at right
+//                now. That is real breakage and fails the build.
+//   horizon    — coverage is inside the warning window. Nothing is broken yet;
+//                the refresh is being asked for while there is still a release
+//                cycle to do it in, so it is a diagnostic, not a failure.
+const HORIZON_YEARS = 1;
+const RELIGIOUS_DATE_SOURCES = [
+    "https://case.edu/studentlife/dean/interreligious-council-irc/religious-holidays-observances-calendar",
+    "https://www.xavier.edu/jesuitresource/online-resources/calendar-religious-holidays-and-observances/multi-faith-calendar---next-year"
+];
+
+function coverageVerdict(thisYear, coverageEnd) {
+    if (coverageEnd < thisYear) {
+        return "broken";
+    }
+
+    return coverageEnd < thisYear + HORIZON_YEARS ? "warn" : "ok";
+}
+
+// Named per religion rather than as one number: Judaism is computed and has no
+// horizon at all, and the Bahá'í rows reach 2065, so the shared minimum no
+// longer says which tradition is the one about to lapse.
+function refreshInstructions(year) {
+    const losing = ReligiousHolidays.uncoveredReligions(year);
+    return `religions losing their dates in ${year}: ` +
+        `${losing.join(", ") || "none"}\nextend TABLES in religiousHolidays.js from:\n  ` +
+        RELIGIOUS_DATE_SOURCES.join("\n  ");
+}
+
+test("the observance tables still answer for the current year", (t) => {
     const thisYear = new Date().getFullYear();
-    assert.ok(ReligiousHolidays.TABLE_COVERAGE_END >= thisYear + HORIZON_YEARS,
-        `the religious date tables run out in ${ReligiousHolidays.TABLE_COVERAGE_END}; ` +
-        `they must cover through ${thisYear + HORIZON_YEARS}. Publish the next ` +
-        "years' dates in religiousHolidays.js TABLES.");
+    const coverageEnd = ReligiousHolidays.TABLE_COVERAGE_END;
+    const verdict = coverageVerdict(thisYear, coverageEnd);
+
+    assert.notEqual(verdict, "broken",
+        `the religious date tables ran out in ${coverageEnd}, so the ` +
+        `table-backed religions render nothing for ${thisYear}.\n` +
+        refreshInstructions(thisYear));
+
+    if (verdict === "warn") {
+        t.diagnostic(`religious date tables end in ${coverageEnd}; ` +
+            refreshInstructions(coverageEnd + 1));
+    }
+});
+
+// The policy itself, at synthetic years, so both levels are exercised on every
+// run rather than only in the year the wall clock happens to reach them.
+test("the horizon warns a year before it fails, and fails only on real breakage", () => {
+    assert.equal(coverageVerdict(2030, 2029), "broken",
+        "the current year has no dates: the applet is already showing blanks");
+    assert.equal(coverageVerdict(2030, 2030), "warn",
+        "this year is covered and the next is not: ask, do not fail");
+    assert.equal(coverageVerdict(2030, 2031), "ok", "a year of headroom");
+    assert.equal(coverageVerdict(2030, 2065), "ok", "and plenty of it");
+
+    // the message has to name what to do, not just when: the old failure said
+    // only which year the tables ran out in
+    const message = refreshInstructions(2031);
+    assert.match(message, /religions losing their dates in 2031/);
+    assert.match(message, /extend TABLES in religiousHolidays\.js/);
+    for (const source of RELIGIOUS_DATE_SOURCES) {
+        assert.ok(message.includes(source), `names ${source}`);
+    }
 });
 
 test("a year past the tables reports the gap instead of rendering nothing", () => {
