@@ -709,8 +709,10 @@ var LazyHttpSession = class LazyHttpSession { // NOSONAR [S3504] -- GJS importer
     // pending requests keep their response buffers and their callbacks alive for
     // up to the timeout after the applet is gone
     abort() {
-        if (this._session && this._session.abort) { // NOSONAR [S6582] -- accepted compatible form
-            this._session.abort();
+        const session = this._session;
+        this._session = null;
+        if (session && session.abort) { // NOSONAR [S6582] -- accepted compatible form
+            session.abort();
         }
     }
 };

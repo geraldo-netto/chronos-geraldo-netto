@@ -1348,6 +1348,35 @@ test("createHttpSession owns Soup session timeout setup", () => {
     assert.equal(timeoutOnly.idle_timeout, 0);
 });
 
+test("aborting a lazy HTTP session releases the transport", () => {
+    const utils = loadIoUtils();
+    let creations = 0;
+    const lazy = new utils.LazyHttpSession(() => ({
+        generation: ++creations,
+        abort() {
+            this.aborted = true;
+        }
+    }));
+
+    lazy.abort();
+    assert.equal(lazy.created, null, "aborting before first use remains free");
+
+    const first = lazy.get();
+    lazy.abort();
+    assert.equal(first.aborted, true);
+    assert.equal(lazy.created, null, "the aborted Soup graph is no longer retained");
+    assert.notEqual(lazy.get(), first, "a later owner can lazily create a fresh session");
+
+    const throwing = new utils.LazyHttpSession(() => ({
+        abort() {
+            throw new Error("abort failed");
+        }
+    }));
+    throwing.get();
+    assert.throws(() => throwing.abort(), /abort failed/);
+    assert.equal(throwing.created, null, "release precedes a transport abort failure");
+});
+
 afterEach(() => {
     global.imports = originalImports;
     global.log = originalLog;
