@@ -28,6 +28,13 @@ const RELIGIOUS_HOLIDAY_FLAG = Holidays.RELIGIOUS_HOLIDAY_FLAG;
 const HOLIDAY_ERROR_MARKER = TextUtils.WARNING_MARKER;
 const HOLIDAY_PENDING_MARKER = "…";
 
+function compareCodeUnits(left, right) {
+    if (left < right) {
+        return -1;
+    }
+    return left > right ? 1 : 0;
+}
+
 function calendarDateKey(date) {
     if (date && typeof date.get_month === "function") {
         return `${date.get_year()}/${date.get_month()}/${date.get_day_of_month()}`;
@@ -370,7 +377,7 @@ class CalendarHolidayAnnotator {
     // which meant completion timing chose which service was named. Sorted, so
     // the same set of answers always reads the same way.
     _passProviderCredit() {
-        return Array.from(this._pass_providers).sort().join(", ");
+        return Array.from(this._pass_providers).sort(compareCodeUnits).join(", ");
     }
 
     _reconcileCells(dates, cells) {

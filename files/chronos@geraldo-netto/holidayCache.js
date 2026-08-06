@@ -53,6 +53,13 @@ var RETRY_PERIOD = 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
 // the string without limit; a megabyte of tooltip stalls the compositor on
 // layout. Real names are a few words, and this is the whole joined cell.
 var MAX_HOLIDAY_NAME_LENGTH = 300; // NOSONAR [S3504] -- GJS importer export
+
+function compareCodeUnits(left, right) {
+    if (left < right) {
+        return -1;
+    }
+    return left > right ? 1 : 0;
+}
 // months of match results kept around: enough that scrolling a year back and
 // forth stays free, small enough that a long session cannot grow on it
 var MAX_MEMOIZED_MONTHS = 32; // NOSONAR [S3504] -- GJS importer export
@@ -105,7 +112,7 @@ function mergeHolidayFlags(current, incoming) {
         incoming.includes(PART_DAY_HOLIDAY);
     return Array.from(new Set(current.concat(incoming)))
         .filter((flag) => bothPartDay || flag !== PART_DAY_HOLIDAY)
-        .sort();
+        .sort(compareCodeUnits);
 }
 
 // The rows are checked; the freshness record has to be too. stale() only asks

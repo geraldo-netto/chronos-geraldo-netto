@@ -53,6 +53,13 @@ const ClockLimits = IS_NODE ?
 
 const locationCacheKey = WeatherProviders.locationCacheKey;
 
+function compareCodeUnits(left, right) {
+    if (left < right) {
+        return -1;
+    }
+    return left > right ? 1 : 0;
+}
+
 // the world-clock cities are read on the same period as the panel weather:
 // the popup is a glance at the time, not a forecast desk
 const CITY_REFRESH_SECONDS = WeatherFormat.REFRESH_SECONDS;
@@ -259,7 +266,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     _signature(settings) {
         const queries = this._cities(settings)
             .map((city) => locationCacheKey(city.query))
-            .sort();
+            .sort(compareCodeUnits);
 
         // Labels are local presentation and clock order does not change the
         // readings. JSON keeps arbitrary query text structurally distinct:

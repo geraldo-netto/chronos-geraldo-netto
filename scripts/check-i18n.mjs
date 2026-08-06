@@ -29,6 +29,13 @@ const SOURCE_COPY_ALLOWLIST = new Set([
     "Simon Wiles (simonwiles)"
 ]);
 
+function compareCodeUnits(left, right) {
+    if (left < right) {
+        return -1;
+    }
+    return left > right ? 1 : 0;
+}
+
 // PO's escapes are not a subset of JSON's. gettext also writes \a and \v, and
 // read-po accepts octal \NNN and hexadecimal \xHH; JSON.parse rejects all four.
 // Every fragment used to go through JSON.parse, so a catalog carrying one threw
@@ -115,7 +122,7 @@ export function unexpectedCommonSourceCopies(catalogs) {
 
     return Array.from(common)
         .filter((msgid) => !SOURCE_COPY_ALLOWLIST.has(msgid))
-        .sort();
+        .sort(compareCodeUnits);
 }
 
 export async function checkCatalogSourceCopies(catalogPaths, read = readFile) {
@@ -179,7 +186,7 @@ function referenceTokens(block) {
             line.slice(3).trim().split(/\s+/).forEach((token) => tokens.add(token));
         }
     }
-    return Array.from(tokens).sort();
+    return Array.from(tokens).sort(compareCodeUnits);
 }
 
 // Every entry of a .po or a .pot, keyed the way gettext tells entries apart,
@@ -305,7 +312,7 @@ export function catalogReferenceDrift(catalog, pot) {
         references.filter((token) => !named.has(token))
             .forEach((token) => drifted.add(token));
     }
-    return Array.from(drifted).sort();
+    return Array.from(drifted).sort(compareCodeUnits);
 }
 
 export async function checkCatalogReferences(catalogPath, potPath, read = readFile) {
@@ -333,7 +340,7 @@ export async function checkI18n(projectRoot, run = execFileAsync,
     const potName = `${UUID}.pot`;
     const catalogs = (await readdir(poDir))
         .filter((name) => name.endsWith(".po"))
-        .sort();
+        .sort(compareCodeUnits);
     const catalogPaths = catalogs.map((name) => path.join(poDir, name));
 
     checkCatalogInventory(catalogs, expected);
