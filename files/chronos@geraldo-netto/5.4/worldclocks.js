@@ -224,8 +224,12 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
 
         // ...and the same reading, drawn. The accessible name carries the
         // condition in words as well; the cell is the temperature, which is
-        // what the row has room for beside a time.
-        const reading = entry.weather ? String(entry.weather).split(",")[0].trim() : "";
+        // what the row has room for beside a time. The presenter hands it over
+        // as its own field: reconstructing it from the joined string above put
+        // a whole error sentence in this column whenever the fetch failed, and
+        // truncated the reading at the first comma a translation happened to
+        // contain.
+        const reading = entry.temperature || "";
         if (clock.rendered_weather !== reading && clock.weather) {
             clock.rendered_weather = reading;
             clock.weather.set_text(reading);

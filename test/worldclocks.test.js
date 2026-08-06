@@ -699,9 +699,11 @@ test("each clock row draws its city's temperature, not just says it", () => {
     worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
 
     const tokyo = worldclocks.clocks.at(-1);
-    worldclocks.updateClocks([
-        { clock: tokyo, label: "Tokyo", time: "18:00", weather: "12°C, Rain", builtin: false }
-    ]);
+    const reading = {
+        clock: tokyo, label: "Tokyo", time: "18:00",
+        weather: "12°C, Rain", temperature: "12°C", builtin: false
+    };
+    worldclocks.updateClocks([reading]);
 
     assert.equal(tokyo.weather.text, "12°C", "the cell carries the temperature");
     assert.match(tokyo.display.accessible_name, /Rain/,
@@ -709,9 +711,7 @@ test("each clock row draws its city's temperature, not just says it", () => {
 
     // written once: this runs on every tick and St compares by pointer
     const before = tokyo.weather.texts.length;
-    worldclocks.updateClocks([
-        { clock: tokyo, label: "Tokyo", time: "18:00", weather: "12°C, Rain", builtin: false }
-    ]);
+    worldclocks.updateClocks([reading]);
     assert.equal(tokyo.weather.texts.length, before);
 
     // a row with no reading yet shows an empty cell, not a stale one
@@ -719,6 +719,28 @@ test("each clock row draws its city's temperature, not just says it", () => {
         { clock: tokyo, label: "Tokyo", time: "18:01", builtin: false }
     ]);
     assert.equal(tokyo.weather.text, "");
+});
+
+// REGRESSION: the cell was recovered as String(entry.weather).split(",")[0], so a
+// row that had an error and no reading put the whole sentence in a column styled
+// `text-align: right` with no width cap — and any comma a translator used in
+// "⚠ Last known reading" or "No weather for this timezone" cut it mid-phrase.
+test("a clock row whose weather failed leaves the temperature column empty", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
+
+    const tokyo = worldclocks.clocks.at(-1);
+    const failure = "⚠ No weather for this timezone, sorry";
+    worldclocks.updateClocks([
+        { clock: tokyo, label: "Tokyo", time: "18:00", weather: failure,
+            temperature: "", builtin: false }
+    ]);
+
+    assert.equal(tokyo.weather.text, "",
+        "the narrow column shows no temperature, not the error sentence");
+    assert.match(tokyo.display.accessible_name, /No weather for this timezone, sorry/,
+        "the row still says why, where there is room to say it");
 });
 
 test("the clock list names the weather service that answered", () => {

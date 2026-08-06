@@ -559,11 +559,19 @@ class AppletPanelStatusPresenter {
             (cityModel ? cityModel.cells : this._builtinWeatherCells(entry));
         const weather = weatherCells.filter((cell) => cell).join(", "); // NOSONAR [S7770] -- accepted compatible form
 
+        // The joined string is for the places that have room for a sentence —
+        // the tooltip and the row's accessible name. The temperature travels
+        // beside it as its own cell, because the popup's weather column is one
+        // reading wide: a row whose fetch failed has no temperature and only an
+        // error, and recovering the cell by splitting the join drew that error
+        // into the column instead of leaving it empty.
         return {
             cells: cells.concat(weatherCells),
             issue: cityModel ? cityModel.issue : "",
             source: this._weatherSource(entry, cityModel, showWeather),
-            popupEntry: weather ? Object.assign({}, entry, { weather }) : entry // NOSONAR [S6661] -- accepted compatible form
+            popupEntry: weather ?
+                Object.assign({}, entry, { weather, temperature: weatherCells[0] }) : // NOSONAR [S6661] -- accepted compatible form
+                entry
         };
     }
 

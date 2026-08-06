@@ -218,6 +218,34 @@ test("one render model serves tooltip and popup weather", () => {
     assert.deepEqual(calls.lastEntries.map((entry) => entry.weather || ""), [
         "", "12°C, Rain", "12°C, Rain", "12°C, Rain"
     ], "popup accessibility reuses the same weather cells");
+    assert.deepEqual(calls.lastEntries.map((entry) => entry.temperature || ""), [
+        "", "12°C", "12°C", "12°C"
+    ], "and the popup's narrow column gets the temperature cell on its own");
+});
+
+// REGRESSION: the popup row recovered its temperature as weather.split(",")[0], so
+// an offset-only zone — which names no city, and never will — drew the whole
+// "No weather for this timezone" sentence into a column one reading wide.
+test("a clock row with no reading carries its error without a temperature", () => {
+    const original = rootModules.worldclockData.timezoneWeatherCity;
+    rootModules.worldclockData.timezoneWeatherCity = () => "";
+    const { stub, calls } = updateStub({ menuOpen: true });
+    Object.assign(stub, {
+        show_weather: true,
+        show_worldclocks: true
+    });
+
+    try {
+        Proto._updateClockAndDate.call(stub);
+    } finally {
+        rootModules.worldclockData.timezoneWeatherCity = original;
+    }
+
+    const row = calls.lastEntries.find((entry) => entry.weather);
+    assert.match(row.weather, /No weather for this timezone/,
+        "the row still reports why it has nothing to show");
+    assert.equal(row.temperature, "",
+        "and the cell handed to the popup is empty, not the sentence");
 });
 
 test("disabling the home button hands its key focus to the calendar", () => {
