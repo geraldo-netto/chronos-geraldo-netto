@@ -2050,7 +2050,7 @@ test("EventIndex owns event bucket mutation, removal, culling, and colors", () =
     index.remove(["index"]);
     assert.equal(index.getByUnixKey(10 * DAY_S), null);
     assert.equal(index.cull(10 ** 9), true);
-    index.clear();
+    index.discard();
     assert.deepEqual(index.eventsByDate, {});
     assert.equal(index.get(selected), null);
     assert.equal(index.getColorsByUnixKey(11 * DAY_S), null);
@@ -2125,7 +2125,7 @@ test("fuzz: the id set and the day map always cover the same events", () => {
         } else if (choice < 0.9) {
             index.cull(++watermark);
         } else {
-            index.clear();
+            index.discard();
         }
         sameKeys(`round ${round}`);
         watermark++;
@@ -2179,7 +2179,7 @@ test("EventIndex removal follows the days a uid occupies, across reschedule and 
     index.remove(["never-seen"]);
     assert.equal(index.getByUnixKey(30 * DAY_S).has("kept"), true);
 
-    index.clear();
+    index.discard();
     assert.equal(index._daysById.size, 0, "clear() drops the day map with the buckets");
 });
 
@@ -2213,7 +2213,7 @@ test("EventIndex bounds distinct window events and recovers capacity", () => {
     assert.deepEqual(index.get(selected).get_stored_events().map((event) => event.id).sort(),
         ["cap-1", "cap-2", "replacement"]);
 
-    index.clear();
+    index.discard();
     assert.equal(index.overflowed, false);
     assert.equal(index.get(selected), null);
 });
@@ -2278,6 +2278,52 @@ test("an OS timezone change discards the indexed buckets and refetches", () => {
     const before = proxy.instance.set_time_range_calls.length;
     fireTimer(manager._reload_selected_id);
     assert.equal(proxy.instance.set_time_range_calls.length, before + 1);
+});
+
+// T794: the index is shared mutable state with two owners. EventWindowCoordinator
+// owns the window; EventsManager drops the contents from five paths. Dropping
+// and re-windowing used to be two separate public calls, so between a clear and
+// the reload idle that re-windows, _registrationBounds clamped incoming events
+// against bounds that no longer described anything — after a timezone change,
+// old-zone bounds against new-zone keys. Neither owner considers that valid,
+// and nothing here stopped it.
+test("dropping the index takes its window with it", () => {
+    const index = new EventIndex({}, 10);
+    const inside = () => eventVariant({
+        id: "inside", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+    });
+
+    index.reset(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+    index.addOrUpdate([inside()], 1, new FakeDateTime(10 * DAY_US));
+    assert.equal(Object.keys(index.eventsByDate).length, 1, "the window admits it");
+
+    // a fetch for a different month replaces contents and bounds together
+    index.reset(new FakeDateTime(40 * DAY_US), new FakeDateTime(80 * DAY_US));
+    assert.deepEqual(index.eventsByDate, {});
+    index.addOrUpdate([inside()], 2, new FakeDateTime(50 * DAY_US));
+    assert.deepEqual(index.eventsByDate, {},
+        "and the new bounds are the ones a delivery is judged against");
+
+    // ...while a drop with no next window in sight takes the bounds with it,
+    // rather than leaving them to clamp an answer they no longer describe
+    index.reset(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+    index.discard();
+    assert.equal(index._windowStart, null);
+    assert.equal(index._windowEnd, null);
+});
+
+// A forced refetch of the month already on screen is not a drop: the rows are
+// still wanted, and the reconciliation watermark is what retires the stale ones.
+test("re-stating the window of the month on screen keeps what is indexed", () => {
+    const index = new EventIndex({}, 10);
+    index.reset(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+    index.addOrUpdate([eventVariant({
+        id: "kept", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+    })], 1, new FakeDateTime(10 * DAY_US));
+
+    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+
+    assert.equal(index.hasEvent("kept"), true);
 });
 
 // T802: _apply_event_resync marks the index overflowed as a temporary warning
@@ -2604,8 +2650,7 @@ test("day registration intersects a long event with each active fetch window", (
 
     // Browsing farther into the same event gets a fresh bounded intersection,
     // not buckets tied to the event's original start.
-    index.clear();
-    index.setWindow(new FakeDateTime(200 * DAY_US), new FakeDateTime(241 * DAY_US));
+    index.reset(new FakeDateTime(200 * DAY_US), new FakeDateTime(241 * DAY_US));
     index.register(event, 2, new FakeDateTime(220 * DAY_US));
     assert.equal(Object.keys(index.eventsByDate).length, 42);
     assert.ok(index.getByUnixKey(200 * DAY_S));

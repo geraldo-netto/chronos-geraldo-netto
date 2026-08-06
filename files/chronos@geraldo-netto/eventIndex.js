@@ -43,12 +43,38 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this._rebuildEventState();
     }
 
+    // The two owners of this index used to drop its contents and set its window
+    // through separate public calls, and nothing here held them together. So
+    // between EventsManager clearing and the reload idle re-windowing,
+    // _registrationBounds clamped incoming events against bounds that no longer
+    // described anything — old-zone bounds against new-zone keys after a
+    // timezone change — a state neither owner considers valid.
+    //
+    // These two are the whole public vocabulary for dropping contents. `reset`
+    // is the window owner's: contents and bounds move together, so there is no
+    // instant at which one describes a fetch the other does not. `discard` is
+    // for the paths that drop everything and ask again, which do not know the
+    // next window: it takes the stale bounds with the stale contents rather
+    // than leaving them to clamp the answer.
+    reset(start, end) {
+        this._clear();
+        this.setWindow(start, end);
+    }
+
+    // Re-stating the bounds of a fetch whose contents are still wanted: a
+    // forced refetch of the month already on screen keeps what is indexed.
     setWindow(start, end) {
         this._windowStart = date_only(start);
         this._windowEnd = date_only(end);
     }
 
-    clear() {
+    discard() {
+        this._clear();
+        this._windowStart = null;
+        this._windowEnd = null;
+    }
+
+    _clear() {
         this.eventsByDate = {};
         this._eventIds.clear();
         this._eventsById.clear();

@@ -39,15 +39,18 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         }
         this.current_month_year = month_year;
 
-        if (changed_month) {
-            this.index.clear();
-        }
-
         const day_one = month_year_only(month_year);
         const start = day_one.add_days(-DateMath.monthWindowStartOffset(
             day_one.get_day_of_week(), Cinnamon.util_get_week_start()));
         const end = start.add_days(42).add_seconds(-1);
-        this.index.setWindow(start, end);
+        // a forced refetch of the month already on screen keeps what is indexed
+        // and re-states the window it was indexed under; a different month
+        // replaces both at once
+        if (changed_month) {
+            this.index.reset(start, end);
+        } else {
+            this.index.setWindow(start, end);
+        }
         // Take the reconciliation watermark before dispatch. A test double can
         // complete synchronously, and production signals may arrive as soon as
         // the method is sent; both must stamp records with this same fetch.

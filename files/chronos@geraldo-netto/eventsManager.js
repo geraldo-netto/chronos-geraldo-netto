@@ -425,7 +425,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     }
 
     _apply_event_resync() {
-        this._event_index.clear();
+        this._event_index.discard();
         this._resync_overflow_pending = true;
         this._mark_event_overflow();
         this._emit_event_index_changed();
@@ -594,7 +594,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
 
         if (ambiguous) {
-            this._event_index.clear();
+            this._event_index.discard();
         } else {
             this._event_index.remove([uids_string]);
         }
@@ -621,7 +621,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // A calendar was removed/disabled. Instead of picking
         // specific matching events to remove, just rebuild the
         // entire list.
-        this._event_index.clear();
+        this._event_index.discard();
         this._emit_event_index_changed();
         this.queue_reload_selected();
     }
@@ -832,7 +832,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // destroy(), and AppletContextMenu holds the actor, which holds _delegate.
         // Releasing the timers and the signals but keeping the data is how ten
         // add/remove cycles retained 38 MiB.
-        this._event_index.clear();
+        this._event_index.discard();
 
         this._destroyed = true;
     }
@@ -842,7 +842,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
     // the new one. None of the retained data addresses the displayed month any
     // more, so drop it and ask the server again rather than let the two drift.
     refresh_for_timezone_change() {
-        this._event_index.clear();
+        this._event_index.discard();
         this._window_coordinator.renormalizeSelectedDate();
         this.queue_reload_selected();
     }
