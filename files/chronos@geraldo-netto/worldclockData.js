@@ -481,7 +481,7 @@ function zoneinfoIdentifier(identifier) {
     }
 
     const trimmed = identifier.trim();
-    const named = trimmed.indexOf(":") === 0 ? trimmed.slice(1) : trimmed;
+    const named = trimmed.startsWith(":") ? trimmed.slice(1) : trimmed;
     const marker = "/zoneinfo/";
     const index = named.lastIndexOf(marker);
     return index === -1 ? named : named.slice(index + marker.length);
