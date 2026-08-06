@@ -416,7 +416,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     
     _openMenu() {
         this.menu.toggle();
-        this._updateAstronomy();
     }
 
     // Cinnamon text entries fire this on every keystroke. Rebuilding the clock

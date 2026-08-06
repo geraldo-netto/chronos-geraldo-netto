@@ -293,9 +293,15 @@ test("the astronomy popup updates only while it can be seen", () => {
     stub.show_astronomy = true;
     stub.menu.toggle = () => {
         stub.menu.isOpen = true;
+        // PopupMenu.open() emits this synchronously. The applet's
+        // open-state-changed handler owns the forced menu refresh.
+        Proto._updateClockAndDate.call(stub, true);
     };
+    const beforeOpen = updates.length;
     Proto._openMenu.call(stub);
-    assert.deepEqual(updates[3], { visible: true, place, use24h: true },
+    assert.equal(updates.length, beforeOpen + 1,
+        "one open transition performs one astronomy observation");
+    assert.deepEqual(updates.at(-1), { visible: true, place, use24h: true },
         "opening renders immediately instead of waiting for the next clock tick");
 });
 
