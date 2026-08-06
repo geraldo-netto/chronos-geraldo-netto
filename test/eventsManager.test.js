@@ -1533,7 +1533,9 @@ test("a failed mutation idle registration resyncs without a phantom source", () 
         () => {
             throw new Error("idle registration failed");
         },
-        () => 0
+        () => 0,
+        () => undefined,
+        () => Number.NaN
     ]) {
         const manager = readyManager();
         const logged = [];

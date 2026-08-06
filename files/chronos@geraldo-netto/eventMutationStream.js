@@ -34,6 +34,10 @@ var MAX_QUEUED_EVENT_RECORDS = 2000; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_BYTES = 8 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_MUTATIONS = 256; // NOSONAR [S3504] -- GJS importer export
 
+function validSourceId(sourceId) {
+    return Number.isInteger(sourceId) && sourceId > 0;
+}
+
 var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS importer export
     constructor(params) {
         this._eventIndex = params.eventIndex;
@@ -249,7 +253,7 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         try {
             sourceId = Mainloop.idle_add(
                 () => this._runScheduledMutation(generation));
-            if (!(sourceId > 0)) {
+            if (!validSourceId(sourceId)) {
                 throw new Error("calendar events could not register a mutation idle");
             }
         } catch (error) {
@@ -339,7 +343,7 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
                 this.flushPendingEmit();
                 return GLib.SOURCE_REMOVE;
             });
-            if (!(sourceId > 0)) {
+            if (!validSourceId(sourceId)) {
                 throw new Error(
                     "calendar events could not register an announcement idle");
             }

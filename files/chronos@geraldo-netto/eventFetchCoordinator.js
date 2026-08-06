@@ -28,6 +28,10 @@ var FETCH_RETRY_SECONDS = 5; // NOSONAR [S3504] -- GJS importer export
 var FETCH_RETRY_MAX_SECONDS = 120; // NOSONAR [S3504] -- GJS importer export
 var FETCH_RETRY_MAX_ATTEMPTS = 5; // NOSONAR [S3504] -- GJS importer export
 
+function validSourceId(sourceId) {
+    return Number.isInteger(sourceId) && sourceId > 0;
+}
+
 var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- GJS importer export
     constructor(params) {
         this._serverConnection = params.serverConnection;
@@ -301,7 +305,7 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
                     }
                     return this.idleDoReloadSelected();
                 });
-            if (!(sourceId > 0)) {
+            if (!validSourceId(sourceId)) {
                 throw new Error("calendar events could not register a reload idle");
             }
             this._reloadSelectedId = sourceId;
