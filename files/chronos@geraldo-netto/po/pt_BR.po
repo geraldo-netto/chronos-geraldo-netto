@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 02:40+0200\n"
+"POT-Creation-Date: 2026-08-06 13:28+0200\n"
 "PO-Revision-Date: 2021-10-02 18:47-0300\n"
 "Last-Translator: Marcelo Aof\n"
 "Language-Team: \n"
@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e de %B de %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 6.0/calendar.js:347
+#: 6.0/calendar.js:348
 msgid "Today"
 msgstr "Hoje"
 
@@ -46,214 +46,214 @@ msgstr "Todo dia"
 msgid "%s — %s"
 msgstr "%s — %s"
 
-#. 5.4->settings-schema.json->religion-christianity->description
+#. 6.0->settings-schema.json->religion-christianity->description
 #: religiousCatalog.js:19
 msgid "Christianity"
 msgstr "Cristianismo"
 
-#. 5.4->settings-schema.json->religion-islam->description
+#. 6.0->settings-schema.json->religion-islam->description
 #: religiousCatalog.js:20
 msgid "Islam"
 msgstr "Islã"
 
-#. 5.4->settings-schema.json->religion-hinduism->description
+#. 6.0->settings-schema.json->religion-hinduism->description
 #: religiousCatalog.js:21
 msgid "Hinduism"
 msgstr "Hinduísmo"
 
-#. 5.4->settings-schema.json->religion-buddhism->description
+#. 6.0->settings-schema.json->religion-buddhism->description
 #: religiousCatalog.js:22
 msgid "Buddhism"
 msgstr "Budismo"
 
-#. 5.4->settings-schema.json->religion-sikhism->description
+#. 6.0->settings-schema.json->religion-sikhism->description
 #: religiousCatalog.js:23
 msgid "Sikhism"
 msgstr "Sikhismo"
 
-#. 5.4->settings-schema.json->religion-judaism->description
+#. 6.0->settings-schema.json->religion-judaism->description
 #: religiousCatalog.js:24
 msgid "Judaism"
 msgstr "Judaísmo"
 
-#. 5.4->settings-schema.json->religion-bahai->description
+#. 6.0->settings-schema.json->religion-bahai->description
 #: religiousCatalog.js:25
 msgid "Bahá'í Faith"
 msgstr "Fé Bahá'í"
 
-#. 5.4->settings-schema.json->religion-jainism->description
+#. 6.0->settings-schema.json->religion-jainism->description
 #: religiousCatalog.js:26
 msgid "Jainism"
 msgstr "Jainismo"
 
-#. 5.4->settings-schema.json->religion-shinto->description
+#. 6.0->settings-schema.json->religion-shinto->description
 #: religiousCatalog.js:27
 msgid "Shinto"
 msgstr "Xintoísmo"
 
-#. 5.4->settings-schema.json->religion-taoism->description
+#. 6.0->settings-schema.json->religion-taoism->description
 #: religiousCatalog.js:28
 msgid "Taoism"
 msgstr "Taoísmo"
 
-#: religiousHolidays.js:126
+#: religiousHolidays.js:162
 msgid "Epiphany"
 msgstr "Epifania"
 
-#: religiousHolidays.js:127
+#: religiousHolidays.js:163
 msgid "Good Friday"
 msgstr "Sexta-feira Santa"
 
-#: religiousHolidays.js:128
+#: religiousHolidays.js:164
 msgid "Easter Sunday"
 msgstr "Domingo de Páscoa"
 
-#: religiousHolidays.js:129
+#: religiousHolidays.js:165
 msgid "Pentecost"
 msgstr "Pentecostes"
 
-#: religiousHolidays.js:130
+#: religiousHolidays.js:166
 msgid "All Saints' Day"
 msgstr "Dia de Todos os Santos"
 
-#: religiousHolidays.js:131
+#: religiousHolidays.js:167
 msgid "Christmas Day"
 msgstr "Dia de Natal"
 
-#: religiousHolidays.js:134
+#: religiousHolidays.js:170
 msgid "Islamic New Year"
 msgstr "Ano Novo Islâmico"
 
-#: religiousHolidays.js:135
+#: religiousHolidays.js:171
 msgid "Mawlid"
 msgstr "Mawlid"
 
-#: religiousHolidays.js:136
+#: religiousHolidays.js:172
 msgid "Ramadan begins"
 msgstr "Ramadã começa"
 
-#: religiousHolidays.js:137
+#: religiousHolidays.js:173
 msgid "Eid al-Fitr"
 msgstr "Eid al-Fitr"
 
-#: religiousHolidays.js:138
+#: religiousHolidays.js:174
 msgid "Eid al-Adha"
 msgstr "Eid al-Adha"
 
-#: religiousHolidays.js:141
+#: religiousHolidays.js:177
 msgid "Makar Sankranti"
 msgstr "Makar Sankranti"
 
-#: religiousHolidays.js:142
+#: religiousHolidays.js:178
 msgid "Maha Shivaratri"
 msgstr "Maha Shivaratri"
 
-#: religiousHolidays.js:143
+#: religiousHolidays.js:179
 msgid "Holi"
 msgstr "Holi"
 
-#: religiousHolidays.js:144
+#: religiousHolidays.js:180
 msgid "Krishna Janmashtami"
 msgstr "Krishna Janmashtami"
 
-#: religiousHolidays.js:145
+#: religiousHolidays.js:181
 msgid "Diwali"
 msgstr "Diwali"
 
-#: religiousHolidays.js:148
+#: religiousHolidays.js:184
 msgid "Parinirvana Day"
 msgstr "Dia do Parinirvana"
 
-#: religiousHolidays.js:149
+#: religiousHolidays.js:185
 msgid "Vesak"
 msgstr "Vesak"
 
-#: religiousHolidays.js:150
+#: religiousHolidays.js:186
 msgid "Bodhi Day"
 msgstr "Dia de Bodhi"
 
-#: religiousHolidays.js:153
+#: religiousHolidays.js:189
 msgid "Guru Gobind Singh Jayanti"
 msgstr "Guru Gobind Singh Jayanti"
 
-#: religiousHolidays.js:154
+#: religiousHolidays.js:190
 msgid "Vaisakhi"
 msgstr "Vaisakhi"
 
-#: religiousHolidays.js:155
+#: religiousHolidays.js:191
 msgid "Guru Nanak Jayanti"
 msgstr "Guru Nanak Jayanti"
 
-#: religiousHolidays.js:158
+#: religiousHolidays.js:194
 msgid "Purim"
 msgstr "Purim"
 
-#: religiousHolidays.js:159
+#: religiousHolidays.js:195
 msgid "Passover begins"
 msgstr "Pessach começa"
 
-#: religiousHolidays.js:160
+#: religiousHolidays.js:196
 #, javascript-format
 msgid "Sefirat HaOmer — Day %s"
 msgstr "Sefirat HaOmer — Dia %s"
 
-#: religiousHolidays.js:161
+#: religiousHolidays.js:197
 msgid "Shavuot"
 msgstr "Shavuot"
 
-#: religiousHolidays.js:162
+#: religiousHolidays.js:198
 msgid "Rosh Hashanah"
 msgstr "Rosh Hashaná"
 
-#: religiousHolidays.js:163
+#: religiousHolidays.js:199
 msgid "Yom Kippur"
 msgstr "Yom Kipur"
 
-#: religiousHolidays.js:164
+#: religiousHolidays.js:200
 msgid "Hanukkah begins"
 msgstr "Hanukkah começa"
 
-#: religiousHolidays.js:167
+#: religiousHolidays.js:203
 msgid "Naw-Rúz"
 msgstr "Naw-Rúz"
 
-#: religiousHolidays.js:168
+#: religiousHolidays.js:209
 msgid "Ridván begins"
 msgstr "Ridván começa"
 
-#: religiousHolidays.js:171
+#: religiousHolidays.js:212
 msgid "Mahavir Jayanti"
 msgstr "Mahavir Jayanti"
 
-#: religiousHolidays.js:172
+#: religiousHolidays.js:213
 msgid "Paryushana begins"
 msgstr "Paryushana começa"
 
-#: religiousHolidays.js:175
+#: religiousHolidays.js:216
 msgid "Shōgatsu"
 msgstr "Shogatsu"
 
-#: religiousHolidays.js:176
+#: religiousHolidays.js:217
 msgid "Hinamatsuri"
 msgstr "Hinamatsuri"
 
-#: religiousHolidays.js:177
+#: religiousHolidays.js:218
 msgid "Tanabata"
 msgstr "Tanabata"
 
-#: religiousHolidays.js:178
+#: religiousHolidays.js:219
 msgid "Shichi-Go-San"
 msgstr "Shichi-Go-San"
 
-#: religiousHolidays.js:181
+#: religiousHolidays.js:222
 msgid "Chinese New Year"
 msgstr "Ano Novo Chinês"
 
-#: religiousHolidays.js:182
+#: religiousHolidays.js:223
 msgid "Qingming"
 msgstr "Qingming"
 
-#: religiousHolidays.js:183
+#: religiousHolidays.js:224
 msgid "Ghost Festival"
 msgstr "Festival dos Fantasmas"
 
@@ -270,11 +270,11 @@ msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "O applet de calendário encontrou um erro. Verifique o registro do sistema."
 
-#: 6.0/appletMenuBuilder.js:333 6.0/appletMenuBuilder.js:339
+#: 6.0/appletMenuBuilder.js:313 6.0/appletMenuBuilder.js:319
 msgid "Go to today"
 msgstr "Ir para hoje"
 
-#: 6.0/appletMenuBuilder.js:463
+#: 6.0/appletMenuBuilder.js:406
 msgid "Date and Time Settings"
 msgstr "Configurações de Data e Hora"
 
@@ -282,64 +282,64 @@ msgstr "Configurações de Data e Hora"
 msgid "Invalid time format; edit it in Settings"
 msgstr "Formato de hora inválido; edite nas Configurações"
 
-#: 6.0/appletPanelStatus.js:74
+#: 6.0/appletPanelStatus.js:77
 msgid "Location not found"
 msgstr "Local não encontrado"
 
-#: 6.0/appletPanelStatus.js:75
+#: 6.0/appletPanelStatus.js:78
 msgid "Weather service unavailable"
 msgstr "Serviço de clima indisponível"
 
-#: 6.0/appletPanelStatus.js:76
+#: 6.0/appletPanelStatus.js:79
 msgid "Set a weather location"
 msgstr "Defina um local para o clima"
 
-#: 6.0/appletPanelStatus.js:77
+#: 6.0/appletPanelStatus.js:80
 msgid "No network connection"
 msgstr "Sem conexão de rede"
 
-#: 6.0/appletPanelStatus.js:86
+#: 6.0/appletPanelStatus.js:89
 msgid "Clear"
 msgstr "Céu limpo"
 
-#: 6.0/appletPanelStatus.js:87
+#: 6.0/appletPanelStatus.js:90
 msgid "Partly cloudy"
 msgstr "Parcialmente nublado"
 
-#: 6.0/appletPanelStatus.js:88
+#: 6.0/appletPanelStatus.js:91
 msgid "Cloudy"
 msgstr "Nublado"
 
-#: 6.0/appletPanelStatus.js:89
+#: 6.0/appletPanelStatus.js:92
 msgid "Rain"
 msgstr "Chuva"
 
-#: 6.0/appletPanelStatus.js:90
+#: 6.0/appletPanelStatus.js:93
 msgid "Snow"
 msgstr "Neve"
 
-#: 6.0/appletPanelStatus.js:91
+#: 6.0/appletPanelStatus.js:94
 msgid "Showers"
 msgstr "Pancadas de chuva"
 
-#: 6.0/appletPanelStatus.js:92
+#: 6.0/appletPanelStatus.js:95
 msgid "Thunderstorm"
 msgstr "Tempestade"
 
-#: 6.0/appletPanelStatus.js:93
+#: 6.0/appletPanelStatus.js:96
 msgid "Fair"
 msgstr "Tempo bom"
 
-#: 6.0/appletPanelStatus.js:113 6.0/appletPanelStatus.js:491
-#: 6.0/appletPanelStatus.js:660
+#: 6.0/appletPanelStatus.js:116 6.0/appletPanelStatus.js:527
+#: 6.0/appletPanelStatus.js:708
 msgid "Weather: loading…"
 msgstr "Clima: carregando…"
 
-#: 6.0/appletPanelStatus.js:515
+#: 6.0/appletPanelStatus.js:551
 msgid "No weather for this timezone"
 msgstr "Sem meteorologia para este fuso horário"
 
-#: 6.0/appletPanelStatus.js:526 6.0/appletPanelStatus.js:527
+#: 6.0/appletPanelStatus.js:562 6.0/appletPanelStatus.js:563
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última leitura conhecida"
@@ -348,29 +348,29 @@ msgstr "%s Última leitura conhecida"
 msgid "Times shown in this computer's time zone"
 msgstr "Horários exibidos no fuso horário deste computador"
 
-#: 6.0/astronomyView.js:143
+#: 6.0/astronomyView.js:161
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Nascer do sol: %s — Pôr do sol: %s"
 
-#: 6.0/astronomyView.js:144
+#: 6.0/astronomyView.js:162
 msgid "Sun is above the horizon all day"
 msgstr "O Sol fica acima do horizonte o dia todo"
 
-#: 6.0/astronomyView.js:145
+#: 6.0/astronomyView.js:163
 msgid "Sun is below the horizon all day"
 msgstr "O Sol fica abaixo do horizonte o dia todo"
 
-#: 6.0/astronomyView.js:147
+#: 6.0/astronomyView.js:165
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Nascer da Lua: %s — Pôr da Lua: %s"
 
-#: 6.0/astronomyView.js:148
+#: 6.0/astronomyView.js:166
 msgid "Moon is above the horizon all day"
 msgstr "A Lua fica acima do horizonte o dia todo"
 
-#: 6.0/astronomyView.js:149
+#: 6.0/astronomyView.js:167
 msgid "Moon is below the horizon all day"
 msgstr "A Lua fica abaixo do horizonte o dia todo"
 
@@ -380,59 +380,59 @@ msgstr ""
 "Alguns eventos do calendário foram ocultados para manter a área de trabalho "
 "responsiva."
 
-#: 6.0/calendar.js:350
+#: 6.0/calendar.js:351
 msgid "Selected"
 msgstr "Selecionado"
 
-#: 6.0/calendar.js:354
+#: 6.0/calendar.js:355
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d evento"
 msgstr[1] "%d eventos"
 
-#: 6.0/calendar.js:572
+#: 6.0/calendar.js:573
 #, javascript-format
 msgid "Week %s"
 msgstr "Semana %s"
 
-#: 6.0/calendar.js:942
+#: 6.0/calendar.js:952
 msgid "Previous month"
 msgstr "Mês anterior"
 
-#: 6.0/calendar.js:972
+#: 6.0/calendar.js:982
 msgid "Next month"
 msgstr "Próximo mês"
 
-#: 6.0/calendar.js:976
+#: 6.0/calendar.js:986
 msgid "Previous year"
 msgstr "Ano anterior"
 
-#: 6.0/calendar.js:987
+#: 6.0/calendar.js:997
 msgid "Next year"
 msgstr "Próximo ano"
 
-#: 6.0/calendar.js:1000
+#: 6.0/calendar.js:1010
 msgid "Week"
 msgstr "Semana"
 
-#: 6.0/calendarAnnotations.js:61
+#: 6.0/calendarAnnotations.js:103
 msgid "Holiday service unavailable"
 msgstr "Serviço de feriados indisponível"
 
-#: 6.0/calendarAnnotations.js:62
+#: 6.0/calendarAnnotations.js:104
 msgid "Holiday data unavailable"
 msgstr "Dados de feriados indisponíveis"
 
-#: 6.0/calendarAnnotations.js:64
+#: 6.0/calendarAnnotations.js:106
 msgid "Religious dates unavailable for this year"
 msgstr "Datas religiosas indisponíveis para este ano"
 
-#: 6.0/calendarAnnotations.js:233
+#: 6.0/calendarAnnotations.js:274
 msgid "Holiday data: loading…"
 msgstr "Dados de feriados: carregando…"
 
-#: 6.0/calendarAnnotations.js:274
+#: 6.0/calendarAnnotations.js:315
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dados de feriados: %s"
@@ -465,66 +465,66 @@ msgstr "Celebração religiosa"
 msgid "Holiday"
 msgstr "Feriado"
 
-#: 6.0/eventView.js:112
+#: 6.0/eventView.js:130
 msgid "Starting in a few minutes"
 msgstr "Começando em alguns minutos"
 
-#: 6.0/eventView.js:119
+#: 6.0/eventView.js:137
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Começa em %d minuto"
 msgstr[1] "Começa em %d minutos"
 
-#: 6.0/eventView.js:129
+#: 6.0/eventView.js:147
 msgid "This evening"
 msgstr "Esta noite"
 
-#: 6.0/eventView.js:132
+#: 6.0/eventView.js:150
 msgid "Starting later today"
 msgstr "Começando mais tarde hoje"
 
-#: 6.0/eventView.js:135
+#: 6.0/eventView.js:153
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Em %d hora"
 msgstr[1] "Em %d horas"
 
-#: 6.0/eventView.js:218
+#: 6.0/eventView.js:239
 msgid "Loading…"
 msgstr "Carregando…"
 
-#: 6.0/eventView.js:222 6.0/eventView.js:232 6.0/eventView.js:377
-#: 6.0/eventView.js:773
+#: 6.0/eventView.js:243 6.0/eventView.js:253 6.0/eventView.js:398
+#: 6.0/eventView.js:801
 msgid "No Events"
 msgstr "Sem eventos"
 
-#: 6.0/eventView.js:400 6.0/eventView.js:419 6.0/eventView.js:430
+#: 6.0/eventView.js:421 6.0/eventView.js:440 6.0/eventView.js:451
 msgid "Open the calendar app"
 msgstr "Abrir o aplicativo de calendário"
 
-#: 6.0/eventView.js:540
+#: 6.0/eventView.js:561
 msgid "Events for the selected day"
 msgstr "Eventos do dia selecionado"
 
-#: 6.0/eventView.js:593
+#: 6.0/eventView.js:614
 msgid "Add an event"
 msgstr "Adicionar um evento"
 
-#: 6.0/eventView.js:875
+#: 6.0/eventView.js:943
 msgid "Ended"
 msgstr "Encerrado"
 
-#: 6.0/eventView.js:906
+#: 6.0/eventView.js:980
 msgid "In progress"
 msgstr "Em andamento"
 
-#: 6.0/worldclocks.js:238 6.0/worldclocks.js:239
+#: 6.0/worldclocks.js:242 6.0/worldclocks.js:243
 msgid "World clocks"
 msgstr "Relógios mundiais"
 
-#: 6.0/worldclocks.js:238
+#: 6.0/worldclocks.js:242
 #, javascript-format
 msgid "Source: %s"
 msgstr "Fonte: %s"
@@ -580,7 +580,7 @@ msgstr "Adicionar novo relógio"
 msgid "Edit entry"
 msgstr "Editar relógio"
 
-#. 5.4->settings-schema.json->openstreetmap-attribution->description
+#. 6.0->settings-schema.json->openstreetmap-attribution->description
 #: 6.0/settings_about.py:37
 msgid "© OpenStreetMap contributors"
 msgstr "© Colaboradores do OpenStreetMap"
@@ -632,7 +632,7 @@ msgstr "Site e código-fonte do projeto"
 msgid "License: GPL 2.0 or later"
 msgstr "Licença: GPL 2.0 ou posterior"
 
-#. 5.4->settings-schema.json->section5->title
+#. 6.0->settings-schema.json->section5->title
 #: 6.0/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Serviços de clima e localização"
@@ -686,101 +686,101 @@ msgstr "Claus Colloseus (ccprog)"
 msgid "Simon Wiles (simonwiles)"
 msgstr "Simon Wiles (simonwiles)"
 
-#. 5.4->settings-schema.json->page1->title
+#. 6.0->settings-schema.json->page1->title
 msgid "Calendar"
 msgstr "Calendário"
 
-#. 5.4->settings-schema.json->page2->title
-#. 5.4->settings-schema.json->worldclocks->description
+#. 6.0->settings-schema.json->page2->title
+#. 6.0->settings-schema.json->worldclocks->description
 msgid "World Clocks"
 msgstr "Relógios Mundiais"
 
-#. 5.4->settings-schema.json->page3->title
+#. 6.0->settings-schema.json->page3->title
 msgid "About"
 msgstr "Sobre"
 
-#. 5.4->settings-schema.json->section1->title
+#. 6.0->settings-schema.json->section1->title
 msgid "Display"
 msgstr "Exibição"
 
-#. 5.4->settings-schema.json->section2->title
+#. 6.0->settings-schema.json->section2->title
 msgid "Get Public Holidays for"
 msgstr "Obter Feriados para"
 
-#. 5.4->settings-schema.json->section3->title
+#. 6.0->settings-schema.json->section3->title
 msgid "Keyboard shortcuts"
 msgstr "Atalhos de Teclado"
 
-#. 5.4->settings-schema.json->section6->title
+#. 6.0->settings-schema.json->section6->title
 msgid "Religious Observances"
 msgstr "Observâncias Religiosas"
 
-#. 5.4->settings-schema.json->section4->title
+#. 6.0->settings-schema.json->section4->title
 msgid "Show World Times"
 msgstr "Mostrar Relógios Mundiais"
 
-#. 5.4->settings-schema.json->show-events->description
+#. 6.0->settings-schema.json->show-events->description
 msgid "Show calendar events"
 msgstr "Mostrar eventos do calendário"
 
-#. 5.4->settings-schema.json->show-events->tooltip
+#. 6.0->settings-schema.json->show-events->tooltip
 msgid "Check this to display events in the calendar."
 msgstr "Marque esta opção para exibir eventos no calendário."
 
-#. 5.4->settings-schema.json->show-week-numbers->description
+#. 6.0->settings-schema.json->show-week-numbers->description
 msgid "Show week numbers in calendar"
 msgstr "Mostrar números da semana no calendário"
 
-#. 5.4->settings-schema.json->show-week-numbers->tooltip
+#. 6.0->settings-schema.json->show-week-numbers->tooltip
 msgid "Check this to show week numbers in the calendar."
 msgstr "Marque isso para mostrar números das semanas no calendário."
 
-#. 5.4->settings-schema.json->weekend-length->description
+#. 6.0->settings-schema.json->weekend-length->description
 msgid "Mark as weekend days"
 msgstr "Considerar quantos dias de fim de semana"
 
-#. 5.4->settings-schema.json->weekend-length->tooltip
+#. 6.0->settings-schema.json->weekend-length->tooltip
 msgid "Set how many days are marked as non-working days per week."
 msgstr "Defina quantos dias não são marcados como dias úteis em uma semana."
 
-#. 5.4->settings-schema.json->weekend-length->options
+#. 6.0->settings-schema.json->weekend-length->options
 msgid "One day"
 msgstr "Um dia"
 
-#. 5.4->settings-schema.json->weekend-length->options
+#. 6.0->settings-schema.json->weekend-length->options
 msgid "Two days"
 msgstr "Dois dias"
 
-#. 5.4->settings-schema.json->custom-format->description
+#. 6.0->settings-schema.json->custom-format->description
 msgid "Date format"
 msgstr "Formato da Data"
 
-#. 5.4->settings-schema.json->custom-format->tooltip
+#. 6.0->settings-schema.json->custom-format->tooltip
 msgid "Set your custom format here."
 msgstr "Defina seu formato personalizado aqui."
 
-#. 5.4->settings-schema.json->custom-tooltip-format->description
+#. 6.0->settings-schema.json->custom-tooltip-format->description
 msgid "Date format for tooltip"
 msgstr "Formato de data da dica"
 
-#. 5.4->settings-schema.json->custom-tooltip-format->tooltip
+#. 6.0->settings-schema.json->custom-tooltip-format->tooltip
 msgid "Set your custom tooltip format here."
 msgstr "Defina aqui o seu formato personalizado de dica."
 
-#. 5.4->settings-schema.json->format-button->description
+#. 6.0->settings-schema.json->format-button->description
 msgid "Show information on date format syntax"
 msgstr "Saiba mais sobre a sintaxe do formato de data"
 
-#. 5.4->settings-schema.json->format-button->tooltip
+#. 6.0->settings-schema.json->format-button->tooltip
 msgid "Click this button to know more about the syntax for date formats."
 msgstr ""
 "Clique neste botão para saber mais sobre a sintaxe dos formatos de data."
 
-#. 5.4->settings-schema.json->show-weather->description
+#. 6.0->settings-schema.json->show-weather->description
 msgid "Show weather on the panel"
 msgstr "Mostrar o clima no painel"
 
-#. 5.4->settings-schema.json->show-weather->tooltip
+#. 6.0->settings-schema.json->show-weather->tooltip
 msgid ""
 "Enable a small weather readout in the applet label. The reading is fetched "
 "from a third-party weather service, and the location below is sent to it."
@@ -788,11 +788,11 @@ msgstr ""
 "Ativa uma pequena leitura do clima no rótulo do applet. A leitura é obtida "
 "de um serviço de clima de terceiros, e a localização abaixo é enviada a ele."
 
-#. 5.4->settings-schema.json->show-astronomy->description
+#. 6.0->settings-schema.json->show-astronomy->description
 msgid "Show sun and moon times"
 msgstr "Mostrar horários do sol e da lua"
 
-#. 5.4->settings-schema.json->show-astronomy->tooltip
+#. 6.0->settings-schema.json->show-astronomy->tooltip
 msgid ""
 "Uses the weather location. Sunrise, sunset, moonrise, and moonset are "
 "calculated locally without an additional network request."
@@ -800,11 +800,11 @@ msgstr ""
 "Usa a localização do clima. O nascer e o pôr do sol, e o nascer e o pôr da "
 "lua, são calculados localmente sem uma solicitação de rede adicional."
 
-#. 5.4->settings-schema.json->weather-location->description
+#. 6.0->settings-schema.json->weather-location->description
 msgid "Weather location"
 msgstr "Local do clima"
 
-#. 5.4->settings-schema.json->weather-location->tooltip
+#. 6.0->settings-schema.json->weather-location->tooltip
 msgid ""
 "City or town used for the weather lookup - for example \"Lisbon\" or \"Porto "
 "Alegre\". Leave it empty and the panel shows a bare warning marker instead "
@@ -818,15 +818,15 @@ msgstr ""
 "para obter suas coordenadas e, em seguida, a um serviço de previsão de "
 "terceiros, a cada 30 minutos aproximadamente."
 
-#. 5.4->settings-schema.json->openstreetmap-attribution->tooltip
+#. 6.0->settings-schema.json->openstreetmap-attribution->tooltip
 msgid "Open the OpenStreetMap copyright and attribution page."
 msgstr "Abre a página de direitos autorais e atribuição do OpenStreetMap."
 
-#. 5.4->settings-schema.json->weather-units->description
+#. 6.0->settings-schema.json->weather-units->description
 msgid "Weather units"
 msgstr "Unidades do clima"
 
-#. 5.4->settings-schema.json->weather-units->tooltip
+#. 6.0->settings-schema.json->weather-units->tooltip
 msgid ""
 "Temperature scale used for the panel weather readout and for the temperature "
 "beside each world clock."
@@ -834,19 +834,19 @@ msgstr ""
 "Escala de temperatura usada na leitura do clima no painel e na temperatura "
 "ao lado de cada relógio mundial."
 
-#. 5.4->settings-schema.json->weather-units->options
+#. 6.0->settings-schema.json->weather-units->options
 msgid "SI (Celsius)"
 msgstr "SI (Celsius)"
 
-#. 5.4->settings-schema.json->weather-units->options
+#. 6.0->settings-schema.json->weather-units->options
 msgid "Imperial (Fahrenheit)"
 msgstr "Imperial (Fahrenheit)"
 
-#. 5.4->settings-schema.json->show-religious-observances->description
+#. 6.0->settings-schema.json->show-religious-observances->description
 msgid "Show religious observances"
 msgstr "Mostrar observâncias religiosas"
 
-#. 5.4->settings-schema.json->show-religious-observances->tooltip
+#. 6.0->settings-schema.json->show-religious-observances->tooltip
 msgid ""
 "Enable this, then select the religions to mark in the calendar. Observance "
 "dates come only from data bundled with the applet, and the selections never "
@@ -857,11 +857,11 @@ msgstr ""
 "seleções nunca saem deste computador. As observâncias não são marcadas como "
 "dias não úteis."
 
-#. 5.4->settings-schema.json->country->description
+#. 6.0->settings-schema.json->country->description
 msgid "Country"
 msgstr "País"
 
-#. 5.4->settings-schema.json->country->tooltip
+#. 6.0->settings-schema.json->country->tooltip
 msgid ""
 "Country whose public holidays are marked in the calendar. For new settings, "
 "the applet fills this from the operating-system timezone when supported; "
@@ -875,273 +875,273 @@ msgstr ""
 "pode alterá-lo ou desativá-lo a qualquer momento. A consulta pode enviar o "
 "país selecionado a até três serviços de feriados de terceiros."
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "None (disable holidays)"
 msgstr "Nenhum (desativar feriados)"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Angola"
 msgstr "Angola"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Argentina"
 msgstr "Argentina"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Australia"
 msgstr "Austrália"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Austria"
 msgstr "Áustria"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Belgium"
 msgstr "Bélgica"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Bosnia and Herzegovina"
 msgstr "Bósnia e Herzegovina"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Belarus"
 msgstr "Bielorrússia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Brazil"
 msgstr "Brasil"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Bulgaria"
 msgstr "Bulgária"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Canada"
 msgstr "Canadá"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Chile"
 msgstr "Chile"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "China"
 msgstr "China"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Colombia"
 msgstr "Colômbia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Croatia"
 msgstr "Croácia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Cyprus"
 msgstr "Chipre"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Czech Republic"
 msgstr "Tchéquia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Denmark"
 msgstr "Dinamarca"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "El Salvador"
 msgstr "El Salvador"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Estonia"
 msgstr "Estônia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Spain"
 msgstr "Espanha"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Finland"
 msgstr "Finlândia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "France"
 msgstr "França"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Germany"
 msgstr "Alemanha"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Greece"
 msgstr "Grécia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Hong Kong"
 msgstr "Hong Kong"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Hungary"
 msgstr "Hungria"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Iceland"
 msgstr "Islândia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Ireland"
 msgstr "Irlanda"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Isle of Man"
 msgstr "Ilha de Man"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Israel"
 msgstr "Israel"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Italy"
 msgstr "Itália"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Japan"
 msgstr "Japão"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Korea (South)"
 msgstr "Coreia do Sul"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Kosovo"
 msgstr "Kosovo"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Latvia"
 msgstr "Letônia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Lithuania"
 msgstr "Lituânia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Luxembourg"
 msgstr "Luxemburgo"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Macedonia"
 msgstr "Macedônia do Norte"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Montenegro"
 msgstr "Montenegro"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Mexico"
 msgstr "México"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Netherlands"
 msgstr "Países Baixos"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "New Zealand"
 msgstr "Nova Zelândia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Norway"
 msgstr "Noruega"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Peru"
 msgstr "Peru"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Philippines"
 msgstr "Filipinas"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Poland"
 msgstr "Polônia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Portugal"
 msgstr "Portugal"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Romania"
 msgstr "Romênia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Russian Federation"
 msgstr "Rússia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Serbia"
 msgstr "Sérvia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Singapore"
 msgstr "Singapura"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Slovakia"
 msgstr "Eslováquia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Slovenia"
 msgstr "Eslovênia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "South Africa"
 msgstr "África do Sul"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Sweden"
 msgstr "Suécia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Switzerland"
 msgstr "Suíça"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Turkey"
 msgstr "Turquia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "Ukraine"
 msgstr "Ucrânia"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "United Kingdom"
 msgstr "Reino Unido"
 
-#. 5.4->settings-schema.json->country->options
+#. 6.0->settings-schema.json->country->options
 msgid "United States of America"
 msgstr "Estados Unidos da América"
 
-#. 5.4->settings-schema.json->region_aus->description
-#. 5.4->settings-schema.json->region_bel->description
-#. 5.4->settings-schema.json->region_can->description
-#. 5.4->settings-schema.json->region_deu->description
-#. 5.4->settings-schema.json->region_esp->description
-#. 5.4->settings-schema.json->region_nzl->description
-#. 5.4->settings-schema.json->region_svk->description
-#. 5.4->settings-schema.json->region_che->description
-#. 5.4->settings-schema.json->region_gbr->description
-#. 5.4->settings-schema.json->region_usa->description
+#. 6.0->settings-schema.json->region_aus->description
+#. 6.0->settings-schema.json->region_bel->description
+#. 6.0->settings-schema.json->region_can->description
+#. 6.0->settings-schema.json->region_deu->description
+#. 6.0->settings-schema.json->region_esp->description
+#. 6.0->settings-schema.json->region_nzl->description
+#. 6.0->settings-schema.json->region_svk->description
+#. 6.0->settings-schema.json->region_che->description
+#. 6.0->settings-schema.json->region_gbr->description
+#. 6.0->settings-schema.json->region_usa->description
 msgid "Region"
 msgstr "Região"
 
-#. 5.4->settings-schema.json->region_aus->tooltip
-#. 5.4->settings-schema.json->region_bel->tooltip
-#. 5.4->settings-schema.json->region_can->tooltip
-#. 5.4->settings-schema.json->region_deu->tooltip
-#. 5.4->settings-schema.json->region_esp->tooltip
-#. 5.4->settings-schema.json->region_nzl->tooltip
-#. 5.4->settings-schema.json->region_svk->tooltip
-#. 5.4->settings-schema.json->region_che->tooltip
-#. 5.4->settings-schema.json->region_gbr->tooltip
-#. 5.4->settings-schema.json->region_usa->tooltip
+#. 6.0->settings-schema.json->region_aus->tooltip
+#. 6.0->settings-schema.json->region_bel->tooltip
+#. 6.0->settings-schema.json->region_can->tooltip
+#. 6.0->settings-schema.json->region_deu->tooltip
+#. 6.0->settings-schema.json->region_esp->tooltip
+#. 6.0->settings-schema.json->region_nzl->tooltip
+#. 6.0->settings-schema.json->region_svk->tooltip
+#. 6.0->settings-schema.json->region_che->tooltip
+#. 6.0->settings-schema.json->region_gbr->tooltip
+#. 6.0->settings-schema.json->region_usa->tooltip
 msgid ""
 "Region whose public holidays are marked, on top of the national ones. Leave "
 "it unset to mark only the holidays that apply nationwide."
@@ -1149,692 +1149,692 @@ msgstr ""
 "Região cujos feriados são marcados, além dos nacionais. Deixe sem definir "
 "para marcar apenas os feriados válidos em todo o país."
 
-#. 5.4->settings-schema.json->region_aus->options
-#. 5.4->settings-schema.json->region_bel->options
-#. 5.4->settings-schema.json->region_can->options
-#. 5.4->settings-schema.json->region_deu->options
-#. 5.4->settings-schema.json->region_esp->options
-#. 5.4->settings-schema.json->region_nzl->options
-#. 5.4->settings-schema.json->region_svk->options
-#. 5.4->settings-schema.json->region_che->options
-#. 5.4->settings-schema.json->region_gbr->options
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_bel->options
+#. 6.0->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_gbr->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Nationwide only"
 msgstr "Somente nacionais"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "Australian Capital Territory"
 msgstr "Território da Capital Australiana"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "Queensland"
 msgstr "Queensland"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "New South Wales"
 msgstr "Nova Gales do Sul"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "Northern Territory"
 msgstr "Território do Norte"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "South Australia"
 msgstr "Austrália do Sul"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "Tasmania"
 msgstr "Tasmânia"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "Victoria"
 msgstr "Vitória"
 
-#. 5.4->settings-schema.json->region_aus->options
+#. 6.0->settings-schema.json->region_aus->options
 msgid "Western Australia"
 msgstr "Austrália Ocidental"
 
-#. 5.4->settings-schema.json->region_bel->options
+#. 6.0->settings-schema.json->region_bel->options
 msgid "Brussels"
 msgstr "Bruxelas"
 
-#. 5.4->settings-schema.json->region_bel->options
+#. 6.0->settings-schema.json->region_bel->options
 msgid "Flemish Region"
 msgstr "Região Flamenga"
 
-#. 5.4->settings-schema.json->region_bel->options
+#. 6.0->settings-schema.json->region_bel->options
 msgid "Walloon Region"
 msgstr "Região da Valônia"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Alberta"
 msgstr "Alberta"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "British Columbia"
 msgstr "Colúmbia Britânica"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Manitoba"
 msgstr "Manitoba"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "New Brunswick"
 msgstr "Nova Brunswick"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Newfoundland and Labrador"
 msgstr "Terra Nova e Labrador"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Northwest Territories"
 msgstr "Territórios do Noroeste"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Nova Scotia"
 msgstr "Nova Escócia"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Nunavut"
 msgstr "Nunavut"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Ontario"
 msgstr "Ontário"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Prince Edward Island"
 msgstr "Ilha do Príncipe Eduardo"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Quebec"
 msgstr "Quebec"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Saskatchewan"
 msgstr "Saskatchewan"
 
-#. 5.4->settings-schema.json->region_can->options
+#. 6.0->settings-schema.json->region_can->options
 msgid "Yukon"
 msgstr "Yukon"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Baden-Württemberg"
 msgstr "Baden-Württemberg"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Bayern"
 msgstr "Baviera"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Berlin"
 msgstr "Berlim"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Brandenburg"
 msgstr "Brandemburgo"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Bremen"
 msgstr "Bremen"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Hamburg"
 msgstr "Hamburgo"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Hessen"
 msgstr "Hessen"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Niedersachsen"
 msgstr "Baixa Saxônia"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Mecklenburg-Vorpommern"
 msgstr "Mecklemburgo-Pomerânia Ocidental"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Nordrhein-Westfalen"
 msgstr "Renânia do Norte-Vestfália"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Rheinland-Pfalz"
 msgstr "Renânia-Palatinado"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Saarland"
 msgstr "Sarre"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Sachsen"
 msgstr "Saxônia"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Sachsen-Anhalt"
 msgstr "Saxônia-Anhalt"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Schleswig-Holstein"
 msgstr "Schleswig-Holstein"
 
-#. 5.4->settings-schema.json->region_deu->options
+#. 6.0->settings-schema.json->region_deu->options
 msgid "Thüringen"
 msgstr "Turíngia"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Andalucía"
 msgstr "Andaluzia"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Aragón"
 msgstr "Aragão"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Asturias"
 msgstr "Astúrias"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Canarias"
 msgstr "Ilhas Canárias"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Cantabria"
 msgstr "Cantábria"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Castilla y León"
 msgstr "Castela e Leão"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Castilla-La Mancha"
 msgstr "Castilla-La Mancha"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Cataluña"
 msgstr "Catalunha"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Ceuta"
 msgstr "Ceuta"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Extremadura"
 msgstr "Extremadura"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Galicia"
 msgstr "Galícia"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Islas Baleares"
 msgstr "Ilhas Baleares"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "La Rioja"
 msgstr "La Rioja"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Madrid"
 msgstr "Madri"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Melilla"
 msgstr "Melilla"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Murcia"
 msgstr "Múrcia"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Navarra"
 msgstr "Navarra"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "País Vasco"
 msgstr "País Basco"
 
-#. 5.4->settings-schema.json->region_esp->options
+#. 6.0->settings-schema.json->region_esp->options
 msgid "Valencia"
 msgstr "Valência"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Auckland"
 msgstr "Auckland"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Bay of Plenty"
 msgstr "Baía de Plenty"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Canterbury"
 msgstr "Canterbury"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Gisborne"
 msgstr "Gisborne"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Hawke's Bay"
 msgstr "Baía de Hawke"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Marlborough"
 msgstr "Marlborough"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Manawatu-Wanganui"
 msgstr "Manawatu-Wanganui"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Nelson"
 msgstr "Nelson"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Northland"
 msgstr "Northland"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Otago"
 msgstr "Otago"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Southland"
 msgstr "Southland"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Tasman"
 msgstr "Tasman"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Taranaki"
 msgstr "Taranaki"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Waikato"
 msgstr "Waikato"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Wellington"
 msgstr "Wellington"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "West Coast"
 msgstr "Costa Oeste"
 
-#. 5.4->settings-schema.json->region_nzl->options
+#. 6.0->settings-schema.json->region_nzl->options
 msgid "Chatham Islands Territory"
 msgstr "Ilhas Chatham"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Banskobystrický kraj"
 msgstr "Banská Bystrica"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Bratislavský kraj"
 msgstr "Bratislava"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Košický kraj"
 msgstr "Košice"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Nitriansky kraj"
 msgstr "Nitra"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Prešovský kraj"
 msgstr "Prešov"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Trnavský kraj"
 msgstr "Trnava"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Trenčiansky kraj"
 msgstr "Trenčín"
 
-#. 5.4->settings-schema.json->region_svk->options
+#. 6.0->settings-schema.json->region_svk->options
 msgid "Žilinský kraj"
 msgstr "Žilina"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Aargau"
 msgstr "Aargau"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Appenzell Innerrhoden"
 msgstr "Appenzell Innerrhoden"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Appenzell Ausserrhoden"
 msgstr "Appenzell Ausserrhoden"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Basel-Landschaft"
 msgstr "Basileia-Campo"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Basel-Stadt"
 msgstr "Basileia-Cidade"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Bern"
 msgstr "Berna"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Fribourg"
 msgstr "Friburgo"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Geneva"
 msgstr "Genebra"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Glarus"
 msgstr "Glarus"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Grisons"
 msgstr "Grisões"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Jura"
 msgstr "Jura"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Luzern"
 msgstr "Lucerna"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Neuchâtel"
 msgstr "Neuchâtel"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Nidwalden"
 msgstr "Nidwalden"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Obwalden"
 msgstr "Obwalden"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "St. Gallen"
 msgstr "St. Gallen"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Schaffhausen"
 msgstr "Schaffhausen"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Schwyz"
 msgstr "Schwyz"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Solothurn"
 msgstr "Solothurn"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Thurgau"
 msgstr "Thurgau"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Ticino"
 msgstr "Ticino"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Uri"
 msgstr "Uri"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Valais"
 msgstr "Valais"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Vaud"
 msgstr "Vaud"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Zug"
 msgstr "Zug"
 
-#. 5.4->settings-schema.json->region_che->options
+#. 6.0->settings-schema.json->region_che->options
 msgid "Zürich"
 msgstr "Zurique"
 
-#. 5.4->settings-schema.json->region_gbr->options
+#. 6.0->settings-schema.json->region_gbr->options
 msgid "England"
 msgstr "Inglaterra"
 
-#. 5.4->settings-schema.json->region_gbr->options
+#. 6.0->settings-schema.json->region_gbr->options
 msgid "Northern Ireland"
 msgstr "Irlanda do Norte"
 
-#. 5.4->settings-schema.json->region_gbr->options
+#. 6.0->settings-schema.json->region_gbr->options
 msgid "Scotland"
 msgstr "Escócia"
 
-#. 5.4->settings-schema.json->region_gbr->options
+#. 6.0->settings-schema.json->region_gbr->options
 msgid "Wales"
 msgstr "País de Gales"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Alabama"
 msgstr "Alabama"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Alaska"
 msgstr "Alasca"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Arizona"
 msgstr "Arizona"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Arkansas"
 msgstr "Arkansas"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "California"
 msgstr "Califórnia"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Colorado"
 msgstr "Colorado"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Connecticut"
 msgstr "Connecticut"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Delaware"
 msgstr "Delaware"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "District of Columbia"
 msgstr "Distrito de Colúmbia"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Florida"
 msgstr "Flórida"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Georgia"
 msgstr "Geórgia"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Hawaii"
 msgstr "Havaí"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Idaho"
 msgstr "Idaho"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Illinois"
 msgstr "Illinois"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Indiana"
 msgstr "Indiana"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Iowa"
 msgstr "Iowa"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Kansas"
 msgstr "Kansas"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Kentucky"
 msgstr "Kentucky"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Louisiana"
 msgstr "Louisiana"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Maine"
 msgstr "Maine"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Maryland"
 msgstr "Maryland"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Massachusetts"
 msgstr "Massachusetts"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Michigan"
 msgstr "Michigan"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Minnesota"
 msgstr "Minnesota"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Mississippi"
 msgstr "Mississippi"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Missouri"
 msgstr "Missouri"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Montana"
 msgstr "Montana"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Nebraska"
 msgstr "Nebraska"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Nevada"
 msgstr "Nevada"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "New Hampshire"
 msgstr "Nova Hampshire"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "New Jersey"
 msgstr "Nova Jersey"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "New Mexico"
 msgstr "Novo México"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "New York"
 msgstr "Nova York"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "North Carolina"
 msgstr "Carolina do Norte"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "North Dakota"
 msgstr "Dakota do Norte"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Ohio"
 msgstr "Ohio"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Oklahoma"
 msgstr "Oklahoma"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Oregon"
 msgstr "Oregon"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Pennsylvania"
 msgstr "Pensilvânia"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Rhode Island"
 msgstr "Rhode Island"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "South Carolina"
 msgstr "Carolina do Sul"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "South Dakota"
 msgstr "Dakota do Sul"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Tennessee"
 msgstr "Tennessee"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Texas"
 msgstr "Texas"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Utah"
 msgstr "Utah"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Vermont"
 msgstr "Vermont"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Virginia"
 msgstr "Virgínia"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Washington"
 msgstr "Washington"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "West Virginia"
 msgstr "Virgínia Ocidental"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Wisconsin"
 msgstr "Wisconsin"
 
-#. 5.4->settings-schema.json->region_usa->options
+#. 6.0->settings-schema.json->region_usa->options
 msgid "Wyoming"
 msgstr "Wyoming"
 
-#. 5.4->settings-schema.json->keyOpen->description
+#. 6.0->settings-schema.json->keyOpen->description
 msgid "Show calendar"
 msgstr "Mostrar calendário"
 
-#. 5.4->settings-schema.json->keyOpen->tooltip
+#. 6.0->settings-schema.json->keyOpen->tooltip
 msgid "Set keybinding(s) to show the calendar."
 msgstr "Defina os atalhos de teclado para mostrar o calendário."
 
-#. 5.4->settings-schema.json->show-worldclocks->description
+#. 6.0->settings-schema.json->show-worldclocks->description
 msgid "Show world clocks in the calendar menu"
 msgstr "Mostrar relógios mundiais no menu do calendário"
 
-#. 5.4->settings-schema.json->show-worldclocks->tooltip
+#. 6.0->settings-schema.json->show-worldclocks->tooltip
 msgid ""
 "Uncheck to hide the world-clock rows, including the built-in UTC and local "
 "time."
@@ -1842,7 +1842,7 @@ msgstr ""
 "Desmarque para ocultar as linhas de relógios mundiais, incluindo a hora UTC "
 "e a local integradas."
 
-#. 5.4->settings-schema.json->worldclocks->tooltip
+#. 6.0->settings-schema.json->worldclocks->tooltip
 msgid ""
 "UTC and your local time are always shown in the calendar menu; add up to 8 "
 "timezones on top of them. Type a city name and pick it from the suggestions. "
@@ -1855,11 +1855,11 @@ msgstr ""
 "cidade, e essa cidade é enviada aos mesmos serviços de terceiros que a "
 "localização acima."
 
-#. 5.4->settings-schema.json->worldclocks->columns->title
+#. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Display name"
 msgstr "Nome em exibição"
 
-#. 5.4->settings-schema.json->worldclocks->columns->title
+#. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Fuso horário"
 

@@ -125,6 +125,58 @@ test("the catalog gate reports a missing or crashed msgcmp as a tool failure", a
     );
 });
 
+// T788: msgcmp compares msgids and nothing else, so all fifteen catalogs went
+// on carrying 313 "#. 5.4->settings-schema.json->..." comments each — pointing
+// translators at a tree deleted from the repository — while the gate printed
+// "15 catalogs valid; translation template is current" and CI stayed green.
+test("the catalog gate rejects source references the template no longer names", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { catalogReferenceDrift, checkCatalogReferences } = await import(scriptUrl);
+    const pot = [
+        "#. 6.0->settings-schema.json->show-week-numbers->description",
+        "#: 6.0/calendar.js:348",
+        "msgid \"Week numbers\"",
+        "msgstr \"\""
+    ].join("\n");
+    const stale = [
+        "#. 5.4->settings-schema.json->show-week-numbers->description",
+        "#: 6.0/calendar.js:347",
+        "msgid \"Week numbers\"",
+        "msgstr \"Wochennummern\""
+    ].join("\n");
+
+    // the dead tree and the drifted line number are both drift, and the same
+    // stale line repeated across entries is reported once
+    assert.deepEqual(catalogReferenceDrift(stale + "\n\n" + stale, pot), [
+        "#. 5.4->settings-schema.json->show-week-numbers->description",
+        "#: 6.0/calendar.js:347"
+    ]);
+    assert.deepEqual(catalogReferenceDrift(pot, pot), [],
+        "a merged catalog carries the template's own references");
+    // a translator comment is not a source reference, and neither is an
+    // obsolete entry msgmerge parked at the end of the file
+    assert.deepEqual(catalogReferenceDrift("# Übersetzt von jemandem\n#~ msgid \"gone\"", pot), []);
+
+    const read = async (target) => (target.endsWith(".pot") ? pot : stale);
+    await assert.rejects(
+        checkCatalogReferences("/catalogs/de.po", "/catalogs/chronos.pot", read),
+        /de\.po points translators at source the template does not name \(2 lines\)/);
+    await assert.doesNotReject(checkCatalogReferences(
+        "/catalogs/de.po", "/catalogs/chronos.pot", async () => pot));
+});
+
+test("the reference gate reports a bounded sample of a wholly stale catalog", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkCatalogReferences } = await import(scriptUrl);
+    const stale = Array.from({ length: 9 },
+        (unused, index) => `#: 5.4/calendar.js:${index}`).join("\n");
+    const read = async (target) => (target.endsWith(".pot") ? "" : stale);
+
+    await assert.rejects(
+        checkCatalogReferences("/catalogs/de.po", "/catalogs/chronos.pot", read),
+        /\(9 lines\)[\s\S]*\.\.\.and 4 more/);
+});
+
 test("the catalog gate accepts a catalog msgcmp finds complete", async () => {
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
     const { checkCatalogCurrent } = await import(scriptUrl);

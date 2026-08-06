@@ -160,6 +160,43 @@ export async function checkCatalogCurrent(catalogPath, potPath, run = execFileAs
     }
 }
 
+// msgcmp compares msgids and nothing else. It never reads the "#." extracted
+// comments or the "#:" source references, so all fifteen catalogs went on
+// pointing translators at the deleted 5.4/ tree - 313 stale comments each -
+// while the gate reported "15 catalogs valid". Those lines are what a
+// translator opens the source at to see a string in context, and msgmerge
+// rewrites them from the template, so a catalog that carries one the template
+// does not is a catalog that was never merged.
+const REFERENCE_LINE = /^#[.:] /;
+const DRIFT_REPORT_LIMIT = 5;
+
+function referenceLines(catalog) {
+    return catalog.split("\n").filter((line) => REFERENCE_LINE.test(line));
+}
+
+export function catalogReferenceDrift(catalog, pot) {
+    const template = new Set(referenceLines(pot));
+    return Array.from(new Set(
+        referenceLines(catalog).filter((line) => !template.has(line)))).sort();
+}
+
+export async function checkCatalogReferences(catalogPath, potPath, read = readFile) {
+    const [catalog, pot] = await Promise.all([
+        read(catalogPath, "utf8"), read(potPath, "utf8")]);
+    const drifted = catalogReferenceDrift(catalog, pot);
+    if (drifted.length === 0) {
+        return;
+    }
+
+    const shown = drifted.slice(0, DRIFT_REPORT_LIMIT);
+    const rest = drifted.length - shown.length;
+    throw new Error(
+        `${path.basename(catalogPath)} points translators at source the template ` +
+        `does not name (${drifted.length} lines); run msgmerge --update against ` +
+        `${path.basename(potPath)}:\n  ${shown.join("\n  ")}` +
+        (rest > 0 ? `\n  ...and ${rest} more` : ""));
+}
+
 export async function checkI18n(projectRoot, run = execFileAsync,
     expected = EXPECTED_CATALOGS) {
     const root = path.resolve(projectRoot);
@@ -176,6 +213,8 @@ export async function checkI18n(projectRoot, run = execFileAsync,
     await Promise.all(catalogPaths.map((catalogPath) => validateCatalog(catalogPath, run)));
     await Promise.all(catalogPaths.map((catalogPath) =>
         checkCatalogCurrent(catalogPath, path.join(poDir, potName), run)));
+    await Promise.all(catalogPaths.map((catalogPath) =>
+        checkCatalogReferences(catalogPath, path.join(poDir, potName))));
     await checkCatalogSourceCopies(catalogPaths);
 
     const temporary = await mkdtemp(path.join(os.tmpdir(), "chronos-i18n-"));

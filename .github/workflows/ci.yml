@@ -79,8 +79,9 @@ jobs:
           cache: npm
 
       # gettext validates every catalog. Cinnamon supplies the same extraction
-      # command contributors use through po/makepot, so stale source references
-      # and msgids fail here instead of churning in the Spices tooling.
+      # command contributors use through po/makepot, so a stale template, a
+      # msgid a catalog is missing, and a source reference the template no
+      # longer names all fail here instead of churning in the Spices tooling.
       - run: sudo apt-get update && sudo apt-get install --no-install-recommends cinnamon gettext
 
       - run: npm ci

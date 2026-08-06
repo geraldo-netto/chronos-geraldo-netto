@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-08-06 09:54+0200\n"
+"POT-Creation-Date: 2026-08-06 13:28+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -95,164 +95,164 @@ msgstr ""
 msgid "Taoism"
 msgstr ""
 
-#: religiousHolidays.js:161
+#: religiousHolidays.js:162
 msgid "Epiphany"
 msgstr ""
 
-#: religiousHolidays.js:162
+#: religiousHolidays.js:163
 msgid "Good Friday"
 msgstr ""
 
-#: religiousHolidays.js:163
+#: religiousHolidays.js:164
 msgid "Easter Sunday"
 msgstr ""
 
-#: religiousHolidays.js:164
+#: religiousHolidays.js:165
 msgid "Pentecost"
 msgstr ""
 
-#: religiousHolidays.js:165
+#: religiousHolidays.js:166
 msgid "All Saints' Day"
 msgstr ""
 
-#: religiousHolidays.js:166
+#: religiousHolidays.js:167
 msgid "Christmas Day"
 msgstr ""
 
-#: religiousHolidays.js:169
+#: religiousHolidays.js:170
 msgid "Islamic New Year"
 msgstr ""
 
-#: religiousHolidays.js:170
+#: religiousHolidays.js:171
 msgid "Mawlid"
 msgstr ""
 
-#: religiousHolidays.js:171
+#: religiousHolidays.js:172
 msgid "Ramadan begins"
 msgstr ""
 
-#: religiousHolidays.js:172
+#: religiousHolidays.js:173
 msgid "Eid al-Fitr"
 msgstr ""
 
-#: religiousHolidays.js:173
+#: religiousHolidays.js:174
 msgid "Eid al-Adha"
 msgstr ""
 
-#: religiousHolidays.js:176
+#: religiousHolidays.js:177
 msgid "Makar Sankranti"
 msgstr ""
 
-#: religiousHolidays.js:177
+#: religiousHolidays.js:178
 msgid "Maha Shivaratri"
 msgstr ""
 
-#: religiousHolidays.js:178
+#: religiousHolidays.js:179
 msgid "Holi"
 msgstr ""
 
-#: religiousHolidays.js:179
+#: religiousHolidays.js:180
 msgid "Krishna Janmashtami"
 msgstr ""
 
-#: religiousHolidays.js:180
+#: religiousHolidays.js:181
 msgid "Diwali"
 msgstr ""
 
-#: religiousHolidays.js:183
+#: religiousHolidays.js:184
 msgid "Parinirvana Day"
 msgstr ""
 
-#: religiousHolidays.js:184
+#: religiousHolidays.js:185
 msgid "Vesak"
 msgstr ""
 
-#: religiousHolidays.js:185
+#: religiousHolidays.js:186
 msgid "Bodhi Day"
 msgstr ""
 
-#: religiousHolidays.js:188
+#: religiousHolidays.js:189
 msgid "Guru Gobind Singh Jayanti"
 msgstr ""
 
-#: religiousHolidays.js:189
+#: religiousHolidays.js:190
 msgid "Vaisakhi"
 msgstr ""
 
-#: religiousHolidays.js:190
+#: religiousHolidays.js:191
 msgid "Guru Nanak Jayanti"
 msgstr ""
 
-#: religiousHolidays.js:193
+#: religiousHolidays.js:194
 msgid "Purim"
 msgstr ""
 
-#: religiousHolidays.js:194
+#: religiousHolidays.js:195
 msgid "Passover begins"
 msgstr ""
 
-#: religiousHolidays.js:195
+#: religiousHolidays.js:196
 #, javascript-format
 msgid "Sefirat HaOmer — Day %s"
 msgstr ""
 
-#: religiousHolidays.js:196
+#: religiousHolidays.js:197
 msgid "Shavuot"
 msgstr ""
 
-#: religiousHolidays.js:197
+#: religiousHolidays.js:198
 msgid "Rosh Hashanah"
 msgstr ""
 
-#: religiousHolidays.js:198
+#: religiousHolidays.js:199
 msgid "Yom Kippur"
 msgstr ""
 
-#: religiousHolidays.js:199
+#: religiousHolidays.js:200
 msgid "Hanukkah begins"
 msgstr ""
 
-#: religiousHolidays.js:202
+#: religiousHolidays.js:203
 msgid "Naw-Rúz"
 msgstr ""
 
-#: religiousHolidays.js:208
+#: religiousHolidays.js:209
 msgid "Ridván begins"
 msgstr ""
 
-#: religiousHolidays.js:211
+#: religiousHolidays.js:212
 msgid "Mahavir Jayanti"
 msgstr ""
 
-#: religiousHolidays.js:212
+#: religiousHolidays.js:213
 msgid "Paryushana begins"
 msgstr ""
 
-#: religiousHolidays.js:215
+#: religiousHolidays.js:216
 msgid "Shōgatsu"
 msgstr ""
 
-#: religiousHolidays.js:216
+#: religiousHolidays.js:217
 msgid "Hinamatsuri"
 msgstr ""
 
-#: religiousHolidays.js:217
+#: religiousHolidays.js:218
 msgid "Tanabata"
 msgstr ""
 
-#: religiousHolidays.js:218
+#: religiousHolidays.js:219
 msgid "Shichi-Go-San"
 msgstr ""
 
-#: religiousHolidays.js:221
+#: religiousHolidays.js:222
 msgid "Chinese New Year"
 msgstr ""
 
-#: religiousHolidays.js:222
+#: religiousHolidays.js:223
 msgid "Qingming"
 msgstr ""
 
-#: religiousHolidays.js:223
+#: religiousHolidays.js:224
 msgid "Ghost Festival"
 msgstr ""
 
@@ -268,11 +268,11 @@ msgstr ""
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 
-#: 6.0/appletMenuBuilder.js:339 6.0/appletMenuBuilder.js:345
+#: 6.0/appletMenuBuilder.js:313 6.0/appletMenuBuilder.js:319
 msgid "Go to today"
 msgstr ""
 
-#: 6.0/appletMenuBuilder.js:501
+#: 6.0/appletMenuBuilder.js:406
 msgid "Date and Time Settings"
 msgstr ""
 
@@ -328,16 +328,16 @@ msgstr ""
 msgid "Fair"
 msgstr ""
 
-#: 6.0/appletPanelStatus.js:116 6.0/appletPanelStatus.js:494
-#: 6.0/appletPanelStatus.js:667
+#: 6.0/appletPanelStatus.js:116 6.0/appletPanelStatus.js:527
+#: 6.0/appletPanelStatus.js:708
 msgid "Weather: loading…"
 msgstr ""
 
-#: 6.0/appletPanelStatus.js:518
+#: 6.0/appletPanelStatus.js:551
 msgid "No weather for this timezone"
 msgstr ""
 
-#: 6.0/appletPanelStatus.js:529 6.0/appletPanelStatus.js:530
+#: 6.0/appletPanelStatus.js:562 6.0/appletPanelStatus.js:563
 #, javascript-format
 msgid "%s Last known reading"
 msgstr ""
@@ -412,23 +412,23 @@ msgstr ""
 msgid "Week"
 msgstr ""
 
-#: 6.0/calendarAnnotations.js:102
+#: 6.0/calendarAnnotations.js:103
 msgid "Holiday service unavailable"
 msgstr ""
 
-#: 6.0/calendarAnnotations.js:103
+#: 6.0/calendarAnnotations.js:104
 msgid "Holiday data unavailable"
 msgstr ""
 
-#: 6.0/calendarAnnotations.js:105
+#: 6.0/calendarAnnotations.js:106
 msgid "Religious dates unavailable for this year"
 msgstr ""
 
-#: 6.0/calendarAnnotations.js:273
+#: 6.0/calendarAnnotations.js:274
 msgid "Holiday data: loading…"
 msgstr ""
 
-#: 6.0/calendarAnnotations.js:314
+#: 6.0/calendarAnnotations.js:315
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr ""
@@ -459,58 +459,58 @@ msgstr ""
 msgid "Holiday"
 msgstr ""
 
-#: 6.0/eventView.js:112
+#: 6.0/eventView.js:130
 msgid "Starting in a few minutes"
 msgstr ""
 
-#: 6.0/eventView.js:119
+#: 6.0/eventView.js:137
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] ""
 msgstr[1] ""
 
-#: 6.0/eventView.js:129
+#: 6.0/eventView.js:147
 msgid "This evening"
 msgstr ""
 
-#: 6.0/eventView.js:132
+#: 6.0/eventView.js:150
 msgid "Starting later today"
 msgstr ""
 
-#: 6.0/eventView.js:135
+#: 6.0/eventView.js:153
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] ""
 msgstr[1] ""
 
-#: 6.0/eventView.js:221
+#: 6.0/eventView.js:239
 msgid "Loading…"
 msgstr ""
 
-#: 6.0/eventView.js:225 6.0/eventView.js:235 6.0/eventView.js:380
-#: 6.0/eventView.js:783
+#: 6.0/eventView.js:243 6.0/eventView.js:253 6.0/eventView.js:398
+#: 6.0/eventView.js:801
 msgid "No Events"
 msgstr ""
 
-#: 6.0/eventView.js:403 6.0/eventView.js:422 6.0/eventView.js:433
+#: 6.0/eventView.js:421 6.0/eventView.js:440 6.0/eventView.js:451
 msgid "Open the calendar app"
 msgstr ""
 
-#: 6.0/eventView.js:543
+#: 6.0/eventView.js:561
 msgid "Events for the selected day"
 msgstr ""
 
-#: 6.0/eventView.js:596
+#: 6.0/eventView.js:614
 msgid "Add an event"
 msgstr ""
 
-#: 6.0/eventView.js:925
+#: 6.0/eventView.js:943
 msgid "Ended"
 msgstr ""
 
-#: 6.0/eventView.js:962
+#: 6.0/eventView.js:980
 msgid "In progress"
 msgstr ""
 
