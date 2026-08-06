@@ -12,6 +12,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const execFileAsync = promisify(execFile);
 const UUID = "chronos@geraldo-netto";
+// The shipped locales, tracked rather than discovered. readdir() imposed no
+// floor: deleting, renaming or mis-locating every catalog printed "0 catalogs
+// valid" and exited 0, leaving the CI packaging job green while the applet
+// shipped untranslated -- the one regression this gate exists to catch. Adding
+// a translation is a deliberate act, so it is a deliberate edit here too.
+const EXPECTED_CATALOGS = [
+    "ca.po", "da.po", "de.po", "es.po", "fi.po", "fr.po", "hu.po", "it.po",
+    "nl.po", "pt_BR.po", "ru.po", "sv.po", "tr.po", "vi.po", "zh_TW.po"
+];
 const SOURCE_COPY_ALLOWLIST = new Set([
     "%s — %s",
     "Chronos Calendar",
@@ -81,6 +90,23 @@ export async function checkCatalogSourceCopies(catalogPaths, read = readFile) {
     }
 }
 
+export function checkCatalogInventory(catalogs, expected = EXPECTED_CATALOGS) {
+    const found = new Set(catalogs);
+    const missing = expected.filter((name) => !found.has(name));
+    const unexpected = catalogs.filter((name) => !expected.includes(name));
+
+    if (missing.length > 0) {
+        throw new Error(
+            `translation catalogs are missing from po/: ${missing.join(", ")}`);
+    }
+    if (unexpected.length > 0) {
+        throw new Error(
+            `po/ carries catalogs the gate does not track: ${unexpected.join(", ")}; ` +
+            "add them to EXPECTED_CATALOGS in scripts/check-i18n.mjs");
+    }
+    return expected.length;
+}
+
 export function withoutCreationDate(pot) {
     return pot.replace(
         /^"POT-Creation-Date: [^"\\]*(?:\\.[^"\\]*)*\\n"$/m,
@@ -134,7 +160,8 @@ export async function checkCatalogCurrent(catalogPath, potPath, run = execFileAs
     }
 }
 
-export async function checkI18n(projectRoot, run = execFileAsync) {
+export async function checkI18n(projectRoot, run = execFileAsync,
+    expected = EXPECTED_CATALOGS) {
     const root = path.resolve(projectRoot);
     const applet = path.join(root, "files", UUID);
     const poDir = path.join(applet, "po");
@@ -143,6 +170,8 @@ export async function checkI18n(projectRoot, run = execFileAsync) {
         .filter((name) => name.endsWith(".po"))
         .sort();
     const catalogPaths = catalogs.map((name) => path.join(poDir, name));
+
+    checkCatalogInventory(catalogs, expected);
 
     await Promise.all(catalogPaths.map((catalogPath) => validateCatalog(catalogPath, run)));
     await Promise.all(catalogPaths.map((catalogPath) =>

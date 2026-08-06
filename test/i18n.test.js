@@ -146,7 +146,7 @@ test("the composed catalog gate rejects a source sentence copied by every locale
     const run = async (command) => command === "msgattrib" ? { stdout: "" } : {};
 
     await assert.rejects(
-        checkI18n(root, run),
+        checkI18n(root, run, ["de.po", "fr.po"]),
         /every catalog copies these source messages verbatim.*This sentence/s
     );
 });
@@ -175,7 +175,7 @@ test("the freshness gate rejects a committed template that trails the source", a
         potWith("2026-07-01 00:00+0000"),
         potWith("2026-07-18 00:00+0000", '\nmsgid "New source string"\nmsgstr ""\n'));
 
-    await assert.rejects(checkI18n(root), /translation template is stale/);
+    await assert.rejects(checkI18n(root, undefined, []), /translation template is stale/);
 });
 
 test("the freshness gate accepts a template differing only in creation date", async (t) => {
@@ -185,7 +185,7 @@ test("the freshness gate accepts a template differing only in creation date", as
         potWith("2026-07-01 00:00+0000"),
         potWith("2026-07-18 00:00+0000"));
 
-    assert.equal(await checkI18n(root), 0);
+    assert.equal(await checkI18n(root, undefined, []), 0);
 });
 
 test("withoutCreationDate masks the creation date and nothing else", async () => {
@@ -217,12 +217,40 @@ test("the i18n command checks catalogs and reports their count", async (t) => {
         return command === "msgattrib" ? { stdout: "" } : {};
     };
 
-    assert.equal(await checkI18n(root, run), 1);
+    assert.equal(await checkI18n(root, run, ["de.po"]), 1);
+
+    // An empty po/ used to print "0 catalogs valid" and exit 0: deleting,
+    // renaming or mis-locating every catalog left the CI packaging job green
+    // while the applet shipped untranslated.
     const emptyRoot = await makeFixtureProject(t,
         potWith("2026-07-01 00:00+0000"),
         potWith("2026-07-18 00:00+0000"));
-    assert.match(await runI18nCommand(emptyRoot),
-        /0 catalogs valid; translation template is current/);
+    await assert.rejects(runI18nCommand(emptyRoot),
+        /translation catalogs are missing from po\/: ca\.po, da\.po/);
+});
+
+test("the shipped locales are tracked, not discovered", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkCatalogInventory } = await import(scriptUrl);
+    const expected = ["de.po", "fr.po"];
+
+    assert.equal(checkCatalogInventory(["de.po", "fr.po"], expected), 2);
+    assert.throws(() => checkCatalogInventory([], expected),
+        /catalogs are missing from po\/: de\.po, fr\.po/);
+    assert.throws(() => checkCatalogInventory(["de.po"], expected),
+        /catalogs are missing from po\/: fr\.po/);
+    // a new translation is welcome, but it is a deliberate addition to the list
+    assert.throws(() => checkCatalogInventory(["de.po", "fr.po", "pl.po"], expected),
+        /does not track: pl\.po; add them to EXPECTED_CATALOGS/);
+});
+
+test("every catalog in po/ is one the gate tracks", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { checkCatalogInventory } = await import(scriptUrl);
+    const shipped = (await fs.readdir(path.join(ROOT, "files", UUID, "po")))
+        .filter((name) => name.endsWith(".po")).sort();
+
+    assert.equal(checkCatalogInventory(shipped), shipped.length);
 });
 
 test("the i18n CLI dispatches the checked project", async (t) => {
