@@ -2670,6 +2670,63 @@ test("a throw from a settled year's callback is not reported as a fetch failure"
         "the year settled before the callback ran, and stays settled");
 });
 
+test("a successful year fetch settles every waiting month", () => {
+    const { HolidayService, HolidayCache } = loadHolidays();
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        () => {}
+    );
+    let answer = null;
+    const service = {
+        fetchYear(_country, _region, _year, callback) { answer = callback; },
+        validResponse: () => true,
+        expandHoliday: () => []
+    };
+    const enrico = new HolidayService(service, cache, { record: service });
+    enrico.country = "usa";
+    enrico.region = "global";
+    const calls = [];
+    const first = new Error("first month failed");
+
+    enrico.retrieveForYear(2026, () => { calls.push("first"); throw first; });
+    enrico.retrieveForYear(2026, () => calls.push("second"));
+
+    assert.throws(() => answer([], {
+        year: 2026, region: "global", providerName: "test"
+    }, new Date().toUTCString()), (error) => error === first);
+    assert.deepEqual(calls, ["first", "second"]);
+    assert.equal(enrico.fetching(2026), false);
+});
+
+test("a failed year dispatch settles every waiting month", () => {
+    const { HolidayService, HolidayCache } = loadHolidays();
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        () => {}
+    );
+    const calls = [];
+    const first = new Error("first month failed");
+    let enrico = null;
+    const service = {
+        fetchYear() {
+            enrico.retrieveForYear(2026, () => calls.push("second"));
+            throw new Error("dispatch failed");
+        },
+        validResponse: () => true
+    };
+    enrico = new HolidayService(service, cache, { record: service });
+    enrico.country = "usa";
+    enrico.region = "global";
+    global.logError = () => {};
+
+    assert.throws(() => enrico.retrieveForYear(2026, () => {
+        calls.push("first");
+        throw first;
+    }), (error) => error === first);
+    assert.deepEqual(calls, ["first", "second"]);
+    assert.equal(enrico.fetching(2026), false);
+});
+
 test("a fresh year answers from the cache without a fetch", () => {
     const { HolidayService, HolidayCache } = loadHolidays();
     const cache = new HolidayCache(

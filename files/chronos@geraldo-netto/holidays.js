@@ -36,6 +36,9 @@ const LocaleQuery = IS_NODE ?
 const LocaleText = IS_NODE ?
     require("./localeText") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeText;
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
@@ -493,9 +496,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             this._status.prune(this.cache.cachedYears());
         }
 
-        for (let waiting of callbacks) {
-            waiting();
-        }
+        ProviderUtils.notifyAll(callbacks);
     }
 
     retrieveForYear (year, callback) {
@@ -574,9 +575,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         const callbacks = this._inflight.settle(inflightKey, generation);
         this._status.prune(this.cache.cachedYears());
 
-        for (let waiting of callbacks) {
-            waiting();
-        }
+        ProviderUtils.notifyAll(callbacks);
     }
 
     staleCache (year, now = Date.now()) {
