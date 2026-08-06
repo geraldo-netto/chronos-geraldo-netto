@@ -1,11 +1,22 @@
 {
-  "_comment": "Shared parity fixture for T509: JavaScript drops these zones because the popup already renders them, and Python must reject the same choices in Settings. Both suites assert this file so changing a built-in clock requires both implementations to move together.",
+  "_comment": "Shared parity fixture for T509 and T782: JavaScript drops these zones because the popup already renders them, and Python must reject the same choices in Settings. Both suites assert this file so changing a built-in clock requires both implementations to move together.",
   "local_timezone": "America/Sao_Paulo",
   "builtin_identities": [
     "America/Sao_Paulo",
     "Etc/UTC",
     "UTC"
   ],
+  "_spellings_comment": "TZ takes a POSIX colon prefix and an absolute path, and GLib does not canonicalize: get_identifier() answers the string it was given. So one zone reaches the built-in comparison spelled three ways depending only on how the session was started, and both sides reduce it the same way before comparing.",
+  "identifier_spellings": {
+    ":America/Sao_Paulo": "America/Sao_Paulo",
+    "/usr/share/zoneinfo/America/Sao_Paulo": "America/Sao_Paulo",
+    ":/usr/share/zoneinfo/America/Sao_Paulo": "America/Sao_Paulo",
+    "America/Sao_Paulo": "America/Sao_Paulo",
+    "  America/Sao_Paulo  ": "America/Sao_Paulo",
+    "Europe/Rome": "Europe/Rome",
+    "EST5EDT": "EST5EDT",
+    "UTC": "UTC"
+  },
   "reserved_inputs": [
     "Etc/UTC",
     "local",

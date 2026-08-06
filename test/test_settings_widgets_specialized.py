@@ -565,6 +565,17 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         self.assertFalse(module.is_runtime_builtin_timezone(
             fixture["ordinary_timezone"], fixture["local_timezone"]))
 
+        # T782: TZ takes a POSIX colon prefix and an absolute path, and GLib
+        # does not canonicalize, so both sides reduce an identifier the same way
+        # before comparing. worldclockData.zoneinfoIdentifier is this rule in
+        # JavaScript, and the same fixture holds it there.
+        for spelling, reduced in fixture["identifier_spellings"].items():
+            self.assertEqual(module.zoneinfo_identifier(spelling), reduced, spelling)
+            self.assertEqual(
+                module.is_runtime_builtin_timezone(spelling, fixture["local_timezone"]),
+                reduced in set(fixture["builtin_identities"]),
+                spelling)
+
 
 class WorldClockSavedNormalizationTest(unittest.TestCase):
     @classmethod

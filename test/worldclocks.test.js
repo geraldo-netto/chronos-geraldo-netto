@@ -550,6 +550,26 @@ test("built-in timezone rules match the Python settings resolver", () => {
         label: fixture.ordinary_timezone,
         timezone: fixture.ordinary_timezone
     }]);
+
+    // T782: GLib does not canonicalize — get_identifier() answers the string it
+    // was given — and TZ takes a POSIX colon prefix and an absolute path, so
+    // the local zone reaches this comparison spelled whichever way the session
+    // was started. Comparing those raw drew the same zone twice in the popup
+    // while the settings dialog, which already reduced TZ to a plain zoneinfo
+    // name, considered it a duplicate and hid it.
+    for (const [spelling, reduced] of Object.entries(fixture.identifier_spellings)) {
+        assert.equal(WorldclockData.zoneinfoIdentifier(spelling), reduced,
+            `${JSON.stringify(spelling)} is the zone ${reduced}`);
+    }
+
+    // and a clock spelled the way TZ spells the local zone is that zone
+    const aliased = Object.keys(fixture.identifier_spellings)
+        .filter((spelling) =>
+            fixture.identifier_spellings[spelling] === fixture.local_timezone)
+        .map((timezone) => ({ label: timezone, timezone }));
+    assert.ok(aliased.length > 1, "the fixture carries more than one spelling");
+    assert.deepEqual(WorldclockData.selectUserClocks(aliased), [],
+        "every spelling of the local zone collides with the built-in local row");
 });
 
 // the label is the user's own name for the clock and the dialog puts no limit on

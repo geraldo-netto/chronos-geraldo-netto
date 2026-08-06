@@ -51,6 +51,24 @@ def zoneinfo_name(target: Path) -> Optional[str]:
     return name or None
 
 
+def zoneinfo_identifier(value: str) -> str:
+    """A TZ-style identifier reduced to a plain zoneinfo name.
+
+    TZ takes a POSIX colon prefix and an absolute path, so one zone reaches a
+    comparison as "Europe/Rome", ":Europe/Rome" or
+    "/usr/share/zoneinfo/Europe/Rome" depending only on how the session was
+    started. GLib does not canonicalize either — get_identifier() answers the
+    string it was given — so the runtime needs the same reduction, and
+    worldclockData.zoneinfoIdentifier is this rule in JavaScript.
+    """
+    identifier = value.strip()
+    if identifier.startswith(":"):
+        identifier = identifier[1:]
+    if identifier.startswith("/"):
+        return zoneinfo_name(Path(identifier)) or identifier
+    return identifier
+
+
 def local_timezone_name() -> Optional[str]:
     """The runtime's local-zone identity, preserving overrides and aliases.
 
@@ -60,10 +78,7 @@ def local_timezone_name() -> Optional[str]:
     """
     configured = os.environ.get("TZ", "").strip()
     if configured:
-        if configured.startswith(":"):
-            configured = configured[1:]
-        return (zoneinfo_name(Path(configured)) if configured.startswith("/")
-                else configured)
+        return zoneinfo_identifier(configured)
 
     try:
         localtime = Path("/etc/localtime")
@@ -100,8 +115,10 @@ def is_runtime_builtin_timezone(
     local = local_timezone if local_timezone is not None else local_timezone_name()
     builtin_identities = {"UTC", "Etc/UTC"}
     if local:
-        builtin_identities.add(local)
-    return identifier in builtin_identities
+        builtin_identities.add(zoneinfo_identifier(local))
+    # both sides of the comparison, so a saved row spelled the way TZ spells it
+    # is the same zone as the built-in row the runtime draws from it
+    return zoneinfo_identifier(identifier) in builtin_identities
 
 
 def looks_like_iana(value: Any) -> bool:

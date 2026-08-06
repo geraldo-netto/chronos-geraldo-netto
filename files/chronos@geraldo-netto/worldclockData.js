@@ -458,11 +458,53 @@ function localCountryCode() {
     return canonical ? countryCodeFromZoneTab(canonical, zoneTab) : "";
 }
 
+// GLib answers get_identifier() with the string it was given — it does not
+// canonicalize — and for the local zone that string is whatever TZ holds. TZ
+// takes a POSIX colon prefix and an absolute path, so the same zone reaches
+// this comparison as "Europe/Rome", ":Europe/Rome" or
+// "/usr/share/zoneinfo/Europe/Rome" depending only on how the session was
+// started. Comparing those raw meant a clock the user set to their own zone was
+// not recognised as the built-in local row, and the popup drew the same zone
+// twice while the settings dialog — which already reduces TZ to a plain
+// zoneinfo name — considered it a duplicate and hid it.
+//
+// This is the same rule as chronos_timezone_data.zoneinfo_identifier, and the
+// shared parity fixture holds both sides to it.
+function zoneinfoIdentifier(identifier) {
+    if (typeof identifier !== "string") {
+        return "";
+    }
+
+    const trimmed = identifier.trim();
+    const named = trimmed.indexOf(":") === 0 ? trimmed.slice(1) : trimmed;
+    const marker = "/zoneinfo/";
+    const index = named.lastIndexOf(marker);
+    return index === -1 ? named : named.slice(index + marker.length);
+}
+
+// A saved clock is already an identifier, so it is reduced and compared as a
+// string — the settings side does exactly this, and handing GLib a
+// colon-prefixed or absolute spelling to validate answers null for a zone that
+// exists, letting the row escape the collision check. "local" is the one saved
+// value that is not an identifier: it is the word, and only GLib knows which
+// zone the word stands for.
+function timezoneComparisonKey(timezone) {
+    if (timezone === LOCAL_TIMEZONE) {
+        return zoneinfoIdentifier(timezoneIdentity(GLib.TimeZone.new_local()));
+    }
+
+    return zoneinfoIdentifier(timezone);
+}
+
+// The built-in list is two entries and one of them is "local", so asking GLib
+// which zone that stands for is the point of this — and a zone GLib does not
+// know names nothing to compare against. The reduction is applied to its
+// answer, because for "local" that answer is whatever TZ holds.
 function builtInTimezoneKeys(builtins) {
     const keys = new Set();
     builtins.forEach((item) => {
         const tz = timezoneFromIdentifier(item.timezone);
-        const identity = timezoneIdentity(tz);
+        const identity = zoneinfoIdentifier(timezoneIdentity(tz));
         if (identity) {
             keys.add(identity);
         }
@@ -502,9 +544,8 @@ function selectUserClocks(clocks) {
             continue;
         }
 
-        const tz = timezoneFromIdentifier(normalized.timezone);
-        const identity = timezoneIdentity(tz);
-        if (builtinKeys.has(identity)) {
+        const identity = timezoneComparisonKey(normalized.timezone);
+        if (identity && builtinKeys.has(identity)) {
             continue;
         }
 
@@ -545,6 +586,7 @@ if (typeof module !== "undefined") {
         localCityName,
         builtinClocks,
         timezoneIdentity,
+        zoneinfoIdentifier,
         timezoneCityName,
         timezoneWeatherCity,
         registerWorldclockConsumer,
