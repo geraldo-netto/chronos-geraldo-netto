@@ -841,9 +841,13 @@ class Calendar {
         }
         this._events_manager_signal_ids = [];
 
-        // the actors go with the menu, but these arrays are the grid's own, and
-        // the applet that holds the grid outlives its removal from the panel
+        // The actors go with the menu, but everything below is the grid's own
+        // and the applet that holds the grid outlives its removal from the
+        // panel: 42 Dates, 42 day keys and 42 formatted day names in the cached
+        // window, and a month of matched holidays in the annotator.
         this._gridView.reset();
+        this._monthWindows.invalidate();
+        this._holidayAnnotator.release();
         this._gridHost.reportIssue("holidays", "");
     }
 

@@ -1819,6 +1819,33 @@ test("Calendar.destroy disconnects its events-manager signals", () => {
     assert.deepEqual(manager.disconnected, [1, 2, 3]);
 });
 
+// Cinnamon's Applet has no destroy() and AppletContextMenu holds the actor,
+// which holds _delegate — so the applet survives its own removal from the
+// panel, and anything the grid is still holding survives with it for the rest
+// of the login session. The cell arrays were already released here; the cached
+// month and the annotator's matched holidays were not.
+test("Calendar.destroy releases the cached month and the matched holidays", () => {
+    const cal = makeCalendar({
+        holiday: makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } })
+    });
+    cal.setDate(new Date(2026, 6, 9), true);
+
+    assert.ok(cal._monthWindows._window, "a month window is held while it is shown");
+    assert.equal(cal._monthWindows._window.days.length, 42);
+    assert.equal(cal._holidayAnnotator._dates.size, 1);
+    assert.ok(cal.holidayForDate(new Date(2026, 6, 14)));
+    assert.equal(cal._holidayAnnotator.annotated, true);
+
+    cal.destroy();
+
+    assert.equal(cal._monthWindows._window, null,
+        "42 Dates, 42 day keys and 42 formatted day names");
+    assert.equal(cal._holidayAnnotator._dates.size, 0);
+    assert.equal(cal.holidayForDate(new Date(2026, 6, 14)), null);
+    assert.equal(cal._holidayAnnotator.annotated, false);
+    assert.deepEqual(cal._gridView.dayCells, [], "as before, the cells go too");
+});
+
 // T29a: day cells are cached and reused across updates
 
 test("day cells: month navigation reuses the same actors", () => {

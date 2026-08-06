@@ -405,6 +405,21 @@ class CalendarHolidayAnnotator {
         return this._dates.get(calendarDateKey(date)) || null;
     }
 
+    // The applet outlives its removal from the panel — Cinnamon's Applet has no
+    // destroy(), and AppletContextMenu holds the actor, which holds _delegate —
+    // so a month of matched holidays and the strings memoised beside them stay
+    // reachable for the rest of the login session unless they are dropped here.
+    // The label is not: it belongs to the header, dies with the menu's actors,
+    // and the guards that tolerate a missing one exist for a calendar that was
+    // never given one, not for a torn-down one that still gets called.
+    release() {
+        this._dates = new Map();
+        this._month_name_key = "";
+        this._month_name = "";
+        this._pass_providers = new Set();
+        this.annotated = false;
+    }
+
     _receiveMonth(dates, error, providerName, pass) {
         if (!this._isCurrent(pass.generation)) {
             return;
