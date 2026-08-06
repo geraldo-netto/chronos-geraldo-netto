@@ -92,16 +92,46 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         // here — and the copy had drifted, losing the jitter and the attempt
         // cap. It differs from the panel's only in what counts as "something to
         // refresh", which is now a parameter.
-        this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(
-            Object.assign({ // NOSONAR [S6661] -- accepted compatible form
-                refreshSeconds: this._refresh_seconds,
-                retrySeconds: CITY_RETRY_SECONDS,
-                isActive: (settings) =>
-                    Boolean(this._active(settings) && this._cities(settings).length)
-            }, params));
+        // `params` used to be the second argument to Object.assign here, so a
+        // caller's keys won over these three. isActive is the one thing the
+        // comment above names as distinguishing this scheduler from the panel's,
+        // and a caller passing it silently replaced "weather on and at least one
+        // city" with something else; retrySeconds went the same way.
+        //
+        // Named arguments rather than the whole bag, for the same reason: one
+        // object was simultaneously the parameter set for this class, the
+        // scheduler, the reading repository and the two resolvers behind it, so
+        // adding a parameter to any one of the three files changed the meaning
+        // of a call to the other two and nothing checked it.
+        this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler({
+            refreshSeconds: this._refresh_seconds,
+            retrySeconds: CITY_RETRY_SECONDS,
+            isActive: (settings) =>
+                Boolean(this._active(settings) && this._cities(settings).length),
+            random: params.random,
+            scheduleTimer: params.scheduleTimer,
+            scheduleDebounceTimer: params.scheduleDebounceTimer,
+            removeTimer: params.removeTimer,
+            debounceMs: params.debounceMs
+        });
 
         this._reading_repository = params.readingRepository ||
-            new WeatherProviders.WeatherReadingRepository(params);
+            new WeatherProviders.WeatherReadingRepository({
+                // the repository's own collaborators, named: it reaches two
+                // resolvers and an HTTP session behind them. cacheSeconds is
+                // forwarded rather than defaulted: a provider that owns its
+                // repository has no second consumer to share readings with, and
+                // giving it one here would change what a failed round sees.
+                cacheSeconds: params.cacheSeconds,
+                locationResolver: params.locationResolver,
+                forecastResolver: params.forecastResolver,
+                httpSession: params.httpSession,
+                httpGetJson: params.httpGetJson,
+                geocodeCache: params.geocodeCache,
+                nominatimQueue: params.nominatimQueue,
+                freshnessNow: params.freshnessNow,
+                now: params.now
+            });
         this._owns_reading_repository = !params.readingRepository;
         // "always online" is the pre-monitor behavior; the composition root
         // injects the real Gio.NetworkMonitor-backed answer

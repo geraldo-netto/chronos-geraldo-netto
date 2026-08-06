@@ -376,6 +376,48 @@ test("the constructor falls back to GLib timers and a Utils HTTP session", () =>
 // both hold the one lazy-session lifecycle now — and nothing exercised that
 // parameter here: a session handed to this provider was never proven to be the
 // session it used, or the one it aborted.
+// T831: the scheduler was built with Object.assign({defaults}, params), so a
+// caller's keys won over the three defaults. isActive is the one thing the
+// class comment names as distinguishing this scheduler from the panel's — and a
+// caller passing it silently replaced "weather on and at least one city" with
+// something else, with nothing to notice.
+test("a caller cannot replace the predicate that defines the city scheduler", () => {
+    const CityWeather = loadCityWeather();
+    const armed = [];
+    const provider = new CityWeather.CityWeatherProvider({
+        scheduleTimer: (seconds) => {
+            armed.push(seconds);
+            return armed.length;
+        },
+        removeTimer: () => {},
+        // the jitter has its own test; this one is about which period is used
+        random: () => 0,
+        // the two the caller must not be able to replace, passed through the
+        // same bag they used to reach the scheduler through
+        isActive: () => true,
+        retrySeconds: 1,
+        locationResolver: {
+            resolve(_city, _isCurrent, callback) {
+                callback(null, "Weather service unavailable");
+            }
+        },
+        forecastResolver: { refresh() {} }
+    });
+
+    // weather is on but there are no cities, so there is nothing to refresh —
+    // whatever isActive the caller supplied
+    provider.schedule({ showWeather: true, units: "si", cities: [] }, () => {});
+    assert.deepEqual(armed, [], "no cities, no timer");
+
+    // ...and the round that follows fails, so the retry is armed at the city's
+    // own period rather than the caller's
+    provider.schedule({ showWeather: true, units: "si", cities: ["Rome"] }, () => {});
+    assert.deepEqual(armed,
+        [CityWeather.CITY_REFRESH_SECONDS, CityWeather.CITY_RETRY_SECONDS]);
+
+    provider.destroy();
+});
+
 test("a session it is given is the one it uses and the one it aborts", () => {
     const CityWeather = loadCityWeather();
     const session = { abort() { this.aborted = true; } };
