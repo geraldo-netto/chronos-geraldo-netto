@@ -1341,6 +1341,43 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
     assert.equal(footer, "", "the aggregate clears when every source recovers");
 });
 
+// T824: the rejected branch built the panel's fallback — the whole sentence
+// "Invalid time format; edit it in Settings" joined to an escaped clock — and
+// then handed the same string to setWorldclockFormat. Worldclocks.setFormat
+// only length-checks it, so every row's time cell rendered the sentence
+// followed by the time. The right-aligned column has no max-width in the
+// stylesheet, so the popup widened and pushed the calendar grid across, and the
+// footer was already saying it once via _formatIssue.
+test("a rejected panel format does not become the world-clock format", () => {
+    const written = [];
+    const view = {
+        customFormat: "%broken",
+        desktopSettings: { use24h: true },
+        worldclocksEnabled: true,
+        setClockFormatString: () => false,
+        setWorldclockFormat: (format) => written.push(format),
+        setWorldclocksVisible() {}
+    };
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+
+    presenter.updateFormatString();
+
+    assert.equal(written.at(-1), "%H:%M", "a clock cell is a time and nothing else");
+    assert.equal(presenter.issueStatus([], []),
+        "Invalid time format; edit it in Settings",
+        "and the explanation is the footer's, said once");
+
+    // a 12-hour desktop gets its own safe clock, and an accepted format is
+    // still passed through untouched
+    view.desktopSettings.use24h = false;
+    presenter.updateFormatString();
+    assert.equal(written.at(-1), "%-l:%M %p");
+
+    view.setClockFormatString = () => true;
+    presenter.updateFormatString();
+    assert.equal(written.at(-1), "%broken");
+});
+
 // T608: _tooltipFormatIssue was cleared only inside tooltipClockStamp, on a
 // successfully rendered stamp. With world clocks off no stamp ever rendered, so
 // a user who set a bad custom-tooltip-format, disabled clocks, then fixed the

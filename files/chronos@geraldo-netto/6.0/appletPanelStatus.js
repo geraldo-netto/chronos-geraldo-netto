@@ -130,10 +130,14 @@ function describeWeather(text, condition = "", pending = false) {
 // c-format, so msgfmt would not catch it either. %% is strftime's literal
 // percent, and the time beside the message follows the user's own clock rather
 // than a hardcoded 12-hour one.
-function badFormatFallback(view, message) {
+function safeClockFormat(view) {
     const use24h = view.desktopSettings && view.desktopSettings.use24h; // NOSONAR [S6582] -- accepted compatible form
 
-    return String(message).replace(/%/g, "%%") + " • " + (use24h ? "%H:%M" : "%-l:%M %p"); // NOSONAR [S7781] -- accepted compatible form
+    return use24h ? "%H:%M" : "%-l:%M %p";
+}
+
+function badFormatFallback(view, message) {
+    return String(message).replace(/%/g, "%%") + " • " + safeClockFormat(view); // NOSONAR [S7781] -- accepted compatible form
 }
 
 // The date formats are translator-supplied strftime, and — like the custom
@@ -356,7 +360,13 @@ class AppletPanelStatusPresenter {
         // the format changes what the rows say, not which rows exist: rebuilding
         // the actors here meant every keystroke in the custom-format entry tore
         // the whole clock grid down and built it again
-        view.setWorldclockFormat(world_string);
+        //
+        // A world-clock cell is a time, and badFormatFallback's string is an
+        // explanation joined to one. Handing that to setWorldclockFormat printed
+        // "Invalid time format; edit it in Settings" in every row — the time
+        // column has no max-width, so the popup widened and pushed the calendar
+        // grid across — while the footer was already saying it once.
+        view.setWorldclockFormat(accepted ? world_string : safeClockFormat(view));
         view.setWorldclocksVisible(this.worldclocksEnabled());
     }
 

@@ -1287,16 +1287,20 @@ test("_updateFormatString always applies the configured format and handles inval
     stub.custom_format = "bad";
     Proto._updateFormatString.call(stub);
     assert.ok(errors.length > 0);
-    assert.ok(viewFormats.at(-1).includes("Invalid time format"));
-    assert.deepEqual(stub.clock.formats.slice(1), ["bad", viewFormats.at(-1)]);
+    // T824: the panel keeps the explanation joined to a safe clock; the
+    // world-clock cells are a column of times and take the clock alone
+    assert.equal(viewFormats.at(-1), "%H:%M");
+    assert.equal(stub.clock.formats.at(-1),
+        "Invalid time format; edit it in Settings • %H:%M");
+    assert.deepEqual(stub.clock.formats.slice(1), ["bad", stub.clock.formats.at(-1)]);
 
     const overlong = "x".repeat(rootModules.dateFormats.MAX_DATE_FORMAT_LENGTH + 1);
     const beforeOverlong = stub.clock.formats.length;
     stub.custom_format = overlong;
     Proto._updateFormatString.call(stub);
-    assert.deepEqual(stub.clock.formats.slice(beforeOverlong), [viewFormats.at(-1)],
+    assert.deepEqual(stub.clock.formats.slice(beforeOverlong), [stub.clock.formats.at(-1)],
         "an overlong setting never reaches CinnamonDesktop.WallClock");
-    assert.ok(viewFormats.at(-1).includes("Invalid time format"));
+    assert.equal(viewFormats.at(-1), "%H:%M");
     assert.equal(Object.prototype.hasOwnProperty.call(stub, "worldclock_format"), false);
     assert.equal(viewFormats.length, 3, "each settings pass updates the view-owned format");
     assert.equal(builds.length, 3, "each settings pass reapplies clock visibility only");
