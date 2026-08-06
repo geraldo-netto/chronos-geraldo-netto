@@ -662,8 +662,14 @@ class ClocksList(JSONSettingsList):
     # could also observe different local zones, which is how the OK button and
     # the preview came to disagree.
     def _timezone_is_duplicate(self, timezone, original_timezone=None):
-        occurrences = sum(1 for row in self.model if row[1] == timezone)
-        allowed = 1 if original_timezone == timezone else 0
+        identity = zoneinfo_identifier(timezone)
+        occurrences = sum(
+            1 for row in self.model
+            if zoneinfo_identifier(row[1]) == identity)
+        original_identity = (
+            zoneinfo_identifier(original_timezone)
+            if isinstance(original_timezone, str) else None)
+        allowed = 1 if original_identity == identity else 0
         return occurrences > allowed
 
     def resolve_timezone_choice(self, values, original_timezone=None):

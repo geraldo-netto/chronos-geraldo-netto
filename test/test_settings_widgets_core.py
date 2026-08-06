@@ -784,6 +784,26 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertTrue(changed["duplicate"],
                         "an edit may keep its own zone, not take another row's")
 
+    def test_timezone_choice_compares_reduced_zoneinfo_identities(self):
+        saved = [{"label": "Rome", "timezone": ":Europe/Rome"}]
+        clocks = self.module.ClocksList(
+            {"value": saved}, "worldclocks", DialogSettings())
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["Europe/Rome"],
+            common_timezones=["Europe/Rome"])
+        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
+        values = {"label": "Other Rome", "timezone": "Europe/Rome"}
+
+        choice = clocks.resolve_timezone_choice(values)
+        self.assertTrue(choice["duplicate"],
+                        "TZ-style and plain spellings are one runtime clock")
+        self.assertIsNone(choice["timezone"])
+
+        unchanged = clocks.resolve_timezone_choice(values, ":Europe/Rome")
+        self.assertFalse(unchanged["duplicate"],
+                         "an edit may normalize its own saved spelling")
+        self.assertEqual(unchanged["timezone"], "Europe/Rome")
+
     @requires_pytz
     def test_add_dialog_gates_ok_and_returns_normalized_timezone(self):
         clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
