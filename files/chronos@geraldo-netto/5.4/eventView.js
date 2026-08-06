@@ -721,7 +721,13 @@ class EventList {
         this._renderer.setEvents(
             agenda, this._unavailable ? false : this._delayNoEventsBox,
             this._unavailable ? false : this._eventsOverflowed);
-        if (this._unavailable && !agenda) {
+        // Gating this on an empty agenda dropped the remediation exactly when
+        // the selected day carried a holiday: the column then rendered one
+        // holiday row and nothing else, byte-identical to a healthy service on
+        // a day whose only entry is that holiday, and contradicting the
+        // footer's own calendar-service report. _buildRows hides the box on
+        // the way past, so this runs after the renderer, not instead of it.
+        if (this._unavailable) {
             this.set_no_events_text(EVENTS_UNAVAILABLE_TEXT);
             this.no_events_box.show();
         }

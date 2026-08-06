@@ -681,7 +681,7 @@ test("set_unavailable swaps the placeholder text and blocks event rendering", ()
     list.set_unavailable(false);
 });
 
-test("holidays remain visible without a calendar service", () => {
+test("holidays remain visible without a calendar service, and so does the remedy", () => {
     const list = new EventView.EventList(desktopSettings());
     const agenda = EventView.composeSelectedDayAgenda(null,
         ["Republic Day", ["public_holiday"]]);
@@ -689,12 +689,22 @@ test("holidays remain visible without a calendar service", () => {
     list.set_events(agenda, false);
     list.set_unavailable(true);
     assert.deepEqual(list.rows.map((row) => row.event.summary), ["Republic Day"]);
-    assert.equal(list.no_events_box.visible, false);
+    // Dropping the notice here rendered precisely what a healthy service
+    // renders on a day whose only entry is that holiday, while the footer went
+    // on reporting the outage — the column contradicting its own status.
+    assert.equal(list.no_events_box.visible, true);
+    assert.match(list.no_events_label.text, /^Calendar events are unavailable/);
 
     list.set_events(null, false);
     assert.equal(list.rows.length, 0);
     assert.equal(list.no_events_box.visible, true);
     assert.match(list.no_events_label.text, /^Calendar events are unavailable/);
+
+    list.set_unavailable(false);
+    list.set_events(agenda, false);
+    assert.deepEqual(list.rows.map((row) => row.event.summary), ["Republic Day"],
+        "and a healthy service shows the same day without the notice");
+    assert.equal(list.no_events_box.visible, false);
 });
 
 // an explicit ATK name replaces the button's child text, so a name fixed at
