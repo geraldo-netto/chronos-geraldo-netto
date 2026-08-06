@@ -80,10 +80,19 @@ const WMO_CONDITION_RANGES = [
     [95, 99, "⛈"]  // thunderstorm, thunderstorm with hail
 ];
 
+// The code comes off Open-Meteo's JSON, which a degraded or hostile endpoint
+// away sends a string, a float, a negative or nothing at all — and bare `<=`
+// comparisons coerce, so `null` read as clear sky and every unrecognised value
+// read as a confident "Fair". A sky the provider did not describe in terms
+// this applet knows is reported as undescribed.
 function weatherIcon(weatherCode) {
+    if (!Number.isInteger(weatherCode)) {
+        return WeatherFormat.WEATHER_UNKNOWN_CONDITION;
+    }
+
     const match = WMO_CONDITION_RANGES.find(
         ([from, to]) => weatherCode >= from && weatherCode <= to);
-    return match ? match[2] : "🌤";
+    return match ? match[2] : WeatherFormat.WEATHER_UNKNOWN_CONDITION;
 }
 
 function geocodeLanguage(locale) {
@@ -170,7 +179,7 @@ function aviationWeatherIcon(station) {
     }
 
     const cover = typeof station.cover === "string" ? station.cover.toUpperCase() : "";
-    return AVIATION_COVER_ICONS[cover] || "🌤";
+    return AVIATION_COVER_ICONS[cover] || WeatherFormat.WEATHER_UNKNOWN_CONDITION;
 }
 
 // A METAR station with nothing to report sends "temp": null, and Number(null),
@@ -289,7 +298,9 @@ function metNoIcon(symbolCode) {
         }
     }
 
-    return "🌤";
+    // "fair" above is a real met.no symbol, so it cannot double as the answer
+    // for a symbol_code this table does not know.
+    return WeatherFormat.WEATHER_UNKNOWN_CONDITION;
 }
 
 function metNoSummary(data) {

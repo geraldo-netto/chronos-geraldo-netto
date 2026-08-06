@@ -215,13 +215,20 @@ test("every readout glyph has a word for it", () => {
     }
 
     for (const symbol of ["clearsky_day", "fair_day", "partlycloudy_day", "cloudy", "fog",
-        "snow", "rainshowers_day", "rain", "thunderstorm", "unknown"]) {
+        "snow", "rainshowers_day", "rain", "thunderstorm"]) {
         assert.notEqual(Weather.WEATHER_CONDITIONS[Weather.metNoIcon(symbol)], undefined,
             `the MET Norway glyph for ${symbol} has no condition`);
     }
 
     assert.equal(Weather.WEATHER_CONDITIONS["☀"], "Clear");
     assert.equal(Weather.WEATHER_CONDITIONS["🌤"], "Fair");
+
+    // ...and a symbol_code the table does not know is not one of them. "fair"
+    // is a real met.no symbol, so it cannot double as the answer for an
+    // unrecognised one.
+    assert.equal(Weather.metNoIcon("unknown"), Weather.WEATHER_UNKNOWN_CONDITION);
+    assert.equal(Weather.WEATHER_CONDITIONS[Weather.WEATHER_UNKNOWN_CONDITION], undefined,
+        "an undescribed sky names no condition");
 });
 
 test("a provider whose refresh fails schedules its own retry", () => {

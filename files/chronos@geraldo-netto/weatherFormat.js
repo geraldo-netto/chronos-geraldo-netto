@@ -38,6 +38,15 @@ var WEATHER_ERRORS = { // NOSONAR [S3504] -- GJS importer export
     OFFLINE: "No network connection"
 };
 
+// A reading whose sky the provider did not describe in terms this applet
+// recognises. It is deliberately not a glyph: every glyph below names a real
+// condition, and the presenters render an absent condition as absent — no word
+// in the tooltip, nothing added to the accessible name — rather than as a
+// confident-looking one. 🌤 "Fair" used to serve as both a real met.no symbol
+// and this fallback, which made an unrecognised code indistinguishable from a
+// genuine reading.
+var WEATHER_UNKNOWN_CONDITION = ""; // NOSONAR [S3504] -- GJS importer export
+
 // The glyph is the normalized condition class. Presenters translate the word
 // associated with it for tooltips and accessible names.
 var WEATHER_CONDITIONS = { // NOSONAR [S3504] -- GJS importer export
@@ -81,6 +90,7 @@ if (typeof module !== "undefined") {
         MAX_GEOCODE_CACHE_ENTRIES, MAX_WEATHER_LOCATION_LENGTH,
         WEATHER_DEBOUNCE_MS, WEATHER_UNITS,
         WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS,
-        WEATHER_CONDITIONS, normalizeUnits, normalizeWeatherLocation,
+        WEATHER_CONDITIONS, WEATHER_UNKNOWN_CONDITION,
+        normalizeUnits, normalizeWeatherLocation,
         formatTemperature };
 }

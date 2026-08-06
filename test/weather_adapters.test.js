@@ -42,7 +42,9 @@ test("METAR present weather outranks the sky cover in the icon", () => {
     assert.equal(Weather.aviationWeatherIcon({ cover: "FEW" }), "🌤");
     assert.equal(Weather.aviationWeatherIcon({ cover: "SCT" }), "⛅");
     assert.equal(Weather.aviationWeatherIcon({ cover: "OVC" }), "☁");
-    assert.equal(Weather.aviationWeatherIcon({}), "🌤");
+    // a METAR carrying neither present weather nor a cover group describes no
+    // sky at all, and "FEW" above is a real cover that cannot double for it
+    assert.equal(Weather.aviationWeatherIcon({}), Weather.WEATHER_UNKNOWN_CONDITION);
 });
 
 test("the METAR service answers between Open-Meteo and MET.no", () => {
@@ -545,7 +547,6 @@ test("formats weather text and maps every fuzzed weather code to an icon", () =>
         const code = nextCode();
         const icon = Weather.weatherIcon(code);
         assert.equal(typeof icon, "string");
-        assert.ok(icon.length > 0);
         if (code >= 95 && code <= 99) {
             assert.equal(icon, "⛈");
         } else {
@@ -560,11 +561,18 @@ test("formats weather text and maps every fuzzed weather code to an icon", () =>
     const junk = ["63", "", "  95 ", null, undefined, NaN, Infinity, -1, -0.5,
         63.7, 1e9, true, false, {}, [], [63], () => 63];
 
+    // T827: bare `<=` comparisons coerce, so `null` and `-1` read as clear sky
+    // and every other unrecognised value read as a confident "Fair" —
+    // indistinguishable in the panel from a real reading. None of these is a
+    // published code, so none of them describes a sky.
     for (const code of junk) {
         const icon = Weather.weatherIcon(code);
-        assert.equal(typeof icon, "string", `weatherIcon(${String(code)}) must be a string`);
-        assert.ok(icon.length > 0, `weatherIcon(${String(code)}) must not be empty`);
+        assert.equal(icon, Weather.WEATHER_UNKNOWN_CONDITION,
+            `weatherIcon(${String(code)}) must not read as weather`);
     }
+
+    // and the one junk value that is a published code is still read as one
+    assert.equal(Weather.weatherIcon(63), "🌧");
 });
 
 // T826: the buckets were open-ended `<=` thresholds, so WMO 3 (overcast) fell
@@ -596,7 +604,7 @@ test("every published Open-Meteo code renders the condition it means", () => {
     // threshold chain adopted each of them into whichever class it reached
     // first: 4-44 read as fog, 49-50 as rain, 83-84 as showers
     for (const code of [4, 20, 44, 49, 50, 68, 70, 78, 79, 83, 84, 87, 94, 100]) {
-        assert.equal(Weather.weatherIcon(code), "🌤",
+        assert.equal(Weather.weatherIcon(code), Weather.WEATHER_UNKNOWN_CONDITION,
             `WMO ${code} is not a published code and must not read as one`);
     }
 });
@@ -654,10 +662,17 @@ test("formats MET.no forecast data with SI and imperial units", () => {
     assert.equal(shown(Weather.metNoWeatherReading(forecast), "imperial"), "🌧 51°F");
     assert.equal(shown(Weather.metNoWeatherReading({}), "si"), "");
 
-    for (const symbol of ["clearsky", "fair", "partlycloudy", "cloudy", "fog", "rain", "drizzle", "sleet", "snow", "rainshowers", "unknown"]) {
+    for (const symbol of ["clearsky", "fair", "partlycloudy", "cloudy", "fog", "rain", "drizzle", "sleet", "snow", "rainshowers"]) {
         const icon = Weather.metNoIcon(symbol);
-        assert.equal(typeof icon, "string");
-        assert.ok(icon.length > 0);
+        assert.ok(Weather.WEATHER_CONDITIONS[icon],
+            `the met.no symbol ${symbol} names a condition`);
+    }
+
+    // a symbol_code the table does not know describes no sky. "fair" above is
+    // a real met.no symbol and cannot double as the answer for one it isn't.
+    for (const symbol of ["unknown", "", null, undefined, 42, {}]) {
+        assert.equal(Weather.metNoIcon(symbol), Weather.WEATHER_UNKNOWN_CONDITION,
+            `metNoIcon(${String(symbol)}) must not read as weather`);
     }
 });
 
@@ -677,7 +692,8 @@ test("MET.no summaries fall back through longer forecast horizons", () => {
         instant,
         next_12_hours: { summary: { symbol_code: "cloudy" } }
     })), "si"), "☁ 4°C");
-    assert.equal(shown(Weather.metNoWeatherReading(forecastWith({ instant })), "si"), "🌤 4°C");
+    // no summary at any horizon: the temperature is real, the sky is undescribed
+    assert.equal(shown(Weather.metNoWeatherReading(forecastWith({ instant })), "si"), " 4°C");
     assert.equal(shown(Weather.metNoWeatherReading(forecastWith({
         next_1_hours: { summary: { symbol_code: "rain" } }
     })), "si"), "");

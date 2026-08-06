@@ -223,16 +223,17 @@ test("version shim forwards the shared weather provider module", () => {
 
 test("every Open-Meteo code boundary maps to the glyph on its own side", () => {
     const Weather = loadWeather();
+    const UNKNOWN = Weather.WEATHER_UNKNOWN_CONDITION;
     // The WMO groups are closed at both ends, and the gaps between them are not
     // codes Open-Meteo emits. An off-by-one here silently reclassifies the sky;
     // so did the threshold chain this replaced, which read 4-44 as fog, 49-50
     // as rain and 83-84 as showers.
     const boundaries = [
-        [0, "☀"], [1, "⛅"], [2, "⛅"], [3, "☁"], [4, "🌤"], [44, "🌤"],
-        [45, "☁"], [48, "☁"], [49, "🌤"], [51, "🌧"], [67, "🌧"], [68, "🌤"],
-        [71, "🌨"], [77, "🌨"], [78, "🌤"], [80, "🌦"], [82, "🌦"], [83, "🌤"],
-        [85, "🌨"], [86, "🌨"], [87, "🌤"], [94, "🌤"], [95, "⛈"], [99, "⛈"],
-        [100, "🌤"]
+        [0, "☀"], [1, "⛅"], [2, "⛅"], [3, "☁"], [4, UNKNOWN], [44, UNKNOWN],
+        [45, "☁"], [48, "☁"], [49, UNKNOWN], [51, "🌧"], [67, "🌧"], [68, UNKNOWN],
+        [71, "🌨"], [77, "🌨"], [78, UNKNOWN], [80, "🌦"], [82, "🌦"], [83, UNKNOWN],
+        [85, "🌨"], [86, "🌨"], [87, UNKNOWN], [94, UNKNOWN], [95, "⛈"], [99, "⛈"],
+        [100, UNKNOWN]
     ];
 
     boundaries.forEach(([code, glyph]) => {
@@ -255,7 +256,7 @@ test("each METAR present-weather and cover code stands on its own", () => {
     const cover = [
         ["CAVOK", "☀"], ["CLR", "☀"], ["SKC", "☀"], ["NSC", "☀"],
         ["FEW", "🌤"], ["SCT", "⛅"], ["BKN", "☁"], ["OVC", "☁"], ["OVX", "☁"],
-        ["", "🌤"]
+        ["", ""]
     ];
     cover.forEach(([code, glyph]) => {
         assert.equal(Weather.aviationWeatherIcon({ cover: code }), glyph, code);
