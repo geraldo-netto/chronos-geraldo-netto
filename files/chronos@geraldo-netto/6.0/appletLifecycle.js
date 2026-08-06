@@ -260,6 +260,8 @@ class AppletProviderLifecycle {
         this.weatherRepository = null;
         this.weatherProvider = null;
         this.cityWeatherProvider = null;
+        this._weatherConsumerRegistered = false;
+        this._worldclockConsumerRegistered = false;
         this.eventsManager = null;
         this.holidayProvider = null;
         this.holidayRegions = {};
@@ -279,10 +281,25 @@ class AppletProviderLifecycle {
         // The Nominatim request queue is module-global — one request-per-second
         // budget for every instance on the panel — so, like the locale query,
         // it is released by the last instance to leave rather than the first.
-        Weather.registerWeatherConsumer();
+        const weatherConsumerReady =
+            typeof Weather.registerWeatherConsumer === "function" &&
+            typeof Weather.cancelPendingWeatherRequests === "function";
         // ...and the timezone-to-city memo behind the per-clock weather, for
         // the same reason: one module-level table, every instance on the panel
-        WorldclockData.registerWorldclockConsumer();
+        const worldclockConsumerReady =
+            typeof WorldclockData.registerWorldclockConsumer === "function" &&
+            typeof WorldclockData.releaseWorldclockConsumer === "function";
+        if (!weatherConsumerReady || !worldclockConsumerReady) {
+            context.onUpgradeRequired();
+        }
+        if (weatherConsumerReady) {
+            Weather.registerWeatherConsumer();
+            this._weatherConsumerRegistered = true;
+        }
+        if (worldclockConsumerReady) {
+            WorldclockData.registerWorldclockConsumer();
+            this._worldclockConsumerRegistered = true;
+        }
         this.clock = this.factories.clock();
         this.networkState = this.factories.networkState();
         this.weatherRepository = this.factories.weatherRepository();
@@ -514,6 +531,20 @@ class AppletProviderLifecycle {
         }
     }
 
+    _releaseWeatherConsumer() {
+        if (this._weatherConsumerRegistered) {
+            this._weatherConsumerRegistered = false;
+            Weather.cancelPendingWeatherRequests();
+        }
+    }
+
+    _releaseWorldclockConsumer() {
+        if (this._worldclockConsumerRegistered) {
+            this._worldclockConsumerRegistered = false;
+            WorldclockData.releaseWorldclockConsumer();
+        }
+    }
+
     // Every step runs even if an earlier one throws: a teardown that stops at the
     // first failure leaves the rest of the applet's signals and timers connected
     // to a destroyed object for the life of the session.
@@ -532,8 +563,8 @@ class AppletProviderLifecycle {
             () => this._releaseEventsManager(),
             () => this._releaseDesktopSettings(),
             () => this._releaseLogind(),
-            () => Weather.cancelPendingWeatherRequests(),
-            () => WorldclockData.releaseWorldclockConsumer()
+            () => this._releaseWeatherConsumer(),
+            () => this._releaseWorldclockConsumer()
         ];
 
         for (const step of steps) {

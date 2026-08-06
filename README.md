@@ -104,8 +104,10 @@ does not ship them. The suites run on Node's built-in test runner and Python's
    Re-run it after every update — a `.po` that changed upstream is a `.mo` that
    is stale here.
 
-3. Reload Cinnamon (press `Ctrl`+`Alt`+`Esc`, or log out and back in — on
-   Wayland only the latter works).
+3. Restart Cinnamon (press `Ctrl`+`Alt`+`Esc`, or log out and back in — on
+   Wayland only the latter works). After an in-place update, restart Cinnamon
+   fully; do not use the Applets manager's **Reload** action or `ReloadXlet`,
+   because they keep the previous root modules cached.
 4. Right-click a panel → **Applets** → **Manage**, select **Chronos Calendar**
    and click **+** to add it to the panel.
 

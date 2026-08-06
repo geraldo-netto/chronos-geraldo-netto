@@ -313,6 +313,34 @@ test("one failing teardown step does not strand the rest", () => {
     assert.equal(errors.length, 1, "and the failure is reported, not swallowed");
 });
 
+function consumerLifecycle(onUpgradeRequired) {
+    return new AppletModule.AppletProviderLifecycle({
+        actor: { connect: () => 1, disconnect: () => {} },
+        desktopSettings: { connectClockFormatChanged: () => [], disconnect: () => {} },
+        holidaySettings: {
+            country: "none", religiousIds: [],
+            connectCountryChanged: () => {}, bindRegions: () => {},
+            connectReligionsChanged: () => {}
+        },
+        eventsSettings: {},
+        onEventsManagerReady: () => {},
+        onHasCalendarsChanged: () => {},
+        onHolidayPlaceChanged: () => {},
+        onUpgradeRequired
+    }, {
+        clock: () => ({}),
+        networkState: () => ({ isOnline: () => true, destroy: () => {} }),
+        weatherRepository: () => ({ destroy: () => {} }),
+        weatherProvider: () => ({ destroy: () => {} }),
+        cityWeatherProvider: () => ({ destroy: () => {} }),
+        eventsManager: () => ({ connect: () => 1, disconnect: () => {}, destroy: () => {} }),
+        holidayProvider: () => ({
+            clearPlace: () => {}, setPlace: () => {}, destroy: () => {},
+            setEnabledIds: () => {}
+        })
+    });
+}
+
 // The Nominatim spacing timer is armed inside a module-global queue that every
 // applet on the panel shares, so no instance owns it and nothing used to
 // release it — the same hazard cancelPendingLocaleQueries() is a teardown step
@@ -337,30 +365,7 @@ test("the composition root registers and releases its weather consumer", () => {
     WorldclockData.releaseWorldclockConsumer = () => calls.push("release:clocks");
 
     try {
-        const lifecycle = new AppletModule.AppletProviderLifecycle({
-            actor: { connect: () => 1, disconnect: () => {} },
-            desktopSettings: { connectClockFormatChanged: () => [], disconnect: () => {} },
-            holidaySettings: {
-                country: "none", religiousIds: [],
-                connectCountryChanged: () => {}, bindRegions: () => {},
-                connectReligionsChanged: () => {}
-            },
-            eventsSettings: {},
-            onEventsManagerReady: () => {},
-            onHasCalendarsChanged: () => {},
-            onHolidayPlaceChanged: () => {}
-        }, {
-            clock: () => ({}),
-            networkState: () => ({ isOnline: () => true, destroy: () => {} }),
-            weatherRepository: () => ({ destroy: () => {} }),
-            weatherProvider: () => ({ destroy: () => {} }),
-            cityWeatherProvider: () => ({ destroy: () => {} }),
-            eventsManager: () => ({ connect: () => 1, disconnect: () => {}, destroy: () => {} }),
-            holidayProvider: () => ({
-                clearPlace: () => {}, setPlace: () => {}, destroy: () => {},
-                setEnabledIds: () => {}
-            })
-        });
+        const lifecycle = consumerLifecycle(() => {});
 
         lifecycle.initProviders();
         assert.deepEqual(calls, ["register", "register:clocks"],
@@ -376,6 +381,38 @@ test("the composition root registers and releases its weather consumer", () => {
         WorldclockData.registerWorldclockConsumer = originalClockRegister;
         WorldclockData.releaseWorldclockConsumer = originalClockRelease;
     }
+});
+
+test("stale root consumer APIs request a restart without breaking the applet", () => {
+    const modulesAndMethods = [
+        [rootModules.weather, "registerWeatherConsumer"],
+        [rootModules.weather, "cancelPendingWeatherRequests"],
+        [rootModules.worldclockData, "registerWorldclockConsumer"],
+        [rootModules.worldclockData, "releaseWorldclockConsumer"]
+    ];
+    const originals = modulesAndMethods.map(([module, method]) => module[method]);
+    const notices = [];
+    const errors = [];
+    const originalLogError = global.logError;
+    global.logError = (error) => errors.push(error);
+
+    try {
+        modulesAndMethods.forEach(([module, method], index) => {
+            module[method] = undefined;
+            const lifecycle = consumerLifecycle(() => notices.push(method));
+            assert.doesNotThrow(() => lifecycle.initProviders(), method);
+            assert.doesNotThrow(() => lifecycle.destroy(), method);
+            module[method] = originals[index];
+        });
+    } finally {
+        modulesAndMethods.forEach(([module, method], index) => {
+            module[method] = originals[index];
+        });
+        global.logError = originalLogError;
+    }
+
+    assert.deepEqual(notices, modulesAndMethods.map(([, method]) => method));
+    assert.deepEqual(errors, [], "missing cached APIs must not produce teardown TypeErrors");
 });
 
 // Three id→text tables live across the pure/UI boundary, and every lookup is
@@ -1424,6 +1461,9 @@ test("provider initialization wires hover and event manager signals", () => {
         }
     });
     Proto._initProviders.call(stub);
+    stub._providerLifecycle.context.onUpgradeRequired();
+    assert.match(stub._pendingProviderIssue, /Restart Cinnamon/,
+        "a stale module report is held until the footer exists");
     stub._providerLifecycle.context.onTimezoneChanged();
     // the lifecycle fires this when the country key holds the schema's empty
     // sentinel; only the applet knows the binder that owns the inference
@@ -1584,6 +1624,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
         calendar_settings: {},
         events_settings: {},
         holiday_provider: {},
+        _pendingProviderIssue: "Restart Cinnamon to finish the update",
         _initHolidayProvider: () => calls.push(["holiday-init"]),
         _updateClockAndDate: () => {}
     });
@@ -1625,6 +1666,8 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
     const footerActors = calls.filter(([name]) => name === "item-actor");
     assert.equal(footerActors.length, 1, "only the popup menu owns the footer label");
     assert.equal(footerActors[0][1], stub._issueReporter.label);
+    assert.equal(stub._issueReporter._issues.get("update"),
+        "Restart Cinnamon to finish the update");
 
     // both menus get their own settings item, and activating one launches the settings
     const settingsItems = menuItems

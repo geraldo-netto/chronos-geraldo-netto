@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 18:49+0200\n"
+"POT-Creation-Date: 2026-08-06 19:14+0200\n"
 "PO-Revision-Date: 2024-11-23 09:59-0300\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -269,6 +269,10 @@ msgstr "Hora local"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "El applet de calendario encontró un error. Consulte el registro del sistema."
+
+#: 6.0/applet.js:37
+msgid "Chronos was updated. Restart Cinnamon to finish the update."
+msgstr "Chronos se ha actualizado. Reinicie Cinnamon para completar la actualización."
 
 #: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"

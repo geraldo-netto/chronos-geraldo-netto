@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 18:49+0200\n"
+"POT-Creation-Date: 2026-08-06 19:14+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -266,6 +266,10 @@ msgstr "當地時間"
 #: 6.0/applet.js:35
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "行事曆小程式發生錯誤。請檢查系統日誌。"
+
+#: 6.0/applet.js:37
+msgid "Chronos was updated. Restart Cinnamon to finish the update."
+msgstr "Chronos 已更新。請重新啟動 Cinnamon 以完成更新。"
 
 #: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"

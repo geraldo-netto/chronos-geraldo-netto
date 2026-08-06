@@ -648,6 +648,14 @@ test("the documented install removes files dropped upstream", () => {
         "the destructive-looking exclusion cleanup must explain its purpose");
 });
 
+test("the documented update requires a full Cinnamon restart", () => {
+    const readme = fs.readFileSync(readmePath, "utf8");
+
+    assert.match(readme, /After an in-place update[^.]*restart Cinnamon/i);
+    assert.match(readme, /do not use[^.]*Reload/i,
+        "an xlet reload preserves the stale importer modules");
+});
+
 // REGRESSION: dateFormats wraps the two calendar formats in _() precisely so a
 // translator can reorder them — and not one of the fifteen catalogs translated
 // either, so gettext returned the msgid and every locale rendered the US
