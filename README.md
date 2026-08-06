@@ -163,6 +163,19 @@ the command and commit message. Packaging comes after the commit because the
 submission is built from Git-index bytes; this guarantees the staged artifact
 contains the version that just passed the gates instead of pre-bump metadata.
 
+**A new export on an already-shipped root module can break the update itself.**
+Cinnamon reloads an applet after a Spices update, and that reload does not clear
+the GJS importer's cached `imports.ui.appletManager.applets[uuid]` subtree. The
+`6.0/` tree is re-read; everything one directory up is not. So a release whose
+`6.0/` code calls something that exists only in the *new* copy of a root module
+runs against the old one and throws — the applet lands broken on an ordinary
+update, and stays broken until the user restarts Cinnamon, which nothing in the
+update prompts them to do. Within a release, prefer additive changes that keep
+new cross-module APIs out of already-shipped root modules: put the new code in
+the `6.0/` tree, which is re-read on reload. When a root-module export genuinely
+has to change, treat it as needing a Cinnamon restart and say so in the release
+notes.
+
 After that commit is pushed to `develop` and its branch CI is green, create and
 push an annotated matching tag:
 
@@ -311,7 +324,14 @@ Two things about that split will bite you:
 - **Changing a root module needs a full Cinnamon restart.** GJS caches importer
   modules for the life of the process, so reloading the applet (`Alt`+`F2` → `r`,
   or the Applets manager's reload) re-runs the `6.0/` tree against the *old* copy
-  of everything above it.
+  of everything above it. Verified on Cinnamon 6.6.9: after a reload that had
+  added `NetworkState` to `ioUtils.js`, a freshly re-read
+  `6.0/appletLifecycle.js` ran against the cached `ioUtils` and threw
+  `IoUtils.NetworkState is not a constructor` until `global.reexec_self()`. The
+  `6.0/` shims resolve through that same cached
+  `imports.ui.appletManager.applets[uuid]` subtree, so they are not a way around
+  it. This is a release constraint as much as a development one — see
+  [Releasing](#releasing).
 
 `po/` stays outside `6.0/` because a translation domain belongs to the applet,
 not to a Cinnamon version: `cinnamon-xlet-makepot` extracts from the whole tree,
