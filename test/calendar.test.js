@@ -816,13 +816,19 @@ test("the grid is navigable from the keyboard and announces its days", () => {
     const press = (symbol) => cal.actor.fire("key-press-event", { get_key_symbol: () => symbol });
     const Clutter = global.imports.gi.Clutter;
 
-    press(Clutter.KEY_Right);
+    // the arrows coalesce on the same window as Page Up/Down below
+    const arrow = (symbol) => {
+        press(symbol);
+        cal._navigation.flushQueuedDate();
+    };
+
+    arrow(Clutter.KEY_Right);
     assert.equal(cal.getSelectedDate().getDate(), 10, "right moves one day");
-    press(Clutter.KEY_Down);
+    arrow(Clutter.KEY_Down);
     assert.equal(cal.getSelectedDate().getDate(), 17, "down moves one week");
-    press(Clutter.KEY_Left);
+    arrow(Clutter.KEY_Left);
     assert.equal(cal.getSelectedDate().getDate(), 16);
-    press(Clutter.KEY_Up);
+    arrow(Clutter.KEY_Up);
     assert.equal(cal.getSelectedDate().getDate(), 9);
 
     press(Clutter.KEY_Page_Down);
@@ -889,6 +895,7 @@ test("holidays-only navigation stays live for every event-unavailable state", ()
         assert.equal(cal._onKeyPress(null, {
             get_key_symbol: () => Clutter.KEY_Right
         }), Clutter.EVENT_STOP, `${state.name}: keyboard navigation remains live`);
+        cal._navigation.flushQueuedDate();
         assert.equal(cal.getSelectedDate().getDate(), 11);
 
         cal._onScroll(null, {
@@ -914,6 +921,64 @@ test("holidays-only navigation stays live for every event-unavailable state", ()
 // the handler sits on the table, which is the ancestor of the month and year
 // buttons too: taking the arrows unconditionally meant Left and Right moved the
 // date while the user was trying to move between those buttons
+// Held down, an arrow is about thirty key events a second, and each one used to
+// run a grid update plus an emitSelected that reaches the applet, reselects the
+// day on the events manager and re-feeds the event column. Page Up/Down and the
+// scroll wheel have coalesced on a 25 ms window all along; the arrows were the
+// one browse path that did not.
+test("a held arrow key resolves to one selection, not one per repeat", () => {
+    const cal = makeCalendar();
+    cal.setDate(new Date(2026, 6, 9), true);
+    const Clutter = global.imports.gi.Clutter;
+    const day = dayButtons(cal).find((button) => button.label === "9");
+    global.stage = { get_key_focus: () => day };
+
+    // a grid render plus the applet-facing selection notice, which is what
+    // reselects the day and re-feeds the event column
+    let renders = 0;
+    const realUpdate = cal._update.bind(cal);
+    cal._update = () => {
+        renders++;
+        return realUpdate();
+    };
+
+    try {
+        // one autorepeat burst: five key events inside the coalescing window
+        for (let repeat = 0; repeat < 5; repeat++) {
+            cal.actor.fire("key-press-event", { get_key_symbol: () => Clutter.KEY_Right });
+        }
+        assert.equal(renders, 0, "nothing is drawn while the key is still down");
+
+        cal._navigation.flushQueuedDate();
+
+        assert.equal(renders, 1, "one render for the whole burst, not one per repeat");
+        assert.equal(cal.getSelectedDate().getDate(), 14,
+            "the repeats compose rather than overwrite each other");
+    } finally {
+        global.stage = undefined;
+    }
+});
+
+test("an arrow key moves the focus with the selection it coalesced", () => {
+    const cal = makeCalendar();
+    cal.setDate(new Date(2026, 6, 9), true);
+    const Clutter = global.imports.gi.Clutter;
+    const day = dayButtons(cal).find((button) => button.label === "9");
+    global.stage = { get_key_focus: () => day };
+
+    try {
+        cal.actor.fire("key-press-event", { get_key_symbol: () => Clutter.KEY_Right });
+        cal._navigation.flushQueuedDate();
+
+        const focused = MockActor.focused;
+        assert.ok(focused, "the grid still owns the key focus");
+        assert.equal(focused.label, "10",
+            "and it is on the day the arrow moved to, not the one it left");
+    } finally {
+        global.stage = undefined;
+    }
+});
+
 test("the arrow keys are the grid's, not the navigation buttons'", () => {
     const cal = makeCalendar();
     cal.setDate(new Date(2026, 6, 9), true);
@@ -925,6 +990,7 @@ test("the arrow keys are the grid's, not the navigation buttons'", () => {
     assert.equal(navButton.accessible_name, "Previous month");
     global.stage = { get_key_focus: () => navButton };
     press(Clutter.KEY_Right);
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getDate(), 9,
         "the arrow belongs to the focused button; the date does not move");
 
@@ -932,6 +998,7 @@ test("the arrow keys are the grid's, not the navigation buttons'", () => {
     const day = dayButtons(cal).find((button) => button.label === "9");
     global.stage = { get_key_focus: () => day };
     press(Clutter.KEY_Right);
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getDate(), 10, "and now the arrow walks the grid");
 
     global.stage = undefined;
@@ -2525,16 +2592,19 @@ test("the arrow keys follow the grid, not the calendar, in an RTL locale", () =>
 
     focusFirstCell();
     cal.actor.fire("key-press-event", { get_key_symbol: () => 65361 }); // Left
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getDate(), 10,
         "in a mirrored grid, Left is the next day");
 
     focusFirstCell();
     cal.actor.fire("key-press-event", { get_key_symbol: () => 65363 }); // Right
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getDate(), 9, "and Right is the previous one");
 
     // up and down are not mirrored: a week is a week
     focusFirstCell();
     cal.actor.fire("key-press-event", { get_key_symbol: () => 65364 }); // Down
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getDate(), 16);
 
     // ...and an LTR grid is unchanged
@@ -2542,6 +2612,7 @@ test("the arrow keys follow the grid, not the calendar, in an RTL locale", () =>
     cal.setDate(new Date(2026, 6, 9), true);
     focusFirstCell();
     cal.actor.fire("key-press-event", { get_key_symbol: () => 65361 });
+    cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().getDate(), 8);
 
     global.stage = undefined;

@@ -163,15 +163,29 @@ class CalendarNavigationController {
         return this._handleGridCommand(symbol);
     }
 
+    // Held down, this is about thirty selections a second at the usual
+    // autorepeat rate, and each one used to run the whole cost of a deliberate
+    // pick: a grid update, plus an emitSelected that reaches the applet's
+    // _updateClockAndDate(true), reselects the day on the events manager and
+    // re-feeds the event column. Every intermediate day was drawn and thrown
+    // away.
+    //
+    // It coalesces on the same 25 ms window as Page Up/Down and the scroll
+    // wheel, and composes from the queued date the way applyBrowse does, so a
+    // run of repeats resolves to one move. That window is a frame and a half —
+    // the two paths that have always used it are the evidence it does not read
+    // as lag — and it buys the arrows the one thing they lacked: a held key
+    // costs one repaint instead of one per key event.
     _moveSelectionByDays(symbol, days) {
         if (!this.dayCellHasFocus()) {
             return Clutter.EVENT_PROPAGATE;
         }
         const delta = this.rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
-        const target = new Date(this.selectedDate.getTime()); // NOSONAR [S7719] -- accepted compatible form
+        const target = new Date((this.queuedDate || this.selectedDate).getTime()); // NOSONAR [S7719] -- accepted compatible form
         target.setDate(target.getDate() + delta);
-        this.setDate(target, false);
-        this.focusSelectedDay();
+        // the focus follows the selection, and flushQueuedDate is what moves it
+        this.focusAfterSetDate = true;
+        this.port.queueDate(target);
         return Clutter.EVENT_STOP;
     }
 
