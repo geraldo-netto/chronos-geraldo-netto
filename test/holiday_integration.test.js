@@ -757,9 +757,27 @@ test("the holiday language resolver is consulted after construction", () => {
     assert.equal(shipped._base._provider.record.language, "en",
         "and resolving it consults the session's current message language");
 
-    // a contract built bare falls back to its own module's live resolver
+    // A bare domain record has no process-global infrastructure of its own;
+    // English is its inert fallback. The live resolver belongs to the graph
+    // above, where the applet can own and release it.
     const { HolidayRecordContract: BareContract } = require(holidayRecordPath);
-    assert.equal(new BareContract().language, "en");
+    const bare = new BareContract();
+    assert.equal(bare.language, "en");
+    assert.equal(bare._lang, "en");
+});
+
+test("holiday leaf modules do not own the process locale query", () => {
+    for (const file of [holidayRecordPath, holidayServiceAdaptersPath]) {
+        const source = fs.readFileSync(file, "utf8");
+        assert.doesNotMatch(source, /localeQuery|LocaleQuery/,
+            `${file} must receive language from the composition root`);
+    }
+
+    const { HolidayRecordContract } = require(holidayRecordPath);
+    const { OpenHolidaysServiceAdapter } = require(holidayServiceAdaptersPath);
+    assert.equal(new HolidayRecordContract().language, "en");
+    assert.equal(new OpenHolidaysServiceAdapter(() => {})
+        .params("fra", "global", 2026).languageIsoCode, "EN");
 });
 
 // T791: this used to set process.env and read it back, which is a path
@@ -777,8 +795,13 @@ test("holiday names and requests follow LC_MESSAGES, not LC_ADDRESS", () => {
         const provider = createHolidayProvider({ cache: makeMemoryCache(), load: () => {} });
         assert.equal(provider._base._provider.record.language, "fr");
 
-        const adapter = new OpenHolidaysServiceAdapter(() => {});
-        assert.equal(adapter.params("fra", "global", 2026).languageIsoCode, "FR");
+        const adapter = provider._base._provider.service.fallbacks
+            .find((fallback) => fallback instanceof OpenHolidaysServiceAdapter);
+        assert.equal(adapter.params("fra", "global", 2026).languageIsoCode, "FR",
+            "the composition root injects the live message-language resolver");
+        assert.equal(new OpenHolidaysServiceAdapter(() => {})
+            .params("fra", "global", 2026).languageIsoCode, "EN",
+        "a bare adapter stays deterministic and locale-inert");
 
         // the shipped record, not a fresh one: this is the contract the chain
         // actually validates and localizes through

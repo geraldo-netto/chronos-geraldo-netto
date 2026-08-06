@@ -15,15 +15,11 @@ const IS_NODE = typeof process !== "undefined" &&
 const DateMath = IS_NODE ?
     require("./dateMath") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateMath;
-const LocaleQuery = IS_NODE ?
-    require("./localeQuery") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
 
 const MSECS_IN_DAY = DateMath.MSECS_IN_DAY;
-const _lcLang = LocaleQuery.messageLanguage;
 const RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG;
 
 var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export
@@ -84,12 +80,13 @@ function nonBlankText(value) {
 }
 
 var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- GJS importer export
-    constructor(lang = _lcLang) {
+    constructor(lang = "en") {
         this._lang = lang;
     }
 
     // An injected language may be a live resolver, so consult it at each use.
-    // The shipped resolver reads the message locale, not regional formatting.
+    // The composition root injects the shipped message-locale resolver; a bare
+    // domain record remains deterministic and infrastructure-free in English.
     get language() {
         return typeof this._lang === "function" ? this._lang() : this._lang;
     }

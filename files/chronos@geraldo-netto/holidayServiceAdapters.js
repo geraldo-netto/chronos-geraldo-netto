@@ -38,9 +38,6 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // files directly. Cinnamon's cjs has no `process`.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
-const LocaleQuery = IS_NODE ?
-    require("./localeQuery") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 const HolidayAdapters = IS_NODE ?
     require("./holidayAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayAdapters;
@@ -51,7 +48,6 @@ const HolidayRecord = IS_NODE ?
     require("./holidayRecord") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
 
-const _lcLang = LocaleQuery.messageLanguage;
 const validDateParts = HolidayRecord.validDateParts;
 const nonBlankText = HolidayRecord.nonBlankText;
 const HolidayRecordContract = HolidayRecord.HolidayRecordContract;
@@ -348,14 +344,15 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
 };
 
 var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHolidayServiceAdapter { // NOSONAR [S3504] -- GJS importer export
-    constructor(loadJsonAsync = unavailableLoadJsonAsync, lang = _lcLang) {
+    constructor(loadJsonAsync = unavailableLoadJsonAsync, lang = "en") {
         super(loadJsonAsync);
         this._lang = lang;
         this.name = HOLIDAY_PROVIDER_NAMES.OPEN_HOLIDAYS;
     }
 
     // A resolver is consulted per fetch. The shipped resolver follows the
-    // message locale independently of LC_ADDRESS regional formatting.
+    // message locale independently of LC_ADDRESS regional formatting, and the
+    // composition root injects it; a bare adapter stays inert in English.
     _langCode() {
         const lang = typeof this._lang === "function" ? this._lang() : this._lang;
         return String(lang || "en").slice(0, 2).toUpperCase();
