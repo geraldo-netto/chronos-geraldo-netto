@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-08-06 02:40+0200\n"
+"POT-Creation-Date: 2026-08-06 04:13+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -27,7 +27,7 @@ msgid "%A, %B %-e, %Y"
 msgstr ""
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:347
+#: 5.4/calendar.js:348
 msgid "Today"
 msgstr ""
 
@@ -346,29 +346,29 @@ msgstr ""
 msgid "Times shown in this computer's time zone"
 msgstr ""
 
-#: 5.4/astronomyView.js:143
+#: 5.4/astronomyView.js:161
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr ""
 
-#: 5.4/astronomyView.js:144
+#: 5.4/astronomyView.js:162
 msgid "Sun is above the horizon all day"
 msgstr ""
 
-#: 5.4/astronomyView.js:145
+#: 5.4/astronomyView.js:163
 msgid "Sun is below the horizon all day"
 msgstr ""
 
-#: 5.4/astronomyView.js:147
+#: 5.4/astronomyView.js:165
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr ""
 
-#: 5.4/astronomyView.js:148
+#: 5.4/astronomyView.js:166
 msgid "Moon is above the horizon all day"
 msgstr ""
 
-#: 5.4/astronomyView.js:149
+#: 5.4/astronomyView.js:167
 msgid "Moon is below the horizon all day"
 msgstr ""
 
@@ -376,59 +376,59 @@ msgstr ""
 msgid "Some calendar events were hidden to keep the desktop responsive."
 msgstr ""
 
-#: 5.4/calendar.js:350
+#: 5.4/calendar.js:351
 msgid "Selected"
 msgstr ""
 
-#: 5.4/calendar.js:354
+#: 5.4/calendar.js:355
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] ""
 msgstr[1] ""
 
-#: 5.4/calendar.js:572
+#: 5.4/calendar.js:573
 #, javascript-format
 msgid "Week %s"
 msgstr ""
 
-#: 5.4/calendar.js:942
+#: 5.4/calendar.js:952
 msgid "Previous month"
 msgstr ""
 
-#: 5.4/calendar.js:972
+#: 5.4/calendar.js:982
 msgid "Next month"
 msgstr ""
 
-#: 5.4/calendar.js:976
+#: 5.4/calendar.js:986
 msgid "Previous year"
 msgstr ""
 
-#: 5.4/calendar.js:987
+#: 5.4/calendar.js:997
 msgid "Next year"
 msgstr ""
 
-#: 5.4/calendar.js:1000
+#: 5.4/calendar.js:1010
 msgid "Week"
 msgstr ""
 
-#: 5.4/calendarAnnotations.js:61
+#: 5.4/calendarAnnotations.js:102
 msgid "Holiday service unavailable"
 msgstr ""
 
-#: 5.4/calendarAnnotations.js:62
+#: 5.4/calendarAnnotations.js:103
 msgid "Holiday data unavailable"
 msgstr ""
 
-#: 5.4/calendarAnnotations.js:64
+#: 5.4/calendarAnnotations.js:105
 msgid "Religious dates unavailable for this year"
 msgstr ""
 
-#: 5.4/calendarAnnotations.js:233
+#: 5.4/calendarAnnotations.js:273
 msgid "Holiday data: loading…"
 msgstr ""
 
-#: 5.4/calendarAnnotations.js:274
+#: 5.4/calendarAnnotations.js:314
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr ""
@@ -485,32 +485,32 @@ msgid_plural "In %d hours"
 msgstr[0] ""
 msgstr[1] ""
 
-#: 5.4/eventView.js:218
+#: 5.4/eventView.js:221
 msgid "Loading…"
 msgstr ""
 
-#: 5.4/eventView.js:222 5.4/eventView.js:232 5.4/eventView.js:377
-#: 5.4/eventView.js:773
+#: 5.4/eventView.js:225 5.4/eventView.js:235 5.4/eventView.js:380
+#: 5.4/eventView.js:783
 msgid "No Events"
 msgstr ""
 
-#: 5.4/eventView.js:400 5.4/eventView.js:419 5.4/eventView.js:430
+#: 5.4/eventView.js:403 5.4/eventView.js:422 5.4/eventView.js:433
 msgid "Open the calendar app"
 msgstr ""
 
-#: 5.4/eventView.js:540
+#: 5.4/eventView.js:543
 msgid "Events for the selected day"
 msgstr ""
 
-#: 5.4/eventView.js:593
+#: 5.4/eventView.js:596
 msgid "Add an event"
 msgstr ""
 
-#: 5.4/eventView.js:875
+#: 5.4/eventView.js:925
 msgid "Ended"
 msgstr ""
 
-#: 5.4/eventView.js:906
+#: 5.4/eventView.js:962
 msgid "In progress"
 msgstr ""
 
