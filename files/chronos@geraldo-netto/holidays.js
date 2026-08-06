@@ -61,7 +61,7 @@ var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS; // NOSONAR [S3504] -- G
 
 function logHolidayDataError(provider, year, reason) {
     if (global.logError) {
-        global.logError(`holiday provider ${provider || "unknown"} returned invalid data for ${year || "unknown year"}: ${reason}`);
+        global.logError(`holiday provider ${provider || "unknown"} could not supply ${year || "unknown year"}: ${reason}`);
     }
 }
 
@@ -407,8 +407,16 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             this.record.validResponse(data, params.year);
     }
 
+    // An adapter can name one of the app's own failure states rather than
+    // return a payload — IsoHolidayServiceAdapter answers SERVICE_UNAVAILABLE
+    // for a country it does not cover. Funnelling every data.error through
+    // INVALID_RESPONSE told the user "Holiday data unavailable", a payload
+    // problem, for what is a reachability problem: switch from a covered
+    // country to one absent from OPEN_HOLIDAYS_COUNTRIES and the ordering in
+    // holidayAdapters puts that synthetic error first.
     _rejectHolidayData(params, reported) {
-        this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
+        this.last_error = HolidayConstants.isHolidayErrorCode(reported) ?
+            reported : HOLIDAY_ERRORS.INVALID_RESPONSE;
         logHolidayDataError(
             this.last_provider,
             params && params.year, // NOSONAR [S6582] -- accepted compatible form

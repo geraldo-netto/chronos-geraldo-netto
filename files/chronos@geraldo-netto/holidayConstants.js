@@ -17,6 +17,15 @@ var HOLIDAY_ERRORS = { // NOSONAR [S3504] -- GJS importer export
     // rendering an empty year looked exactly like a month with no observances.
     RELIGIOUS_DATES_UNAVAILABLE: "Religious dates unavailable for this year"
 };
+const HOLIDAY_ERROR_CODES = new Set(Object.values(HOLIDAY_ERRORS));
+
+// An adapter may answer with one of these instead of a payload. They are the
+// app's own vocabulary, translated at the label; a vendor's diagnostic string
+// is not, and is collapsed onto INVALID_RESPONSE by the service.
+function isHolidayErrorCode(value) {
+    return HOLIDAY_ERROR_CODES.has(value);
+}
+
 var HOLIDAY_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
     ENRICO: "Enrico",
     OPEN_HOLIDAYS: "OpenHolidays",
@@ -436,6 +445,6 @@ var REGION_COUNTRIES = Object.keys(REGION_TO_SUBDIVISION); // NOSONAR [S3504] --
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG,
+    module.exports = { HOLIDAY_ERRORS, isHolidayErrorCode, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG,
         monthHolidayEntry, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION, REGION_COUNTRIES, COUNTRY_TO_LANGUAGE };
 }

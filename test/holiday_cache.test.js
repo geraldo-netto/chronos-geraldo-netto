@@ -1375,9 +1375,44 @@ test("HolidayService retrieveForYear builds params and addData ignores provider 
     assert.equal(enrico.cache.data.length, before);
     // the operator gets the provider's own words; the user does not
     assert.deepEqual(logged, [
-        "holiday provider Enrico returned invalid data for 2026: bad"
+        "holiday provider Enrico could not supply 2026: bad"
     ]);
     assert.equal(enrico.last_error, "Holiday data unavailable");
+});
+
+// T799: IsoHolidayServiceAdapter signals "I cannot serve this country" with an
+// explicit HOLIDAY_ERRORS member, and _rejectHolidayData funnelled every
+// data.error through one branch that hard-coded INVALID_RESPONSE. Reachable
+// because _last_provider ordering is never reset by setPlace: succeed on a
+// covered country, switch to one absent from OPEN_HOLIDAYS_COUNTRIES, and
+// OpenHolidays runs first and its synthetic error becomes the first failure. The
+// month label then read "Holiday data unavailable" - a payload problem - for
+// what is a reachability problem.
+test("an adapter's own failure state survives to the label", () => {
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const service = new HolidayService(
+        { fetchYear() {}, validResponse: () => true, expandHoliday: () => [] },
+        new HolidayCache(() => {}, () => {}));
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+
+    service.addData({ error: HOLIDAY_ERRORS.SERVICE_UNAVAILABLE },
+        { year: 2026, providerName: "OpenHolidays" }, STAMP);
+    assert.equal(service.last_error, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE);
+    assert.equal(logged.at(-1),
+        "holiday provider OpenHolidays could not supply 2026: " +
+        HOLIDAY_ERRORS.SERVICE_UNAVAILABLE,
+        "and the log no longer calls a reachability failure invalid data");
+
+    // a vendor's own sentence is not the app's vocabulary and still collapses
+    service.addData({ error: "Bad Gateway" },
+        { year: 2026, providerName: "OpenHolidays" }, STAMP);
+    assert.equal(service.last_error, HOLIDAY_ERRORS.INVALID_RESPONSE);
+
+    // ...and so does a payload that fails the schema, which names no error
+    service.record.validResponse = () => false;
+    service.addData([], { year: 2026, providerName: "OpenHolidays" }, STAMP);
+    assert.equal(service.last_error, HOLIDAY_ERRORS.INVALID_RESPONSE);
 });
 
 // The provider's own error string reaches a Pango tooltip, an accessible name
@@ -1440,7 +1475,7 @@ test("HolidayService validates remote payloads before caching", () => {
     assert.equal(enrico.last_error, HOLIDAY_ERRORS.INVALID_RESPONSE);
     assert.equal(logged.length, 5);
     assert.ok(logged.every((line) => line ===
-        `holiday provider Schema Test returned invalid data for 2026: ${HOLIDAY_ERRORS.INVALID_RESPONSE}`));
+        `holiday provider Schema Test could not supply 2026: ${HOLIDAY_ERRORS.INVALID_RESPONSE}`));
 
     enrico.addData([holiday("Valid", 2026, 1, 1)], { year: 2026, region: "global" }, STAMP);
     assert.equal(enrico.cache.data.length, 1);
@@ -1486,7 +1521,9 @@ test("a failure under one country is not reported under the next", () => {
         validResponse: () => !fail,
         expandHoliday: (holiday) => [holiday],
         fetchYear(_country, _region, requested, callback) {
-            callback(fail ? { error: "Holiday service unavailable" } :
+            // a vendor sentence, deliberately not one of the app's own error
+            // constants: those now survive to the label (T799)
+            callback(fail ? { error: "502 Bad Gateway" } :
                 [{ year: requested, month: 7, day: 14, region: "global", name: "F\u00eate", flags: [] }],
             { year: requested, region: "global", providerName: "Enrico" }, STAMP);
         }
@@ -1519,7 +1556,7 @@ test("a failed fetch outside the persist window still reports its error", () => 
     const service = {
         validResponse: () => false,
         fetchYear(_country, _region, requested, callback) {
-            callback({ error: "Holiday service unavailable" },
+            callback({ error: "502 Bad Gateway" },
                 { year: requested, region: "global", providerName: "Enrico" }, null);
         }
     };
