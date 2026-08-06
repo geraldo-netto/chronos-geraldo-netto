@@ -853,6 +853,34 @@ test("the month-match memo is bounded, and scrolling back is still free", () => 
         "an evicted month is recomputed, not lost");
 });
 
+// The memo is bounded by Map iteration order, so whether a read reorders is
+// what decides which month it drops — and "scrolling back is free" is the
+// thing it exists for. Evicting by insertion drops the month being returned to.
+test("the month-match memo keeps the months being read, not the first seen", () => {
+    const { HolidayCache } = loadHolidays();
+    const { MAX_MEMOIZED_MONTHS } = require(holidayCachePath);
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    cache.setPlace("usa");
+    cache.addUnique({
+        year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: []
+    });
+
+    const january = cache.matchMonth(2026, 1);
+
+    // fill the memo to its cap with months passed through once
+    for (let month = 1; month < MAX_MEMOIZED_MONTHS; month++) {
+        cache.matchMonth(2020 + Math.floor(month / 12), (month % 12) + 1);
+        // ...and keep coming back to January, the month actually on screen
+        assert.equal(cache.matchMonth(2026, 1), january);
+    }
+    assert.equal(cache._matchedMonthCache.size, MAX_MEMOIZED_MONTHS);
+
+    // one more scrolled-past month has to displace something
+    cache.matchMonth(2019, 6);
+    assert.equal(cache.matchMonth(2026, 1), january,
+        "the month being read is not the one thrown away");
+});
+
 test("a holiday name cannot grow without bound", () => {
     const { HolidayCache } = loadHolidays();
     const { clampHolidayName, MAX_HOLIDAY_NAME_LENGTH } = require(holidayCachePath);

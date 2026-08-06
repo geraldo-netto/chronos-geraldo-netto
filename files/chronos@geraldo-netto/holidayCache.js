@@ -855,6 +855,13 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         const monthKey = this._monthKey(year, month, region);
         const cached = this._matchedMonthCache.get(monthKey);
         if (cached) {
+            // _rememberMonth evicts by Map iteration order, and this memo
+            // exists to make scrolling back cheap — so a month that is being
+            // read has to become the newest, or the eviction drops the months
+            // the user keeps returning to and keeps the ones passed through
+            // once on the way there.
+            this._matchedMonthCache.delete(monthKey);
+            this._matchedMonthCache.set(monthKey, cached);
             return cached;
         }
 

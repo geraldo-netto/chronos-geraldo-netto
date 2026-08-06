@@ -337,6 +337,44 @@ test("the geocode cache is bounded and re-resolves an edited location", () => {
     assert.equal(geocodes, before + 1, "forget() forces a re-resolve");
 });
 
+// The bound evicts by Map iteration order, so whether a hit reorders decides
+// which entry the bound throws away: without it the eviction drops the place
+// asked for most often and keeps a name typed once on the way past.
+test("the geocode cache evicts the least recently used place, not the first", () => {
+    const Weather = loadWeather();
+    let geocodes = 0;
+    const resolver = new Weather.WeatherLocationResolver({
+        nominatimQueue: immediateNominatimQueue(),
+        maxCacheEntries: 3,
+        httpGetJson(url, callback) {
+            geocodes++;
+            callback({ results: [{ latitude: 1, longitude: 2, population: 1000 }] });
+        }
+    });
+    const resolve = (location) => resolver.resolve(location, () => true, () => {});
+
+    for (const city of ["rome", "oslo", "paris"]) {
+        resolve(city);
+    }
+
+    // Rome is the panel's location: it is read every refresh, so it is the
+    // last thing that should go
+    assert.ok(resolver.placeFor("rome"), "and reading it is a use");
+
+    resolve("lisbon");
+    assert.ok(resolver.placeFor("rome"), "the place in use survives the bound");
+    assert.equal(resolver.placeFor("oslo"), null,
+        "the one nothing has touched since is the one evicted");
+
+    // resolve() serves from the cache too, and that is a use as well
+    const before = geocodes;
+    resolve("paris");
+    assert.equal(geocodes, before, "served from the cache");
+    resolve("madrid");
+    assert.ok(resolver.placeFor("paris"), "a cache-served resolve counts as a use");
+    assert.equal(resolver.placeFor("lisbon"), null);
+});
+
 test("the panel provider exposes the coordinates resolved for its weather location", () => {
     const Weather = loadWeather();
     const provider = new Weather.WeatherProvider({

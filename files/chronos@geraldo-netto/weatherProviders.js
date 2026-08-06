@@ -217,6 +217,12 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
             return null;
         }
 
+        // Map iteration order is what _remember evicts by, and a hit is a use:
+        // without this the bound drops the place the user asks for most and
+        // keeps the typo they made once. The sibling reading cache reorders on
+        // its own hits for exactly this reason.
+        this._geocode_cache.delete(cacheKey);
+        this._geocode_cache.set(cacheKey, entry);
         return entry.place;
     }
 
