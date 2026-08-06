@@ -264,21 +264,34 @@ def normalize_clock_setting(info, key, settings):
     return prepared
 
 
+# What a saved clock row is, in the order Cinnamon stores it.
+#
+# TreeListWidgets.list_changed keys the persisted JSON by *position* in the
+# schema's `columns` array, so every hop in and out of a row is positional. The
+# order was written out by hand in three places - twice here and once as
+# schema_columns[0]/[1] in the dialog builder - with nothing enforcing it, so
+# swapping the two entries in settings-schema.json would write
+# {"label": "<IANA id>", "timezone": "<display name>"}, and the applet would
+# drop every clock (worldclockData rejects a timezone GLib does not know) with
+# no error anywhere. schema_static pins the schema against this order.
+CLOCK_COLUMN_IDS = ("label", "timezone")
+
+
 class ClockEntrySerializer:
     def initial_dialog_data(
         self,
         info: Optional[list[str]],
     ) -> tuple[dict[str, Optional[str]], str]:
         if info is None:
-            return { "label": None, "timezone": None }, _("Add new entry")
+            return {column: None for column in CLOCK_COLUMN_IDS}, _("Add new entry")
 
-        return {
-            "label": normalize_clock_label(info[0]),
-            "timezone": info[1]
-        }, _("Edit entry")
+        data = dict(zip(CLOCK_COLUMN_IDS, info))
+        data["label"] = normalize_clock_label(data.get("label"))
+        return data, _("Edit entry")
 
     def serialize(self, label: str, timezone: str) -> list[str]:
-        return [normalize_clock_label(label), timezone]
+        values = {"label": normalize_clock_label(label), "timezone": timezone}
+        return [values[column] for column in CLOCK_COLUMN_IDS]
 
 # The dialog is modal and sized to its content, so a label that will not wrap is
 # a label that decides how wide the window is.
@@ -399,22 +412,27 @@ class ClockDialogBuilder:
         frame.add(content)
 
         # both columns come from the schema, which is where the list's column
-        # headings already live; the dialog adds what only it needs
+        # headings already live; the dialog adds what only it needs.
+        #
+        # By id, not by position: this used to decorate schema_columns[0] and
+        # [1], so reordering the schema would have put the timezone
+        # completions and the city placeholder on the Display name field.
         schema_columns = self.clocks_list.settings.get_property(
             self.clocks_list.key, 'columns')
-        label_column = dict(schema_columns[0])
-        label_column["max_length"] = MAX_CLOCK_INPUT_LABEL_LENGTH
-        timezone_column = dict(schema_columns[1])
-        timezone_column["completions"] = self.clocks_list.completions
-        timezone_column["placeholder"] = TIMEZONE_TEXT_HINT
+        by_id = {column["id"]: dict(column) for column in schema_columns}
+        by_id["label"]["max_length"] = MAX_CLOCK_INPUT_LABEL_LENGTH
+        by_id["timezone"]["completions"] = self.clocks_list.completions
+        by_id["timezone"]["placeholder"] = TIMEZONE_TEXT_HINT
         # the label column has always been bounded and this one was not, so
         # ListEditEntry's `if max_length` guard skipped set_max_length and the
         # entry accepted arbitrary text — which the match func then scanned once
         # per row of the several-hundred-row completion model, per keystroke,
         # on the GTK main thread
-        timezone_column["max_length"] = common.MAX_COMPLETION_INPUT_LENGTH
+        by_id["timezone"]["max_length"] = common.MAX_COMPLETION_INPUT_LENGTH
 
-        columns = [label_column, timezone_column]
+        # ...but the schema's order still decides which entry is on top, so the
+        # dialog reads in the same order as the list's own headings
+        columns = [by_id[column["id"]] for column in schema_columns]
 
         widgets = {}
         preview_label = Gtk.Label()
