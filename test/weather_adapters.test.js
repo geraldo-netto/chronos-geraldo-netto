@@ -785,24 +785,30 @@ test("regression: the resolvers and the refresh period are var bindings", () => 
 // provider chains each live in their own module. weather.js requires all three
 // and adds WeatherProvider + WeatherDisplayState on top. This pins that shape so
 // a future edit cannot quietly inline a part back or drop one of the requires.
-test("weather.js composes display, adapters, scheduling and resolvers", () => {
+test("weather.js composes the panel provider from the parts it needs", () => {
     const source = fs.readFileSync(modulePath, "utf8");
-    for (const dep of ["weatherFormat", "weatherServiceAdapters",
-        "weatherScheduler", "weatherProviders"]) {
+    // the two it builds WeatherProvider out of. It used to require all four and
+    // spread them into module.exports, which is a Node-only export surface:
+    // around forty names that are functions under `node test/` and undefined on
+    // the panel, where GJS exposes a module's own var bindings and no more.
+    for (const dep of ["weatherFormat", "weatherScheduler", "weatherProviders"]) {
         assert.match(source, new RegExp('require\\("\\./' + dep + '"\\)'),
             "weather.js must require " + dep);
     }
 
+    const module = require(modulePath);
+    assert.deepEqual(Object.keys(module).sort(), [
+        "WeatherDisplayState", "WeatherProvider", "WeatherReadingRepository",
+        "cancelPendingWeatherRequests", "registerWeatherConsumer"
+    ], "and it exports its own bindings, which is what GJS can see");
+
+    // the harness composes the parts when a test wants one handle for them
     const Weather = loadWeather();
-    // a symbol that originates in each part reaches consumers through the barrel
-    assert.equal(typeof Weather.staleAfterSeconds, "function", "carried on from weatherFormat");
-    assert.equal(typeof Weather.geocodeUrl, "function", "carried on from weatherServiceAdapters");
-    assert.equal(typeof Weather.WeatherRefreshScheduler, "function", "carried on from weatherScheduler");
-    assert.equal(typeof Weather.WeatherForecastResolver, "function", "carried on from weatherProviders");
-    assert.equal(typeof Weather.WeatherReadingRepository, "function", "shared reading repository");
-    // ...and weather.js's own two additions
-    assert.equal(typeof Weather.WeatherProvider, "function");
-    assert.equal(typeof Weather.WeatherDisplayState, "function");
+    assert.equal(typeof Weather.staleAfterSeconds, "function", "from weatherFormat");
+    assert.equal(typeof Weather.geocodeUrl, "function", "from weatherServiceAdapters");
+    assert.equal(typeof Weather.WeatherRefreshScheduler, "function", "from weatherScheduler");
+    assert.equal(typeof Weather.WeatherForecastResolver, "function", "from weatherProviders");
+    assert.equal(typeof Weather.WeatherProvider, "function", "and weather.js itself");
 });
 
 test("weather display rules do not own vendor wire contracts", () => {

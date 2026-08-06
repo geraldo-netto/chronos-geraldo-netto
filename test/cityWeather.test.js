@@ -7,6 +7,9 @@ const { makeSoup3 } = require("./helpers/soup");
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const modulePath = path.join(APPLET_DIR, "cityWeather.js");
 const weatherPath = path.join(APPLET_DIR, "weather.js");
+// the constants live in weatherFormat, which is where cityWeather reads them:
+// weather.js exports only its own bindings, because that is all GJS exposes
+const weatherFormatPath = path.join(APPLET_DIR, "weatherFormat.js");
 const schedulerPath = path.join(APPLET_DIR, "weatherScheduler.js");
 const providersPath = path.join(APPLET_DIR, "weatherProviders.js");
 const ioUtilsPath = path.join(APPLET_DIR, "ioUtils.js");
@@ -713,7 +716,7 @@ test("a city keeps the age of the reading it was given, not its arrival", () => 
 
 test("city weather counts suspend time before a failed wake refresh", () => {
     const CityWeather = loadCityWeather();
-    const Weather = require(weatherPath);
+    const Weather = require(weatherFormatPath);
     let civilNow = 1_000_000;
     const elapsedNow = 2_000_000;
     let fail = false;
@@ -1011,7 +1014,7 @@ test("staleness at the default period is still two refresh periods", () => {
 // twenty seconds.
 test("a city that could not be reached is retried; one that does not exist is not", () => {
     const CityWeather = loadCityWeather();
-    const Weather = require(weatherPath);
+    const Weather = require(weatherFormatPath);
     const retries = [];
 
     const provider = new CityWeather.CityWeatherProvider({

@@ -247,7 +247,15 @@ const MAX_SUFFIX = PanelStatusModule.LABEL_SUFFIX_MAX_LENGTH;
 const ELLIPSIS = PanelStatusModule.LABEL_ELLIPSIS;
 const Proto = AppletModule.CinnamonCalendarApplet.prototype;
 const DateFormats = rootModules.dateFormats;
-const Weather = rootModules.weather;
+// weather.js exports its own five bindings and nothing else, because that is
+// all GJS exposes on the panel. The tests want one handle for the whole
+// feature, so the parts are composed here rather than in the module — where the
+// spread would have been a Node-only export surface.
+const Weather = Object.assign({}, // NOSONAR [S6661] -- deliberate test seam
+    rootModules.weatherFormat, rootModules.weatherServiceAdapters,
+    require(path.join(APPLET_DIR, "weatherScheduler.js")),
+    require(path.join(APPLET_DIR, "weatherProviders.js")),
+    rootModules.weather);
 const St = global.imports.gi.St;
 
 // Seeded PRNG so a fuzz failure reproduces; change FUZZ_SEED to explore

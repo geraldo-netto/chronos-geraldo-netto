@@ -12,6 +12,8 @@ const providersPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo
 const serviceAdaptersPath = path.join(
     __dirname, "..", "..", "files", "chronos@geraldo-netto", "weatherServiceAdapters.js");
 const ioUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "ioUtils.js");
+const formatPath = path.join(
+    __dirname, "..", "..", "files", "chronos@geraldo-netto", "weatherFormat.js");
 const localeQueryPath = path.join(
     __dirname, "..", "..", "files", "chronos@geraldo-netto", "localeQuery.js");
 const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "weather.js");
@@ -97,7 +99,15 @@ function loadWeather(soupOverrides = {}) {
         }
     };
 
-    return require(modulePath);
+    // weather.js exports its own five bindings and nothing else, because that
+    // is all GJS exposes on the panel. The tests want one handle for the whole
+    // feature, so the parts are composed here rather than in the module —
+    // where the spread would have been a Node-only export surface.
+    return Object.assign({}, // NOSONAR [S6661] -- accepted compatible form
+        require(formatPath), require(serviceAdaptersPath), require(schedulerPath),
+        require(providersPath),
+        { HTTP_TIMEOUT_SECONDS: require(ioUtilsPath).HTTP_TIMEOUT_SECONDS },
+        require(modulePath));
 }
 
 beforeEach(() => {

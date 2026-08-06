@@ -320,13 +320,17 @@ test("one failing teardown step does not strand the rest", () => {
 // the provider graph and it tears it down.
 test("the composition root registers and releases its weather consumer", () => {
     const WorldclockData = rootModules.worldclockData;
-    const originalRegister = Weather.registerWeatherConsumer;
-    const originalCancel = Weather.cancelPendingWeatherRequests;
+    // the module the composition root actually reaches, not the fixture's
+    // composed handle: weather.js exports only its own bindings now, so the
+    // handle the tests read is a copy and patching it would reach nothing
+    const WeatherModule = rootModules.weather;
+    const originalRegister = WeatherModule.registerWeatherConsumer;
+    const originalCancel = WeatherModule.cancelPendingWeatherRequests;
     const originalClockRegister = WorldclockData.registerWorldclockConsumer;
     const originalClockRelease = WorldclockData.releaseWorldclockConsumer;
     const calls = [];
-    Weather.registerWeatherConsumer = () => calls.push("register");
-    Weather.cancelPendingWeatherRequests = () => calls.push("release");
+    WeatherModule.registerWeatherConsumer = () => calls.push("register");
+    WeatherModule.cancelPendingWeatherRequests = () => calls.push("release");
     // the timezone-to-city memo behind the per-clock weather is module state on
     // the same footing, and it is claimed and given back at the same two points
     WorldclockData.registerWorldclockConsumer = () => calls.push("register:clocks");
@@ -367,8 +371,8 @@ test("the composition root registers and releases its weather consumer", () => {
             ["register", "register:clocks", "release", "release:clocks"],
             "and the teardown gives both back");
     } finally {
-        Weather.registerWeatherConsumer = originalRegister;
-        Weather.cancelPendingWeatherRequests = originalCancel;
+        WeatherModule.registerWeatherConsumer = originalRegister;
+        WeatherModule.cancelPendingWeatherRequests = originalCancel;
         WorldclockData.registerWorldclockConsumer = originalClockRegister;
         WorldclockData.releaseWorldclockConsumer = originalClockRelease;
     }

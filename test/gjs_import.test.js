@@ -412,39 +412,66 @@ test("elapsed time exposes civil freshness and monotonic pacing clocks", () => {
 // symbol off the barrel would get undefined. That is safe only as long as none
 // does, so this asserts both halves — Node sees every part symbol through the
 // barrel, and the only name GJS takes from it is the one the barrel declares.
-test("the barrel carries its parts to Node, and nothing reads a part off it in GJS", () => {
-    // the root modules read their collaborators through globalThis.imports at
-    // load time, so the mock has to be in place while they are required
+// T780: weather.js used to spread its four part modules into module.exports,
+// which runs on the Node side alone — so around forty names were functions
+// under `node test/` and undefined on the panel, and a consumer reading one got
+// a silent wrong value rather than a crash. The guard against that was a
+// hand-written list of three files, two of which do not require the barrel at
+// all, so its else branch was dead and a new consumer would have passed.
+//
+// The module now exports exactly the `var` bindings GJS exposes, and the list
+// is read from the tree.
+test("weather.js exports the same names to Node that GJS can see", () => {
+    const source = fs.readFileSync(path.join(APPLET_DIR, "weather.js"), "utf8");
+    const declared = new Set(Array.from(
+        source.matchAll(/^var (\w+)/gm), ([, name]) => name));
+    // WeatherDisplayState is a plain class rather than a var: it is the panel's
+    // own state and nothing outside this module and its tests constructs one
+    declared.add("WeatherDisplayState");
+
     const originalImports = global.imports;
     global.imports = gjsImportsMock();
-    for (const file of ["weather.js", "weatherScheduler.js", "weatherProviders.js", "weatherFormat.js",
-        "ioUtils.js", "styleUtils.js", "providerUtils.js"]) {
+    for (const file of ["weather.js", "weatherScheduler.js", "weatherProviders.js",
+        "weatherFormat.js", "weatherServiceAdapters.js", "ioUtils.js", "styleUtils.js",
+        "providerUtils.js", "localeQuery.js"]) {
         delete require.cache[require.resolve(path.join(APPLET_DIR, file))];
     }
-    const parts = ["weatherFormat", "weatherScheduler", "weatherProviders"]
-        .map((part) => require(path.join(APPLET_DIR, part + ".js")));
     const barrel = require(path.join(APPLET_DIR, "weather.js"));
     global.imports = originalImports;
 
-    for (const part of parts) {
-        for (const name of Object.keys(part)) {
-            assert.notEqual(barrel[name], undefined,
-                `weather.js must carry ${name} on to its Node consumers`);
-        }
-    }
+    assert.deepEqual(Object.keys(barrel).sort(), Array.from(declared).sort(),
+        "a name exported to Node that GJS cannot see reads as undefined on the panel");
+});
 
-    // every module that requires the barrel, and every name it reads off it
-    for (const file of ["cityWeather.js", "6.0/appletLifecycle.js", "6.0/appletPanelStatus.js"]) {
-        const source = fs.readFileSync(path.join(APPLET_DIR, file), "utf8");
-        if (!/require\("\.\/weather"\)/.test(source)) {
-            continue;
-        }
-        const read = Array.from(source.matchAll(/\bWeather\.(\w+)/g)).map(([, name]) => name);
-        const expected = file.endsWith("appletLifecycle.js") ?
-            ["WeatherReadingRepository", "WeatherProvider", "registerWeatherConsumer",
-                "cancelPendingWeatherRequests"] : ["WeatherProvider"];
-        assert.deepEqual([...new Set(read)], expected,
-            `${file} reads a part's symbol off the barrel, which GJS cannot see`);
+// Every module that requires the barrel, found by reading the tree rather than
+// by listing them: a new consumer that reads a name weather.js does not declare
+// must fail here, not on someone's panel.
+test("every barrel consumer reads only names the barrel declares", () => {
+    const barrelSource = fs.readFileSync(path.join(APPLET_DIR, "weather.js"), "utf8");
+    const declared = new Set(Array.from(
+        barrelSource.matchAll(/^var (\w+)/gm), ([, name]) => name));
+    declared.add("WeatherDisplayState");
+
+    const walk = (directory) => fs.readdirSync(directory, { withFileTypes: true })
+        .flatMap((entry) => {
+            const full = path.join(directory, entry.name);
+            if (entry.isDirectory()) {
+                return walk(full);
+            }
+            return entry.name.endsWith(".js") ? [full] : [];
+        });
+    const consumers = walk(APPLET_DIR)
+        .map((full) => ({ file: path.relative(APPLET_DIR, full),
+            source: fs.readFileSync(full, "utf8") }))
+        .filter(({ source }) => /require\("\.\/weather"\)/.test(source));
+
+    assert.ok(consumers.length > 0, "the barrel has at least one consumer to check");
+    for (const { file, source } of consumers) {
+        const read = new Set(Array.from(
+            source.matchAll(/\bWeather\.(\w+)/g), ([, name]) => name));
+        const unknown = Array.from(read).filter((name) => !declared.has(name));
+        assert.deepEqual(unknown, [],
+            `${file} reads a name weather.js does not declare, which is undefined in GJS`);
     }
 });
 

@@ -28,28 +28,21 @@ const IS_NODE = typeof process !== "undefined" &&
 const ElapsedTime = IS_NODE ?
     require("./elapsedTime") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].elapsedTime;
-const IoUtils = IS_NODE ?
-    require("./ioUtils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 
 // GJS exports only var bindings: anything another module reaches for
 // through imports.ui.appletManager must be declared with var
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
-// The refresh clock lives in its own module now; weather.js is the barrel that
-// requires it and hands it on, so consumers and the parity list are unchanged.
+// The refresh clock and the provider chains live in their own modules; this one
+// composes them into the panel's WeatherProvider. It no longer hands them on:
+// its exports are its own bindings, which is all GJS exposes.
 const WeatherScheduler = IS_NODE ?
     require("./weatherScheduler") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
-// The geocode/forecast chains and their resolvers live in their own module now;
-// weather.js is the barrel that requires them and hands them on unchanged.
 const WeatherProviders = IS_NODE ?
     require("./weatherProviders") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherProviders;
-const WeatherServiceAdapters = IS_NODE ?
-    require("./weatherServiceAdapters") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherServiceAdapters;
 
 // The composition root reaches the shared repository through the same version
 // shim as WeatherProvider. Keep this a var binding so GJS exposes it.
@@ -356,13 +349,13 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
 };
 
 if (typeof module !== "undefined") {
-    // Programmatic, because the alternative was one `var X = Part.X;` line per
-    // symbol and the same name again here: adding a constant to any of the three
-    // parts was three edits in two files. Nothing in the applet reads a part's
-    // symbol off this barrel any more — the consumers require the part — so the
-    // var bindings GJS needs live in the module that declares each name.
-    module.exports = Object.assign({}, WeatherFormat, WeatherServiceAdapters, // NOSONAR [S6661] -- accepted compatible form
-        WeatherScheduler, WeatherProviders, { HTTP_TIMEOUT_SECONDS: IoUtils.HTTP_TIMEOUT_SECONDS },
-        { WeatherProvider, WeatherDisplayState, WeatherReadingRepository,
-            registerWeatherConsumer, cancelPendingWeatherRequests });
+    // Exactly the `var` bindings declared above, and nothing else. GJS exposes
+    // a module's own top-level `var`s and no more, so anything spread in here
+    // from the four part modules would be a function under `node test/` and
+    // `undefined` on the panel — around forty names that resolve differently
+    // depending on the host, and a consumer reading one gets a silent wrong
+    // value rather than a crash. The test harness composes the parts itself
+    // when it wants one handle for them.
+    module.exports = { WeatherProvider, WeatherDisplayState, WeatherReadingRepository,
+        registerWeatherConsumer, cancelPendingWeatherRequests };
 }
