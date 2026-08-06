@@ -1085,6 +1085,53 @@ test("httpGetJson aborts a stream that fails while reading", () => {
     assert.deepEqual(logged, [error]);
 });
 
+test("httpGetJson settles when a streamed read fails to dispatch", () => {
+    const utils = loadIoUtils();
+    const error = new Error("read dispatch failed");
+    const logged = [];
+    global.logError = (message) => logged.push(message);
+
+    for (const failAtRead of [1, 2]) {
+        let reads = 0;
+        let closes = 0;
+        const soupDouble = makeStreamingSoup({
+            chunks: [Buffer.from('{"ok":true}')]
+        });
+        soupDouble.Session.prototype.send_finish = function() {
+            const stream = {
+                read_bytes_async(_count, _priority, _cancellable, callback) {
+                    reads++;
+                    if (reads === failAtRead) {
+                        throw error;
+                    }
+                    callback(this, {});
+                },
+                read_bytes_finish() {
+                    return { get_data: () => Buffer.from('{"ok":true}') };
+                },
+                close() {
+                    closes++;
+                }
+            };
+            return stream;
+        };
+        Object.assign(global.imports.gi.Soup, soupDouble);
+
+        let calls = 0;
+        utils.httpGetJson(new soupDouble.Session(), "https://example.test/x", (data) => {
+            calls++;
+            assert.equal(data, null);
+        });
+
+        assert.equal(calls, 1, `read ${failAtRead} settles once`);
+        assert.equal(closes, 1, `read ${failAtRead} releases the stream`);
+        assert.equal(global.imports.gi.Gio.Cancellable.last.cancelled, true,
+            `read ${failAtRead} cancels the request`);
+    }
+
+    assert.deepEqual(logged, [error, error]);
+});
+
 test("httpGetJson will not follow a redirect down to plain http", () => {
     const utils = loadIoUtils();
     const logged = [];

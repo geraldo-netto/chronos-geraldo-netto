@@ -380,8 +380,14 @@ function _acceptChunk(source, result, state, url, exits) {
 }
 
 function _readNextChunk(stream, cancellable, url, state, exits) {
-    stream.read_bytes_async(READ_CHUNK_BYTES, 0, cancellable, (source, result) =>
-        _acceptChunk(source, result, state, url, exits));
+    let callbackStarted = false;
+    _dispatchOrFail(
+        () => stream.read_bytes_async(READ_CHUNK_BYTES, 0, cancellable, (source, result) => {
+            callbackStarted = true;
+            _acceptChunk(source, result, state, url, exits);
+        }),
+        () => callbackStarted,
+        exits.abort);
 }
 
 function _readCapped(stream, cancellable, url, deliver) {
