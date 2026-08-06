@@ -40,7 +40,7 @@ const TISHRI = 7;
 const KISLEV = 9;
 const MARHESHVAN = 8;
 const ADAR = 12;
-const ALWAYS_SHORT_MONTHS = [2, 4, 6, 10, 13];
+const ALWAYS_SHORT_MONTHS = new Set([2, 4, 6, 10, 13]);
 
 function _mod(value, modulus) {
     return ((value % modulus) + modulus) % modulus;
@@ -115,7 +115,7 @@ function _isFullMonth(year, month) {
 }
 
 function _lastDayOfMonth(year, month) {
-    if (ALWAYS_SHORT_MONTHS.includes(month)) {
+    if (ALWAYS_SHORT_MONTHS.has(month)) {
         return 29;
     }
 

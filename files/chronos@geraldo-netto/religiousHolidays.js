@@ -95,15 +95,15 @@ function gregorianEaster(year) {
 const BAHAI_ERA_START = 1844;
 const NAW_RUZ_ASTRONOMICAL_FROM = 2015;
 const NAW_RUZ_TABLE_END = 2065;
-const NAW_RUZ_ON_21_MARCH = [2015, 2018, 2019, 2022, 2023, 2026, 2027, 2031,
-    2035, 2039, 2043, 2047, 2051, 2055];
+const NAW_RUZ_ON_21_MARCH = new Set([2015, 2018, 2019, 2022, 2023, 2026, 2027,
+    2031, 2035, 2039, 2043, 2047, 2051, 2055]);
 
 function _nawRuzDay(year) {
     if (year < NAW_RUZ_ASTRONOMICAL_FROM) {
         return 21;
     }
 
-    return NAW_RUZ_ON_21_MARCH.includes(year) ? 21 : 20;
+    return NAW_RUZ_ON_21_MARCH.has(year) ? 21 : 20;
 }
 
 function _nawRuzDates() {
