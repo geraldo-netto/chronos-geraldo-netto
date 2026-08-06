@@ -21,16 +21,13 @@ const LocaleText = AppletModules.localeText;
 const Calendar = require("./calendar");
 const EventView = require("./eventView");
 const AgendaColumn = require("./agendaColumn");
+const UiVocabulary = require("./uiVocabulary");
 const Worldclocks = require("./worldclocks");
 const AstronomyView = require("./astronomyView");
 
 const _ = LocaleText.translate;
-const HOME_KEY_SYMBOLS = new Set([
-    Clutter.KEY_Return,
-    Clutter.KEY_KP_Enter,
-    Clutter.KEY_space
-]);
-const ISSUE_MARKER = "⚠";
+const HOME_KEY_SYMBOLS = UiVocabulary.ACTIVATION_KEY_SYMBOLS;
+const ISSUE_MARKER = AppletModules.textUtils.WARNING_MARKER;
 
 // One footer owns every current user-facing problem. Sources update their own
 // key, so a recovered weather request cannot erase a simultaneous calendar

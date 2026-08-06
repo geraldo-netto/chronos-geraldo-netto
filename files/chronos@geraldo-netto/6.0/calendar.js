@@ -24,6 +24,7 @@ const LocaleQuery = AppletModules.localeQuery;
 const LocaleText = AppletModules.localeText;
 const StyleUtils = AppletModules.styleUtils;
 const SettingsFacade = require("./settingsFacade");
+const UiVocabulary = require("./uiVocabulary");
 const EventDataModule = require("./eventData");
 const CalendarNavigation = require("./calendarNavigation");
 const CalendarDate = require("./calendarDate");
@@ -63,8 +64,7 @@ const ACCESSIBLE_DATE_FORMAT_FALLBACK = DateFormats.DATE_FORMAT_FULL_FALLBACK;
 // Geometry remains the primary limit, but a broken or unusually permissive
 // theme must not turn one dense day into an arbitrary number of actors.
 const MAX_EVENT_DOTS_PER_CELL = 64;
-const EVENT_DOT_OVERFLOW_NOTICE =
-    _("Some calendar events were hidden to keep the desktop responsive.");
+const EVENT_DOT_OVERFLOW_NOTICE = UiVocabulary.EVENTS_HIDDEN_TEXT;
 
 const _lcAbday = LocaleQuery.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
 const _lcFirstWorkday = LocaleQuery.lazyLocaleValue(

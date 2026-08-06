@@ -23,6 +23,8 @@ const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const DateFormats = AppletModules.dateFormats;
 const LocaleText = AppletModules.localeText;
 const StyleUtils = AppletModules.styleUtils;
+const UiVocabulary = require("./uiVocabulary");
+const ACTIVATION_KEY_SYMBOLS = UiVocabulary.ACTIVATION_KEY_SYMBOLS;
 const EventFormat = require("./eventFormat");
 
 const _ = LocaleText.translate;
@@ -42,8 +44,7 @@ const EVENT_ROW_CHUNK = 20;
 // Retaining the full bounded index keeps navigation and event launching useful,
 // but a single selected day must not manufacture thousands of St actors.
 const MAX_RENDERED_EVENT_ROWS = 200;
-const EVENTS_OVERFLOW_TEXT =
-    _("Some calendar events were hidden to keep the desktop responsive.");
+const EVENTS_OVERFLOW_TEXT = UiVocabulary.EVENTS_HIDDEN_TEXT;
 const EVENTS_UNAVAILABLE_TEXT =
     _("Calendar events are unavailable — no calendar service is running. Install or enable Evolution Data Server.");
 const EVENTS_REFRESH_FAILED_TEXT =
@@ -474,8 +475,7 @@ class EventList {
 
     _onDateKeyPress(_actor, event) {
         const symbol = event.get_key_symbol();
-        if (symbol !== Clutter.KEY_Return && symbol !== Clutter.KEY_KP_Enter &&
-            symbol !== Clutter.KEY_space) {
+        if (!ACTIVATION_KEY_SYMBOLS.has(symbol)) {
             return Clutter.EVENT_PROPAGATE;
         }
         this.launch_calendar(this.selected_date);
@@ -840,8 +840,7 @@ class EventRowPresenter {
 
         this.row.actor.connect("key-press-event", (actor, event) => {
             const symbol = event.get_key_symbol();
-            if (symbol === Clutter.KEY_Return || symbol === Clutter.KEY_KP_Enter ||
-                symbol === Clutter.KEY_space) {
+            if (ACTIVATION_KEY_SYMBOLS.has(symbol)) {
                 this.row.emit("view-event", this.row.event.id);
                 return Clutter.EVENT_STOP;
             }

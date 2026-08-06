@@ -27,7 +27,7 @@ var WEATHER_UNITS = { // NOSONAR [S3504] -- GJS importer export
     SI: "si",
     IMPERIAL: "imperial"
 };
-var WEATHER_ERROR_MARKER = "⚠"; // NOSONAR [S3504] -- GJS importer export
+var WEATHER_ERROR_MARKER = TextUtils.WARNING_MARKER; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_PENDING_TEXT = "…"; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_ERRORS = { // NOSONAR [S3504] -- GJS importer export
     LOCATION_NOT_FOUND: "Location not found",

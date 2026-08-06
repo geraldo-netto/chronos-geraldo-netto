@@ -102,7 +102,8 @@ function gjsImportsMock() {
                             },
                             normalizeBoundedText(text) { return String(text).trim(); },
                             urlForLog(url) { return String(url).split(/[?#]/)[0]; },
-                            TEXT_ELLIPSIS: "…"
+                            TEXT_ELLIPSIS: "…",
+                            WARNING_MARKER: "⚠"
                         },
                         localeText: {
                             translate(str) { return str; },
@@ -305,7 +306,7 @@ const EXPORTS = {
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readTextFileCapped", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
     textUtils: ["clampText", "displayWidth", "textWithinLimit", "normalizeBoundedText",
-        "urlForLog", "TEXT_ELLIPSIS"],
+        "urlForLog", "TEXT_ELLIPSIS", "WARNING_MARKER"],
     localeText: ["translate", "translatePlural", "joinPhrases", "localeDirectory"],
     localeQuery: ["registerLocaleConsumer", "cancelPendingLocaleQueries",
         "onLocaleInfoChanged", "lazyLocaleValue", "MESSAGE_LANGUAGE_FALLBACK",

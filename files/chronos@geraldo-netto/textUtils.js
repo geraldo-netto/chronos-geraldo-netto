@@ -17,6 +17,14 @@
 // Pango.
 var TEXT_ELLIPSIS = "…"; // NOSONAR [S3504] -- GJS importer export
 
+// "there is a problem with the thing this is next to". It was declared three
+// times - the menu builder's ISSUE_MARKER, the grid annotator's
+// HOLIDAY_ERROR_MARKER and weatherFormat's WEATHER_ERROR_MARKER - and all three
+// end up in the same footer, the same tooltip and the same accessible names, so
+// they have to be one glyph or the user is shown two different alarms for one
+// kind of news.
+var WARNING_MARKER = "⚠"; // NOSONAR [S3504] -- GJS importer export
+
 // U+2028 LINE SEPARATOR and U+2029 PARAGRAPH SEPARATOR are categories Zl and
 // Zp, not Cc, so a control-block test alone lets them straight through — and
 // Pango, GTK and the Cinnamon log all break a line on them. They are the exact
@@ -301,6 +309,7 @@ if (typeof module !== "undefined") {
         normalizeBoundedText,
         numericInput,
         urlForLog,
-        TEXT_ELLIPSIS
+        TEXT_ELLIPSIS,
+        WARNING_MARKER
     };
 }

@@ -198,6 +198,31 @@ test("a 6.0 source that has a shim goes through it", () => {
     }
 });
 
+// T825: the warning glyph was declared three times - the menu builder's
+// ISSUE_MARKER, the grid annotator's HOLIDAY_ERROR_MARKER and weatherFormat's
+// WEATHER_ERROR_MARKER - and all three land in the same footer, the same
+// tooltip and the same accessible names. The activation key set was written
+// three times too, twice as a chain of !==, so nothing stopped one focusable
+// row answering Space and its neighbour not. And one msgid was declared
+// byte-identically in two views: the .pot collapses identical msgids, so
+// msgfmt could not have flagged the wording drifting apart.
+test("the shared glyph, msgid and key set are each declared once", () => {
+    const vocabulary = path.join("6.0", "uiVocabulary.js");
+    for (const file of jsSources()) {
+        const code = source(file);
+        if (file !== "textUtils.js") {
+            assert.doesNotMatch(code, /=\s*"⚠"/,
+                `${file} must take the warning glyph from TextUtils.WARNING_MARKER`);
+        }
+        if (file !== vocabulary) {
+            assert.doesNotMatch(code, /Some calendar events were hidden/,
+                `${file} must take that sentence from 6.0/uiVocabulary`);
+            assert.doesNotMatch(code, /Clutter\.KEY_KP_Enter/,
+                `${file} must take the activation keys from 6.0/uiVocabulary`);
+        }
+    }
+});
+
 test("6.0 sources avoid deprecated Lang.bind callbacks", () => {
     for (const relativePath of jsSources("6.0")) {
         assert.doesNotMatch(source(relativePath), /Lang\.bind/,
@@ -315,7 +340,7 @@ test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
 // accessible name
 test("calendars surface holiday provider failures", () => {
     const code = source("6.0/calendarAnnotations.js");
-    assert.match(code, /const HOLIDAY_ERROR_MARKER = "⚠";/);
+    assert.match(code, /const HOLIDAY_ERROR_MARKER = TextUtils\.WARNING_MARKER;/);
     assert.match(code, /class CalendarHolidayAnnotator \{/);
     assert.match(code, /setStatus\(error, providerName = ""\) \{/);
     assert.match(code, /HOLIDAY_ERROR_MARKER/);
