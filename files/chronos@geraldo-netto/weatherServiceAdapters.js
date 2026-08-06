@@ -319,9 +319,55 @@ function metNoWeatherReading(forecast) {
 // the accent — as an Italian keyboard makes easy, and as the city itself spells it
 // — means the one they spelled. Folded, so that the accent is not the whole of the
 // comparison; compared unfolded first, so that the exact spelling still wins.
+//
+// NFKD does most of the work: it decomposes an accented letter into its base
+// plus a combining mark, and folds compatibility forms — full-width Latin
+// (ＴＯＫＹＯ), Arabic presentation forms, half-width kana — onto their
+// ordinary counterparts. NFD, which this used to use, does none of the last
+// three, so a name in any of those forms could not match what the user typed.
+//
+// The marks are then stripped, but only the ones a writer routinely omits:
+// Latin, Greek and Cyrillic accents, Hebrew niqqud, and Arabic harakat — the
+// last of which also unifies the alef variants U+0623/U+0625/U+0627, whose
+// hamza and madda are marks in that range. Indic vowel signs and the Japanese
+// dakuten are deliberately left alone: they are letters rather than decoration,
+// and folding them would make distinct names collide.
+const OPTIONAL_DIACRITICS = new RegExp(
+    "[\\u0300-\\u036f" +   // Latin, Greek and Cyrillic accents
+    "\\u0483-\\u0489" +     // Cyrillic titlo and friends
+    "\\u0591-\\u05bd\\u05bf\\u05c1\\u05c2\\u05c4\\u05c5\\u05c7" + // Hebrew points
+    "\\u064b-\\u065f\\u0670]", "g");                       // Arabic harakat
+
+// What no normalization can reach: these letters carry the accent in the
+// codepoint itself and have no decomposition at all — which is exactly why a
+// keyboard without them produces the spelling on the right. The Greek final
+// sigma is here for the same reason Unicode's own full case folding maps it
+// onto sigma.
+const UNDECOMPOSED_LETTERS = {
+    "ß": "ss", "æ": "ae", "œ": "oe", "ø": "o",
+    "đ": "d", "ð": "d", "þ": "th", "ł": "l",
+    "ħ": "h", "ı": "i", "ŋ": "n", "ĸ": "k",
+    "ς": "σ"
+};
+const UNDECOMPOSED_PATTERN =
+    new RegExp("[" + Object.keys(UNDECOMPOSED_LETTERS).join("") + "]", "g");
+
+// An apostrophe is decoration in a place name and arrives in five shapes
+// (Hawaiʻi, Coeur d’Alene, N'Djamena), and a hyphen and a space are the same
+// joint (Saint-Étienne, Saint Etienne). Both sides of every comparison are
+// folded, so dropping them cannot favour one spelling over the other.
+const PLACE_NAME_PUNCTUATION = /['‘’ʻʼ´`]/g;
+const PLACE_NAME_GAPS = /[\s-]+/g;
+
 function foldPlaceName(name) {
-    return String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-        .trim().toLowerCase();
+    return String(name || "")
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(OPTIONAL_DIACRITICS, "")
+        .replace(UNDECOMPOSED_PATTERN, (letter) => UNDECOMPOSED_LETTERS[letter])
+        .replace(PLACE_NAME_PUNCTUATION, "")
+        .replace(PLACE_NAME_GAPS, " ") // NOSONAR [S8786] -- input length is bounded
+        .trim();
 }
 
 function coordinateNumber(value, minimum, maximum) {

@@ -262,6 +262,65 @@ test("the geocode hit is the one the user typed, not the one the API ranked firs
     );
 });
 
+// The ranking has to survive the spelling the user's keyboard can produce. Each
+// row pits the real city against a *more populous* decoy whose name does not
+// match, so only the fold can pick the right one — population alone would pick
+// the decoy every time.
+const FOLDED_MATCH_CASES = [
+    ["Sao Paulo", "São Paulo", "Sao Paulo Norte", "a Latin accent"],
+    ["Strasse", "Straße", "Strasserhof", "a letter with no decomposition"],
+    ["Tromso", "Tromsø", "Tromsoya", "a slashed vowel"],
+    ["Lodz", "Łódź", "Lodzko", "a barred consonant"],
+    ["Izmir", "İzmir", "Izmirli", "a dotted capital I"],
+    ["Thorshavn", "Þórshavn", "Thorshavnfjord", "a thorn"],
+    ["ＴＯＫＹＯ", "Tokyo", "Tokyorama", "a full-width compatibility form"],
+    ["Hawaii", "Hawaiʻi", "Hawaiian Gardens", "an okina"],
+    ["Saint Etienne", "Saint-Étienne", "Saint Etiennette", "a hyphen for a space"],
+    ["Θεσσαλονικης", "Θεσσαλονίκης", "Θεσσαλονικαια", "a Greek tonos and final sigma"],
+    ["القاهرة", "اَلْقَاهِرَة", "القاهرةالجديدة", "Arabic harakat"],
+    ["ירושלים", "יְרוּשָׁלַיִם", "ירושליםעילית", "Hebrew niqqud"]
+];
+
+test("a place matches the spelling a keyboard can produce", () => {
+    const Weather = loadWeather();
+
+    for (const [typed, city, decoy, why] of FOLDED_MATCH_CASES) {
+        const place = Weather.openMeteoGeocodePlace({ results: [
+            { name: decoy, population: 9000000, latitude: 1, longitude: 2 },
+            { name: city, population: 100000, latitude: 3, longitude: 4 }
+        ] }, typed);
+
+        assert.equal(place && place.name, city,
+            `${why}: "${typed}" must reach "${city}" rather than the larger "${decoy}"`);
+    }
+});
+
+// ...and the fold has to stop where marks stop being decoration. An Indic vowel
+// sign and a Japanese dakuten are letters, so a name that differs only by one
+// is a *different* name and must not be promoted over an unrelated larger hit.
+//
+// The mark-differing hit is deliberately the smaller one and the query matches
+// neither exactly, so the ranking's exact tier cannot decide it: only the fold
+// can, and a fold that stripped these marks would answer the small one.
+const DISTINCT_BY_MARK_CASES = [
+    ["मुंबइ", "मंबइ", "ठाणे", "an Indic vowel sign"],
+    ["カワ", "ガワ", "トウキョウ", "a Japanese dakuten"]
+];
+
+test("the fold leaves marks that are letters alone", () => {
+    const Weather = loadWeather();
+
+    for (const [typed, nearby, larger, why] of DISTINCT_BY_MARK_CASES) {
+        const place = Weather.openMeteoGeocodePlace({ results: [
+            { name: nearby, population: 100000, latitude: 1, longitude: 2 },
+            { name: larger, population: 9000000, latitude: 3, longitude: 4 }
+        ] }, typed);
+
+        assert.equal(place && place.name, larger,
+            `${why} distinguishes two names, so "${nearby}" must not read as "${typed}"`);
+    }
+});
+
 test("Open-Meteo places retain app-owned observer fields and drop provider payloads", () => {
     const Weather = loadWeather();
     const junk = "x".repeat(1024 * 1024);
