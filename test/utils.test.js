@@ -786,6 +786,48 @@ test("a failing degraded-locale listener cannot prevent retry", () => {
         "retry is secured before degraded listeners are notified");
 });
 
+test("a locale read dispatch failure has one settlement and no stale deadline", () => {
+    loadUtils();
+    const timers = [];
+    global.imports.gi.GLib.timeout_add_seconds = (_priority, seconds, callback) => {
+        timers.push({ seconds, callback });
+        return timers.length;
+    };
+    let spawns = 0;
+    global.imports.gi.Gio.Subprocess = class {
+        constructor() { spawns++; }
+        init() {}
+        communicate_utf8_async() {
+            throw new Error("locale read dispatch failed");
+        }
+    };
+    delete require.cache[require.resolve(localeQueryModulePath)];
+    const localeQuery = require(localeQueryModulePath);
+    let notifications = 0;
+    localeQuery.onLocaleInfoChanged("LC_TIME", () => notifications++);
+
+    assert.equal(localeQuery.getInfo("LC_TIME").first_workday, 2);
+    assert.deepEqual(timers.map((timer) => timer.seconds), [60],
+        "only the retry is live; no deadline can fail the same attempt again");
+    assert.equal(notifications, 1);
+
+    global.imports.gi.Gio.Subprocess = class {
+        constructor() { spawns++; }
+        init() {}
+        communicate_utf8_async(_stdin, _cancellable, callback) {
+            callback(this, "result");
+        }
+        communicate_utf8_finish() {
+            return [true, "first_workday=4\n"];
+        }
+    };
+    timers[0].callback();
+
+    assert.equal(spawns, 2, "the retry budget advances by one attempt, not two");
+    assert.equal(notifications, 2);
+    assert.equal(localeQuery.getInfo("LC_TIME").first_workday, 4);
+});
+
 test("httpGetJson refuses to parse an oversized response body", () => {
     const utils = loadIoUtils();
     const logged = [];
@@ -2578,7 +2620,15 @@ test("a timer that will not be removed does not strand the ones behind it", () =
     };
 
     localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
-    assert.ok(armed >= 2, "the deadline and the retry are both armed");
+    // The synchronous failure above needs only a retry. Keep a second locale
+    // query genuinely in flight so teardown also owns a live deadline.
+    global.imports.gi.Gio.Subprocess = class {
+        init() {}
+        communicate_utf8_async() {}
+        force_exit() {}
+    };
+    localeQuery.lazyLocaleValue("LC_ADDRESS", (info) => info.lang_ab)();
+    assert.equal(armed, 2, "one retry and one live deadline are armed");
 
     localeQuery.cancelPendingLocaleQueries();
 

@@ -456,6 +456,20 @@ function _readLocaleOutput(env, proc, cancellable, settlers) {
     });
 }
 
+function _handleRequestFailure(env, settlers, error) {
+    if (settlers && settlers.settled) {
+        throw error;
+    }
+    if (global.logError) {
+        global.logError(error);
+    }
+    if (settlers) {
+        settlers.fail();
+    } else {
+        _degrade(env);
+    }
+}
+
 function _requestInfo(env, force = false) {
     if (!_shouldAsk(env, force)) {
         return;
@@ -475,16 +489,12 @@ function _requestInfo(env, force = false) {
         _inflight[env] = { cancellable, proc };
         settlers = _settlers(env);
 
-        _armDeadline(env, proc, cancellable, settlers);
         _readLocaleOutput(env, proc, cancellable, settlers);
+        if (!settlers.settled) {
+            _armDeadline(env, proc, cancellable, settlers);
+        }
     } catch (e) {
-        if (settlers && settlers.settled) {
-            throw e;
-        }
-        if (global.logError) {
-            global.logError(e);
-        }
-        _degrade(env);
+        _handleRequestFailure(env, settlers, e);
     }
 }
 
