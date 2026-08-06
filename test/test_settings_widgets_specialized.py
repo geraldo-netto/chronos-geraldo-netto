@@ -1,3 +1,6 @@
+import shutil
+import tempfile
+
 from helpers.settings_widgets_fixture import (
     APPLET_DIR, WEATHER_PATH, HOLIDAYS_PATH, WORLDCLOCKS_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
     Path, importlib, json, load_module,
@@ -499,6 +502,7 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         # neither pytz nor zoneinfo: the resolver still checks IANA shape. A
         # fixed local zone keeps the built-in set off the machine's own, so
         # "Europe/Rome" is not reserved wherever this runs.
+        module.ZONEINFO_DIRECTORY = self.zone_directory("Europe/Rome")
         resolver = module.TimezoneResolver(None, None, local_timezone=FIXED_LOCAL_TIMEZONE)
         self.assertFalse(resolver.any_timezone_data())
         self.assertEqual(resolver.normalize("Europe/Rome"), "Europe/Rome")
@@ -525,6 +529,65 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
                 FIXED_LOCAL_TIMEZONE))
         finally:
             module.local_timezone_name = original_local_timezone_name
+
+    def zone_directory(self, *zones):
+        """A zoneinfo directory holding exactly the zone files named."""
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, root, True)
+        for zone in zones:
+            target = root.joinpath(*zone.split("/"))
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(b"TZif2")
+        return root
+
+    def test_a_zone_in_the_wrong_case_is_not_a_zone_with_no_python_tzdata(self):
+        """T814: with neither pytz nor zoneinfo installed - every Python 3.8 host
+        without python3-pytz, and 3.8 is the declared floor - looks_like_iana was
+        the only check a typed zone got, and it is case-blind. The applet's
+        lookup is not: GLib.TimeZone.new_identifier searches the zone directory
+        case-sensitively. So "america/sao_paulo" was previewed, made the OK
+        button sensitive, was saved, and the popup then drew an italic "Invalid
+        timezone" row with nothing connecting the two - the exact outcome the
+        shape check exists to prevent. tzdata is not a Python package: the
+        directory is there when the modules are not.
+        """
+        module = self.load_gi_free()
+        module.ZONEINFO_DIRECTORY = self.zone_directory(
+            "America/Sao_Paulo", "Europe/Rome")
+        resolver = module.TimezoneResolver(None, None,
+                                           local_timezone=FIXED_LOCAL_TIMEZONE)
+
+        self.assertFalse(resolver.any_timezone_data())
+        self.assertEqual(resolver.normalize(" America/Sao_Paulo "),
+                         "America/Sao_Paulo")
+        self.assertIsNone(resolver.normalize("america/sao_paulo"))
+        self.assertIsNone(resolver.normalize("Mars/Olympus"),
+                          "a well-shaped name is not a zone the runtime knows")
+        # a region directory exists, but it is not a zone file
+        self.assertIsNone(resolver.normalize("Europe/Atlantis"))
+        self.assertIsNone(resolver.normalize("Europe"))
+
+    def test_a_host_with_no_zone_directory_still_accepts_a_well_shaped_zone(self):
+        """A container carrying neither tzdata nor pytz has nothing left to ask.
+        Rejecting every zone there would leave the dialog unable to add a clock
+        at all, so the shape rule stays its only answer."""
+        module = self.load_gi_free()
+        module.ZONEINFO_DIRECTORY = Path(tempfile.mkdtemp()) / "absent"
+        resolver = module.TimezoneResolver(None, None,
+                                           local_timezone=FIXED_LOCAL_TIMEZONE)
+
+        self.assertEqual(resolver.normalize("Mars/Olympus"), "Mars/Olympus")
+        self.assertIsNone(resolver.normalize("not a zone"))
+
+    def test_an_unreadable_zone_directory_answers_no_rather_than_raising(self):
+        module = self.load_gi_free()
+        module.ZONEINFO_DIRECTORY = self.zone_directory("Europe/Rome")
+        resolver = module.TimezoneResolver(None, None,
+                                           local_timezone=FIXED_LOCAL_TIMEZONE)
+        module.ZONEINFO_DIRECTORY.joinpath("Europe").chmod(0o000)
+        self.addCleanup(module.ZONEINFO_DIRECTORY.joinpath("Europe").chmod, 0o700)
+
+        self.assertIsNone(resolver.normalize("Europe/Rome"))
 
     def test_a_broken_zoneinfo_alias_names_no_city(self):
         module = self.load_gi_free()

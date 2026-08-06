@@ -464,7 +464,9 @@ class SettingsWidgetsTest(unittest.TestCase):
 
         self.assertFalse(resolver.has_timezone_data)
         self.assertEqual(resolver.completions, [])
-        self.assertEqual(resolver.normalize(" Mars/Olympus "), "Mars/Olympus")
+        # T814: the zone directory is tzdata's, not Python's, so it is there to
+        # be asked even here - and a name it does not hold is not a zone.
+        self.assertIsNone(resolver.normalize(" Mars/Olympus "))
         self.assertIsNone(resolver.normalize("UTC"))
         self.assertIsNone(resolver.normalize("local"))
         self.assertIsNone(resolver.normalize(None))

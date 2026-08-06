@@ -124,8 +124,8 @@ def is_runtime_builtin_timezone(
 def looks_like_iana(value: Any) -> bool:
     """Area/City, the shape of an IANA identifier.
 
-    All the check there is when no timezone database is installed: it does not
-    say the zone exists, only that it is not a word someone typed by accident.
+    Says only that the text is not a word someone typed by accident: it does
+    not say the zone exists, and it is case-blind where the runtime is not.
     """
     if not isinstance(value, str):
         return False
@@ -135,6 +135,43 @@ def looks_like_iana(value: Any) -> bool:
         return False
 
     return all(part and all(ch.isalnum() or ch in "_+-" for ch in part) for part in parts)
+
+
+def zoneinfo_spelling_exists(value: str) -> bool:
+    """Is there a zone file spelled exactly this way?
+
+    The zoneinfo directory ships with tzdata, not with Python, so it is there
+    on hosts where neither pytz nor zoneinfo is importable. This asks it the
+    same question the runtime will: GLib.TimeZone.new_identifier looks a zone
+    up in that directory case-sensitively, so "america/sao_paulo" is not a zone
+    to the applet however plausible its shape.
+
+    Only reached for text looks_like_iana has already accepted, whose segments
+    are alphanumerics, '_', '+' and '-' — no '.' and so no traversal.
+    """
+    try:
+        return ZONEINFO_DIRECTORY.joinpath(*value.split("/")).is_file()
+    except (OSError, ValueError):
+        return False
+
+
+def accepts_undatabased_timezone(value: Any) -> bool:
+    """Everything a typed zone can be checked against with no Python tzdata.
+
+    The shape rule alone let a correctly-spelled zone in the wrong case through
+    — "america/sao_paulo" — and the dialog then previewed it, went sensitive
+    and saved it, while the applet's case-sensitive lookup rendered an italic
+    "Invalid timezone" row with nothing connecting the two. That is the outcome
+    the shape rule exists to prevent.
+
+    A host with no zone directory either has nothing left to ask, and keeps the
+    shape rule as its only answer.
+    """
+    if not looks_like_iana(value):
+        return False
+    if not ZONEINFO_DIRECTORY.is_dir():
+        return True
+    return zoneinfo_spelling_exists(value.strip())
 
 
 def completion_key(text: Any) -> str:
@@ -326,7 +363,7 @@ class TimezoneResolver:
             # identifier is the one shape that can still be checked without a
             # database: Area/City.
             if not self.fallback_timezone_map:
-                return value if looks_like_iana(value) else None
+                return value if accepts_undatabased_timezone(value) else None
             return (self.fallback_timezone_map.get(lower)
                     or self.city_map.get(city_token))
 
