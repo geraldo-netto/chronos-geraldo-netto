@@ -978,6 +978,7 @@ test("OS timezone changes reconcile popup and city-weather clock projections", (
     const popupSelections = [];
     const citySelections = [];
     const refreshes = [];
+    const reconciled = [];
     let localTimezone = "Europe/Berlin";
     global.imports.gi.GLib.TimeZone.new_local = () => ({
         get_identifier: () => localTimezone
@@ -996,6 +997,12 @@ test("OS timezone changes reconcile popup and city-weather clock projections", (
                 }
             },
             _updateClockAndDate: (force) => refreshes.push(force),
+            events_manager: {
+                refresh_for_timezone_change: () => reconciled.push("events")
+            },
+            _calendar: {
+                refreshTimezone: () => reconciled.push("calendar")
+            },
             _guarded: (source, fn) => fn()
         });
         stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
@@ -1027,6 +1034,11 @@ test("OS timezone changes reconcile popup and city-weather clock projections", (
         assert.deepEqual(citySelections, popupSelections,
             "popup and weather scheduling use the same effective list in both directions");
         assert.deepEqual(refreshes, [true, true, true]);
+        // Every day key the grid matches dots on, on both sides of the match,
+        // was derived from the zone that just went away.
+        assert.deepEqual(reconciled, [
+            "events", "calendar", "events", "calendar", "events", "calendar"
+        ], "each change also resets the calendar's and the index's day keys");
     } finally {
         global.imports.gi.GLib.TimeZone.new_local = originalNewLocal;
     }

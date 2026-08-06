@@ -1921,6 +1921,33 @@ test("a multi-day event keeps canonical day keys across a midnight DST jump", ()
     }
 });
 
+// Every bucket key is an absolute second derived from the zone the event was
+// indexed in. After a zone change the grid looks days up in the new one, so
+// retaining them means dots that never match again.
+test("an OS timezone change discards the indexed buckets and refetches", () => {
+    const manager = readyManager();
+    const month = new FakeDateTime(10 * DAY_US);
+    manager._window_coordinator.current_selected_date = month;
+    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    proxy.instance.signal("events-added-or-updated", eventArrayVariant([eventVariant({
+        id: "before-the-change",
+        startUnix: 10 * DAY_S,
+        endUnix: 10 * DAY_S + 60
+    })]));
+    drainEventMutations(manager);
+    assert.ok(Object.keys(manager._event_index.eventsByDate).length > 0);
+
+    manager.refresh_for_timezone_change();
+
+    assert.deepEqual(manager._event_index.eventsByDate, {},
+        "old-zone buckets can never match a new-zone lookup");
+    assert.ok(manager._reload_selected_id > 0, "and the window is asked for again");
+
+    const before = proxy.instance.set_time_range_calls.length;
+    fireTimer(manager._reload_selected_id);
+    assert.equal(proxy.instance.set_time_range_calls.length, before + 1);
+});
+
 // Only clear() and the full-range resync used to retire the flag, so garbage
 // collecting a flood back down to a handful left the event column still
 // telling the user rows were hidden on a day now holding three.

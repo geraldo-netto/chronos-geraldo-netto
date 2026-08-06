@@ -315,7 +315,22 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _onTimezoneChanged() {
-        this._guarded("timezone", () => this._reconcileWorldclocks());
+        this._guarded("timezone", () => {
+            this._reconcileWorldclocks();
+            this._reconcileCalendarTimezone();
+        });
+    }
+
+    // The grid matches event dots by absolute day keys, and both sides of that
+    // match were derived from the zone that has just been replaced: the cached
+    // month window on the calendar side, every indexed bucket on the events
+    // side. Neither notices on its own — the window's cache key and the
+    // displayed month are both unchanged — so they are reset together.
+    _reconcileCalendarTimezone() {
+        this.events_manager.refresh_for_timezone_change();
+        if (this._calendar) {
+            this._calendar.refreshTimezone();
+        }
     }
 
     // The saved list does not change when the OS timezone does, but its

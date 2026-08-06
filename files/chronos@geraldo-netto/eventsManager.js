@@ -769,6 +769,15 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._destroyed = true;
     }
 
+    // Every bucket is keyed by date_only().to_unix() in the zone that was
+    // current when the event was indexed, and the grid now looks days up in
+    // the new one. None of the retained data addresses the displayed month any
+    // more, so drop it and ask the server again rather than let the two drift.
+    refresh_for_timezone_change() {
+        this._event_index.clear();
+        this.queue_reload_selected();
+    }
+
     queue_reload_selected() {
         this._cancel_reload_selected();
         this._reload_selected_id = Mainloop.idle_add(

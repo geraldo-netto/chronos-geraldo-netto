@@ -1282,6 +1282,31 @@ test("the month window is reused while the month and week start hold", () => {
     const otherMonth = cache.get(new Date(2026, 7, 9), 1);
     assert.notEqual(otherMonth, otherWeekStart);
     assert.equal(otherMonth.days.length, 42);
+
+    cache.invalidate();
+    assert.notEqual(cache.get(new Date(2026, 7, 9), 1), otherMonth,
+        "an invalidated cache rebuilds under an unchanged key");
+});
+
+// A timedatectl set-timezone, or an automatic change on a travelling laptop,
+// leaves the cache key (year/month/weekStart) identical while every dateUnixKey
+// inside the window becomes an offset the grid can no longer match event
+// buckets on — so nothing about the change would otherwise reach the cache.
+test("an OS timezone change drops the cached month window and re-renders", () => {
+    const cal = new CalendarModule.Calendar(
+        makeSettings(), makeEventsManager(), null, makeDesktopSettings());
+    cal.setDate(new Date(2026, 6, 9), true);
+    cal._update_id = 0;
+
+    const before = cal._monthWindows.get(new Date(2026, 6, 9), cal._weekStart);
+    assert.equal(cal._monthWindows.get(new Date(2026, 6, 20), cal._weekStart), before,
+        "another day of the month reuses it while the zone holds");
+
+    cal.refreshTimezone();
+
+    assert.notEqual(cal._monthWindows.get(new Date(2026, 6, 9), cal._weekStart), before,
+        "the zone change rebuilds it");
+    assert.ok(cal._update_id > 0, "and queues the re-render that picks it up");
 });
 
 test("a holiday fetch that has not answered yet shows a pending marker", () => {

@@ -109,6 +109,16 @@ class CalendarMonthWindowCache {
 
         return this._window;
     }
+
+    // The key is year/month/weekStart, but dateUnixKeys and accessibleDates are
+    // absolute values derived from the process timezone the window was built
+    // in. A zone change leaves the key identical and every value inside wrong,
+    // so it has to be dropped from outside. Releasing the window rather than
+    // clearing the key is what frees the 42 Dates and 84 GLib.DateTimes it
+    // holds; get() rebuilds on either, and the key is rewritten there anyway.
+    invalidate() {
+        this._window = null;
+    }
 }
 
 class CalendarMonthWindow {
@@ -867,6 +877,14 @@ class Calendar {
     // a day behind. render() recomputes today on every pass, so a queued update
     // is the whole move.
     refreshToday() {
+        this._queue_update();
+    }
+
+    // The OS zone moved under us. Unlike midnight, this does invalidate the
+    // cached window: its day keys are the unix seconds the grid matches event
+    // buckets on, and its accessible day names were formatted in the old zone.
+    refreshTimezone() {
+        this._monthWindows.invalidate();
         this._queue_update();
     }
 
