@@ -274,17 +274,24 @@ function localeInfo(utils, env) {
     return utils.lazyLocaleValue(env, (info) => info)();
 }
 
+// The keys DEFAULT_LOCALE_INFO declares for LC_TIME are the only ones a payload
+// can set, so the fuzz drives those two and buries them in everything locale(1)
+// might emit around them - including the unquoted-empty values real output
+// carries (era=, alt_digits=), which used to parse to NaN.
 function randomLocalePayload(seed = 0x10ca1e, count = 20) {
     const lines = [];
-    const expected = {};
+    const expected = { abday: "Sun;Mon;Tue;Wed;Thu;Fri;Sat", first_workday: 2 };
     const rand = makeRandom(seed);
     const malformed = [
         "",
         "# comment",
         "missing_equals",
-        "prefix key_0=999",
-        " key_1=888",
-        "key-with-dash=777"
+        "prefix abday=999",
+        " first_workday=888",
+        "key-with-dash=777",
+        "era=",
+        "alt_digits=",
+        "trailing_key=12345"
     ];
 
     for (let i = 0; i < count; i++) {
@@ -292,15 +299,14 @@ function randomLocalePayload(seed = 0x10ca1e, count = 20) {
             lines.push(malformed[Math.floor(rand() * malformed.length)]);
         }
 
-        const key = rand() < 0.25 && i > 0 ? `key_${Math.floor(rand() * i)}` : `key_${i}`;
         if (i % 2 === 0) {
-            const value = Math.floor(rand() * 10000);
-            lines.push(`${key}=${value}`);
-            expected[key] = value;
+            const value = Math.floor(rand() * 7);
+            lines.push(`first_workday=${value}`);
+            expected.first_workday = value;
         } else {
-            const value = `value_${i}_${Math.floor(rand() * 0x1000000).toString(36)}_quote_'`;
-            lines.push(`${key}="${value}"`);
-            expected[key] = value;
+            const value = `day_${i}_${Math.floor(rand() * 0x1000000).toString(36)}_quote_'`;
+            lines.push(`abday="${value}"`);
+            expected.abday = value;
         }
     }
 
@@ -1309,21 +1315,54 @@ test("lazy locale values parse quoted strings and numeric locale values", () => 
         'country_ab3="USA"'
     ].join("\n"));
 
+    // country_ab3 is LC_ADDRESS's key, not LC_TIME's: it is not in the schema
+    // this category declares, so it is not stored under it
     assert.deepEqual(localeInfo(utils, "LC_TIME"), {
         abday: "Sun;Mon;Tue",
-        first_workday: 2,
-        country_ab3: "USA"
+        first_workday: 2
     });
+});
+
+// T808: whether a key was a string or a number was decided by whether locale(1)
+// happened to quote it. Real output carries unquoted-empty values - era= and
+// alt_digits= - which parseInt turned into NaN. Nothing consumes those two, but
+// the two that ARE consumed had the same unenforced contract in both
+// directions: 6.0/calendar.js does info.abday.split(";"), which throws inside a
+// lazyLocaleValue memo on the compositor thread, and (info.first_workday + 6) %
+// 7, which is NaN - silently marking every day a workday.
+test("a locale value that will not parse to its declared type keeps the default", () => {
+    const defaults = { abday: "Sun;Mon;Tue;Wed;Thu;Fri;Sat", first_workday: 2 };
+
+    // libc emits the string key unquoted-empty, and the numeric key quoted or
+    // as a word: neither replaces what the applet already knows
+    assert.deepEqual(localeInfo(loadLocaleModules([
+        "abday=",
+        "first_workday=",
+        "era=",
+        "alt_digits="
+    ].join("\n")), "LC_TIME"), defaults);
+    assert.deepEqual(localeInfo(loadLocaleModules(
+        'first_workday="Monday"'), "LC_TIME"), defaults);
+    assert.deepEqual(localeInfo(loadLocaleModules(
+        "first_workday=1.5"), "LC_TIME"), defaults);
+
+    // ...and the forms that do parse are taken, quoted or not, including zero
+    assert.equal(localeInfo(loadLocaleModules("first_workday=0"), "LC_TIME")
+        .first_workday, 0);
+    assert.equal(localeInfo(loadLocaleModules('first_workday="4"'), "LC_TIME")
+        .first_workday, 4);
+    assert.equal(localeInfo(loadLocaleModules("abday=Sun;Mon"), "LC_TIME")
+        .abday, "Sun;Mon");
 });
 
 test("lazy locale values decode locale output through ByteArray when TextDecoder is absent", () => {
     const originalTextDecoder = global.TextDecoder;
     global.TextDecoder = undefined;
-    const Utils = loadLocaleModules('country_ab3="ita"\nfirst_workday=1\n');
+    const Utils = loadLocaleModules('abday="Dom;Lun"\nfirst_workday=1\n');
     const info = localeInfo(Utils, "LC_TIME");
     global.TextDecoder = originalTextDecoder;
 
-    assert.equal(info.country_ab3, "ita");
+    assert.equal(info.abday, "Dom;Lun");
     assert.equal(info.first_workday, 1);
 });
 
@@ -1391,14 +1430,11 @@ test("lazy locale values fuzz mixed locale key/value payloads", () => {
     for (let round = 0; round < 20; round++) {
         const payload = randomLocalePayload(0x10ca1e + round * 997, 24);
         const utils = loadLocaleModules(payload.lines.join("\n"));
-        const info = localeInfo(utils, "LC_ADDRESS");
+        const info = localeInfo(utils, "LC_TIME");
 
-        for (const [key, value] of Object.entries(payload.expected)) {
-            assert.equal(info[key], value, `round ${round}: ${key}`);
-        }
-
-        assert.equal(info.trailing_key, undefined);
-        assert.equal(info["key-with-dash"], undefined);
+        // T808: the declared keys take the last well-typed value, and every
+        // other key the payload carries is dropped rather than stored
+        assert.deepEqual(info, payload.expected, `round ${round}`);
     }
 });
 

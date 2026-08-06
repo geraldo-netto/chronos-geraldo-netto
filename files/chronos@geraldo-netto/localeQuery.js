@@ -245,22 +245,44 @@ function onLocaleInfoChanged(env, callback) {
     };
 }
 
+// locale(1) decides string-versus-number by whether it happened to quote the
+// value, so the type of a key was libc's choice rather than this module's. Real
+// output carries unquoted-empty values — era= and alt_digits= on the machine
+// this was found on — and parseInt turns those into NaN.
+//
+// Nothing consumes those two, but the contract on the two that are consumed was
+// unenforced in both directions: 6.0/calendar.js does info.abday.split(";"),
+// which throws inside a lazyLocaleValue memo on the compositor thread for any
+// libc that emits abday unquoted-empty, and (info.first_workday + 6) % 7, which
+// is NaN for one that quotes first_workday — silently marking every day a
+// workday. DEFAULT_LOCALE_INFO already declares the shape of both.
+function _typedValue(rawValue, declared) {
+    const quoted = rawValue.length >= 2 && rawValue[0] === "\"" && // NOSONAR [S6557] -- accepted compatible form
+        rawValue[rawValue.length - 1] === "\""; // NOSONAR [S6557,S7755] -- accepted compatible form
+    const value = quoted ? rawValue.slice(1, -1) : rawValue;
+
+    if (typeof declared === "string") {
+        return value || null;
+    }
+    const number = Number(value);
+    return value !== "" && Number.isInteger(number) ? number : null;
+}
+
+// DEFAULT_LOCALE_INFO is the schema, not only the fallback: a key it does not
+// declare is dropped, and a value that will not parse to the declared type
+// leaves the default in place rather than replacing it with NaN or undefined.
 function _parseInfo(env, output) {
     const info = _defaultInfo(env);
 
     output.split("\n").forEach((line) => {
         const match = re.exec(line);
-        if (!match) {
+        if (!match || !Object.prototype.hasOwnProperty.call(info, match[1])) {
             return;
         }
 
-        const [, key, rawValue] = match;
-
-        if (rawValue.length >= 2 && rawValue[0] === "\"" && // NOSONAR [S6557] -- accepted compatible form
-            rawValue[rawValue.length - 1] === "\"") { // NOSONAR [S6557,S7755] -- accepted compatible form
-            info[key] = rawValue.slice(1, -1);
-        } else {
-            info[key] = parseInt(rawValue, 10); // NOSONAR [S7773] -- accepted compatible form
+        const value = _typedValue(match[2], info[match[1]]);
+        if (value !== null) {
+            info[match[1]] = value;
         }
     });
 
