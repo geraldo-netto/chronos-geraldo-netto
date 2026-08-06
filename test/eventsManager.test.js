@@ -1455,6 +1455,40 @@ test("a failed mutation idle registration resyncs without a phantom source", () 
     }
 });
 
+test("the synchronous reload fallback contains a throwing consumer", () => {
+    const manager = readyManager();
+    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    manager.connect("selected-date-changed", () => {
+        throw new Error("selected-date listener failed");
+    });
+
+    const originalIdleAdd = global.imports.mainloop.idle_add;
+    const originalLogError = global.logError;
+    const logged = [];
+    global.imports.mainloop.idle_add = () => {
+        throw new Error("idle registration failed");
+    };
+    global.logError = (error) => logged.push(String(error));
+    try {
+        const events = Array.from({ length: 30 }, (_unused, index) => eventVariant({
+            id: `recursive-${index}`,
+            startUnix: 10 * DAY_S + index,
+            endUnix: 10 * DAY_S + index + 1
+        }));
+        assert.doesNotThrow(() => proxy.instance.signal(
+            "events-added-or-updated", { unpack: () => events }));
+    } finally {
+        global.imports.mainloop.idle_add = originalIdleAdd;
+        global.logError = originalLogError;
+    }
+
+    assert.deepEqual(manager._event_mutations, []);
+    assert.deepEqual(manager._event_batch_ids, []);
+    assert.equal(manager._resync_mutation_queued, false);
+    assert.ok(logged.some((line) => /selected-date listener failed/.test(line)),
+        "the contained consumer failure stays visible");
+});
+
 test("a resync notification failure cannot create a retry loop", () => {
     const manager = readyManager();
     manager.connect("events-updated", () => {

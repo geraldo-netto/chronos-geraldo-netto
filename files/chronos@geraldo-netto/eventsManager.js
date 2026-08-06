@@ -847,7 +847,16 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             global.logError(error);
             // Registration failure means there is no source to wait for or
             // cancel. Complete the authoritative reload in this turn instead.
-            this._idle_do_reload_selected();
+            try {
+                this._idle_do_reload_selected();
+            } catch (reloadError) {
+                // A normal GLib callback reports a consumer exception at its
+                // boundary. Mirror that boundary here so mutation recovery
+                // cannot interpret the listener failure as an unsafe resync
+                // and recursively try the unavailable idle port again.
+                global.logError(reloadError);
+                this._retire_stranded_resync_overflow();
+            }
         }
     }
 
