@@ -1663,6 +1663,46 @@ test("a failed month fetch is retried with backoff", () => {
         [true, false], "a successful retry clears the footer issue");
 });
 
+test("a synchronous month dispatch failure enters the retry state", () => {
+    const manager = readyManager();
+    const server = proxy.instance;
+    const normalDispatch = server.call_set_time_range;
+    server.call_set_time_range = function(start, end, force, cancellable, cb) {
+        this.set_time_range_calls.push({ start, end, force, cancellable, cb });
+        throw new Error("range dispatch failed");
+    };
+    manager._resync_overflow_pending = true;
+
+    assert.doesNotThrow(() =>
+        manager.select_date(new Date(50 * DAY_S * 1000), true));
+    assert.equal(manager._refresh_failed, true);
+    assert.ok(manager._fetch_retry_id > 0);
+    assert.equal(manager._resync_overflow_pending, true,
+        "a replacement that never dispatched cannot retire the overflow warning");
+
+    server.call_set_time_range = normalDispatch;
+    fireTimer(manager._fetch_retry_id);
+    assert.equal(manager._refresh_failed, false);
+    assert.equal(manager._fetch_retry_attempts, 0);
+    assert.equal(server.set_time_range_calls.length, 2);
+});
+
+test("an exception after the range callback is not a dispatch failure", () => {
+    const manager = readyManager();
+    const server = proxy.instance;
+    server.call_set_time_range = function(start, end, force, cancellable, cb) {
+        this.set_time_range_calls.push({ start, end, force, cancellable, cb });
+        cb(this, "res");
+        throw new Error("after callback");
+    };
+
+    assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
+        /after callback/);
+    assert.equal(manager._refresh_failed, false);
+    assert.equal(manager._fetch_retry_id, 0,
+        "a result that already succeeded must not be retried as a dispatch failure");
+});
+
 test("only the latest month completion owns refresh and retry state", () => {
     const manager = readyManager();
     const server = proxy.instance;

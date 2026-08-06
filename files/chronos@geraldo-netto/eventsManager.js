@@ -602,9 +602,21 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._stop_gc_timer();
         this.last_update_timestamp = watermark;
         const generation = ++this._fetch_generation;
-        this._server_connection.setTimeRange(
-            start, end, force, cancellable,
-            (server, res) => this.call_finished(generation, watermark, server, res));
+        let callbackStarted = false;
+        try {
+            this._server_connection.setTimeRange(
+                start, end, force, cancellable,
+                (server, res) => {
+                    callbackStarted = true;
+                    this.call_finished(generation, watermark, server, res);
+                });
+        } catch (error) {
+            if (callbackStarted) {
+                throw error;
+            }
+            this._settleMonthFetch(generation, watermark, error);
+            return;
+        }
 
         // Keep the warning if dispatch itself throws. Once a range call has
         // started, however, the old mutation-flood marker no longer describes
@@ -627,6 +639,10 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             failure = e;
         }
 
+        this._settleMonthFetch(generation, watermark, failure);
+    }
+
+    _settleMonthFetch(generation, watermark, failure) {
         // Only the latest dispatched range owns current UI/retry state. The
         // result above is already drained, so ignoring its state effects leaks
         // neither Gio resources nor an obsolete failure into the active month.
