@@ -534,6 +534,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         // insertion order is recency: re-touching deletes and re-adds
         this._yearUse = new Map();
         this._loading = false;
+        this._load_generation = 0;
         this._onReady = [];
         this._released = false;
     }
@@ -634,10 +635,13 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
             return;
         }
 
+        const generation = ++this._load_generation;
         this._loading = true;
         this._load(country, (data) => {
-            // a second place change can land while the first is still reading
-            if (!this._isActive() || this.country !== country) {
+            // Country equality alone cannot reject A1 after A→B→A. Only
+            // the read started by the current selection may install data or
+            // release callers waiting behind it.
+            if (!this._isActive() || generation !== this._load_generation) {
                 return;
             }
 
@@ -848,6 +852,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         if (!this._isActive()) {
             return;
         }
+        this._load_generation++;
         this.country = null;
         this._dropCachedPlace();
         // a load still in flight was for a place that no longer exists; whoever
@@ -863,6 +868,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     release() {
         // waiters would repaint actors the removal has already destroyed
         this._released = true;
+        this._load_generation++;
         this.country = null;
         this.region = GLOBAL_REGION;
         this._onReady = [];

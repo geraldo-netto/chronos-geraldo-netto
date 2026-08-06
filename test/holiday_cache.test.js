@@ -1056,6 +1056,37 @@ test("the country the user left does not overwrite the one they picked", () => {
         "the stale read is dropped rather than loaded over the current country");
 });
 
+test("reselecting a country rejects its older cache load", () => {
+    const { HolidayCache } = loadHolidays();
+    const pending = [];
+    const cache = new HolidayCache(
+        (country, done) => pending.push({ country, done }),
+        () => {}
+    );
+    const loaded = (name) => ({
+        years: {},
+        holidays: [{ year: 2026, month: 7, day: 14,
+            region: "global", name, flags: [] }]
+    });
+    const ready = [];
+
+    cache.setPlace("fra", "global", () => ready.push("old France"));
+    cache.setPlace("jpn", "global", () => ready.push("Japan"));
+    cache.setPlace("fra", "global", () => ready.push("current France"));
+    cache.whenReady(() => ready.push("waiter"));
+
+    pending[2].done(loaded("current"));
+    assert.deepEqual(cache.data.map((single) => single.name), ["current"]);
+    assert.deepEqual(ready, ["current France", "waiter"]);
+
+    pending[0].done(loaded("obsolete"));
+    pending[1].done(loaded("wrong country"));
+    assert.deepEqual(cache.data.map((single) => single.name), ["current"],
+        "an older request for the same country cannot overwrite the current read");
+    assert.deepEqual(ready, ["current France", "waiter"],
+        "obsolete loads cannot release or invoke current readers");
+});
+
 test("a fetch that lands after the place was cleared is not persisted", () => {
     const { HolidayCache } = loadHolidays();
     const saved = [];
