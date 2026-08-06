@@ -313,6 +313,56 @@ test("one failing teardown step does not strand the rest", () => {
     assert.equal(errors.length, 1, "and the failure is reported, not swallowed");
 });
 
+// The Nominatim spacing timer is armed inside a module-global queue that every
+// applet on the panel shares, so no instance owns it and nothing used to
+// release it — the same hazard cancelPendingLocaleQueries() is a teardown step
+// for. The composition root is where both ends of the count belong: it builds
+// the provider graph and it tears it down.
+test("the composition root registers and releases its weather consumer", () => {
+    const originalRegister = Weather.registerWeatherConsumer;
+    const originalCancel = Weather.cancelPendingWeatherRequests;
+    const calls = [];
+    Weather.registerWeatherConsumer = () => calls.push("register");
+    Weather.cancelPendingWeatherRequests = () => calls.push("release");
+
+    try {
+        const lifecycle = new AppletModule.AppletProviderLifecycle({
+            actor: { connect: () => 1, disconnect: () => {} },
+            desktopSettings: { connectClockFormatChanged: () => [], disconnect: () => {} },
+            holidaySettings: {
+                country: "none", religiousIds: [],
+                connectCountryChanged: () => {}, bindRegions: () => {},
+                connectReligionsChanged: () => {}
+            },
+            eventsSettings: {},
+            onEventsManagerReady: () => {},
+            onHasCalendarsChanged: () => {},
+            onHolidayPlaceChanged: () => {}
+        }, {
+            clock: () => ({}),
+            networkState: () => ({ isOnline: () => true, destroy: () => {} }),
+            weatherRepository: () => ({ destroy: () => {} }),
+            weatherProvider: () => ({ destroy: () => {} }),
+            cityWeatherProvider: () => ({ destroy: () => {} }),
+            eventsManager: () => ({ connect: () => 1, disconnect: () => {}, destroy: () => {} }),
+            holidayProvider: () => ({
+                clearPlace: () => {}, setPlace: () => {}, destroy: () => {},
+                setEnabledIds: () => {}
+            })
+        });
+
+        lifecycle.initProviders();
+        assert.deepEqual(calls, ["register"], "one instance, one consumer");
+
+        lifecycle.destroy();
+        assert.deepEqual(calls, ["register", "release"],
+            "and the teardown gives it back");
+    } finally {
+        Weather.registerWeatherConsumer = originalRegister;
+        Weather.cancelPendingWeatherRequests = originalCancel;
+    }
+});
+
 // Three id→text tables live across the pure/UI boundary, and every lookup is
 // TABLE[id] || id. The ids *are* English display strings, so a missing entry
 // does not blow up or read as broken — it quietly ships an untranslated English

@@ -276,6 +276,10 @@ class AppletProviderLifecycle {
     initProviders() {
         const context = this.context;
 
+        // The Nominatim request queue is module-global — one request-per-second
+        // budget for every instance on the panel — so, like the locale query,
+        // it is released by the last instance to leave rather than the first.
+        Weather.registerWeatherConsumer();
         this.clock = this.factories.clock();
         this.networkState = this.factories.networkState();
         this.weatherRepository = this.factories.weatherRepository();
@@ -524,7 +528,8 @@ class AppletProviderLifecycle {
             () => this.holidayProvider && this.holidayProvider.destroy(), // NOSONAR [S6582] -- accepted compatible form
             () => this._releaseEventsManager(),
             () => this._releaseDesktopSettings(),
-            () => this._releaseLogind()
+            () => this._releaseLogind(),
+            () => Weather.cancelPendingWeatherRequests()
         ];
 
         for (const step of steps) {

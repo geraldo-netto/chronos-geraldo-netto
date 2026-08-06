@@ -83,6 +83,7 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
             ElapsedTime.monotonicMilliseconds;
         this._schedule = params.schedule || ((delay, callback) =>
             GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, callback));
+        this._removeTimer = params.removeTimer || GLib.source_remove;
         this._jobs = [];
         this._active = false;
         this._last_started_at = null;
@@ -92,6 +93,25 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
     enqueue(start, isCurrent = () => true) {
         this._jobs.push({ start, isCurrent });
         this._drain();
+    }
+
+    // The spacing timer is a main-loop source with no owner: it is armed inside
+    // a module-global queue, and every applet on the panel shares it. Bounded —
+    // one-shot, under a second, and a job whose isCurrent() has gone false is
+    // discarded when it fires — but an unowned source in the compositor process
+    // is exactly what cancelPendingLocaleQueries() exists to prevent for the
+    // other module-level timers, and this one had no equivalent.
+    //
+    // Only the last consumer may call this: a queue emptied while another
+    // instance is still waiting behind the interval would drop that instance's
+    // geocode with nothing to retry it until its next refresh period.
+    cancelPending() {
+        this._jobs = [];
+        if (this._timer_id) {
+            this._removeTimer(this._timer_id);
+            this._timer_id = 0;
+        }
+        this._active = false;
     }
 
     _nextCurrentJob() {
@@ -154,6 +174,27 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
 };
 
 var NOMINATIM_REQUEST_QUEUE = new NominatimRequestQueue(); // NOSONAR [S3504] -- GJS importer export
+
+// The applet is multi-instance and the queue above is not: one request-per-
+// second budget is shared by every instance on the panel, which is the point.
+// So a per-instance teardown must not empty it — the same argument, and the
+// same shape, as localeQuery's consumer count.
+let _weatherConsumers = 0;
+
+function registerWeatherConsumer() {
+    _weatherConsumers++;
+}
+
+function cancelPendingWeatherRequests(queue = NOMINATIM_REQUEST_QUEUE) {
+    if (_weatherConsumers > 0) {
+        _weatherConsumers--;
+    }
+    if (_weatherConsumers > 0) {
+        return;
+    }
+
+    queue.cancelPending();
+}
 var MAX_WEATHER_READING_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES; // NOSONAR [S3504] -- GJS importer export
 
 // The geocoders, in the order they are tried. Named, because a nameless provider
@@ -624,6 +665,7 @@ if (typeof module !== "undefined") {
         GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
         MAX_WEATHER_READING_CACHE_ENTRIES, GEOCODE_CACHE_MILLISECONDS,
         NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
+        registerWeatherConsumer, cancelPendingWeatherRequests,
         WeatherLocationResolver, WeatherForecastResolver, WeatherReadingRepository,
         placeWithTimezone
     };

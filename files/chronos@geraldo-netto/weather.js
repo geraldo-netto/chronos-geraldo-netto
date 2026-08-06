@@ -54,6 +54,12 @@ const WeatherServiceAdapters = IS_NODE ?
 // The composition root reaches the shared repository through the same version
 // shim as WeatherProvider. Keep this a var binding so GJS exposes it.
 var WeatherReadingRepository = WeatherProviders.WeatherReadingRepository; // NOSONAR [S3504] -- GJS importer export
+// Re-declared here, not read off the barrel by the consumer: GJS sees only a
+// module's own `var` bindings, and the Object.assign spread below runs on the
+// Node side alone. The composition root counts weather consumers so the
+// module-global Nominatim queue is released by the last instance to leave.
+var registerWeatherConsumer = WeatherProviders.registerWeatherConsumer; // NOSONAR [S3504] -- GJS importer export
+var cancelPendingWeatherRequests = WeatherProviders.cancelPendingWeatherRequests; // NOSONAR [S3504] -- GJS importer export
 
 class WeatherDisplayState {
     constructor(params = {}) {
@@ -352,5 +358,6 @@ if (typeof module !== "undefined") {
     // var bindings GJS needs live in the module that declares each name.
     module.exports = Object.assign({}, WeatherFormat, WeatherServiceAdapters, // NOSONAR [S6661] -- accepted compatible form
         WeatherScheduler, WeatherProviders, { HTTP_TIMEOUT_SECONDS: IoUtils.HTTP_TIMEOUT_SECONDS },
-        { WeatherProvider, WeatherDisplayState, WeatherReadingRepository });
+        { WeatherProvider, WeatherDisplayState, WeatherReadingRepository,
+            registerWeatherConsumer, cancelPendingWeatherRequests });
 }

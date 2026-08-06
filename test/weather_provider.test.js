@@ -1014,6 +1014,86 @@ test("Nominatim requests are single-flight and use bounded elapsed delays", () =
         "a broken elapsed-time port cannot turn a backward jump into an unbounded wait");
 });
 
+// The spacing timer is armed inside a module-global queue, so no instance owns
+// it: without a teardown path it outlives the applet, which is what
+// cancelPendingLocaleQueries() exists to prevent for the other module-level
+// timers. And because the queue is shared on purpose — one request-per-second
+// budget for the whole panel — only the last instance to leave may empty it.
+test("the Nominatim queue is released by the last consumer, not the first", () => {
+    const Weather = loadWeather();
+    let now = 0;
+    const timers = [];
+    const removed = [];
+    const starts = [];
+    const queue = new Weather.NominatimRequestQueue({
+        elapsedNow: () => now,
+        schedule(delay, callback) {
+            timers.push({ delay, callback });
+            return timers.length;
+        },
+        removeTimer: (id) => removed.push(id)
+    });
+
+    // two applets on the panel, one geocode in flight and one waiting out the
+    // one-second interval behind it
+    Weather.registerWeatherConsumer();
+    Weather.registerWeatherConsumer();
+    let release = null;
+    queue.enqueue((done) => {
+        starts.push("first");
+        release = done;
+    });
+    queue.enqueue((done) => {
+        starts.push("second");
+        release = done;
+    });
+    release();
+    assert.deepEqual(starts, ["first"]);
+    assert.equal(timers.length, 1, "the second is behind the interval");
+
+    // the user removes one of them: the other is still waiting on that job
+    Weather.cancelPendingWeatherRequests(queue);
+    assert.deepEqual(removed, [], "the shared timer is not the departing instance's to remove");
+    now = Weather.NOMINATIM_MIN_INTERVAL_MS;
+    timers[0].callback();
+    assert.deepEqual(starts, ["first", "second"],
+        "the applet that stayed still gets its geocode");
+    release();
+
+    // ...and when the last one goes, the queue goes with it
+    queue.enqueue(() => starts.push("third"));
+    assert.equal(timers.length, 2, "a third request waits out its own interval");
+    Weather.cancelPendingWeatherRequests(queue);
+    assert.deepEqual(removed, [2], "the pending source is removed, not left armed");
+    assert.deepEqual(queue._jobs, [], "and the jobs behind it are dropped");
+
+    // A teardown with nobody left to release cannot bank credit against the
+    // applets that come after it: without the floor the count goes negative,
+    // and the next real teardown then empties a queue two live instances are
+    // still using.
+    Weather.cancelPendingWeatherRequests(queue);
+    Weather.cancelPendingWeatherRequests(queue);
+    Weather.registerWeatherConsumer();
+    Weather.registerWeatherConsumer();
+
+    now += Weather.NOMINATIM_MIN_INTERVAL_MS;
+    let lastRelease = null;
+    queue.enqueue((done) => {
+        starts.push("fourth");
+        lastRelease = done;
+    });
+    lastRelease();
+    queue.enqueue(() => starts.push("fifth"));
+    const armed = timers.length;
+    assert.ok(armed > 0, "a request is waiting out the interval");
+
+    removed.length = 0;
+    Weather.cancelPendingWeatherRequests(queue);
+    assert.deepEqual(removed, [],
+        "one of two live instances leaving takes nothing with it");
+    assert.equal(queue._jobs.length, 1, "and the queued request is still queued");
+});
+
 test("panel and city resolvers share the process-wide Nominatim queue", () => {
     const Weather = loadWeather();
     const panelResolver = new Weather.WeatherLocationResolver({ httpGetJson() {} });

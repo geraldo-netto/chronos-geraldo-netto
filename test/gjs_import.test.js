@@ -429,7 +429,8 @@ test("the barrel carries its parts to Node, and nothing reads a part off it in G
         }
         const read = Array.from(source.matchAll(/\bWeather\.(\w+)/g)).map(([, name]) => name);
         const expected = file.endsWith("appletLifecycle.js") ?
-            ["WeatherReadingRepository", "WeatherProvider"] : ["WeatherProvider"];
+            ["WeatherReadingRepository", "WeatherProvider", "registerWeatherConsumer",
+                "cancelPendingWeatherRequests"] : ["WeatherProvider"];
         assert.deepEqual([...new Set(read)], expected,
             `${file} reads a part's symbol off the barrel, which GJS cannot see`);
     }
