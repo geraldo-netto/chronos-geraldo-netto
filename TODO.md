@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T933 | test coverage; diagnostics | Low | open | S | Six composite assertions surfaced after the first Sonar assertion cleanup shifted the new-code analysis. | **[found 2026-08-07 in the post-push Sonar reanalysis; javascript:S9073]** Split the independent calendar, event-data, locale-query, and weather predicates at `calendar.test.js:340,2603`, `eventData.test.js:436,477`, and `utils.test.js:1944,2042`. |
 | T934 | maintainability; GJS compatibility | Low | open | S | Sonar flags two `var` exports in the root event-data module even though changing their declaration hides them from the GJS importer. | **[found 2026-08-07 in the post-push Sonar reanalysis; javascript:S3504]** Keep `EventData` and `EventDataList` as top-level `var` bindings, consistent with R20/D02 and the import-surface gate, and add the same targeted compatibility rationale used by the other root exports. |
 
 ## Rejected, deferred and won't fix

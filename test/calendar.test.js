@@ -337,7 +337,8 @@ test("fuzz: browse always lands in the expected month with a valid day", () => {
         assert.equal(result.getMonth(), expected.month,
             `from ${from.toDateString()} y${yearChange} m${monthChange}`);
         assert.equal(result.getFullYear(), expected.year);
-        assert.ok(result.getDate() >= 1 && result.getDate() <= 31);
+        assert.ok(result.getDate() >= 1);
+        assert.ok(result.getDate() <= 31);
     }
 });
 
@@ -2600,7 +2601,8 @@ test("fuzz: navigation wrappers preserve valid queued dates", () => {
         [cal._onPrevYearButtonClicked, cal._onNextYearButtonClicked,
             cal._onPrevMonthButtonClicked, cal._onNextMonthButtonClicked][op].call(cal);
         assert.ok(queued instanceof Date);
-        assert.ok(queued.getDate() >= 1 && queued.getDate() <= 31);
+        assert.ok(queued.getDate() >= 1);
+        assert.ok(queued.getDate() <= 31);
     }
 });
 

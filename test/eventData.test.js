@@ -433,8 +433,10 @@ test("get_event_list: multiple all-day events keep insertion above first pending
 
     const ids = list.get_event_list().map((e) => e.id);
     const pendingIdx = ids.indexOf("pending");
-    assert.ok(ids.indexOf("allday1") < pendingIdx && ids.indexOf("allday2") < pendingIdx,
-        `all-day events precede pending: ${ids}`);
+    assert.ok(ids.indexOf("allday1") < pendingIdx,
+        `first all-day event precedes pending: ${ids}`);
+    assert.ok(ids.indexOf("allday2") < pendingIdx,
+        `second all-day event precedes pending: ${ids}`);
     assert.ok(ids.indexOf("past1") < ids.indexOf("allday1"), `past events precede all-day: ${ids}`);
 });
 
@@ -474,7 +476,8 @@ test("fuzz: a hostile DBus event either builds or is refused, and never half-bui
 
         // if it built, it is whole: a null GLib.DateTime here is what used to
         // throw two lines later, inside a DBus signal handler
-        assert.ok(event.start && event.end, "an event that exists has both ends");
+        assert.ok(event.start, "an event that exists has a start");
+        assert.ok(event.end, "an event that exists has an end");
         assert.equal(typeof event.id, "string");
         assert.ok(EventDataModule.validEventUid(event.id),
             "an admitted UID is inside the contract");

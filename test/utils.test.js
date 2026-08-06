@@ -1941,8 +1941,10 @@ test("month window offset reaches week start for every day and locale", () => {
         for (let weekStart = 0; weekStart <= 6; weekStart++) {
             const offset = utils.monthWindowStartOffset(isoWeekDay, weekStart);
 
-            assert.ok(offset >= 0 && offset <= 6,
-                `offset ${offset} out of range for iso ${isoWeekDay}, start ${weekStart}`);
+            assert.ok(offset >= 0,
+                `offset ${offset} below range for iso ${isoWeekDay}, start ${weekStart}`);
+            assert.ok(offset <= 6,
+                `offset ${offset} above range for iso ${isoWeekDay}, start ${weekStart}`);
 
             // stepping back `offset` days must land exactly on the week start
             const gridStartDay = ((isoWeekDay % 7) - offset + 7) % 7;
@@ -2039,8 +2041,10 @@ test("fuzz: safeCssColor output never carries declaration separators", () => {
             candidate += alphabet[Math.floor(rand() * alphabet.length)];
         }
         const result = StyleUtils.safeCssColor(candidate);
-        assert.ok(!result.includes(";") && !result.includes("}"),
-            `unsafe output for input "${candidate}": "${result}"`);
+        assert.ok(!result.includes(";"),
+            `semicolon in output for input "${candidate}": "${result}"`);
+        assert.ok(!result.includes("}"),
+            `closing brace in output for input "${candidate}": "${result}"`);
     }
 });
 
