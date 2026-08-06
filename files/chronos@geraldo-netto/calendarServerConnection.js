@@ -72,11 +72,11 @@ function boundedUnpackedEvents(varray, recordLimit, retainedBytes) {
     // prefix is still bounded even though those non-production adapters have
     // already materialized their array.
     if (typeof varray.unpack !== "function") {
-        throw new Error("calendar event array cannot be unpacked");
+        throw new TypeError("calendar event array cannot be unpacked");
     }
     const unpacked = varray.unpack();
     if (!Array.isArray(unpacked)) {
-        throw new Error("calendar event payload is not an array");
+        throw new TypeError("calendar event payload is not an array");
     }
     return {
         events: unpacked.slice(0, recordLimit),
