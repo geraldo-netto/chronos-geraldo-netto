@@ -436,7 +436,9 @@ test("every catalog in po/ is one the gate tracks", async () => {
 test("the i18n CLI dispatches the checked project", async (t) => {
     const bin = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-i18n-bin-"));
     t.after(() => fs.rm(bin, { recursive: true, force: true }));
-    for (const command of ["msgfmt", "msgattrib", "msgcmp", "cinnamon-xlet-makepot"]) {
+    for (const command of [
+        "msgfmt", "msgattrib", "msgcmp", "msgmerge", "cinnamon-xlet-makepot"
+    ]) {
         const executable = path.join(bin, command);
         await fs.writeFile(executable, "#!/bin/sh\nexit 0\n");
         await fs.chmod(executable, 0o755);
