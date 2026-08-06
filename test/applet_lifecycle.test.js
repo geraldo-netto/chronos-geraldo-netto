@@ -216,7 +216,7 @@ test("the panel clock connects to the tick signal WallClock actually emits", () 
 });
 
 test("local-day rollover is independent of the rendered clock string", () => {
-    const Lifecycle = require(path.join(APPLET_DIR, "5.4", "appletLifecycle.js"));
+    const Lifecycle = require(path.join(APPLET_DIR, "6.0", "appletLifecycle.js"));
     const previousTimezone = process.env.TZ;
     process.env.TZ = "Europe/Rome";
     try {
@@ -394,7 +394,7 @@ test("every id the code can produce has a word in the table that renders it", ()
             `the weather error "${error}" has no translatable word`);
     }
 
-    const Annotations = require(path.join(APPLET_DIR, "5.4", "calendarAnnotations.js"));
+    const Annotations = require(path.join(APPLET_DIR, "6.0", "calendarAnnotations.js"));
     const HolidayConstants = require(path.join(APPLET_DIR, "holidayConstants.js"));
     const holidayErrors = Object.values(HolidayConstants.HOLIDAY_ERRORS);
     const renderedHolidayErrors = Object.keys(Annotations.HOLIDAY_ERROR_TEXT);
@@ -498,7 +498,7 @@ test("provider lifecycle tears down provider and system resources", () => {
 });
 
 test("the default weather graph shares one reading repository", () => {
-    const lifecycleModule = require(path.join(APPLET_DIR, "5.4", "appletLifecycle.js"));
+    const lifecycleModule = require(path.join(APPLET_DIR, "6.0", "appletLifecycle.js"));
     const networkState = lifecycleModule.DEFAULT_FACTORIES.networkState();
     const repository = lifecycleModule.DEFAULT_FACTORIES.weatherRepository();
     const panel = lifecycleModule.DEFAULT_FACTORIES.weatherProvider(repository, networkState);
@@ -1228,7 +1228,7 @@ test("About launches the shared GTK page without a shell", () => {
 
     try {
         Proto.openAbout.call(Object.assign(Object.create(Proto), {
-            _meta: { path: "/home/user/Chronos App;safe/5.4" }
+            _meta: { path: "/home/user/Chronos App;safe/6.0" }
         }));
     } finally {
         gio.Subprocess = originalSubprocess;
@@ -1239,7 +1239,7 @@ test("About launches the shared GTK page without a shell", () => {
         ["construct", {
             argv: [
                 "python3",
-                "/home/user/Chronos App;safe/5.4/settings_about.py"
+                "/home/user/Chronos App;safe/6.0/settings_about.py"
             ],
             flags: 0
         }],
@@ -1468,8 +1468,8 @@ test("provider initialization wires hover and event manager signals", () => {
 
 test("UI build wires calendar, event list, menu items, and world clocks", () => {
     const calls = [];
-    const Calendar52 = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
-    const EventView52 = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+    const Calendar52 = require(path.join(APPLET_DIR, "6.0", "calendar.js"));
+    const EventView52 = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
     const originals = {
         Calendar: Calendar52.Calendar,
         EventList: EventView52.EventList,
@@ -1804,8 +1804,8 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
 test("constructor registers desktop and lifecycle callbacks", () => {
     const calls = [];
     let formatWrites = 0;
-    const Calendar52 = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
-    const EventView52 = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+    const Calendar52 = require(path.join(APPLET_DIR, "6.0", "calendar.js"));
+    const EventView52 = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
     const originals = {
         TextActor: global.imports.ui.applet.TextApplet.prototype.actor,
         TextMenu: global.imports.ui.applet.TextApplet.prototype._applet_context_menu,

@@ -4,12 +4,12 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { makeRandom: makeSeededRandom } = require("./helpers/prng");
 
-const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "worldclocks.js");
+const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "worldclocks.js");
 const dataModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "worldclockData.js");
-const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "worldclockData.js");
+const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "worldclockData.js");
 const localeTextPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeText.js");
 const textUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "textUtils.js");
-const style52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "stylesheet.css");
+const style52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "stylesheet.css");
 
 // two built-in rows (UTC and local time) always precede the configured clocks
 const BUILTIN_ROWS = 2;
@@ -313,7 +313,7 @@ function clearWorldclockCaches() {
     delete require.cache[require.resolve(textUtilsPath)];
 }
 
-// 5.4/worldclocks.js reaches the shared data module through the 5.4 shim,
+// 6.0/worldclocks.js reaches the shared data module through the 6.0 shim,
 // which reads it off the applet importer
 function reloadWorldclocks() {
     clearWorldclockCaches();
@@ -1164,7 +1164,7 @@ test("untranslated strings inherit the shared translator fallback", () => {
     assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "cinnamon:Invalid timezone");
 });
 
-test("5.4 worldclocks module exports the presentation class", () => {
+test("6.0 worldclocks module exports the presentation class", () => {
     const { Worldclocks } = loadWorldclocks();
     assert.equal(typeof Worldclocks, "function");
 });
@@ -1367,7 +1367,7 @@ test("a long clock name ellipsizes instead of widening the popup", () => {
 
     // ellipsized text is text the user cannot read: the hover gives it back
     const css = fs.readFileSync(
-        path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "stylesheet.css"),
+        path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "stylesheet.css"),
         "utf8");
     assert.match(css, /\.calendar-world-label\s*\{[^}]*max-width/);
 });

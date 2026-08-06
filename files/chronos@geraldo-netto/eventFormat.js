@@ -9,7 +9,7 @@
 
 /* eslint camelcase: "off" */
 
-// Pure helpers for the event-row label logic in 5.4/eventView.js. No GJS
+// Pure helpers for the event-row label logic in 6.0/eventView.js. No GJS
 // imports on purpose: everything operates on the EventData day-comparison
 // interface and injected formatting options, so Node tests can drive the
 // full matrix of date permutations without Clutter or GLib.

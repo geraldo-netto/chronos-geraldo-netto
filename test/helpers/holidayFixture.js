@@ -35,7 +35,7 @@ const holidayCachePath = path.join(__dirname, "..", "..", "files", "chronos@gera
 const holidayConstantsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayConstants.js");
 const holidayRecordPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayRecord.js");
 const holidayServiceAdaptersPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js");
-const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "5.4", "holidays.js");
+const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "holidays.js");
 
 let originalImports;
 let originalLog;

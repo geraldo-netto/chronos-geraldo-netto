@@ -4,8 +4,8 @@ const path = require("node:path");
 
 const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const astronomyPath = path.join(appletDir, "astronomy.js");
-const shimPath = path.join(appletDir, "5.4", "astronomy.js");
-const viewPath = path.join(appletDir, "5.4", "astronomyView.js");
+const shimPath = path.join(appletDir, "6.0", "astronomy.js");
+const viewPath = path.join(appletDir, "6.0", "astronomyView.js");
 let unixDateTime = null;
 let utcDateTimeFactory = () => null;
 let dateTimeFactory = () => null;

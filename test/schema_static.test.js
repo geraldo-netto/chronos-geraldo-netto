@@ -110,8 +110,8 @@ test("the license is declared everywhere it is claimed, and its text ships", () 
     assert.match(license, /any later\nversion/);
 });
 
-test("5.4 schema exposes Belgium holiday regions", () => {
-    const schema52 = schema("5.4");
+test("6.0 schema exposes Belgium holiday regions", () => {
+    const schema52 = schema("6.0");
 
     assert.ok(require(path.join(appletDir, "holidayConstants.js"))
         .REGION_COUNTRIES.includes("bel"));
@@ -145,7 +145,7 @@ test("5.4 schema exposes Belgium holiday regions", () => {
 });
 
 test("schema groups weather and location controls together", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const layout = data.layout;
 
     assert.deepEqual(layout.section5, {
@@ -161,7 +161,7 @@ test("schema groups weather and location controls together", () => {
 });
 
 test("date format controls are always visible", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
 
     assert.equal(data["use-custom-format"], undefined);
     assert.equal(data.layout.section1.keys.includes("use-custom-format"), false);
@@ -183,7 +183,7 @@ test("date format controls are always visible", () => {
 });
 
 test("the country combobox and the supported-country list agree", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const constants = require(path.join(appletDir, "holidayConstants.js"));
 
     const offered = Object.values(data.country.options).filter((code) => code !== "none");
@@ -192,7 +192,7 @@ test("the country combobox and the supported-country list agree", () => {
 });
 
 test("religious settings and the runtime catalogue have exact parity", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const catalog = require(path.join(appletDir, "religiousCatalog.js"));
     const facade = require(path.join(appletDir, "settingsFacade.js"));
     const religious = require(path.join(appletDir, "religiousHolidays.js"));
@@ -228,7 +228,7 @@ test("religious settings and the runtime catalogue have exact parity", () => {
 // so both ISO fallback providers quietly serve nationwide-only holidays: no
 // error, no log, wrong calendar.
 test("every region the dialog offers is a region the providers understand", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const constants = require(path.join(appletDir, "holidayConstants.js"));
     const regions = constants.REGION_TO_SUBDIVISION;
 
@@ -286,7 +286,7 @@ test("every region the dialog offers is a region the providers understand", () =
 // anything. Rename SHOW_WEEK_NUMBERS_KEY to "show_week_numbers" and Cinnamon
 // binds nothing, week numbers silently stop working, and every test stays green.
 test("every settings key the facade binds exists in the schema", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const facade = fs.readFileSync(path.join(appletDir, "settingsFacade.js"), "utf8");
     const facadeModule = require(path.join(appletDir, "settingsFacade.js"));
 
@@ -345,7 +345,7 @@ test("every settings key the facade binds exists in the schema", () => {
 });
 
 test("the layout lists only keys that render a widget", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const layout = data.layout;
 
     for (const sectionName of Object.keys(layout)) {
@@ -366,7 +366,7 @@ test("the layout lists only keys that render a widget", () => {
 // a dependent control sits inside the indented group under the switch that
 // turns it on; one that forgets to say so hangs out of the group it belongs to
 test("keys that depend on the same switch are indented alike", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const groups = {};
 
     for (const key of Object.keys(data)) {
@@ -392,7 +392,7 @@ test("keys that depend on the same switch are indented alike", () => {
 });
 
 test("controls that cannot do anything are gated", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     // with the clocks feature off there is nothing to configure
     assert.equal(data.worldclocks.dependency, "show-worldclocks");
 
@@ -425,7 +425,7 @@ test("controls that cannot do anything are gated", () => {
 // the panel's mouse tooltip — not in the settings dialog, where the user is
 // standing when they make it happen.
 test("the weather location says what an empty one does", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const readme = fs.readFileSync(readmePath, "utf8");
 
     assert.equal(data["weather-location"].default, "");
@@ -559,7 +559,7 @@ test("automatic Sonar analysis separates production and test code", () => {
     assert.match(properties, /^sonar\.sources=files,scripts$/m);
     assert.match(properties, /^sonar\.tests=test$/m);
     assert.match(properties,
-        /^sonar\.exclusions=files\/chronos@geraldo-netto\/5\.4\/stylesheet\.css$/m,
+        /^sonar\.exclusions=files\/chronos@geraldo-netto\/6\.0\/stylesheet\.css$/m,
         "Cinnamon St CSS must not be checked as browser CSS");
 });
 
@@ -639,7 +639,7 @@ test("catalogs localize calendar dates while panel formats keep their fixed orde
 
     // The calendar's two long forms remain locale-controlled.
     const dateFormats = fs.readFileSync(path.join(appletDir, "dateFormats.js"), "utf8");
-    const panel = fs.readFileSync(path.join(appletDir, "5.4", "appletPanelStatus.js"), "utf8");
+    const panel = fs.readFileSync(path.join(appletDir, "6.0", "appletPanelStatus.js"), "utf8");
     const msgids = Array.from(dateFormats.matchAll(/_\("([^"]*%B[^"]*)"\)/g)).map(([, id]) => id);
     assert.deepEqual(msgids, ["%B %-e, %Y", "%A, %B %-e, %Y"]);
 
@@ -674,9 +674,16 @@ test("what ships carries its licence", () => {
 
 // Cinnamon treats each entry as a minimum compatible version, not as a literal
 // allow-list. The multiversion loader separately picks the newest versioned
-// source tree at or below the running series, so the 5.4 floor serves later
+// source tree at or below the running series, so the 6.0 floor serves later
 // Cinnamon releases until the applet needs to declare a newer compatibility
 // boundary.
+//
+// The floor is 6.0 because the HTTP layer speaks libsoup 3 only — the
+// four-argument send_async and get_status() — and 6.0.0 is the first Cinnamon
+// that pins `imports.gi.versions.Soup = '3.0'`. An xlet cannot choose the
+// version itself: the host has already imported Soup by the time the applet
+// loads. 5.4.11 through 5.8.5 pin 2.4, and 5.4.10 and earlier pin nothing at
+// all, so on any of them the applet would load and then fail every request.
 test("the manifest declares the Cinnamon compatibility floor", () => {
     const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
     const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
@@ -690,13 +697,15 @@ test("the manifest declares the Cinnamon compatibility floor", () => {
         });
     };
 
-    assert.match(readme, /Cinnamon \*\*5\.4 or newer\*\*/);
-    assert.deepEqual(supported, ["5.4"], "declare the compatibility floor once");
+    assert.match(readme, /Cinnamon \*\*6\.0 or newer\*\*/);
+    assert.deepEqual(supported, ["6.0"], "declare the compatibility floor once");
     assert.ok(supported.every((series) => /^\d+\.\d+$/.test(series)));
     assert.equal(supports("5.2"), false);
-    assert.equal(supports("5.4"), true);
+    // the last libsoup-2.4 series: loading there is what the floor prevents
+    assert.equal(supports("5.8"), false);
+    assert.equal(supports("6.0"), true);
     assert.equal(supports("6.6"), true,
-        "later Cinnamon series satisfy the 5.4 minimum");
+        "later Cinnamon series satisfy the 6.0 minimum");
     assert.equal(supports("7.0"), true,
         "a minimum version is not a finite allow-list");
 
@@ -734,7 +743,7 @@ test("the manual install does not copy Python bytecode", () => {
 });
 
 test("holiday timezone default is one-time and weather remains opt-in", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const readme = fs.readFileSync(readmePath, "utf8");
 
     assert.equal(data["show-weather"].default, false);
@@ -754,7 +763,7 @@ test("the clock cap is the same in schema, JS, Python, and the README", () => {
     const clockLimits = require(path.join(appletDir, "clockLimits.js"));
     const widgets = fs.readFileSync(path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
     const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
-    const data = schema("5.4");
+    const data = schema("6.0");
 
     const jsCap = clockLimits.MAX_CLOCKS;
     const pyCap = Number(/^MAX_CLOCKS = (\d+)$/m.exec(widgets)[1]);
@@ -794,7 +803,7 @@ test("the clock list is tall enough to show every clock the cap allows", () => {
     const ROW_HEIGHT = 22;
     const widgets = fs.readFileSync(path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
     const cap = Number(/^MAX_CLOCKS = (\d+)$/m.exec(widgets)[1]);
-    const data = schema("5.4");
+    const data = schema("6.0");
 
     assert.ok(data.worldclocks.height >= HEADER_HEIGHT + (cap * ROW_HEIGHT),
         "raising the clock cap without raising the list height hides clocks behind a scrollbar");
@@ -845,7 +854,7 @@ test("world clock strings stay extracted into the template", () => {
 // setting has said so all along; the two weather settings, which also leave the
 // machine, did not.
 test("every setting that leaves the machine says so where it is switched on", () => {
-    const schema54 = schema("5.4");
+    const schema54 = schema("6.0");
 
     for (const key of ["show-weather", "weather-location", "worldclocks", "country"]) {
         assert.match(schema54[key].tooltip, /third-party/,
@@ -861,7 +870,7 @@ test("the disclosed holiday services are the provider registry", () => {
     const providers = Object.values(constants.HOLIDAY_PROVIDER_NAMES);
 
     const countWords = { 1: "one", 2: "two", 3: "three", 4: "four", 5: "five" };
-    const tooltip = schema("5.4").country.tooltip;
+    const tooltip = schema("6.0").country.tooltip;
     assert.match(tooltip, new RegExp(
         `up to ${countWords[providers.length]} third-party holiday services`));
 
@@ -891,7 +900,7 @@ test("README documents weather privacy data flow", () => {
         assert.equal(stated, minutes);
     }
 
-    const tooltip = schema("5.4")["weather-location"].tooltip;
+    const tooltip = schema("6.0")["weather-location"].tooltip;
     const tooltipMinutes = /every (\d+) minutes/.exec(tooltip);
     assert.ok(tooltipMinutes, "the consent tooltip must state the refresh cadence");
     assert.equal(Number(tooltipMinutes[1]), minutes);
@@ -949,7 +958,7 @@ function shownSchemaStrings(data) {
 }
 
 test("every string the settings dialog shows is in the translation template", () => {
-    const data = schema("5.4");
+    const data = schema("6.0");
     const pot = fs.readFileSync(
         path.join(appletDir, "po", "chronos@geraldo-netto.pot"), "utf8");
 

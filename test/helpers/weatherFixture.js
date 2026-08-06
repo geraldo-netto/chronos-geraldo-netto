@@ -12,8 +12,8 @@ const providersPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo
 const serviceAdaptersPath = path.join(
     __dirname, "..", "..", "files", "chronos@geraldo-netto", "weatherServiceAdapters.js");
 const ioUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "ioUtils.js");
-const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "5.4", "weather.js");
-const schema52Path = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "5.4", "settings-schema.json");
+const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "weather.js");
+const schema52Path = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "settings-schema.json");
 
 let originalImports;
 let originalLogError;

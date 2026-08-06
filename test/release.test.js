@@ -132,7 +132,7 @@ test("the release bump updates every version owner", async (t) => {
     await bumpRelease(temporary, "0.0.2");
 
     // The manifest was re-serialised wholesale, and `JSON.stringify(m, null, 4)`
-    // expands `"cinnamon-version": ["5.4"]` to three lines: a one-value change
+    // expands `"cinnamon-version": ["6.0"]` to three lines: a one-value change
     // produced a four-line diff in the twelve-line file Cinnamon parses at load,
     // and the documented recipe stages it wholesale.
     const manifestAfter = await fs.readFile(manifestPath, "utf8");

@@ -88,7 +88,7 @@ async function makeSpicesFixture(t) {
     const source = path.join(temporary, "source");
     const output = path.join(temporary, "output");
     const applet = path.join(source, "files", UUID);
-    await fs.mkdir(path.join(applet, "5.4"), { recursive: true });
+    await fs.mkdir(path.join(applet, "6.0"), { recursive: true });
     await fs.writeFile(path.join(source, "README.md"), "readme");
     await fs.writeFile(path.join(source, "info.json"), "{}");
     await fs.writeFile(path.join(source, "screenshot.png"), "png");
@@ -111,9 +111,9 @@ async function importPackager() {
 
 async function makeArchiveTree(root, timestamp) {
     const applet = path.join(root, "chronos@geraldo-netto", "files", UUID);
-    await fs.mkdir(path.join(applet, "5.4"), { recursive: true });
+    await fs.mkdir(path.join(applet, "6.0"), { recursive: true });
     const regular = path.join(applet, "metadata.json");
-    const executable = path.join(applet, "5.4", "settings_widgets.py");
+    const executable = path.join(applet, "6.0", "settings_widgets.py");
     await fs.writeFile(regular, '{"version":"1.2.3"}\n');
     await fs.writeFile(executable, "#!/usr/bin/python3\n");
     await fs.chmod(regular, 0o644);
@@ -215,7 +215,7 @@ test("equal staged trees produce byte-identical normalized archives", async (t) 
     assert.equal((await fs.stat(path.join(extracted, "chronos@geraldo-netto", "files",
         UUID, "metadata.json"))).mode & 0o777, 0o644);
     assert.equal((await fs.stat(path.join(extracted, "chronos@geraldo-netto", "files",
-        UUID, "5.4", "settings_widgets.py"))).mode & 0o777, 0o755);
+        UUID, "6.0", "settings_widgets.py"))).mode & 0o777, 0o755);
 });
 
 test("the explicit manifest seam copies validated worktree files", async (t) => {
@@ -238,16 +238,16 @@ test("the explicit manifest seam copies validated worktree files", async (t) => 
 test("packaging rejects a tracked symlink that escapes the source tree", async (t) => {
     const { temporary, source, output, applet } = await makeSpicesFixture(t);
     await fs.writeFile(path.join(applet, "icon.png"), "tracked icon");
-    await fs.symlink("../icon.png", path.join(applet, "5.4", "icon.png"));
+    await fs.symlink("../icon.png", path.join(applet, "6.0", "icon.png"));
     await fs.writeFile(path.join(applet, "ignored.pyc"), "ignored");
     await execFileAsync("git", [
         "-C", source, "add",
-        "files/" + UUID + "/icon.png", "files/" + UUID + "/5.4/icon.png"
+        "files/" + UUID + "/icon.png", "files/" + UUID + "/6.0/icon.png"
     ]);
 
     const { buildSpicesPackage } = await importPackager();
     await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
-    assert.equal(await fs.readFile(path.join(output, "files", UUID, "5.4", "icon.png"), "utf8"),
+    assert.equal(await fs.readFile(path.join(output, "files", UUID, "6.0", "icon.png"), "utf8"),
         "tracked icon");
     await assert.rejects(fs.access(path.join(output, "files", UUID, "ignored.pyc")));
 
@@ -397,7 +397,7 @@ const INVALID_MANIFESTS = [
         /duplicate paths/],
     ["a missing required file", ["README.md", "info.json"],
         /missing screenshot\.png/],
-    ["a directory entry", [...REQUIRED, `files/${UUID}/5.4`],
+    ["a directory entry", [...REQUIRED, `files/${UUID}/6.0`],
         /names a directory, not a file/]
 ];
 

@@ -38,7 +38,7 @@ function dateOnly(dt) {
     return new FakeDateTime(Math.floor(dt.usec / DAY_US) * DAY_US);
 }
 
-// Mirrors the EventData day-comparison interface from 5.4/eventView.js.
+// Mirrors the EventData day-comparison interface from 6.0/eventView.js.
 function makeEvent({ startUs, endUs, allDay = false }) {
     const start = new FakeDateTime(startUs);
     const end = new FakeDateTime(endUs);

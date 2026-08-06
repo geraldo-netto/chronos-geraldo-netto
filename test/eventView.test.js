@@ -281,9 +281,9 @@ rootModules.eventsManager = require(path.join(APPLET_DIR, "eventsManager.js"));
 rootModules.worldclockData = require(path.join(APPLET_DIR, "worldclockData.js"));
 rootModules.holidayConstants = require(path.join(APPLET_DIR, "holidayConstants.js"));
 
-const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
-const LauncherModule = require(path.join(APPLET_DIR, "5.4", "calendarLauncher.js"));
-const CoordinatorModule = require(path.join(APPLET_DIR, "5.4", "appletCoordinators.js"));
+const EventView = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
+const LauncherModule = require(path.join(APPLET_DIR, "6.0", "calendarLauncher.js"));
+const CoordinatorModule = require(path.join(APPLET_DIR, "6.0", "appletCoordinators.js"));
 
 // A row's launcher is the list's: EventRow used to default to a fresh
 // CalendarLauncher, which quietly gave every row its own memo of
@@ -746,7 +746,7 @@ test("the empty-state message wraps instead of being cut off", () => {
     // and the label has a width to wrap against: the column itself has a
     // min-width and no max, so without this the popup just grows
     const css = fs.readFileSync(
-        path.join(APPLET_DIR, "5.4", "stylesheet.css"), "utf8");
+        path.join(APPLET_DIR, "6.0", "stylesheet.css"), "utf8");
     assert.match(css, /\.calendar-events-no-events-label\s*\{[^}]*max-width/);
 });
 

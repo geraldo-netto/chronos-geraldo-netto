@@ -26,7 +26,7 @@ APPLET_DIR = Path(__file__).resolve().parent.parent.parent
 SOURCES = sorted((APPLET_DIR / "files" / "chronos@geraldo-netto").rglob("*.py"))
 
 # The dialog is the user-facing half and is held to the JS suite's line gate.
-# The 5.4 shim is three lines of sys.path plumbing and is measured with it — it
+# The 6.0 shim is three lines of sys.path plumbing and is measured with it — it
 # lives in a subdirectory, and the glob here was non-recursive, so the one file
 # Cinnamon's create_custom_widget actually loads was the one file the gate did
 # not look at, while the comment above claimed it did.

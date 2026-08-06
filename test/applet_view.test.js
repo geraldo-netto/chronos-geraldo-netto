@@ -1048,7 +1048,7 @@ test("an empty clock list formats no clocks while the menu is closed", () => {
 // blank. This is what that looks like from the outside.
 test("the panel presenter goes through the view for every read", () => {
     const source = fs.readFileSync(
-        path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "appletPanelStatus.js"),
+        path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "appletPanelStatus.js"),
         "utf8");
 
     const presenterStart = source.indexOf("class AppletPanelStatusPresenter");
@@ -1185,7 +1185,7 @@ test("a keyboard-opened popup shows weather status without world clocks", () => 
 
 test("the shared footer deduplicates issues and disappears after recovery", () => {
     const { AppletIssueReporter } = require(
-        path.join(APPLET_DIR, "5.4", "appletMenuBuilder.js"));
+        path.join(APPLET_DIR, "6.0", "appletMenuBuilder.js"));
     const label = {
         text: "stale",
         visible: true,
@@ -1232,7 +1232,7 @@ test("the shared footer deduplicates issues and disappears after recovery", () =
 // St.Label — three Gjs-CRITICALs and Cinnamon's orphan-label warning per reload.
 test("a detached footer reporter swallows issues instead of writing the label", () => {
     const { AppletIssueReporter } = require(
-        path.join(APPLET_DIR, "5.4", "appletMenuBuilder.js"));
+        path.join(APPLET_DIR, "6.0", "appletMenuBuilder.js"));
     const label = {
         text: "stale",
         visible: true,
@@ -1269,7 +1269,7 @@ test("destroying the menu builder detaches its issue reporter", () => {
         }
     };
     const { AppletIssueReporter } = require(
-        path.join(APPLET_DIR, "5.4", "appletMenuBuilder.js"));
+        path.join(APPLET_DIR, "6.0", "appletMenuBuilder.js"));
     builder._issueReporter = new AppletIssueReporter(label);
     const writesBeforeDestroy = label.writes;
 
@@ -1427,7 +1427,7 @@ test("the menu builder disconnects the signals it connected", () => {
         onLaunchSettings() {}
     });
 
-    const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+    const EventView = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
     const originalEventList = EventView.EventList;
     EventView.EventList = class {
         constructor() {
@@ -1487,7 +1487,7 @@ test("the menu builder disconnects the calendar signal too", () => {
         onLaunchSettings() {}
     });
 
-    const Calendar52 = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
+    const Calendar52 = require(path.join(APPLET_DIR, "6.0", "calendar.js"));
     const originalCalendar = Calendar52.Calendar;
     Calendar52.Calendar = class {
         constructor() {
@@ -1539,8 +1539,8 @@ test("a build that throws partway still tears down what it had built", () => {
         onLaunchSettings() {}
     });
 
-    const Calendar52 = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
-    const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+    const Calendar52 = require(path.join(APPLET_DIR, "6.0", "calendar.js"));
+    const EventView = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
     const originalCalendar = Calendar52.Calendar;
     const originalEventList = EventView.EventList;
     Calendar52.Calendar = class {
@@ -1756,7 +1756,7 @@ function agendaBuilder() {
         onLaunchSettings() {}
     });
 
-    const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+    const EventView = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
     const originalEventList = EventView.EventList;
     EventView.EventList = class {
         constructor() {

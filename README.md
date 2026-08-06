@@ -9,9 +9,9 @@ calendar fork.
 
 ### To run the applet
 
-- Cinnamon **5.4 or newer**, with its `cjs` JavaScript engine and the
+- Cinnamon **6.0 or newer**, with its `cjs` JavaScript engine and the
   **libsoup 3** typelib (`gir1.2-soup-3.0`). Cinnamon ships both; libsoup 3 is
-  what the 5.4 floor is really about, and it also covers the calendar server the
+  what the 6.0 floor is really about, and it also covers the calendar server the
   event view talks to over DBus.
 - Python 3 with GTK bindings (`python3-gi`) — the settings dialog runs in its
   own Python process, not inside Cinnamon.
@@ -292,28 +292,28 @@ pull request.
 ### How the source is laid out (development)
 
 `metadata.json` sets `"multiversion": true`, so Cinnamon loads the applet from
-`files/chronos@geraldo-netto/5.4/` — that is where `applet.js`, the UI classes,
+`files/chronos@geraldo-netto/6.0/` — that is where `applet.js`, the UI classes,
 the stylesheet and the settings schema live. Everything one directory up
 (`weather.js`, `holidays.js`, `eventsManager.js`, …) is shared, GJS-and-Node
 portable logic with no St or Clutter in it, which is what lets the test suite run
-it under plain Node. The one-line files in `5.4/` with the same names as those
-modules are shims: they hand the `5.4` tree the single importer-loaded copy of a
+it under plain Node. The one-line files in `6.0/` with the same names as those
+modules are shims: they hand the `6.0` tree the single importer-loaded copy of a
 root module rather than a second one.
 
 Two things about that split will bite you:
 
 - **The two trees are loaded by different loaders.** Cinnamon's `require()` loads
-  the `5.4/` tree and hands back a plain `module.exports`, so `const` and `class`
+  the `6.0/` tree and hands back a plain `module.exports`, so `const` and `class`
   export fine there. The root modules are loaded by the *GJS importer*, which
   only exposes top-level `var` and `function` declarations — a `const` reads back
   as `undefined` from another module. `test/applet_static.test.js` enforces this;
   Node cannot see the difference on its own.
 - **Changing a root module needs a full Cinnamon restart.** GJS caches importer
   modules for the life of the process, so reloading the applet (`Alt`+`F2` → `r`,
-  or the Applets manager's reload) re-runs the `5.4/` tree against the *old* copy
+  or the Applets manager's reload) re-runs the `6.0/` tree against the *old* copy
   of everything above it.
 
-`po/` stays outside `5.4/` because a translation domain belongs to the applet,
+`po/` stays outside `6.0/` because a translation domain belongs to the applet,
 not to a Cinnamon version: `cinnamon-xlet-makepot` extracts from the whole tree,
 and both trees call the same `_()`.
 

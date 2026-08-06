@@ -31,7 +31,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // globalThis.require = xletRequire (js/ui/extension.js). There the test would
 // invert: the root modules would take the require() branch, _requireLocal would
 // resolve "./localeUtils" against extension.meta.path — which
-// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
+// findExtensionSubdirectory has already repointed at the 6.0/ directory — and the
 // applet would fail to load, because localeUtils.js is not in there.
 //
 // Node is what this asks about, because Node is the only host that requires these

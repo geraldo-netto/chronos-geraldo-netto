@@ -2181,8 +2181,8 @@ test("refresh caches geocode results by normalized location", () => {
 });
 
 test("applets bind only weather settings to debounced refresh", () => {
-    const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "applet.js"), "utf8");
-    const lifecycle = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "appletLifecycle.js"), "utf8");
+    const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "applet.js"), "utf8");
+    const lifecycle = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "appletLifecycle.js"), "utf8");
     const facade = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "settingsFacade.js"), "utf8");
     // request and presentation settings are separate, so changing units cannot
     // drag a weather refetch along with it
@@ -2204,7 +2204,7 @@ test("applets bind only weather settings to debounced refresh", () => {
 });
 
 test("applets schedule weather once when added to a panel", () => {
-    const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "applet.js"), "utf8");
+    const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "applet.js"), "utf8");
     const panelAdded = source.match(/on_applet_added_to_panel\(\) \{([\s\S]*?)\n {4}\}/);
     assert.ok(panelAdded);
     assert.equal((panelAdded[1].match(/this\._scheduleWeatherRefresh\(\);/g) || []).length, 1);
@@ -2215,8 +2215,8 @@ test("applets schedule weather once when added to a panel", () => {
 });
 
 test("applets refresh weather when the system resumes", () => {
-    const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "applet.js"), "utf8");
-    const lifecycle = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "appletLifecycle.js"), "utf8");
+    const source = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "applet.js"), "utf8");
+    const lifecycle = fs.readFileSync(path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "appletLifecycle.js"), "utf8");
     assert.match(lifecycle, /"PrepareForSleep"/);
     assert.match(lifecycle,
         /if \(!sleeping\) \{\s*this\._dayRollover\.reschedule\(\);\s*context\.onResume\(\);/);

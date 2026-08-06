@@ -4,7 +4,7 @@ const vm = require("node:vm");
 const fs = require("node:fs");
 const path = require("node:path");
 
-// The 5.4 shims load the root modules through the native GJS importer
+// The 6.0 shims load the root modules through the native GJS importer
 // (imports.ui.appletManager.applets[uuid].<module>). That importer provides
 // neither require() nor module, and only exposes top-level var/function
 // declarations — const/class stay in the lexical environment and read as
@@ -427,7 +427,7 @@ test("the barrel carries its parts to Node, and nothing reads a part off it in G
     }
 
     // every module that requires the barrel, and every name it reads off it
-    for (const file of ["cityWeather.js", "5.4/appletLifecycle.js", "5.4/appletPanelStatus.js"]) {
+    for (const file of ["cityWeather.js", "6.0/appletLifecycle.js", "6.0/appletPanelStatus.js"]) {
         const source = fs.readFileSync(path.join(APPLET_DIR, file), "utf8");
         if (!/require\("\.\/weather"\)/.test(source)) {
             continue;
@@ -447,7 +447,7 @@ test("the barrel carries its parts to Node, and nothing reads a part off it in G
 // xletRequire (js/ui/extension.js), and there the test inverts: every root module
 // would take the require() branch, _requireLocal would resolve "./localeUtils"
 // against extension.meta.path — which findExtensionSubdirectory has already
-// repointed at the 5.4/ directory — and the applet would fail to load, because the
+// repointed at the 6.0/ directory — and the applet would fail to load, because the
 // root modules are not in there.
 //
 // So the question is asked of the host: Node has `process`, Cinnamon's cjs does

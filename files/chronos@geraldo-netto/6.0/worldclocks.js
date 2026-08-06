@@ -16,7 +16,7 @@ const Pango = GjsImports.gi.Pango;
 const Tooltips = GjsImports.ui.tooltips;
 const GLib = GjsImports.gi.GLib;
 const St = GjsImports.gi.St;
-// same-dir shim like every other 5.4 module: it hands back the single
+// same-dir shim like every other 6.0 module: it hands back the single
 // importer-loaded root module instead of a second CJS copy of it
 const WorldclockData = require("./worldclockData");
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];

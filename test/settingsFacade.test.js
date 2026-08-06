@@ -6,7 +6,7 @@ const path = require("node:path");
 const { makeRandom } = require("./helpers/prng");
 
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "settingsFacade.js");
-const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4", "settingsFacade.js");
+const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "settingsFacade.js");
 
 function assertHolidayChoiceRound(SettingsFacade, random, currentValues, inferredValues) {
     const initial = currentValues[Math.floor(random() * currentValues.length)];

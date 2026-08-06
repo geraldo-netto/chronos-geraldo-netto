@@ -1515,7 +1515,7 @@ test("gc timer culls stale events and reports", () => {
 
     // ...and it says so. The test was called "and reports" and asserted only the
     // index: renaming the signal to anything at all left the suite green, and
-    // 5.4/calendar.js is its only subscriber — so the grid kept the event dots of
+    // 6.0/calendar.js is its only subscriber — so the grid kept the event dots of
     // events the GC had just deleted, until something else happened to repaint it.
     assert.equal(emitted(manager, "events-updated").length, before + 1,
         "the grid is told to repaint, and by that name");

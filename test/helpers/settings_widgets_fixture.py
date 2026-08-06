@@ -825,7 +825,7 @@ def load_module(path, name, missing_pytz=False, missing_zoneinfo=False, preload=
         return module
     finally:
         builtins.__import__ = original_import
-        # the 5.4 wrapper inserts the applet dir a second time; drop them all
+        # the 6.0 wrapper inserts the applet dir a second time; drop them all
         while str(APPLET_DIR) in sys.path:
             sys.path.remove(str(APPLET_DIR))
         _purge_applet_modules(preloaded, preload)

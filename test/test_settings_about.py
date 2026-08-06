@@ -15,8 +15,8 @@ from helpers.settings_widgets_fixture import (
 )
 
 
-ABOUT_PATH = APPLET_DIR / "5.4" / "settings_about.py"
-SCHEMA_PATH = APPLET_DIR / "5.4" / "settings-schema.json"
+ABOUT_PATH = APPLET_DIR / "6.0" / "settings_about.py"
+SCHEMA_PATH = APPLET_DIR / "6.0" / "settings-schema.json"
 
 
 def tearDownModule():

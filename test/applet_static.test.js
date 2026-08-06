@@ -87,7 +87,7 @@ function assertModuleImports(file, code, sources) {
 //   'weatherFormat'. That property was defined with 'let' or 'const' [...]
 //   Any symbols to be exported from a module must be defined with 'var'.
 //
-// The 5.4 tree is exempt: Cinnamon's require() hands back a plain module.exports
+// The 6.0 tree is exempt: Cinnamon's require() hands back a plain module.exports
 // object, which carries a `const` fine. Node's require() does too, so the rest of
 // the suite cannot see the difference — this reads the declarations instead.
 test("every name one root module reads off another is declared with var or function", () => {
@@ -140,30 +140,30 @@ test("nothing in the applet blocks the compositor on a subprocess or a socket", 
 // the refresh scheduler to read six constants and a formatter. The split is only
 // real if the import graph honours it, and only the imports say whether it does.
 test("the presentation modules do not import the network stack", () => {
-    const grid = source("5.4/calendar.js");
+    const grid = source("6.0/calendar.js");
     assert.doesNotMatch(grid, /require\("\.\/holidays"\)/,
         "the grid renders holiday marks the annotator hands it; it needs no holiday module at all");
 
-    const annotations = source("5.4/calendarAnnotations.js");
+    const annotations = source("6.0/calendarAnnotations.js");
     assert.doesNotMatch(annotations, /require\("\.\/holidays"\)/,
         "the annotator reads HOLIDAY_ERRORS and the flags, which holidayConstants declares");
     assert.match(annotations, /require\("\.\/holidayConstants"\)/);
 
-    const panel = source("5.4/appletPanelStatus.js");
+    const panel = source("6.0/appletPanelStatus.js");
     assert.doesNotMatch(panel, /require\("\.\/weather"\)/,
         "the presenter reads constants and formatters, which weatherFormat declares");
     assert.match(panel, /require\("\.\/weatherFormat"\)/);
 });
 
-test("5.4 sources avoid deprecated Lang.bind callbacks", () => {
-    for (const relativePath of jsSources("5.4")) {
+test("6.0 sources avoid deprecated Lang.bind callbacks", () => {
+    for (const relativePath of jsSources("6.0")) {
         assert.doesNotMatch(source(relativePath), /Lang\.bind/,
             `${relativePath} should use arrow functions or Function.bind`);
     }
 });
 
-test("5.4 strftime help opens over HTTPS", () => {
-    const source = appletSource("5.4");
+test("6.0 strftime help opens over HTTPS", () => {
+    const source = appletSource("6.0");
 
     assert.match(source, /xdg-open https:\/\/cinnamon-spices\.linuxmint\.com\/strftime\.php/);
     assert.doesNotMatch(source, /xdg-open http:\/\//);
@@ -180,15 +180,15 @@ test("event managers expose teardown and applets call it", () => {
     assert.match(connection, /Gio\.bus_unwatch_name\(this\._bus_watch_id\);/);
     assert.match(connection, /this\.cancelRetry\(\);/);
 
-    const applet = appletSource("5.4");
+    const applet = appletSource("6.0");
     assert.match(applet,
         /function destroyIfPresent\(collaborator\) \{[\s\S]*?collaborator\.destroy\(\);/);
     assert.match(applet, /destroyIfPresent\(this\._providerLifecycle\)/);
 });
 
 test("calendar and event list destroy pending timers", () => {
-    const calendar52 = source("5.4/calendar.js");
-    const navigation52 = source("5.4/calendarNavigation.js");
+    const calendar52 = source("6.0/calendar.js");
+    const navigation52 = source("6.0/calendarNavigation.js");
     assert.match(navigation52,
         /cancelQueuedDate\(\) \{[\s\S]*?Mainloop\.source_remove\(this\.setDateIdleId\);/);
     assert.match(calendar52, /destroy\(\) \{[\s\S]*?this\._cancel_update\(\);[\s\S]*?this\._cancel_set_date_idle\(\);/);
@@ -197,27 +197,27 @@ test("calendar and event list destroy pending timers", () => {
 
     // the renderer arms these sources, so the renderer removes them; the list's
     // destroy() hands the job to it rather than reaching into ids it never set
-    const eventView52 = source("5.4/eventView.js");
+    const eventView52 = source("6.0/eventView.js");
     assert.match(eventView52, /destroy\(\) \{\n\s*this\._cancelScroll\(\);\n\s*this\._cancelNoEventsTimeout\(\);\n\s*this\._cancelRowBuild\(\);/);
     assert.match(eventView52, /destroy\(\) \{\n\s*this\._renderer\.destroy\(\);/);
 
     // The builder constructs both, so the builder destroys both. Reaching them
     // through build()'s return value made a throw partway through it leave
     // every source above armed for the rest of the session.
-    const builder52 = source("5.4/appletMenuBuilder.js");
+    const builder52 = source("6.0/appletMenuBuilder.js");
     assert.match(builder52,
         /_destroyOwned\(field\) \{[\s\S]*?this\[field\] = null;[\s\S]*?owned\.destroy\(\);/);
     assert.match(builder52, /_destroyOwned\("_calendar"\)/);
     assert.match(builder52, /_destroyOwned\("_eventList"\)/);
 
-    const applet52 = appletSource("5.4");
+    const applet52 = appletSource("6.0");
     assert.doesNotMatch(applet52, /destroyIfPresent\(this\._calendar\)/);
     assert.doesNotMatch(applet52, /destroyIfPresent\(this\.event_list\)/);
 });
 
 test("applets disconnect settings and resume handlers on removal", () => {
-    const appletCode = appletSource("5.4");
-    const code = source("5.4/appletLifecycle.js");
+    const appletCode = appletSource("6.0");
+    const code = source("6.0/appletLifecycle.js");
     assert.match(appletCode, /require\("\.\/appletLifecycle"\)/);
     assert.match(code, /this\._desktop_settings_signal_ids = \[\];/);
     assert.match(code, /class AppletProviderLifecycle \{/);
@@ -232,8 +232,8 @@ test("applets disconnect settings and resume handlers on removal", () => {
 });
 
 test("date changes force a menu update explicitly", () => {
-    const appletCode = appletSource("5.4");
-    const code = source("5.4/appletMenuBuilder.js");
+    const appletCode = appletSource("6.0");
+    const code = source("6.0/appletMenuBuilder.js");
     // binding the method directly let the signal's emitter argument land in
     // the forceMenuUpdate parameter — true only by accident
     assert.match(appletCode, /require\("\.\/appletMenuBuilder"\)/);
@@ -245,7 +245,7 @@ test("date changes force a menu update explicitly", () => {
 });
 
 test("date settings menu items are not shared between menus", () => {
-    const code = source("5.4/appletMenuBuilder.js");
+    const code = source("6.0/appletMenuBuilder.js");
     // a single PopupMenuItem added to two menus gets re-parented by the
     // second addMenuItem, leaving the first menu with a stale entry
     assert.match(code, /for \(let menu of \[context\.contextMenu, context\.menu\]\) \{[\s\S]*?let item = new PopupMenu\.PopupMenuItem\(_\("Date and Time Settings"\)\);[\s\S]*?menu\.addMenuItem\(item\);/);
@@ -254,12 +254,12 @@ test("date settings menu items are not shared between menus", () => {
 });
 
 test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
-    const code = source("5.4/calendar.js");
+    const code = source("6.0/calendar.js");
     assert.match(code, /this\._holiday_update_generation = 0;/);
     assert.match(code, /const holiday_generation = \+\+this\._holiday_update_generation;/);
     // the guard is a named predicate now; what this pins is that the callback
     // still asks it before touching the grid
-    const annotations = source("5.4/calendarAnnotations.js");
+    const annotations = source("6.0/calendarAnnotations.js");
     assert.match(annotations, /_isCurrent\(holiday_generation\) \{[\s\S]*?return holiday_generation === this\.host\.holidayGeneration;/);
     assert.match(annotations,
         /_receiveMonth\(dates, error, providerName, pass\) \{[\s\S]*?if \(!this\._isCurrent\(pass\.generation\)\) \{[\s\S]*?return;/);
@@ -271,7 +271,7 @@ test("holiday tooltip callbacks drop stale calendar rebuilds", () => {
 // test/calendar.test.js asserts on the rendered label, the tooltip and the
 // accessible name
 test("calendars surface holiday provider failures", () => {
-    const code = source("5.4/calendarAnnotations.js");
+    const code = source("6.0/calendarAnnotations.js");
     assert.match(code, /const HOLIDAY_ERROR_MARKER = "⚠";/);
     assert.match(code, /class CalendarHolidayAnnotator \{/);
     assert.match(code, /setStatus\(error, providerName = ""\) \{/);
@@ -292,9 +292,9 @@ test("holiday requests never log a raw URL", () => {
 });
 
 test("applets surface weather provider failures", () => {
-    const code = appletSource("5.4");
-    const coordinators = source("5.4/appletCoordinators.js");
-    const panelStatus = source("5.4/appletPanelStatus.js");
+    const code = appletSource("6.0");
+    const coordinators = source("6.0/appletCoordinators.js");
+    const panelStatus = source("6.0/appletPanelStatus.js");
     assert.match(coordinators, /this\.error = "";/);
     assert.match(coordinators, /this\.providerName = "";/);
     assert.match(coordinators, /setStatus\(reading = null, error = "", providerName = "", pending = false\) \{[\s\S]*?this\.reading = reading \|\| null;[\s\S]*?this\.pending = pending;[\s\S]*?this\.error = error;[\s\S]*?this\.providerName = providerName \|\| "";/);
@@ -313,7 +313,7 @@ test("applets surface weather provider failures", () => {
 });
 
 test("production applets require their initialized coordinators", () => {
-    const code = appletSource("5.4");
+    const code = appletSource("6.0");
 
     assert.doesNotMatch(code,
         /_weather_reading|_weather_pending|_weather_error|_weather_provider|_applied_show_events/);
@@ -332,7 +332,7 @@ test("event fetch window uses the shared week-start offset", () => {
 
 test("event orchestration depends on extracted boundary collaborators", () => {
     const manager = source("eventsManager.js");
-    const lifecycle = source("5.4/appletLifecycle.js");
+    const lifecycle = source("6.0/appletLifecycle.js");
 
     assert.doesNotMatch(manager, /class CalendarServerConnection|class EventIndex|class EventWindowCoordinator/);
     assert.match(manager, /params\.serverConnection/);
@@ -343,10 +343,10 @@ test("event orchestration depends on extracted boundary collaborators", () => {
 
 test("translating files use the applet's own gettext domain", () => {
     for (const relativePath of [
-        "5.4/appletMenuBuilder.js",
-        "5.4/appletPanelStatus.js",
-        "5.4/calendar.js",
-        "5.4/eventView.js",
+        "6.0/appletMenuBuilder.js",
+        "6.0/appletPanelStatus.js",
+        "6.0/calendar.js",
+        "6.0/eventView.js",
         "worldclockData.js"
     ]) {
         const code = source(relativePath);
@@ -366,13 +366,13 @@ test("translating files use the applet's own gettext domain", () => {
 
     // the shipped .po files carry these plural msgids; the global ngettext
     // (cinnamon domain) can never load them
-    const eventView = source("5.4/eventView.js");
+    const eventView = source("6.0/eventView.js");
     assert.match(eventView, /const ngettext = LocaleText\.translatePlural;/);
     assert.doesNotMatch(eventView, /function ngettext\(singular, plural, n\)/);
 });
 
 test("weather failures keep showing the stale reading with the marker", () => {
-    const code = source("5.4/appletPanelStatus.js");
+    const code = source("6.0/appletPanelStatus.js");
     assert.match(code, /parts\.push\(reading \?\n\s+Weather\.WEATHER_ERROR_MARKER \+ " " \+ reading :\n\s+Weather\.WEATHER_ERROR_MARKER\);/);
     // the tooltip row keeps the temperature in its own column and puts the marker
     // in the condition column, so a failed refresh loses neither. Both the
@@ -382,7 +382,7 @@ test("weather failures keep showing the stale reading with the marker", () => {
 });
 
 test("bad custom formats fall back without breaking either display", () => {
-    const code = source("5.4/appletPanelStatus.js");
+    const code = source("6.0/appletPanelStatus.js");
     assert.doesNotMatch(code, /~CLOCK FORMAT ERROR~/);
     assert.match(code, /_\("Invalid time format; edit it in Settings"\)/);
     assert.match(code, /entry\.localTime\.format\(DEFAULT_DATE_TIME_FORMAT\) \|\| entry\.time/,
@@ -390,13 +390,13 @@ test("bad custom formats fall back without breaking either display", () => {
 });
 
 test("go-home button takes focus and activates from the keyboard", () => {
-    const code = source("5.4/appletMenuBuilder.js");
+    const code = source("6.0/appletMenuBuilder.js");
     assert.match(code, /const button = new St\.BoxLayout\(\n\s+\{[\s\S]*?can_focus: true,/);
     assert.match(code, /button\.connect\("key-press-event",[\s\S]*?context\.onGoHome\(\);/);
 });
 
 test("stylesheet gives keyboard focus a visible marker on any theme", () => {
-    const css = source("5.4/stylesheet.css");
+    const css = source("6.0/stylesheet.css");
     for (const selector of [
         "calendar-event-button",
         "calendar-today-home-button",
@@ -433,11 +433,11 @@ test("stylesheet gives keyboard focus a visible marker on any theme", () => {
 });
 
 test("launch_calendar refuses to spawn without gnome-calendar", () => {
-    const launcher = source("5.4/calendarLauncher.js");
+    const launcher = source("6.0/calendarLauncher.js");
     assert.match(launcher, /class CalendarLauncher \{/);
     assert.match(launcher, /isAvailable\(\) \{[\s\S]*?GLib\.find_program_in_path\("gnome-calendar"\)/);
     assert.match(launcher, /launchDate\(gdate\) \{[\s\S]{0,250}?if \(!this\.isAvailable\(\)\) \{\n\s+return false;/);
-    const code = source("5.4/eventView.js");
+    const code = source("6.0/eventView.js");
     assert.match(code, /launch_calendar\(gdate\) \{[\s\S]*?this\._calendar_launcher\.launchDate\(gdate\)/);
 });
 
@@ -452,7 +452,7 @@ test("launch_calendar refuses to spawn without gnome-calendar", () => {
 // monospace font that was applying and lining nothing up. A value the parser
 // drops is not a value, whatever it would have meant if it were.
 test("the clock tooltip is aligned with a value St can parse", () => {
-    const css = source("5.4/stylesheet.css");
+    const css = source("6.0/stylesheet.css");
     const tooltip = /#Tooltip\.calendar-tooltip\s*\{([^}]*)\}/.exec(css);
 
     assert.ok(tooltip, "the tooltip rule is there");
@@ -468,7 +468,7 @@ test("the clock tooltip is aligned with a value St can parse", () => {
 // rule that works, and the only way to see otherwise is to look at the pixels.
 // So the whole sheet is checked, not the one rule that was caught doing it.
 test("every text-align in the sheet is a value St can parse", () => {
-    const css = source("5.4/stylesheet.css");
+    const css = source("6.0/stylesheet.css");
     const ST_PARSES = ["left", "right", "center", "justify"];
 
     const declarations = [...css.matchAll(/text-align\s*:\s*([a-z-]+)/g)];
@@ -482,7 +482,7 @@ test("every text-align in the sheet is a value St can parse", () => {
 });
 
 test("text-bound popup sizes follow the desktop text scale", () => {
-    const css = source("5.4/stylesheet.css");
+    const css = source("6.0/stylesheet.css");
     const selectors = [
         ".calendar-world-label",
         ".calendar-holiday-reason",
@@ -502,6 +502,6 @@ test("text-bound popup sizes follow the desktop text scale", () => {
     const icon = /\.calendar-events-no-events-icon\s*\{([^}]*)\}/.exec(css);
     assert.ok(icon, "the empty-state icon has a style rule");
     assert.match(icon[1], /icon-size:\s*[0-9.]+em\s*;/);
-    assert.doesNotMatch(source("5.4/eventView.js"), /icon_size:\s*48\b/,
+    assert.doesNotMatch(source("6.0/eventView.js"), /icon_size:\s*48\b/,
         "a fixed constructor size would override the text-relative style");
 });

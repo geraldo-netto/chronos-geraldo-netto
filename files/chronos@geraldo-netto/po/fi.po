@@ -28,7 +28,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A %-e. %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:347
+#: 6.0/calendar.js:347
 msgid "Today"
 msgstr "Tänään"
 
@@ -265,177 +265,177 @@ msgstr "Virheellinen aikavyöhyke"
 msgid "Local time"
 msgstr "Paikallinen aika"
 
-#: 5.4/applet.js:35
+#: 6.0/applet.js:35
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Kalenterisovelmassa tapahtui virhe. Tarkista järjestelmäloki."
 
-#: 5.4/appletMenuBuilder.js:333 5.4/appletMenuBuilder.js:339
+#: 6.0/appletMenuBuilder.js:333 6.0/appletMenuBuilder.js:339
 msgid "Go to today"
 msgstr "Siirry tähän päivään"
 
-#: 5.4/appletMenuBuilder.js:463
+#: 6.0/appletMenuBuilder.js:463
 msgid "Date and Time Settings"
 msgstr "Päivän ja ajan asetukset"
 
-#: 5.4/appletPanelStatus.js:50
+#: 6.0/appletPanelStatus.js:50
 msgid "Invalid time format; edit it in Settings"
 msgstr "Virheellinen ajan muoto; muokkaa sitä asetuksissa"
 
-#: 5.4/appletPanelStatus.js:74
+#: 6.0/appletPanelStatus.js:74
 msgid "Location not found"
 msgstr "Sijaintia ei löytynyt"
 
-#: 5.4/appletPanelStatus.js:75
+#: 6.0/appletPanelStatus.js:75
 msgid "Weather service unavailable"
 msgstr "Sääpalvelu ei ole käytettävissä"
 
-#: 5.4/appletPanelStatus.js:76
+#: 6.0/appletPanelStatus.js:76
 msgid "Set a weather location"
 msgstr "Aseta sääsijainti"
 
-#: 5.4/appletPanelStatus.js:77
+#: 6.0/appletPanelStatus.js:77
 msgid "No network connection"
 msgstr "Ei verkkoyhteyttä"
 
-#: 5.4/appletPanelStatus.js:86
+#: 6.0/appletPanelStatus.js:86
 msgid "Clear"
 msgstr "Selkeää"
 
-#: 5.4/appletPanelStatus.js:87
+#: 6.0/appletPanelStatus.js:87
 msgid "Partly cloudy"
 msgstr "Puolipilvistä"
 
-#: 5.4/appletPanelStatus.js:88
+#: 6.0/appletPanelStatus.js:88
 msgid "Cloudy"
 msgstr "Pilvistä"
 
-#: 5.4/appletPanelStatus.js:89
+#: 6.0/appletPanelStatus.js:89
 msgid "Rain"
 msgstr "Sadetta"
 
-#: 5.4/appletPanelStatus.js:90
+#: 6.0/appletPanelStatus.js:90
 msgid "Snow"
 msgstr "Lunta"
 
-#: 5.4/appletPanelStatus.js:91
+#: 6.0/appletPanelStatus.js:91
 msgid "Showers"
 msgstr "Sadekuuroja"
 
-#: 5.4/appletPanelStatus.js:92
+#: 6.0/appletPanelStatus.js:92
 msgid "Thunderstorm"
 msgstr "Ukkosta"
 
-#: 5.4/appletPanelStatus.js:93
+#: 6.0/appletPanelStatus.js:93
 msgid "Fair"
 msgstr "Poutaa"
 
-#: 5.4/appletPanelStatus.js:113 5.4/appletPanelStatus.js:491
-#: 5.4/appletPanelStatus.js:660
+#: 6.0/appletPanelStatus.js:113 6.0/appletPanelStatus.js:491
+#: 6.0/appletPanelStatus.js:660
 msgid "Weather: loading…"
 msgstr "Sää: ladataan…"
 
-#: 5.4/appletPanelStatus.js:515
+#: 6.0/appletPanelStatus.js:515
 msgid "No weather for this timezone"
 msgstr "Ei säätietoja tälle aikavyöhykkeelle"
 
-#: 5.4/appletPanelStatus.js:526 5.4/appletPanelStatus.js:527
+#: 6.0/appletPanelStatus.js:526 6.0/appletPanelStatus.js:527
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Viimeisin tunnettu lukema"
 
-#: 5.4/astronomyView.js:23
+#: 6.0/astronomyView.js:23
 msgid "Times shown in this computer's time zone"
 msgstr "Ajat näytetään tämän tietokoneen aikavyöhykkeellä"
 
-#: 5.4/astronomyView.js:143
+#: 6.0/astronomyView.js:143
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Auringonnousu: %s — Auringonlasku: %s"
 
-#: 5.4/astronomyView.js:144
+#: 6.0/astronomyView.js:144
 msgid "Sun is above the horizon all day"
 msgstr "Aurinko on horisontin yläpuolella koko päivän"
 
-#: 5.4/astronomyView.js:145
+#: 6.0/astronomyView.js:145
 msgid "Sun is below the horizon all day"
 msgstr "Aurinko on horisontin alapuolella koko päivän"
 
-#: 5.4/astronomyView.js:147
+#: 6.0/astronomyView.js:147
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Kuunnousu: %s — Kuunlasku: %s"
 
-#: 5.4/astronomyView.js:148
+#: 6.0/astronomyView.js:148
 msgid "Moon is above the horizon all day"
 msgstr "Kuu on horisontin yläpuolella koko päivän"
 
-#: 5.4/astronomyView.js:149
+#: 6.0/astronomyView.js:149
 msgid "Moon is below the horizon all day"
 msgstr "Kuu on horisontin alapuolella koko päivän"
 
-#: 5.4/calendar.js:67 5.4/eventView.js:46
+#: 6.0/calendar.js:67 6.0/eventView.js:46
 msgid "Some calendar events were hidden to keep the desktop responsive."
 msgstr ""
 "Joitakin kalenteritapahtumia piilotettiin, jotta työpöytä pysyy nopeana."
 
-#: 5.4/calendar.js:350
+#: 6.0/calendar.js:350
 msgid "Selected"
 msgstr "Valittu"
 
-#: 5.4/calendar.js:354
+#: 6.0/calendar.js:354
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d tapahtuma"
 msgstr[1] "%d tapahtumaa"
 
-#: 5.4/calendar.js:572
+#: 6.0/calendar.js:572
 #, javascript-format
 msgid "Week %s"
 msgstr "Viikko %s"
 
-#: 5.4/calendar.js:942
+#: 6.0/calendar.js:942
 msgid "Previous month"
 msgstr "Edellinen kuukausi"
 
-#: 5.4/calendar.js:972
+#: 6.0/calendar.js:972
 msgid "Next month"
 msgstr "Seuraava kuukausi"
 
-#: 5.4/calendar.js:976
+#: 6.0/calendar.js:976
 msgid "Previous year"
 msgstr "Edellinen vuosi"
 
-#: 5.4/calendar.js:987
+#: 6.0/calendar.js:987
 msgid "Next year"
 msgstr "Seuraava vuosi"
 
-#: 5.4/calendar.js:1000
+#: 6.0/calendar.js:1000
 msgid "Week"
 msgstr "Viikko"
 
-#: 5.4/calendarAnnotations.js:61
+#: 6.0/calendarAnnotations.js:61
 msgid "Holiday service unavailable"
 msgstr "Juhlapäiväpalvelu ei ole käytettävissä"
 
-#: 5.4/calendarAnnotations.js:62
+#: 6.0/calendarAnnotations.js:62
 msgid "Holiday data unavailable"
 msgstr "Juhlapäivätiedot eivät ole käytettävissä"
 
-#: 5.4/calendarAnnotations.js:64
+#: 6.0/calendarAnnotations.js:64
 msgid "Religious dates unavailable for this year"
 msgstr "Uskonnolliset päivämäärät eivät ole käytettävissä tälle vuodelle"
 
-#: 5.4/calendarAnnotations.js:233
+#: 6.0/calendarAnnotations.js:233
 msgid "Holiday data: loading…"
 msgstr "Juhlapäivätiedot: ladataan…"
 
-#: 5.4/calendarAnnotations.js:274
+#: 6.0/calendarAnnotations.js:274
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Juhlapäivätiedot: %s"
 
-#: 5.4/eventView.js:48
+#: 6.0/eventView.js:48
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -443,86 +443,86 @@ msgstr ""
 "Kalenteritapahtumat eivät ole käytettävissä — kalenteripalvelua ei ole "
 "käynnissä. Asenna tai ota käyttöön Evolution Data Server."
 
-#: 5.4/eventView.js:50
+#: 6.0/eventView.js:50
 msgid "Calendar events could not be refreshed."
 msgstr "Kalenteritapahtumia ei voitu päivittää."
 
-#: 5.4/eventView.js:63
+#: 6.0/eventView.js:63
 msgid "Public holiday and religious observance"
 msgstr "Yleinen vapaapäivä ja uskonnollinen merkkipäivä"
 
-#: 5.4/eventView.js:66
+#: 6.0/eventView.js:66
 msgid "Public holiday"
 msgstr "Yleinen vapaapäivä"
 
-#: 5.4/eventView.js:69
+#: 6.0/eventView.js:69
 msgid "Religious observance"
 msgstr "Uskonnollinen merkkipäivä"
 
-#: 5.4/eventView.js:71
+#: 6.0/eventView.js:71
 msgid "Holiday"
 msgstr "Juhlapäivä"
 
-#: 5.4/eventView.js:112
+#: 6.0/eventView.js:112
 msgid "Starting in a few minutes"
 msgstr "Alkaa muutamassa minuutissa"
 
-#: 5.4/eventView.js:119
+#: 6.0/eventView.js:119
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Alkaa %d minuutin kuluttua"
 msgstr[1] "Alkaa %d minuutin kuluttua"
 
-#: 5.4/eventView.js:129
+#: 6.0/eventView.js:129
 msgid "This evening"
 msgstr "Tänä iltana"
 
-#: 5.4/eventView.js:132
+#: 6.0/eventView.js:132
 msgid "Starting later today"
 msgstr "Alkaa tänään myöhemmin"
 
-#: 5.4/eventView.js:135
+#: 6.0/eventView.js:135
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "%d tunti"
 msgstr[1] "%d tuntia"
 
-#: 5.4/eventView.js:218
+#: 6.0/eventView.js:218
 msgid "Loading…"
 msgstr "Ladataan…"
 
-#: 5.4/eventView.js:222 5.4/eventView.js:232 5.4/eventView.js:377
-#: 5.4/eventView.js:773
+#: 6.0/eventView.js:222 6.0/eventView.js:232 6.0/eventView.js:377
+#: 6.0/eventView.js:773
 msgid "No Events"
 msgstr "Ei tapahtumia"
 
-#: 5.4/eventView.js:400 5.4/eventView.js:419 5.4/eventView.js:430
+#: 6.0/eventView.js:400 6.0/eventView.js:419 6.0/eventView.js:430
 msgid "Open the calendar app"
 msgstr "Avaa kalenterisovellus"
 
-#: 5.4/eventView.js:540
+#: 6.0/eventView.js:540
 msgid "Events for the selected day"
 msgstr "Valitun päivän tapahtumat"
 
-#: 5.4/eventView.js:593
+#: 6.0/eventView.js:593
 msgid "Add an event"
 msgstr "Lisää tapahtuma"
 
-#: 5.4/eventView.js:875
+#: 6.0/eventView.js:875
 msgid "Ended"
 msgstr "Päättynyt"
 
-#: 5.4/eventView.js:906
+#: 6.0/eventView.js:906
 msgid "In progress"
 msgstr "Meneillään"
 
-#: 5.4/worldclocks.js:238 5.4/worldclocks.js:239
+#: 6.0/worldclocks.js:238 6.0/worldclocks.js:239
 msgid "World clocks"
 msgstr "Maailmankellot"
 
-#: 5.4/worldclocks.js:238
+#: 6.0/worldclocks.js:238
 #, javascript-format
 msgid "Source: %s"
 msgstr "Lähde: %s"
@@ -579,15 +579,15 @@ msgid "Edit entry"
 msgstr "Muokkaa merkintää"
 
 #. 5.4->settings-schema.json->openstreetmap-attribution->description
-#: 5.4/settings_about.py:37
+#: 6.0/settings_about.py:37
 msgid "© OpenStreetMap contributors"
 msgstr "© OpenStreetMapin tekijät"
 
-#: 5.4/settings_about.py:46
+#: 6.0/settings_about.py:46
 msgid "Primary place search and weather forecast service."
 msgstr "Ensisijainen paikkahaku- ja sääennustepalvelu."
 
-#: 5.4/settings_about.py:54
+#: 6.0/settings_about.py:54
 msgid ""
 "Fallback place search using OpenStreetMap data. Chronos does not download "
 "map tiles or other map assets."
@@ -595,46 +595,46 @@ msgstr ""
 "Varapaikkahaku OpenStreetMap-tietojen avulla. Chronos ei lataa karttatiiliä "
 "tai muita karttaresursseja."
 
-#: 5.4/settings_about.py:63
+#: 6.0/settings_about.py:63
 msgid "First fallback weather service, using nearby METAR observations."
 msgstr ""
 "Ensimmäinen varasääpalvelu, joka käyttää lähellä tehtyjä METAR-havaintoja."
 
-#: 5.4/settings_about.py:70
+#: 6.0/settings_about.py:70
 msgid "Final fallback weather forecast service."
 msgstr "Viimeinen varasääennustepalvelu."
 
-#: 5.4/settings_about.py:80
+#: 6.0/settings_about.py:80
 msgid "Primary public-holiday service."
 msgstr "Ensisijainen arkipyhäpalvelu."
 
-#: 5.4/settings_about.py:87
+#: 6.0/settings_about.py:87
 msgid "First fallback public-holiday service."
 msgstr "Ensimmäinen vara-arkipyhäpalvelu."
 
-#: 5.4/settings_about.py:94
+#: 6.0/settings_about.py:94
 msgid "Final fallback public-holiday service."
 msgstr "Viimeinen vara-arkipyhäpalvelu."
 
-#: 5.4/settings_about.py:140
+#: 6.0/settings_about.py:140
 #, python-format
 msgid "Version %s"
 msgstr "Versio %s"
 
-#: 5.4/settings_about.py:147
+#: 6.0/settings_about.py:147
 msgid "Project website and source code"
 msgstr "Projektin verkkosivusto ja lähdekoodi"
 
-#: 5.4/settings_about.py:148
+#: 6.0/settings_about.py:148
 msgid "License: GPL 2.0 or later"
 msgstr "Lisenssi: GPL 2.0 tai uudempi"
 
 #. 5.4->settings-schema.json->section5->title
-#: 5.4/settings_about.py:184
+#: 6.0/settings_about.py:184
 msgid "Weather and location services"
 msgstr "Sää- ja sijaintipalvelut"
 
-#: 5.4/settings_about.py:186
+#: 6.0/settings_about.py:186
 msgid ""
 "Used only when weather is enabled. A place name is sent to a geocoder, then "
 "its coordinates are sent to a weather provider."
@@ -643,11 +643,11 @@ msgstr ""
 "geokoodauspalvelulle, minkä jälkeen sen koordinaatit lähetetään "
 "sääpalvelulle."
 
-#: 5.4/settings_about.py:192
+#: 6.0/settings_about.py:192
 msgid "Holiday services"
 msgstr "Arkipyhäpalvelut"
 
-#: 5.4/settings_about.py:194
+#: 6.0/settings_about.py:194
 msgid ""
 "Used only when holidays are enabled. The selected country, region, and "
 "requested year may be sent to these providers."
@@ -655,11 +655,11 @@ msgstr ""
 "Käytetään vain, kun arkipyhät ovat käytössä. Valittu maa, alue ja pyydetty "
 "vuosi voidaan lähettää näille palveluntarjoajille."
 
-#: 5.4/settings_about.py:201
+#: 6.0/settings_about.py:201
 msgid "About Chronos"
 msgstr "Tietoja Chronosista"
 
-#: 5.4/settings_about.py:205
+#: 6.0/settings_about.py:205
 msgid "Authors and credits"
 msgstr "Tekijät ja kiitokset"
 

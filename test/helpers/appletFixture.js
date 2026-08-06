@@ -194,12 +194,12 @@ rootModules.holidayConstants = require(path.join(APPLET_DIR, "holidayConstants.j
 rootModules.holidayRecord = require(path.join(APPLET_DIR, "holidayRecord.js"));
 rootModules.worldclockData = require(path.join(APPLET_DIR, "worldclockData.js"));
 rootModules.astronomy = require(path.join(APPLET_DIR, "astronomy.js"));
-rootModules.worldclocks = require(path.join(APPLET_DIR, "5.4", "worldclocks.js"));
+rootModules.worldclocks = require(path.join(APPLET_DIR, "6.0", "worldclocks.js"));
 rootModules.settingsFacade = require(path.join(APPLET_DIR, "settingsFacade.js"));
 
-const AppletModule = require(path.join(APPLET_DIR, "5.4", "applet.js"));
-const CoordinatorModule = require(path.join(APPLET_DIR, "5.4", "appletCoordinators.js"));
-const PanelStatusModule = require(path.join(APPLET_DIR, "5.4", "appletPanelStatus.js"));
+const AppletModule = require(path.join(APPLET_DIR, "6.0", "applet.js"));
+const CoordinatorModule = require(path.join(APPLET_DIR, "6.0", "appletCoordinators.js"));
+const PanelStatusModule = require(path.join(APPLET_DIR, "6.0", "appletPanelStatus.js"));
 const MAX_SUFFIX = PanelStatusModule.LABEL_SUFFIX_MAX_LENGTH;
 const ELLIPSIS = PanelStatusModule.LABEL_ELLIPSIS;
 const Proto = AppletModule.CinnamonCalendarApplet.prototype;

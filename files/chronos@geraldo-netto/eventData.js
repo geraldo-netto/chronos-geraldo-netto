@@ -11,7 +11,7 @@
 /* eslint camelcase: "off" */
 
 // Data model for calendar events: date helpers plus EventData and
-// EventDataList, shared by 5.4/eventView.js and unit-testable in Node.
+// EventDataList, shared by 6.0/eventView.js and unit-testable in Node.
 
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 // Which host is loading this file — and it is asked of the *host*, not of
@@ -21,7 +21,7 @@ const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports
 // globalThis.require = xletRequire (js/ui/extension.js). There the test would
 // invert: the root modules would take the require() branch, _requireLocal would
 // resolve "./localeUtils" against extension.meta.path — which
-// findExtensionSubdirectory has already repointed at the 5.4/ directory — and the
+// findExtensionSubdirectory has already repointed at the 6.0/ directory — and the
 // applet would fail to load, because localeUtils.js is not in there.
 //
 // Node is what this asks about, because Node is the only host that requires these

@@ -139,10 +139,10 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstant
     }
 };
 
-const CalendarModule = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
-const AnnotationsModule = require(path.join(APPLET_DIR, "5.4", "calendarAnnotations.js"));
-const NavigationModule = require(path.join(APPLET_DIR, "5.4", "calendarNavigation.js"));
-const CalendarDateModule = require(path.join(APPLET_DIR, "5.4", "calendarDate.js"));
+const CalendarModule = require(path.join(APPLET_DIR, "6.0", "calendar.js"));
+const AnnotationsModule = require(path.join(APPLET_DIR, "6.0", "calendarAnnotations.js"));
+const NavigationModule = require(path.join(APPLET_DIR, "6.0", "calendarNavigation.js"));
+const CalendarDateModule = require(path.join(APPLET_DIR, "6.0", "calendarDate.js"));
 
 test("calendar date identity has one null-safe definition", () => {
     const date = new Date(2026, 6, 9);
@@ -1612,7 +1612,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
     // ...and nonwork-day alone is what a Saturday wears, so a holiday needs a
     // mark of its own or the feature is invisible without hovering every cell
     assert.ok(cell.button.style_class.includes("calendar-holiday-day"));
-    const css = fs.readFileSync(path.join(APPLET_DIR, "5.4", "stylesheet.css"), "utf8");
+    const css = fs.readFileSync(path.join(APPLET_DIR, "6.0", "stylesheet.css"), "utf8");
     assert.match(css, /\.calendar-holiday-day\s*\{[^}]+\}/,
         "the class has to draw something");
 

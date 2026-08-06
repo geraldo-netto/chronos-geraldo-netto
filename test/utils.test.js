@@ -22,7 +22,7 @@ const ioModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto"
 const styleModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "styleUtils.js");
 const providerModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "providerUtils.js");
 const textModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "textUtils.js");
-const versionDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "5.4");
+const versionDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0");
 
 let originalImports;
 let originalLog;
@@ -1792,9 +1792,9 @@ test("date-format boundaries count code points and clamp rendered stamps", () =>
     assert.ok(stamp.endsWith(formats.TEXT_ELLIPSIS));
 });
 
-// A shim only earns its place if a 5.4 module requires it: the root modules
-// reach their siblings through the applet importer, never through 5.4/.
-test("every version shim is required by a 5.4 module", () => {
+// A shim only earns its place if a 6.0 module requires it: the root modules
+// reach their siblings through the applet importer, never through 6.0/.
+test("every version shim is required by a 6.0 module", () => {
     const files = fs.readdirSync(versionDir).filter((name) => name.endsWith(".js"));
     const sources = files.map((name) => fs.readFileSync(path.join(versionDir, name), "utf8"));
 
@@ -1807,7 +1807,7 @@ test("every version shim is required by a 5.4 module", () => {
 
         const moduleName = name.replace(/\.js$/, "");
         const required = sources.some((other) => other.includes(`require("./${moduleName}")`));
-        assert.equal(required, true, `5.4/${name} is a shim with no 5.4 consumer`);
+        assert.equal(required, true, `6.0/${name} is a shim with no 6.0 consumer`);
     }
 });
 

@@ -222,7 +222,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertNotIn("\n", clamped)
 
     def test_clock_entry_serializer_matches_schema_column_order(self):
-        schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
+        schema = json.loads((APPLET_DIR / "6.0" / "settings-schema.json").read_text())
         column_ids = [column["id"] for column in schema["worldclocks"]["columns"]]
 
         serializer = self.module.ClockEntrySerializer()
@@ -875,13 +875,13 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(len(self.module._COMPLETION_MODELS), 2)
 
     def test_version_wrappers_export_common_symbols(self):
-        wrapper_52 = load_module(APPLET_DIR / "5.4" / "settings_widgets.py", "settings_widgets_52_test")
+        wrapper_52 = load_module(APPLET_DIR / "6.0" / "settings_widgets.py", "settings_widgets_52_test")
 
         # The shim exports the names the schema asks Cinnamon to instantiate —
         # exactly those. create_custom_widget does getattr(module, widget) and
         # dies on the whole settings window if the name is not there, so the
         # schema is what this has to be checked against, not a list written here.
-        schema = json.loads((APPLET_DIR / "5.4" / "settings-schema.json").read_text())
+        schema = json.loads((APPLET_DIR / "6.0" / "settings-schema.json").read_text())
         named = sorted({entry["widget"] for entry in schema.values()
                         if isinstance(entry, dict) and entry.get("type") == "custom"})
         self.assertEqual(sorted(wrapper_52.__all__), named)
@@ -910,7 +910,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         ]
         foreign = {name: types.ModuleType(name) for name in generic_names}
         wrapper = load_module(
-            APPLET_DIR / "5.4" / "settings_widgets.py",
+            APPLET_DIR / "6.0" / "settings_widgets.py",
             "settings_widgets_52_collision_test",
             preload=foreign,
         )
@@ -925,7 +925,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         `from chronos_settings_widgets_common import …` resolve. Every other test loads it
         with the directory already on the path — the harness puts it there — so
         the one line that does the job never ran, and the coverage gate could not
-        see it because it did not look inside 5.4/ at all.
+        see it because it did not look inside 6.0/ at all.
         """
         install_stubs()
         applet_dir = str(APPLET_DIR)
@@ -934,7 +934,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         sys.path = [entry for entry in sys.path if entry != applet_dir]
         try:
             spec = importlib.util.spec_from_file_location(
-                "settings_widgets_52_path_test", APPLET_DIR / "5.4" / "settings_widgets.py")
+                "settings_widgets_52_path_test", APPLET_DIR / "6.0" / "settings_widgets.py")
             module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(module)
 

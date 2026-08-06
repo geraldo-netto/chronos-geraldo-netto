@@ -525,7 +525,7 @@ export async function checkRelease(projectRoot, tag, releaseBranch = RELEASE_BRA
 
 // The bump used to re-serialise every target, and `JSON.stringify(metadata,
 // null, 4)` is not byte-preserving for the shipped manifest: `"cinnamon-version":
-// ["5.4"]` expands to three lines, so changing one value emitted a four-line diff
+// ["6.0"]` expands to three lines, so changing one value emitted a four-line diff
 // in the twelve-line file Cinnamon parses at load. The documented recipe stages
 // that file wholesale, handing the reviewer unrelated churn. `package.json` and
 // `package-lock.json` do round-trip identically at indent 2, so only the manifest
