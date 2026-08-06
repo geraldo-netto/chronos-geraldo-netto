@@ -124,7 +124,13 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
             if (!this._active || generation !== this._generation) {
                 return GLib.SOURCE_REMOVE;
             }
-            refresh();
+            try {
+                refresh();
+            } catch (error) {
+                // An exception must not remove the recurring GLib source. The
+                // next period is an independent chance to recover.
+                global.logError(error);
+            }
             return GLib.SOURCE_CONTINUE;
         });
     }

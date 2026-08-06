@@ -783,6 +783,8 @@ test("stopping the scheduler drops a debounce that never fired", () => {
 test("a first refresh that raises still leaves the periodic timer armed", () => {
     const Weather = loadWeather();
     const timers = [];
+    const logged = [];
+    global.logError = (error) => logged.push(String(error));
     const scheduler = new Weather.WeatherRefreshScheduler({
         scheduleTimer(_seconds, callback) {
             timers.push(callback);
@@ -804,9 +806,15 @@ test("a first refresh that raises still leaves the periodic timer armed", () => 
     assert.equal(timers.length, 1, "the periodic timer is armed regardless");
     assert.ok(scheduler.timerId > 0);
 
-    // and it keeps trying: the next period runs the refresh again
-    assert.throws(() => timers[0](), /no network stack/);
-    assert.equal(refreshes, 2, "weather recovers on its own once the network is back");
+    // and it keeps trying: recurring callback failures are reported but cannot
+    // remove the source before the next independent recovery opportunity
+    assert.equal(timers[0](), true);
+    assert.equal(timers[0](), true);
+    assert.equal(refreshes, 3, "weather keeps recovering on its own every period");
+    assert.deepEqual(logged, [
+        "Error: no network stack",
+        "Error: no network stack"
+    ]);
 });
 
 test("stopped periodic and retry callbacks cannot revive an old schedule", () => {
