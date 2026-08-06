@@ -329,7 +329,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
     }
 
-    _recover_event_mutation_failure(mutation) {
+    _recover_event_mutation_failure(mutation, schedule = true) {
         // The failed operation may have changed only part of the index. Drop
         // every retained payload behind it and recover from the authoritative
         // server instead of guessing which portion committed.
@@ -341,7 +341,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._overflow_mutation_queued = false;
         this._resync_mutation_queued = needsResync;
         this._pending_emit = null;
-        if (needsResync) {
+        if (needsResync && schedule) {
             this._schedule_event_mutation();
         }
     }
@@ -351,21 +351,38 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             return;
         }
 
-        this._event_batch_ids.push(Mainloop.idle_add(() => {
-            this._event_batch_ids.shift();
-            if (this._destroyed) {
-                this._event_mutations = [];
-                this._queued_event_records = 0;
-                this._queued_event_bytes = 0;
-                this._overflow_mutation_queued = false;
-                this._resync_mutation_queued = false;
-                this._pending_emit = null;
-                this._cancel_pending_emit();
-            } else {
+        let sourceId;
+        try {
+            sourceId = Mainloop.idle_add(() => {
+                this._event_batch_ids.shift();
+                if (this._destroyed) {
+                    this._event_mutations = [];
+                    this._queued_event_records = 0;
+                    this._queued_event_bytes = 0;
+                    this._overflow_mutation_queued = false;
+                    this._resync_mutation_queued = false;
+                    this._pending_emit = null;
+                    this._cancel_pending_emit();
+                } else {
+                    this._apply_next_event_mutation();
+                }
+                return GLib.SOURCE_REMOVE;
+            });
+            if (!(sourceId > 0)) {
+                throw new Error("calendar events could not register a mutation idle");
+            }
+        } catch (error) {
+            global.logError(error);
+            const mutation = this._event_mutations[0];
+            if (mutation) {
+                // Scheduling itself is unavailable, so secure the queue through
+                // the same authoritative resync without trying this port again.
+                this._recover_event_mutation_failure(mutation, false);
                 this._apply_next_event_mutation();
             }
-            return GLib.SOURCE_REMOVE;
-        }));
+            return;
+        }
+        this._event_batch_ids.push(sourceId);
     }
 
     // `flush` is true on the last chunk of a batch
@@ -819,8 +836,19 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
     queue_reload_selected() {
         this._cancel_reload_selected();
-        this._reload_selected_id = Mainloop.idle_add(
-            this._idle_do_reload_selected.bind(this));
+        try {
+            const sourceId = Mainloop.idle_add(
+                this._idle_do_reload_selected.bind(this));
+            if (!(sourceId > 0)) {
+                throw new Error("calendar events could not register a reload idle");
+            }
+            this._reload_selected_id = sourceId;
+        } catch (error) {
+            global.logError(error);
+            // Registration failure means there is no source to wait for or
+            // cancel. Complete the authoritative reload in this turn instead.
+            this._idle_do_reload_selected();
+        }
     }
 
     _idle_do_reload_selected() {

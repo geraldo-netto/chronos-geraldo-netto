@@ -1417,6 +1417,44 @@ test("an idle mutation failure drops its uncertain tail and keeps draining", () 
     assert.ok(manager._reload_selected_id > 0);
 });
 
+test("a failed mutation idle registration resyncs without a phantom source", () => {
+    const originalIdleAdd = global.imports.mainloop.idle_add;
+    const originalLogError = global.logError;
+
+    for (const failure of [
+        () => {
+            throw new Error("idle registration failed");
+        },
+        () => 0
+    ]) {
+        const manager = readyManager();
+        const logged = [];
+        global.logError = (error) => logged.push(String(error));
+        global.imports.mainloop.idle_add = failure;
+        try {
+            const events = Array.from({ length: 30 }, (_unused, index) => eventVariant({
+                id: `unscheduled-${index}`,
+                startUnix: 10 * DAY_S + index,
+                endUnix: 10 * DAY_S + index + 1
+            }));
+            proxy.instance.signal("events-added-or-updated", { unpack: () => events });
+        } finally {
+            global.imports.mainloop.idle_add = originalIdleAdd;
+            global.logError = originalLogError;
+        }
+
+        assert.deepEqual(manager._event_mutations, [],
+            "the uncertain partial delivery is replaced synchronously");
+        assert.deepEqual(manager._event_batch_ids, [],
+            "no invalid source id can suppress later scheduling");
+        assert.equal(manager._reload_selected_id, 0,
+            "the replacement reload also falls back synchronously");
+        assert.deepEqual(manager._event_index.eventsByDate, {});
+        assert.equal(logged.length, 2,
+            "both failed registrations are visible without escaping the signal");
+    }
+});
+
 test("a resync notification failure cannot create a retry loop", () => {
     const manager = readyManager();
     manager.connect("events-updated", () => {
