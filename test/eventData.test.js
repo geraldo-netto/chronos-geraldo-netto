@@ -248,6 +248,53 @@ test("EventDataList: add, update, delete and cull drive length and change flags"
     assert.equal(list.length, 0);
 });
 
+test("EventData equality requires the visible event fields to match", () => {
+    const base = new EventData(makeVariant({
+        summary: "Standup", modTime: 0,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }), 1);
+    const event = (changes = {}) => new EventData(makeVariant(Object.assign({
+        summary: "Standup", modTime: 0,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }, changes)), 2);
+
+    assert.equal(event().equal(base), true, "an exact redelivery is unchanged");
+    for (const changes of [
+        { id: "other" },
+        { modTime: 1 },
+        { summary: "Moved standup" },
+        { startUnix: 10 * DAY_S + 60 },
+        { endUnix: 10 * DAY_S + 660 }
+    ]) {
+        assert.equal(event(changes).equal(base), false,
+            "revision zero cannot hide a changed event field");
+    }
+    const timedPoint = event({ endUnix: 10 * DAY_S });
+    const allDayPoint = event({ allDay: true, endUnix: 10 * DAY_S });
+    assert.equal(timedPoint.start.to_unix(), allDayPoint.start.to_unix());
+    assert.equal(timedPoint.end.to_unix(), allDayPoint.end.to_unix());
+    assert.equal(allDayPoint.equal(timedPoint), false,
+        "all-day state remains observable when normalized endpoints match");
+    assert.equal(event({ color: "#00ff00" }).equal(base), true,
+        "calendar colour stays on the list's dedicated update path");
+});
+
+test("EventData orders only revisions with usable timestamps", () => {
+    const event = (modTime) => new EventData(makeVariant({
+        modTime, startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }), 1);
+    for (const [incoming, existing, superseded] of [
+        [1, 2, true],
+        [2, 1, false],
+        [0, 2, false],
+        [2, 0, false],
+        [NaN, 2, false],
+        [2, NaN, false]
+    ]) {
+        assert.equal(event(incoming).superseded_by(event(existing)), superseded);
+    }
+});
+
 // The index asks this to decide whether the open event column still shows the
 // event it is registering, so a false negative strands a stale row and a false
 // positive rebuilds the column for nothing. A plain object would answer an

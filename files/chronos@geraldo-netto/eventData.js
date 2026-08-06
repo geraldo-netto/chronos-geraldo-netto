@@ -212,16 +212,22 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
     }
 
     equal(other_event) {
-        return this.id === other_event.id && this.modified === other_event.modified;
+        return this.id === other_event.id &&
+            this.modified === other_event.modified &&
+            this.all_day === other_event.all_day &&
+            this.start.to_unix() === other_event.start.to_unix() &&
+            this.end.to_unix() === other_event.end.to_unix() &&
+            this.summary === other_event.summary;
     }
 
     // `modified` is the EDS revision of this component, so it orders two
     // snapshots of the same UID causally — arrival order does not. A payload
-    // whose revision fields are not both numbers says nothing about ordering;
-    // that falls through to the previous last-writer-wins behaviour rather
-    // than silently dropping an update.
+    // whose revision fields are not both usable says nothing about ordering.
+    // cinnamon-calendar-server emits zero when LAST-MODIFIED and CREATED are
+    // both absent, so zero is missing metadata rather than a 1970 revision.
     superseded_by(other_event) {
-        return Number.isFinite(this.modified) &&
+        return this.modified !== 0 && other_event.modified !== 0 &&
+            Number.isFinite(this.modified) &&
             Number.isFinite(other_event.modified) &&
             this.modified < other_event.modified;
     }

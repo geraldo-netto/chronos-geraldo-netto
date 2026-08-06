@@ -3213,12 +3213,32 @@ test("an equal or newer revision still applies, and unordered ones fall through"
     }));
     assert.equal(eventSummaries(manager).get("ev"), "second");
 
+    // cinnamon-calendar-server emits zero when LAST-MODIFIED and CREATED are
+    // both absent. It is missing metadata, not a revision older than 1970.
+    registerDays(manager, makeEventData({
+        id: "ev", summary: "timestamp removed", modTime: 0,
+        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+    }));
+    assert.equal(eventSummaries(manager).get("ev"), "timestamp removed");
+
+    // Two such edits carry the same sentinel. Their visible payload still
+    // decides whether the second delivery replaces the first.
+    registerDays(manager, makeEventData({
+        id: "ev", summary: "edited without timestamps", modTime: 0,
+        startUnix: 11 * DAY_S, endUnix: 11 * DAY_S + 600
+    }));
+    assert.equal(manager._event_index.get(month), null,
+        "the stale day bucket is removed with the old payload");
+    const movedDay = manager._event_index.get(new FakeDateTime(11 * DAY_US));
+    assert.equal(movedDay.get_event_list()[0].summary, "edited without timestamps");
+
     // a payload whose revision is not a usable number says nothing about
     // ordering, so it keeps the previous last-writer-wins behaviour rather
     // than being silently dropped
     registerDays(manager, makeEventData({
         id: "ev", summary: "unordered", modTime: NaN,
-        startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 600
+        startUnix: 11 * DAY_S, endUnix: 11 * DAY_S + 600
     }));
-    assert.equal(eventSummaries(manager).get("ev"), "unordered");
+    assert.equal(manager._event_index.get(new FakeDateTime(11 * DAY_US))
+        .get_event_list()[0].summary, "unordered");
 });
