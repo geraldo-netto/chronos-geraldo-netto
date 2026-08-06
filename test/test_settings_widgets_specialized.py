@@ -273,6 +273,19 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         widget.on_commit()
 
         self.assertEqual(settings.writes, [])
+        self.assertEqual(widget.content_widget.get_text(), "Lisbon",
+                         "the field shows the canonical value even without a write")
+
+    def test_committing_a_new_location_trims_the_visible_and_saved_value(self):
+        widget, settings = self.entry({"weather-location": "Porto"})
+        settings.writes.clear()
+        widget.content_widget.set_text("  Lisbon  ")
+
+        saved = widget.commit(widget.content_widget.get_text())
+
+        self.assertEqual(saved, "Lisbon")
+        self.assertEqual(settings.values["weather-location"], "Lisbon")
+        self.assertEqual(widget.content_widget.get_text(), "Lisbon")
 
     def test_clearing_the_location_is_saved_once(self):
         widget, settings = self.entry({"weather-location": "Lisbon"})

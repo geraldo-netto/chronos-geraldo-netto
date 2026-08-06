@@ -211,6 +211,9 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
             return ""
 
         location = normalize_weather_location(text)
+        if self.content_widget.get_text() != location:
+            self.content_widget.set_text(location)
+            self.content_widget.set_position(-1)
         if location == (self.get_value() or ""):
             return ""
 
