@@ -1,11 +1,13 @@
 const assert = require("node:assert/strict");
 const { beforeEach, test } = require("node:test");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const astronomyPath = path.join(appletDir, "astronomy.js");
 const shimPath = path.join(appletDir, "6.0", "astronomy.js");
 const viewPath = path.join(appletDir, "6.0", "astronomyView.js");
+const stylePath = path.join(appletDir, "6.0", "stylesheet.css");
 let unixDateTime = null;
 let utcDateTimeFactory = () => null;
 let dateTimeFactory = () => null;
@@ -46,10 +48,28 @@ class MockBox {
     }
 }
 
+class MockTable extends MockBox {
+    constructor(options = {}) {
+        super(options);
+        this.cells = [];
+    }
+
+    add(actor, options) {
+        this.children.push(actor);
+        this.cells.push({ actor, options });
+    }
+
+    destroy_all_children() {
+        this.children = [];
+        this.cells = [];
+    }
+}
+
 class MockLabel {
     constructor(options = {}) {
         this.options = options;
         this.text = "";
+        this.visible = options.visible !== false;
         this.clutterText = { line_wrap: false };
     }
 
@@ -74,7 +94,12 @@ function loadView() {
                 new_from_unix_utc: (timestamp) => utcDateTimeFactory(timestamp),
                 new: (...args) => dateTimeFactory(...args)
             } },
-            St: { BoxLayout: MockBox, Label: MockLabel }
+            St: {
+                Align: { START: 1, END: 2 },
+                BoxLayout: MockBox,
+                Label: MockLabel,
+                Table: MockTable
+            }
         },
         ui: {
             appletManager: { applets: { "chronos@geraldo-netto": {
@@ -140,37 +165,44 @@ test("place civil-day bounds reject bad clocks and preserve DST-sized days", () 
     assert.equal(View.zonedDateTime(NaN, seoul), null);
 });
 
-test("row formatting covers ordinary, missing, and continuous-horizon events", () => {
+test("event rows keep labels, values, missing times, and horizon states distinct", () => {
     const View = loadView();
-    assert.equal(View.replaceTimes("Rise %s / Set %s", "06:00", "18:00"),
-        "Rise 06:00 / Set 18:00");
-    assert.equal(View.bodyLine({ rise: 1, set: 2, state: "normal" },
-        "Rise %s / Set %s", "up", "down", (value) => String(value)),
-    "Rise 1 / Set 2");
-    assert.equal(View.bodyLine({ rise: null, set: 2, state: "normal" },
-        "Rise %s / Set %s", "up", "down", () => ""), "Rise — / Set —");
-    assert.equal(View.bodyLine({ rise: null, set: null, state: "alwaysUp" },
-        "", "up", "down", () => ""), "up");
-    assert.equal(View.bodyLine({ rise: null, set: null, state: "alwaysDown" },
-        "", "up", "down", () => ""), "down");
+    assert.deepEqual(View.bodyRows({ rise: 1, set: 2, state: "normal" },
+        "Rise", "Set", "up", "down", (value) => String(value)), [
+        { label: "Rise", value: "1" },
+        { label: "Set", value: "2" }
+    ]);
+    assert.deepEqual(View.bodyRows({ rise: null, set: 2, state: "normal" },
+        "Rise", "Set", "up", "down", () => ""), [
+        { label: "Rise", value: "—" },
+        { label: "Set", value: "—" }
+    ]);
+    assert.deepEqual(View.bodyRows({ rise: null, set: null, state: "alwaysUp" },
+        "Rise", "Set", "up", "down", () => ""), [{ status: "up" }]);
+    assert.deepEqual(View.bodyRows({ rise: null, set: null, state: "alwaysDown" },
+        "Rise", "Set", "up", "down", () => ""), [{ status: "down" }]);
 });
 
-// T787: this was the chained form verbatim -
-// template.replace("%s", rise).replace("%s", set) - so the second call scanned
-// the string the first one had built. A rise time carrying %s ate the set time,
-// and one carrying $& or $' expanded as a replacement pattern. Both come from
-// the user's own clock format string.
-test("a sunrise time cannot consume the sunset time beside it", () => {
+// T787 is structurally absent from the grid: values are actors of their own,
+// never replacement text scanned into a sentence with the value beside them.
+test("one event time cannot consume or rewrite the adjacent cell", () => {
     const View = loadView();
+    const values = ["06%s00", "$&$'"];
 
-    assert.equal(View.replaceTimes("Rise %s / Set %s", "06%s00", "18:00"),
-        "Rise 06%s00 / Set 18:00");
-    assert.equal(View.replaceTimes("Rise %s / Set %s", "$&$'", "18:00"),
-        "Rise $&$' / Set 18:00");
-    // a template with fewer values than placeholders leaves the rest standing
-    // rather than inserting "undefined"
-    assert.equal(View.replaceTimes("Rise %s / Set %s / %s", "06:00", "18:00"),
-        "Rise 06:00 / Set 18:00 / %s");
+    assert.deepEqual(View.bodyRows({ rise: 1, set: 2, state: "normal" },
+        "Rise", "Set", "up", "down", (timestamp) => values[timestamp - 1]), [
+        { label: "Rise", value: "06%s00" },
+        { label: "Set", value: "$&$'" }
+    ]);
+});
+
+test("astronomy styling gives the event grid explicit row and column spacing", () => {
+    const css = fs.readFileSync(stylePath, "utf8");
+
+    assert.match(css, /\.calendar-astronomy-grid\s*\{[^}]*spacing-columns:\s*[0-9.]+em;/s);
+    assert.match(css, /\.calendar-astronomy-grid\s*\{[^}]*spacing-rows:\s*[0-9.]+em;/s);
+    assert.match(css, /\.calendar-astronomy-value\s*\{[^}]*text-align:\s*right;/s);
+    assert.match(css, /\.calendar-astronomy-moon-cell\s*\{[^}]*padding-top:\s*[0-9.]+em;/s);
 });
 
 test("default time formatting uses the desktop clock convention and fails closed", () => {
@@ -219,9 +251,8 @@ test("the popup view reuses one daily result and hides without cached coordinate
     });
 
     assert.equal(parent.children[0], view.actor);
-    assert.equal(view.actor.children.length, 3);
-    assert.equal(view.sunLabel.clutterText.line_wrap, true);
-    assert.equal(view.moonLabel.clutterText.line_wrap, true);
+    assert.equal(view.actor.children.length, 2);
+    assert.equal(view.actor.children[1], view.grid);
     view.update({ visible: false, place: { latitude: 41.9, longitude: 12.48 }, use24h: true });
     view.update({ visible: true, place: null, use24h: true });
     assert.equal(view.actor.visible, false);
@@ -234,8 +265,17 @@ test("the popup view reuses one daily result and hides without cached coordinate
     assert.equal(view.actor.visible, true);
     assert.equal(view.zoneLabel.visible, false,
         "a place that names its own zone says nothing extra");
-    assert.equal(view.sunLabel.text, "Sunrise: 24@Asia/Seoul:1 — Sunset: 24@Asia/Seoul:2");
-    assert.equal(view.moonLabel.text, "Moonrise: 24@Asia/Seoul:3 — Moonset: 24@Asia/Seoul:4");
+    assert.deepEqual(view.grid.cells.map((cell) => cell.actor.text), [
+        "Sunrise", "24@Asia/Seoul:1",
+        "Sunset", "24@Asia/Seoul:2",
+        "Moonrise", "24@Asia/Seoul:3",
+        "Moonset", "24@Asia/Seoul:4"
+    ]);
+    assert.deepEqual(view.grid.cells.map((cell) => [cell.options.row, cell.options.col]), [
+        [0, 0], [0, 1], [1, 0], [1, 1], [2, 0], [2, 1], [3, 0], [3, 1]
+    ], "labels and times occupy aligned table cells in reading order");
+    assert.equal(view.grid.cells[5].actor.options.style_class,
+        "calendar-astronomy-value calendar-astronomy-moon-cell");
     view.update(request);
     assert.deepEqual(calls, [
         ["bounds", "Asia/Seoul"], [100, 200, 41.9, 12.48],
@@ -246,7 +286,7 @@ test("the popup view reuses one daily result and hides without cached coordinate
         latitude: 40, longitude: 12, timezone: "Broken/Zone"
     }, use24h: true });
     assert.equal(calls.at(-2)[1], "Europe/Rome", "an invalid provider zone falls back locally");
-    assert.match(view.sunLabel.text, /24@Europe\/Rome/);
+    assert.match(view.grid.cells[1].actor.text, /24@Europe\/Rome/);
     // reading a distant city's sky off this machine's clock is the wrong civil
     // day for anywhere far east or west, and nothing used to say it happened
     assert.equal(view.zoneLabel.visible, true);
@@ -263,8 +303,11 @@ test("the popup view reuses one daily result and hides without cached coordinate
         moon: { rise: null, set: null, state: "alwaysDown" }
     };
     view.update(Object.assign({}, request, { use24h: false }));
-    assert.equal(view.sunLabel.text, "Sun is above the horizon all day");
-    assert.equal(view.moonLabel.text, "Moon is below the horizon all day");
+    assert.deepEqual(view.grid.cells.map((cell) => cell.actor.text), [
+        "Sun is above the horizon all day",
+        "Moon is below the horizon all day"
+    ]);
+    assert.deepEqual(view.grid.cells.map((cell) => cell.options.col_span), [2, 2]);
 
     now = new Date(2026, 2, 6, 12);
     nextEvents = null;
@@ -376,19 +419,20 @@ test("an OS timezone change re-resolves the astronomy fallback zone", () => {
     const request = { visible: true, place: { latitude: 41.9, longitude: 12.48 }, use24h: true };
 
     view.update(request);
-    assert.equal(view.sunLabel.text, "Sunrise: Europe/Rome:1 — Sunset: Europe/Rome:2");
+    assert.deepEqual(view.grid.cells.slice(0, 4).map((cell) => cell.actor.text),
+        ["Sunrise", "Europe/Rome:1", "Sunset", "Europe/Rome:2"]);
     assert.equal(view.zoneLabel.visible, true, "the substitution is disclosed");
 
     // the user flies to Tokyo and the desktop follows; without the reset the
     // memo and the render key both still say Rome
     localTimezone = timezone("Asia/Tokyo");
     view.update(request);
-    assert.equal(view.sunLabel.text, "Sunrise: Europe/Rome:1 — Sunset: Europe/Rome:2",
+    assert.equal(view.grid.cells[1].actor.text, "Europe/Rome:1",
         "nothing tells the view on its own");
 
     view.refreshTimezone();
     view.update(request);
-    assert.equal(view.sunLabel.text, "Sunrise: Asia/Tokyo:1 — Sunset: Asia/Tokyo:2");
+    assert.equal(view.grid.cells[1].actor.text, "Asia/Tokyo:1");
     assert.equal(localTimezoneLookups, 2, "re-resolved once, not once per tick");
 
     view.update(request);
@@ -400,7 +444,7 @@ test("an OS timezone change re-resolves the astronomy fallback zone", () => {
     view.update({ visible: true, place: {
         latitude: 41.9, longitude: 12.48, timezone: "Asia/Seoul"
     }, use24h: true });
-    assert.equal(view.sunLabel.text, "Sunrise: Asia/Seoul:1 — Sunset: Asia/Seoul:2");
+    assert.equal(view.grid.cells[1].actor.text, "Asia/Seoul:1");
     assert.equal(view.zoneLabel.visible, false);
 });
 
@@ -428,8 +472,10 @@ test("the shipped view uses its local clock, solver, and formatter defaults", ()
         use24h: true
     }));
     assert.equal(view.actor.visible, true);
-    assert.match(view.sunLabel.text, /^Sunrise:/);
-    assert.match(view.moonLabel.text, /^Moonrise:/);
+    assert.deepEqual(view.grid.cells.filter((cell) => cell.options.col === 0)
+        .map((cell) => cell.actor.text), ["Sunrise", "Sunset", "Moonrise", "Moonset"]);
+    assert.ok(view.grid.cells.filter((cell) => cell.options.col === 1)
+        .every((cell) => /^\d{2}:\d{2}$/.test(cell.actor.text)));
 });
 
 // T841: this view declared no destroy(), and the menu builder that constructs

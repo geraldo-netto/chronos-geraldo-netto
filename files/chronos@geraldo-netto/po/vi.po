@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 19:14+0200\n"
+"POT-Creation-Date: 2026-08-06 20:05+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -270,7 +270,8 @@ msgstr "Tiểu dụng lịch gặp lỗi. Hãy kiểm tra nhật ký hệ thốn
 
 #: 6.0/applet.js:37
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
-msgstr "Chronos đã được cập nhật. Hãy khởi động lại Cinnamon để hoàn tất cập nhật."
+msgstr ""
+"Chronos đã được cập nhật. Hãy khởi động lại Cinnamon để hoàn tất cập nhật."
 
 #: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"
@@ -346,33 +347,39 @@ msgstr "Không có thời tiết cho múi giờ này"
 msgid "%s Last known reading"
 msgstr "%s Số liệu gần nhất"
 
-#: 6.0/astronomyView.js:29
+#: 6.0/astronomyView.js:28
 msgid "Times shown in this computer's time zone"
 msgstr "Giờ hiển thị theo múi giờ của máy tính này"
 
-#: 6.0/astronomyView.js:182
-#, javascript-format
-msgid "Sunrise: %s — Sunset: %s"
-msgstr "Mặt Trời mọc: %s — Mặt Trời lặn: %s"
+#: 6.0/astronomyView.js:218
+msgid "Sunrise"
+msgstr "Mặt Trời mọc"
 
-#: 6.0/astronomyView.js:183
+#: 6.0/astronomyView.js:218
+msgid "Sunset"
+msgstr "Mặt Trời lặn"
+
+#: 6.0/astronomyView.js:219
 msgid "Sun is above the horizon all day"
 msgstr "Mặt Trời ở trên đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:184
+#: 6.0/astronomyView.js:220
 msgid "Sun is below the horizon all day"
 msgstr "Mặt Trời ở dưới đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:186
-#, javascript-format
-msgid "Moonrise: %s — Moonset: %s"
-msgstr "Mặt Trăng mọc: %s — Mặt Trăng lặn: %s"
+#: 6.0/astronomyView.js:222
+msgid "Moonrise"
+msgstr "Mặt Trăng mọc"
 
-#: 6.0/astronomyView.js:187
+#: 6.0/astronomyView.js:222
+msgid "Moonset"
+msgstr "Mặt Trăng lặn"
+
+#: 6.0/astronomyView.js:223
 msgid "Moon is above the horizon all day"
 msgstr "Mặt Trăng ở trên đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:188
+#: 6.0/astronomyView.js:224
 msgid "Moon is below the horizon all day"
 msgstr "Mặt Trăng ở dưới đường chân trời cả ngày"
 
@@ -1866,6 +1873,14 @@ msgstr "Tên hiển thị"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Múi giờ"
+
+#, javascript-format
+#~ msgid "Sunrise: %s — Sunset: %s"
+#~ msgstr "Mặt Trời mọc: %s — Mặt Trời lặn: %s"
+
+#, javascript-format
+#~ msgid "Moonrise: %s — Moonset: %s"
+#~ msgstr "Mặt Trăng mọc: %s — Mặt Trăng lặn: %s"
 
 #~ msgid "Panel Label"
 #~ msgstr "Nhãn bảng điều khiển"

@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 19:14+0200\n"
+"POT-Creation-Date: 2026-08-06 20:05+0200\n"
 "PO-Revision-Date: 2024-11-20 18:59+0100\n"
 "Last-Translator: Claus Colloseus <ccprog@gmx.de>\n"
 "Language-Team: German\n"
@@ -269,7 +269,9 @@ msgstr ""
 
 #: 6.0/applet.js:37
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
-msgstr "Chronos wurde aktualisiert. Starten Sie Cinnamon neu, um die Aktualisierung abzuschließen."
+msgstr ""
+"Chronos wurde aktualisiert. Starten Sie Cinnamon neu, um die Aktualisierung "
+"abzuschließen."
 
 #: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"
@@ -345,33 +347,39 @@ msgstr "Kein Wetter für diese Zeitzone"
 msgid "%s Last known reading"
 msgstr "%s Letzte bekannte Messung"
 
-#: 6.0/astronomyView.js:29
+#: 6.0/astronomyView.js:28
 msgid "Times shown in this computer's time zone"
 msgstr "Zeiten werden in der Zeitzone dieses Computers angezeigt"
 
-#: 6.0/astronomyView.js:182
-#, javascript-format
-msgid "Sunrise: %s — Sunset: %s"
-msgstr "Sonnenaufgang: %s — Sonnenuntergang: %s"
+#: 6.0/astronomyView.js:218
+msgid "Sunrise"
+msgstr "Sonnenaufgang"
 
-#: 6.0/astronomyView.js:183
+#: 6.0/astronomyView.js:218
+msgid "Sunset"
+msgstr "Sonnenuntergang"
+
+#: 6.0/astronomyView.js:219
 msgid "Sun is above the horizon all day"
 msgstr "Die Sonne steht den ganzen Tag über dem Horizont"
 
-#: 6.0/astronomyView.js:184
+#: 6.0/astronomyView.js:220
 msgid "Sun is below the horizon all day"
 msgstr "Die Sonne steht den ganzen Tag unter dem Horizont"
 
-#: 6.0/astronomyView.js:186
-#, javascript-format
-msgid "Moonrise: %s — Moonset: %s"
-msgstr "Mondaufgang: %s — Monduntergang: %s"
+#: 6.0/astronomyView.js:222
+msgid "Moonrise"
+msgstr "Mondaufgang"
 
-#: 6.0/astronomyView.js:187
+#: 6.0/astronomyView.js:222
+msgid "Moonset"
+msgstr "Monduntergang"
+
+#: 6.0/astronomyView.js:223
 msgid "Moon is above the horizon all day"
 msgstr "Der Mond steht den ganzen Tag über dem Horizont"
 
-#: 6.0/astronomyView.js:188
+#: 6.0/astronomyView.js:224
 msgid "Moon is below the horizon all day"
 msgstr "Der Mond steht den ganzen Tag unter dem Horizont"
 
@@ -1880,6 +1888,14 @@ msgstr "Anzeigename"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zeitzone"
+
+#, javascript-format
+#~ msgid "Sunrise: %s — Sunset: %s"
+#~ msgstr "Sonnenaufgang: %s — Sonnenuntergang: %s"
+
+#, javascript-format
+#~ msgid "Moonrise: %s — Moonset: %s"
+#~ msgstr "Mondaufgang: %s — Monduntergang: %s"
 
 #~ msgid "Panel Label"
 #~ msgstr "Leistenbeschriftung"

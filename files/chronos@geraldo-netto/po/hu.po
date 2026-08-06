@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 19:14+0200\n"
+"POT-Creation-Date: 2026-08-06 20:05+0200\n"
 "PO-Revision-Date: 2024-11-24 20:59+0100\n"
 "Last-Translator: Vajda Örs <ors0092@gmail.com>\n"
 "Language-Team: \n"
@@ -271,7 +271,9 @@ msgstr "A naptár kisalkalmazás hibát észlelt. Ellenőrizze a rendszernaplót
 
 #: 6.0/applet.js:37
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
-msgstr "A Chronos frissült. A frissítés befejezéséhez indítsa újra a Cinnamon környezetet."
+msgstr ""
+"A Chronos frissült. A frissítés befejezéséhez indítsa újra a Cinnamon "
+"környezetet."
 
 #: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"
@@ -347,33 +349,39 @@ msgstr "Ehhez az időzónához nincs időjárás"
 msgid "%s Last known reading"
 msgstr "%s Utolsó ismert mérés"
 
-#: 6.0/astronomyView.js:29
+#: 6.0/astronomyView.js:28
 msgid "Times shown in this computer's time zone"
 msgstr "Az időpontok ennek a számítógépnek az időzónájában jelennek meg"
 
-#: 6.0/astronomyView.js:182
-#, javascript-format
-msgid "Sunrise: %s — Sunset: %s"
-msgstr "Napkelte: %s — Napnyugta: %s"
+#: 6.0/astronomyView.js:218
+msgid "Sunrise"
+msgstr "Napkelte"
 
-#: 6.0/astronomyView.js:183
+#: 6.0/astronomyView.js:218
+msgid "Sunset"
+msgstr "Napnyugta"
+
+#: 6.0/astronomyView.js:219
 msgid "Sun is above the horizon all day"
 msgstr "A Nap egész nap a horizont felett van"
 
-#: 6.0/astronomyView.js:184
+#: 6.0/astronomyView.js:220
 msgid "Sun is below the horizon all day"
 msgstr "A Nap egész nap a horizont alatt van"
 
-#: 6.0/astronomyView.js:186
-#, javascript-format
-msgid "Moonrise: %s — Moonset: %s"
-msgstr "Holdkelte: %s — Holdnyugta: %s"
+#: 6.0/astronomyView.js:222
+msgid "Moonrise"
+msgstr "Holdkelte"
 
-#: 6.0/astronomyView.js:187
+#: 6.0/astronomyView.js:222
+msgid "Moonset"
+msgstr "Holdnyugta"
+
+#: 6.0/astronomyView.js:223
 msgid "Moon is above the horizon all day"
 msgstr "A Hold egész nap a horizont felett van"
 
-#: 6.0/astronomyView.js:188
+#: 6.0/astronomyView.js:224
 msgid "Moon is below the horizon all day"
 msgstr "A Hold egész nap a horizont alatt van"
 
@@ -1881,6 +1889,14 @@ msgstr "Név megjelenítése"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Időzóna"
+
+#, javascript-format
+#~ msgid "Sunrise: %s — Sunset: %s"
+#~ msgstr "Napkelte: %s — Napnyugta: %s"
+
+#, javascript-format
+#~ msgid "Moonrise: %s — Moonset: %s"
+#~ msgstr "Holdkelte: %s — Holdnyugta: %s"
 
 #~ msgid "Panel Label"
 #~ msgstr "Panelcímke"

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\n"
-"POT-Creation-Date: 2026-08-06 19:14+0200\n"
+"POT-Creation-Date: 2026-08-06 20:05+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -346,33 +346,39 @@ msgstr ""
 msgid "%s Last known reading"
 msgstr ""
 
-#: 6.0/astronomyView.js:29
+#: 6.0/astronomyView.js:28
 msgid "Times shown in this computer's time zone"
 msgstr ""
 
-#: 6.0/astronomyView.js:182
-#, javascript-format
-msgid "Sunrise: %s — Sunset: %s"
+#: 6.0/astronomyView.js:218
+msgid "Sunrise"
 msgstr ""
 
-#: 6.0/astronomyView.js:183
+#: 6.0/astronomyView.js:218
+msgid "Sunset"
+msgstr ""
+
+#: 6.0/astronomyView.js:219
 msgid "Sun is above the horizon all day"
 msgstr ""
 
-#: 6.0/astronomyView.js:184
+#: 6.0/astronomyView.js:220
 msgid "Sun is below the horizon all day"
 msgstr ""
 
-#: 6.0/astronomyView.js:186
-#, javascript-format
-msgid "Moonrise: %s — Moonset: %s"
+#: 6.0/astronomyView.js:222
+msgid "Moonrise"
 msgstr ""
 
-#: 6.0/astronomyView.js:187
+#: 6.0/astronomyView.js:222
+msgid "Moonset"
+msgstr ""
+
+#: 6.0/astronomyView.js:223
 msgid "Moon is above the horizon all day"
 msgstr ""
 
-#: 6.0/astronomyView.js:188
+#: 6.0/astronomyView.js:224
 msgid "Moon is below the horizon all day"
 msgstr ""
 

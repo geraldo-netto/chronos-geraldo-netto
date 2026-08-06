@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 19:14+0200\n"
+"POT-Creation-Date: 2026-08-06 20:05+0200\n"
 "PO-Revision-Date: 2024-11-28 17:19+0100\n"
 "Last-Translator: qadzek\n"
 "Language-Team: \n"
@@ -346,33 +346,39 @@ msgstr "Geen weer voor deze tijdzone"
 msgid "%s Last known reading"
 msgstr "%s Laatst bekende meting"
 
-#: 6.0/astronomyView.js:29
+#: 6.0/astronomyView.js:28
 msgid "Times shown in this computer's time zone"
 msgstr "Tijden worden weergegeven in de tijdzone van deze computer"
 
-#: 6.0/astronomyView.js:182
-#, javascript-format
-msgid "Sunrise: %s — Sunset: %s"
-msgstr "Zonsopkomst: %s — Zonsondergang: %s"
+#: 6.0/astronomyView.js:218
+msgid "Sunrise"
+msgstr "Zonsopkomst"
 
-#: 6.0/astronomyView.js:183
+#: 6.0/astronomyView.js:218
+msgid "Sunset"
+msgstr "Zonsondergang"
+
+#: 6.0/astronomyView.js:219
 msgid "Sun is above the horizon all day"
 msgstr "De zon staat de hele dag boven de horizon"
 
-#: 6.0/astronomyView.js:184
+#: 6.0/astronomyView.js:220
 msgid "Sun is below the horizon all day"
 msgstr "De zon staat de hele dag onder de horizon"
 
-#: 6.0/astronomyView.js:186
-#, javascript-format
-msgid "Moonrise: %s — Moonset: %s"
-msgstr "Maanopkomst: %s — Maanondergang: %s"
+#: 6.0/astronomyView.js:222
+msgid "Moonrise"
+msgstr "Maanopkomst"
 
-#: 6.0/astronomyView.js:187
+#: 6.0/astronomyView.js:222
+msgid "Moonset"
+msgstr "Maanondergang"
+
+#: 6.0/astronomyView.js:223
 msgid "Moon is above the horizon all day"
 msgstr "De maan staat de hele dag boven de horizon"
 
-#: 6.0/astronomyView.js:188
+#: 6.0/astronomyView.js:224
 msgid "Moon is below the horizon all day"
 msgstr "De maan staat de hele dag onder de horizon"
 
@@ -1878,6 +1884,14 @@ msgstr "Weergavenaam"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Tijdzone"
+
+#, javascript-format
+#~ msgid "Sunrise: %s — Sunset: %s"
+#~ msgstr "Zonsopkomst: %s — Zonsondergang: %s"
+
+#, javascript-format
+#~ msgid "Moonrise: %s — Moonset: %s"
+#~ msgstr "Maanopkomst: %s — Maanondergang: %s"
 
 #~ msgid "Panel Label"
 #~ msgstr "Paneellabel"

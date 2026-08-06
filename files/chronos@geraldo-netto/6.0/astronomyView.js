@@ -15,7 +15,6 @@ const St = imports.gi.St;
 const Astronomy = require("./astronomy");
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
-const TextUtils = AppletModules.textUtils;
 // through the 6.0 shim, as worldclocks.js, appletCoordinators.js and
 // appletPanelStatus.js do: the shims are the seam where a future version tree
 // adapts a root module for its Cinnamon version, so a file that reaches past
@@ -54,22 +53,19 @@ function civilDayBounds(now, timezone) {
     return Astronomy.validDayBounds(bounds.startMs, bounds.endMs) ? bounds : null;
 }
 
-// The chained form verbatim: the second replace scanned the string the first
-// one had built, so a rise time containing %s consumed the set time.
-function replaceTimes(template, rise, set) {
-    return TextUtils.fillTemplate(template, [rise, set]);
-}
-
-function bodyLine(body, riseTemplate, alwaysUpText, alwaysDownText, formatTime) {
+function bodyRows(body, riseLabel, setLabel, alwaysUpText, alwaysDownText, formatTime) {
     if (body.state === "alwaysUp") {
-        return alwaysUpText;
+        return [{ status: alwaysUpText }];
     }
     if (body.state === "alwaysDown") {
-        return alwaysDownText;
+        return [{ status: alwaysDownText }];
     }
     const rise = body.rise === null ? MISSING_EVENT_TIME : formatTime(body.rise);
     const set = body.set === null ? MISSING_EVENT_TIME : formatTime(body.set);
-    return replaceTimes(riseTemplate, rise || MISSING_EVENT_TIME, set || MISSING_EVENT_TIME);
+    return [
+        { label: riseLabel, value: rise || MISSING_EVENT_TIME },
+        { label: setLabel, value: set || MISSING_EVENT_TIME }
+    ];
 }
 
 function defaultFormatTime(timestamp, use24h, timezone) {
@@ -99,17 +95,16 @@ class AstronomyView {
             style_class: "calendar-astronomy"
         });
         this.zoneLabel = new St.Label({
-            style_class: "calendar-astronomy-row",
+            style_class: "calendar-astronomy-zone",
             visible: false
         });
         this.zoneLabel.get_clutter_text().line_wrap = true;
         this.actor.add_actor(this.zoneLabel);
-        this.sunLabel = new St.Label({ style_class: "calendar-astronomy-row" });
-        this.moonLabel = new St.Label({ style_class: "calendar-astronomy-row" });
-        this.sunLabel.get_clutter_text().line_wrap = true;
-        this.moonLabel.get_clutter_text().line_wrap = true;
-        this.actor.add_actor(this.sunLabel);
-        this.actor.add_actor(this.moonLabel);
+        this.grid = new St.Table({
+            homogeneous: false,
+            style_class: "calendar-astronomy-grid"
+        });
+        this.actor.add_actor(this.grid);
         box.add_actor(this.actor);
     }
 
@@ -169,6 +164,47 @@ class AstronomyView {
         this._dayCache = null;
     }
 
+    _cell(text, styleClass) {
+        const label = new St.Label({ style_class: styleClass });
+        label.set_text(text);
+        label.get_clutter_text().line_wrap = true;
+        return label;
+    }
+
+    _renderRows(rows) {
+        this.grid.destroy_all_children();
+        for (let row = 0; row < rows.length; row++) {
+            const entry = rows[row];
+            const moonClass = entry.moonStart ? " calendar-astronomy-moon-cell" : "";
+            if (entry.status) {
+                this.grid.add(this._cell(entry.status,
+                    "calendar-astronomy-status" + moonClass), {
+                    row,
+                    col: 0,
+                    col_span: 2,
+                    x_fill: true,
+                    x_align: St.Align.START
+                });
+                continue;
+            }
+
+            this.grid.add(this._cell(entry.label,
+                "calendar-astronomy-event" + moonClass), {
+                row,
+                col: 0,
+                x_fill: false,
+                x_align: St.Align.START
+            });
+            this.grid.add(this._cell(entry.value,
+                "calendar-astronomy-value" + moonClass), {
+                row,
+                col: 1,
+                x_fill: true,
+                x_align: St.Align.END
+            });
+        }
+    }
+
     _render(events, use24h, day) {
         const timezone = day.timezone;
         const formatTime = (timestamp) => this._formatTime(timestamp, use24h, timezone);
@@ -178,14 +214,18 @@ class AstronomyView {
         // depending on which service had answered.
         this.zoneLabel.set_text(day.zoneResolved ? "" : ZONE_FALLBACK_TEXT);
         this.zoneLabel.visible = !day.zoneResolved;
-        this.sunLabel.set_text(bodyLine(events.sun,
-            _("Sunrise: %s — Sunset: %s"),
+        const sunRows = bodyRows(events.sun,
+            _("Sunrise"), _("Sunset"),
             _("Sun is above the horizon all day"),
-            _("Sun is below the horizon all day"), formatTime));
-        this.moonLabel.set_text(bodyLine(events.moon,
-            _("Moonrise: %s — Moonset: %s"),
+            _("Sun is below the horizon all day"), formatTime);
+        const moonRows = bodyRows(events.moon,
+            _("Moonrise"), _("Moonset"),
             _("Moon is above the horizon all day"),
-            _("Moon is below the horizon all day"), formatTime));
+            _("Moon is below the horizon all day"), formatTime);
+        if (moonRows.length) {
+            moonRows[0].moonStart = true;
+        }
+        this._renderRows(sunRows.concat(moonRows));
     }
 
     // A day's bounds are only the day's bounds while the clock is inside them,
@@ -270,8 +310,7 @@ if (typeof module !== "undefined") {
         ZONE_FALLBACK_TEXT,
         zonedDateTime,
         civilDayBounds,
-        replaceTimes,
-        bodyLine,
+        bodyRows,
         defaultFormatTime
     };
 }

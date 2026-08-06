@@ -54,9 +54,27 @@
     padding: 0.5em 0 0 0.5em;
 }
 
-.calendar-astronomy-row {
+.calendar-astronomy-zone,
+.calendar-astronomy-status {
     max-width: 30em;
     text-align: left;
+}
+
+.calendar-astronomy-grid {
+    spacing-columns: 1.5em;
+    spacing-rows: 0.15em;
+}
+
+.calendar-astronomy-event {
+    text-align: left;
+}
+
+.calendar-astronomy-value {
+    text-align: right;
+}
+
+.calendar-astronomy-moon-cell {
+    padding-top: 0.35em;
 }
 
 /*

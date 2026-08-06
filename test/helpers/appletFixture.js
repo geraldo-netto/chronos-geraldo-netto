@@ -122,6 +122,17 @@ global.imports = {
                 connect() {} // NOSONAR [S1186] -- deliberate test seam
                 add_actor() {} // NOSONAR [S1186] -- deliberate test seam
             },
+            Table: class {
+                constructor() {
+                    this.children = [];
+                }
+                add(actor) {
+                    this.children.push(actor);
+                }
+                destroy_all_children() {
+                    this.children = [];
+                }
+            },
             Label: class {
                 constructor(options = {}) {
                     this.text = options.text || "";

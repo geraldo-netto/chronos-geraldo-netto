@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 19:14+0200\n"
+"POT-Creation-Date: 2026-08-06 20:05+0200\n"
 "PO-Revision-Date: 2021-07-05 18:36+0300\n"
 "Last-Translator: Serkan ÖNDER <serkanonder@outlook.com>\n"
 "Language-Team: \n"
@@ -272,7 +272,9 @@ msgstr ""
 
 #: 6.0/applet.js:37
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
-msgstr "Chronos güncellendi. Güncellemeyi tamamlamak için Cinnamon'ı yeniden başlatın."
+msgstr ""
+"Chronos güncellendi. Güncellemeyi tamamlamak için Cinnamon'ı yeniden "
+"başlatın."
 
 #: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"
@@ -348,33 +350,39 @@ msgstr "Bu saat dilimi için hava durumu yok"
 msgid "%s Last known reading"
 msgstr "%s Bilinen son ölçüm"
 
-#: 6.0/astronomyView.js:29
+#: 6.0/astronomyView.js:28
 msgid "Times shown in this computer's time zone"
 msgstr "Saatler bu bilgisayarın saat diliminde gösteriliyor"
 
-#: 6.0/astronomyView.js:182
-#, javascript-format
-msgid "Sunrise: %s — Sunset: %s"
-msgstr "Gün doğumu: %s — Gün batımı: %s"
+#: 6.0/astronomyView.js:218
+msgid "Sunrise"
+msgstr "Gün doğumu"
 
-#: 6.0/astronomyView.js:183
+#: 6.0/astronomyView.js:218
+msgid "Sunset"
+msgstr "Gün batımı"
+
+#: 6.0/astronomyView.js:219
 msgid "Sun is above the horizon all day"
 msgstr "Güneş tüm gün ufkun üzerinde"
 
-#: 6.0/astronomyView.js:184
+#: 6.0/astronomyView.js:220
 msgid "Sun is below the horizon all day"
 msgstr "Güneş tüm gün ufkun altında"
 
-#: 6.0/astronomyView.js:186
-#, javascript-format
-msgid "Moonrise: %s — Moonset: %s"
-msgstr "Ay doğumu: %s — Ay batımı: %s"
+#: 6.0/astronomyView.js:222
+msgid "Moonrise"
+msgstr "Ay doğumu"
 
-#: 6.0/astronomyView.js:187
+#: 6.0/astronomyView.js:222
+msgid "Moonset"
+msgstr "Ay batımı"
+
+#: 6.0/astronomyView.js:223
 msgid "Moon is above the horizon all day"
 msgstr "Ay tüm gün ufkun üzerinde"
 
-#: 6.0/astronomyView.js:188
+#: 6.0/astronomyView.js:224
 msgid "Moon is below the horizon all day"
 msgstr "Ay tüm gün ufkun altında"
 
@@ -1879,6 +1887,14 @@ msgstr "Görünüm Adı"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zaman dilimi"
+
+#, javascript-format
+#~ msgid "Sunrise: %s — Sunset: %s"
+#~ msgstr "Gün doğumu: %s — Gün batımı: %s"
+
+#, javascript-format
+#~ msgid "Moonrise: %s — Moonset: %s"
+#~ msgstr "Ay doğumu: %s — Ay batımı: %s"
 
 #~ msgid "Panel Label"
 #~ msgstr "Panel Etiketi"
