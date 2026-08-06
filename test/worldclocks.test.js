@@ -541,7 +541,7 @@ test("the first saved clock for a timezone wins without consuming another slot",
     ]);
 });
 
-// worldclockData.timezoneCityName and chronos_settings_widgets_common.local_city_name
+// worldclockData.timezoneCityName and chronos_timezone_data.local_city_name
 // both derive the weather-location city from a timezone id and both write the
 // same settings key, so they must agree. The cases live in a fixture that the
 // Python suite asserts against too; a divergence fails one side.
