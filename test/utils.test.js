@@ -2771,7 +2771,8 @@ test("removing one applet does not cancel the locale query another is waiting on
 // flight — left every instance in the process pinned to the English defaults and
 // the US work week for the rest of the session, with the retry ladder used up.
 test("a locale query we cancelled ourselves does not spend a retry attempt", () => {
-    global.logError = () => {};
+    const logged = [];
+    global.logError = (error) => logged.push(String(error));
     const localeQuery = loadLocaleModules({ neverAnswers: true });
     const Subprocess = global.imports.gi.Gio.Subprocess;
 
@@ -2785,6 +2786,8 @@ test("a locale query we cancelled ourselves does not spend a retry attempt", () 
     // GJS calls back on the cancelled query; finish() raises, and that used to be
     // read as "the locale is broken" rather than "we hung up"
     Subprocess.settle();
+    assert.deepEqual(logged, [],
+        "the cancellation requested by teardown is not reported as a runtime error");
 
     // the next applet asks, and gets a fresh query rather than the defaults
     localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();

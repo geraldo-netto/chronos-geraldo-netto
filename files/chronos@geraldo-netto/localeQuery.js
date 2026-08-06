@@ -434,7 +434,11 @@ function _settleLocaleOutput(env, source, result, settlers) {
     try {
         info = _finishLocaleOutput(env, source, result);
     } catch (e) {
-        if (global.logError) {
+        // The last consumer deliberately killed and cancelled this query during
+        // teardown. Gio still requires the completion to be finished, and that
+        // finish raises cancellation: settle its ownership below, but do not
+        // report the teardown we requested as a runtime failure.
+        if (!abandoned[env] && global.logError) {
             global.logError(e);
         }
         settlers.fail();
