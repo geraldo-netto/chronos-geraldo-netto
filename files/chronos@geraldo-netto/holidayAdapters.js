@@ -29,6 +29,13 @@ const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 
+// What the chain reports when every provider raised rather than answering:
+// attemptOrFail answers null for a raise, so there is no first failure to pass
+// on and no empty result either. The callback's contract is three values, and
+// HolidayService.addData reads a missing payload as SERVICE_UNAVAILABLE, which
+// is what this is.
+const NO_PROVIDER_OUTCOME = { data: null, params: null, retrieved: null };
+
 var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJS importer export
     // `validResponse` is what an answer from *any* provider in this chain has to
     // satisfy: the record shape the app owns, not the shape of whichever vendor
@@ -104,7 +111,7 @@ var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJ
         if (global.log) {
             global.log(`all holiday providers failed for ${country}/${region}/${year}`);
         }
-        const outcome = failure || emptyResult;
+        const outcome = failure || emptyResult || NO_PROVIDER_OUTCOME;
         callback(outcome.data, outcome.params, outcome.retrieved);
     }
 

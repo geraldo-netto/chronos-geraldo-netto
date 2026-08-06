@@ -1104,6 +1104,32 @@ test("the fallback chain tries the last successful provider first", () => {
     assert.deepEqual(calls, ["primary:2026", "fallback:2026", "fallback:2027"]);
 });
 
+// T785: attemptOrFail answers null for a provider that raised rather than
+// answering, so with every provider raising there is no first failure to pass
+// on and no empty result behind it either — and the reporter dereferenced the
+// outcome it was about to send. The chain fails over precisely so one bad
+// provider is survivable; the case where all of them are bad crashed on the
+// way to saying so, and took the fetch callback with it.
+test("every provider raising is reported rather than dereferenced", () => {
+    const { createHolidayServiceChain } = loadHolidays();
+    const raising = (name) => ({
+        name,
+        fetchYear() {
+            throw new Error(`${name} session disposed`);
+        }
+    });
+    const service = createHolidayServiceChain(
+        raising("Primary"), [raising("Fallback"), raising("Last")], anyRecord());
+    global.logError = () => {};
+
+    const answers = [];
+    assert.doesNotThrow(() => service.fetchYear("usa", "global", 2026,
+        (data, params, retrieved) => answers.push({ data, params, retrieved })));
+
+    assert.deepEqual(answers, [{ data: null, params: null, retrieved: null }],
+        "an absent payload is what addData reads as SERVICE_UNAVAILABLE");
+});
+
 // T601: the expansion loop iterated with local Dates from local noon, adding
 // raw 24 h steps. Across a clocks-back transition a step lands at 11:00 local —
 // still under the local-noon limit — so the loop pushed a phantom row for the
