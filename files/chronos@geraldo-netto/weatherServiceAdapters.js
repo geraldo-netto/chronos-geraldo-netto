@@ -253,6 +253,18 @@ function weatherReading(weather) {
     return { condition: weatherIcon(weather.weathercode), temperatureC: weather.temperature };
 }
 
+// forecastUrl asks timezone=auto, so the reply names the zone of the very point
+// it describes. That is the only authoritative zone available for a place the
+// Nominatim fallback resolved — it publishes none — and for anything Open-Meteo
+// geocoding refused under MIN_TRUSTED_GEOCODE_POPULATION, and it costs no extra
+// request. The zone rides on the reading only when the service actually sent
+// one, so a reading without it stays exactly the record it was.
+function openMeteoReading(data) {
+    const reading = weatherReading(data.current_weather);
+    const timezone = reading ? geocodeTimezone(data.timezone) : "";
+    return timezone ? Object.assign({}, reading, { timezone }) : reading;
+}
+
 const MET_NO_ICON_RULES = [
     [["thunder"], "⛈"],
     [["clearsky"], "☀"],
@@ -538,5 +550,6 @@ if (typeof module !== "undefined") {
         weatherIcon, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, forecastUrl,
         metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber,
         aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon,
-        metNoSummary, metNoWeatherReading, openMeteoGeocodePlace, nominatimGeocodePlace };
+        metNoSummary, metNoWeatherReading, openMeteoReading,
+        openMeteoGeocodePlace, nominatimGeocodePlace };
 }

@@ -15,8 +15,11 @@ function timezone(identifier) {
     return { get_identifier: () => identifier };
 }
 
+let localTimezoneLookups = 0;
+
 function timezoneFromIdentifier(identifier) {
     if (identifier === "local") {
+        localTimezoneLookups++;
         return localTimezone;
     }
     return identifier === "Broken/Zone" ? null : timezone(identifier);
@@ -88,6 +91,7 @@ function loadView() {
 }
 
 beforeEach(() => {
+    localTimezoneLookups = 0;
     unixDateTime = null;
     utcDateTimeFactory = () => null;
     dateTimeFactory = () => null;
@@ -194,7 +198,7 @@ test("the popup view reuses one daily result and hides without cached coordinate
     });
 
     assert.equal(parent.children[0], view.actor);
-    assert.equal(view.actor.children.length, 2);
+    assert.equal(view.actor.children.length, 3);
     assert.equal(view.sunLabel.clutterText.line_wrap, true);
     assert.equal(view.moonLabel.clutterText.line_wrap, true);
     view.update({ visible: false, place: { latitude: 41.9, longitude: 12.48 }, use24h: true });
@@ -207,6 +211,8 @@ test("the popup view reuses one daily result and hides without cached coordinate
     }, use24h: true };
     view.update(request);
     assert.equal(view.actor.visible, true);
+    assert.equal(view.zoneLabel.visible, false,
+        "a place that names its own zone says nothing extra");
     assert.equal(view.sunLabel.text, "Sunrise: 24@Asia/Seoul:1 — Sunset: 24@Asia/Seoul:2");
     assert.equal(view.moonLabel.text, "Moonrise: 24@Asia/Seoul:3 — Moonset: 24@Asia/Seoul:4");
     view.update(request);
@@ -220,9 +226,16 @@ test("the popup view reuses one daily result and hides without cached coordinate
     }, use24h: true });
     assert.equal(calls.at(-2)[1], "Europe/Rome", "an invalid provider zone falls back locally");
     assert.match(view.sunLabel.text, /24@Europe\/Rome/);
+    // reading a distant city's sky off this machine's clock is the wrong civil
+    // day for anywhere far east or west, and nothing used to say it happened
+    assert.equal(view.zoneLabel.visible, true);
+    assert.equal(view.zoneLabel.text, View.ZONE_FALLBACK_TEXT);
 
     view.update({ visible: true, place: { latitude: 39, longitude: 12 }, use24h: true });
     assert.equal(calls.at(-2)[1], "Europe/Rome", "a fallback geocoder without a zone stays usable");
+    assert.equal(view.zoneLabel.visible, true);
+    assert.equal(localTimezoneLookups, 1,
+        "the fallback zone is built once, not on every open-menu clock notify");
 
     nextEvents = {
         sun: { rise: null, set: null, state: "alwaysUp" },

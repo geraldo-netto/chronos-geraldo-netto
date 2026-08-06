@@ -409,6 +409,92 @@ test("the current observer survives shared geocode-cache eviction", () => {
     });
 });
 
+// Nominatim publishes no timezone and Open-Meteo geocoding refuses anything
+// under MIN_TRUSTED_GEOCODE_POPULATION, so a smaller place reached the
+// astronomy view with no zone and it silently used the viewer's own — the wrong
+// civil day's sunrise for anywhere far east or west. The forecast reply is
+// asked with timezone=auto, so it names the point's zone at no extra cost.
+test("a place its geocoder could not place in time takes the forecast's zone", () => {
+    const Weather = loadWeather();
+    const httpGetJson = (url, callback) => {
+        if (url.includes("geocoding-api")) {
+            // below the trusted floor: Open-Meteo declines and Nominatim answers
+            callback({ results: [] });
+            return;
+        }
+        if (url.includes("nominatim")) {
+            callback([{
+                display_name: "Ushuaia, Tierra del Fuego, Argentina",
+                lat: "-54.8", lon: "-68.3", importance: 0.7
+            }]);
+            return;
+        }
+        callback({
+            timezone: "America/Argentina/Ushuaia",
+            current_weather: { weathercode: 0, temperature: 4 }
+        });
+    };
+    const repository = new Weather.WeatherReadingRepository({
+        httpGetJson,
+        nominatimQueue: { enqueue: (start) => start() },
+        cacheSeconds: 1800
+    });
+
+    let observed = null;
+    repository.refresh("Ushuaia", () => true, (reading, error, provider, place) => {
+        observed = place;
+    });
+
+    assert.equal(observed.timezone, "America/Argentina/Ushuaia",
+        "the resolved place carries a zone the geocoder never sent");
+    assert.equal(repository.placeFor("Ushuaia").timezone, "America/Argentina/Ushuaia",
+        "and the cached observer the astronomy view reads carries it too");
+});
+
+test("a geocoder that named the zone keeps it against a disagreeing forecast", () => {
+    const Weather = loadWeather();
+    const httpGetJson = (url, callback) => {
+        if (url.includes("geocoding-api")) {
+            callback({ results: [{
+                name: "Rome", latitude: 41.9, longitude: 12.5,
+                timezone: "Europe/Rome", population: 2800000
+            }] });
+            return;
+        }
+        // the forecast describes a point, not the city: its zone loses
+        callback({
+            timezone: "Etc/UTC",
+            current_weather: { weathercode: 0, temperature: 20 }
+        });
+    };
+    const repository = new Weather.WeatherReadingRepository({
+        httpGetJson, cacheSeconds: 1800
+    });
+
+    let observed = null;
+    repository.refresh("Rome", () => true, (reading, error, provider, place) => {
+        observed = place;
+    });
+
+    assert.equal(observed.timezone, "Europe/Rome");
+    assert.equal(repository.locationResolver.placeFor("Rome").timezone, "Europe/Rome",
+        "and the geocode entry is not rewritten behind it");
+});
+
+test("a geocoded zone is never overwritten by the forecast's", () => {
+    const Weather = loadWeather();
+    const place = { name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "Europe/Rome" };
+
+    assert.equal(Weather.placeWithTimezone(place, { timezone: "Etc/UTC" }), place,
+        "the geocoder named the place; the forecast only describes a point near it");
+    assert.equal(Weather.placeWithTimezone(null, { timezone: "Etc/UTC" }), null);
+
+    const bare = { name: "Ushuaia", latitude: -54.8, longitude: -68.3 };
+    assert.equal(Weather.placeWithTimezone(bare, null), bare, "a failed forecast adds nothing");
+    assert.equal(Weather.placeWithTimezone(bare, { condition: "☀" }), bare,
+        "and neither does a provider that does not publish zones");
+});
+
 test("a failed refresh retries sooner than the refresh period, with backoff", () => {
     const Weather = loadWeather();
     const schedules = [];

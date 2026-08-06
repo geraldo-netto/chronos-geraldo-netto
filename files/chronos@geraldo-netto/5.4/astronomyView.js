@@ -18,6 +18,9 @@ const LocaleText = AppletModules.localeText;
 const WorldclockData = AppletModules.worldclockData;
 const _ = LocaleText.translate;
 const MISSING_EVENT_TIME = "—";
+// Shown instead of nothing when the resolved place carries no timezone of
+// its own: the rows are then the viewer's clock, not the place's.
+const ZONE_FALLBACK_TEXT = _("Times shown in this computer's time zone");
 
 function zonedDateTime(timestamp, timezone) {
     if (!Number.isFinite(timestamp) || !timezone) {
@@ -85,6 +88,12 @@ class AstronomyView {
             x_align: Clutter.ActorAlign.START,
             style_class: "calendar-astronomy"
         });
+        this.zoneLabel = new St.Label({
+            style_class: "calendar-astronomy-row",
+            visible: false
+        });
+        this.zoneLabel.get_clutter_text().line_wrap = true;
+        this.actor.add_actor(this.zoneLabel);
         this.sunLabel = new St.Label({ style_class: "calendar-astronomy-row" });
         this.moonLabel = new St.Label({ style_class: "calendar-astronomy-row" });
         this.sunLabel.get_clutter_text().line_wrap = true;
@@ -94,22 +103,42 @@ class AstronomyView {
         box.add_actor(this.actor);
     }
 
+    // `resolved` is false when the zone below is the viewer's own rather than
+    // the place's. The times are then a different city's clock read off this
+    // one, which the rows have to say — see _render.
     _placeTimezone(identifier) {
         const key = typeof identifier === "string" ? identifier.trim() : "";
-        if (key && key === this._timezoneKey) {
-            return this._timezone;
+        if (key === this._timezoneKey && this._timezone) {
+            return { timezone: this._timezone, resolved: true };
         }
         const timezone = key ? WorldclockData.timezoneFromIdentifier(key) : null;
         if (timezone) {
             this._timezoneKey = key;
             this._timezone = timezone;
-            return timezone;
+            return { timezone, resolved: true };
         }
-        return WorldclockData.timezoneFromIdentifier(WorldclockData.LOCAL_TIMEZONE);
+        return { timezone: this._localTimezone(), resolved: false };
     }
 
-    _render(events, use24h, timezone) {
+    // update() runs on every clock notify while the menu is open, and this used
+    // to build a fresh GLib.TimeZone on each one.
+    _localTimezone() {
+        if (!this._local_timezone) {
+            this._local_timezone =
+                WorldclockData.timezoneFromIdentifier(WorldclockData.LOCAL_TIMEZONE);
+        }
+        return this._local_timezone;
+    }
+
+    _render(events, use24h, day) {
+        const timezone = day.timezone;
         const formatTime = (timestamp) => this._formatTime(timestamp, use24h, timezone);
+        // Neither geocoder could name the place's zone and the forecast did not
+        // either, so these are the viewer's own hours applied to somebody else's
+        // sky. Silently substituting them made the same city read differently
+        // depending on which service had answered.
+        this.zoneLabel.set_text(day.zoneResolved ? "" : ZONE_FALLBACK_TEXT);
+        this.zoneLabel.visible = !day.zoneResolved;
         this.sunLabel.set_text(bodyLine(events.sun,
             _("Sunrise: %s — Sunset: %s"),
             _("Sun is above the horizon all day"),
@@ -125,12 +154,18 @@ class AstronomyView {
             !Astronomy.validCoordinates(place.latitude, place.longitude)) {
             return null;
         }
-        const timezone = this._placeTimezone(place.timezone);
-        const bounds = timezone ? this._dayBounds(this._now(), timezone) : null;
+        const zone = this._placeTimezone(place.timezone);
+        const bounds = zone.timezone ? this._dayBounds(this._now(), zone.timezone) : null;
         if (!bounds || !Astronomy.validDayBounds(bounds.startMs, bounds.endMs)) {
             return null;
         }
-        return { latitude: place.latitude, longitude: place.longitude, timezone, bounds };
+        return {
+            latitude: place.latitude,
+            longitude: place.longitude,
+            timezone: zone.timezone,
+            zoneResolved: zone.resolved,
+            bounds
+        };
     }
 
     update({ visible, place, use24h }) {
@@ -142,7 +177,7 @@ class AstronomyView {
         const { latitude, longitude, timezone, bounds } = day;
         const timezoneKey = WorldclockData.timezoneIdentity(timezone) || "";
         const key = [bounds.startMs, bounds.endMs, latitude, longitude,
-            timezoneKey, Boolean(use24h)].join("|");
+            timezoneKey, day.zoneResolved, Boolean(use24h)].join("|");
         if (key !== this._renderedKey) {
             const events = this._calculate(
                 bounds.startMs, bounds.endMs, latitude, longitude);
@@ -150,7 +185,7 @@ class AstronomyView {
                 this.actor.hide();
                 return;
             }
-            this._render(events, Boolean(use24h), timezone);
+            this._render(events, Boolean(use24h), day);
             this._renderedKey = key;
         }
         this.actor.show();
@@ -161,6 +196,7 @@ if (typeof module !== "undefined") {
     module.exports = {
         AstronomyView,
         MISSING_EVENT_TIME,
+        ZONE_FALLBACK_TEXT,
         zonedDateTime,
         civilDayBounds,
         replaceTimes,

@@ -479,6 +479,27 @@ test("the forecast normalizers return a unit-free reading record", () => {
     assert.equal(Weather.weatherReading({ weathercode: 0, temperature: NaN }), null);
     assert.equal(Weather.weatherReading(null), null);
 
+    // forecastUrl asks timezone=auto, so the reply names the zone of the point
+    // it describes — the only authoritative zone for a place Nominatim
+    // resolved, and it was being thrown away.
+    assert.deepEqual(Weather.openMeteoReading({
+        timezone: "America/Sao_Paulo",
+        current_weather: { weathercode: 0, temperature: 21.4 }
+    }), { condition: "☀", temperatureC: 21.4, timezone: "America/Sao_Paulo" });
+    assert.deepEqual(Weather.openMeteoReading({
+        current_weather: { weathercode: 0, temperature: 21.4 }
+    }), { condition: "☀", temperatureC: 21.4 },
+    "a reply without a zone stays the record it always was");
+    assert.deepEqual(Weather.openMeteoReading({
+        timezone: 7,
+        current_weather: { weathercode: 0, temperature: 21.4 }
+    }), { condition: "☀", temperatureC: 21.4 },
+    "and a non-string zone is no zone, not its coercion");
+    assert.equal(Weather.openMeteoReading({
+        timezone: "America/Sao_Paulo",
+        current_weather: { weathercode: 0, temperature: null }
+    }), null, "a degraded station is still a failover, zone or no zone");
+
     const stations = [{ lat: 41.8, lon: 12.25, temp: 18, cover: "SCT" }];
     assert.deepEqual(Weather.aviationWeatherReading(stations, { latitude: 41.9, longitude: 12.5 }),
         { condition: "⛅", temperatureC: 18 });

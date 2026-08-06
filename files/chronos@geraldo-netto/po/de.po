@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 00:29+0200\n"
+"POT-Creation-Date: 2026-08-06 02:40+0200\n"
 "PO-Revision-Date: 2024-11-20 18:59+0100\n"
 "Last-Translator: Claus Colloseus <ccprog@gmx.de>\n"
 "Language-Team: German\n"
@@ -24,7 +24,7 @@ msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e. %B %Y"
 
 #: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
-#: 5.4/calendar.js:337
+#: 5.4/calendar.js:347
 msgid "Today"
 msgstr "Heute"
 
@@ -267,11 +267,11 @@ msgstr ""
 "Das Kalender-Applet hat einen Fehler festgestellt. Prüfen Sie das "
 "Systemprotokoll."
 
-#: 5.4/appletMenuBuilder.js:306 5.4/appletMenuBuilder.js:312
+#: 5.4/appletMenuBuilder.js:333 5.4/appletMenuBuilder.js:339
 msgid "Go to today"
 msgstr "Zu heute springen"
 
-#: 5.4/appletMenuBuilder.js:407
+#: 5.4/appletMenuBuilder.js:463
 msgid "Date and Time Settings"
 msgstr "Datums- und Zeiteinstellungen"
 
@@ -341,29 +341,33 @@ msgstr "Kein Wetter für diese Zeitzone"
 msgid "%s Last known reading"
 msgstr "%s Letzte bekannte Messung"
 
-#: 5.4/astronomyView.js:114
+#: 5.4/astronomyView.js:23
+msgid "Times shown in this computer's time zone"
+msgstr "Zeiten werden in der Zeitzone dieses Computers angezeigt"
+
+#: 5.4/astronomyView.js:143
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Sonnenaufgang: %s — Sonnenuntergang: %s"
 
-#: 5.4/astronomyView.js:115
+#: 5.4/astronomyView.js:144
 msgid "Sun is above the horizon all day"
 msgstr "Die Sonne steht den ganzen Tag über dem Horizont"
 
-#: 5.4/astronomyView.js:116
+#: 5.4/astronomyView.js:145
 msgid "Sun is below the horizon all day"
 msgstr "Die Sonne steht den ganzen Tag unter dem Horizont"
 
-#: 5.4/astronomyView.js:118
+#: 5.4/astronomyView.js:147
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Mondaufgang: %s — Monduntergang: %s"
 
-#: 5.4/astronomyView.js:119
+#: 5.4/astronomyView.js:148
 msgid "Moon is above the horizon all day"
 msgstr "Der Mond steht den ganzen Tag über dem Horizont"
 
-#: 5.4/astronomyView.js:120
+#: 5.4/astronomyView.js:149
 msgid "Moon is below the horizon all day"
 msgstr "Der Mond steht den ganzen Tag unter dem Horizont"
 
@@ -373,39 +377,39 @@ msgstr ""
 "Einige Kalendertermine wurden ausgeblendet, damit der Desktop reaktionsfähig "
 "bleibt."
 
-#: 5.4/calendar.js:340
+#: 5.4/calendar.js:350
 msgid "Selected"
 msgstr "Ausgewählt"
 
-#: 5.4/calendar.js:344
+#: 5.4/calendar.js:354
 #, javascript-format
 msgid "%d event"
 msgid_plural "%d events"
 msgstr[0] "%d Termin"
 msgstr[1] "%d Termine"
 
-#: 5.4/calendar.js:562
+#: 5.4/calendar.js:572
 #, javascript-format
 msgid "Week %s"
 msgstr "Woche %s"
 
-#: 5.4/calendar.js:924
+#: 5.4/calendar.js:942
 msgid "Previous month"
 msgstr "Voriger Monat"
 
-#: 5.4/calendar.js:954
+#: 5.4/calendar.js:972
 msgid "Next month"
 msgstr "Nächster Monat"
 
-#: 5.4/calendar.js:958
+#: 5.4/calendar.js:976
 msgid "Previous year"
 msgstr "Voriges Jahr"
 
-#: 5.4/calendar.js:969
+#: 5.4/calendar.js:987
 msgid "Next year"
 msgstr "Nächstes Jahr"
 
-#: 5.4/calendar.js:982
+#: 5.4/calendar.js:1000
 msgid "Week"
 msgstr "Woche"
 
@@ -489,7 +493,7 @@ msgid "Loading…"
 msgstr "Wird geladen …"
 
 #: 5.4/eventView.js:222 5.4/eventView.js:232 5.4/eventView.js:377
-#: 5.4/eventView.js:767
+#: 5.4/eventView.js:773
 msgid "No Events"
 msgstr "Keine Termine"
 
@@ -505,11 +509,11 @@ msgstr "Termine des ausgewählten Tages"
 msgid "Add an event"
 msgstr "Termin hinzufügen"
 
-#: 5.4/eventView.js:869
+#: 5.4/eventView.js:875
 msgid "Ended"
 msgstr "Beendet"
 
-#: 5.4/eventView.js:900
+#: 5.4/eventView.js:906
 msgid "In progress"
 msgstr "Zur Zeit"
 
@@ -565,11 +569,11 @@ msgstr ""
 "Städtenamen einzugeben; ohne sie wird nur eine vollständige Kennung wie "
 "America/Sao_Paulo akzeptiert."
 
-#: chronos_settings_widgets_worldclocks.py:298
+#: chronos_settings_widgets_worldclocks.py:321
 msgid "Add new entry"
 msgstr "Neuen Eintrag hinzufügen"
 
-#: chronos_settings_widgets_worldclocks.py:303
+#: chronos_settings_widgets_worldclocks.py:326
 msgid "Edit entry"
 msgstr "Eintrag bearbeiten"
 

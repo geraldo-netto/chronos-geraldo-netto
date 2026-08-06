@@ -62,7 +62,7 @@ const openMeteoGeocodePlace = WeatherServiceAdapters.openMeteoGeocodePlace;
 const nominatimGeocodeUrl = WeatherServiceAdapters.nominatimGeocodeUrl;
 const nominatimGeocodePlace = WeatherServiceAdapters.nominatimGeocodePlace;
 const forecastUrl = WeatherServiceAdapters.forecastUrl;
-const weatherReading = WeatherServiceAdapters.weatherReading;
+const openMeteoReading = WeatherServiceAdapters.openMeteoReading;
 const aviationWeatherUrl = WeatherServiceAdapters.aviationWeatherUrl;
 const aviationWeatherReading = WeatherServiceAdapters.aviationWeatherReading;
 const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
@@ -349,7 +349,7 @@ var FORECAST_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
         name: WEATHER_PROVIDER_NAMES.OPEN_METEO,
         url: (place) => forecastUrl(place),
         normalize: (data) => (data && data.current_weather ? // NOSONAR [S6582] -- accepted compatible form
-            weatherReading(data.current_weather) : null)
+            openMeteoReading(data) : null)
     },
     {
         name: WEATHER_PROVIDER_NAMES.AVIATION_WEATHER,
@@ -364,6 +364,20 @@ var FORECAST_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
         options: USER_AGENT_OPTIONS
     }
 ];
+
+// Nominatim publishes no timezone, and Open-Meteo geocoding refuses every hit
+// under MIN_TRUSTED_GEOCODE_POPULATION, so any smaller place — or any Open-Meteo
+// outage — reached the astronomy view with no zone at all, and it silently
+// substituted the viewer's: the wrong civil day's sunrise for anywhere far east
+// or west, and the same city reading differently depending on which geocoder
+// answered. The forecast reply already names the point's zone, so the place is
+// completed from the round trip that was being made anyway.
+function placeWithTimezone(place, reading) {
+    if (!place || place.timezone || !reading || !reading.timezone) {
+        return place;
+    }
+    return Object.assign({}, place, { timezone: reading.timezone });
+}
 
 var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
@@ -553,8 +567,10 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         }
         request.place = place;
         this.forecastResolver.refresh(place, requestIsCurrent,
-            (reading, forecastError, provider) => this._complete(
-                key, request, reading, forecastError, provider));
+            (reading, forecastError, provider) => {
+                request.place = placeWithTimezone(request.place, reading);
+                this._complete(key, request, reading, forecastError, provider);
+            });
     }
 
     _requestIsCurrent(key, request) {
@@ -602,6 +618,7 @@ if (typeof module !== "undefined") {
         GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
         MAX_WEATHER_READING_CACHE_ENTRIES, GEOCODE_CACHE_MILLISECONDS,
         NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
-        WeatherLocationResolver, WeatherForecastResolver, WeatherReadingRepository
+        WeatherLocationResolver, WeatherForecastResolver, WeatherReadingRepository,
+        placeWithTimezone
     };
 }
