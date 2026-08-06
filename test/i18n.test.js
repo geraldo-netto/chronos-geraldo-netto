@@ -146,10 +146,10 @@ test("the catalog gate rejects source references the template no longer names", 
     ].join("\n");
 
     // the dead tree and the drifted line number are both drift, and the same
-    // stale line repeated across entries is reported once
+    // stale reference repeated across entries is reported once
     assert.deepEqual(catalogReferenceDrift(stale + "\n\n" + stale, pot), [
-        "#. 5.4->settings-schema.json->show-week-numbers->description",
-        "#: 6.0/calendar.js:347"
+        "5.4->settings-schema.json->show-week-numbers->description",
+        "6.0/calendar.js:347"
     ]);
     assert.deepEqual(catalogReferenceDrift(pot, pot), [],
         "a merged catalog carries the template's own references");
@@ -160,21 +160,47 @@ test("the catalog gate rejects source references the template no longer names", 
     const read = async (target) => (target.endsWith(".pot") ? pot : stale);
     await assert.rejects(
         checkCatalogReferences("/catalogs/de.po", "/catalogs/chronos.pot", read),
-        /de\.po points translators at source the template does not name \(2 lines\)/);
+        /de\.po points translators at source the template does not name \(2 references\)/);
     await assert.doesNotReject(checkCatalogReferences(
         "/catalogs/de.po", "/catalogs/chronos.pot", async () => pot));
+});
+
+// T836: a "#:" run holds several references and gettext wraps it at 78 columns,
+// so adding or renaming one repacks every line after it — and msgmerge and
+// xgettext of different vintages pack them differently. Compared as raw lines,
+// this gate could fail `packaging`, and therefore the tag-to-release chain, on a
+// catalog whose references were all correct. templateDrift already compared
+// tokens for that reason; this half had not.
+test("the catalog gate is not failed by where a reference run wraps", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { catalogReferenceDrift } = await import(scriptUrl);
+    const pot = ["#: a.js:1 b.js:2 c.js:3", "#: d.js:4",
+        "msgid \"Week numbers\"", "msgstr \"\""].join("\n");
+    const repacked = ["#: d.js:4 a.js:1", "#: b.js:2", "#: c.js:3",
+        "msgid \"Week numbers\"", "msgstr \"Wochennummern\""].join("\n");
+
+    assert.deepEqual(catalogReferenceDrift(repacked, pot), [],
+        "same msgid, same places, a different pack");
+    assert.deepEqual(
+        catalogReferenceDrift(repacked.replace("c.js:3", "c.js:9"), pot), ["c.js:9"],
+        "and a place the template does not name is still drift");
+    // the reference belongs to the msgid it sits under: the same line under a
+    // different entry is not the template naming it
+    assert.deepEqual(
+        catalogReferenceDrift(repacked.replace("Week numbers", "Weeks"), pot),
+        ["a.js:1", "b.js:2", "c.js:3", "d.js:4"]);
 });
 
 test("the reference gate reports a bounded sample of a wholly stale catalog", async () => {
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
     const { checkCatalogReferences } = await import(scriptUrl);
-    const stale = Array.from({ length: 9 },
-        (unused, index) => `#: 5.4/calendar.js:${index}`).join("\n");
+    const stale = Array.from({ length: 9 }, (unused, index) =>
+        `#: 5.4/calendar.js:${index}\nmsgid "String ${index}"\nmsgstr ""`).join("\n\n");
     const read = async (target) => (target.endsWith(".pot") ? "" : stale);
 
     await assert.rejects(
         checkCatalogReferences("/catalogs/de.po", "/catalogs/chronos.pot", read),
-        /\(9 lines\)[\s\S]*\.\.\.and 4 more/);
+        /\(9 references\)[\s\S]*\.\.\.and 4 more/);
 });
 
 test("the catalog gate accepts a catalog msgcmp finds complete", async () => {
