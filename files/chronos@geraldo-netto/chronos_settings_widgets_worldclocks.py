@@ -312,7 +312,7 @@ class ClockEntrySerializer:
         info: Optional[list[str]],
     ) -> tuple[dict[str, Optional[str]], str]:
         if info is None:
-            return {column: None for column in CLOCK_COLUMN_IDS}, _("Add new entry")
+            return dict.fromkeys(CLOCK_COLUMN_IDS), _("Add new entry")
 
         data = dict(zip(CLOCK_COLUMN_IDS, info))
         data["label"] = normalize_clock_label(data.get("label"))

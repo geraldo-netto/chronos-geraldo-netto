@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T926 | maintainability | Low | open | S | The new-clock serializer builds a constant-`None` dictionary with a comprehension. | **[found 2026-08-07 in Sonar new-code audit; python:S7519]** Replace it with `dict.fromkeys(CLOCK_COLUMN_IDS)`; immutable `None` makes the result exactly equivalent. |
 | T927 | CI; maintainability | Low | open | S | The Bash-only archive script uses two legacy `test` commands despite already requiring Bash. | **[found 2026-08-07 in Sonar new-code audit; shelldre:S7688]** Use `[[ -s ... ]]` and arithmetic comparison for the manifest cardinality guard, preserving `set -euo pipefail`. |
 | T928 | test coverage; diagnostics | Low | open | S | Eight composite assertions hide which individual precondition failed. | **[found 2026-08-07 in Sonar new-code audit; javascript:S9073]** Split astronomy cache, elapsed-clock bounds, religious-row shape, schema-parity, locale teardown, and similar assertions so each failure names one invariant. |
 | T929 | test coverage; diagnostics | Low | open | S | A release-lock test relies on `fs.access` rejection for failure, which Sonar does not recognize as an assertion. | **[found 2026-08-07 in Sonar new-code audit; javascript:S2699]** Wrap both access checks with `assert.doesNotReject` so the live-lock preservation contract is explicit to readers and the analyzer. |
