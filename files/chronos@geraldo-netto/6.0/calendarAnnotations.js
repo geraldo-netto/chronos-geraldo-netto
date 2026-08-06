@@ -319,7 +319,18 @@ class CalendarHolidayAnnotator {
 
     // the warning glyph is decorative: on its own it reads as an unnamed
     // symbol, and the explanation only existed in a hover tooltip
+    //
+    // The tolerance for a calendar that was never given a label lives here
+    // rather than at each call site. Its two callers below guard first because
+    // they also write the label's text, but annotate()'s holidays-off branch
+    // reports without writing and so guarded nothing — one call out of three,
+    // in a class whose release() states that a label-less calendar is a
+    // contemplated state. A guard that has to be repeated is a guard that drifts.
     _report(status, reason = "") {
+        if (!this.monthLabel) {
+            return;
+        }
+
         this.monthLabel.setStatus(status, reason);
 
         const month = this._monthName();

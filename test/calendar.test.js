@@ -1575,6 +1575,36 @@ test("a failed month keeps its own provider in the credit", () => {
     assert.match(label.text, /⚠/);
 });
 
+// T842: setPending and setStatus both check monthLabel before touching it, and
+// annotate()'s holidays-off branch — the third caller of _report — did not.
+// release()'s own comment says a calendar that was never given a label is a
+// contemplated state, so the guard belongs in _report, where it cannot be
+// forgotten by the next caller.
+test("a calendar with no month label can still be told holidays are off", () => {
+    const reported = [];
+    const cell = {
+        button: new MockActor({ style_class: "calendar-holiday-day" }),
+        holidayTooltip: null,
+        holiday_tooltip_set: true,
+        holiday_styled: true
+    };
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
+        holidayProvider: { active: false, getHolidays() {} },
+        reportIssue: (source, text) => reported.push([source, text])
+    }));
+
+    assert.equal(annotator.monthLabel, null, "no header was ever built");
+    assert.doesNotThrow(
+        () => annotator.annotate(new Set(["2026/7"]), new Map([["7/14", cell]]), 0));
+
+    assert.deepEqual(reported, [["holidays", ""]], "the footer is still cleared");
+    assert.equal(cell.holiday_tooltip_set, false, "and the stale marks still come off");
+
+    // the same tolerance for the two callers that reach _report through a write
+    assert.doesNotThrow(() => annotator.setPending());
+    assert.doesNotThrow(() => annotator.setStatus("Holiday service unavailable"));
+});
+
 test("CalendarHolidayAnnotator owns provider status and cell annotations", () => {
     const cell = {
         button: new MockActor({ style_class: "calendar-work-day" }),
