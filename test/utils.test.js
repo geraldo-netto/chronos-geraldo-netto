@@ -2289,16 +2289,21 @@ test("httpGetJson logs sanitized non-200 responses before reporting null", () =>
     const logged = [];
     global.logError = (message) => logged.push(message);
 
-    const session = new (makeStreamingSoup({
-        chunks: [Buffer.from("ignored")]
-    }).Session)();
-    global.imports.gi.Soup.Message = {
-        new: (method, url) => ({ method, url, get_status: () => 503 })
-    };
+    let reads = 0;
+    const soup = makeStreamingSoup({
+        status: 503,
+        chunks: [Buffer.alloc(utils.MAX_RESPONSE_BYTES)],
+        onRead: () => reads++
+    });
+    Object.assign(global.imports.gi.Soup, soup);
 
     let reported = "unset";
-    utils.httpGetJson(session, "https://x.test/y?name=Private%20Place#top", (data) => { reported = data; });
+    utils.httpGetJson(new soup.Session(),
+        "https://x.test/y?name=Private%20Place#top", (data) => { reported = data; });
     assert.equal(reported, null);
+    assert.equal(reads, 0, "the known error status costs no body reads");
+    assert.deepEqual(soup.streams.map((stream) => stream.closed), [1],
+        "the unread error stream still releases its connection");
     const message = String(logged[0]);
     assert.match(message, /503/);
     assert.match(message, /https:\/\/x\.test\/y/);

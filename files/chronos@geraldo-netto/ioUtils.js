@@ -467,6 +467,7 @@ function _cancelOnDowngrade(message, url, cancellable) {
 function _sendStreaming(session, message, url, cancellable, deliver, fail) {
     session.send_async(message, Soup.MessagePriority.NORMAL, cancellable, (source, result) => {
         let stream;
+        let skipBody;
         try {
             // Finish first, then judge the declared length. Gio requires every
             // async result to be finished, and the stream it yields is what
@@ -474,10 +475,20 @@ function _sendStreaming(session, message, url, cancellable, deliver, fail) {
             // unreclaimed. send_finish does not read the body, so a refusal
             // still costs nothing but the headers.
             stream = source.send_finish(result);
-            _refuseDeclaredTooLarge(message, url);
+            skipBody = message.get_status() !== 200;
+            if (!skipBody) {
+                _refuseDeclaredTooLarge(message, url);
+            }
         } catch (e) {
             _closeStream(stream);
             fail(e);
+            return;
+        }
+        if (skipBody) {
+            _closeStream(stream);
+            // Keep status logging and null-result semantics in the one parser
+            // exit that already owns them, without feeding it an error body.
+            deliver(null);
             return;
         }
         _readCapped(stream, cancellable, url, (err, body) =>
