@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 14:56+0200\n"
+"POT-Creation-Date: 2026-08-06 15:31+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -526,9 +526,18 @@ msgstr "Nguồn: %s"
 msgid "Type a country name"
 msgstr "Nhập tên quốc gia"
 
+#: chronos_settings_widgets_holidays.py:29
+#, python-format
+msgid "%s is not in the list, so the holiday country is unchanged"
+msgstr "%s không có trong danh sách, nên quốc gia ngày lễ không thay đổi"
+
 #: chronos_settings_widgets_weather.py:30
 msgid "City or town (e.g. Lisbon)"
 msgstr "Thành phố hoặc thị trấn (ví dụ: Lisbon)"
+
+#: chronos_settings_widgets_weather.py:31
+msgid "This location is too long to save"
+msgstr "Vị trí này quá dài để lưu"
 
 #: chronos_settings_widgets_worldclocks.py:52
 msgid "City or timezone (e.g. Buenos Aires)"

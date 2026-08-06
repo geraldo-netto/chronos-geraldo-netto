@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 14:56+0200\n"
+"POT-Creation-Date: 2026-08-06 15:31+0200\n"
 "PO-Revision-Date: 2021-02-27 16:18+0100\n"
 "Last-Translator: Åke Engelbrektson <eson@svenskasprakfiler.se>\n"
 "Language-Team: Svenska Språkfiler <contactform@svenskasprakfiler.se>\n"
@@ -531,9 +531,18 @@ msgstr "Källa: %s"
 msgid "Type a country name"
 msgstr "Skriv ett landsnamn"
 
+#: chronos_settings_widgets_holidays.py:29
+#, python-format
+msgid "%s is not in the list, so the holiday country is unchanged"
+msgstr "%s finns inte i listan, så helgdagslandet är oförändrat"
+
 #: chronos_settings_widgets_weather.py:30
 msgid "City or town (e.g. Lisbon)"
 msgstr "Stad eller ort (t.ex. Lissabon)"
+
+#: chronos_settings_widgets_weather.py:31
+msgid "This location is too long to save"
+msgstr "Den här platsen är för lång för att sparas"
 
 #: chronos_settings_widgets_worldclocks.py:52
 msgid "City or timezone (e.g. Buenos Aires)"

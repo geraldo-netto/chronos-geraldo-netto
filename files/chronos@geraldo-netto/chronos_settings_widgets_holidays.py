@@ -25,6 +25,8 @@ from chronos_timezone_data import completion_key
 from chronos_settings_i18n import _
 
 COUNTRY_HINT = _("Type a country name")
+# What the field used to say when it refused a name: nothing. See mark_refused.
+COUNTRY_NOT_LISTED = _("%s is not in the list, so the holiday country is unchanged")
 
 
 def country_options(options: dict) -> list[tuple[str, str]]:
@@ -58,6 +60,9 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         self.key = key
         self.settings = settings
         self.value = None
+        # the name the field last refused, so the mark can be taken off again
+        # and a second refusal of the same name is not re-announced
+        self.refused = ""
 
         SettingsWidget.__init__(self)
 
@@ -108,8 +113,24 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         self.value = self.get_value()
         self.content_widget.set_active_iter(self.option_map.get(self.value))
 
+    def mark_refused(self, typed):
+        """Say that a typed name was refused, or take the mark back off.
+
+        `restore_entry_text` records what saying nothing cost: the country
+        snapped back "with no error text, no error style and no message
+        anywhere, unlike the sibling widgets". This is that message, and it is
+        the shared affordance the world-clock dialog uses, so the field is
+        marked for a theme and described for a screen reader in one call.
+        """
+        self.refused = typed or ""
+        common.set_invalid(self.entry, bool(self.refused),
+                           COUNTRY_NOT_LISTED % self.refused if self.refused else "")
+
     def connect_widget_handlers(self, *args):
         self.content_widget.connect('changed', self.on_combo_changed)
+        # the mark describes text that is no longer on screen once the user
+        # starts answering it
+        self.entry.connect('changed', self.on_entry_edited)
         # the ways an edit ends. Not 'changed', which is every keystroke and
         # which get_active_iter() answers None for while a name is half-typed.
         self.entry.connect('activate', self.on_entry_commit)
@@ -118,12 +139,20 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         # never fires focus-out, and the country the user typed would go with it
         self.entry.connect('destroy', self.on_entry_commit)
 
+    def on_entry_edited(self, *args):
+        if self.refused:
+            self.mark_refused(None)
+
     def on_combo_changed(self, widget):
         tree_iter = widget.get_active_iter()
         # None while the user is typing: half a country name is not a choice
         if tree_iter is None:
             return
 
+        # a row went active, so the refused name is gone from the field —
+        # before the early return below, which a re-pick of the current country
+        # would otherwise take with the mark still on
+        self.mark_refused(None)
         value = self.model[tree_iter][0]
         if value == self.value:
             return
@@ -147,8 +176,11 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         # Portugal — with no error text, no error style and no message anywhere,
         # unlike the sibling widgets, which either commit on focus-out
         # (WeatherLocationEntry.on_commit) or say why the input was refused
-        # (TIMEZONE_INVALID_PREVIEW). Restore only when nothing matches.
-        typed = self.typed_map.get(completion_key(self.entry.get_text()))
+        # (TIMEZONE_INVALID_PREVIEW). Restore only when nothing matches, and say
+        # so: the restore is the whole reason a message is needed, because after
+        # it the field reads as if the user had never typed anything.
+        text = self.entry.get_text()
+        typed = self.typed_map.get(completion_key(text))
         if typed is not None:
             # set_active_iter fills the entry from the model and emits 'changed',
             # which is what writes the value
@@ -160,6 +192,9 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         # out of the focus handler and takes the settings window with it
         if tree_iter is None:
             self.entry.set_text("")
-            return
-
-        self.entry.set_text(self.model[tree_iter][1])
+        else:
+            self.entry.set_text(self.model[tree_iter][1])
+        # after the restore, so the entry's own 'changed' does not take the mark
+        # straight back off. An empty field is not a wrong one, it is an
+        # unfinished one — the same rule the clock dialog states.
+        self.mark_refused(text.strip())

@@ -31,6 +31,47 @@ class WeatherLocationCompletionTest(unittest.TestCase):
             "weather-location", settings)
         return widget, settings
 
+    def marks_of(self, widget):
+        entry = widget.bind_object
+        return (entry.get_style_context().classes,
+                entry.get_accessible().description)
+
+    def test_a_stored_location_too_long_to_save_says_so(self):
+        # T834: the entry caps typing, so the way in is a key written elsewhere.
+        # normalize_weather_location turns it into "" and the field showed an
+        # empty box for a key that is not empty, with nothing saying why.
+        oversized = "x" * (self.module.MAX_WEATHER_LOCATION_LENGTH + 1)
+        widget, _settings = self.entry({"weather-location": oversized})
+
+        classes, description = self.marks_of(widget)
+        self.assertEqual(widget.bind_object.get_text(), "")
+        self.assertIn("error", classes)
+        self.assertEqual(description, "This location is too long to save")
+
+    def test_a_location_that_fits_leaves_no_mark(self):
+        widget, _settings = self.entry({"weather-location": "Lisbon"})
+
+        classes, description = self.marks_of(widget)
+        self.assertNotIn("error", classes)
+        self.assertEqual(description, "")
+
+    def test_committing_an_oversized_location_marks_and_saves_nothing(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+
+        saved = widget.commit("y" * (self.module.MAX_WEATHER_LOCATION_LENGTH + 1))
+
+        self.assertEqual(saved, "")
+        self.assertEqual(settings.writes, [])
+        self.assertIn("error", self.marks_of(widget)[0])
+        # and typing something that fits takes the mark straight back off
+        widget.commit("Porto")
+        self.assertNotIn("error", self.marks_of(widget)[0])
+
+    def test_whitespace_is_not_reported_as_too_long(self):
+        # normalize_weather_location returns "" for both; only one is a refusal
+        self.assertFalse(self.module.refuses_weather_location("   "))
+        self.assertEqual(self.module.normalize_weather_location("   "), "")
+
     def test_city_names_are_cities_and_not_zones(self):
         resolver = self.module.common.TimezoneResolver(None, lambda: {
             "Europe/Lisbon", "America/Argentina/Buenos_Aires", "Etc/UTC", "UTC",
@@ -317,6 +358,64 @@ class CountryComboBoxTest(unittest.TestCase):
         self.assertEqual(settings.values["country"], "bra")
         self.assertEqual(widget.entry.get_property("text"), "Brazil")
         self.assertFalse(kept_open, "the focus change carries on")
+
+    def marks_of(self, widget):
+        entry = widget.entry
+        return (entry.get_style_context().classes,
+                entry.get_accessible().description)
+
+    def test_a_refused_country_says_so_instead_of_silently_snapping_back(self):
+        # T834: the restore is what makes a message necessary — afterwards the
+        # field reads as if nothing had been typed. The world-clock dialog had
+        # this affordance and these two fields did not, which is the whole of
+        # what T798 left behind when it moved set_invalid into common.
+        widget, settings = self.combo("prt")
+        widget.content_widget.type_text("Atlantis")
+
+        widget.on_entry_commit()
+
+        classes, description = self.marks_of(widget)
+        self.assertIn("error", classes, "the field is marked, not just reverted")
+        self.assertEqual(
+            description,
+            "Atlantis is not in the list, so the holiday country is unchanged",
+            "and it names what was refused, which the entry no longer shows")
+        self.assertEqual(widget.entry.get_property("text"), "Portugal")
+        self.assertEqual(settings.writes, [])
+
+    def test_an_empty_field_is_unfinished_and_not_wrong(self):
+        widget, _settings = self.combo("prt")
+        widget.content_widget.type_text("   ")
+
+        widget.on_entry_commit()
+
+        classes, description = self.marks_of(widget)
+        self.assertNotIn("error", classes)
+        self.assertEqual(description, "")
+
+    def test_the_mark_comes_off_when_the_user_answers_it(self):
+        widget, _settings = self.combo("prt")
+        widget.content_widget.type_text("Atlantis")
+        widget.on_entry_commit()
+        self.assertIn("error", self.marks_of(widget)[0])
+
+        # the message named text that is gone the moment editing resumes
+        widget.entry.emit_changed()
+
+        classes, description = self.marks_of(widget)
+        self.assertNotIn("error", classes)
+        self.assertEqual(description, "")
+
+    def test_picking_the_country_already_in_use_still_clears_the_mark(self):
+        # on_combo_changed returns early when the value is unchanged; clearing
+        # after that early return would leave the mark on for good
+        widget, _settings = self.combo("prt")
+        widget.content_widget.type_text("Atlantis")
+        widget.on_entry_commit()
+
+        widget.completion.select(self.row_of(widget, "prt"))
+
+        self.assertNotIn("error", self.marks_of(widget)[0])
 
     def test_closing_the_window_mid_edit_still_saves_the_country(self):
         # T779: the sibling weather field connects 'destroy' for exactly this

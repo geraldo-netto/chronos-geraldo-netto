@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 14:56+0200\n"
+"POT-Creation-Date: 2026-08-06 15:31+0200\n"
 "PO-Revision-Date: 2025-04-03 19:37+0300\n"
 "Last-Translator: Kimmo Kujansuu <mrkujansuu@gmail.com>\n"
 "Language-Team: \n"
@@ -531,9 +531,18 @@ msgstr "Lähde: %s"
 msgid "Type a country name"
 msgstr "Kirjoita maan nimi"
 
+#: chronos_settings_widgets_holidays.py:29
+#, python-format
+msgid "%s is not in the list, so the holiday country is unchanged"
+msgstr "%s ei ole luettelossa, joten vapaapäivien maata ei muutettu"
+
 #: chronos_settings_widgets_weather.py:30
 msgid "City or town (e.g. Lisbon)"
 msgstr "Kaupunki tai paikkakunta (esim. Lissabon)"
+
+#: chronos_settings_widgets_weather.py:31
+msgid "This location is too long to save"
+msgstr "Tämä sijainti on liian pitkä tallennettavaksi"
 
 #: chronos_settings_widgets_worldclocks.py:52
 msgid "City or timezone (e.g. Buenos Aires)"

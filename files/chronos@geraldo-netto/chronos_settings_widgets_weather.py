@@ -28,13 +28,24 @@ from chronos_timezone_data import completion_key, local_city_name
 from chronos_settings_i18n import _
 
 WEATHER_LOCATION_HINT = _("City or town (e.g. Lisbon)")
+WEATHER_LOCATION_TOO_LONG = _("This location is too long to save")
 MAX_WEATHER_LOCATION_LENGTH = 256
+
+
+def refuses_weather_location(text) -> bool:
+    """Over the network bound, which is the one thing this field will not save.
+
+    Named, because the refusal and the message about it have to test the same
+    thing: a whitespace-only value also normalizes to "", and calling that "too
+    long" would be a lie.
+    """
+    return isinstance(text, str) and len(text) > MAX_WEATHER_LOCATION_LENGTH
 
 
 def normalize_weather_location(text) -> str:
     """Trim a location only when its untrimmed value fits the network bound."""
     source = text if isinstance(text, str) else ""
-    if len(source) > MAX_WEATHER_LOCATION_LENGTH:
+    if refuses_weather_location(source):
         return ""
     return source.strip()
 
@@ -129,10 +140,24 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         self.attach()
         self.prefill_from_timezone()
 
+    def mark_refused(self, refused):
+        """Mark the field, and say why, when a location will not be saved.
+
+        The entry caps typing at MAX_WEATHER_LOCATION_LENGTH, so the usual way
+        in is not the keyboard: it is a key holding a longer value — written by
+        another settings instance, or by hand — which normalizes to "" and blanks
+        the field on load. Silently showing an empty box for a key that is not
+        empty is the failure this reports.
+        """
+        common.set_invalid(self, refused,
+                           WEATHER_LOCATION_TOO_LONG if refused else "")
+
     def on_setting_changed(self, *args):
         # the key changed under the dialog — another instance of the applet, or
         # the applet's own timezone prefill
-        text = normalize_weather_location(self.get_value())
+        stored = self.get_value()
+        self.mark_refused(refuses_weather_location(stored))
+        text = normalize_weather_location(stored)
         if self.content_widget.get_text() != text:
             self.content_widget.set_text(text)
 
@@ -170,7 +195,9 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         return False
 
     def commit(self, text) -> str:
-        if isinstance(text, str) and len(text) > MAX_WEATHER_LOCATION_LENGTH:
+        refused = refuses_weather_location(text)
+        self.mark_refused(refused)
+        if refused:
             return ""
 
         location = normalize_weather_location(text)

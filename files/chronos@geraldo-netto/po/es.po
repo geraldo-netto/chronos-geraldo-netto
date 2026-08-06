@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 14:56+0200\n"
+"POT-Creation-Date: 2026-08-06 15:31+0200\n"
 "PO-Revision-Date: 2024-11-23 09:59-0300\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -532,9 +532,18 @@ msgstr "Fuente: %s"
 msgid "Type a country name"
 msgstr "Escriba el nombre de un país"
 
+#: chronos_settings_widgets_holidays.py:29
+#, python-format
+msgid "%s is not in the list, so the holiday country is unchanged"
+msgstr "%s no está en la lista, así que el país de festivos no ha cambiado"
+
 #: chronos_settings_widgets_weather.py:30
 msgid "City or town (e.g. Lisbon)"
 msgstr "Ciudad o localidad (p. ej. Lisboa)"
+
+#: chronos_settings_widgets_weather.py:31
+msgid "This location is too long to save"
+msgstr "Esta ubicación es demasiado larga para guardarla"
 
 #: chronos_settings_widgets_worldclocks.py:52
 msgid "City or timezone (e.g. Buenos Aires)"
