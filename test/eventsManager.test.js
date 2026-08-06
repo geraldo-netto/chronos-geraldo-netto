@@ -2339,6 +2339,29 @@ test("get_colors_for_unix_key returns null without data and colors with", () => 
     assert.deepEqual(manager.get_colors_for_unix_key(10 * DAY_S), ["#abc"]);
 });
 
+test("a multi-day recolor reports a selected later day as changed", () => {
+    const index = new EventIndex();
+    const selected = new FakeDateTime(11 * DAY_US);
+    const original = makeEventData({
+        id: "recolored", color: "#111111", modTime: 7,
+        startUnix: 10 * DAY_S + 3600, endUnix: 11 * DAY_S + 7200
+    });
+    index.register(original, 1, selected);
+
+    const recolored = makeEventData({
+        id: "recolored", color: "#222222", modTime: 7,
+        startUnix: 10 * DAY_S + 3600, endUnix: 11 * DAY_S + 7200
+    });
+    assert.deepEqual(index.register(recolored, 2, selected), {
+        changed: true,
+        selected_changed: true
+    });
+    assert.deepEqual(index.getColorsByUnixKey(10 * DAY_S), ["#222222"]);
+    assert.deepEqual(index.getColorsByUnixKey(11 * DAY_S), ["#222222"]);
+    assert.equal(index.cull(2), false,
+        "replacing each bucket preserves the delivery watermark");
+});
+
 test("EventIndex owns event bucket mutation, removal, culling, and colors", () => {
     const index = new EventIndex();
     const selected = new FakeDateTime(11 * DAY_US);

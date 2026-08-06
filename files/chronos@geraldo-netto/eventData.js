@@ -272,7 +272,13 @@ var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer exp
         if (existing !== undefined && event_data.equal(existing)) {
             existing.last_update_timestamp = last_update_timestamp;
             if (existing.color !== event_data.color) {
-                existing.color = event_data.color;
+                // A multi-day event is one object shared by every day bucket.
+                // Mutating it here makes only the first bucket observe the
+                // recolor; later buckets see the new value already and report
+                // no change, including a selected later day. Replace this
+                // bucket's reference so every bucket compares independently.
+                event_data.last_update_timestamp = last_update_timestamp;
+                this._events[event_data.id] = event_data;
                 this._mark_changed();
                 return true;
             }
