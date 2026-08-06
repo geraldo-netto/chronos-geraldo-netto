@@ -180,52 +180,59 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
 
     _calendar_server_ready(obj, res) {
         try {
-            // Gio requires every async result to be finished, including one
-            // whose cancellable was cancelled during teardown. Keep the new
-            // proxy local until the connection is still allowed to own it.
-            const calendarServer = Cinnamon.CalendarServerProxy.new_for_bus_finish(res);
-            this._proxy_cancellable = null;
-            if (this._destroyed) {
+            if (!this._installCalendarServer(res)) {
                 return;
             }
-            this._calendar_server = calendarServer;
-
-            this._calendar_server_signal_ids.push(this._calendar_server.connect(
-                "events-added-or-updated", this.callbacks.onAddedOrUpdated));
-            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
-                "events-removed", this.callbacks.onRemoved));
-            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
-                "client-disappeared", this.callbacks.onClientDisappeared));
-            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
-                "notify::status", this._handle_status_notify.bind(this)));
-            this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
-                "notify::g-name-owner", this._handle_name_owner_notify.bind(this)));
-
-            // No owner is the normal first-connection state, not a dead
-            // server: org.cinnamon.CalendarServer is D-Bus activatable and
-            // idle-exits without clients, and DO_NOT_AUTO_START_AT_CONSTRUCTION
-            // only suppresses activation while the proxy is built — the first
-            // call_set_time_range() is what starts the process. Treating "no
-            // owner yet" as an owner loss dropped the proxy before anything
-            // ever called it: events never worked and the reconnect loop spun
-            // for the whole session. Losing an owner the proxy did have stays
-            // an owner loss, and notify::g-name-owner handles it above.
-            this._inited = true;
-            this._server_retry_attempts = 0;
-            this.callbacks.onReady();
         } catch (e) {
-            this._proxy_cancellable = null;
-            // Cancellation is expected after destroy. The result was drained
-            // above; a removed applet must neither log nor arm a retry.
-            if (this._destroyed) {
-                return;
-            }
-            log("could not connect to calendar server process: " + e);
-            this._disconnectServer();
-            this._calendar_server = null;
-            this._inited = false;
-            this.queueRetry();
+            this._handleConnectionFailure(e);
+            return;
         }
+
+        // The consumer is notified only after connection setup has left its
+        // error boundary. A UI exception must not tear down a healthy proxy.
+        this.callbacks.onReady();
+    }
+
+    _installCalendarServer(res) {
+        // Gio requires every async result to be finished, including one whose
+        // cancellable was cancelled during teardown. Keep the proxy local until
+        // the connection is still allowed to own it.
+        const calendarServer = Cinnamon.CalendarServerProxy.new_for_bus_finish(res);
+        this._proxy_cancellable = null;
+        if (this._destroyed) {
+            return false;
+        }
+        this._calendar_server = calendarServer;
+
+        this._calendar_server_signal_ids.push(this._calendar_server.connect(
+            "events-added-or-updated", this.callbacks.onAddedOrUpdated));
+        this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
+            "events-removed", this.callbacks.onRemoved));
+        this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
+            "client-disappeared", this.callbacks.onClientDisappeared));
+        this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
+            "notify::status", this._handle_status_notify.bind(this)));
+        this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
+            "notify::g-name-owner", this._handle_name_owner_notify.bind(this)));
+
+        // An activatable server may have no owner until the first range call.
+        this._inited = true;
+        this._server_retry_attempts = 0;
+        return true;
+    }
+
+    _handleConnectionFailure(error) {
+        this._proxy_cancellable = null;
+        // Cancellation is expected after destroy. The result was drained; a
+        // removed applet must neither log nor arm a retry.
+        if (this._destroyed) {
+            return;
+        }
+        log("could not connect to calendar server process: " + error);
+        this._disconnectServer();
+        this._calendar_server = null;
+        this._inited = false;
+        this.queueRetry();
     }
 
     cancelRetry() {
@@ -277,8 +284,8 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         this._calendar_server = null;
         this._inited = false;
         this._cached_state = STATUS_UNKNOWN;
-        this.callbacks.onStatusChanged();
         this.queueRetry();
+        this.callbacks.onStatusChanged();
     }
 
     _disconnectServer() {

@@ -429,6 +429,20 @@ test("service found connects the proxy and emits ready", () => {
     assert.equal(emitted(manager, "events-manager-ready").length, 1);
 });
 
+test("a throwing ready consumer does not tear down a healthy proxy", () => {
+    const manager = makeManager();
+    manager.start_events();
+    gio.watches.at(-1).foundCb(null, "eds", "owner");
+    const conn = manager._server_connection;
+    conn.callbacks.onReady = () => { throw new Error("ready consumer failed"); };
+
+    assert.throws(() => proxy.pendingReadyCb(null, "res"), /ready consumer failed/);
+    assert.equal(conn._calendar_server, proxy.instance);
+    assert.equal(conn._inited, true);
+    assert.equal(conn._server_retry_id, 0);
+    assert.equal(Object.keys(proxy.instance.connections).length, 5);
+});
+
 test("calendar-server owner loss invalidates the proxy and reconnects", () => {
     const manager = readyManager();
     const vanished = proxy.instance;
@@ -451,6 +465,23 @@ test("calendar-server owner loss invalidates the proxy and reconnects", () => {
     assert.ok(manager._server_connection._inited);
     assert.ok(manager.is_active());
     assert.equal(emitted(manager, "events-manager-ready").length, 2);
+});
+
+test("owner loss secures reconnection before notifying consumers", () => {
+    const manager = readyManager();
+    const conn = manager._server_connection;
+    const vanished = proxy.instance;
+    vanished.g_name_owner = null;
+    conn.callbacks.onStatusChanged = () => {
+        assert.ok(conn._server_retry_id > 0, "retry exists before notification");
+        throw new Error("status consumer failed");
+    };
+
+    assert.throws(() => vanished.signal("notify::g-name-owner", null),
+        /status consumer failed/);
+    assert.equal(conn._calendar_server, null);
+    assert.equal(conn._inited, false);
+    assert.ok(conn._server_retry_id > 0);
 });
 
 // T705: org.cinnamon.CalendarServer is D-Bus activatable and idle-exits without
