@@ -290,7 +290,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             return true;
         }
         if (mutation.type === "resync") {
-            this._apply_event_resync();
+            this._apply_event_resync(mutation);
             return true;
         }
         if (mutation.type === "fetch-complete") {
@@ -307,7 +307,15 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             return;
         }
 
-        if (this._apply_event_mutation(mutation)) {
+        let complete;
+        try {
+            complete = this._apply_event_mutation(mutation);
+        } catch (error) {
+            this._recover_event_mutation_failure(mutation);
+            throw error;
+        }
+
+        if (complete) {
             if (mutation.type === "overflow") {
                 this._overflow_mutation_queued = false;
             } else if (mutation.type === "resync") {
@@ -317,6 +325,23 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
 
         if (this._event_mutations.length > 0) {
+            this._schedule_event_mutation();
+        }
+    }
+
+    _recover_event_mutation_failure(mutation) {
+        // The failed operation may have changed only part of the index. Drop
+        // every retained payload behind it and recover from the authoritative
+        // server instead of guessing which portion committed.
+        const needsResync = mutation.type !== "resync" ||
+            !mutation.recoverySecured;
+        this._event_mutations = needsResync ? [{ type: "resync" }] : [];
+        this._queued_event_records = 0;
+        this._queued_event_bytes = 0;
+        this._overflow_mutation_queued = false;
+        this._resync_mutation_queued = needsResync;
+        this._pending_emit = null;
+        if (needsResync) {
             this._schedule_event_mutation();
         }
     }
@@ -359,12 +384,15 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._emit_event_index_changed();
     }
 
-    _apply_event_resync() {
+    _apply_event_resync(mutation = {}) {
         this._event_index.discard();
         this._resync_overflow_pending = true;
         this._mark_event_overflow();
-        this._emit_event_index_changed();
         this.queue_reload_selected();
+        // Consumer notification is allowed to fail, but only after the
+        // authoritative replacement has become independently runnable.
+        mutation.recoverySecured = true;
+        this._emit_event_index_changed();
     }
 
     _accumulate_event_overflow(pending, result, flush, inputOverflowed) {

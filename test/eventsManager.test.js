@@ -1366,6 +1366,73 @@ test("the mutation queue arms once and becomes terminal on teardown", () => {
     assert.deepEqual(manager._event_batch_ids, []);
 });
 
+test("a synchronous mutation failure recovers through one resync", () => {
+    const manager = readyManager();
+    const addOrUpdate = manager._event_index.addOrUpdate.bind(manager._event_index);
+    manager._event_index.addOrUpdate = () => {
+        throw new Error("index failed");
+    };
+
+    assert.throws(() => proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "failed", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        })]
+    }), /index failed/);
+    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+        ["resync"]);
+    assert.equal(manager._queued_event_records, 0);
+    assert.equal(manager._queued_event_bytes, 0);
+    assert.equal(manager._event_batch_ids.length, 1,
+        "recovery is runnable before the error surfaces");
+
+    manager._event_index.addOrUpdate = addOrUpdate;
+    fireTimer(manager._event_batch_ids[0]);
+    assert.deepEqual(manager._event_mutations, []);
+    assert.ok(manager._reload_selected_id > 0);
+});
+
+test("an idle mutation failure drops its uncertain tail and keeps draining", () => {
+    const manager = readyManager();
+    const events = Array.from({ length: 30 }, (_unused, index) => eventVariant({
+        id: `queued-${index}`,
+        startUnix: 10 * DAY_S + index,
+        endUnix: 10 * DAY_S + index + 1
+    }));
+    proxy.instance.signal("events-added-or-updated", { unpack: () => events });
+    proxy.instance.signal("events-removed", "queued-1");
+    const addOrUpdate = manager._event_index.addOrUpdate.bind(manager._event_index);
+    manager._event_index.addOrUpdate = () => {
+        throw new Error("idle index failed");
+    };
+
+    assert.throws(() => fireTimer(manager._event_batch_ids[0]), /idle index failed/);
+    assert.deepEqual(manager._event_mutations.map((mutation) => mutation.type),
+        ["resync"], "the failed head and now-uncertain tail are released");
+    assert.equal(manager._queued_event_records, 0);
+    assert.equal(manager._event_batch_ids.length, 1);
+
+    manager._event_index.addOrUpdate = addOrUpdate;
+    fireTimer(manager._event_batch_ids[0]);
+    assert.deepEqual(manager._event_mutations, []);
+    assert.ok(manager._reload_selected_id > 0);
+});
+
+test("a resync notification failure cannot create a retry loop", () => {
+    const manager = readyManager();
+    manager.connect("events-updated", () => {
+        throw new Error("grid listener failed");
+    });
+    manager._event_mutations.push({ type: "resync" });
+    manager._resync_mutation_queued = true;
+
+    assert.throws(() => manager._apply_next_event_mutation(), /grid listener failed/);
+    assert.deepEqual(manager._event_mutations, [],
+        "the secured resync is not repeated just to notify again");
+    assert.deepEqual(manager._event_batch_ids, []);
+    assert.ok(manager._reload_selected_id > 0,
+        "the authoritative reload was queued before notification");
+});
+
 // one unusable event out of a feed costs that event, not the whole month — and
 // not the shell: this runs inside a DBus signal handler on the compositor thread
 test("an event with no usable times is skipped, not fatal", () => {
