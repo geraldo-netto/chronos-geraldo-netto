@@ -667,7 +667,7 @@ var NetworkState = class NetworkState { // NOSONAR [S3504] -- GJS importer expor
 
     isOnline() {
         const monitor = this._get();
-        return !monitor || monitor.network_available !== false;
+        return monitor?.network_available !== false;
     }
 
     // The callback fires only when availability actually flips: the monitor

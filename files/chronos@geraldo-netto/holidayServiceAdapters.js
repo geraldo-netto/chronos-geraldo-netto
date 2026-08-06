@@ -331,7 +331,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
         const name = holiday.name.trim();
         const localName = typeof holiday.localName === "string" ?
             holiday.localName.trim() : "";
-        const lang = COUNTRY_TO_LANGUAGE[params && params.country];
+        const lang = COUNTRY_TO_LANGUAGE[params?.country];
         if (lang && localName && localName !== name) {
             return [
                 {lang, text: localName},

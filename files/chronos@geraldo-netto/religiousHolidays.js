@@ -301,7 +301,7 @@ function _dateOf(entry, year) {
     }
     if (entry.table) {
         const dates = TABLES[entry.table];
-        return (dates && dates[year]) || null;
+        return dates?.[year] || null;
     }
     if (entry.fromTable) {
         const anchor = TABLES[entry.fromTable][year];

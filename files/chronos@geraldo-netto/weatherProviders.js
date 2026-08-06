@@ -512,7 +512,7 @@ var FORECAST_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
 // answered. The forecast reply already names the point's zone, so the place is
 // completed from the round trip that was being made anyway.
 function placeWithTimezone(place, reading) {
-    if (!place || place.timezone || !reading || !reading.timezone) {
+    if (!place || place.timezone || !reading?.timezone) {
         return place;
     }
     return Object.assign({}, place, { timezone: reading.timezone });
@@ -620,7 +620,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         }
 
         const cached = this._freshReading(locationCacheKey(normalized));
-        if (cached && cached.place) {
+        if (cached?.place) {
             return cached.place;
         }
         return this.locationResolver.placeFor(normalized);

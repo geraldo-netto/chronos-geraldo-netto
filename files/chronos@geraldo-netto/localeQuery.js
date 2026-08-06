@@ -461,7 +461,7 @@ function _readLocaleOutput(env, proc, cancellable, settlers) {
 }
 
 function _handleRequestFailure(env, settlers, error) {
-    if (settlers && settlers.settled) {
+    if (settlers?.settled) {
         throw error;
     }
     if (global.logError) {

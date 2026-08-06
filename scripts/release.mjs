@@ -176,8 +176,10 @@ async function renameIfPresent(source, target) {
 
 async function lockClaimIsLive(candidate, claimPath) {
     const claimant = parseLockClaim(candidate, claimPath);
-    return Boolean(claimant &&
-        await readProcessStartTime(claimant.pid) === claimant.startTime);
+    if (!claimant) {
+        return false;
+    }
+    return await readProcessStartTime(claimant.pid) === claimant.startTime;
 }
 
 async function claimOwnedLock(lock, operation) {

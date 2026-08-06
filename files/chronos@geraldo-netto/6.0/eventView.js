@@ -737,7 +737,7 @@ class EventList {
     _renderCurrentEvents() {
         let agenda = this._eventDataList;
         if (this._unavailable) {
-            agenda = agenda && agenda.hasHolidays ? agenda.holidaysOnly() : null;
+            agenda = agenda?.hasHolidays ? agenda.holidaysOnly() : null;
         }
         this._renderer.setEvents(
             agenda, this._unavailable ? false : this._delayNoEventsBox,

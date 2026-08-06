@@ -280,7 +280,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
 
     _selectedDayHas(id, currentSelectedDate) {
         const selected = this.get(currentSelectedDate);
-        return Boolean(selected && selected.has(id));
+        return Boolean(selected?.has(id));
     }
 
     // The server can overlap views during a rapid range change: it cancels and
