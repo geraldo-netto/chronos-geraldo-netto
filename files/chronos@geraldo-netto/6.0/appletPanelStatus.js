@@ -604,7 +604,7 @@ class AppletPanelStatusPresenter {
             this._cityWeatherModel(entry) : null;
         const weatherCells = !showWeather ? [] :
             (cityModel ? cityModel.cells : this._builtinWeatherCells(entry));
-        const weather = weatherCells.filter((cell) => cell).join(", "); // NOSONAR [S7770] -- accepted compatible form
+        const weather = weatherCells.filter(Boolean).join(", ");
 
         // The joined string is for the places that have room for a sentence —
         // the tooltip and the row's accessible name. The temperature travels
@@ -655,8 +655,8 @@ class AppletPanelStatusPresenter {
             key: this._clockModelKey(rows, localStamp, status),
             popupEntries: rows.map((row) => row.popupEntry),
             rows: rows.map((row) => row.cells),
-            issues: rows.map((row) => row.issue).filter((issue) => issue),
-            sources: [...new Set(rows.map((row) => row.source).filter((source) => source))],
+            issues: rows.map((row) => row.issue).filter(Boolean),
+            sources: [...new Set(rows.map((row) => row.source).filter(Boolean))],
             localStamp,
             status
         };
@@ -751,7 +751,7 @@ class AppletPanelStatusPresenter {
             this._clockIssues(clockEntries),
             ...renderIssues
         ];
-        return [...new Set(issues.filter((issue) => issue))].join("\n");
+        return [...new Set(issues.filter(Boolean))].join("\n");
     }
 
     getFormattedToday() {

@@ -295,7 +295,7 @@ function fillTemplate(template, values) {
 // HolidayService.getHolidays coerces it again.
 function numericInput(value) {
     return typeof value === "number" || typeof value === "string" ?
-        Number(value) : NaN;
+        Number(value) : Number.NaN;
 }
 
 if (typeof module !== "undefined") {

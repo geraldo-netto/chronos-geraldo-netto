@@ -49,10 +49,11 @@ const PO_ESCAPES = {
 
 function poEscapeValue(escape) {
     if (escape.startsWith("x")) {
-        return String.fromCharCode(parseInt(escape.slice(1), 16));
+        // PO escapes are 16-bit code units; fromCodePoint rejects values this decoder truncates.
+        return String.fromCharCode(Number.parseInt(escape.slice(1), 16)); // NOSONAR [S7758]
     }
     if (/^[0-7]/.test(escape)) {
-        return String.fromCharCode(parseInt(escape, 8));
+        return String.fromCharCode(Number.parseInt(escape, 8)); // NOSONAR [S7758] -- preserve PO code-unit decoding
     }
     // read-po warns and keeps the character; a gate is not the place to be
     // stricter about a catalog than the tool that compiles it

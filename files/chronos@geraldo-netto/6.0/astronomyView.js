@@ -249,7 +249,7 @@ class AstronomyView {
         const now = this._now();
         const key = WorldclockData.timezoneIdentity(timezone) || "";
         const nowMs = now && typeof now.getTime === "function" ? // NOSONAR [S6582] -- accepted compatible form
-            now.getTime() : NaN;
+            now.getTime() : Number.NaN;
         const cached = this._cachedBounds(key, nowMs);
         if (cached) {
             return cached;

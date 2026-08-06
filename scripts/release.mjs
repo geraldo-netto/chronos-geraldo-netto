@@ -104,7 +104,7 @@ function parseLockClaim(candidate, claimPath) {
     }
     const match = /^(release|stale)-([1-9]\d*)-(\d+)-(.+)$/.exec(
         claimPath.slice(prefix.length));
-    const pid = match ? Number(match[2]) : NaN;
+    const pid = match ? Number(match[2]) : Number.NaN;
     if (!match || !Number.isSafeInteger(pid) || !UUID_PATTERN.test(match[4])) {
         return null;
     }
