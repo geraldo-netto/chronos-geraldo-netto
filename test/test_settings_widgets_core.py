@@ -33,6 +33,32 @@ class SettingsWidgetsTest(unittest.TestCase):
         widget.set_widget_value("Home")
         self.assertEqual(widget.get_widget_value(), "Home")
 
+    def test_option_combobox_names_the_visible_label_not_the_stored_value(self):
+        settings = FakeSettings({"weather-units": "si"})
+        widget = self.module.common.OptionLabelComboBox({
+            "description": "Weather units",
+            "tooltip": "Scale",
+            "options": {
+                "SI (Celsius)": "si",
+                "Imperial (Fahrenheit)": "imperial",
+            },
+        }, "weather-units", settings)
+
+        accessible = widget.content_widget.get_accessible()
+        self.assertEqual(accessible.name, "SI (Celsius)")
+        self.assertEqual(widget.options, [
+            ("si", "SI (Celsius)"),
+            ("imperial", "Imperial (Fahrenheit)"),
+        ], "stored values and visible labels keep XApp's column contract")
+
+        widget.content_widget.set_active_iter(widget.option_map["imperial"])
+        self.assertEqual(settings.values["weather-units"], "imperial")
+        self.assertEqual(accessible.name, "Imperial (Fahrenheit)")
+
+        settings.set_value("weather-units", "unknown")
+        self.assertEqual(accessible.name, "",
+                         "an invalid external value cannot leave a stale label")
+
     def test_the_column_widgets_are_declared_once_not_per_dialog(self):
         # PyGObject registers a GType for every subclass of a GObject type, and
         # GTypes are never unregistered. Declaring the widget classes inside the
@@ -1023,10 +1049,12 @@ class SettingsWidgetsTest(unittest.TestCase):
                         if isinstance(entry, dict) and entry.get("type") == "custom"})
         self.assertEqual(sorted(wrapper_52.__all__), named)
 
-        # each widget comes from its feature module, not one shared grab-bag
+        # feature widgets stay in their feature modules; the option-label combo
+        # is shared by weather and holiday-region settings
         homes = {
             "ClocksList": "chronos_settings_widgets_worldclocks",
             "CountryComboBox": "chronos_settings_widgets_holidays",
+            "OptionLabelComboBox": "chronos_settings_widgets_common",
             "WeatherLocationEntry": "chronos_settings_widgets_weather",
         }
         for widget in named:
@@ -1082,7 +1110,8 @@ class SettingsWidgetsTest(unittest.TestCase):
             # would shadow the standard library for everything else in it
             self.assertEqual(sys.path[-1], applet_dir)
             self.assertEqual(sorted(module.__all__),
-                             ["ClocksList", "CountryComboBox", "WeatherLocationEntry"])
+                             ["ClocksList", "CountryComboBox",
+                              "OptionLabelComboBox", "WeatherLocationEntry"])
         finally:
             sys.path = saved_path
             for name in set(sys.modules) - set(saved_modules):

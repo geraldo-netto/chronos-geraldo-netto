@@ -177,7 +177,9 @@
         "dependency": "show-weather"
     },
     "weather-units": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "si",
         "description": "Weather units",
         "tooltip": "Temperature scale used for the panel weather readout and for the temperature beside each world clock.",
@@ -335,7 +337,9 @@
         }
     },
     "region_aus": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -353,7 +357,9 @@
         "dependency": "country=aus"
     },
     "region_bel": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -366,7 +372,9 @@
         "dependency": "country=bel"
     },
     "region_can": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -389,7 +397,9 @@
         "dependency": "country=can"
     },
     "region_deu": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -415,7 +425,9 @@
         "dependency": "country=deu"
     },
     "region_esp": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -444,7 +456,9 @@
         "dependency": "country=esp"
     },
     "region_nzl": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -471,7 +485,9 @@
         "dependency": "country=nzl"
     },
     "region_svk": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -489,7 +505,9 @@
         "dependency": "country=svk"
     },
     "region_che": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -525,7 +543,9 @@
         "dependency": "country=che"
     },
     "region_gbr": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
@@ -539,7 +559,9 @@
         "dependency": "country=gbr"
     },
     "region_usa": {
-        "type": "combobox",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "OptionLabelComboBox",
         "default": "global",
         "description": "Region",
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",

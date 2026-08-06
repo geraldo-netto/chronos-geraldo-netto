@@ -127,10 +127,42 @@ class BaseWidget:
 class ComboBox(BaseWidget):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.options = kwargs.get("options")
+        self.value = None
+        self.option_map = {}
+        self.model = GtkListStore(str, str)
+        self.content_widget = ComboBindObject()
+        self.set_options(kwargs.get("options", []))
 
     def set_options(self, options):
         self.options = options
+        for value, label in options:
+            self.option_map[value] = self.model.append([value, label])
+
+    def on_setting_changed(self, *args):
+        self.value = self.get_value()
+        self.content_widget.set_active_iter(self.option_map.get(self.value))
+
+    def on_my_value_changed(self, widget):
+        tree_iter = widget.get_active_iter()
+        if tree_iter is not None:
+            self.value = self.model[tree_iter][0]
+            self.set_value(self.value)
+
+    def connect_widget_handlers(self, *args):
+        self.content_widget.connect("changed", self.on_my_value_changed)
+
+
+class ComboBindObject(BindObject):
+    def __init__(self):
+        super().__init__()
+        self.active_iter = None
+
+    def set_active_iter(self, tree_iter):
+        self.active_iter = tree_iter
+        self.emit_changed()
+
+    def get_active_iter(self):
+        return self.active_iter
 
 
 class Entry(BaseWidget):
@@ -224,8 +256,12 @@ class GLibStub:
 
 class AtkObject:
     def __init__(self):
+        self.name = None
         self.description = None
         self.relationships = []
+
+    def set_name(self, text):
+        self.name = text
 
     def set_description(self, text):
         self.description = text

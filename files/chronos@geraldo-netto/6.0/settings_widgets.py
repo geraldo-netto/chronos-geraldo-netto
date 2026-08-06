@@ -25,7 +25,9 @@ if _APPLET_DIR not in sys.path:
 # outside chronos_settings_widgets_common has ever called it: the tests import that
 # module directly.
 from chronos_settings_widgets_holidays import CountryComboBox
+from chronos_settings_widgets_common import OptionLabelComboBox
 from chronos_settings_widgets_weather import WeatherLocationEntry
 from chronos_settings_widgets_worldclocks import ClocksList
 
-__all__ = ["ClocksList", "CountryComboBox", "WeatherLocationEntry"]
+__all__ = ["ClocksList", "CountryComboBox", "OptionLabelComboBox",
+           "WeatherLocationEntry"]

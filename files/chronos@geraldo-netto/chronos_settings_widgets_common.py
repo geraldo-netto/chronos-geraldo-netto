@@ -21,12 +21,14 @@ try:
 except ImportError:
     available_timezones = None
 from gi.repository import Atk, Gtk
+from JsonSettingsWidgets import JSONSettingsBackend
+from xapp.SettingsWidgets import ComboBox
 
 # The gi-free half of the feature — timezone identity and city names — lives in a
 # sibling with no Gtk/Atk/GLib. What is left here is what the three feature
 # modules (weather, holidays, world clocks) genuinely share: the folded
 # substring matcher, one process-wide timezone index, the completion wiring
-# and the error affordance.
+# and their small reusable accessibility/error affordances.
 from chronos_timezone_data import (
     completion_key,
     TimezoneResolver,
@@ -42,6 +44,46 @@ from chronos_timezone_data import (
 MAX_COMPLETION_INPUT_LENGTH = 64
 
 _LAST_COMPLETION_KEY: tuple[Optional[str], str] = (None, "")
+
+
+class OptionLabelComboBox(ComboBox, JSONSettingsBackend):
+    """A JSON combobox whose accessible name matches its visible option.
+
+    XApp stores the machine value in model column 0 and makes it the combo's ID
+    column. GTK then exposes that ID as the accessible name (for example `si`
+    or `global`) even though column 1 visibly says `SI (Celsius)` or
+    `Nationwide only`. Keep XApp's persistence contract and explicitly name the
+    control from the same display-label column its renderer uses.
+    """
+
+    bind_dir = None
+
+    def __init__(self, info, key, settings):
+        self.backend = "json"
+        self.key = key
+        self.settings = settings
+        options = [(value, label)
+                   for label, value in info.get("options", {}).items()]
+
+        ComboBox.__init__(
+            self, label=info.get("description", ""), options=options,
+            tooltip=info.get("tooltip", ""))
+        self.attach()
+
+    def _sync_accessible_name(self):
+        tree_iter = self.content_widget.get_active_iter()
+        label = self.model[tree_iter][1] if tree_iter is not None else ""
+        accessible = self.content_widget.get_accessible()
+        if accessible is not None and hasattr(accessible, "set_name"):
+            accessible.set_name(label)
+
+    def on_setting_changed(self, *args):
+        ComboBox.on_setting_changed(self, *args)
+        self._sync_accessible_name()
+
+    def on_my_value_changed(self, widget):
+        ComboBox.on_my_value_changed(self, widget)
+        self._sync_accessible_name()
 
 
 def folded_completion_key(key) -> str:
@@ -262,7 +304,5 @@ def shared_timezone_resolver() -> TimezoneResolver:
         _TIMEZONE_RESOLVER = TimezoneResolver(pytz, available_timezones)
 
     return _TIMEZONE_RESOLVER
-
-
 
 

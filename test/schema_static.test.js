@@ -116,7 +116,9 @@ test("6.0 schema exposes Belgium holiday regions", () => {
     assert.ok(require(path.join(appletDir, "holidayConstants.js"))
         .REGION_COUNTRIES.includes("bel"));
     assert.deepEqual(schema52.region_bel, {
-        type: "combobox",
+        type: "custom",
+        file: "settings_widgets.py",
+        widget: "OptionLabelComboBox",
         // the value that means "no region": an unset region and "global" are the
         // same thing to the applet, and this is the one the user can pick
         default: "global",
@@ -142,6 +144,23 @@ test("6.0 schema exposes Belgium holiday regions", () => {
         },
         dependency: "country=bel"
     });
+});
+
+test("option comboboxes expose visible labels through the custom widget", () => {
+    const data = schema("6.0");
+    const keys = ["weather-units"].concat(
+        Object.keys(data).filter((key) => key.startsWith("region_")));
+
+    assert.equal(keys.length, 11);
+    for (const key of keys) {
+        assert.equal(data[key].type, "custom", key);
+        assert.equal(data[key].file, "settings_widgets.py", key);
+        assert.equal(data[key].widget, "OptionLabelComboBox", key);
+        assert.ok(Object.keys(data[key].options).length > 1, key);
+    }
+    assert.equal(Object.values(data).filter((entry) =>
+        entry && entry.type === "combobox").length, 0,
+    "no stock combobox remains to announce its machine value");
 });
 
 test("schema groups weather and location controls together", () => {
