@@ -156,6 +156,7 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         // the file holds the countries recently visited; parsing it again on
         // each read meant a full sync read per fetch
         this._all = null;
+        this._load_waiters = null;
         // the newest data per country, and whether a write is settling: see
         // _flush
         this._pending = {};
@@ -235,6 +236,13 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         return struct;
     }
 
+    _releaseLoadWaiters() {
+        const waiting = this._load_waiters || [];
+        this._load_waiters = null;
+        ProviderUtils.notifyAll(waiting.map(({ country, callback }) =>
+            () => callback(this._country(this._all, country))));
+    }
+
     // The read happens while the applet is being constructed, so a synchronous
     // one blocks the compositor at every Cinnamon start and reload. Callers
     // hand in a callback and repaint when the data lands.
@@ -250,10 +258,16 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             return;
         }
 
+        if (this._load_waiters !== null) {
+            this._load_waiters.push({ country, callback });
+            return;
+        }
+        this._load_waiters = [{ country, callback }];
+
         IoUtils.readJsonFileAsync(file, (all) => {
             if (all && Object.keys(all).length > 0) {
                 this._all = all;
-                callback(this._country(all, country));
+                this._releaseLoadWaiters();
                 return;
             }
 
@@ -264,7 +278,7 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             this._loadLegacy((legacy) => {
                 this._all = legacy || {};
                 this._migrate(file);
-                callback(this._country(this._all, country));
+                this._releaseLoadWaiters();
             });
         });
     }

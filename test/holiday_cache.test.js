@@ -2188,6 +2188,40 @@ test("the cache file is read once for loading and written asynchronously", () =>
     assert.deepEqual(written.usa.years, { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } });
 });
 
+test("concurrent country loads share the repository's first file read", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const contents = Buffer.from(JSON.stringify({
+        usa: { years: {}, holidays: [{ year: 2026, month: 7, day: 4,
+            region: "global", name: "USA", flags: [] }] },
+        ita: { years: {}, holidays: [{ year: 2026, month: 6, day: 2,
+            region: "global", name: "Italy", flags: [] }] }
+    }));
+    const reads = [];
+    const file = {
+        get_path: () => cachePath("holidays.json"),
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            callback(this, { ok: true });
+        },
+        query_info_finish: () => ({ get_size: () => contents.length }),
+        load_contents_async(_cancellable, callback) {
+            reads.push(() => callback(this, { ok: true }));
+        },
+        load_contents_finish: () => [true, contents, "v1"]
+    };
+    global.imports.gi.Gio.file_new_for_path = () => file;
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const answers = [];
+
+    repository.loadAsync("usa", (data) => answers.push(data.holidays[0].name));
+    repository.loadAsync("ita", (data) => answers.push(data.holidays[0].name));
+
+    assert.equal(reads.length, 1, "one in-flight read owns the shared file");
+    assert.deepEqual(answers, []);
+    reads[0]();
+    assert.deepEqual(answers, ["USA", "Italy"],
+        "every queued consumer receives its own country projection");
+});
+
 // ...and the merge above only covers writes that had already *settled*. The
 // interlock is per repository instance, and the file is shared by every applet on
 // every panel, so a second instance can land its write between our read and our
