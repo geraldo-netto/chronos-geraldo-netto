@@ -504,7 +504,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
                 this._acceptYear(year, region, inflightKey, generation, data, params, date);
             });
         } catch (e) {
-            this._abandonYear(inflightKey, generation, e);
+            this._abandonYear(year, region, inflightKey, generation, e);
         }
     }
 
@@ -518,17 +518,32 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     //
     // A throw arriving after the key settled came back out through a waiting
     // callback that fetchYear ran synchronously, and is still that callback's.
-    _abandonYear (inflightKey, generation, error) {
+    //
+    // Both of the things _acceptYear does around settling have to happen here
+    // too. The attempt arms the RETRY_PERIOD throttle: without it every later
+    // calendar update re-dispatches and re-raises for the rest of the session.
+    // The status record is what respond() reads back through _statusFor, and
+    // the ledger answers {error: "", provider: ""} for a key it never saw — so
+    // the month rendered bare, with no warning marker and no tooltip, while
+    // last_error said the service was unavailable. A dispatch that never
+    // reached a provider is attributed to none.
+    _abandonYear (year, region, inflightKey, generation, error) {
         if (!this._inflight.has(inflightKey)) {
             throw error;
         }
 
+        this.cache.recordAttempt(year, region);
         this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
+        this.last_provider = "";
         if (global.logError) {
             global.logError(error);
         }
 
-        for (let waiting of this._inflight.settle(inflightKey, generation)) {
+        this._status.record(inflightKey);
+        const callbacks = this._inflight.settle(inflightKey, generation);
+        this._status.prune(this.cache.cachedYears());
+
+        for (let waiting of callbacks) {
             waiting();
         }
     }

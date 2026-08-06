@@ -2417,6 +2417,56 @@ test("a fetch that raises on dispatch never wedges the year", () => {
     assert.equal(fetches, 2, "and the year can be fetched again");
 });
 
+// T777: releasing the key was only half of it. _acceptYear also records the
+// attempt on entry and the status in its finally; _abandonYear did neither.
+// respond() reads the *key* through _statusFor, and the ledger answers
+// {error: "", provider: ""} for a key it never saw — so the month rendered
+// bare, with no warning marker and no tooltip, while last_error said the
+// service was unavailable. The missing attempt was the other half: the
+// RETRY_PERIOD throttle was never armed, so every later calendar update
+// re-dispatched and re-raised for the rest of the session.
+test("a dispatch that raises warns the month and arms the retry throttle", () => {
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        () => {}
+    );
+    let fetches = 0;
+    const service = {
+        fetchYear() {
+            fetches++;
+            throw new Error("session disposed mid-reload");
+        },
+        validResponse: () => true
+    };
+    const enrico = new HolidayService(service, cache, { record: service });
+    enrico.country = "usa";
+    enrico.region = "global";
+    enrico.last_provider = "openholidays";
+    global.logError = () => {};
+
+    const answers = [];
+    const collect = (map, error, provider) => answers.push({ map, error, provider });
+
+    enrico.getHolidays(2026, 3, collect);
+
+    assert.equal(fetches, 1);
+    assert.equal(answers.length, 1);
+    assert.equal(answers[0].error, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE,
+        "the month says why it is empty instead of rendering bare");
+    assert.equal(answers[0].provider, "",
+        "a dispatch that reached no provider is attributed to none");
+
+    // the 42-day grid always spans two months, and the calendar updates on
+    // every tick: the attempt stamp is the only thing standing between one
+    // failed dispatch and a fetch storm for the rest of the session
+    enrico.getHolidays(2026, 4, collect);
+
+    assert.equal(fetches, 1, "the RETRY_PERIOD throttle is armed");
+    assert.equal(answers[1].error, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE,
+        "and the second month is warned from the same record");
+});
+
 // the other half: once the year has settled, a throw coming back out through a
 // waiting callback the fetch ran synchronously is that callback's own
 test("a throw from a settled year's callback is not reported as a fetch failure", () => {
