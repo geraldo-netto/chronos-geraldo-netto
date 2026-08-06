@@ -4,7 +4,6 @@
 
 | ID | Category | Severity | Status | Effort | Description | Notes |
 |----|----------|----------|--------|--------|-------------|-------|
-| T917 | maintainability | Low | open | S | Two signal registries call `push` twice when both IDs can be appended atomically. | **[found 2026-08-07 in Sonar new-code audit; javascript:S7778]** Combine adjacent signal-ID pushes in `agendaColumn.js` and `appletMenuBuilder.js` while preserving connection order. |
 | T918 | maintainability | Low | open | S | Six regex/replacement strings double-escape backslashes instead of expressing literal patterns with `String.raw`. | **[found 2026-08-07 in Sonar new-code audit; javascript:S7780]** Four diacritic-range fragments and two release-template strings can become raw template strings; tests must prove the compiled regexes and emitted POT header remain byte-identical. |
 | T919 | correctness; maintainability | Low | open | S | Two calendar payload contract violations throw generic `Error` instead of `TypeError`. | **[found 2026-08-07 in Sonar new-code audit; javascript:S7786]** `boundedUnpackedEvents` rejects a non-callable unpack adapter and a non-array unpacked value; both are type violations and should retain their messages under `TypeError`. |
 | T920 | maintainability | Low | open | S | A leading-colon check spells `startsWith` as `indexOf(...) === 0`. | **[found 2026-08-07 in Sonar new-code audit; javascript:S6557]** Use `trimmed.startsWith(":")` in `worldclockData.zoneinfoIdentifier`; retain the later `lastIndexOf` because it needs the marker position. |

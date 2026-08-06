@@ -66,16 +66,14 @@ var AgendaColumnCoordinator = class AgendaColumnCoordinator { // NOSONAR [S3504]
                 this._delay_no_events_box = true;
                 this._events_overflowed = false;
                 this._queueRender();
-            }));
-        this._signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
+            }),
             manager.connect("selected-date-events-changed",
                 (em, eventDataList, delayNoEventsBox, overflowed) => {
                     this._event_data_list = eventDataList;
                     this._delay_no_events_box = delayNoEventsBox;
                     this._events_overflowed = overflowed;
                     this.render();
-                }));
-        this._signal_ids.push(
+                }),
             manager.connect("refresh-error-changed", (em, failed) => {
                 this._event_list.set_refresh_failed(failed);
             }));

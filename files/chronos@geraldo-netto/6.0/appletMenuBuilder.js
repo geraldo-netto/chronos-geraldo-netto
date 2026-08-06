@@ -393,8 +393,7 @@ class AppletMenuBuilder {
             calendar.connect("selected-date-changed", (unused, date) => {
                 this._agenda.selectDate(date);
                 context.onSelectedDateChanged();
-            }));
-        this._calendar_signal_ids.push(
+            }),
             calendar.connect("holidays-changed", () => this._agenda.render()));
 
         this._calendar = calendar;
