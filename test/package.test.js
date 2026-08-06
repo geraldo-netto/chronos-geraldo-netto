@@ -218,6 +218,42 @@ test("equal staged trees produce byte-identical normalized archives", async (t) 
         UUID, "6.0", "settings_widgets.py"))).mode & 0o777, 0o755);
 });
 
+// T789: the script was #!/bin/sh, where `set -o pipefail` does not exist, so
+// the manifest pipeline took its status from xargs alone and a find that failed
+// part-way was invisible under `set -eu`. `sha256sum -c` verifies only the lines
+// it is given, so a short manifest passed over a tar carrying the files it did
+// not list — the release job green-lit an artifact its own integrity record did
+// not cover.
+test("a manifest that does not cover every packaged file fails the archiver", async (t) => {
+    const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "chronos-manifest-"));
+    t.after(() => fs.rm(temporary, { recursive: true, force: true }));
+    const root = path.join(temporary, "dist");
+    await makeArchiveTree(root, new Date("2020-01-02T03:04:05Z"));
+
+    const archiver = path.join(ROOT, "scripts", "archive-spices.sh");
+    await execFileAsync(archiver, [root]);
+    const manifest = await fs.readFile(path.join(root, "chronos-spices.sha256"), "utf8");
+    assert.equal(manifest.trim().split("\n").length, 2,
+        "both files in the tree are listed");
+
+    await fs.rm(path.join(root, "chronos-spices.tar"));
+    await fs.rm(path.join(root, "chronos-spices.sha256"));
+
+    // an unreadable subdirectory: find reports the failure and stops descending.
+    // Restored in a finally rather than a t.after, because the after hook that
+    // removes the tree is registered first and would run into it.
+    const unreadable = path.join(root, "chronos@geraldo-netto", "files", UUID, "6.0");
+    await fs.chmod(unreadable, 0o000);
+    try {
+        await assert.rejects(() => execFileAsync(archiver, [root]),
+            "a short manifest is a failed package, not a quiet one");
+        await assert.rejects(() => fs.access(path.join(root, "chronos-spices.tar")),
+            "and no archive is left behind claiming to be verified");
+    } finally {
+        await fs.chmod(unreadable, 0o755);
+    }
+});
+
 test("the explicit manifest seam copies validated worktree files", async (t) => {
     const { source, output } = await makeSpicesFixture(t);
     const trackedFiles = [
