@@ -9,8 +9,11 @@ Use this module for repositories that maintain review findings, technical debt, 
 - Whenever scanning, reviewing, auditing, or looking for issues, record findings in `TODO.md`; do not report them only in chat.
 - Remove completed items entirely once implemented, tested, and merged. Do not keep struck-through rows or "shipped" sections.
 - Use `git log` as the durable record of completed work.
-- Keep open-but-deferred items only in an "Open - parked" section with a why-not-now note.
-- Keep deliberately rejected audit picks in a dedicated section so future reviews do not re-pick them.
+- Keep everything that will not be worked now out of the open findings table and in one dedicated section, so future reviews do not re-pick it. Give each row a disposition:
+  - `Rejected` — the finding is not a defect: a wrong premise, a false positive, an equivalent mutant, a deliberate design.
+  - `Deferred` — a real finding worth doing, parked for now. Record why not now, and what would unpark it.
+  - `Won't fix` — a real finding that will not be done here: declined by the maintainer, or blocked outside this repository. Record who decided, or what blocks it.
+- A project that already splits these across separate sections may keep that shape; do not split a single dispositioned table back apart.
 
 ## Table Format
 
