@@ -114,6 +114,18 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
         this._active = false;
     }
 
+    // A departing consumer's jobs are dead the moment its repository is
+    // destroyed — isCurrent() answers false — but nothing looks at them until
+    // the next _drain(), and _drain() is only reachable from enqueue, release
+    // or the spacing timer. With two applet instances on the panel, removing
+    // one while the other never geocodes again leaves its jobs here for the
+    // session, and each holds closures reaching the request record, its
+    // subscribers, their callbacks, the provider, the repository and its Soup
+    // session.
+    prune() {
+        this._jobs = this._jobs.filter((job) => job.isCurrent());
+    }
+
     _nextCurrentJob() {
         while (this._jobs.length) {
             const job = this._jobs.shift();
@@ -189,6 +201,11 @@ function cancelPendingWeatherRequests(queue = NOMINATIM_REQUEST_QUEUE) {
     if (_weatherConsumers > 0) {
         _weatherConsumers--;
     }
+    // Unconditionally, and before the consumer count decides anything: the
+    // departing instance's jobs can never run again, and dropping them is safe
+    // for the instances that remain — it is only emptying the queue wholesale
+    // that would take a waiting instance's geocode with it.
+    queue.prune();
     if (_weatherConsumers > 0) {
         return;
     }

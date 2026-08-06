@@ -1604,6 +1604,60 @@ test("a cache hit reports when the reading was fetched, not when it arrived", ()
     repository.destroy();
 });
 
+// T832: the consumer count is right for the shared spacing timer — only the
+// last instance may clear it — but nothing pruned the departing instance's own
+// jobs. They can never run again, because isCurrent() goes false with its
+// repository, and _nextCurrentJob would discard them on sight; but _drain() is
+// only reachable from enqueue, release or the spacing timer, so with two applets
+// on the panel, removing one while the other never geocodes again left its jobs
+// here for the session — each holding closures that reach the request record,
+// its subscribers, their callbacks, the provider and its Soup session.
+test("a departing instance's queued geocodes leave with it", () => {
+    const Weather = loadWeather();
+    const starts = [];
+    let now = 0;
+    const timers = [];
+    const queue = new Weather.NominatimRequestQueue({
+        elapsedNow: () => now,
+        schedule(delay, callback) {
+            timers.push({ delay, callback });
+            return timers.length;
+        },
+        removeTimer: () => {}
+    });
+
+    Weather.registerWeatherConsumer();
+    Weather.registerWeatherConsumer();
+
+    // one job in flight, then one each from the two instances waiting out the
+    // interval behind it
+    let release = null;
+    queue.enqueue((done) => {
+        starts.push("in flight");
+        release = done;
+    });
+    let departingIsCurrent = true;
+    queue.enqueue(() => starts.push("departing"), () => departingIsCurrent);
+    queue.enqueue(() => starts.push("staying"));
+    assert.equal(queue._jobs.length, 2);
+
+    // the user removes the first instance: its repository is destroyed, so its
+    // job's isCurrent() answers false
+    departingIsCurrent = false;
+    Weather.cancelPendingWeatherRequests(queue);
+
+    assert.deepEqual(queue._jobs.map((job) => job.isCurrent()), [true],
+        "only the remaining instance's job is still held");
+
+    // and the instance that stayed still gets its geocode
+    release();
+    now = Weather.NOMINATIM_MIN_INTERVAL_MS;
+    timers[0].callback();
+    assert.deepEqual(starts, ["in flight", "staying"]);
+
+    Weather.cancelPendingWeatherRequests(queue);
+});
+
 test("shared reading cache ships with a small fixed bound", () => {
     const Weather = loadWeather();
     const repository = new Weather.WeatherReadingRepository({ cacheSeconds: 1 });
