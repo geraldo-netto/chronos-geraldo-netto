@@ -425,14 +425,14 @@ The city a world clock's weather is looked up for comes from its **timezone**,
 not from the name you gave the clock: a clock called "Mom's place" is looked up
 as the city its timezone names, and the name you typed never leaves the machine.
 
-Public-holiday data are obtained from the webservice [Enrico](https://kayaposoft.com/enrico/)
+Public-holiday data are obtained from the web service [Enrico](https://kayaposoft.com/enrico/)
 by Kayaposoft.com, with [OpenHolidays](https://www.openholidaysapi.org/) and
-[Nager.Date](https://date.nager.at/) as fallbacks. When the operating-system
-timezone supplies the initial holiday country, lookup starts automatically;
-otherwise nothing is sent until you pick one. The selected country, and the
-region where a provider supports it, are sent to those services at most once
-every 50 days per year of data (sooner after a failure), and the response is
-cached under
+[Nager.Date](https://date.nager.at/) as fallbacks. After a provider answers, it
+is tried first for the rest of the session. When the operating-system timezone
+supplies the initial holiday country, lookup starts automatically; otherwise
+nothing is sent until you pick one. The selected country, and the region where
+a provider supports it, are sent to the providers at most once every 50 days
+per year of data (sooner after a failure), and the response is cached under
 `~/.cache/chronos@geraldo-netto/`.
 
 Religious-observance data are bundled with the applet and computed locally.
@@ -446,44 +446,37 @@ religious observances do not. Weather is off by default; public holidays start
 automatically only when the operating-system timezone maps to a supported
 country. Responses are treated as untrusted: they are size-capped,
 shape-checked, and colors or text taken from them are never interpolated into
-markup. No account, API key, or personal data beyond the location or country
-you configure is involved.
+markup. No account or API key is involved. The network-visible values are the
+weather location and world-clock cities used for forecasts, plus the holiday
+country and region you configure.
 
-> Enrico Service 2.0 is a free service written in PHP providing public holidays for several 
-  countries. You can use Enrico Service to display public holidays on your website or in your 
-  desktop application written in any programming language.  
-  Enrico Service 2.0 is an open-source software licensed under the MIT License so you can 
-  study, contribute, change or use it. See Enrico source code on Github.
-
-See [here](https://holidays.kayaposoft.com/) for a list of supported countries and
-its regions. It needs to be noted that each change to their list needs to be reflected
-by an update to this applet. While I will try to keep track, if you notice something
-missing in the applet that the service offers, let me know about it.
-
-Both the list of supported countries and the actual holiday data are provided
-by Enrico. If you find errors or have suggestions, please contact them directly
-at enrico@kayaposoft.com or raise an issue at [Github](https://github.com/jurajmajer/enrico).
-
-If you find bugs in the applet itself or know about other sources of holiday information
-that can be included as webservices, please
-[tell me about them](https://github.com/geraldo-netto/cinnamon-chronos/issues).
+The applet maintains its own supported-country and region mappings because the
+three holiday providers cover different sets and formats. Enrico Service 2.0 is
+[MIT-licensed open-source software](https://github.com/jurajmajer/enrico); its
+[service page](https://holidays.kayaposoft.com/) lists Enrico's own coverage.
+If a holiday looks wrong, report the country, region, year, and observed result
+to the [Chronos issue tracker](https://github.com/geraldo-netto/cinnamon-chronos/issues)
+first so the adapter and fallback path can be identified. Provider-specific
+source-data corrections can then be reported to Enrico, OpenHolidays, or
+Nager.Date through the links above.
 
 ## About Events and Holidays
 
-Most people using calendars today have adopted the logic behind the iCalendar format (RFC 5545).
-Applications using it may gloss over that, but the available categories for things to be
-entered in a calendar are limited to: event, to-do, journal, free/busy and alarm.
+Most people using calendars today have adopted the logic behind the iCalendar
+format (RFC 5545). Applications using it may gloss over that, but the available
+categories for things entered in a calendar are limited to event, to-do,
+journal, free/busy, and alarm.
 
 Holidays do not really fit any of those. And because of that, they mostly get entered as
 all-day (probably recurring) events, without any more distinction from the rest.
 
-Suppose your calendar mentions someone's birthday. You will add it
-to your calendar as a whole-day event. If the calendar also mentions your country's National
-Holiday, both have no distinguishing feature that would make it possible to mark one and
-not the other as a non-working day.
+Suppose your calendar mentions someone's birthday. You will add it as an all-day
+event. If the calendar also mentions your country's national holiday, neither
+entry has a feature that makes it possible to mark one, but not the other, as a
+non-working day.
 
-This applet distinguishes between holidays and events. They have separate data sources, and they 
-are visualised in a different way.
+This applet distinguishes between holidays and events. They have separate data
+sources and are visualized differently.
 
 Public holidays are marked as non-working days, the same as a weekend day.
 Religious observances use the same underline and tooltip but do not change a

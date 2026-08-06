@@ -1026,6 +1026,11 @@ test("the disclosed holiday services are the provider registry", () => {
         assert.ok(readme.includes(provider),
             `the README privacy section must name ${provider}`);
     }
+    assert.doesNotMatch(readme,
+        /Both the list of supported countries and the actual holiday data are provided\s+by Enrico/,
+        "the adaptive provider chain must not be documented as Enrico-only");
+    assert.match(readme, /holiday\s+country and region you configure/,
+        "the privacy description must name both holiday request fields");
 });
 
 test("README documents weather privacy data flow", () => {
