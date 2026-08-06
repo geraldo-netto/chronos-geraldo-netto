@@ -515,7 +515,7 @@ function placeWithTimezone(place, reading) {
     if (!place || place.timezone || !reading?.timezone) {
         return place;
     }
-    return Object.assign({}, place, { timezone: reading.timezone });
+    return {...place, timezone: reading.timezone};
 }
 
 var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504] -- GJS importer export
@@ -578,7 +578,7 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
 // same result for the rest of that refresh period.
 var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
-        this._destroyed = false;
+        this._destroyed = false; // NOSONAR [S7757] -- constructor state is the GJS-compatible class pattern
         this._freshness_now = params.freshnessNow || params.now ||
             ElapsedTime.civilMilliseconds;
         this._cache_milliseconds = Math.max(0, Number(params.cacheSeconds) || 0) * 1000;

@@ -275,7 +275,7 @@ function weatherReading(weather) {
 function openMeteoReading(data) {
     const reading = weatherReading(data.current_weather);
     const timezone = reading ? geocodeTimezone(data.timezone) : "";
-    return timezone ? Object.assign({}, reading, { timezone }) : reading;
+    return timezone ? {...reading, timezone} : reading;
 }
 
 const MET_NO_ICON_RULES = [

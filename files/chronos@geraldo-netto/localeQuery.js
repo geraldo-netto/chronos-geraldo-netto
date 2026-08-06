@@ -281,7 +281,7 @@ function _parseInfo(env, output) {
 
     output.split("\n").forEach((line) => {
         const match = re.exec(line);
-        if (!match || !Object.prototype.hasOwnProperty.call(info, match[1])) {
+        if (!match || !Object.hasOwn(info, match[1])) {
             return;
         }
 
