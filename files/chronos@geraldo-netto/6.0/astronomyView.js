@@ -16,7 +16,12 @@ const Astronomy = require("./astronomy");
 const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
 const TextUtils = AppletModules.textUtils;
-const WorldclockData = AppletModules.worldclockData;
+// through the 6.0 shim, as worldclocks.js, appletCoordinators.js and
+// appletPanelStatus.js do: the shims are the seam where a future version tree
+// adapts a root module for its Cinnamon version, so a file that reaches past
+// them keeps the unadapted root while its siblings pick the adaptation up, and
+// nothing fails.
+const WorldclockData = require("./worldclockData");
 const _ = LocaleText.translate;
 const MISSING_EVENT_TIME = "—";
 // Shown instead of nothing when the resolved place carries no timezone of

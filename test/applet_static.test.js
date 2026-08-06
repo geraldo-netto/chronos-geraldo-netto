@@ -174,6 +174,30 @@ test("the Weather binding names weather.js and nothing else", () => {
     }
 });
 
+// T811: 6.0/astronomyView reached the root module directly while its three
+// siblings went through the 6.0 shim. R14 dispositions the shims as intended
+// indirection; it does not license half the tree bypassing them. They are the
+// seam where a future version tree adapts a root module for its Cinnamon
+// version, so the bypassing file would keep the unadapted root while its
+// siblings picked the adaptation up, and nothing would fail.
+test("a 6.0 source that has a shim goes through it", () => {
+    const shims = new Set(jsSources("6.0")
+        .map((file) => path.basename(file, ".js"))
+        .filter((name) => jsSources().includes(`${name}.js`)));
+    assert.ok(shims.size > 0, "the shim scan found nothing to check");
+
+    for (const file of jsSources("6.0")) {
+        if (shims.has(path.basename(file, ".js"))) {
+            continue;
+        }
+        for (const [, name] of source(file).matchAll(
+            /AppletModules\.(\w+)|applets\["chronos@geraldo-netto"\]\.(\w+)/g)) {
+            assert.ok(!shims.has(name),
+                `${file} reaches past 6.0/${name}.js for ${name}`);
+        }
+    }
+});
+
 test("6.0 sources avoid deprecated Lang.bind callbacks", () => {
     for (const relativePath of jsSources("6.0")) {
         assert.doesNotMatch(source(relativePath), /Lang\.bind/,
