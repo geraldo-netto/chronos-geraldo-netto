@@ -23,6 +23,43 @@ if (!String.prototype.format) {
     });
 }
 
+// GLib.DateTime is a value type the applet does real arithmetic on, not an
+// opaque handle: the seam between the grid's JS `Date` and the event column's
+// GLib date runs through get_year/get_month/get_day_of_month on the way in and
+// to_unix/format on the way out. A stub answering `{}` accepted a JS `Date`
+// where a GLib one was required and let it reach set_date unnoticed.
+class FixtureDateTime {
+    constructor(date) {
+        this.date = date;
+    }
+
+    to_unix() {
+        return Math.floor(this.date.getTime() / 1000);
+    }
+
+    get_year() {
+        return this.date.getFullYear();
+    }
+
+    get_month() {
+        return this.date.getMonth() + 1;
+    }
+
+    get_day_of_month() {
+        return this.date.getDate();
+    }
+
+    get_hour() {
+        return this.date.getHours();
+    }
+
+    format(fmt) {
+        const day = `${this.get_year()}-${String(this.get_month()).padStart(2, "0")}` +
+            `-${String(this.get_day_of_month()).padStart(2, "0")}`;
+        return `${fmt}|${day}`;
+    }
+}
+
 global.log = () => {};
 global.logError = () => {};
 global.imports = {
@@ -46,9 +83,11 @@ global.imports = {
             TIME_SPAN_DAY: 86400000000,
             get_monotonic_time: () => 1,
             DateTime: {
-                new_from_unix_local: () => ({}),
-                new_local: () => ({}),
-                new_now_local: () => ({}),
+                new_from_unix_local: (unix) => new FixtureDateTime(new Date(unix * 1000)),
+                new_local: (year, month, day, hour, minute, second) =>
+                    new FixtureDateTime(
+                        new Date(year, month - 1, day, hour, minute, second)),
+                new_now_local: () => new FixtureDateTime(new Date()),
                 new_now_utc: () => ({ to_timezone: () => ({ format: (f) => f }) })
             },
             // new_local is what the "local" identifier resolves through, and it
@@ -367,7 +406,7 @@ function tooltipEntry(label, timezone, stamp, builtin) {
 module.exports = {
     assert, test, fs, path, makeRandom, APPLET_DIR, rootModules,
     AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS, Proto, panelStatus,
-    DateFormats, Weather, St, FUZZ_SEED,
+    DateFormats, Weather, St, FUZZ_SEED, FixtureDateTime,
     clockStub, readingFrom, weatherCoordinator, suffixStub, updateStub, tooltipEntry
 };
 

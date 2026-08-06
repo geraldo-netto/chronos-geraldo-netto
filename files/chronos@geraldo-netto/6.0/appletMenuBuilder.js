@@ -22,10 +22,13 @@ const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
 const Calendar = require("./calendar");
 const EventView = require("./eventView");
+const EventDataModule = require("./eventData");
 const Worldclocks = require("./worldclocks");
 const AstronomyView = require("./astronomyView");
 
 const _ = LocaleText.translate;
+const date_only = EventDataModule.date_only;
+const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 const HOME_KEY_SYMBOLS = new Set([
     Clutter.KEY_Return,
     Clutter.KEY_KP_Enter,
@@ -435,13 +438,22 @@ class AppletMenuBuilder {
     // The calendar's own signal fires regardless of event availability, and it
     // fires first, so the events-manager handler still owns the rendering
     // whenever it is going to run at all — this only fills the gap it leaves.
+    //
+    // Both callers hand over the calendar's own selection, which is a JS `Date`
+    // — the grid navigates in one. The event column is GLib all the way down:
+    // `set_date` formats the heading through `GLib.DateTime.format` and compares
+    // through `dt_equals`, which calls `to_unix()`. So the conversion belongs
+    // here, at the one seam between the two, exactly as
+    // `EventWindowCoordinator.selectDate` does it for the other producer. It
+    // also keeps `_selectedEventDate` one type whoever wrote it last.
     _selectDateInColumn(date) {
         if (!this._eventList || !date) {
             return;
         }
 
-        this._eventList.set_date(date);
-        this._selectedEventDate = date;
+        const gdate = date_only(js_date_to_gdatetime(date));
+        this._eventList.set_date(gdate);
+        this._selectedEventDate = gdate;
         if (!this.context.eventsManager.is_active()) {
             this._renderAgenda();
         }

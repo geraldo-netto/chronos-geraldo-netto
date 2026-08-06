@@ -1656,10 +1656,12 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
 test("the event column follows the grid even with no calendar service", () => {
     const holidays = { "2026-03-17": ["St Patrick's Day", ["public_holiday"]] };
     // local components, not toISOString(): the grid selects local days, and a
-    // UTC key is off by one for most of the world
-    const key = (date) => `${date.getFullYear()}-` +
-        `${String(date.getMonth() + 1).padStart(2, "0")}-` +
-        `${String(date.getDate()).padStart(2, "0")}`;
+    // UTC key is off by one for most of the world. GLib components, because the
+    // column is handed a GLib.DateTime — the grid navigates in a JS `Date` and
+    // _selectDateInColumn is the seam that converts it.
+    const key = (date) => `${date.get_year()}-` +
+        `${String(date.get_month()).padStart(2, "0")}-` +
+        `${String(date.get_day_of_month()).padStart(2, "0")}`;
     const eventsManager = {
         connect: () => 1,
         disconnect() {},
@@ -1711,6 +1713,46 @@ test("the event column follows the grid even with no calendar service", () => {
     // and nothing is attempted before the column exists
     builder._eventList = null;
     assert.doesNotThrow(() => builder._selectDateInColumn(new Date(2026, 2, 19)));
+});
+
+// T819: two producers emit "selected-date-changed" with two different date
+// types into one consumer. EventWindowCoordinator emits a GLib.DateTime; the
+// calendar emits the JS `Date` its grid navigates in. Every build() test stubs
+// both classes and the test above installs a set_date double that accepts
+// either, so the real consumer was never driven from the real producer's type —
+// and build() threw during construction, leaving a dead, empty panel item.
+test("the calendar's JS Date reaches the real EventList.set_date as a GLib date", () => {
+    const EventView = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
+    const builder = new AppletModule.AppletMenuBuilder({
+        menu: { addActor() {}, addMenuItem() {}, toggle() {} },
+        contextMenu: { addMenuItem() {} },
+        desktopSettings: { use24h: true },
+        calendarSettings: {},
+        eventsManager: { connect: () => 1, disconnect() {}, is_active: () => false },
+        holidayProvider: null,
+        onSelectedDateChanged() {},
+        onGoHome() {},
+        onLaunchSettings() {}
+    });
+
+    // the production set_date on a minimal host. It is GLib-only — it formats
+    // through GLib.DateTime.format and compares through dt_equals, which calls
+    // to_unix() — and this.selected_date is truthy from construction, so the
+    // first call is not protected by its own guard.
+    const headings = [];
+    builder._eventList = {
+        selected_date: global.imports.gi.GLib.DateTime.new_now_local(),
+        selected_date_label: { set_text: (text) => headings.push(text) },
+        _syncSelectedDateLauncher() {},
+        set_events() {},
+        set_date: EventView.EventList.prototype.set_date
+    };
+
+    assert.doesNotThrow(() => builder._selectDateInColumn(new Date(2026, 2, 17)));
+    assert.equal(headings.length, 1, "the heading is written");
+    assert.match(headings[0], /2026-03-17/, "with the day the grid selected");
+    assert.equal(builder._selectedEventDate.get_day_of_month(), 17,
+        "and the builder keeps a GLib date whichever producer wrote it last");
 });
 
 // EventWindowCoordinator.selectDate emits the new day and then, in the same
