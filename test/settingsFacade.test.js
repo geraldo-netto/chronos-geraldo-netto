@@ -49,10 +49,13 @@ test("CalendarSettings exposes intent-named bind methods", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);
     const calls = [];
+    const values = { "weekend-length": 2 };
     const settings = {
         bindWithObject(target, key, property, callback) {
             calls.push({ target, key, property, callback });
-        }
+        },
+        getValue: (key) => values[key],
+        setValue: (key, value) => { values[key] = value; }
     };
     const facade = new SettingsFacade.CalendarSettings(settings);
     const target = {};
@@ -61,20 +64,60 @@ test("CalendarSettings exposes intent-named bind methods", () => {
     facade.bindShowWeekNumbers(target, "show_week_numbers", callback);
     facade.bindWeekendLength(target, "weekend_length", callback);
 
-    assert.deepEqual(calls, [
-        {
-            target,
-            key: SettingsFacade.SHOW_WEEK_NUMBERS_KEY,
-            property: "show_week_numbers",
-            callback
-        },
-        {
-            target,
-            key: SettingsFacade.WEEKEND_LENGTH_KEY,
-            property: "weekend_length",
-            callback
-        }
+    assert.deepEqual(calls.map(({ target: boundTarget, key, property }) =>
+        ({ target: boundTarget, key, property })), [
+        { target, key: SettingsFacade.SHOW_WEEK_NUMBERS_KEY, property: "show_week_numbers" },
+        { target, key: SettingsFacade.WEEKEND_LENGTH_KEY, property: "weekend_length" }
     ]);
+    assert.equal(calls[0].callback, callback);
+    assert.equal(typeof calls[1].callback, "function");
+});
+
+test("CalendarSettings recovers invalid weekend lengths at runtime", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+    const values = { "weekend-length": 3 };
+    const writes = [];
+    let changed = null;
+    const settings = {
+        getValue: (key) => values[key],
+        setValue(key, value) {
+            values[key] = value;
+            writes.push([key, value]);
+        },
+        bindWithObject(target, key, property, callback) {
+            Object.defineProperty(target, property, {
+                configurable: true,
+                get: () => values[key],
+                set: (value) => { values[key] = value; }
+            });
+            changed = () => {
+                callback(values[key]);
+            };
+        }
+    };
+    const facade = new SettingsFacade.CalendarSettings(settings);
+    const target = {};
+    const callbacks = [];
+
+    facade.bindWeekendLength(target, "weekend_length", (value) => callbacks.push(value));
+
+    assert.equal(target.weekend_length, SettingsFacade.DEFAULT_WEEKEND_LENGTH);
+    assert.deepEqual(writes, [[SettingsFacade.WEEKEND_LENGTH_KEY,
+        SettingsFacade.DEFAULT_WEEKEND_LENGTH]]);
+
+    for (const supported of [1, 2]) {
+        values[SettingsFacade.WEEKEND_LENGTH_KEY] = supported;
+        changed();
+        assert.equal(target.weekend_length, supported);
+    }
+
+    values[SettingsFacade.WEEKEND_LENGTH_KEY] = 7;
+    changed();
+    assert.equal(target.weekend_length, SettingsFacade.DEFAULT_WEEKEND_LENGTH);
+    assert.deepEqual(writes.at(-1), [SettingsFacade.WEEKEND_LENGTH_KEY,
+        SettingsFacade.DEFAULT_WEEKEND_LENGTH]);
+    assert.deepEqual(callbacks, [1, 2, SettingsFacade.DEFAULT_WEEKEND_LENGTH]);
 });
 
 test("EventsSettings exposes showEvents without leaking schema keys", () => {
@@ -129,6 +172,11 @@ test("settings tables reuse the facade's canonical key and sentinel values", () 
             "onTooltipFormatChanged"]
     ]);
     assert.equal(SettingsFacade.NO_HOLIDAYS, "none");
+    const schema = require(path.join(__dirname, "..", "files", "chronos@geraldo-netto",
+        "6.0", "settings-schema.json"));
+    assert.equal(SettingsFacade.DEFAULT_WEEKEND_LENGTH, schema["weekend-length"].default);
+    assert.deepEqual(SettingsFacade.WEEKEND_LENGTH_VALUES,
+        Object.values(schema["weekend-length"].options));
 });
 
 test("legacy shipped date formats migrate to the fixed-order defaults once", () => {

@@ -33,6 +33,8 @@ const HolidayConstants = IS_NODE ?
 var SHOW_EVENTS_KEY = "show-events"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_WEEK_NUMBERS_KEY = "show-week-numbers"; // NOSONAR [S3504] -- GJS importer export
 var WEEKEND_LENGTH_KEY = "weekend-length"; // NOSONAR [S3504] -- GJS importer export
+var WEEKEND_LENGTH_VALUES = [1, 2]; // NOSONAR [S3504] -- GJS importer export
+var DEFAULT_WEEKEND_LENGTH = 2; // NOSONAR [S3504] -- GJS importer export
 var COUNTRY_KEY = "country"; // NOSONAR [S3504] -- GJS importer export
 var REGION_KEY_PREFIX = "region_"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_RELIGIOUS_OBSERVANCES_KEY = "show-religious-observances"; // NOSONAR [S3504] -- GJS importer export
@@ -158,7 +160,25 @@ var CalendarSettings = class CalendarSettings { // NOSONAR [S3504] -- GJS import
     }
 
     bindWeekendLength(target, property, callback) {
-        this._settings.bindWithObject(target, WEEKEND_LENGTH_KEY, property, callback);
+        const normalize = () => {
+            const value = this._settings.getValue(WEEKEND_LENGTH_KEY);
+            if (WEEKEND_LENGTH_VALUES.indexOf(value) === -1) {
+                this._settings.setValue(WEEKEND_LENGTH_KEY, DEFAULT_WEEKEND_LENGTH);
+                return DEFAULT_WEEKEND_LENGTH;
+            }
+            return value;
+        };
+
+        // A radiogroup constrains the settings UI, not an imported or manually
+        // edited JSON value. Normalize before Cinnamon installs its property
+        // accessor, then again before the calendar sees a remote change. Keep
+        // bindWithObject as the owner so settings.finalize() still removes the
+        // binding with every other applet setting.
+        normalize();
+        this._settings.bindWithObject(target, WEEKEND_LENGTH_KEY, property,
+            function(_value, ...args) {
+                callback.apply(target, [normalize()].concat(args));
+            });
     }
 };
 
@@ -356,6 +376,8 @@ if (typeof module !== "undefined") {
         SHOW_EVENTS_KEY,
         SHOW_WEEK_NUMBERS_KEY,
         WEEKEND_LENGTH_KEY,
+        WEEKEND_LENGTH_VALUES,
+        DEFAULT_WEEKEND_LENGTH,
         COUNTRY_KEY,
         REGION_KEY_PREFIX,
         SHOW_RELIGIOUS_OBSERVANCES_KEY,
