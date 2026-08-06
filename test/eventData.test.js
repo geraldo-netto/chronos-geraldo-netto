@@ -174,6 +174,25 @@ test("EventData rejects UTC endpoints the local zone cannot represent", () => {
     }
 });
 
+test("EventData rejects an all-day end whose inclusive second underflows", () => {
+    const addSeconds = FakeDateTime.prototype.add_seconds;
+    FakeDateTime.prototype.add_seconds = () => null;
+
+    try {
+        assert.throws(() => new EventData(makeVariant({
+            allDay: true,
+            startUnix: -62135596800,
+            endUnix: -62135596800
+        }), 0), /no usable start or end time/);
+        assert.doesNotThrow(() => new EventData(makeVariant({
+            startUnix: 10 * DAY_S,
+            endUnix: 10 * DAY_S + 60
+        }), 0), "timed events perform no inclusive-end adjustment");
+    } finally {
+        FakeDateTime.prototype.add_seconds = addSeconds;
+    }
+});
+
 // The UID comes off whatever ICS or CalDAV feed the user subscribed to, so it
 // is the one string here an outsider chooses. On a plain object, "toString"
 // reads back as an inherited function rather than undefined, and "__proto__"

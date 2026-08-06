@@ -121,6 +121,18 @@ function validEventUid(id) {
         id.length <= MAX_EVENT_UID_LENGTH;
 }
 
+function inclusiveEventEnd(end, allDay) {
+    if (!allDay) {
+        return end;
+    }
+
+    const inclusiveEnd = end.add_seconds(-1);
+    if (!inclusiveEnd) {
+        throw new Error("skipping an event with no usable start or end time");
+    }
+    return inclusiveEnd;
+}
+
 var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
     constructor(data_var, last_update_timestamp) {
         const unpacked = data_var.deep_unpack();
@@ -151,11 +163,9 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
         this.end = localEnd;
 
         this.all_day = all_day;
-        if (this.all_day) {
-            // An all day event can be from 00:00 to 00:00 the next day, which will end up
-            // causing it to appear for two days.
-            this.end = this.end.add_seconds(-1);
-        }
+        // An all-day event can be from 00:00 to 00:00 the next day, which
+        // would otherwise cause it to appear for two days.
+        this.end = inclusiveEventEnd(this.end, this.all_day);
         if (this.end.compare(this.start) == -1) {
             // An all day event can be a single point in time at 00:00. The previous -1s
             // will cause it to appear all the following days in the current view.
