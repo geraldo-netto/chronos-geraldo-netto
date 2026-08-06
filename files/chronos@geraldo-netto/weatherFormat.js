@@ -102,7 +102,19 @@ function formatTemperature(celsius, units) {
 var WeatherReadingStore = class WeatherReadingStore { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
         this._readings = new Map();
-        this._now = params.freshnessNow;
+        // Freshness has to count time spent asleep, so this is the civil clock
+        // and never a monotonic one. It is Date.now() written out rather than
+        // ElapsedTime.civilMilliseconds imported, because elapsedTime reaches
+        // for GLib at load and this module deliberately has no platform
+        // dependency - it is the same function, and it is what both callers
+        // already fall back to.
+        //
+        // There was no default, on a constructor whose params default to {}:
+        // `new WeatherReadingStore()` built an object that raised "this._now is
+        // not a function" on the first record of a reading with no fetch stamp,
+        // and on every isStale - including for a key it does not hold, because
+        // a default argument is evaluated before the body.
+        this._now = params.freshnessNow || (() => Date.now());
         this._stale_after_seconds = params.staleAfterSeconds ||
             staleAfterSeconds(params.refreshSeconds);
     }

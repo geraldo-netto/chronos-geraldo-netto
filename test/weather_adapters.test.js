@@ -1044,6 +1044,23 @@ test("a provider given its HTTP is not handed a session it cannot use", () => {
 // on policy, so the panel and the popup rows of one feature answered the
 // staleness question differently. cityWeather.js calls this module the twin of
 // the panel provider, and the refresh scheduler was de-duplicated the same way.
+// T839: params defaults to {}, and freshnessNow had no fallback, so the
+// no-argument construction the signature advertises produced an object that
+// raised "this._now is not a function" on its first use — including isStale for
+// a key it does not hold, because a default argument is evaluated before the
+// body. Both callers pass a clock that resolves to civilMilliseconds, which is
+// Date.now(), so that is the default rather than a construction-time throw.
+test("a reading store built with no clock still answers", () => {
+    const Weather = loadWeather();
+    const store = new Weather.WeatherReadingStore();
+    const record = { condition: "☀", temperatureC: 20 };
+
+    assert.equal(store.isStale("lisbon"), false, "a key it does not hold is not stale");
+    store.record("lisbon", record, "Open-Meteo");
+    assert.equal(store.recordFor("lisbon"), record);
+    assert.equal(store.isStale("lisbon"), false, "a reading taken now is not old");
+});
+
 test("one reading store answers freshness for the panel and for a city", () => {
     const Weather = loadWeather();
     let now = 1_000_000;
