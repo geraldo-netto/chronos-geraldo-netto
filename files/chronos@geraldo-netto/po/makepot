@@ -27,3 +27,11 @@ sed -i \
     -e "s|^\"Project-Id-Version: PACKAGE VERSION\\\\n\"|\"Project-Id-Version: $uuid $version\\\\n\"|" \
     -e "s|^\"Report-Msgid-Bugs-To: \\\\n\"|\"Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/issues\\\\n\"|" \
     po/$uuid.pot
+
+# Keep every locale synchronized with the template in the same operation.
+# Source-only edits can move reference comments without changing a msgid; if
+# those comments are left behind, i18n:check correctly rejects the catalogs as
+# stale even though makepot itself appeared to succeed.
+for catalog in po/*.po; do
+    msgmerge --quiet --update --backup=none "$catalog" "po/$uuid.pot"
+done

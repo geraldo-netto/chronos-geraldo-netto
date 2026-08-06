@@ -69,6 +69,8 @@ test("project metadata uses the Cinnamon Chronos repository identity", () => {
     assert.equal(pkg.homepage, `${projectUrl}#readme`);
     assert.ok(readme.includes(`git clone ${projectUrl}.git`));
     assert.ok(makepot.includes(`${projectUrl}/issues`));
+    assert.match(makepot, /msgmerge[^\n]+--update[^\n]+"\$catalog"/,
+        "makepot must merge every locale after regenerating the template");
     assert.ok(weatherAdapters.includes(projectUrl));
     assert.equal(metadata.uuid, "chronos@geraldo-netto",
         "renaming the repository must not change Cinnamon's installed applet identity");

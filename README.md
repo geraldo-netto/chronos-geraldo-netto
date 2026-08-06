@@ -55,7 +55,7 @@ with the applet:
 | Python 3 | ≥ 3.12 | the development gates and settings-widget suite | use your distribution or `pyenv` |
 | eslint | `^10` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
-| cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
+| cinnamon-xlet-makepot | ships with Cinnamon | regenerating the template and merging `po/*.po` via `po/makepot` | part of the `cinnamon` package |
 | gettext | any | compiling catalogs (`msgfmt`) and rejecting active fuzzy entries (`msgattrib`) | `sudo apt install gettext` |
 
 Linux Mint's package repository can provide a Node.js release older than this
