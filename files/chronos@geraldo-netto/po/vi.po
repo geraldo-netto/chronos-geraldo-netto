@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 13:28+0200\n"
+"POT-Creation-Date: 2026-08-06 14:56+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -26,21 +26,21 @@ msgstr "%-e %B, %Y"
 msgid "%A, %B %-e, %Y"
 msgstr "%A, %-e %B, %Y"
 
-#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
+#: eventFormat.js:84 eventFormat.js:111 eventFormat.js:143 eventFormat.js:157
 #: 6.0/calendar.js:348
 msgid "Today"
 msgstr "Hôm nay"
 
-#: eventFormat.js:109 eventFormat.js:151
+#: eventFormat.js:117 eventFormat.js:159
 #, javascript-format
 msgid "%s Today"
 msgstr "%s hôm nay"
 
-#: eventFormat.js:179
+#: eventFormat.js:187
 msgid "All day"
 msgstr "Cả ngày"
 
-#: localeText.js:86
+#: localeText.js:89
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
@@ -95,172 +95,172 @@ msgstr "Thần đạo"
 msgid "Taoism"
 msgstr "Đạo giáo"
 
-#: religiousHolidays.js:162
+#: religiousHolidays.js:165
 msgid "Epiphany"
 msgstr "Lễ hiển linh"
 
-#: religiousHolidays.js:163
+#: religiousHolidays.js:166
 msgid "Good Friday"
 msgstr "Thứ Sáu Tuần Thánh"
 
-#: religiousHolidays.js:164
+#: religiousHolidays.js:167
 msgid "Easter Sunday"
 msgstr "Chúa Nhật Phục Sinh"
 
-#: religiousHolidays.js:165
+#: religiousHolidays.js:168
 msgid "Pentecost"
 msgstr "Lễ Ngũ Tuần"
 
-#: religiousHolidays.js:166
+#: religiousHolidays.js:169
 msgid "All Saints' Day"
 msgstr "Ngày lễ các Thánh"
 
-#: religiousHolidays.js:167
+#: religiousHolidays.js:170
 msgid "Christmas Day"
 msgstr "ngày Giáng sinh"
 
-#: religiousHolidays.js:170
+#: religiousHolidays.js:173
 msgid "Islamic New Year"
 msgstr "Năm mới Hồi giáo"
 
-#: religiousHolidays.js:171
+#: religiousHolidays.js:174
 msgid "Mawlid"
 msgstr "Mawlid"
 
-#: religiousHolidays.js:172
+#: religiousHolidays.js:175
 msgid "Ramadan begins"
 msgstr "tháng Ramadan bắt đầu"
 
-#: religiousHolidays.js:173
+#: religiousHolidays.js:176
 msgid "Eid al-Fitr"
 msgstr "Eid al-Fitr"
 
-#: religiousHolidays.js:174
+#: religiousHolidays.js:177
 msgid "Eid al-Adha"
 msgstr "Eid al-Adha"
 
-#: religiousHolidays.js:177
+#: religiousHolidays.js:180
 msgid "Makar Sankranti"
 msgstr "Makar Sankranti"
 
-#: religiousHolidays.js:178
+#: religiousHolidays.js:181
 msgid "Maha Shivaratri"
 msgstr "Maha Shivaratri"
 
-#: religiousHolidays.js:179
+#: religiousHolidays.js:182
 msgid "Holi"
 msgstr "Holi"
 
-#: religiousHolidays.js:180
+#: religiousHolidays.js:183
 msgid "Krishna Janmashtami"
 msgstr "Krishna Janmashtami"
 
-#: religiousHolidays.js:181
+#: religiousHolidays.js:184
 msgid "Diwali"
 msgstr "Diwali"
 
-#: religiousHolidays.js:184
+#: religiousHolidays.js:187
 msgid "Parinirvana Day"
 msgstr "Ngày nhập Niết Bàn"
 
-#: religiousHolidays.js:185
+#: religiousHolidays.js:188
 msgid "Vesak"
 msgstr "lễ Vesak"
 
-#: religiousHolidays.js:186
+#: religiousHolidays.js:189
 msgid "Bodhi Day"
 msgstr "Ngày Bồ Đề"
 
-#: religiousHolidays.js:189
+#: religiousHolidays.js:192
 msgid "Guru Gobind Singh Jayanti"
 msgstr "Guru Gobind Singh Jayanti"
 
-#: religiousHolidays.js:190
+#: religiousHolidays.js:193
 msgid "Vaisakhi"
 msgstr "Vaisakhi"
 
-#: religiousHolidays.js:191
+#: religiousHolidays.js:194
 msgid "Guru Nanak Jayanti"
 msgstr "Đạo sư Nanak Jayanti"
 
-#: religiousHolidays.js:194
+#: religiousHolidays.js:197
 msgid "Purim"
 msgstr "Purim"
 
-#: religiousHolidays.js:195
+#: religiousHolidays.js:198
 msgid "Passover begins"
 msgstr "Lễ Vượt Qua bắt đầu"
 
-#: religiousHolidays.js:196
+#: religiousHolidays.js:199
 #, javascript-format
 msgid "Sefirat HaOmer — Day %s"
 msgstr "Sefirat HaOmer — Ngày %s"
 
-#: religiousHolidays.js:197
+#: religiousHolidays.js:200
 msgid "Shavuot"
 msgstr "Shavuot"
 
-#: religiousHolidays.js:198
+#: religiousHolidays.js:201
 msgid "Rosh Hashanah"
 msgstr "Lễ Rosh Hashanah"
 
-#: religiousHolidays.js:199
+#: religiousHolidays.js:202
 msgid "Yom Kippur"
 msgstr "Yom Kippur"
 
-#: religiousHolidays.js:200
+#: religiousHolidays.js:203
 msgid "Hanukkah begins"
 msgstr "Hanukkah bắt đầu"
 
-#: religiousHolidays.js:203
+#: religiousHolidays.js:206
 msgid "Naw-Rúz"
 msgstr "Naw-Rúz"
 
-#: religiousHolidays.js:209
+#: religiousHolidays.js:212
 msgid "Ridván begins"
 msgstr "Ridvan bắt đầu"
 
-#: religiousHolidays.js:212
+#: religiousHolidays.js:215
 msgid "Mahavir Jayanti"
 msgstr "Mahavir Jayanti"
 
-#: religiousHolidays.js:213
+#: religiousHolidays.js:216
 msgid "Paryushana begins"
 msgstr "Paryushana bắt đầu"
 
-#: religiousHolidays.js:216
+#: religiousHolidays.js:219
 msgid "Shōgatsu"
 msgstr "Shogatsu"
 
-#: religiousHolidays.js:217
+#: religiousHolidays.js:220
 msgid "Hinamatsuri"
 msgstr "Hinamatsuri"
 
-#: religiousHolidays.js:218
+#: religiousHolidays.js:221
 msgid "Tanabata"
 msgstr "Tanabata"
 
-#: religiousHolidays.js:219
+#: religiousHolidays.js:222
 msgid "Shichi-Go-San"
 msgstr "Shichi-Go-San"
 
-#: religiousHolidays.js:222
+#: religiousHolidays.js:225
 msgid "Chinese New Year"
 msgstr "Tết Nguyên Đán"
 
-#: religiousHolidays.js:223
+#: religiousHolidays.js:226
 msgid "Qingming"
 msgstr "thanh minh"
 
-#: religiousHolidays.js:224
+#: religiousHolidays.js:227
 msgid "Ghost Festival"
 msgstr "lễ hội ma"
 
-#: worldclockData.js:65 chronos_settings_widgets_worldclocks.py:54
+#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:54
 msgid "Invalid timezone"
 msgstr "Múi giờ không hợp lệ"
 
-#: worldclockData.js:66
+#: worldclockData.js:74
 msgid "Local time"
 msgstr "Giờ địa phương"
 
@@ -268,113 +268,109 @@ msgstr "Giờ địa phương"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Tiểu dụng lịch gặp lỗi. Hãy kiểm tra nhật ký hệ thống."
 
-#: 6.0/appletMenuBuilder.js:313 6.0/appletMenuBuilder.js:319
+#: 6.0/appletMenuBuilder.js:310 6.0/appletMenuBuilder.js:316
 msgid "Go to today"
 msgstr "Đến hôm nay"
 
-#: 6.0/appletMenuBuilder.js:406
+#: 6.0/appletMenuBuilder.js:403
 msgid "Date and Time Settings"
 msgstr "Cài đặt ngày và giờ"
 
-#: 6.0/appletPanelStatus.js:50
+#: 6.0/appletPanelStatus.js:56
 msgid "Invalid time format; edit it in Settings"
 msgstr "Định dạng thời gian không hợp lệ; chỉnh sửa trong Cài đặt"
 
-#: 6.0/appletPanelStatus.js:77
+#: 6.0/appletPanelStatus.js:83
 msgid "Location not found"
 msgstr "Không tìm thấy vị trí"
 
-#: 6.0/appletPanelStatus.js:78
+#: 6.0/appletPanelStatus.js:84
 msgid "Weather service unavailable"
 msgstr "Dịch vụ thời tiết không khả dụng"
 
-#: 6.0/appletPanelStatus.js:79
+#: 6.0/appletPanelStatus.js:85
 msgid "Set a weather location"
 msgstr "Đặt vị trí thời tiết"
 
-#: 6.0/appletPanelStatus.js:80
+#: 6.0/appletPanelStatus.js:86
 msgid "No network connection"
 msgstr "Không có kết nối mạng"
 
-#: 6.0/appletPanelStatus.js:89
+#: 6.0/appletPanelStatus.js:95
 msgid "Clear"
 msgstr "Quang mây"
 
-#: 6.0/appletPanelStatus.js:90
+#: 6.0/appletPanelStatus.js:96
 msgid "Partly cloudy"
 msgstr "Có mây rải rác"
 
-#: 6.0/appletPanelStatus.js:91
+#: 6.0/appletPanelStatus.js:97
 msgid "Cloudy"
 msgstr "Nhiều mây"
 
-#: 6.0/appletPanelStatus.js:92
+#: 6.0/appletPanelStatus.js:98
 msgid "Rain"
 msgstr "Mưa"
 
-#: 6.0/appletPanelStatus.js:93
+#: 6.0/appletPanelStatus.js:99
 msgid "Snow"
 msgstr "Tuyết"
 
-#: 6.0/appletPanelStatus.js:94
+#: 6.0/appletPanelStatus.js:100
 msgid "Showers"
 msgstr "Mưa rào"
 
-#: 6.0/appletPanelStatus.js:95
+#: 6.0/appletPanelStatus.js:101
 msgid "Thunderstorm"
 msgstr "Dông"
 
-#: 6.0/appletPanelStatus.js:96
+#: 6.0/appletPanelStatus.js:102
 msgid "Fair"
 msgstr "Trời đẹp"
 
-#: 6.0/appletPanelStatus.js:116 6.0/appletPanelStatus.js:527
-#: 6.0/appletPanelStatus.js:708
+#: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:533
+#: 6.0/appletPanelStatus.js:723
 msgid "Weather: loading…"
 msgstr "Thời tiết: đang tải…"
 
-#: 6.0/appletPanelStatus.js:551
+#: 6.0/appletPanelStatus.js:557
 msgid "No weather for this timezone"
 msgstr "Không có thời tiết cho múi giờ này"
 
-#: 6.0/appletPanelStatus.js:562 6.0/appletPanelStatus.js:563
+#: 6.0/appletPanelStatus.js:568 6.0/appletPanelStatus.js:570
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Số liệu gần nhất"
 
-#: 6.0/astronomyView.js:23
+#: 6.0/astronomyView.js:29
 msgid "Times shown in this computer's time zone"
 msgstr "Giờ hiển thị theo múi giờ của máy tính này"
 
-#: 6.0/astronomyView.js:161
+#: 6.0/astronomyView.js:169
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Mặt Trời mọc: %s — Mặt Trời lặn: %s"
 
-#: 6.0/astronomyView.js:162
+#: 6.0/astronomyView.js:170
 msgid "Sun is above the horizon all day"
 msgstr "Mặt Trời ở trên đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:163
+#: 6.0/astronomyView.js:171
 msgid "Sun is below the horizon all day"
 msgstr "Mặt Trời ở dưới đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:165
+#: 6.0/astronomyView.js:173
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Mặt Trăng mọc: %s — Mặt Trăng lặn: %s"
 
-#: 6.0/astronomyView.js:166
+#: 6.0/astronomyView.js:174
 msgid "Moon is above the horizon all day"
 msgstr "Mặt Trăng ở trên đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:167
+#: 6.0/astronomyView.js:175
 msgid "Moon is below the horizon all day"
 msgstr "Mặt Trăng ở dưới đường chân trời cả ngày"
-
-#: 6.0/calendar.js:67 6.0/eventView.js:46
-msgid "Some calendar events were hidden to keep the desktop responsive."
-msgstr "Một số sự kiện lịch đã bị ẩn để giữ cho màn hình nền phản hồi nhanh."
 
 #: 6.0/calendar.js:351
 msgid "Selected"
@@ -411,28 +407,28 @@ msgstr "Năm sau"
 msgid "Week"
 msgstr "Tuần"
 
-#: 6.0/calendarAnnotations.js:103
+#: 6.0/calendarAnnotations.js:104
 msgid "Holiday service unavailable"
 msgstr "Dịch vụ ngày lễ không khả dụng"
 
-#: 6.0/calendarAnnotations.js:104
+#: 6.0/calendarAnnotations.js:105
 msgid "Holiday data unavailable"
 msgstr "Dữ liệu ngày lễ không khả dụng"
 
-#: 6.0/calendarAnnotations.js:106
+#: 6.0/calendarAnnotations.js:107
 msgid "Religious dates unavailable for this year"
 msgstr "Không có ngày lễ tôn giáo cho năm này"
 
-#: 6.0/calendarAnnotations.js:274
+#: 6.0/calendarAnnotations.js:275
 msgid "Holiday data: loading…"
 msgstr "Dữ liệu ngày lễ: đang tải…"
 
-#: 6.0/calendarAnnotations.js:315
+#: 6.0/calendarAnnotations.js:317
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dữ liệu ngày lễ: %s"
 
-#: 6.0/eventView.js:48
+#: 6.0/eventView.js:49
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -440,60 +436,60 @@ msgstr ""
 "Không có sự kiện lịch — không có dịch vụ lịch nào đang chạy. Hãy cài đặt "
 "hoặc bật Evolution Data Server."
 
-#: 6.0/eventView.js:50
+#: 6.0/eventView.js:51
 msgid "Calendar events could not be refreshed."
 msgstr "Không thể làm mới các sự kiện lịch."
 
-#: 6.0/eventView.js:63
+#: 6.0/eventView.js:64
 msgid "Public holiday and religious observance"
 msgstr "Ngày nghỉ lễ và ngày lễ tôn giáo"
 
-#: 6.0/eventView.js:66
+#: 6.0/eventView.js:67
 msgid "Public holiday"
 msgstr "Ngày nghỉ lễ"
 
-#: 6.0/eventView.js:69
+#: 6.0/eventView.js:70
 msgid "Religious observance"
 msgstr "Ngày lễ tôn giáo"
 
-#: 6.0/eventView.js:71
+#: 6.0/eventView.js:72
 msgid "Holiday"
 msgstr "Ngày lễ"
 
-#: 6.0/eventView.js:130
+#: 6.0/eventView.js:131
 msgid "Starting in a few minutes"
 msgstr "Bắt đầu trong vài phút nữa"
 
-#: 6.0/eventView.js:137
+#: 6.0/eventView.js:138
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Bắt đầu sau %d phút"
 
-#: 6.0/eventView.js:147
+#: 6.0/eventView.js:148
 msgid "This evening"
 msgstr "Tối nay"
 
-#: 6.0/eventView.js:150
+#: 6.0/eventView.js:151
 msgid "Starting later today"
 msgstr "Bắt đầu vào cuối ngày hôm nay"
 
-#: 6.0/eventView.js:153
+#: 6.0/eventView.js:154
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Trong %d giờ nữa"
 
-#: 6.0/eventView.js:239
+#: 6.0/eventView.js:240
 msgid "Loading…"
 msgstr "Đang tải…"
 
-#: 6.0/eventView.js:243 6.0/eventView.js:253 6.0/eventView.js:398
+#: 6.0/eventView.js:244 6.0/eventView.js:254 6.0/eventView.js:399
 #: 6.0/eventView.js:801
 msgid "No Events"
 msgstr "Không có sự kiện"
 
-#: 6.0/eventView.js:421 6.0/eventView.js:440 6.0/eventView.js:451
+#: 6.0/eventView.js:422 6.0/eventView.js:441 6.0/eventView.js:452
 msgid "Open the calendar app"
 msgstr "Mở ứng dụng lịch"
 
@@ -505,19 +501,23 @@ msgstr "Sự kiện của ngày đã chọn"
 msgid "Add an event"
 msgstr "Thêm sự kiện"
 
-#: 6.0/eventView.js:943
+#: 6.0/eventView.js:942
 msgid "Ended"
 msgstr "Đã kết thúc"
 
-#: 6.0/eventView.js:980
+#: 6.0/eventView.js:979
 msgid "In progress"
 msgstr "Đang diễn ra"
 
-#: 6.0/worldclocks.js:242 6.0/worldclocks.js:243
+#: 6.0/uiVocabulary.js:35
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr "Một số sự kiện lịch đã bị ẩn để giữ cho màn hình nền phản hồi nhanh."
+
+#: 6.0/worldclocks.js:255 6.0/worldclocks.js:256
 msgid "World clocks"
 msgstr "Đồng hồ thế giới"
 
-#: 6.0/worldclocks.js:242
+#: 6.0/worldclocks.js:255
 #, javascript-format
 msgid "Source: %s"
 msgstr "Nguồn: %s"
@@ -526,7 +526,7 @@ msgstr "Nguồn: %s"
 msgid "Type a country name"
 msgstr "Nhập tên quốc gia"
 
-#: chronos_settings_widgets_weather.py:31
+#: chronos_settings_widgets_weather.py:30
 msgid "City or town (e.g. Lisbon)"
 msgstr "Thành phố hoặc thị trấn (ví dụ: Lisbon)"
 
@@ -564,11 +564,11 @@ msgstr ""
 "Không tìm thấy cơ sở dữ liệu múi giờ. Hãy cài python3-pytz để nhập tên thành "
 "phố; nếu không, chỉ chấp nhận định danh đầy đủ như America/Sao_Paulo."
 
-#: chronos_settings_widgets_worldclocks.py:321
+#: chronos_settings_widgets_worldclocks.py:286
 msgid "Add new entry"
 msgstr "Thêm mục mới"
 
-#: chronos_settings_widgets_worldclocks.py:326
+#: chronos_settings_widgets_worldclocks.py:290
 msgid "Edit entry"
 msgstr "Chỉnh sửa mục"
 

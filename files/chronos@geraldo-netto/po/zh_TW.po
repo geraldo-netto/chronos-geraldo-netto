@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 13:28+0200\n"
+"POT-Creation-Date: 2026-08-06 14:56+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -25,21 +25,21 @@ msgstr "%Y年%-m月%-e日"
 msgid "%A, %B %-e, %Y"
 msgstr "%Y年%-m月%-e日 %A"
 
-#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
+#: eventFormat.js:84 eventFormat.js:111 eventFormat.js:143 eventFormat.js:157
 #: 6.0/calendar.js:348
 msgid "Today"
 msgstr "今天"
 
-#: eventFormat.js:109 eventFormat.js:151
+#: eventFormat.js:117 eventFormat.js:159
 #, javascript-format
 msgid "%s Today"
 msgstr "%s 今天"
 
-#: eventFormat.js:179
+#: eventFormat.js:187
 msgid "All day"
 msgstr "全天"
 
-#: localeText.js:86
+#: localeText.js:89
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
@@ -94,172 +94,172 @@ msgstr "神道教"
 msgid "Taoism"
 msgstr "道教"
 
-#: religiousHolidays.js:162
+#: religiousHolidays.js:165
 msgid "Epiphany"
 msgstr "主顯節"
 
-#: religiousHolidays.js:163
+#: religiousHolidays.js:166
 msgid "Good Friday"
 msgstr "耶穌受難日"
 
-#: religiousHolidays.js:164
+#: religiousHolidays.js:167
 msgid "Easter Sunday"
 msgstr "復活節週日"
 
-#: religiousHolidays.js:165
+#: religiousHolidays.js:168
 msgid "Pentecost"
 msgstr "五旬節"
 
-#: religiousHolidays.js:166
+#: religiousHolidays.js:169
 msgid "All Saints' Day"
 msgstr "諸聖節"
 
-#: religiousHolidays.js:167
+#: religiousHolidays.js:170
 msgid "Christmas Day"
 msgstr "聖誕節"
 
-#: religiousHolidays.js:170
+#: religiousHolidays.js:173
 msgid "Islamic New Year"
 msgstr "伊斯蘭新年"
 
-#: religiousHolidays.js:171
+#: religiousHolidays.js:174
 msgid "Mawlid"
 msgstr "聖紀節"
 
-#: religiousHolidays.js:172
+#: religiousHolidays.js:175
 msgid "Ramadan begins"
 msgstr "齋月開始"
 
-#: religiousHolidays.js:173
+#: religiousHolidays.js:176
 msgid "Eid al-Fitr"
 msgstr "開齋節"
 
-#: religiousHolidays.js:174
+#: religiousHolidays.js:177
 msgid "Eid al-Adha"
 msgstr "古爾邦節"
 
-#: religiousHolidays.js:177
+#: religiousHolidays.js:180
 msgid "Makar Sankranti"
 msgstr "馬卡爾桑克蘭蒂"
 
-#: religiousHolidays.js:178
+#: religiousHolidays.js:181
 msgid "Maha Shivaratri"
 msgstr "摩訶濕婆夜"
 
-#: religiousHolidays.js:179
+#: religiousHolidays.js:182
 msgid "Holi"
 msgstr "灑紅節"
 
-#: religiousHolidays.js:180
+#: religiousHolidays.js:183
 msgid "Krishna Janmashtami"
 msgstr "克里希納·詹瑪斯達密"
 
-#: religiousHolidays.js:181
+#: religiousHolidays.js:184
 msgid "Diwali"
 msgstr "排燈節"
 
-#: religiousHolidays.js:184
+#: religiousHolidays.js:187
 msgid "Parinirvana Day"
 msgstr "般涅槃日"
 
-#: religiousHolidays.js:185
+#: religiousHolidays.js:188
 msgid "Vesak"
 msgstr "衛塞節"
 
-#: religiousHolidays.js:186
+#: religiousHolidays.js:189
 msgid "Bodhi Day"
 msgstr "菩提日"
 
-#: religiousHolidays.js:189
+#: religiousHolidays.js:192
 msgid "Guru Gobind Singh Jayanti"
 msgstr "古魯·戈賓德·辛格·賈揚蒂"
 
-#: religiousHolidays.js:190
+#: religiousHolidays.js:193
 msgid "Vaisakhi"
 msgstr "瓦薩基"
 
-#: religiousHolidays.js:191
+#: religiousHolidays.js:194
 msgid "Guru Nanak Jayanti"
 msgstr "古魯納納克賈揚蒂"
 
-#: religiousHolidays.js:194
+#: religiousHolidays.js:197
 msgid "Purim"
 msgstr "普珥節"
 
-#: religiousHolidays.js:195
+#: religiousHolidays.js:198
 msgid "Passover begins"
 msgstr "逾越節開始"
 
-#: religiousHolidays.js:196
+#: religiousHolidays.js:199
 #, javascript-format
 msgid "Sefirat HaOmer — Day %s"
 msgstr "數算俄梅珥 — 第 %s 天"
 
-#: religiousHolidays.js:197
+#: religiousHolidays.js:200
 msgid "Shavuot"
 msgstr "五旬節"
 
-#: religiousHolidays.js:198
+#: religiousHolidays.js:201
 msgid "Rosh Hashanah"
 msgstr "猶太新年"
 
-#: religiousHolidays.js:199
+#: religiousHolidays.js:202
 msgid "Yom Kippur"
 msgstr "贖罪日"
 
-#: religiousHolidays.js:200
+#: religiousHolidays.js:203
 msgid "Hanukkah begins"
 msgstr "光明節開始"
 
-#: religiousHolidays.js:203
+#: religiousHolidays.js:206
 msgid "Naw-Rúz"
 msgstr "諾魯茲"
 
-#: religiousHolidays.js:209
+#: religiousHolidays.js:212
 msgid "Ridván begins"
 msgstr "裡茲萬開始"
 
-#: religiousHolidays.js:212
+#: religiousHolidays.js:215
 msgid "Mahavir Jayanti"
 msgstr "馬哈維爾·賈揚蒂"
 
-#: religiousHolidays.js:213
+#: religiousHolidays.js:216
 msgid "Paryushana begins"
 msgstr "帕尤薩納開始"
 
-#: religiousHolidays.js:216
+#: religiousHolidays.js:219
 msgid "Shōgatsu"
 msgstr "正月"
 
-#: religiousHolidays.js:217
+#: religiousHolidays.js:220
 msgid "Hinamatsuri"
 msgstr "女兒節"
 
-#: religiousHolidays.js:218
+#: religiousHolidays.js:221
 msgid "Tanabata"
 msgstr "七夕"
 
-#: religiousHolidays.js:219
+#: religiousHolidays.js:222
 msgid "Shichi-Go-San"
 msgstr "七五三"
 
-#: religiousHolidays.js:222
+#: religiousHolidays.js:225
 msgid "Chinese New Year"
 msgstr "中國新年"
 
-#: religiousHolidays.js:223
+#: religiousHolidays.js:226
 msgid "Qingming"
 msgstr "清明"
 
-#: religiousHolidays.js:224
+#: religiousHolidays.js:227
 msgid "Ghost Festival"
 msgstr "鬼節"
 
-#: worldclockData.js:65 chronos_settings_widgets_worldclocks.py:54
+#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:54
 msgid "Invalid timezone"
 msgstr "無效的時區"
 
-#: worldclockData.js:66
+#: worldclockData.js:74
 msgid "Local time"
 msgstr "當地時間"
 
@@ -267,113 +267,109 @@ msgstr "當地時間"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "行事曆小程式發生錯誤。請檢查系統日誌。"
 
-#: 6.0/appletMenuBuilder.js:313 6.0/appletMenuBuilder.js:319
+#: 6.0/appletMenuBuilder.js:310 6.0/appletMenuBuilder.js:316
 msgid "Go to today"
 msgstr "跳到今天"
 
-#: 6.0/appletMenuBuilder.js:406
+#: 6.0/appletMenuBuilder.js:403
 msgid "Date and Time Settings"
 msgstr "日期與時間設定"
 
-#: 6.0/appletPanelStatus.js:50
+#: 6.0/appletPanelStatus.js:56
 msgid "Invalid time format; edit it in Settings"
 msgstr "時間格式無效；請在設定中編輯"
 
-#: 6.0/appletPanelStatus.js:77
+#: 6.0/appletPanelStatus.js:83
 msgid "Location not found"
 msgstr "找不到位置"
 
-#: 6.0/appletPanelStatus.js:78
+#: 6.0/appletPanelStatus.js:84
 msgid "Weather service unavailable"
 msgstr "天氣服務無法使用"
 
-#: 6.0/appletPanelStatus.js:79
+#: 6.0/appletPanelStatus.js:85
 msgid "Set a weather location"
 msgstr "設定天氣位置"
 
-#: 6.0/appletPanelStatus.js:80
+#: 6.0/appletPanelStatus.js:86
 msgid "No network connection"
 msgstr "沒有網路連線"
 
-#: 6.0/appletPanelStatus.js:89
+#: 6.0/appletPanelStatus.js:95
 msgid "Clear"
 msgstr "晴朗"
 
-#: 6.0/appletPanelStatus.js:90
+#: 6.0/appletPanelStatus.js:96
 msgid "Partly cloudy"
 msgstr "多雲時晴"
 
-#: 6.0/appletPanelStatus.js:91
+#: 6.0/appletPanelStatus.js:97
 msgid "Cloudy"
 msgstr "陰天"
 
-#: 6.0/appletPanelStatus.js:92
+#: 6.0/appletPanelStatus.js:98
 msgid "Rain"
 msgstr "雨"
 
-#: 6.0/appletPanelStatus.js:93
+#: 6.0/appletPanelStatus.js:99
 msgid "Snow"
 msgstr "雪"
 
-#: 6.0/appletPanelStatus.js:94
+#: 6.0/appletPanelStatus.js:100
 msgid "Showers"
 msgstr "陣雨"
 
-#: 6.0/appletPanelStatus.js:95
+#: 6.0/appletPanelStatus.js:101
 msgid "Thunderstorm"
 msgstr "雷雨"
 
-#: 6.0/appletPanelStatus.js:96
+#: 6.0/appletPanelStatus.js:102
 msgid "Fair"
 msgstr "晴時多雲"
 
-#: 6.0/appletPanelStatus.js:116 6.0/appletPanelStatus.js:527
-#: 6.0/appletPanelStatus.js:708
+#: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:533
+#: 6.0/appletPanelStatus.js:723
 msgid "Weather: loading…"
 msgstr "天氣：載入中…"
 
-#: 6.0/appletPanelStatus.js:551
+#: 6.0/appletPanelStatus.js:557
 msgid "No weather for this timezone"
 msgstr "此時區沒有天氣資訊"
 
-#: 6.0/appletPanelStatus.js:562 6.0/appletPanelStatus.js:563
+#: 6.0/appletPanelStatus.js:568 6.0/appletPanelStatus.js:570
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s 最後已知的讀數"
 
-#: 6.0/astronomyView.js:23
+#: 6.0/astronomyView.js:29
 msgid "Times shown in this computer's time zone"
 msgstr "時間以此電腦的時區顯示"
 
-#: 6.0/astronomyView.js:161
+#: 6.0/astronomyView.js:169
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "日出：%s — 日落：%s"
 
-#: 6.0/astronomyView.js:162
+#: 6.0/astronomyView.js:170
 msgid "Sun is above the horizon all day"
 msgstr "太陽全天位於地平線上方"
 
-#: 6.0/astronomyView.js:163
+#: 6.0/astronomyView.js:171
 msgid "Sun is below the horizon all day"
 msgstr "太陽全天位於地平線下方"
 
-#: 6.0/astronomyView.js:165
+#: 6.0/astronomyView.js:173
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "月出：%s — 月落：%s"
 
-#: 6.0/astronomyView.js:166
+#: 6.0/astronomyView.js:174
 msgid "Moon is above the horizon all day"
 msgstr "月亮全天位於地平線上方"
 
-#: 6.0/astronomyView.js:167
+#: 6.0/astronomyView.js:175
 msgid "Moon is below the horizon all day"
 msgstr "月亮全天位於地平線下方"
-
-#: 6.0/calendar.js:67 6.0/eventView.js:46
-msgid "Some calendar events were hidden to keep the desktop responsive."
-msgstr "部分行事曆事件已隱藏，以保持桌面回應順暢。"
 
 #: 6.0/calendar.js:351
 msgid "Selected"
@@ -410,28 +406,28 @@ msgstr "下一年"
 msgid "Week"
 msgstr "週"
 
-#: 6.0/calendarAnnotations.js:103
+#: 6.0/calendarAnnotations.js:104
 msgid "Holiday service unavailable"
 msgstr "假日服務無法使用"
 
-#: 6.0/calendarAnnotations.js:104
+#: 6.0/calendarAnnotations.js:105
 msgid "Holiday data unavailable"
 msgstr "假日資料無法使用"
 
-#: 6.0/calendarAnnotations.js:106
+#: 6.0/calendarAnnotations.js:107
 msgid "Religious dates unavailable for this year"
 msgstr "本年度無宗教節日資料"
 
-#: 6.0/calendarAnnotations.js:274
+#: 6.0/calendarAnnotations.js:275
 msgid "Holiday data: loading…"
 msgstr "假日資料：載入中…"
 
-#: 6.0/calendarAnnotations.js:315
+#: 6.0/calendarAnnotations.js:317
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "假日資料：%s"
 
-#: 6.0/eventView.js:48
+#: 6.0/eventView.js:49
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -439,60 +435,60 @@ msgstr ""
 "無法取得行事曆活動 — 沒有執行中的行事曆服務。請安裝或啟用 Evolution Data "
 "Server。"
 
-#: 6.0/eventView.js:50
+#: 6.0/eventView.js:51
 msgid "Calendar events could not be refreshed."
 msgstr "無法重新整理行事曆事件。"
 
-#: 6.0/eventView.js:63
+#: 6.0/eventView.js:64
 msgid "Public holiday and religious observance"
 msgstr "國定假日和宗教節日"
 
-#: 6.0/eventView.js:66
+#: 6.0/eventView.js:67
 msgid "Public holiday"
 msgstr "國定假日"
 
-#: 6.0/eventView.js:69
+#: 6.0/eventView.js:70
 msgid "Religious observance"
 msgstr "宗教節日"
 
-#: 6.0/eventView.js:71
+#: 6.0/eventView.js:72
 msgid "Holiday"
 msgstr "假日"
 
-#: 6.0/eventView.js:130
+#: 6.0/eventView.js:131
 msgid "Starting in a few minutes"
 msgstr "將在幾分鐘後開始"
 
-#: 6.0/eventView.js:137
+#: 6.0/eventView.js:138
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "%d 分鐘後開始"
 
-#: 6.0/eventView.js:147
+#: 6.0/eventView.js:148
 msgid "This evening"
 msgstr "今晚"
 
-#: 6.0/eventView.js:150
+#: 6.0/eventView.js:151
 msgid "Starting later today"
 msgstr "今天稍晚開始"
 
-#: 6.0/eventView.js:153
+#: 6.0/eventView.js:154
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "%d 小時後"
 
-#: 6.0/eventView.js:239
+#: 6.0/eventView.js:240
 msgid "Loading…"
 msgstr "載入中…"
 
-#: 6.0/eventView.js:243 6.0/eventView.js:253 6.0/eventView.js:398
+#: 6.0/eventView.js:244 6.0/eventView.js:254 6.0/eventView.js:399
 #: 6.0/eventView.js:801
 msgid "No Events"
 msgstr "沒有任何活動"
 
-#: 6.0/eventView.js:421 6.0/eventView.js:440 6.0/eventView.js:451
+#: 6.0/eventView.js:422 6.0/eventView.js:441 6.0/eventView.js:452
 msgid "Open the calendar app"
 msgstr "開啟行事曆應用程式"
 
@@ -504,19 +500,23 @@ msgstr "所選日期的活動"
 msgid "Add an event"
 msgstr "新增活動"
 
-#: 6.0/eventView.js:943
+#: 6.0/eventView.js:942
 msgid "Ended"
 msgstr "已結束"
 
-#: 6.0/eventView.js:980
+#: 6.0/eventView.js:979
 msgid "In progress"
 msgstr "進行中"
 
-#: 6.0/worldclocks.js:242 6.0/worldclocks.js:243
+#: 6.0/uiVocabulary.js:35
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr "部分行事曆事件已隱藏，以保持桌面回應順暢。"
+
+#: 6.0/worldclocks.js:255 6.0/worldclocks.js:256
 msgid "World clocks"
 msgstr "世界時鐘"
 
-#: 6.0/worldclocks.js:242
+#: 6.0/worldclocks.js:255
 #, javascript-format
 msgid "Source: %s"
 msgstr "來源：%s"
@@ -525,7 +525,7 @@ msgstr "來源：%s"
 msgid "Type a country name"
 msgstr "輸入國家名稱"
 
-#: chronos_settings_widgets_weather.py:31
+#: chronos_settings_widgets_weather.py:30
 msgid "City or town (e.g. Lisbon)"
 msgstr "城市或城鎮（例如里斯本）"
 
@@ -563,11 +563,11 @@ msgstr ""
 "找不到時區資料庫。請安裝 python3-pytz 以便輸入城市名稱；若沒有安裝，只接受 "
 "America/Sao_Paulo 這類完整識別碼。"
 
-#: chronos_settings_widgets_worldclocks.py:321
+#: chronos_settings_widgets_worldclocks.py:286
 msgid "Add new entry"
 msgstr "新增項目"
 
-#: chronos_settings_widgets_worldclocks.py:326
+#: chronos_settings_widgets_worldclocks.py:290
 msgid "Edit entry"
 msgstr "編輯項目"
 

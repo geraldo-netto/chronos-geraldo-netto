@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 13:28+0200\n"
+"POT-Creation-Date: 2026-08-06 14:56+0200\n"
 "PO-Revision-Date: 2025-01-03 15:08+0100\n"
 "Last-Translator: Dragone2 <dragone2@risposteinformatiche.it>\n"
 "Language-Team: \n"
@@ -27,21 +27,21 @@ msgstr "%-e %B %Y"
 msgid "%A, %B %-e, %Y"
 msgstr "%A %-e %B %Y"
 
-#: eventFormat.js:76 eventFormat.js:103 eventFormat.js:135 eventFormat.js:149
+#: eventFormat.js:84 eventFormat.js:111 eventFormat.js:143 eventFormat.js:157
 #: 6.0/calendar.js:348
 msgid "Today"
 msgstr "Oggi"
 
-#: eventFormat.js:109 eventFormat.js:151
+#: eventFormat.js:117 eventFormat.js:159
 #, javascript-format
 msgid "%s Today"
 msgstr "%s oggi"
 
-#: eventFormat.js:179
+#: eventFormat.js:187
 msgid "All day"
 msgstr "Tutto il giorno"
 
-#: localeText.js:86
+#: localeText.js:89
 #, javascript-format
 msgid "%s — %s"
 msgstr "%s — %s"
@@ -96,172 +96,172 @@ msgstr "Shintoismo"
 msgid "Taoism"
 msgstr "Taoismo"
 
-#: religiousHolidays.js:162
+#: religiousHolidays.js:165
 msgid "Epiphany"
 msgstr "Epifania"
 
-#: religiousHolidays.js:163
+#: religiousHolidays.js:166
 msgid "Good Friday"
 msgstr "Venerdì Santo"
 
-#: religiousHolidays.js:164
+#: religiousHolidays.js:167
 msgid "Easter Sunday"
 msgstr "Domenica di Pasqua"
 
-#: religiousHolidays.js:165
+#: religiousHolidays.js:168
 msgid "Pentecost"
 msgstr "Pentecoste"
 
-#: religiousHolidays.js:166
+#: religiousHolidays.js:169
 msgid "All Saints' Day"
 msgstr "Giorno di Tutti i Santi"
 
-#: religiousHolidays.js:167
+#: religiousHolidays.js:170
 msgid "Christmas Day"
 msgstr "Giorno di Natale"
 
-#: religiousHolidays.js:170
+#: religiousHolidays.js:173
 msgid "Islamic New Year"
 msgstr "Capodanno islamico"
 
-#: religiousHolidays.js:171
+#: religiousHolidays.js:174
 msgid "Mawlid"
 msgstr "Mawlid"
 
-#: religiousHolidays.js:172
+#: religiousHolidays.js:175
 msgid "Ramadan begins"
 msgstr "Inizia il Ramadan"
 
-#: religiousHolidays.js:173
+#: religiousHolidays.js:176
 msgid "Eid al-Fitr"
 msgstr "Eid al-Fitr"
 
-#: religiousHolidays.js:174
+#: religiousHolidays.js:177
 msgid "Eid al-Adha"
 msgstr "Eid al-Adha"
 
-#: religiousHolidays.js:177
+#: religiousHolidays.js:180
 msgid "Makar Sankranti"
 msgstr "Makar Sankranti"
 
-#: religiousHolidays.js:178
+#: religiousHolidays.js:181
 msgid "Maha Shivaratri"
 msgstr "Maha Shivaratri"
 
-#: religiousHolidays.js:179
+#: religiousHolidays.js:182
 msgid "Holi"
 msgstr "Holi"
 
-#: religiousHolidays.js:180
+#: religiousHolidays.js:183
 msgid "Krishna Janmashtami"
 msgstr "Krishna Janmashtami"
 
-#: religiousHolidays.js:181
+#: religiousHolidays.js:184
 msgid "Diwali"
 msgstr "Diwali"
 
-#: religiousHolidays.js:184
+#: religiousHolidays.js:187
 msgid "Parinirvana Day"
 msgstr "Giorno del Parinirvana"
 
-#: religiousHolidays.js:185
+#: religiousHolidays.js:188
 msgid "Vesak"
 msgstr "Vesak"
 
-#: religiousHolidays.js:186
+#: religiousHolidays.js:189
 msgid "Bodhi Day"
 msgstr "Giorno della Bodhi"
 
-#: religiousHolidays.js:189
+#: religiousHolidays.js:192
 msgid "Guru Gobind Singh Jayanti"
 msgstr "Guru Gobind Singh Jayanti"
 
-#: religiousHolidays.js:190
+#: religiousHolidays.js:193
 msgid "Vaisakhi"
 msgstr "Vaisakhi"
 
-#: religiousHolidays.js:191
+#: religiousHolidays.js:194
 msgid "Guru Nanak Jayanti"
 msgstr "Guru Nanak Jayanti"
 
-#: religiousHolidays.js:194
+#: religiousHolidays.js:197
 msgid "Purim"
 msgstr "Purìm"
 
-#: religiousHolidays.js:195
+#: religiousHolidays.js:198
 msgid "Passover begins"
 msgstr "Inizia Pesach"
 
-#: religiousHolidays.js:196
+#: religiousHolidays.js:199
 #, javascript-format
 msgid "Sefirat HaOmer — Day %s"
 msgstr "Sefirat HaOmer — Giorno %s"
 
-#: religiousHolidays.js:197
+#: religiousHolidays.js:200
 msgid "Shavuot"
 msgstr "Shavuot"
 
-#: religiousHolidays.js:198
+#: religiousHolidays.js:201
 msgid "Rosh Hashanah"
 msgstr "Rosh Hashanah"
 
-#: religiousHolidays.js:199
+#: religiousHolidays.js:202
 msgid "Yom Kippur"
 msgstr "Yom Kippur"
 
-#: religiousHolidays.js:200
+#: religiousHolidays.js:203
 msgid "Hanukkah begins"
 msgstr "Inizia Hanukkah"
 
-#: religiousHolidays.js:203
+#: religiousHolidays.js:206
 msgid "Naw-Rúz"
 msgstr "Naw-Rúz"
 
-#: religiousHolidays.js:209
+#: religiousHolidays.js:212
 msgid "Ridván begins"
 msgstr "Comincia Ridván"
 
-#: religiousHolidays.js:212
+#: religiousHolidays.js:215
 msgid "Mahavir Jayanti"
 msgstr "Mahavir Jayanti"
 
-#: religiousHolidays.js:213
+#: religiousHolidays.js:216
 msgid "Paryushana begins"
 msgstr "Inizia Parjushana"
 
-#: religiousHolidays.js:216
+#: religiousHolidays.js:219
 msgid "Shōgatsu"
 msgstr "Shōgatsu"
 
-#: religiousHolidays.js:217
+#: religiousHolidays.js:220
 msgid "Hinamatsuri"
 msgstr "Hinamatsuri"
 
-#: religiousHolidays.js:218
+#: religiousHolidays.js:221
 msgid "Tanabata"
 msgstr "Tanabata"
 
-#: religiousHolidays.js:219
+#: religiousHolidays.js:222
 msgid "Shichi-Go-San"
 msgstr "Shichi-Go-San"
 
-#: religiousHolidays.js:222
+#: religiousHolidays.js:225
 msgid "Chinese New Year"
 msgstr "Capodanno cinese"
 
-#: religiousHolidays.js:223
+#: religiousHolidays.js:226
 msgid "Qingming"
 msgstr "Qingming"
 
-#: religiousHolidays.js:224
+#: religiousHolidays.js:227
 msgid "Ghost Festival"
 msgstr "Festival dei fantasmi"
 
-#: worldclockData.js:65 chronos_settings_widgets_worldclocks.py:54
+#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:54
 msgid "Invalid timezone"
 msgstr "Fuso orario non valido"
 
-#: worldclockData.js:66
+#: worldclockData.js:74
 msgid "Local time"
 msgstr "Ora locale"
 
@@ -271,115 +271,109 @@ msgstr ""
 "L'applet del calendario ha riscontrato un errore. Controllare il registro di "
 "sistema."
 
-#: 6.0/appletMenuBuilder.js:313 6.0/appletMenuBuilder.js:319
+#: 6.0/appletMenuBuilder.js:310 6.0/appletMenuBuilder.js:316
 msgid "Go to today"
 msgstr "Vai a oggi"
 
-#: 6.0/appletMenuBuilder.js:406
+#: 6.0/appletMenuBuilder.js:403
 msgid "Date and Time Settings"
 msgstr "Impostazioni Data e Ora"
 
-#: 6.0/appletPanelStatus.js:50
+#: 6.0/appletPanelStatus.js:56
 msgid "Invalid time format; edit it in Settings"
 msgstr "Formato ora non valido; modificarlo nelle impostazioni"
 
-#: 6.0/appletPanelStatus.js:77
+#: 6.0/appletPanelStatus.js:83
 msgid "Location not found"
 msgstr "Località non trovata"
 
-#: 6.0/appletPanelStatus.js:78
+#: 6.0/appletPanelStatus.js:84
 msgid "Weather service unavailable"
 msgstr "Servizio meteo non disponibile"
 
-#: 6.0/appletPanelStatus.js:79
+#: 6.0/appletPanelStatus.js:85
 msgid "Set a weather location"
 msgstr "Imposta una località meteo"
 
-#: 6.0/appletPanelStatus.js:80
+#: 6.0/appletPanelStatus.js:86
 msgid "No network connection"
 msgstr "Nessuna connessione di rete"
 
-#: 6.0/appletPanelStatus.js:89
+#: 6.0/appletPanelStatus.js:95
 msgid "Clear"
 msgstr "Sereno"
 
-#: 6.0/appletPanelStatus.js:90
+#: 6.0/appletPanelStatus.js:96
 msgid "Partly cloudy"
 msgstr "Parzialmente nuvoloso"
 
-#: 6.0/appletPanelStatus.js:91
+#: 6.0/appletPanelStatus.js:97
 msgid "Cloudy"
 msgstr "Nuvoloso"
 
-#: 6.0/appletPanelStatus.js:92
+#: 6.0/appletPanelStatus.js:98
 msgid "Rain"
 msgstr "Pioggia"
 
-#: 6.0/appletPanelStatus.js:93
+#: 6.0/appletPanelStatus.js:99
 msgid "Snow"
 msgstr "Neve"
 
-#: 6.0/appletPanelStatus.js:94
+#: 6.0/appletPanelStatus.js:100
 msgid "Showers"
 msgstr "Rovesci"
 
-#: 6.0/appletPanelStatus.js:95
+#: 6.0/appletPanelStatus.js:101
 msgid "Thunderstorm"
 msgstr "Temporale"
 
-#: 6.0/appletPanelStatus.js:96
+#: 6.0/appletPanelStatus.js:102
 msgid "Fair"
 msgstr "Poco nuvoloso"
 
-#: 6.0/appletPanelStatus.js:116 6.0/appletPanelStatus.js:527
-#: 6.0/appletPanelStatus.js:708
+#: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:533
+#: 6.0/appletPanelStatus.js:723
 msgid "Weather: loading…"
 msgstr "Meteo: caricamento…"
 
-#: 6.0/appletPanelStatus.js:551
+#: 6.0/appletPanelStatus.js:557
 msgid "No weather for this timezone"
 msgstr "Nessun meteo per questo fuso orario"
 
-#: 6.0/appletPanelStatus.js:562 6.0/appletPanelStatus.js:563
+#: 6.0/appletPanelStatus.js:568 6.0/appletPanelStatus.js:570
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Ultima misurazione nota"
 
-#: 6.0/astronomyView.js:23
+#: 6.0/astronomyView.js:29
 msgid "Times shown in this computer's time zone"
 msgstr "Orari mostrati nel fuso orario di questo computer"
 
-#: 6.0/astronomyView.js:161
+#: 6.0/astronomyView.js:169
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Alba: %s — Tramonto: %s"
 
-#: 6.0/astronomyView.js:162
+#: 6.0/astronomyView.js:170
 msgid "Sun is above the horizon all day"
 msgstr "Il Sole è sopra l’orizzonte tutto il giorno"
 
-#: 6.0/astronomyView.js:163
+#: 6.0/astronomyView.js:171
 msgid "Sun is below the horizon all day"
 msgstr "Il Sole è sotto l’orizzonte tutto il giorno"
 
-#: 6.0/astronomyView.js:165
+#: 6.0/astronomyView.js:173
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Sorgere della Luna: %s — Tramonto della Luna: %s"
 
-#: 6.0/astronomyView.js:166
+#: 6.0/astronomyView.js:174
 msgid "Moon is above the horizon all day"
 msgstr "La Luna è sopra l’orizzonte tutto il giorno"
 
-#: 6.0/astronomyView.js:167
+#: 6.0/astronomyView.js:175
 msgid "Moon is below the horizon all day"
 msgstr "La Luna è sotto l’orizzonte tutto il giorno"
-
-#: 6.0/calendar.js:67 6.0/eventView.js:46
-msgid "Some calendar events were hidden to keep the desktop responsive."
-msgstr ""
-"Alcuni eventi del calendario sono stati nascosti per mantenere reattivo il "
-"desktop."
 
 #: 6.0/calendar.js:351
 msgid "Selected"
@@ -417,28 +411,28 @@ msgstr "Anno successivo"
 msgid "Week"
 msgstr "Settimana"
 
-#: 6.0/calendarAnnotations.js:103
+#: 6.0/calendarAnnotations.js:104
 msgid "Holiday service unavailable"
 msgstr "Servizio festività non disponibile"
 
-#: 6.0/calendarAnnotations.js:104
+#: 6.0/calendarAnnotations.js:105
 msgid "Holiday data unavailable"
 msgstr "Dati festività non disponibili"
 
-#: 6.0/calendarAnnotations.js:106
+#: 6.0/calendarAnnotations.js:107
 msgid "Religious dates unavailable for this year"
 msgstr "Date religiose non disponibili per quest'anno"
 
-#: 6.0/calendarAnnotations.js:274
+#: 6.0/calendarAnnotations.js:275
 msgid "Holiday data: loading…"
 msgstr "Dati festività: caricamento…"
 
-#: 6.0/calendarAnnotations.js:315
+#: 6.0/calendarAnnotations.js:317
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dati festività: %s"
 
-#: 6.0/eventView.js:48
+#: 6.0/eventView.js:49
 msgid ""
 "Calendar events are unavailable — no calendar service is running. Install or "
 "enable Evolution Data Server."
@@ -446,62 +440,62 @@ msgstr ""
 "Gli eventi del calendario non sono disponibili: nessun servizio di "
 "calendario è in esecuzione. Installare o abilitare Evolution Data Server."
 
-#: 6.0/eventView.js:50
+#: 6.0/eventView.js:51
 msgid "Calendar events could not be refreshed."
 msgstr "Impossibile aggiornare gli eventi del calendario."
 
-#: 6.0/eventView.js:63
+#: 6.0/eventView.js:64
 msgid "Public holiday and religious observance"
 msgstr "Festività pubblica e ricorrenza religiosa"
 
-#: 6.0/eventView.js:66
+#: 6.0/eventView.js:67
 msgid "Public holiday"
 msgstr "Festività pubblica"
 
-#: 6.0/eventView.js:69
+#: 6.0/eventView.js:70
 msgid "Religious observance"
 msgstr "Ricorrenza religiosa"
 
-#: 6.0/eventView.js:71
+#: 6.0/eventView.js:72
 msgid "Holiday"
 msgstr "Festività"
 
-#: 6.0/eventView.js:130
+#: 6.0/eventView.js:131
 msgid "Starting in a few minutes"
 msgstr "Tra pochi minuti"
 
-#: 6.0/eventView.js:137
+#: 6.0/eventView.js:138
 #, javascript-format
 msgid "Starting in %d minute"
 msgid_plural "Starting in %d minutes"
 msgstr[0] "Inizia tra %d minuto"
 msgstr[1] "Inizia tra %d minuti"
 
-#: 6.0/eventView.js:147
+#: 6.0/eventView.js:148
 msgid "This evening"
 msgstr "Questa mattina"
 
-#: 6.0/eventView.js:150
+#: 6.0/eventView.js:151
 msgid "Starting later today"
 msgstr "In giornata"
 
-#: 6.0/eventView.js:153
+#: 6.0/eventView.js:154
 #, javascript-format
 msgid "In %d hour"
 msgid_plural "In %d hours"
 msgstr[0] "Tra %d ora"
 msgstr[1] "Tra %d ore"
 
-#: 6.0/eventView.js:239
+#: 6.0/eventView.js:240
 msgid "Loading…"
 msgstr "Caricamento…"
 
-#: 6.0/eventView.js:243 6.0/eventView.js:253 6.0/eventView.js:398
+#: 6.0/eventView.js:244 6.0/eventView.js:254 6.0/eventView.js:399
 #: 6.0/eventView.js:801
 msgid "No Events"
 msgstr "Nessun evento"
 
-#: 6.0/eventView.js:421 6.0/eventView.js:440 6.0/eventView.js:451
+#: 6.0/eventView.js:422 6.0/eventView.js:441 6.0/eventView.js:452
 msgid "Open the calendar app"
 msgstr "Apri l’applicazione calendario"
 
@@ -513,19 +507,25 @@ msgstr "Eventi del giorno selezionato"
 msgid "Add an event"
 msgstr "Aggiungi un evento"
 
-#: 6.0/eventView.js:943
+#: 6.0/eventView.js:942
 msgid "Ended"
 msgstr "Terminato"
 
-#: 6.0/eventView.js:980
+#: 6.0/eventView.js:979
 msgid "In progress"
 msgstr "In corso"
 
-#: 6.0/worldclocks.js:242 6.0/worldclocks.js:243
+#: 6.0/uiVocabulary.js:35
+msgid "Some calendar events were hidden to keep the desktop responsive."
+msgstr ""
+"Alcuni eventi del calendario sono stati nascosti per mantenere reattivo il "
+"desktop."
+
+#: 6.0/worldclocks.js:255 6.0/worldclocks.js:256
 msgid "World clocks"
 msgstr "Orologi mondiali"
 
-#: 6.0/worldclocks.js:242
+#: 6.0/worldclocks.js:255
 #, javascript-format
 msgid "Source: %s"
 msgstr "Fonte: %s"
@@ -534,7 +534,7 @@ msgstr "Fonte: %s"
 msgid "Type a country name"
 msgstr "Digita il nome di un paese"
 
-#: chronos_settings_widgets_weather.py:31
+#: chronos_settings_widgets_weather.py:30
 msgid "City or town (e.g. Lisbon)"
 msgstr "Città o paese (ad es. Lisbona)"
 
@@ -573,11 +573,11 @@ msgstr ""
 "il nome di una città; senza di esso è accettato solo un identificatore "
 "completo come America/Sao_Paulo."
 
-#: chronos_settings_widgets_worldclocks.py:321
+#: chronos_settings_widgets_worldclocks.py:286
 msgid "Add new entry"
 msgstr "Aggiungi nuova voce"
 
-#: chronos_settings_widgets_worldclocks.py:326
+#: chronos_settings_widgets_worldclocks.py:290
 msgid "Edit entry"
 msgstr "Modifica voce"
 
