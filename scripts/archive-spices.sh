@@ -14,15 +14,15 @@ export LC_ALL=C
 # only the lines it is given: a manifest that is short still passes, over a tar
 # that carries the files it does not list. So prove the list is not empty and
 # that every entry in it reached the manifest, the way the executable-mode check
-# in the release job guards itself with `test -s`.
+# in the release job guards itself with a non-empty-file check.
 find chronos@geraldo-netto -type f -print0 | sort -z > packaged-files
-test -s packaged-files
+[[ -s packaged-files ]]
 
 xargs -0 -r sha256sum < packaged-files > chronos-spices.sha256
 
 packaged_count=$(tr -cd '\0' < packaged-files | wc -c)
 manifest_count=$(wc -l < chronos-spices.sha256)
-test "$packaged_count" -eq "$manifest_count"
+(( packaged_count == manifest_count ))
 
 rm packaged-files
 chmod 0644 chronos-spices.sha256
