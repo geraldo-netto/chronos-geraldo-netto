@@ -95,6 +95,7 @@ function gjsImportsMock() {
                         },
                         textUtils: {
                             clampText(text, max) { return String(text).slice(0, max); },
+                            displayWidth(text) { return Array.from(String(text)).length; },
                             textWithinLimit(text, max) {
                                 return Array.from(String(text)).length <= max;
                             },
@@ -294,7 +295,8 @@ const EXPORTS = {
     dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
-    textUtils: ["clampText", "textWithinLimit", "normalizeBoundedText", "urlForLog", "TEXT_ELLIPSIS"],
+    textUtils: ["clampText", "displayWidth", "textWithinLimit", "normalizeBoundedText",
+        "urlForLog", "TEXT_ELLIPSIS"],
     localeText: ["translate", "translatePlural", "joinPhrases", "localeDirectory"],
     localeQuery: ["registerLocaleConsumer", "cancelPendingLocaleQueries",
         "onLocaleInfoChanged", "lazyLocaleValue", "MESSAGE_LANGUAGE_FALLBACK",

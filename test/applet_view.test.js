@@ -737,28 +737,78 @@ function randomTooltipRows(rand) {
     });
 }
 
+// The table is padded with spaces in a fixed-width font, so every offset below
+// is a count of cells. The oracle states the corpus's own widths rather than
+// calling production's displayWidth: the alphabets are a closed set, so it can
+// say outright that the CJK one is double-width and the combining marks add
+// nothing. An alphabet extended without extending this map fails loudly.
+const FUZZ_CELL_WIDTHS = new Map();
+Array.from("abcdefghijklmnopqrstuvwxyz ÅÄÖéèçñüß-_/:.⛈☀❄🇯🇵").forEach(
+    (character) => FUZZ_CELL_WIDTHS.set(character, 1));
+Array.from("東京モスクワ🌧").forEach(
+    (character) => FUZZ_CELL_WIDTHS.set(character, 2));
+Array.from("́̈").forEach(
+    (character) => FUZZ_CELL_WIDTHS.set(character, 0));
+
+function fuzzCellWidth(text) {
+    let width = 0;
+    for (const character of Array.from(text)) {
+        const cells = FUZZ_CELL_WIDTHS.get(character);
+        assert.notEqual(cells, undefined,
+            `the oracle knows how many cells ${character} takes`);
+        width += cells;
+    }
+    return width;
+}
+
+// Where a cell offset lands in the rendered string. A space is one cell and a
+// character of the corpus may be two, so the two indexes are not the same.
+function charIndexAtCell(chars, targetCell) {
+    let cell = 0;
+    for (let index = 0; index < chars.length; index++) {
+        if (cell >= targetCell) {
+            return index;
+        }
+        cell += FUZZ_CELL_WIDTHS.get(chars[index]);
+    }
+    return chars.length;
+}
+
 function tooltipColumnWidths(rows) {
     const widths = [];
     rows.forEach((cells) => cells.forEach((cell, column) => {
-        widths[column] = Math.max(widths[column] || 0, Array.from(cell).length);
+        widths[column] = Math.max(widths[column] || 0, fuzzCellWidth(cell));
     }));
     return widths;
+}
+
+function advancingChars(text) {
+    return Array.from(text).filter((character) => FUZZ_CELL_WIDTHS.get(character) > 0);
 }
 
 function assertTooltipCell(chars, cell, column, last, offset, widths, row) {
     // A trailing empty cell is trimmed off the row entirely. Temperatures are
     // right-aligned, so their cell ends at the shared boundary.
-    const expected = last && !cell ? "" : cell;
-    const size = Array.from(expected).length;
-    const start = column === 2 ? offset + widths[column] - size : offset;
-    assert.equal(chars.slice(start, start + size).join(""), expected,
-        `row ${row} column ${column} sits on the shared offset`);
+    const expected = advancingChars(last && !cell ? "" : cell).join("");
+    const size = fuzzCellWidth(expected);
+    const startCell = column === 2 ? offset + widths[column] - size : offset;
+    const start = charIndexAtCell(chars, startCell);
+    assert.equal(chars.slice(start, charIndexAtCell(chars, startCell + size)).join(""),
+        expected, `row ${row} column ${column} sits on the shared offset`);
 }
 
 function assertTooltipLine(line, cells, widths, row) {
-    const chars = Array.from(line);
     assert.ok(line.isWellFormed(), "no glyph is split by the padding");
     assert.doesNotMatch(line, /\s$/, "no row ends in padding");
+    // Padding only ever inserts spaces, so every other character — the
+    // zero-width marks included — has to survive it in order.
+    assert.equal(Array.from(line).filter((character) => character !== " ").join(""),
+        cells.join("").replace(/ /g, ""), // NOSONAR [S7781] -- accepted compatible form
+        `row ${row} keeps every glyph the cells gave it`);
+
+    // A zero-width mark advances no cell, so it cannot be found by one. The
+    // offsets are checked against what the fixed-width font actually advances.
+    const chars = advancingChars(line);
     let offset = 0;
     cells.forEach((cell, column) => {
         assertTooltipCell(chars, cell, column, column === cells.length - 1,

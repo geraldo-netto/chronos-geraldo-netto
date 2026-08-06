@@ -49,11 +49,14 @@ const DEFAULT_DATE_TIME_FORMAT = SettingsFacade.DEFAULT_DATE_TIME_FORMAT;
 const TOOLTIP_TEMPERATURE_COLUMN = 2;
 const INVALID_TIME_FORMAT_TEXT = _("Invalid time format; edit it in Settings");
 
+// Cells, not code points: the tooltip is padded with spaces in a fixed-width
+// font, so a CJK label or a translated condition has to be measured in the
+// units the padding is made of. See TextUtils.displayWidth.
 function tooltipColumnWidths(rows) {
     const widths = [];
     rows.forEach((cells) => {
         cells.forEach((cell, column) => {
-            const width = Array.from(cell).length;
+            const width = TextUtils.displayWidth(cell);
             widths[column] = Math.max(widths[column] || 0, width);
         });
     });
@@ -61,7 +64,7 @@ function tooltipColumnWidths(rows) {
 }
 
 function alignedTooltipCell(cell, column, cells, widths) {
-    const pad = widths[column] - Array.from(cell).length;
+    const pad = widths[column] - TextUtils.displayWidth(cell);
     const padding = " ".repeat(Math.max(pad, 0)); // NOSONAR [S7766] -- accepted compatible form
     if (column === TOOLTIP_TEMPERATURE_COLUMN) {
         return padding + cell;

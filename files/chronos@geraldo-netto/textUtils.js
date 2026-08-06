@@ -67,6 +67,53 @@ function normalizeBoundedText(text, maxLength) {
     return text.trim();
 }
 
+// UAX #11 Wide and Fullwidth, as ranges: ECMAScript publishes no
+// \p{East_Asian_Width} escape, so the property has to be spelled out. The
+// combining marks and format characters below do have escapes, and are exactly
+// what those escapes mean, so they are written as escapes.
+//
+// East Asian Ambiguous is counted as one cell. UAX #11 makes it
+// context-dependent — two cells only under a legacy East Asian font — and the
+// ambiguous characters this applet renders (the ⚠ failure marker, the degree
+// sign) come from its own strings, in fonts where they are narrow.
+const WIDE_RANGES = [
+    [0x1100, 0x115f], [0x2e80, 0x303e], [0x3041, 0x33ff],
+    [0x3400, 0x4dbf], [0x4e00, 0x9fff], [0xa000, 0xa4cf],
+    [0xa960, 0xa97f], [0xac00, 0xd7a3], [0xf900, 0xfaff],
+    [0xfe10, 0xfe19], [0xfe30, 0xfe6f], [0xff00, 0xff60],
+    [0xffe0, 0xffe6], [0x17000, 0x18aff], [0x1b000, 0x1b16f],
+    [0x1f300, 0x1f64f], [0x1f900, 0x1f9ff], [0x20000, 0x3fffd]
+];
+const ZERO_WIDTH_MARKS = /[\p{Mn}\p{Me}\p{Cf}]/u;
+
+function wideCodePoint(codePoint) {
+    return WIDE_RANGES.some(([first, last]) => codePoint >= first && codePoint <= last);
+}
+
+// How many cells this text occupies in a fixed-width font.
+//
+// The panel tooltip is a table of clocks lined up with space padding, and the
+// stylesheet sets `font-family: monospace` on it for exactly that reason — so
+// the padding is only correct if it is computed in cells. A code-point count is
+// not one: an ideograph or a fullwidth form takes two, a combining mark or a
+// zero-width joiner takes none. The label column is the user's own text and the
+// condition column is translated, so in a zh/ja/ko session every column after
+// the first was out of step with its heading.
+function displayWidth(text) {
+    if (typeof text !== "string") {
+        return 0;
+    }
+
+    let width = 0;
+    for (const character of text) {
+        if (ZERO_WIDTH_MARKS.test(character)) {
+            continue;
+        }
+        width += wideCodePoint(character.codePointAt(0)) ? 2 : 1;
+    }
+    return width;
+}
+
 // Keep user-supplied query strings and fragments out of logs without pulling
 // the HTTP stack into code that only needs a printable provider identity.
 function urlForLog(url) {
@@ -107,6 +154,7 @@ function clampText(text, maxLength) {
 if (typeof module !== "undefined") {
     module.exports = {
         clampText,
+        displayWidth,
         sanitizeControlCharacters,
         textWithinLimit,
         normalizeBoundedText,
