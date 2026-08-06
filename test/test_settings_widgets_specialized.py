@@ -794,6 +794,67 @@ class WorldClockSavedNormalizationTest(unittest.TestCase):
         self.assertEqual(clocks.model.rows, expected)
         self.assertFalse(clocks.add_button.sensitive)
 
+    def count_local_timezone_reads(self, answer=FIXED_LOCAL_TIMEZONE):
+        """Count the one place the local zone is read from.
+
+        runtime_local_timezone and is_runtime_builtin_timezone's per-call
+        fallback both reach the gi-free sibling's own global, so patching it
+        there counts every read either path could make.
+        """
+        reads = []
+
+        def counted():
+            reads.append(True)
+            return answer
+
+        sibling = self.module.is_runtime_builtin_timezone.__globals__
+        original = sibling["local_timezone_name"]
+        sibling["local_timezone_name"] = counted
+        self.addCleanup(sibling.__setitem__, "local_timezone_name", original)
+        return reads
+
+    def test_the_local_zone_is_read_once_for_a_whole_saved_list(self):
+        """T844: is_runtime_builtin_timezone was called without the
+        local_timezone argument it already accepts, so every saved row
+        re-resolved the machine's own zone — $TZ, or an os.readlink of
+        /etc/localtime — on the GTK main thread before the page was drawn."""
+        reads = self.count_local_timezone_reads()
+        rows = [{"label": "Clock %d" % index, "timezone": "Region/City_%d" % index}
+                for index in range(self.module.MAX_CLOCKS)]
+
+        self.assertEqual(self.module.normalize_saved_clocks(rows), rows)
+        self.assertEqual(len(reads), 1, "once for the list, not once per row")
+
+    def test_a_machine_with_no_zoneinfo_name_is_still_read_once(self):
+        """None is what asks is_runtime_builtin_timezone to resolve a zone for
+        itself, so the once-per-list answer has to be "" — otherwise the machines
+        with no name to find are the ones that pay the lookup on every row."""
+        reads = self.count_local_timezone_reads(answer=None)
+        rows = [{"label": "Clock %d" % index, "timezone": "Region/City_%d" % index}
+                for index in range(self.module.MAX_CLOCKS)]
+
+        self.assertEqual(self.module.normalize_saved_clocks(rows), rows)
+        self.assertEqual(len(reads), 1)
+
+    def test_a_hand_edited_list_bounds_the_rows_it_examines(self):
+        """T844: the loop stopped at MAX_CLOCKS *accepted* rows, so a list whose
+        entries were all rejected never filled the quota and walked every one."""
+        examined = []
+        original = self.module.normalize_saved_clock
+
+        def counted(row, local_timezone=None):
+            examined.append(row)
+            return original(row, local_timezone)
+
+        self.module.normalize_saved_clock = counted
+        self.addCleanup(
+            lambda: setattr(self.module, "normalize_saved_clock", original))
+        rejected = [{"label": "UTC duplicate", "timezone": "UTC"}] * (
+            self.module.MAX_SAVED_CLOCK_ROWS + 25)
+
+        self.assertEqual(self.module.normalize_saved_clocks(rejected), [])
+        self.assertEqual(len(examined), self.module.MAX_SAVED_CLOCK_ROWS)
+
     def test_an_effective_list_is_not_rewritten(self):
         saved = [{"label": "Rome", "timezone": "Europe/Rome"}]
         settings = FakeSettings({"worldclocks": saved})

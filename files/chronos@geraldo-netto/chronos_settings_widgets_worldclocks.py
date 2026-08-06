@@ -26,7 +26,11 @@ from typing import Optional
 from gi.repository import GLib, Gtk
 
 import chronos_settings_widgets_common as common
-from chronos_timezone_data import completion_key, is_runtime_builtin_timezone
+from chronos_timezone_data import (
+    completion_key,
+    is_runtime_builtin_timezone,
+    runtime_local_timezone,
+)
 from chronos_settings_i18n import _
 
 # i18n: bind the domain to a module-level name. Installing the translator
@@ -45,6 +49,14 @@ LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 # Kept here, not in chronos_timezone_data: schema_static reads this file for the cap and
 # the world-clock list height is checked against it.
 MAX_CLOCKS = 8
+# Rows *examined*, which is not the same bound as rows kept: normalize_saved_clocks
+# stops once MAX_CLOCKS rows have been accepted, so a list whose entries are all
+# rejected — every one of them spelling a zone the applet already draws, say —
+# never fills that quota and walks the whole array before the settings page is
+# drawn. The dialog cannot write more than MAX_CLOCKS rows, so anything past
+# this came from a hand-edited instance file, and eight rejects for every row
+# that could be kept is already more tolerance than a real list needs.
+MAX_SAVED_CLOCK_ROWS = MAX_CLOCKS * 8
 MAX_CLOCK_INPUT_LABEL_LENGTH = 128
 # idles spent waiting for the settings window to be parented before giving up on
 # centering it; without a bound this is a busy loop that never ends
@@ -221,7 +233,7 @@ def normalize_clock_label(value):
     return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip() + "…"
 
 
-def normalize_saved_clock(row) -> Optional[dict[str, str]]:
+def normalize_saved_clock(row, local_timezone=None) -> Optional[dict[str, str]]:
     if not isinstance(row, dict):
         return None
     label = normalize_clock_label(row.get("label"))
@@ -229,7 +241,7 @@ def normalize_saved_clock(row) -> Optional[dict[str, str]]:
     if not label or not isinstance(timezone, str):
         return None
     timezone = timezone.strip()
-    if not timezone or is_runtime_builtin_timezone(timezone):
+    if not timezone or is_runtime_builtin_timezone(timezone, local_timezone):
         return None
     return {"label": label, "timezone": timezone}
 
@@ -239,9 +251,17 @@ def normalize_saved_clocks(value) -> list[dict[str, str]]:
     if not isinstance(value, list):
         return []
 
+    # Resolved once and passed down. is_runtime_builtin_timezone falls back to
+    # local_timezone_name() per call, and that re-reads $TZ or re-follows the
+    # /etc/localtime symlink — one syscall per saved row, on the GTK main thread
+    # inside ClocksList.__init__, before the page is drawn. The JS twin
+    # (worldclockData.selectUserClocks) resolves its built-in keys once outside
+    # the loop for the same reason.
+    local_timezone = runtime_local_timezone()
+
     normalized = []
-    for row in value:
-        clock = normalize_saved_clock(row)
+    for row in value[:MAX_SAVED_CLOCK_ROWS]:
+        clock = normalize_saved_clock(row, local_timezone)
         if clock is None:
             continue
         normalized.append(clock)

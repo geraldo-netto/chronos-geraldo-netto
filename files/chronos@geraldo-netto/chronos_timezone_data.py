@@ -95,6 +95,20 @@ def local_timezone_name() -> Optional[str]:
     return zoneinfo_name(target)
 
 
+def runtime_local_timezone() -> str:
+    """The local zone, in the form is_runtime_builtin_timezone's parameter takes.
+
+    Resolving it costs a $TZ read or an os.readlink of /etc/localtime, and the
+    function below falls back to doing that once per call. A caller with a list
+    of rows resolves it here, once, and hands the answer down.
+
+    "" and not None: the parameter reads None as "resolve it yourself", so a
+    machine whose zone has no zoneinfo name would otherwise pay the lookup again
+    for every row — the exact cost this exists to avoid.
+    """
+    return local_timezone_name() or ""
+
+
 def is_runtime_builtin_timezone(
     value: Any,
     local_timezone: Optional[str] = None,
