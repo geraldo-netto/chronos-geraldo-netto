@@ -297,14 +297,6 @@ class PanelView {
         return this.port.todaySelected();
     }
 
-    selectEventsDate() {
-        this.port.selectEventsDate();
-    }
-
-    refreshEventRows() {
-        this.port.refreshEventRows();
-    }
-
     setHomeEnabled(enabled) {
         // this runs on every open-menu tick, and these writes were the one
         // undiffed path left in it: reactive/can_focus self-diff in Clutter,
@@ -763,6 +755,13 @@ class AppletPanelStatusPresenter {
         return this.view.getClockEntries();
     }
 
+    // Answers whether it refreshed the menu. The caller drives the event column
+    // off that: re-selecting the day can dispatch a month fetch to
+    // cinnamon-calendar-server and refreshing the rows redraws up to 200 of
+    // them, and neither is this class's business — its job is the panel label,
+    // the tooltip and the accessible name. Doing it here made the clock-refresh
+    // policy the only thing deciding when calendar data reloads, and left the
+    // two concerns impossible to change or test apart.
     updateClockAndDate(forceMenuUpdate = false) {
         const view = this.view;
         let label_string = DateFormats.clampClockStamp(view.formattedClock());
@@ -794,7 +793,7 @@ class AppletPanelStatusPresenter {
             if (view.panelHovered) {
                 this._setTooltipModel(clockModel);
             }
-            return;
+            return false;
         }
 
         let formattedToday = this.getFormattedToday();
@@ -810,15 +809,14 @@ class AppletPanelStatusPresenter {
         // and remains present when the world-clock block is switched off.
         view.setWeatherStatus(this.issueStatus(clockEntries, clockModel.issues));
 
-        view.selectEventsDate();
-        view.refreshEventRows();
-
         // The per-city temperature, the condition in words and the service that
         // answered lived only in the panel's mouse tooltip, so a keyboard-only
         // or screen-reader user never got any of it — and the provider credit is
         // a courtesy the data services are owed.
         view.updateWorldclocks(clockModel.popupEntries);
         view.setWeatherSource(view.showWeather ? clockModel.sources.join(", ") : "");
+
+        return true;
     }
 }
 

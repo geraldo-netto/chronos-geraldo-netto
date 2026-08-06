@@ -97,8 +97,6 @@ function createPanelPort(applet) {
         setWeatherStatus: (text) => applet._issueReporter.set("panel", text),
         getClockEntries: () => applet._worldclocks.getClockEntries(),
         todaySelected: () => applet._calendar.todaySelected(),
-        selectEventsDate: () => applet.events_manager.select_date(applet._calendar.getSelectedDate()),
-        refreshEventRows: () => applet.event_list.refresh_time_state(),
         homeButton: () => applet.go_home_button,
         focusSelectedDay: () => applet._calendar && applet._calendar.focusSelectedDay && // NOSONAR [S6582] -- accepted compatible form
             applet._calendar.focusSelectedDay()
@@ -552,7 +550,11 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
     _updateClockAndDate(forceMenuUpdate = false) {
         this._updateAstronomy(forceMenuUpdate);
-        this._panelStatus().updateClockAndDate(forceMenuUpdate);
+        // The panel presenter reports whether it drew the menu; the event
+        // column follows that, from here, rather than from inside it.
+        if (this._panelStatus().updateClockAndDate(forceMenuUpdate)) {
+            this._eventListCoordinator.tick();
+        }
     }
 
     _updateAstronomy(forceMenuUpdate = false) {

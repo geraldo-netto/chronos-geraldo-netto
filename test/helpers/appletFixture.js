@@ -399,6 +399,14 @@ function updateStub({ menuOpen = false } = {}) {
         },
         events_manager: { select_date: () => calls.selected++ },
         event_list: { refresh_time_state: () => calls.rowRefreshes++ },
+        // the tick drives the event column from the applet now, not from
+        // inside the panel presenter
+        _eventListCoordinator: {
+            tick() {
+                calls.selected++;
+                calls.rowRefreshes++;
+            }
+        },
         set_applet_label: (text) => calls.label.push(text),
         set_applet_tooltip: (text) => calls.tooltip.push(text)
     });

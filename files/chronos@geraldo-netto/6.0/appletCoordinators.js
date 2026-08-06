@@ -151,6 +151,19 @@ class AppletEventListCoordinator {
         }
     }
 
+    // The minute tick is what keeps the column's relative times ("in 20
+    // minutes") honest, and re-selecting the day is what reloads the month
+    // across a midnight rollover. Both used to run inside the panel presenter,
+    // so the panel's refresh policy silently decided when calendar data
+    // reloaded — and createPanelPort was two entries wider for it.
+    tick() {
+        this.manager.select_date(this.selectedDate());
+        const list = this.eventList();
+        if (list) {
+            list.refresh_time_state();
+        }
+    }
+
     ready(showEvents) {
         this.guard("events-ready", () => {
             this.update(showEvents());

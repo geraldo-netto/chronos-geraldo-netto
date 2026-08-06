@@ -1891,3 +1891,43 @@ test("tearing the menu down cancels a column draw still waiting on its idle", ()
         restore();
     }
 });
+
+// T821: AppletPanelStatusPresenter's job is the panel label, the tooltip and
+// the accessible name. It also ended every menu-refreshing tick by calling
+// view.selectEventsDate() and view.refreshEventRows() — re-selecting the day on
+// EventsManager, which can dispatch a month fetch to cinnamon-calendar-server,
+// and redrawing up to 200 event rows. The clock tick was therefore the only
+// driver of event-column freshness, so any change to the panel-refresh policy
+// silently changed when calendar data reloads, and neither concern could be
+// tested or changed without the other.
+test("the clock tick drives the event column from the applet, not the presenter", () => {
+    const port = AppletModule.createPanelPort({
+        _weatherCoordinator: {}, _calendar: {}, events_manager: {}, event_list: {}
+    });
+
+    assert.equal("selectEventsDate" in port, false,
+        "the panel port no longer reaches the data layer");
+    assert.equal("refreshEventRows" in port, false);
+
+    const calls = [];
+    const coordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: { is_active: () => true, select_date: (date) => calls.push(["select", date]) },
+        eventList: () => ({ refresh_time_state: () => calls.push(["rows"]) }),
+        selectedDate: () => "the day the grid has",
+        guard: (source, fn) => fn()
+    });
+
+    coordinator.tick();
+
+    assert.deepEqual(calls, [["select", "the day the grid has"], ["rows"]],
+        "the day is re-selected and the rows redrawn, in that order");
+
+    // an unbuilt column is not an error: the tick runs before the menu exists
+    const unbuilt = new CoordinatorModule.AppletEventListCoordinator({
+        manager: { is_active: () => true, select_date: () => calls.push(["select"]) },
+        eventList: () => null,
+        selectedDate: () => null,
+        guard: (source, fn) => fn()
+    });
+    assert.doesNotThrow(() => unbuilt.tick());
+});
