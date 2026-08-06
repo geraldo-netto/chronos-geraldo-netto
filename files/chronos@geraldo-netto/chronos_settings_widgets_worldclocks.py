@@ -622,27 +622,19 @@ class ClocksList(JSONSettingsList):
         if not self.show_buttons:
             return
 
-        # At the cap the Add button goes insensitive — and it had no tooltip, so
-        # the sentence that explains why ("No more than 8 clocks can be added.")
-        # was unreachable: it fires from open_add_edit_dialog(), which is reached
-        # by a click the button can no longer receive. The user got a dead button
-        # and no explanation anywhere.
+        # At the cap the Add button goes insensitive, so replace Cinnamon's
+        # stock icon label with the sentence explaining why it cannot be used.
+        # Below the cap, restore that label so assistive technology can name the
+        # otherwise icon-only control.
         full = self.model.iter_n_children(None) >= MAX_CLOCKS
         self.add_button.set_sensitive(not full)
         if not hasattr(self.add_button, "set_tooltip_text"):
             return
 
-        # Gtk.Widget.set_tooltip_text is annotated non-nullable here, so clearing
-        # the tooltip with None raises TypeError and takes the whole settings
-        # window down with it. Clear it with "" and drop has-tooltip, which is
-        # what None would have done: "" on its own leaves has-tooltip set and
-        # pops an empty box on hover.
         if full:
             self.add_button.set_tooltip_text(CLOCK_LIMIT_MESSAGE)
         else:
-            self.add_button.set_tooltip_text("")
-            if hasattr(self.add_button, "set_has_tooltip"):
-                self.add_button.set_has_tooltip(False)
+            self.add_button.set_tooltip_text(_("Add new entry"))
 
     def normalize_timezone(self, value, reserved=None):
         return self.timezone_resolver.normalize(value, reserved)

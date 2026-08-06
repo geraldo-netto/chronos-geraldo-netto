@@ -150,10 +150,9 @@ class SettingsWidgetsTest(unittest.TestCase):
         }, "worldclocks", object())
 
         self.assertTrue(clocks.add_button.sensitive)
-        self.assertFalse(clocks.add_button.tooltip,
-                         "a button that works needs no excuse")
-        self.assertFalse(clocks.add_button.has_tooltip,
-                         "an empty tooltip still pops an empty box on hover")
+        self.assertEqual(clocks.add_button.tooltip, "Add new entry",
+                         "the icon-only control keeps its accessible label")
+        self.assertTrue(clocks.add_button.has_tooltip)
 
         clocks.model = Model(self.module.MAX_CLOCKS)
         clocks.update_button_sensitivity()
@@ -168,12 +167,12 @@ class SettingsWidgetsTest(unittest.TestCase):
 
         self.assertTrue(clocks.add_button.has_tooltip)
 
-        # ...and removing one brings it back, with no stale excuse on it
+        # ...and removing one restores the action label, with no stale excuse
         clocks.model = Model(self.module.MAX_CLOCKS - 1)
         clocks.update_button_sensitivity()
         self.assertTrue(clocks.add_button.sensitive)
-        self.assertFalse(clocks.add_button.tooltip)
-        self.assertFalse(clocks.add_button.has_tooltip)
+        self.assertEqual(clocks.add_button.tooltip, "Add new entry")
+        self.assertTrue(clocks.add_button.has_tooltip)
 
     def test_hidden_list_buttons_skip_add_button_updates(self):
         clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
@@ -250,7 +249,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(clocks.model.rows, [])
         self.assertTrue(clocks.add_button.sensitive,
                         "a clock can be added again without reopening the window")
-        self.assertEqual(clocks.add_button.tooltip, "")
+        self.assertEqual(clocks.add_button.tooltip, "Add new entry")
 
         # and importing a list that is full again closes it back up
         settings.values["worldclocks"] = full
