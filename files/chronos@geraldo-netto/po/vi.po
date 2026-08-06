@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 15:31+0200\n"
+"POT-Creation-Date: 2026-08-06 18:16+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -256,7 +256,7 @@ msgstr "thanh minh"
 msgid "Ghost Festival"
 msgstr "lễ hội ma"
 
-#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:54
+#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:66
 msgid "Invalid timezone"
 msgstr "Múi giờ không hợp lệ"
 
@@ -268,11 +268,11 @@ msgstr "Giờ địa phương"
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Tiểu dụng lịch gặp lỗi. Hãy kiểm tra nhật ký hệ thống."
 
-#: 6.0/appletMenuBuilder.js:310 6.0/appletMenuBuilder.js:316
+#: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"
 msgstr "Đến hôm nay"
 
-#: 6.0/appletMenuBuilder.js:403
+#: 6.0/appletMenuBuilder.js:414
 msgid "Date and Time Settings"
 msgstr "Cài đặt ngày và giờ"
 
@@ -328,16 +328,16 @@ msgstr "Dông"
 msgid "Fair"
 msgstr "Trời đẹp"
 
-#: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:533
-#: 6.0/appletPanelStatus.js:723
+#: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:540
+#: 6.0/appletPanelStatus.js:730
 msgid "Weather: loading…"
 msgstr "Thời tiết: đang tải…"
 
-#: 6.0/appletPanelStatus.js:557
+#: 6.0/appletPanelStatus.js:564
 msgid "No weather for this timezone"
 msgstr "Không có thời tiết cho múi giờ này"
 
-#: 6.0/appletPanelStatus.js:568 6.0/appletPanelStatus.js:570
+#: 6.0/appletPanelStatus.js:575 6.0/appletPanelStatus.js:577
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Số liệu gần nhất"
@@ -346,29 +346,29 @@ msgstr "%s Số liệu gần nhất"
 msgid "Times shown in this computer's time zone"
 msgstr "Giờ hiển thị theo múi giờ của máy tính này"
 
-#: 6.0/astronomyView.js:169
+#: 6.0/astronomyView.js:182
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Mặt Trời mọc: %s — Mặt Trời lặn: %s"
 
-#: 6.0/astronomyView.js:170
+#: 6.0/astronomyView.js:183
 msgid "Sun is above the horizon all day"
 msgstr "Mặt Trời ở trên đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:171
+#: 6.0/astronomyView.js:184
 msgid "Sun is below the horizon all day"
 msgstr "Mặt Trời ở dưới đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:173
+#: 6.0/astronomyView.js:186
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Mặt Trăng mọc: %s — Mặt Trăng lặn: %s"
 
-#: 6.0/astronomyView.js:174
+#: 6.0/astronomyView.js:187
 msgid "Moon is above the horizon all day"
 msgstr "Mặt Trăng ở trên đường chân trời cả ngày"
 
-#: 6.0/astronomyView.js:175
+#: 6.0/astronomyView.js:188
 msgid "Moon is below the horizon all day"
 msgstr "Mặt Trăng ở dưới đường chân trời cả ngày"
 
@@ -501,11 +501,11 @@ msgstr "Sự kiện của ngày đã chọn"
 msgid "Add an event"
 msgstr "Thêm sự kiện"
 
-#: 6.0/eventView.js:942
+#: 6.0/eventView.js:947
 msgid "Ended"
 msgstr "Đã kết thúc"
 
-#: 6.0/eventView.js:979
+#: 6.0/eventView.js:984
 msgid "In progress"
 msgstr "Đang diễn ra"
 
@@ -513,11 +513,11 @@ msgstr "Đang diễn ra"
 msgid "Some calendar events were hidden to keep the desktop responsive."
 msgstr "Một số sự kiện lịch đã bị ẩn để giữ cho màn hình nền phản hồi nhanh."
 
-#: 6.0/worldclocks.js:255 6.0/worldclocks.js:256
+#: 6.0/worldclocks.js:270 6.0/worldclocks.js:271
 msgid "World clocks"
 msgstr "Đồng hồ thế giới"
 
-#: 6.0/worldclocks.js:255
+#: 6.0/worldclocks.js:270
 #, javascript-format
 msgid "Source: %s"
 msgstr "Nguồn: %s"
@@ -539,33 +539,37 @@ msgstr "Thành phố hoặc thị trấn (ví dụ: Lisbon)"
 msgid "This location is too long to save"
 msgstr "Vị trí này quá dài để lưu"
 
-#: chronos_settings_widgets_worldclocks.py:52
+#: chronos_settings_widgets_worldclocks.py:64
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Thành phố hoặc múi giờ (ví dụ: Buenos Aires)"
 
-#: chronos_settings_widgets_worldclocks.py:53
+#: chronos_settings_widgets_worldclocks.py:65
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Múi giờ sẽ lưu: %s"
 
-#: chronos_settings_widgets_worldclocks.py:55
+#: chronos_settings_widgets_worldclocks.py:67
 msgid "No timezone selected"
 msgstr "Chưa chọn múi giờ"
 
-#: chronos_settings_widgets_worldclocks.py:56
+#: chronos_settings_widgets_worldclocks.py:68
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC và giờ địa phương đã được hiển thị sẵn"
 
-#: chronos_settings_widgets_worldclocks.py:57
+#: chronos_settings_widgets_worldclocks.py:69
+msgid "This timezone is already in the list"
+msgstr "Múi giờ này đã có trong danh sách"
+
+#: chronos_settings_widgets_worldclocks.py:70
 msgid "Enter a display name for this clock"
 msgstr "Nhập tên hiển thị cho đồng hồ này"
 
-#: chronos_settings_widgets_worldclocks.py:61
+#: chronos_settings_widgets_worldclocks.py:74
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "Không thể thêm quá %d đồng hồ."
 
-#: chronos_settings_widgets_worldclocks.py:64
+#: chronos_settings_widgets_worldclocks.py:77
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -573,11 +577,12 @@ msgstr ""
 "Không tìm thấy cơ sở dữ liệu múi giờ. Hãy cài python3-pytz để nhập tên thành "
 "phố; nếu không, chỉ chấp nhận định danh đầy đủ như America/Sao_Paulo."
 
-#: chronos_settings_widgets_worldclocks.py:286
+#: chronos_settings_widgets_worldclocks.py:307
+#: chronos_settings_widgets_worldclocks.py:642
 msgid "Add new entry"
 msgstr "Thêm mục mới"
 
-#: chronos_settings_widgets_worldclocks.py:290
+#: chronos_settings_widgets_worldclocks.py:311
 msgid "Edit entry"
 msgstr "Chỉnh sửa mục"
 

@@ -479,9 +479,14 @@ class AddButton:
 class Model:
     def __init__(self, count):
         self.count = count
+        self.rows = []
 
     def iter_n_children(self, _parent):
         return self.count
+
+    def __iter__(self):
+        for row in self.rows:
+            yield [row.get("label"), row.get("timezone")]
 
 
 class JSONSettingsList:

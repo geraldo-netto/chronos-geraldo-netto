@@ -659,7 +659,8 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(clocks.resolve_timezone_choice(typed), {
             "timezone": "Asia/Tokyo",
             "typed_invalid": False,
-            "reserved": False
+            "reserved": False,
+            "duplicate": False
         })
         self.assertEqual(
             clocks.format_timezone_preview(typed),
@@ -679,7 +680,8 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(clocks.resolve_timezone_choice(missing), {
             "timezone": None,
             "typed_invalid": True,
-            "reserved": False
+            "reserved": False,
+            "duplicate": False
         })
         self.assertEqual(clocks.format_timezone_preview(missing), "Invalid timezone")
 
@@ -706,7 +708,8 @@ class SettingsWidgetsTest(unittest.TestCase):
             self.assertEqual(clocks.resolve_timezone_choice(values), {
                 "timezone": None,
                 "typed_invalid": True,
-                "reserved": True
+                "reserved": True,
+                "duplicate": False
             })
             self.assertEqual(
                 clocks.format_timezone_preview(values),
@@ -725,6 +728,35 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertIn(str(self.module.MAX_CLOCKS), message.args[-1])
         self.assertTrue(message.ran)
         self.assertTrue(message.destroyed)
+
+    def test_timezone_choice_rejects_a_saved_clock_but_allows_its_edit(self):
+        saved = [
+            {"label": "Tokyo", "timezone": "Asia/Tokyo"},
+            {"label": "Rome", "timezone": "Europe/Rome"},
+        ]
+        clocks = self.module.ClocksList(
+            {"value": saved}, "worldclocks", DialogSettings())
+        fake_pytz = types.SimpleNamespace(
+            all_timezones=["Asia/Tokyo", "Europe/Rome"],
+            common_timezones=["Asia/Tokyo", "Europe/Rome"])
+        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
+        values = {"label": "Other Tokyo", "timezone": " asia/tokyo "}
+
+        choice = clocks.resolve_timezone_choice(values)
+        self.assertTrue(choice["duplicate"])
+        self.assertTrue(choice["typed_invalid"])
+        self.assertIsNone(choice["timezone"])
+        self.assertEqual(
+            clocks.format_timezone_preview(values, choice),
+            self.module.TIMEZONE_DUPLICATE_PREVIEW)
+
+        unchanged = clocks.resolve_timezone_choice(values, "Asia/Tokyo")
+        self.assertFalse(unchanged["duplicate"])
+        self.assertEqual(unchanged["timezone"], "Asia/Tokyo")
+        changed = clocks.resolve_timezone_choice(
+            {"label": "Tokyo", "timezone": "Europe/Rome"}, "Asia/Tokyo")
+        self.assertTrue(changed["duplicate"],
+                        "an edit may keep its own zone, not take another row's")
 
     @requires_pytz
     def test_add_dialog_gates_ok_and_returns_normalized_timezone(self):
@@ -753,7 +785,9 @@ class SettingsWidgetsTest(unittest.TestCase):
 
     @requires_pytz
     def test_edit_dialog_seeds_the_saved_timezone_and_keeps_it_on_ok(self):
-        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        clocks = self.module.ClocksList({
+            "value": [{"label": "Tokyo", "timezone": "Asia/Tokyo"}]
+        }, "worldclocks", DialogSettings())
 
         seeded = {}
 

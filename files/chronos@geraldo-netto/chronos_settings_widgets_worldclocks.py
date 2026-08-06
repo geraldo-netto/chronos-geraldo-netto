@@ -66,6 +66,7 @@ TIMEZONE_PREVIEW_TEMPLATE = _("Timezone to save: %s")
 TIMEZONE_INVALID_PREVIEW = _("Invalid timezone")
 TIMEZONE_EMPTY_PREVIEW = _("No timezone selected")
 TIMEZONE_RESERVED_PREVIEW = _("UTC and local time are already shown as built-in clocks")
+TIMEZONE_DUPLICATE_PREVIEW = _("This timezone is already in the list")
 LABEL_MISSING_PREVIEW = _("Enter a display name for this clock")
 # Why the Add button is dead at the cap. It is the button's tooltip and the text
 # of the dialog that open_add_edit_dialog still raises — the same sentence, so a
@@ -351,10 +352,11 @@ class ClockDialogStatePresenter:
     invalid, which is what an assistive technology asks about.
     """
 
-    def __init__(self, clocks_list, dialog, preview_label):
+    def __init__(self, clocks_list, dialog, preview_label, original_timezone=None):
         self.clocks_list = clocks_list
         self.dialog = dialog
         self.preview_label = preview_label
+        self.original_timezone = original_timezone
 
     def values_from_widgets(self, widgets):
         return {key: widget.get_widget_value() for key, widget in widgets.items()}
@@ -362,7 +364,8 @@ class ClockDialogStatePresenter:
     def update(self, widgets):
         values = self.values_from_widgets(widgets)
         has_label = bool(normalize_clock_label(values.get('label')))
-        choice = self.clocks_list.resolve_timezone_choice(values)
+        choice = self.clocks_list.resolve_timezone_choice(
+            values, self.original_timezone)
 
         # OK stays insensitive until both fields are right, and the preview only
         # ever spoke about the timezone: someone with a valid timezone and an
@@ -467,7 +470,8 @@ class ClockDialogBuilder:
         # on a 1366 px screen, or in any language whose translation runs longer,
         # the dialog ran off the monitor.
         wrap_label(preview_label)
-        presenter = ClockDialogStatePresenter(self.clocks_list, dialog, preview_label)
+        presenter = ClockDialogStatePresenter(
+            self.clocks_list, dialog, preview_label, data.get("timezone"))
 
         def on_widget_changed(bind_object):
             presenter.update(widgets)
@@ -508,10 +512,11 @@ class ClockDialogBuilder:
 
         return widgets
 
-    def collect_values(self, widgets):
+    def collect_values(self, widgets, original_timezone=None):
         label = widgets['label'].get_widget_value()
         values = {key: widget.get_widget_value() for key, widget in widgets.items()}
-        timezone = self.clocks_list.resolve_timezone_choice(values)["timezone"]
+        timezone = self.clocks_list.resolve_timezone_choice(
+            values, original_timezone)["timezone"]
 
         return self.clocks_list.entry_serializer.serialize(label, timezone)
 
@@ -650,7 +655,12 @@ class ClocksList(JSONSettingsList):
     # entry, since both are connected to the same handler. The two resolves
     # could also observe different local zones, which is how the OK button and
     # the preview came to disagree.
-    def resolve_timezone_choice(self, values):
+    def _timezone_is_duplicate(self, timezone, original_timezone=None):
+        occurrences = sum(1 for row in self.model if row[1] == timezone)
+        allowed = 1 if original_timezone == timezone else 0
+        return occurrences > allowed
+
+    def resolve_timezone_choice(self, values, original_timezone=None):
         timezone_text = values.get('timezone')
         has_timezone_text = bool(timezone_text and timezone_text.strip())
         reserved = self.timezone_resolver.is_reserved(timezone_text)
@@ -658,22 +668,27 @@ class ClocksList(JSONSettingsList):
             return {
                 "timezone": None,
                 "typed_invalid": True,
-                "reserved": True
+                "reserved": True,
+                "duplicate": False
             }
 
         timezone = self.normalize_timezone(timezone_text, reserved)
 
         if timezone is not None:
+            duplicate = self._timezone_is_duplicate(
+                timezone, original_timezone)
             return {
-                "timezone": timezone,
-                "typed_invalid": False,
-                "reserved": False
+                "timezone": None if duplicate else timezone,
+                "typed_invalid": duplicate,
+                "reserved": False,
+                "duplicate": duplicate
             }
 
         return {
             "timezone": None,
             "typed_invalid": has_timezone_text,
-            "reserved": False
+            "reserved": False,
+            "duplicate": False
         }
 
     def format_timezone_preview(self, values, choice=None):
@@ -689,6 +704,9 @@ class ClocksList(JSONSettingsList):
         if choice["reserved"]:
             return TIMEZONE_RESERVED_PREVIEW
 
+        if choice["duplicate"]:
+            return TIMEZONE_DUPLICATE_PREVIEW
+
         if choice["timezone"] is None:
             if choice["typed_invalid"]:
                 return TIMEZONE_INVALID_PREVIEW
@@ -699,8 +717,8 @@ class ClocksList(JSONSettingsList):
     def _build_dialog_content(self, dialog, data):
         return self.dialog_builder.build_content(dialog, data)
 
-    def _collect_dialog_values(self, widgets):
-        return self.dialog_builder.collect_values(widgets)
+    def _collect_dialog_values(self, widgets, original_timezone=None):
+        return self.dialog_builder.collect_values(widgets, original_timezone)
 
     def _initial_dialog_data(self, info):
         return self.dialog_builder.initial_data(info)
@@ -715,6 +733,7 @@ class ClocksList(JSONSettingsList):
             return None
 
         data, title = self._initial_dialog_data(info)
+        original_timezone = data.get("timezone") if info is not None else None
 
         dialog = Gtk.Dialog(title, self.get_toplevel(), Gtk.DialogFlags.MODAL,
                             (Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
@@ -731,7 +750,7 @@ class ClocksList(JSONSettingsList):
 
             result = None
             if response == Gtk.ResponseType.OK:
-                result = self._collect_dialog_values(widgets)
+                result = self._collect_dialog_values(widgets, original_timezone)
         finally:
             dialog.destroy()
 

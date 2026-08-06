@@ -19,7 +19,7 @@ class BuildDialogContentTest(unittest.TestCase):
 
     def test_dialog_state_presenter_updates_preview_and_ok_state(self):
         clocks = self.module.ClocksList({
-            "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
+            "value": []
         }, "worldclocks", DialogSettings())
         dialog = GtkDialog()
         preview = GtkLabel()
@@ -158,7 +158,7 @@ class BuildDialogContentTest(unittest.TestCase):
 
     def test_collect_dialog_values_resolves_the_typed_timezone(self):
         clocks = self.module.ClocksList({
-            "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
+            "value": []
         }, "worldclocks", DialogSettings())
         # the resolver is injected, so what the dialog resolves does not depend
         # on whether the machine running the tests happens to have pytz: this
@@ -735,9 +735,10 @@ class FuzzTest(unittest.TestCase):
 
                 self.assertEqual(
                     sorted(choice),
-                    ["reserved", "timezone", "typed_invalid"])
+                    ["duplicate", "reserved", "timezone", "typed_invalid"])
                 self.assertIsInstance(choice["typed_invalid"], bool)
                 self.assertIsInstance(choice["reserved"], bool)
+                self.assertIsInstance(choice["duplicate"], bool)
                 if choice["timezone"] is not None:
                     self.assertIsInstance(choice["timezone"], str)
                     self.assertFalse(choice["typed_invalid"])
@@ -869,7 +870,7 @@ class DialogValidationFeedbackTest(unittest.TestCase):
 
     def _dialog(self, data):
         clocks = self.module.ClocksList({
-            "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
+            "value": []
         }, "worldclocks", DialogSettings())
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Europe/Rome"], common_timezones=["Europe/Rome"])

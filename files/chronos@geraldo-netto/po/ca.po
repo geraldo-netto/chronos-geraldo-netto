@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 15:31+0200\n"
+"POT-Creation-Date: 2026-08-06 18:16+0200\n"
 "PO-Revision-Date: 2025-02-13 20:56+0100\n"
 "Last-Translator: Odyssey <odysseyhyd@gmail.com>\n"
 "Language-Team: \n"
@@ -256,7 +256,7 @@ msgstr "Qingming"
 msgid "Ghost Festival"
 msgstr "Festival dels Fantasmes"
 
-#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:54
+#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:66
 msgid "Invalid timezone"
 msgstr "Zona horària no vàlida"
 
@@ -270,11 +270,11 @@ msgstr ""
 "La miniaplicació del calendari ha trobat un error. Consulteu el registre del "
 "sistema."
 
-#: 6.0/appletMenuBuilder.js:310 6.0/appletMenuBuilder.js:316
+#: 6.0/appletMenuBuilder.js:321 6.0/appletMenuBuilder.js:327
 msgid "Go to today"
 msgstr "Vés a avui"
 
-#: 6.0/appletMenuBuilder.js:403
+#: 6.0/appletMenuBuilder.js:414
 msgid "Date and Time Settings"
 msgstr "Configuració de data i hora"
 
@@ -330,16 +330,16 @@ msgstr "Tempesta"
 msgid "Fair"
 msgstr "Bon temps"
 
-#: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:533
-#: 6.0/appletPanelStatus.js:723
+#: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:540
+#: 6.0/appletPanelStatus.js:730
 msgid "Weather: loading…"
 msgstr "Temps: s’està carregant…"
 
-#: 6.0/appletPanelStatus.js:557
+#: 6.0/appletPanelStatus.js:564
 msgid "No weather for this timezone"
 msgstr "Sense meteorologia per a aquesta zona horària"
 
-#: 6.0/appletPanelStatus.js:568 6.0/appletPanelStatus.js:570
+#: 6.0/appletPanelStatus.js:575 6.0/appletPanelStatus.js:577
 #, javascript-format
 msgid "%s Last known reading"
 msgstr "%s Última lectura coneguda"
@@ -348,29 +348,29 @@ msgstr "%s Última lectura coneguda"
 msgid "Times shown in this computer's time zone"
 msgstr "Hores mostrades en el fus horari d'aquest ordinador"
 
-#: 6.0/astronomyView.js:169
+#: 6.0/astronomyView.js:182
 #, javascript-format
 msgid "Sunrise: %s — Sunset: %s"
 msgstr "Sortida del sol: %s — Posta de sol: %s"
 
-#: 6.0/astronomyView.js:170
+#: 6.0/astronomyView.js:183
 msgid "Sun is above the horizon all day"
 msgstr "El sol és sobre l'horitzó tot el dia"
 
-#: 6.0/astronomyView.js:171
+#: 6.0/astronomyView.js:184
 msgid "Sun is below the horizon all day"
 msgstr "El sol és sota l'horitzó tot el dia"
 
-#: 6.0/astronomyView.js:173
+#: 6.0/astronomyView.js:186
 #, javascript-format
 msgid "Moonrise: %s — Moonset: %s"
 msgstr "Sortida de la lluna: %s — Posta de la lluna: %s"
 
-#: 6.0/astronomyView.js:174
+#: 6.0/astronomyView.js:187
 msgid "Moon is above the horizon all day"
 msgstr "La lluna és sobre l'horitzó tot el dia"
 
-#: 6.0/astronomyView.js:175
+#: 6.0/astronomyView.js:188
 msgid "Moon is below the horizon all day"
 msgstr "La lluna és sota l'horitzó tot el dia"
 
@@ -506,11 +506,11 @@ msgstr "Esdeveniments del dia seleccionat"
 msgid "Add an event"
 msgstr "Afegeix un esdeveniment"
 
-#: 6.0/eventView.js:942
+#: 6.0/eventView.js:947
 msgid "Ended"
 msgstr "Finalitzat"
 
-#: 6.0/eventView.js:979
+#: 6.0/eventView.js:984
 msgid "In progress"
 msgstr "En procés"
 
@@ -520,11 +520,11 @@ msgstr ""
 "Alguns esdeveniments del calendari s'han amagat per mantenir l'escriptori "
 "àgil."
 
-#: 6.0/worldclocks.js:255 6.0/worldclocks.js:256
+#: 6.0/worldclocks.js:270 6.0/worldclocks.js:271
 msgid "World clocks"
 msgstr "Rellotges mundials"
 
-#: 6.0/worldclocks.js:255
+#: 6.0/worldclocks.js:270
 #, javascript-format
 msgid "Source: %s"
 msgstr "Font: %s"
@@ -546,33 +546,37 @@ msgstr "Ciutat o poble (p. ex. Lisboa)"
 msgid "This location is too long to save"
 msgstr "Aquesta ubicació és massa llarga per desar-la"
 
-#: chronos_settings_widgets_worldclocks.py:52
+#: chronos_settings_widgets_worldclocks.py:64
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Ciutat o zona horària (p. ex. Buenos Aires)"
 
-#: chronos_settings_widgets_worldclocks.py:53
+#: chronos_settings_widgets_worldclocks.py:65
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Zona horària a desar: %s"
 
-#: chronos_settings_widgets_worldclocks.py:55
+#: chronos_settings_widgets_worldclocks.py:67
 msgid "No timezone selected"
 msgstr "No s'ha seleccionat cap zona horària"
 
-#: chronos_settings_widgets_worldclocks.py:56
+#: chronos_settings_widgets_worldclocks.py:68
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC i l’hora local ja es mostren com a rellotges integrats"
 
-#: chronos_settings_widgets_worldclocks.py:57
+#: chronos_settings_widgets_worldclocks.py:69
+msgid "This timezone is already in the list"
+msgstr "Aquest fus horari ja és a la llista"
+
+#: chronos_settings_widgets_worldclocks.py:70
 msgid "Enter a display name for this clock"
 msgstr "Introduïu un nom per a aquest rellotge"
 
-#: chronos_settings_widgets_worldclocks.py:61
+#: chronos_settings_widgets_worldclocks.py:74
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "No es poden afegir més de %d rellotges."
 
-#: chronos_settings_widgets_worldclocks.py:64
+#: chronos_settings_widgets_worldclocks.py:77
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -581,11 +585,12 @@ msgstr ""
 "per escriure el nom d’una ciutat; sense aquesta, només s’accepta un "
 "identificador complet com ara America/Sao_Paulo."
 
-#: chronos_settings_widgets_worldclocks.py:286
+#: chronos_settings_widgets_worldclocks.py:307
+#: chronos_settings_widgets_worldclocks.py:642
 msgid "Add new entry"
 msgstr "Afegir una nova entrada"
 
-#: chronos_settings_widgets_worldclocks.py:290
+#: chronos_settings_widgets_worldclocks.py:311
 msgid "Edit entry"
 msgstr "Editar entrada"
 
