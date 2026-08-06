@@ -11,7 +11,7 @@
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 try:
     import pytz
 except ImportError:
@@ -20,10 +20,13 @@ try:
     from zoneinfo import available_timezones
 except ImportError:
     available_timezones = None
+from gi.repository import Atk, Gtk
+
 # The gi-free half of the feature — timezone identity and city names — lives in a
 # sibling with no Gtk/Atk/GLib. What is left here is what the three feature
 # modules (weather, holidays, world clocks) genuinely share: the folded
-# substring matcher and one process-wide timezone index.
+# substring matcher, one process-wide timezone index, the completion wiring
+# and the error affordance.
 from chronos_timezone_data import (
     completion_key,
     TimezoneResolver,
@@ -62,17 +65,155 @@ def folded_completion_key(key) -> str:
 
 
 def plain_completion_match(completion, key, tree_iter, model) -> bool:
-    """Substring match against the folded text in the model's last column.
+    """Does this suggestion contain what the user has typed?
 
-    Same contract as timezone_completion_match — the folding is precomputed at
-    build time, so a keystroke costs one substring test per row — but for models
-    whose suggestion is the value: a city name, a country name.
+    GTK calls this for every row of the model on every keystroke, so what it
+    does per row is what decides whether typing feels instant. The timezone
+    field's copy of it used to build "%s %s" % (label, timezone) and fold it for
+    each of ~600 rows, every time. Measured with 599 zones: 2.76 ms per
+    keystroke, against 1.13 ms once the folded text is precomputed into the
+    model's last column and the needle is folded once by the caller.
+
+    Substring, not prefix: people type the city, and the city sits at the end of
+    the identifier (America/Argentina/Buenos_Aires).
+
+    The last column, so one matcher serves a two-column model whose suggestion
+    is the value — a city, a country — and a three-column one whose suggestion
+    is a label for a value behind it.
     """
     needle = folded_completion_key(key)
     if not needle:
         return False
 
     return needle in model[tree_iter][-1]
+
+
+# Keyed by what the rows *are*, not by which list object they arrived in.
+#
+# There were two of these, one per feature. Both were keyed by the content, both
+# lived for the process, and both had this history: the timezone one was keyed
+# by id(completions), holding a strong reference to the list and its ListStore
+# so the id could not be reused, with no eviction path at all. Every ClocksList
+# builds its own resolver and therefore its own completions list, so the memo
+# never hit across instances - it accumulated one 439-row store per settings page
+# ever constructed. A cache that cannot hit is a leak wearing a cache's clothes.
+_COMPLETION_MODELS: dict[tuple, Any] = {}
+
+
+def completion_model(rows, row_columns):
+    """The suggestions as a Gtk.ListStore, built once per distinct row list.
+
+    `row_columns` turns one row into the model's columns, the last of which is
+    the folded text plain_completion_match searches. Folding it here - once per
+    row, at build time - is what keeps that function's per-row work to a
+    substring test. The lists never change while cinnamon-settings runs, and
+    every page that asks for one asks for the same one.
+    """
+    key = (id(row_columns), tuple(rows))
+    cached = _COMPLETION_MODELS.get(key)
+    if cached is not None:
+        return cached
+
+    columns = [row_columns(row) for row in rows]
+    model = Gtk.ListStore(*([str] * len(columns[0]))) if columns else Gtk.ListStore(str)
+    for values in columns:
+        model.append(values)
+
+    _COMPLETION_MODELS[key] = model
+    return model
+
+
+def attach_completion(entry, model, text_column=0, minimum_key_length=2,
+                      inline_completion=False, on_selected=None):
+    """Give an entry a folded-substring autocompletion over `model`.
+
+    This was written out three times, differing only in these three settings
+    and in whether a 'match-selected' handler was connected.
+
+    `inline_completion` is the one that is not a preference: it types the
+    suggestion into the entry, which is safe only where the suggestion *is* the
+    value. The timezone field's suggestion is a label for an identifier behind
+    it, so completing it inline would write a label where a zone must go.
+    """
+    completion = Gtk.EntryCompletion()
+    completion.set_model(model)
+    completion.set_text_column(text_column)
+    completion.set_minimum_key_length(minimum_key_length)
+    completion.set_popup_completion(True)
+    completion.set_inline_completion(inline_completion)
+    completion.set_match_func(plain_completion_match, model)
+    if on_selected is not None:
+        completion.connect('match-selected', on_selected)
+    entry.set_completion(completion)
+    return completion
+
+
+# GTK's own name for "this widget is holding something wrong". Themes draw it;
+# assistive technologies report it.
+#
+# The trio below lived in the world-clock module, which is why it was the only
+# one of the three feature dialogs that had an error affordance at all: the
+# holiday widget records in its own comment that "the key was never written, and
+# holidays kept coming from Portugal, with no error text, no error style and no
+# message anywhere, unlike the sibling widgets", and the weather field had none
+# either.
+ERROR_STYLE_CLASS = "error"
+
+
+def _style_context(widget):
+    getter = getattr(widget, "get_style_context", None)
+    return getter() if getter else None
+
+
+def set_error_state(label, is_error):
+    """Colour is not a cue on its own, but its absence is not one either."""
+    style = _style_context(label)
+    if style is None:
+        return
+
+    if is_error:
+        style.add_class(ERROR_STYLE_CLASS)
+    else:
+        style.remove_class(ERROR_STYLE_CLASS)
+
+
+def set_invalid(widget, is_invalid, description=""):
+    """Mark the entry itself, which is what an assistive technology asks about.
+
+    `description` is the generic message for the field, and it is the caller's:
+    "Invalid timezone" is not what a country combo or a city field would say.
+    """
+    entry = getattr(widget, "bind_object", widget)
+    style = _style_context(entry)
+    if style is not None:
+        if is_invalid:
+            style.add_class(ERROR_STYLE_CLASS)
+        else:
+            style.remove_class(ERROR_STYLE_CLASS)
+
+    accessible = getattr(entry, "get_accessible", None)
+    if accessible:
+        atk = accessible()
+        if hasattr(atk, "set_description"):
+            atk.set_description(description if is_invalid else "")
+
+
+def describe_widget(widget, label, text):
+    """Tie the message to the field it is about, for a screen reader."""
+    if widget is None:
+        return
+
+    entry = getattr(widget, "bind_object", widget)
+    accessible = getattr(entry, "get_accessible", None)
+    if not accessible:
+        return
+
+    atk = accessible()
+    if hasattr(atk, "set_description"):
+        atk.set_description(text)
+    if hasattr(label, "get_accessible") and hasattr(atk, "add_relationship"):
+        # ATK_RELATION_DESCRIBED_BY: "the thing that explains me is that label"
+        atk.add_relationship(Atk.RelationType.DESCRIBED_BY, label.get_accessible())
 
 
 

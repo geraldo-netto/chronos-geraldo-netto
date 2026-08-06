@@ -19,8 +19,7 @@ from __future__ import annotations
 
 from JsonSettingsWidgets import JSONSettingsBackend
 from xapp.SettingsWidgets import Entry
-from typing import Any, Optional
-from gi.repository import Gtk
+from typing import Optional
 
 # the shared halves: one folded-substring matcher and one process-wide
 # timezone index, both also used by the world-clock and country widgets
@@ -40,25 +39,13 @@ def normalize_weather_location(text) -> str:
     return source.strip()
 
 
-# One store per distinct city list, for the life of the process. Same reasoning
-# as _COMPLETION_MODELS: the list never changes while cinnamon-settings runs, and
-# every settings page that asks for it asks for the same one.
-_CITY_MODELS: dict[tuple, Any] = {}
+def _city_completion_columns(city):
+    """the city, and the folded text the matcher searches."""
+    return [city, completion_key(city)]
 
 
 def city_completion_model(cities):
-    key = tuple(cities)
-    cached = _CITY_MODELS.get(key)
-    if cached is not None:
-        return cached
-
-    model = Gtk.ListStore(str, str)
-    for city in cities:
-        model.append([city, completion_key(city)])
-
-    _CITY_MODELS[key] = model
-
-    return model
+    return common.completion_model(cities, _city_completion_columns)
 
 
 def attach_city_completion(entry, cities):
@@ -73,20 +60,11 @@ def attach_city_completion(entry, cities):
     if not cities:
         return None
 
-    model = city_completion_model(cities)
-
-    completion = Gtk.EntryCompletion()
-    completion.set_model(model)
-    completion.set_text_column(0)
-    completion.set_minimum_key_length(2)
-    completion.set_popup_completion(True)
     # the suggestion *is* the value here, so completing inline is safe — unlike
     # the timezone field, where the suggestion is a label and only the identifier
     # behind it may be saved
-    completion.set_inline_completion(True)
-    completion.set_match_func(common.plain_completion_match, model)
-    entry.set_completion(completion)
-    return completion
+    return common.attach_completion(
+        entry, city_completion_model(cities), inline_completion=True)
 
 
 

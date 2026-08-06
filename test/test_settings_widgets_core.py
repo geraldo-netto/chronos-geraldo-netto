@@ -46,6 +46,57 @@ class SettingsWidgetsTest(unittest.TestCase):
     def test_error_state_tolerates_a_widget_without_style_context(self):
         self.assertIsNone(self.module.set_error_state(object(), True))
 
+    def test_the_shared_error_affordance_survives_a_widget_that_answers_nothing(self):
+        """T798: the error trio moved to common so all three feature dialogs can
+        use it, and it is handed real GTK widgets in production and doubles in
+        the suite - so every optional capability it probes for has to be
+        optional. A plain object has no style context, no accessible and no
+        bind_object."""
+        common = self.module.common
+        bare = object()
+
+        self.assertIsNone(common.set_invalid(bare, True, "Invalid timezone"))
+        self.assertIsNone(common.describe_widget(bare, bare, "text"))
+        self.assertIsNone(common.describe_widget(None, bare, "text"))
+
+        # an accessible that implements neither optional method is still fine
+        class Accessible:
+            pass
+
+        class Entry:
+            def get_accessible(self):
+                return Accessible()
+
+        self.assertIsNone(common.set_invalid(Entry(), True, "Invalid timezone"))
+        self.assertIsNone(common.describe_widget(Entry(), bare, "text"))
+
+    def test_no_feature_module_wires_its_own_completion_or_error_style(self):
+        """T798: the EntryCompletion wiring was written out three times,
+        differing only in the text column, the minimum key length and whether
+        inline completion is safe; the process-wide ListStore memo existed
+        twice; and the error affordance lived in the world-clock module, which
+        is why it was the only one of the three dialogs that had one."""
+        for name in ("chronos_settings_widgets_worldclocks.py",
+                     "chronos_settings_widgets_weather.py",
+                     "chronos_settings_widgets_holidays.py"):
+            source = (APPLET_DIR / name).read_text()
+            self.assertNotIn("Gtk.EntryCompletion()", source,
+                             "%s must attach through common" % name)
+            self.assertNotIn("_MODELS: dict", source,
+                             "%s must memoize its suggestions through common" % name)
+            self.assertNotIn('ERROR_STYLE_CLASS = "error"', source,
+                             "%s must not name the error class itself" % name)
+
+    def test_an_empty_suggestion_list_is_an_empty_store(self):
+        # both attachers refuse to wire a completion with nothing to suggest, so
+        # this is the shape of the memo rather than a path the dialog takes
+        common = self.module.common
+        common._COMPLETION_MODELS.clear()
+
+        model = common.completion_model([], lambda row: [row])
+
+        self.assertEqual(len(model.rows), 0)
+
     def test_widget_module_tolerates_missing_stdlib_zoneinfo(self):
         module = load_module(
             WORLDCLOCKS_PATH, "settings_widgets_common_no_zoneinfo_test",
@@ -347,7 +398,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             "with no timezone database at all, the dialog has to say so: %r" % labels)
 
     def test_completion_match_refuses_a_row_it_cannot_read(self):
-        match = self.module.timezone_completion_match
+        match = self.module.common.plain_completion_match
         model = self.module.timezone_completion_model([("Rome (Europe)", "Europe/Rome")])
 
         # GTK passes the key straight from the entry; an empty one would match
@@ -882,7 +933,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         # across instances: it accumulated one 439-row store per settings page ever
         # opened, for the life of the cinnamon-settings process. A cache that
         # cannot hit is a leak wearing a cache's clothes.
-        self.module._COMPLETION_MODELS.clear()
+        self.module.common._COMPLETION_MODELS.clear()
 
         rome = self.module.timezone_completion_model([("Rome (Europe)", "Europe/Rome")])
         self.assertEqual(rome.rows[0][1], "Europe/Rome")
@@ -891,12 +942,12 @@ class SettingsWidgetsTest(unittest.TestCase):
         # settings page builds — reads back the same model
         again = self.module.timezone_completion_model([("Rome (Europe)", "Europe/Rome")])
         self.assertIs(again, rome, "the store is built once for the whole process")
-        self.assertEqual(len(self.module._COMPLETION_MODELS), 1)
+        self.assertEqual(len(self.module.common._COMPLETION_MODELS), 1)
 
         # and different suggestions are a different model, not a stranger's
         tokyo = self.module.timezone_completion_model([("Tokyo (Asia)", "Asia/Tokyo")])
         self.assertEqual(tokyo.rows[0][1], "Asia/Tokyo")
-        self.assertEqual(len(self.module._COMPLETION_MODELS), 2)
+        self.assertEqual(len(self.module.common._COMPLETION_MODELS), 2)
 
     def test_version_wrappers_export_common_symbols(self):
         wrapper_52 = load_module(APPLET_DIR / "6.0" / "settings_widgets.py", "settings_widgets_52_test")

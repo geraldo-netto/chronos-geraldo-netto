@@ -22,8 +22,8 @@ from __future__ import annotations
 from JsonSettingsWidgets import JSONSettingsList
 from xapp.SettingsWidgets import Entry
 import logging
-from typing import Any, Optional
-from gi.repository import Atk, GLib, Gtk
+from typing import Optional
+from gi.repository import GLib, Gtk
 
 import chronos_settings_widgets_common as common
 from chronos_timezone_data import completion_key, is_runtime_builtin_timezone
@@ -96,27 +96,6 @@ def center_window(window) -> bool:
     return True
 
 
-def timezone_completion_match(completion, key, tree_iter, model) -> bool:
-    """Does this suggestion contain what the user has typed?
-
-    GTK calls this for every one of the ~600 rows on every keystroke, so what it
-    does per row is what decides whether typing feels instant. It used to build
-    "%s %s" % (label, timezone) and fold it — lowercasing and replacing
-    underscores — for each row, every time, which meant re-folding all 600
-    suggestions on every character. Measured here with 599 zones: 2.76 ms per
-    keystroke, against 1.13 ms once the folded text is precomputed into a third
-    column of the model and the needle is folded once by the caller.
-
-    Substring, not prefix: people type the city, and the city sits at the end of
-    the identifier (America/Argentina/Buenos_Aires).
-    """
-    needle = common.folded_completion_key(key)
-    if not needle:
-        return False
-
-    return needle in model[tree_iter][2]
-
-
 def timezone_completion_selected(completion, model, tree_iter) -> bool:
     # put the identifier in the entry, not the pretty label, so the value the
     # dialog saves is the value the applet reads back.
@@ -126,45 +105,14 @@ def timezone_completion_selected(completion, model, tree_iter) -> bool:
     return True
 
 
-# Keyed by what the completions *are*, not by which list object they arrived in.
-#
-# This was keyed by id(completions), holding a strong reference to both the list
-# and its Gtk.ListStore so the id could not be reused — with no eviction path at
-# all. Every ClocksList builds its own TimezoneResolver and therefore its own
-# completions list, so the memo never hit across instances: it simply accumulated
-# one 439-row × 3-column ListStore, and ~1300 retained strings, per settings page
-# ever constructed, for the life of the cinnamon-settings process. A cache that
-# cannot hit is a leak wearing a cache's clothes.
-#
-# The content is a tuple of (display, timezone) pairs and is the same for every
-# instance, so keying on it gives one entry for the whole process — which is what
-# the memo was for.
-_COMPLETION_MODELS: dict[tuple, Any] = {}
+def _timezone_completion_columns(row):
+    """label, identifier, and the folded text the matcher searches."""
+    display, timezone = row
+    return [display, timezone, completion_key("%s %s" % (display, timezone))]
 
 
 def timezone_completion_model(completions):
-    """The suggestions as a Gtk.ListStore, built once per completion list.
-
-    There are some 600 of them with pytz, and the whole store was rebuilt on the
-    GTK main thread every time the add/edit dialog opened. The list never
-    changes while the process runs.
-
-    The third column is the folded text the match function searches. Folding it
-    here — once per zone, at build time — is what keeps that function's per-row
-    work down to a substring test.
-    """
-    key = tuple(completions)
-    cached = _COMPLETION_MODELS.get(key)
-    if cached is not None:
-        return cached
-
-    model = Gtk.ListStore(str, str, str)
-    for display, timezone in completions:
-        model.append([display, timezone, completion_key("%s %s" % (display, timezone))])
-
-    _COMPLETION_MODELS[key] = model
-
-    return model
+    return common.completion_model(completions, _timezone_completion_columns)
 
 
 def attach_timezone_completion(entry, completions):
@@ -172,20 +120,11 @@ def attach_timezone_completion(entry, completions):
     if not completions:
         return None
 
-    model = timezone_completion_model(completions)
-
-    completion = Gtk.EntryCompletion()
-    completion.set_model(model)
-    completion.set_text_column(0)
-    completion.set_minimum_key_length(2)
-    completion.set_popup_completion(True)
-    # inline completion would type the label into the entry; the label is not a
-    # timezone, so only an explicit pick fills the field
-    completion.set_inline_completion(False)
-    completion.set_match_func(timezone_completion_match, model)
-    completion.connect('match-selected', timezone_completion_selected)
-    entry.set_completion(completion)
-    return completion
+    # not inline: the suggestion is a label, and the field must hold the
+    # identifier behind it, so only an explicit pick fills it
+    return common.attach_completion(
+        entry, timezone_completion_model(completions),
+        on_selected=timezone_completion_selected)
 
 
 class ListEditEntry(Entry):
@@ -351,61 +290,17 @@ def wrap_label(label):
     label.set_max_width_chars(DIALOG_LABEL_WIDTH_CHARS)
 
 
-# GTK's own name for "this widget is holding something wrong". Themes draw it;
-# assistive technologies report it.
-ERROR_STYLE_CLASS = "error"
-
-
-def _style_context(widget):
-    getter = getattr(widget, "get_style_context", None)
-    return getter() if getter else None
-
-
-def set_error_state(label, is_error):
-    """Colour is not a cue on its own, but its absence is not one either."""
-    style = _style_context(label)
-    if style is None:
-        return
-
-    if is_error:
-        style.add_class(ERROR_STYLE_CLASS)
-    else:
-        style.remove_class(ERROR_STYLE_CLASS)
+# The error affordance is chronos_settings_widgets_common's: it is the same
+# widget-marking for any dialog field, and living here was why this was the only
+# one of the three feature dialogs that had one. The generic ATK description is
+# this field's, which is why it is an argument.
+ERROR_STYLE_CLASS = common.ERROR_STYLE_CLASS
+set_error_state = common.set_error_state
+describe_widget = common.describe_widget
 
 
 def set_invalid(widget, is_invalid):
-    """Mark the entry itself, which is what an assistive technology asks about."""
-    entry = getattr(widget, "bind_object", widget)
-    style = _style_context(entry)
-    if style is not None:
-        if is_invalid:
-            style.add_class(ERROR_STYLE_CLASS)
-        else:
-            style.remove_class(ERROR_STYLE_CLASS)
-
-    accessible = getattr(entry, "get_accessible", None)
-    if accessible:
-        atk = accessible()
-        if hasattr(atk, "set_description"):
-            atk.set_description(TIMEZONE_INVALID_PREVIEW if is_invalid else "")
-
-
-def describe_widget(widget, label, text):
-    """Tie the message to the field it is about, for a screen reader."""
-    if widget is None:
-        return
-
-    entry = getattr(widget, "bind_object", widget)
-    accessible = getattr(entry, "get_accessible", None)
-    if not accessible:
-        return
-
-    atk = accessible()
-    if hasattr(atk, "set_description"):
-        atk.set_description(text)
-    if hasattr(label, "get_accessible") and hasattr(atk, "add_relationship"):
-        # ATK_RELATION_DESCRIBED_BY: "the thing that explains me is that label"
-        atk.add_relationship(Atk.RelationType.DESCRIBED_BY, label.get_accessible())
+    common.set_invalid(widget, is_invalid, TIMEZONE_INVALID_PREVIEW)
 
 
 class ClockDialogStatePresenter:

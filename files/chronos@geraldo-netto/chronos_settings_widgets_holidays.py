@@ -92,18 +92,11 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         self.attach()
 
     def attach_completion(self):
-        completion = Gtk.EntryCompletion()
         # the combo's own model: the row the user picks is a row the combo can be
         # set active on, which is what saves the value
-        completion.set_model(self.model)
-        completion.set_text_column(1)
-        completion.set_minimum_key_length(1)
-        completion.set_popup_completion(True)
-        completion.set_inline_completion(True)
-        completion.set_match_func(common.plain_completion_match, self.model)
-        completion.connect('match-selected', self.on_completion_selected)
-        self.entry.set_completion(completion)
-        return completion
+        return common.attach_completion(
+            self.entry, self.model, text_column=1, minimum_key_length=1,
+            inline_completion=True, on_selected=self.on_completion_selected)
 
     def on_completion_selected(self, completion, model, tree_iter) -> bool:
         # setting the row active fills the entry from the model and emits

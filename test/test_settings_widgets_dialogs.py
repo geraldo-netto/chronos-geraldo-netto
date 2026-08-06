@@ -323,7 +323,7 @@ class CenterWindowTest(unittest.TestCase):
 
 
 class CompletionMatchingTest(unittest.TestCase):
-    """completion_key / timezone_completion_match / timezone_completion_selected."""
+    """completion_key / the shared matcher / timezone_completion_selected."""
 
     @classmethod
     def setUpClass(cls):
@@ -353,7 +353,7 @@ class CompletionMatchingTest(unittest.TestCase):
                 self.assertEqual(key(junk), "")
 
     def test_completion_match_is_a_substring_search_over_label_and_id(self):
-        match = self.module.timezone_completion_match
+        match = self.module.common.plain_completion_match
         model = self.model_with(
             ("Buenos Aires (America / Argentina)", "America/Argentina/Buenos_Aires"),
             ("Rome (Europe)", "Europe/Rome"),
@@ -369,7 +369,7 @@ class CompletionMatchingTest(unittest.TestCase):
     def test_completion_match_refuses_an_empty_key(self):
         # an empty or whitespace key would match every row and pop the whole
         # zone list open
-        match = self.module.timezone_completion_match
+        match = self.module.common.plain_completion_match
         model = self.model_with(("Rome (Europe)", "Europe/Rome"))
 
         for key in ("", "   ", "\t", None, 7):
@@ -402,7 +402,7 @@ class CompletionMatchingTest(unittest.TestCase):
         self.assertTrue(completion.popup_completion)
         # inline completion would type the label into the entry
         self.assertFalse(completion.inline_completion)
-        self.assertIs(completion.match_func[0], self.module.timezone_completion_match)
+        self.assertIs(completion.match_func[0], self.module.common.plain_completion_match)
         self.assertEqual(completion.matches("rome"), ["Europe/Rome"])
 
     def test_attach_completion_does_nothing_without_suggestions(self):
@@ -598,7 +598,7 @@ class FuzzTest(unittest.TestCase):
                 self.assertNotIn("_", result)
 
     def test_completion_match_never_throws_on_junk(self):
-        match = self.module.timezone_completion_match
+        match = self.module.common.plain_completion_match
         model = self.module.timezone_completion_model([
             ("Rome (Europe)", "Europe/Rome"),
             (None, 42),  # a row is whatever the model holds
@@ -611,7 +611,7 @@ class FuzzTest(unittest.TestCase):
 
     @requires_pytz
     def test_completion_match_ignores_case_and_underscores(self):
-        match = self.module.timezone_completion_match
+        match = self.module.common.plain_completion_match
         resolver = self.module.common.TimezoneResolver(_pytz, None)
         model = self.module.timezone_completion_model(resolver.completions)
 
