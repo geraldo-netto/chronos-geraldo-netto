@@ -96,8 +96,8 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
         this._timer_id = 0;
     }
 
-    enqueue(start, isCurrent = () => true) {
-        this._jobs.push({ start, isCurrent });
+    enqueue(start, isCurrent = () => true, onFailure = null) {
+        this._jobs.push({ start, isCurrent, onFailure });
         this._drain();
     }
 
@@ -185,9 +185,19 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
         try {
             job.start(release);
         } catch (error) {
-            release();
+            this._handleStartFailure(job, released, release, error);
+        }
+    }
+
+    _handleStartFailure(job, released, release, error) {
+        if (released) {
             throw error;
         }
+        release();
+        if (!job.onFailure) {
+            throw error;
+        }
+        job.onFailure(error);
     }
 };
 
@@ -394,9 +404,19 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         );
 
         if (provider.requestQueue) {
-            provider.requestQueue.enqueue(request, isCurrent);
+            provider.requestQueue.enqueue(request, isCurrent, (error) =>
+                this._reportGeocodeDispatchFailure(error, isCurrent, onResult));
         } else {
             request();
+        }
+    }
+
+    _reportGeocodeDispatchFailure(error, isCurrent, onResult) {
+        if (global.logError) {
+            global.logError(error);
+        }
+        if (isCurrent()) {
+            onResult(null);
         }
     }
 

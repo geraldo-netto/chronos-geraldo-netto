@@ -1055,6 +1055,68 @@ test("Nominatim requests are single-flight and use bounded elapsed delays", () =
         "a broken elapsed-time port cannot turn a backward jump into an unbounded wait");
 });
 
+test("a delayed Nominatim dispatch failure completes its provider chain", () => {
+    const Weather = loadWeather();
+    let now = 0;
+    const timers = [];
+    const queue = new Weather.NominatimRequestQueue({
+        elapsedNow: () => now,
+        schedule(delay, callback) {
+            timers.push({ delay, callback });
+            return timers.length;
+        }
+    });
+    let releaseFirst = null;
+    queue.enqueue((release) => { releaseFirst = release; });
+
+    const dispatchError = new Error("Soup construction failed");
+    const logged = [];
+    global.logError = (error) => logged.push(error);
+    const resolver = new Weather.WeatherLocationResolver({
+        requestQueue: queue,
+        providers: [{
+            name: "Nominatim",
+            url: () => "https://nominatim.example/search",
+            normalize: () => null,
+            requestQueue: queue
+        }],
+        httpGetJson() {
+            throw dispatchError;
+        }
+    });
+
+    const answers = [];
+    resolver.resolve("Rome", () => true, (place, error) => {
+        assert.equal(queue._active, false, "the failed slot is released before reporting");
+        answers.push({ place, error });
+    });
+    assert.deepEqual(answers, [], "the geocode is waiting behind the active request");
+
+    releaseFirst();
+    now = Weather.NOMINATIM_MIN_INTERVAL_MS;
+    assert.equal(timers.shift().callback(), false);
+    assert.deepEqual(answers, [{
+        place: null,
+        error: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE
+    }]);
+    assert.deepEqual(logged, [dispatchError]);
+    assert.equal(queue._active, false, "the failed slot was released");
+});
+
+test("the Nominatim queue does not reinterpret an exception after release", () => {
+    const Weather = loadWeather();
+    const queue = new Weather.NominatimRequestQueue();
+    let failures = 0;
+
+    assert.throws(() => queue.enqueue((release) => {
+        release();
+        throw new Error("consumer failed");
+    }, () => true, () => { failures++; }), /consumer failed/);
+
+    assert.equal(failures, 0);
+    assert.equal(queue._active, false);
+});
+
 // The spacing timer is armed inside a module-global queue, so no instance owns
 // it: without a teardown path it outlives the applet, which is what
 // cancelPendingLocaleQueries() exists to prevent for the other module-level
