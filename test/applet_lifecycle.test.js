@@ -99,9 +99,16 @@ test("on_applet_removed_from_panel tears everything down", () => {
                 throw new Error("producer teardown failed");
             }
         },
-        _menuBuilder: { destroy: () => { eventConsumers--; torn.push(["builder"]); } },
-        _calendar: { destroy: () => { eventConsumers--; torn.push(["calendar"]); } },
-        event_list: { destroy: () => { eventConsumers--; torn.push(["list"]); } },
+        // the builder constructed the calendar and the event list, so its own
+        // teardown detaches every consumer and then destroys both
+        _menuBuilder: {
+            destroy() {
+                eventConsumers -= 3;
+                torn.push(["builder"], ["calendar"], ["list"]);
+            }
+        },
+        _calendar: { destroy: () => torn.push(["applet-owned-calendar"]) },
+        event_list: { destroy: () => torn.push(["applet-owned-list"]) },
         menu: { destroy: () => torn.push(["menu"]) },
         menuManager: { removeMenu: () => torn.push(["unmanage"]) },
         settings: { finalize: () => torn.push(["settings"]) }

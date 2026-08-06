@@ -201,9 +201,18 @@ test("calendar and event list destroy pending timers", () => {
     assert.match(eventView52, /destroy\(\) \{\n\s*this\._cancelScroll\(\);\n\s*this\._cancelNoEventsTimeout\(\);\n\s*this\._cancelRowBuild\(\);/);
     assert.match(eventView52, /destroy\(\) \{\n\s*this\._renderer\.destroy\(\);/);
 
+    // The builder constructs both, so the builder destroys both. Reaching them
+    // through build()'s return value made a throw partway through it leave
+    // every source above armed for the rest of the session.
+    const builder52 = source("5.4/appletMenuBuilder.js");
+    assert.match(builder52,
+        /_destroyOwned\(field\) \{[\s\S]*?this\[field\] = null;[\s\S]*?owned\.destroy\(\);/);
+    assert.match(builder52, /_destroyOwned\("_calendar"\)/);
+    assert.match(builder52, /_destroyOwned\("_eventList"\)/);
+
     const applet52 = appletSource("5.4");
-    assert.match(applet52, /destroyIfPresent\(this\._calendar\)/);
-    assert.match(applet52, /destroyIfPresent\(this\.event_list\)/);
+    assert.doesNotMatch(applet52, /destroyIfPresent\(this\._calendar\)/);
+    assert.doesNotMatch(applet52, /destroyIfPresent\(this\.event_list\)/);
 });
 
 test("applets disconnect settings and resume handlers on removal", () => {

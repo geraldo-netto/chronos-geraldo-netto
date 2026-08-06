@@ -124,6 +124,11 @@ class AppletMenuBuilder {
     build() {
         const context = this.context;
         const issueReporter = this._buildIssueReporter();
+        // Recorded here rather than beside the return: everything between this
+        // line and it can throw, and the field is what the detach step below
+        // works from. Assigning it last defeated that step for exactly the
+        // failures it exists to survive.
+        this._issueReporter = issueReporter;
         const reportIssue = issueReporter.set.bind(issueReporter);
         let box = new St.BoxLayout(
             {
@@ -162,7 +167,6 @@ class AppletMenuBuilder {
         const worldclocks = new Worldclocks.Worldclocks(calbox);
         const astronomy = new AstronomyView.AstronomyView(calbox);
         this._addSettingsMenuItems(issueReporter.label);
-        this._issueReporter = issueReporter;
 
         return {
             eventList,
@@ -239,6 +243,22 @@ class AppletMenuBuilder {
         return eventList;
     }
 
+    // The builder constructs the calendar and the event list, so it destroys
+    // them. Handing them back on the return statement made the applet their
+    // only owner, and a throw anywhere between constructing them and returning
+    // hands back nothing at all: the shared desktop-settings handler, the
+    // module-level LC_TIME listener rebuilding a dead grid, three events-manager
+    // handlers, the pending update idle, the navigation timeout and the
+    // renderer's three GLib sources all survived the session that way.
+    // Releasing the field first keeps a second call a no-op.
+    _destroyOwned(field) {
+        const owned = this[field];
+        this[field] = null;
+        if (owned) {
+            owned.destroy();
+        }
+    }
+
     // reachable from on_applet_removed_from_panel, like every other teardown in
     // the applet; each step is isolated so one throw does not strand the rest
     _disconnectAll(target, ids) {
@@ -272,6 +292,9 @@ class AppletMenuBuilder {
                 this._disconnectAll(this._calendar, this._calendar_signal_ids);
                 this._calendar_signal_ids = [];
             },
+            // every consumer is detached above, so the producers can go
+            () => this._destroyOwned("_calendar"),
+            () => this._destroyOwned("_eventList"),
             () => {
                 // the applet's own context menu is Cinnamon's, and it holds these
                 // items — and each item's activate closure holds this builder,

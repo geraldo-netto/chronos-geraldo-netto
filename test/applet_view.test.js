@@ -1389,6 +1389,7 @@ test("the menu builder disconnects the signals it connected", () => {
             return `list:${name}`;
         }
         disconnect(id) { disconnected.push(id); }
+        destroy() {}
     };
 
     try {
@@ -1447,6 +1448,7 @@ test("the menu builder disconnects the calendar signal too", () => {
             return `cal:${name}`;
         }
         disconnect(id) { disconnected.push(id); }
+        destroy() {}
         holidayForDate() { return null; }
         getSelectedDate() { return null; }
     };
@@ -1462,6 +1464,70 @@ test("the menu builder disconnects the calendar signal too", () => {
         assert.doesNotThrow(() => builder.destroy());
     } finally {
         Calendar52.Calendar = originalCalendar;
+    }
+});
+
+// build() hands the calendar and the event list back only on success, and the
+// applet's fields came from that return value alone. A throw anywhere after
+// they were constructed therefore left both alive for the session: wired to
+// the events manager and the shared desktop settings, holding the module-level
+// LC_TIME listener, a pending update idle, the navigation timeout and the
+// renderer's three GLib sources — with the applet's own teardown reaching none
+// of it.
+test("a build that throws partway still tears down what it had built", () => {
+    const destroyed = [];
+    const builder = new AppletModule.AppletMenuBuilder({
+        menu: { addActor() {}, addMenuItem() {}, toggle() {} },
+        contextMenu: { addMenuItem() {} },
+        desktopSettings: { use24h: true },
+        calendarSettings: {},
+        eventsManager: { connect: () => 1, disconnect() {} },
+        holidayProvider: null,
+        onSelectedDateChanged() {},
+        onGoHome() {},
+        onLaunchSettings() {}
+    });
+
+    const Calendar52 = require(path.join(APPLET_DIR, "5.4", "calendar.js"));
+    const EventView = require(path.join(APPLET_DIR, "5.4", "eventView.js"));
+    const originalCalendar = Calendar52.Calendar;
+    const originalEventList = EventView.EventList;
+    Calendar52.Calendar = class {
+        constructor() { this.actor = {}; }
+        connect() { return 1; }
+        disconnect() {}
+        getSelectedDate() { return null; }
+        holidayForDate() { return null; }
+        destroy() { destroyed.push("calendar"); }
+    };
+    EventView.EventList = class {
+        constructor() {
+            this.actor = { add_actor() {} };
+            this.selectedDate = null;
+        }
+        connect() { return 1; }
+        disconnect() {}
+        set_events() {}
+        destroy() { destroyed.push("list"); }
+    };
+    builder._selectDateInColumn = () => {
+        throw new Error("the date heading failed");
+    };
+
+    try {
+        assert.throws(() => builder.build(), /the date heading failed/);
+        assert.ok(builder._issueReporter,
+            "the reporter is recorded before anything that can throw, not after");
+
+        builder.destroy();
+
+        assert.deepEqual(destroyed, ["calendar", "list"],
+            "the builder destroys what it constructed, not only what it returned");
+        assert.doesNotThrow(() => builder.destroy());
+        assert.deepEqual(destroyed, ["calendar", "list"], "and a second pass is a no-op");
+    } finally {
+        Calendar52.Calendar = originalCalendar;
+        EventView.EventList = originalEventList;
     }
 });
 

@@ -597,12 +597,14 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // to a destroyed applet — pressing it opened a menu that was gone
             () => Main.keybindingManager.removeXletHotKey(this, "calendar-open"),
             () => destroyIfPresent(this._settingsBinder),
-            // the menu builder connects five signals on the events manager and
-            // the event list. Detach every consumer before its producer so a
-            // terminal notification cannot enter UI teardown.
+            // The menu builder connects five signals on the events manager and
+            // the event list, and it constructed the calendar and the event
+            // list — so it detaches every consumer before its producer and
+            // destroys both, in that order, from inside this one step. The
+            // applet used to destroy them here instead, which reached them
+            // only when build() returned: a throw partway through it left
+            // both alive, wired, and holding timers for the whole session.
             () => destroyIfPresent(this._menuBuilder),
-            () => destroyIfPresent(this._calendar),
-            () => destroyIfPresent(this.event_list),
             // the popup menu is parented to Main.uiGroup, not to the applet
             // actor, so nothing else ever destroys it: without this the whole
             // 42-cell grid, its tooltips and the event rows are stranded on
