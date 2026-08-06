@@ -242,7 +242,8 @@ test("event managers expose teardown and applets call it", () => {
     const connection = source("calendarServerConnection.js");
     assert.match(connection, /this\._calendar_server_signal_ids = \[\];/);
     assert.match(code, /destroy\(\) \{[\s\S]*?this\._server_connection\.destroy\(\);[\s\S]*?this\._stop_gc_timer\(\);[\s\S]*?this\._cancel_reload_selected\(\);/);
-    assert.match(connection, /for \(let id of this\._calendar_server_signal_ids\) \{[\s\S]*?this\._calendar_server\.disconnect\(id\);/);
+    assert.match(connection,
+        /const signalIds = this\._calendar_server_signal_ids;[\s\S]*?this\._calendar_server_signal_ids = \[\];[\s\S]*?for \(let id of signalIds\) \{[\s\S]*?server\.disconnect\(id\);/);
     assert.match(connection, /this\._calendar_server = null;[\s\S]*?this\._inited = false;/);
 
     assert.match(connection, /Gio\.bus_unwatch_name\(this\._bus_watch_id\);/);

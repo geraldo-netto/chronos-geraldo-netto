@@ -229,10 +229,11 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
             return;
         }
         log("could not connect to calendar server process: " + error);
-        this._disconnectServer();
+        const disconnectError = this._disconnectServer();
         this._calendar_server = null;
         this._inited = false;
         this.queueRetry();
+        this._reportDisconnectFailure(disconnectError);
     }
 
     cancelRetry() {
@@ -280,21 +281,36 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
             return;
         }
 
-        this._disconnectServer();
+        const disconnectError = this._disconnectServer();
         this._calendar_server = null;
         this._inited = false;
         this._cached_state = STATUS_UNKNOWN;
         this.queueRetry();
+        this._reportDisconnectFailure(disconnectError);
         this.callbacks.onStatusChanged();
     }
 
     _disconnectServer() {
-        if (this._calendar_server !== null) {
-            for (let id of this._calendar_server_signal_ids) {
-                this._calendar_server.disconnect(id);
+        const server = this._calendar_server;
+        const signalIds = this._calendar_server_signal_ids;
+        this._calendar_server_signal_ids = [];
+        let firstError = null;
+        if (server !== null) {
+            for (let id of signalIds) {
+                try {
+                    server.disconnect(id);
+                } catch (error) {
+                    firstError = firstError || error;
+                }
             }
         }
-        this._calendar_server_signal_ids = [];
+        return firstError;
+    }
+
+    _reportDisconnectFailure(error) {
+        if (error) {
+            log("could not disconnect calendar server signals: " + error);
+        }
     }
 
     destroy() {
@@ -309,10 +325,11 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
             this._proxy_cancellable = null;
             cancellable.cancel();
         }
-        this._disconnectServer();
+        const disconnectError = this._disconnectServer();
         this._calendar_server = null;
         this._inited = false;
         this._destroyed = true;
+        this._reportDisconnectFailure(disconnectError);
     }
 
     setTimeRange(start, end, force, cancellable, callFinished) {

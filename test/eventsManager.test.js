@@ -484,6 +484,38 @@ test("owner loss secures reconnection before notifying consumers", () => {
     assert.ok(conn._server_retry_id > 0);
 });
 
+test("one proxy disconnect failure cannot suppress cleanup or retry", () => {
+    const manager = readyManager();
+    const conn = manager._server_connection;
+    const vanished = proxy.instance;
+    vanished.g_name_owner = null;
+    const originalDisconnect = vanished.disconnect;
+    let attempts = 0;
+    vanished.disconnect = function(id) {
+        attempts++;
+        assert.deepEqual(conn._calendar_server_signal_ids, [],
+            "the signal ledger is detached before external calls");
+        if (attempts === 1) {
+            throw new Error("signal already gone");
+        }
+        originalDisconnect.call(this, id);
+    };
+    const logs = [];
+    global.log = (message) => {
+        assert.ok(conn._server_retry_id > 0, "retry is secured before reporting cleanup");
+        logs.push(String(message));
+    };
+
+    assert.doesNotThrow(() => vanished.signal("notify::g-name-owner", null));
+    assert.equal(attempts, 5, "every remaining signal gets a cleanup attempt");
+    assert.equal(vanished.disconnected.length, 4);
+    assert.equal(conn._calendar_server, null);
+    assert.equal(conn._inited, false);
+    assert.ok(conn._server_retry_id > 0);
+    assert.match(logs[0], /signal already gone/);
+    global.log = () => {};
+});
+
 // T705: org.cinnamon.CalendarServer is D-Bus activatable and idle-exits without
 // clients, so "no owner yet" is the normal first-connection state — the first
 // call_set_time_range() is what starts the process. Treating it as an owner
