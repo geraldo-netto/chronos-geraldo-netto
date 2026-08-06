@@ -538,6 +538,7 @@ function normalizedClockEntry(clock) {
 function selectUserClocks(clocks) {
     const configured = Array.isArray(clocks) ? clocks : [];
     const builtinKeys = builtInTimezoneKeys(builtinClocks());
+    const selectedKeys = new Set();
     const selected = [];
 
     for (const clock of configured) {
@@ -546,11 +547,12 @@ function selectUserClocks(clocks) {
             continue;
         }
 
-        const identity = timezoneComparisonKey(normalized.timezone);
-        if (identity && builtinKeys.has(identity)) {
+        const identity = timezoneComparisonKey(normalized.timezone) || normalized.timezone;
+        if (builtinKeys.has(identity) || selectedKeys.has(identity)) {
             continue;
         }
 
+        selectedKeys.add(identity);
         selected.push(normalized);
         if (selected.length >= MAX_CLOCKS) {
             break;

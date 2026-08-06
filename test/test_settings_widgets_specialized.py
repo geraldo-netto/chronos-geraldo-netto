@@ -836,6 +836,15 @@ class WorldClockSavedNormalizationTest(unittest.TestCase):
         self.assertEqual(self.module.normalize_saved_clocks(rows), rows)
         self.assertEqual(len(reads), 1)
 
+    def test_the_first_saved_clock_for_a_timezone_wins(self):
+        rows = [
+            {"label": "Rome", "timezone": "Europe/Rome"},
+            {"label": "Rome duplicate", "timezone": ":Europe/Rome"},
+            {"label": "Tokyo", "timezone": "Asia/Tokyo"},
+        ]
+
+        self.assertEqual(self.module.normalize_saved_clocks(rows), [rows[0], rows[2]])
+
     def test_a_hand_edited_list_bounds_the_rows_it_examines(self):
         """T844: the loop stopped at MAX_CLOCKS *accepted* rows, so a list whose
         entries were all rejected never filled the quota and walked every one."""

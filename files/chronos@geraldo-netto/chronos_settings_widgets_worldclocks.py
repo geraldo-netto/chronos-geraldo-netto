@@ -30,6 +30,7 @@ from chronos_timezone_data import (
     completion_key,
     is_runtime_builtin_timezone,
     runtime_local_timezone,
+    zoneinfo_identifier,
 )
 from chronos_settings_i18n import _
 
@@ -261,10 +262,15 @@ def normalize_saved_clocks(value) -> list[dict[str, str]]:
     local_timezone = runtime_local_timezone()
 
     normalized = []
+    seen_timezones = set()
     for row in value[:MAX_SAVED_CLOCK_ROWS]:
         clock = normalize_saved_clock(row, local_timezone)
         if clock is None:
             continue
+        identity = zoneinfo_identifier(clock["timezone"])
+        if identity in seen_timezones:
+            continue
+        seen_timezones.add(identity)
         normalized.append(clock)
         if len(normalized) >= MAX_CLOCKS:
             break

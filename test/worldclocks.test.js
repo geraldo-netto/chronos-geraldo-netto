@@ -519,6 +519,28 @@ test("the popup and the weather side select the same clocks", () => {
     assert.deepEqual(selected, ["Rome", "Tokyo"], "the built-in collision is nobody's clock");
 });
 
+test("the first saved clock for a timezone wins without consuming another slot", () => {
+    loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const configured = [
+        { label: "Rome", timezone: "Europe/Rome" },
+        { label: "Rome duplicate", timezone: "Europe/Rome" }
+    ].concat(ZONE_POOL.filter((timezone) => timezone !== "Europe/Rome")
+        .slice(0, WorldclockData.MAX_CLOCKS - 1).map((timezone, index) => ({
+            label: `Clock ${index}`,
+            timezone
+        })));
+
+    const selected = WorldclockData.selectUserClocks(configured);
+
+    assert.equal(selected.length, WorldclockData.MAX_CLOCKS);
+    assert.deepEqual(selected.map((clock) => clock.label), [
+        "Rome", ...Array.from(
+            { length: WorldclockData.MAX_CLOCKS - 1 }, (_, index) => `Clock ${index}`)
+    ]);
+});
+
 // worldclockData.timezoneCityName and chronos_settings_widgets_common.local_city_name
 // both derive the weather-location city from a timezone id and both write the
 // same settings key, so they must agree. The cases live in a fixture that the

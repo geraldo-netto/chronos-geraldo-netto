@@ -260,7 +260,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         # reached and no row selected, the tree emptied while the Add button
         # stayed dead and still explained itself with the cap message, until the
         # settings window was closed and reopened.
-        full = [{"label": "Clock %d" % i, "timezone": "Europe/Rome"}
+        full = [{"label": "Clock %d" % i, "timezone": "Region/City_%d" % i}
                 for i in range(self.module.MAX_CLOCKS)]
         settings = FakeSettings({"worldclocks": full})
         clocks = self.module.ClocksList({"value": full}, "worldclocks", settings)
