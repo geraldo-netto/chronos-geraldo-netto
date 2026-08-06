@@ -155,6 +155,25 @@ test("the presentation modules do not import the network stack", () => {
     assert.match(panel, /require\("\.\/weatherFormat"\)/);
 });
 
+// T810: `Weather` named two different modules in files that sit side by side -
+// appletLifecycle bound it to weather.js, appletPanelStatus and cityWeather to
+// weatherFormat. weather.js flattens weatherFormat into its own namespace on the
+// Node side, so RETRY_SECONDS, readingIsStale and WEATHER_ERRORS resolve under
+// both bindings under `node test/` and only under weatherFormat in Cinnamon.
+// Moving a line between two adjacent files silently rebound every reference, and
+// the suite could not see it for any of the flattened names.
+test("the Weather binding names weather.js and nothing else", () => {
+    for (const file of jsSources()) {
+        const code = source(file);
+        const bindings = code.matchAll(
+            /(?:const|var)\s+Weather\s*=[^;]{0,200}?["']\.\/(\w+)["']/g);
+        for (const [, module] of bindings) {
+            assert.equal(module, "weather",
+                `${file} binds Weather to ${module}; the pure half is WeatherFormat`);
+        }
+    }
+});
+
 test("6.0 sources avoid deprecated Lang.bind callbacks", () => {
     for (const relativePath of jsSources("6.0")) {
         assert.doesNotMatch(source(relativePath), /Lang\.bind/,
@@ -317,9 +336,9 @@ test("applets surface weather provider failures", () => {
     assert.match(coordinators, /setStatus\(reading = null, error = "", providerName = "", pending = false\) \{[\s\S]*?this\.reading = reading \|\| null;[\s\S]*?this\.pending = pending;[\s\S]*?this\.error = error;[\s\S]*?this\.providerName = providerName \|\| "";/);
     assert.doesNotMatch(code, /_setWeatherStatus/,
         "weather completions bind directly to the coordinator");
-    assert.match(panelStatus, /Weather\.WEATHER_ERROR_MARKER\);\n/);
+    assert.match(panelStatus, /WeatherFormat\.WEATHER_ERROR_MARKER\);\n/);
     assert.match(panelStatus, /function markedWeatherError\(error\)/);
-    assert.match(panelStatus, /return text \? Weather\.WEATHER_ERROR_MARKER \+ " " \+ text : "";/);
+    assert.match(panelStatus, /return text \? WeatherFormat\.WEATHER_ERROR_MARKER \+ " " \+ text : "";/);
     assert.match(panelStatus, /_\("Set a weather location"\)/);
     // the tooltip is a clock table and nothing else: the provider credit that
     // used to sit under a blank line at its foot is gone from it, and lives in
@@ -390,7 +409,7 @@ test("translating files use the applet's own gettext domain", () => {
 
 test("weather failures keep showing the stale reading with the marker", () => {
     const code = source("6.0/appletPanelStatus.js");
-    assert.match(code, /parts\.push\(reading \?\n\s+Weather\.WEATHER_ERROR_MARKER \+ " " \+ reading :\n\s+Weather\.WEATHER_ERROR_MARKER\);/);
+    assert.match(code, /parts\.push\(reading \?\n\s+WeatherFormat\.WEATHER_ERROR_MARKER \+ " " \+ reading :\n\s+WeatherFormat\.WEATHER_ERROR_MARKER\);/);
     // the tooltip row keeps the temperature in its own column and puts the marker
     // in the condition column, so a failed refresh loses neither. Both the
     // built-in and city rows render their reading record through _readingCells.

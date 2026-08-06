@@ -18,7 +18,12 @@ const TextUtils = AppletModules.textUtils;
 // the pure half of the weather module: the constants and the formatters. The
 // panel presenter renders — it must not link the Soup session, the provider
 // chains and the refresh scheduler that the weather.js barrel drags in.
-const Weather = require("./weatherFormat");
+//
+// WeatherFormat, not Weather: appletLifecycle beside this file binds `Weather`
+// to weather.js, and weather.js flattens weatherFormat into its own namespace
+// on the Node side - so a line moved between the two files kept resolving under
+// `node test/` and stopped resolving in Cinnamon.
+const WeatherFormat = require("./weatherFormat");
 const WorldclockData = require("./worldclockData");
 const SettingsFacade = require("./settingsFacade");
 
@@ -75,10 +80,10 @@ function alignedTooltipCell(cell, column, cells, widths) {
 }
 
 const WEATHER_ERROR_TEXT = {
-    [Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND]: _("Location not found"),
-    [Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE]: _("Weather service unavailable"),
-    [Weather.WEATHER_ERRORS.NO_LOCATION]: _("Set a weather location"),
-    [Weather.WEATHER_ERRORS.OFFLINE]: _("No network connection")
+    [WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND]: _("Location not found"),
+    [WeatherFormat.WEATHER_ERRORS.SERVICE_UNAVAILABLE]: _("Weather service unavailable"),
+    [WeatherFormat.WEATHER_ERRORS.NO_LOCATION]: _("Set a weather location"),
+    [WeatherFormat.WEATHER_ERRORS.OFFLINE]: _("No network connection")
 };
 
 function translateWeatherError(error) {
@@ -98,13 +103,13 @@ const WEATHER_CONDITION_TEXT = {
 };
 
 function weatherConditionWords(condition) {
-    const word = condition ? (Weather.WEATHER_CONDITIONS[condition] || "") : "";
+    const word = condition ? (WeatherFormat.WEATHER_CONDITIONS[condition] || "") : "";
     return word ? (WEATHER_CONDITION_TEXT[word] || word) : "";
 }
 
 function markedWeatherError(error) {
     const text = translateWeatherError(error);
-    return text ? Weather.WEATHER_ERROR_MARKER + " " + text : "";
+    return text ? WeatherFormat.WEATHER_ERROR_MARKER + " " + text : "";
 }
 
 // The panel has room for a glyph and a temperature, and no more. A screen
@@ -207,7 +212,7 @@ class PanelView {
     }
 
     get weatherUnits() {
-        return Weather.normalizeUnits(this.port.weatherUnits());
+        return WeatherFormat.normalizeUnits(this.port.weatherUnits());
     }
 
     get weatherError() {
@@ -379,11 +384,11 @@ class AppletPanelStatusPresenter {
         // the first refresh has not landed: the placeholder is the panel's, and
         // it is the one weather state the record cannot carry
         if (view.weatherPending) {
-            return Weather.WEATHER_PENDING_TEXT;
+            return WeatherFormat.WEATHER_PENDING_TEXT;
         }
 
         const record = view.weatherReading;
-        return record ? Weather.formatTemperature(record.temperatureC, view.weatherUnits) : "";
+        return record ? WeatherFormat.formatTemperature(record.temperatureC, view.weatherUnits) : "";
     }
 
     // The one thing show_worldclocks used to do was hide the popup grid. The
@@ -411,8 +416,8 @@ class AppletPanelStatusPresenter {
                 // the failure marker stays: it is the only sign on the panel
                 // that the reading may be stale
                 parts.push(reading ?
-                    Weather.WEATHER_ERROR_MARKER + " " + reading :
-                    Weather.WEATHER_ERROR_MARKER);
+                    WeatherFormat.WEATHER_ERROR_MARKER + " " + reading :
+                    WeatherFormat.WEATHER_ERROR_MARKER);
             } else if (reading) {
                 parts.push(reading);
             }
@@ -507,7 +512,7 @@ class AppletPanelStatusPresenter {
     // condition words: the marker says the reading may be old, not gone.
     _readingCells(record, error) {
         return [
-            Weather.formatTemperature(record.temperatureC, this.view.weatherUnits),
+            WeatherFormat.formatTemperature(record.temperatureC, this.view.weatherUnits),
             error || weatherConditionWords(record.condition)
         ];
     }
@@ -561,7 +566,7 @@ class AppletPanelStatusPresenter {
             // one msgid: the marker is a glyph the phrase is built around, and a
             // translator has to be able to put it where it belongs
             rowError = fillTemplate(_("%s Last known reading"),
-                [Weather.WEATHER_ERROR_MARKER]);
+                [WeatherFormat.WEATHER_ERROR_MARKER]);
             const stale = fillTemplate(_("%s Last known reading"), [""]).trim();
             issue = joinPhrases(entry.label, stale);
         }

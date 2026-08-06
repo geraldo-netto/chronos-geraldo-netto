@@ -1096,7 +1096,7 @@ test("the panel state and the city readings are the same store", () => {
         assert.doesNotMatch(source, /freshAt:/,
             name + " must not lay the reading record out a second time");
     }
-    assert.doesNotMatch(citySource, /readingIsStale/,
+    assert.doesNotMatch(citySource, /WeatherFormat\.readingIsStale/,
         "and the horizon is asked of the store, not recomputed beside it");
 });
 

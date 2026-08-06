@@ -31,7 +31,14 @@ const ElapsedTime = IS_NODE ?
 // the parts, not the barrel: requiring ./weather pulled in WeatherProvider — the
 // panel provider this module is the twin of — and its Soup session, for a handful
 // of constants, two resolvers and the refresh clock
-const Weather = IS_NODE ?
+// WeatherFormat, not Weather: `Weather` is weather.js, and the two were bound
+// to that one name in files that sit side by side. weather.js flattens
+// weatherFormat into its own namespace on the Node side, so names like
+// RETRY_SECONDS and readingIsStale resolve under both bindings under `node
+// test/` and only under weatherFormat in Cinnamon - moving a line between two
+// adjacent files silently rebound every reference, and the suite could not see
+// it for any of the flattened names.
+const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
 const WeatherProviders = IS_NODE ?
@@ -48,7 +55,7 @@ const locationCacheKey = WeatherProviders.locationCacheKey;
 
 // the world-clock cities are read on the same period as the panel weather:
 // the popup is a glance at the time, not a forecast desk
-const CITY_REFRESH_SECONDS = Weather.REFRESH_SECONDS;
+const CITY_REFRESH_SECONDS = WeatherFormat.REFRESH_SECONDS;
 // One city per clock, so this is the clock cap — not a number of its own. It
 // used to be its own literal 8, a fifth copy of the cap and the one the parity
 // test did not cover: raising the cap to 10 would have left clocks 9 and 10
@@ -64,7 +71,7 @@ const MAX_CITIES = ClockLimits.MAX_CLOCKS;
 const GEOCODE_CONCURRENCY = 2;
 // a failed round is retried sooner than the next period, backing off toward
 // it — the panel reading has worked this way all along
-const CITY_RETRY_SECONDS = Weather.RETRY_SECONDS;
+const CITY_RETRY_SECONDS = WeatherFormat.RETRY_SECONDS;
 // The panel weather asks one place for one reading. The tooltip asks every
 // configured world clock, so each city carries its own place lookup and its
 // own last-good reading; a city that fails to geocode simply has no
@@ -87,7 +94,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         // refreshes on, not from the module default: staleFor() used to read
         // the constant and ignore the injected period entirely, so a provider
         // refreshing every minute called an hour-old temperature current.
-        this._reading_store = new Weather.WeatherReadingStore({
+        this._reading_store = new WeatherFormat.WeatherReadingStore({
             freshnessNow: this._freshness_now,
             staleAfterSeconds: params.staleAfterSeconds,
             refreshSeconds: this._refresh_seconds
@@ -228,7 +235,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         this._retry_ceiling_reported = true;
         if (global.log) {
             global.log("city weather: still failing after " +
-                Weather.MAX_RETRY_ATTEMPTS +
+                WeatherFormat.MAX_RETRY_ATTEMPTS +
                 " attempts; falling back to the normal refresh period");
         }
     }
@@ -350,7 +357,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         let changed = false;
         for (const city of cities) {
             changed = this._setError(
-                city.query, Weather.WEATHER_ERRORS.OFFLINE) || changed;
+                city.query, WeatherFormat.WEATHER_ERRORS.OFFLINE) || changed;
         }
         this._scheduler.succeeded();
         if (changed) {
@@ -485,9 +492,9 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             // the city keeps the reading it had; it is now aging, and staleFor()
             // says so once it is two periods old. An unknown place will not
             // improve on retry; a service failure may.
-            const cityError = forecastError || Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
+            const cityError = forecastError || WeatherFormat.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
             round.changed = this._setError(city.query, cityError) || round.changed;
-            const ok = cityError === Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND;
+            const ok = cityError === WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND;
             this._cityDone(generation, round, round.settings, callback, ok);
             return;
         }
