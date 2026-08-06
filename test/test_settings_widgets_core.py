@@ -570,10 +570,11 @@ class SettingsWidgetsTest(unittest.TestCase):
             "UTC and local time are already shown as built-in clocks")
 
     def test_timezone_resolver_uses_zoneinfo_fallback_without_pytz(self):
-        resolver = self.module.common.TimezoneResolver(
-            None,
-            lambda: {"Europe/Rome", "America/New_York"}
-        )
+        with self.assertNoLogs("chronos@geraldo-netto.settings", level="WARNING"):
+            resolver = self.module.common.TimezoneResolver(
+                None,
+                lambda: {"Europe/Rome", "America/New_York"}
+            )
 
         self.assertFalse(resolver.has_timezone_data)
         self.assertEqual(
@@ -1003,7 +1004,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(preview.text, self.module.TIMEZONE_PREVIEW_TEMPLATE % "Europe/Rome")
         self.assertIn((1, True), dialog.sensitivity)
 
-    def test_missing_pytz_logs_install_help(self):
+    def test_missing_timezone_data_logs_install_help(self):
         module = load_module(WORLDCLOCKS_PATH, "settings_widgets_common_no_pytz_log_test", missing_pytz=True)
 
         # Warned when the resolver is built, not at import: importing a module
@@ -1014,7 +1015,7 @@ class SettingsWidgetsTest(unittest.TestCase):
             module.common.TimezoneResolver(None, None)
 
         message = "\n".join(logs.output)
-        self.assertIn("python3-pytz is not installed", message)
+        self.assertIn("No Python timezone database is available", message)
         self.assertIn("sudo apt install python3-pytz", message)
         self.assertIn("python3 -m pip install pytz", message)
 

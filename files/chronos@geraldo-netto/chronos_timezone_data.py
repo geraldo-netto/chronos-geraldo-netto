@@ -28,9 +28,9 @@ from typing import Any, Callable, Iterable, Optional
 
 LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 
-MISSING_PYTZ_WARNING = (
-    "python3-pytz is not installed; world-clock timezone validation and "
-    "city suggestions are limited. Install it with "
+MISSING_TIMEZONE_DATA_WARNING = (
+    "No Python timezone database is available; world-clock city suggestions "
+    "are unavailable and timezone validation is limited. Install pytz with "
     "'sudo apt install python3-pytz' on Linux Mint/Debian/Ubuntu, or "
     "'python3 -m pip install pytz'."
 )
@@ -293,13 +293,6 @@ class TimezoneResolver:
         self.builtin_timezones = set()
         self.refresh_builtin_timezones()
 
-        # Warned here rather than at import: importing a module should define
-        # things, not emit them. At import time cinnamon-settings has not
-        # configured logging yet, so the warning landed on the whole process's
-        # stderr or was dropped entirely, depending on import order.
-        if pytz_module is None:
-            LOGGER.warning(MISSING_PYTZ_WARNING)
-
         if self.has_timezone_data:
             self.timezone_map = {tz.lower(): tz for tz in pytz_module.all_timezones}
             self.build_completions(pytz_module.common_timezones)
@@ -308,6 +301,14 @@ class TimezoneResolver:
                 tz.lower(): tz for tz in available_timezones_func()
             }
             self.build_completions(self.fallback_timezone_map.values())
+
+        # Warned here rather than at import: importing a module should define
+        # things, not emit them. At import time cinnamon-settings has not
+        # configured logging yet, so the warning landed on the whole process's
+        # stderr or was dropped entirely, depending on import order. A healthy
+        # stdlib zoneinfo index is equivalent here and needs no warning.
+        if not self.any_timezone_data():
+            LOGGER.warning(MISSING_TIMEZONE_DATA_WARNING)
 
     def build_completions(self, timezones: Iterable[str]) -> None:
         for tz in timezones:
