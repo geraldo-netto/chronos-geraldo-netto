@@ -580,7 +580,7 @@ test("a very long clock name is cut down to size", () => {
     const WorldclockData =
         global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
     const worldclocks = new Worldclocks({ add_actor() {} });
-    const max = WorldclockData.MAX_CLOCK_LABEL_LENGTH;
+    const max = WorldclockData.MAX_CLOCK_LABEL_CELLS;
 
     const fullLabel = "x".repeat(60);
     worldclocks.buildClocks([
@@ -606,6 +606,30 @@ test("a very long clock name is cut down to size", () => {
         "y".repeat(WorldclockData.MAX_CLOCK_INPUT_LABEL_LENGTH + 20));
     assert.equal(Array.from(oversized).length, WorldclockData.MAX_CLOCK_INPUT_LABEL_LENGTH);
     assert.ok(oversized.endsWith("…"));
+});
+
+// T792: the cap's own rationale is the popup grid and the monospace tooltip
+// padded to the widest cell - both measured in cells by TextUtils.displayWidth -
+// and it was enforced with a code-point clamp. So a CJK name passed the cap at
+// 24 code points and drew 48 cells, twice the budget, in exactly the sessions
+// the width work was done for.
+test("a clock name is cut to the cells the tooltip pads, not to code points", () => {
+    loadWorldclocks();
+    const applets = global.imports.ui.appletManager.applets["chronos@geraldo-netto"];
+    const WorldclockData = applets.worldclockData;
+    const TextUtils = applets.textUtils;
+    const cells = WorldclockData.MAX_CLOCK_LABEL_CELLS;
+
+    const wide = WorldclockData.clockDisplayLabel("東".repeat(cells));
+    assert.ok(TextUtils.displayWidth(wide) <= cells,
+        "24 ideographs are 24 code points and 48 cells");
+    assert.ok(wide.endsWith("…"));
+
+    // a name that fits either way is still untouched, and the budget is the
+    // same number of cells a Latin name gets
+    assert.equal(WorldclockData.clockDisplayLabel("東京"), "東京");
+    assert.equal(TextUtils.displayWidth(
+        WorldclockData.clockDisplayLabel("x".repeat(cells))), cells);
 });
 
 test("configured clocks require visible normalized labels", () => {

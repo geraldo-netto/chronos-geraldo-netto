@@ -44,7 +44,12 @@ var MAX_CLOCKS = ClockLimits.MAX_CLOCKS; // NOSONAR [S3504] -- GJS importer expo
 // to match it, with nothing truncating. The panel suffix has been capped all
 // along — at 48 — for exactly this reason; the other two readouts were not.
 // A city name is a few words.
-var MAX_CLOCK_LABEL_LENGTH = 24; // NOSONAR [S3504] -- GJS importer export
+//
+// Cells, because that is what the layout it protects is measured in. It was
+// enforced with a code-point clamp, and the two units part company on exactly
+// the text the width work exists for: 24 ideographs are 24 code points and 48
+// cells.
+var MAX_CLOCK_LABEL_CELLS = 24; // NOSONAR [S3504] -- GJS importer export
 // Keep persisted/user-facing text available for editing and disclosure, while
 // still bounding every settings value admitted into the compositor process.
 var MAX_CLOCK_INPUT_LABEL_LENGTH = 128; // NOSONAR [S3504] -- GJS importer export
@@ -558,9 +563,14 @@ function selectUserClocks(clocks) {
     return selected;
 }
 
+// Cells, not code points: the cap's own rationale is the popup grid and the
+// monospace tooltip, which pads to the widest cell, and both are measured with
+// TextUtils.displayWidth. A code-point clamp let "東".repeat(24) through at 24
+// points and 48 cells - twice the budget - in the CJK sessions the width work
+// was done for.
 function clockDisplayLabel(label) {
     const normalized = typeof label === "string" ? label.trim() : "";
-    return TextUtils.clampText(normalized, MAX_CLOCK_LABEL_LENGTH);
+    return TextUtils.clampToWidth(normalized, MAX_CLOCK_LABEL_CELLS);
 }
 
 // textUtils names "a world clock's label" as exactly what its shared rule is
@@ -601,7 +611,7 @@ if (typeof module !== "undefined") {
         selectUserClocks,
         clockDisplayLabel,
         clockInputLabel,
-        MAX_CLOCK_LABEL_LENGTH,
+        MAX_CLOCK_LABEL_CELLS,
         MAX_CLOCK_INPUT_LABEL_LENGTH,
         MAX_ZONE_TAB_BYTES,
         MAX_MEMOIZED_WEATHER_CITIES

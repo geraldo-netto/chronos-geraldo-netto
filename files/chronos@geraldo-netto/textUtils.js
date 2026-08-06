@@ -180,9 +180,40 @@ function clampText(text, maxLength) {
     return prefix.join("").replace(/\s+$/, "") + TEXT_ELLIPSIS; // NOSONAR [S8786] -- prefix length is bounded
 }
 
+// The same rule in the unit the tooltip's padding is made of.
+//
+// A cap that exists to bound a column has to be counted the way the column is,
+// and clampText counts code points: "東".repeat(24) clamps to 24 of those and
+// 48 cells, twice the budget, in exactly the CJK sessions displayWidth was
+// written for. The ellipsis is one cell and is inside the budget, so the result
+// never exceeds maxCells; a wide character that would straddle the last cell is
+// dropped rather than half-shown.
+function clampToWidth(text, maxCells) {
+    const source = typeof text === "string" ? text : "";
+    if (!Number.isInteger(maxCells) || maxCells < 1) {
+        return "";
+    }
+    if (displayWidth(source) <= maxCells) {
+        return source;
+    }
+
+    const prefix = [];
+    let width = 0;
+    for (const character of source) {
+        width += displayWidth(character);
+        if (width > maxCells - 1) {
+            break;
+        }
+        prefix.push(character);
+    }
+
+    return prefix.join("").replace(/\s+$/, "") + TEXT_ELLIPSIS; // NOSONAR [S8786] -- prefix width is bounded
+}
+
 if (typeof module !== "undefined") {
     module.exports = {
         clampText,
+        clampToWidth,
         displayWidth,
         sanitizeControlCharacters,
         textWithinLimit,

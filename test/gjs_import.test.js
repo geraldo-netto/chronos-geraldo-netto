@@ -355,7 +355,7 @@ const EXPORTS = {
         "PUBLIC_HOLIDAY_FLAG", "RELIGIOUS_HOLIDAY_FLAG",
         "OPEN_HOLIDAYS_COUNTRIES", "COUNTRY_TO_ISO2", "ISO2_TO_COUNTRY",
         "countryFromIso2", "REGION_TO_SUBDIVISION"],
-    worldclockData: ["MAX_CLOCKS", "MAX_CLOCK_LABEL_LENGTH", "MAX_CLOCK_INPUT_LABEL_LENGTH",
+    worldclockData: ["MAX_CLOCKS", "MAX_CLOCK_LABEL_CELLS", "MAX_CLOCK_INPUT_LABEL_LENGTH",
         "LOCAL_TIMEZONE", "INVALID_TIMEZONE_TEXT",
         "LOCAL_TIME_TEXT", "timezoneFromIdentifier", "builtinClocks",
         "timezoneIdentity", "timezoneCityName", "timezoneWeatherCity", "regionalTimezoneIdentifier",

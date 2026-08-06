@@ -62,6 +62,39 @@ test("the sanitizer removes the overrides that reorder what follows them", () =>
     }
 });
 
+// T792: MAX_CLOCK_LABEL_CELLS exists to bound a layout its own comment
+// describes in cells - the popup grid, and the monospace tooltip padded to the
+// widest cell - and it was enforced with clampText, a code-point clamp.
+// textUtils exists because a code-point count is the wrong unit here.
+test("clampToWidth counts the cells the tooltip pads with", () => {
+    const { clampToWidth, displayWidth } = require(path.join(APPLET_DIR, "textUtils.js"));
+
+    // the measurement that made the two units part company
+    assert.equal(displayWidth("東".repeat(24)), 48);
+    // 11 ideographs and the ellipsis: a 12th would straddle the last cell
+    assert.equal(displayWidth(clampToWidth("東".repeat(24), 24)), 23);
+
+    assert.equal(clampToWidth("Rome", 10), "Rome", "inside the budget is untouched");
+    assert.equal(clampToWidth("東".repeat(3), 6), "東東東", "exactly the budget too");
+
+    // one cell is the ellipsis's, and a wide character that would straddle the
+    // last cell is dropped rather than half-shown
+    assert.equal(clampToWidth("東".repeat(4), 6), "東東…");
+    assert.equal(clampToWidth("東".repeat(4), 7), "東東東…");
+    assert.equal(clampToWidth("abcdef", 4), "abc…");
+
+    // trailing space goes before the ellipsis, as clampText does it
+    assert.equal(clampToWidth("Rio de Janeiro", 5), "Rio…");
+
+    // zero-width marks cost nothing, so a decomposed name is not cut short
+    const combining = "a" + String.fromCodePoint(0x0301);
+    assert.equal(clampToWidth(combining.repeat(4), 4), combining.repeat(4));
+
+    assert.equal(clampToWidth(null, 4), "");
+    assert.equal(clampToWidth("Rome", 0), "");
+    assert.equal(clampToWidth("Rome", 1.5), "");
+});
+
 test("clampText counts code points and keeps what it cuts readable", () => {
     assert.equal(clampText("Rome", 10), "Rome", "shorter than the cap is untouched");
     assert.equal(clampText("Rome", 4), "Rome", "exactly the cap is untouched");
