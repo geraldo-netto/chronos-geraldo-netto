@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-06 18:16+0200\n"
+"POT-Creation-Date: 2026-08-06 18:49+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: blogdron\n"
 "Language-Team: \n"
@@ -254,7 +254,7 @@ msgstr "Цинмин"
 msgid "Ghost Festival"
 msgstr "Фестиваль призраков"
 
-#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:66
+#: worldclockData.js:73 chronos_settings_widgets_worldclocks.py:67
 msgid "Invalid timezone"
 msgstr "Недопустимый часовой пояс"
 
@@ -544,37 +544,37 @@ msgstr "Город или населённый пункт (например, Л�
 msgid "This location is too long to save"
 msgstr "Это местоположение слишком длинное для сохранения"
 
-#: chronos_settings_widgets_worldclocks.py:64
+#: chronos_settings_widgets_worldclocks.py:65
 msgid "City or timezone (e.g. Buenos Aires)"
 msgstr "Город или часовой пояс (например, Buenos Aires)"
 
-#: chronos_settings_widgets_worldclocks.py:65
+#: chronos_settings_widgets_worldclocks.py:66
 #, python-format
 msgid "Timezone to save: %s"
 msgstr "Часовой пояс для сохранения: %s"
 
-#: chronos_settings_widgets_worldclocks.py:67
+#: chronos_settings_widgets_worldclocks.py:68
 msgid "No timezone selected"
 msgstr "Часовой пояс не выбран"
 
-#: chronos_settings_widgets_worldclocks.py:68
+#: chronos_settings_widgets_worldclocks.py:69
 msgid "UTC and local time are already shown as built-in clocks"
 msgstr "UTC и местное время уже показаны как встроенные часы"
 
-#: chronos_settings_widgets_worldclocks.py:69
+#: chronos_settings_widgets_worldclocks.py:70
 msgid "This timezone is already in the list"
 msgstr "Этот часовой пояс уже есть в списке"
 
-#: chronos_settings_widgets_worldclocks.py:70
+#: chronos_settings_widgets_worldclocks.py:71
 msgid "Enter a display name for this clock"
 msgstr "Введите отображаемое имя для этих часов"
 
-#: chronos_settings_widgets_worldclocks.py:74
+#: chronos_settings_widgets_worldclocks.py:75
 #, python-format
 msgid "No more than %d clocks can be added."
 msgstr "Можно добавить не более %d часов."
 
-#: chronos_settings_widgets_worldclocks.py:77
+#: chronos_settings_widgets_worldclocks.py:78
 msgid ""
 "No timezone database found. Install python3-pytz to type a city name; "
 "without it, only a full identifier such as America/Sao_Paulo is accepted."
@@ -583,12 +583,12 @@ msgstr ""
 "вводить название города; без неё принимается только полный идентификатор, "
 "например America/Sao_Paulo."
 
-#: chronos_settings_widgets_worldclocks.py:307
-#: chronos_settings_widgets_worldclocks.py:642
+#: chronos_settings_widgets_worldclocks.py:313
+#: chronos_settings_widgets_worldclocks.py:648
 msgid "Add new entry"
 msgstr "Добавить новый элемент"
 
-#: chronos_settings_widgets_worldclocks.py:311
+#: chronos_settings_widgets_worldclocks.py:317
 msgid "Edit entry"
 msgstr "Редактировать элемент"
 
