@@ -50,7 +50,7 @@ function religiousBase(country = "") {
             }
         },
         getHolidays(_year, _month, callback) {
-            callback(new Map([["12/25", ["Public Christmas", ["public_holiday"]]]]),
+            callback(new Map([["12/25", { name: "Public Christmas", flags: ["public_holiday"] }]]),
                 "provider warning", "Public Provider");
         }
     };
@@ -67,7 +67,7 @@ test("religious provider serves local observances while public holidays are disa
     assert.equal(provider.active, true);
     assert.equal(provider.country, "", "country stays honest: no place is set");
     assert.deepEqual(answer[0].get("12/25"),
-        ["Christmas Day (Christianity)", ["religious_holiday", "christianity"]]);
+        { name: "Christmas Day (Christianity)", flags: ["religious_holiday", "christianity"] });
     assert.deepEqual(answer.slice(1), ["", ""]);
 });
 
@@ -82,10 +82,7 @@ test("the composition root injects religious display translation", () => {
 
     provider.getHolidays(2026, 12, (...args) => { answer = args; });
 
-    assert.deepEqual(answer[0].get("12/25"), [
-        "translated:Christmas Day (translated:Christianity)",
-        ["religious_holiday", "christianity"]
-    ]);
+    assert.deepEqual(answer[0].get("12/25"), { name: "translated:Christmas Day (translated:Christianity)", flags: ["religious_holiday", "christianity"] });
 });
 
 test("religious provider merges public results and preserves provider status", () => {
@@ -96,10 +93,7 @@ test("religious provider merges public results and preserves provider status", (
 
     provider.getHolidays(2026, 12, (...args) => { answer = args; });
 
-    assert.deepEqual(answer[0].get("12/25"), [
-        "Public Christmas\nChristmas Day (Christianity)",
-        ["public_holiday", "religious_holiday", "christianity"]
-    ]);
+    assert.deepEqual(answer[0].get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday", "christianity"] });
     assert.deepEqual(answer.slice(1), ["provider warning", "Public Provider"]);
 });
 
@@ -235,7 +229,7 @@ test("a fourth provider that only fetches years works in the shipped graph", () 
     let matched = null;
     provider.getHolidays(2026, 7, (holidays) => { matched = holidays; });
 
-    assert.deepEqual(matched.get("7/14"), ["Founding Day", ["public_holiday"]]);
+    assert.deepEqual(matched.get("7/14"), { name: "Founding Day", flags: ["public_holiday"] });
 });
 
 test("the chain validates against the record contract, not against the primary", () => {
@@ -657,7 +651,7 @@ test("the holiday composition root wires the shipped graph", () => {
     provider.getHolidays(2026, 7, (dates, error) => months.push([dates, error]));
     const [dates, error] = months[0];
     assert.equal(error, "");
-    assert.deepEqual(dates.get("7/14"), ["Bastille Day", ["public_holiday"]]);
+    assert.deepEqual(dates.get("7/14"), { name: "Bastille Day", flags: ["public_holiday"] });
 
     // and the record contract is the chain's, not the primary adapter's
     assert.ok(new HolidayRecordContract("en").validResponse([{
@@ -721,7 +715,7 @@ test("a response from the country the user just left does not silence the new on
 
     const months = [];
     provider.getHolidays(FIXED_YEAR, 7, (dates) => months.push(dates));
-    assert.deepEqual(months[0].get("7/14"), ["Bastille Day", ["public_holiday"]]);
+    assert.deepEqual(months[0].get("7/14"), { name: "Bastille Day", flags: ["public_holiday"] });
 });
 
 // T585: the composition root once called its language getter at construction
@@ -747,7 +741,7 @@ test("the holiday language resolver is consulted after construction", () => {
     provider.setPlace("fra", "global", () => {});
     const months = [];
     provider.getHolidays(FIXED_YEAR, 7, (dates) => months.push(dates));
-    assert.deepEqual(months[0].get("7/14"), ["Fête nationale", ["public_holiday"]],
+    assert.deepEqual(months[0].get("7/14"), { name: "Fête nationale", flags: ["public_holiday"] },
         "localization uses the settled language, not the construction-time default");
 
     // the request language resolves per fetch the same way
@@ -883,7 +877,7 @@ test("the annotator's string month keys fetch and render like numeric ones", () 
 
     assert.equal(answers.length, 1);
     assert.equal(answers[0][1], "", "a valid payload is not classed as a failure");
-    assert.deepEqual(answers[0][0].get("1/1"), ["Jour de l'an", ["public_holiday"]]);
+    assert.deepEqual(answers[0][0].get("1/1"), { name: "Jour de l'an", flags: ["public_holiday"] });
     assert.equal(requested.length, before + 1, "one fetch, no failover burn");
 
     // and an input that cannot be a year answers empty without dispatching

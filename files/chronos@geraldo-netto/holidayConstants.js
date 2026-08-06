@@ -27,6 +27,21 @@ var GLOBAL_REGION = "global"; // NOSONAR [S3504] -- GJS importer export
 // religious observances. Vendor rows are allowed to carry an empty flag list,
 // so absence of the religious flag alone cannot distinguish a public-only row
 // from a merged public+religious row.
+// One day of the matched-month map the calendar grid and the event column both
+// read. It used to be an anonymous [name, flags] tuple, flattened by two
+// producers and recovered by index in three places across two modules, with no
+// name, type or validation anywhere and a one-line comment inside a consumer as
+// its only description. That is the same shape as the popupEntry.temperature
+// defect: adding a field meant editing five positional sites, and getting one
+// wrong yields the wrong tooltip or agenda label rather than an exception.
+//
+// It lives here, with the flag vocabulary it carries, because this module has
+// no dependencies — every producer and consumer of the map can reach it without
+// pulling anything else along.
+function monthHolidayEntry(name, flags) {
+    return { name, flags: flags || [] };
+}
+
 var PUBLIC_HOLIDAY_FLAG = "public_holiday"; // NOSONAR [S3504] -- GJS importer export
 var RELIGIOUS_HOLIDAY_FLAG = "religious_holiday"; // NOSONAR [S3504] -- GJS importer export
 // the countries the settings combobox offers; a value outside this list
@@ -421,5 +436,6 @@ var REGION_COUNTRIES = Object.keys(REGION_TO_SUBDIVISION); // NOSONAR [S3504] --
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION, REGION_COUNTRIES, COUNTRY_TO_LANGUAGE };
+    module.exports = { HOLIDAY_ERRORS, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG,
+        monthHolidayEntry, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION, REGION_COUNTRIES, COUNTRY_TO_LANGUAGE };
 }

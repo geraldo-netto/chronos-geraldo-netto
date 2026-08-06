@@ -16,6 +16,23 @@ test("provider adapters distinguish wire and domain public-holiday values", () =
         /type === "Public" \? PUBLIC_HOLIDAY_FLAG : type\.toLowerCase\(\)/);
 });
 
+// T781: the matched-month map's value used to be an anonymous [name, flags]
+// tuple with two producers and three positional consumers across two modules.
+// It is a named record now, built in one place, so a fourth field is one edit
+// rather than five positional sites in four files.
+test("a month-map entry is a named record with flags that are always a list", () => {
+    const { monthHolidayEntry } = require(holidayConstantsPath);
+
+    assert.deepEqual(monthHolidayEntry("Bastille Day", ["public_holiday"]),
+        { name: "Bastille Day", flags: ["public_holiday"] });
+    // mergeMonthMaps leaves the field off a row that carries none, and every
+    // consumer treats a falsy value as "no flags" — so the record supplies one
+    for (const absent of [undefined, null, 0, ""]) {
+        assert.deepEqual(monthHolidayEntry("Bastille Day", absent),
+            { name: "Bastille Day", flags: [] });
+    }
+});
+
 test("every country the settings offer can reach the fallback providers", () => {
     const { SUPPORTED_COUNTRIES, COUNTRY_TO_ISO2 } = require(holidayConstantsPath);
 
@@ -915,7 +932,7 @@ test("the fallback chain retries HolidayService failures with Nager data", () =>
     assert.equal(enrico.last_error, "");
     assert.equal(enrico.last_provider, "Nager.Date");
     assert.deepEqual(enrico.cache.years[2026], { ca: NAGER_STAMP });
-    assert.deepEqual(enrico.matchMonth(2026, 3).get("3/31"), ["Cesar Chavez Day", ["public_holiday"]]);
+    assert.deepEqual(enrico.matchMonth(2026, 3).get("3/31"), { name: "Cesar Chavez Day", flags: ["public_holiday"] });
     assert.equal(saved.holidays.length, 1);
 });
 
@@ -979,7 +996,7 @@ test("an empty answer from the primary does not end the provider chain", () => {
 
     assert.equal(enrico.last_provider, "Nager.Date",
         "the chain runs on instead of believing the empty answer");
-    assert.deepEqual(enrico.matchMonth(2026, 3).get("3/31"), ["Cesar Chavez Day", ["public_holiday"]]);
+    assert.deepEqual(enrico.matchMonth(2026, 3).get("3/31"), { name: "Cesar Chavez Day", flags: ["public_holiday"] });
 });
 
 test("an empty answer is believed once every provider gives one", () => {
@@ -1058,7 +1075,7 @@ test("the fallback chain tries OpenHolidays before Nager", () => {
     assert.equal(enrico.last_error, "");
     assert.equal(enrico.last_provider, "OpenHolidays");
     assert.deepEqual(enrico.cache.years[2026], { zh: OPENHOLIDAYS_STAMP });
-    assert.deepEqual(enrico.matchMonth(2026, 1).get("1/2"), ["Berchtold's Day", ["optional"]]);
+    assert.deepEqual(enrico.matchMonth(2026, 1).get("1/2"), { name: "Berchtold's Day", flags: ["optional"] });
     assert.equal(saved.holidays.length, 1);
 });
 

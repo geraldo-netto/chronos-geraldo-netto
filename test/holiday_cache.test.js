@@ -46,7 +46,7 @@ test("HolidayCache owns fetched holiday persistence and place clearing", () => {
     ]);
 
     assert.equal(cache.years[2026].global, stamp);
-    assert.deepEqual(cache.matchMonth(2026, 1).get("1/1"), ["New Year", []]);
+    assert.deepEqual(cache.matchMonth(2026, 1).get("1/1"), { name: "New Year", flags: [] });
     // recording is not writing: the cache no longer reaches for the disk from
     // inside its own record method, so nothing has been saved yet
     assert.deepEqual(saves, []);
@@ -1082,7 +1082,7 @@ test("clearing the place releases the rows it was holding", () => {
     // and nothing was lost that mattered: the same country reloads from disk
     cache.setPlace("ita", GLOBAL_REGION);
     assert.equal(loads, 2, "re-selecting a cleared country reads it again");
-    assert.equal(cache.matchMonth(2026, 1).get("1/1")[0], "Capodanno");
+    assert.equal(cache.matchMonth(2026, 1).get("1/1").name, "Capodanno");
 });
 
 test("a cache directory that cannot be created degrades instead of throwing", () => {
@@ -1123,7 +1123,7 @@ test("a cache directory that cannot be created degrades instead of throwing", ()
     }, cache, { record: anyRecord({ expandHoliday: (single) => [single] }) });
 
     assert.doesNotThrow(() => enrico.setPlace("usa", "global"));
-    assert.deepEqual(enrico.matchMonth(FIXED_YEAR, 1).get("1/1"), ["New Year", []]);
+    assert.deepEqual(enrico.matchMonth(FIXED_YEAR, 1).get("1/1"), { name: "New Year", flags: [] });
 });
 
 test("a cached freshness stamp in the future is not believed", () => {
@@ -1220,7 +1220,7 @@ test("HolidayService localizes, deduplicates, caches, and matches holidays by mo
 
     const holidays = enrico.matchMonth(2026, 1);
 
-    assert.deepEqual(holidays.get("1/1"), ["New Year\nSecond Name", ["public_holiday"]]);
+    assert.deepEqual(holidays.get("1/1"), { name: "New Year\nSecond Name", flags: ["public_holiday"] });
     assert.equal(holidays.has("2/1"), false);
     assert.equal(enrico.staleCache(2026), false);
 });
@@ -1248,7 +1248,7 @@ test("HolidayService setPlace treats a null region as the global region", () => 
     assert.equal(enrico.region, "global");
     assert.equal(enrico.staleCache(2026), false);
     assert.equal(retrieved, false);
-    assert.deepEqual(enrico.matchMonth(2026, 1).get("1/1"), ["New Year", []]);
+    assert.deepEqual(enrico.matchMonth(2026, 1).get("1/1"), { name: "New Year", flags: [] });
 });
 
 test("HolidayService setPlace honors the retry backoff after a failed fetch", () => {
@@ -1341,7 +1341,7 @@ test("HolidayService setPlace loads cache and getHolidays retrieves stale years"
     });
 
     assert.equal(retrievedYear, 2027);
-    assert.deepEqual(holidays.get("3/8"), ["Fetched", []]);
+    assert.deepEqual(holidays.get("3/8"), { name: "Fetched", flags: [] });
 });
 
 test("HolidayService retrieveForYear builds params and addData ignores provider errors", () => {
@@ -1365,7 +1365,7 @@ test("HolidayService retrieveForYear builds params and addData ignores provider 
     assert.equal(captured.params.region, "ca");
     assert.equal(captured.params.providerName, "Enrico");
     assert.ok(captured.url.includes("country=usa"));
-    assert.deepEqual(enrico.matchMonth(2026, 7).get("7/4"), ["Fetched", ["public_holiday"]]);
+    assert.deepEqual(enrico.matchMonth(2026, 7).get("7/4"), { name: "Fetched", flags: ["public_holiday"] });
     assert.equal(enrico.last_provider, "Enrico");
 
     const before = enrico.cache.data.length;
@@ -1563,7 +1563,7 @@ test("HolidayCache indexes many rows into the month they fall in", () => {
     assert.equal(cache._holidayIndex.size, cache.data.length);
     assert.ok(cache._monthIndex.has("2030/5/global"));
     for (const [date, name] of expected) {
-        assert.equal(may.get(date)[0], name);
+        assert.equal(may.get(date).name, name);
     }
 });
 
@@ -1584,11 +1584,11 @@ test("HolidayCache indexes loaded data and API mutations", () => {
     cache.setPlace("usa", "global");
 
     assert.equal(cache.data.length, 2);
-    assert.deepEqual(cache.matchMonth(2031, 1).get("1/1"), ["One\nUno", []]);
+    assert.deepEqual(cache.matchMonth(2031, 1).get("1/1"), { name: "One\nUno", flags: [] });
 
     cache.addUnique({ year: 2031, month: 1, day: 7, region: "global", name: "Seven", flags: [] });
 
-    assert.deepEqual(cache.matchMonth(2031, 1).get("1/7"), ["Seven", []]);
+    assert.deepEqual(cache.matchMonth(2031, 1).get("1/7"), { name: "Seven", flags: [] });
     assert.equal(cache._holidayIndex.size, cache.data.length);
 });
 
@@ -1608,7 +1608,7 @@ test("HolidayCache memoizes derived month matches until data changes", () => {
     cache.addUnique({ year: 2031, month: 1, day: 2, region: "global", name: "Two", flags: [] });
     const third = cache.matchMonth(2031, 1);
     assert.notEqual(third, first);
-    assert.deepEqual(third.get("1/2"), ["Two", []]);
+    assert.deepEqual(third.get("1/2"), { name: "Two", flags: [] });
 });
 
 test("same-date holiday flags merge independently of provider row order", () => {
@@ -1623,7 +1623,7 @@ test("same-date holiday flags merge independently of provider row order", () => 
             year: 2031, month: 1, day: 1, region: "global", ...row
         }));
 
-        assert.deepEqual(cache.matchMonth(2031, 1).get("1/1")[1],
+        assert.deepEqual(cache.matchMonth(2031, 1).get("1/1").flags,
             ["bank", "optional", "public_holiday"]);
     }
 });
@@ -1646,7 +1646,7 @@ test("a duplicate holiday refreshes a memoized month", () => {
 
     assert.notEqual(after, before);
     assert.deepEqual(after.get("1/1"),
-        ["One\nUno", ["PART_DAY_HOLIDAY", "optional"]]);
+        { name: "One\nUno", flags: ["PART_DAY_HOLIDAY", "optional"] });
 });
 
 test("HolidayCache backs off after a failed fetch attempt", () => {
@@ -1718,7 +1718,7 @@ test("a fetch that lands after the country changed does not write to the new cou
     enrico.setPlace("jpn", "global");          // ...the user picks Japan...
     pending.forEach((land) => land());         // ...and both answers arrive
 
-    const july = Array.from(enrico.matchMonth(year, 7).values()).map(([name]) => name);
+    const july = Array.from(enrico.matchMonth(year, 7).values()).map((entry) => entry.name);
     assert.deepEqual(july, ["Marine Day"],
         "France's holidays do not show up in Japan's calendar");
 
@@ -1791,7 +1791,7 @@ test("the first grid read waits for the disk cache instead of fetching", () => {
     assert.deepEqual(fetches, [], "a fresh disk cache satisfies startup without a fetch");
     assert.deepEqual(updates, ["place"]);
     assert.equal(answers.length, 1);
-    assert.deepEqual(answers[0][0].get("7/4"), ["Cached Day", []]);
+    assert.deepEqual(answers[0][0].get("7/4"), { name: "Cached Day", flags: [] });
     assert.equal(answers[0][1], "");
 });
 
@@ -2003,7 +2003,7 @@ test("a fetched out-of-window year stays in memory and is not refetched", () => 
     cache.persist(now);
 
     // it renders: the reading is in the live data and matchable
-    assert.equal(cache.matchMonth(ahead, 12, "global").get("12/25")[0], "Future");
+    assert.equal(cache.matchMonth(ahead, 12, "global").get("12/25").name, "Future");
     // and it is not stale, so the next update does not refetch it
     assert.equal(cache.stale(ahead, "global", now), false);
     // the file stays bounded to the window
@@ -2592,7 +2592,7 @@ test("a fresh year answers from the cache without a fetch", () => {
         answered = { holidays, error, provider };
     });
 
-    assert.deepEqual(answered.holidays.get("7/4"), ["Cached", []]);
+    assert.deepEqual(answered.holidays.get("7/4"), { name: "Cached", flags: [] });
     assert.equal(answered.error, "");
     assert.equal(answered.provider, "");
 });

@@ -38,6 +38,7 @@ const HebrewCalendar = IS_NODE ?
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     AppletModules.holidayConstants;
+const monthHolidayEntry = HolidayConstants.monthHolidayEntry;
 
 // Translation marker for observance names. Religion labels live in the shared
 // catalogue; both are translated only when an observance is expanded.
@@ -407,7 +408,7 @@ function _numericInput(value) {
         Number(value) : NaN;
 }
 
-// the month map the calendar grid consumes: "month/day" -> [name, flags],
+// the month map the calendar grid consumes: "month/day" -> {name, flags},
 // same-day observances joined the way the holiday cache joins them
 function monthMap(year, month, enabledIds = religionIds(), translateName = _) {
     const map = new Map();
@@ -436,18 +437,18 @@ function _mergeFlags(known, extra) {
 // duplicate flags dropped
 function _joinEntry(known, name, flags) {
     return known ?
-        [known[0] + "\n" + name, _mergeFlags(known[1], flags)] :
-        [name, flags];
+        monthHolidayEntry(known.name + "\n" + name, _mergeFlags(known.flags, flags)) :
+        monthHolidayEntry(name, flags);
 }
 
 // merge locally-computed rows into a provider month map without mutating
 // either: the provider's names come first, as they do in the cache
 function mergeMonthMaps(base, extra) {
     const merged = new Map();
-    for (const [key, [name, flags]] of base.entries()) {
-        merged.set(key, [name, _mergeFlags(flags, [PUBLIC_HOLIDAY_FLAG])]);
+    for (const [key, { name, flags }] of base.entries()) {
+        merged.set(key, monthHolidayEntry(name, _mergeFlags(flags, [PUBLIC_HOLIDAY_FLAG])));
     }
-    for (const [key, [name, flags]] of extra.entries()) {
+    for (const [key, { name, flags }] of extra.entries()) {
         merged.set(key, _joinEntry(merged.get(key), name, flags));
     }
 

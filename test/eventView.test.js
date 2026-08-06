@@ -323,9 +323,9 @@ test("selected-day agenda composes each holiday kind without another data source
         get_event_list: () => [calendarEvent]
     };
     const cases = [
-        [["Republic Day", ["public_holiday"]], "Public holiday"],
-        [["Shavuot", ["religious_holiday", "judaism"]], "Religious observance"],
-        [["Republic Day\nShavuot", ["public_holiday", "religious_holiday", "judaism"]],
+        [{ name: "Republic Day", flags: ["public_holiday"] }, "Public holiday"],
+        [{ name: "Shavuot", flags: ["religious_holiday", "judaism"] }, "Religious observance"],
+        [{ name: "Republic Day\nShavuot", flags: ["public_holiday", "religious_holiday", "judaism"] },
             "Public holiday and religious observance"]
     ];
 
@@ -333,11 +333,11 @@ test("selected-day agenda composes each holiday kind without another data source
         const agenda = EventView.composeSelectedDayAgenda(events, holiday);
         assert.equal(agenda.length, 2);
         assert.equal(agenda.hasHolidays, true);
-        assert.equal(agenda.get_event_list()[0].summary, holiday[0]);
-        assert.equal(EventView.holidayAgendaType(holiday[1]), type);
+        assert.equal(agenda.get_event_list()[0].summary, holiday.name);
+        assert.equal(EventView.holidayAgendaType(holiday.flags), type);
         assert.equal(agenda.get_event_list()[1], calendarEvent);
         assert.deepEqual(agenda.holidaysOnly().get_event_list().map((event) => event.summary),
-            [holiday[0]]);
+            [holiday.name]);
     }
 
     assert.equal(EventView.composeSelectedDayAgenda(events, null), events,
@@ -346,7 +346,7 @@ test("selected-day agenda composes each holiday kind without another data source
 
 test("holiday agenda rows are all-day information, not calendar launch controls", () => {
     const event = EventView.composeSelectedDayAgenda(null,
-        ["Shavuot", ["religious_holiday", "judaism"]]).get_event_list()[0];
+        { name: "Shavuot", flags: ["religious_holiday", "judaism"] }).get_event_list()[0];
     const row = new EventView.EventRow(event, TODAY, rowParams());
 
     assert.equal(row.event_time.text, "Religious observance");
@@ -685,7 +685,7 @@ test("set_unavailable swaps the placeholder text and blocks event rendering", ()
 test("holidays remain visible without a calendar service, and so does the remedy", () => {
     const list = new EventView.EventList(desktopSettings());
     const agenda = EventView.composeSelectedDayAgenda(null,
-        ["Republic Day", ["public_holiday"]]);
+        { name: "Republic Day", flags: ["public_holiday"] });
 
     list.set_events(agenda, false);
     list.set_unavailable(true);

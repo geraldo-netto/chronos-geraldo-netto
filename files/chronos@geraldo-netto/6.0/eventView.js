@@ -90,8 +90,8 @@ class SelectedDayAgenda {
         return [{
             id: null,
             is_holiday: true,
-            summary: EventDataModule.clampEventSummary(this._holiday[0]),
-            flags: this._holiday[1] || [],
+            summary: EventDataModule.clampEventSummary(this._holiday.name),
+            flags: this._holiday.flags || [],
             color: "transparent"
         }].concat(events);
     }

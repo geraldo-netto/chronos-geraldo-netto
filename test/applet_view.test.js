@@ -1654,7 +1654,7 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
 // permanently blank, and the holiday row stayed pinned to the applet's start
 // date while clicking through the grid moved the dots and the cell highlight.
 test("the event column follows the grid even with no calendar service", () => {
-    const holidays = { "2026-03-17": ["St Patrick's Day", ["public_holiday"]] };
+    const holidays = { "2026-03-17": { name: "St Patrick's Day", flags: ["public_holiday"] } };
     // local components, not toISOString(): the grid selects local days, and a
     // UTC key is off by one for most of the world. GLib components, because the
     // column is handed a GLib.DateTime — the grid navigates in a JS `Date` and

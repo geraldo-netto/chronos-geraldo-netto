@@ -672,24 +672,24 @@ test("the holiday map is compared entry by entry, not by serialising it", () => 
     reconcile([]);
     assert.equal(changes, 0, "an empty month matches the empty starting state");
 
-    reconcile([["7/14", ["Bastille Day", ["PUBLIC_HOLIDAY"]]]]);
+    reconcile([["7/14", { name: "Bastille Day", flags: ["PUBLIC_HOLIDAY"] }]]);
     assert.equal(changes, 1);
 
     // an equal-but-distinct array is the same annotation
-    reconcile([["7/14", ["Bastille Day", ["PUBLIC_HOLIDAY"]]]]);
+    reconcile([["7/14", { name: "Bastille Day", flags: ["PUBLIC_HOLIDAY"] }]]);
     assert.equal(changes, 1, "re-annotating the same month changes nothing");
 
-    reconcile([["7/14", ["Fête nationale", ["PUBLIC_HOLIDAY"]]]]);
+    reconcile([["7/14", { name: "Fête nationale", flags: ["PUBLIC_HOLIDAY"] }]]);
     assert.equal(changes, 2, "a renamed holiday is a change");
 
-    reconcile([["7/14", ["Fête nationale", ["PUBLIC_HOLIDAY", "PART_DAY_HOLIDAY"]]]]);
+    reconcile([["7/14", { name: "Fête nationale", flags: ["PUBLIC_HOLIDAY", "PART_DAY_HOLIDAY"] }]]);
     assert.equal(changes, 3, "so is a change of flags at the same name");
 
-    reconcile([["7/14", ["Fête nationale", ["PUBLIC_HOLIDAY", "RELIGIOUS_HOLIDAY"]]]]);
+    reconcile([["7/14", { name: "Fête nationale", flags: ["PUBLIC_HOLIDAY", "RELIGIOUS_HOLIDAY"] }]]);
     assert.equal(changes, 4, "...including one that keeps the same count");
 
     // a second date at the same size is not the same map
-    reconcile([["7/15", ["Fête nationale", ["PUBLIC_HOLIDAY", "RELIGIOUS_HOLIDAY"]]]]);
+    reconcile([["7/15", { name: "Fête nationale", flags: ["PUBLIC_HOLIDAY", "RELIGIOUS_HOLIDAY"] }]]);
     assert.equal(changes, 5, "the same annotation on another day is a change");
 
     // rows without flags are legitimate: mergeMonthMaps leaves the field off
@@ -876,7 +876,7 @@ test("holidays-only navigation stays live for every event-unavailable state", ()
         const manager = makeEventsManager(["#ff0000"]);
         manager.is_active = () => state.showEvents && state.edsReady && state.hasCalendars;
         const holiday = makeHolidayStub({
-            "2026/9": { "9/14": ["Holiday", []] }
+            "2026/9": { "9/14": { name: "Holiday", flags: [] } }
         });
         const cal = new CalendarModule.Calendar(makeSettings(), manager, holiday,
             makeDesktopSettings());
@@ -1385,7 +1385,7 @@ function makeHolidayStub(datesByMonth, error = "") {
 }
 
 test("holiday annotation: names become tooltips and days turn nonwork", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
@@ -1396,7 +1396,7 @@ test("holiday annotation: names become tooltips and days turn nonwork", () => {
     assert.ok(!day14.style_class.includes("calendar-work-day"));
     const fetches = holiday.calls.length;
     assert.deepEqual(cal.holidayForDate(new Date(2026, 6, 14)),
-        ["Bastille Day", []]);
+        { name: "Bastille Day", flags: [] });
     assert.equal(holiday.calls.length, fetches,
         "selected-day lookup reuses the rendered holiday model");
     const cell = cal._gridView.dayCells.find((candidate) => candidate.button === day14);
@@ -1590,7 +1590,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
             active: true,
             getHolidays(y, m, cb) {
                 assert.equal(`${y}/${m}`, "2026/7");
-                cb(new Map([["7/14", ["Bastille Day", []]]]), "", "stub-provider");
+                cb(new Map([["7/14", { name: "Bastille Day", flags: [] }]]), "", "stub-provider");
             }
         }
     });
@@ -1623,7 +1623,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
 });
 
 test("holiday annotation: part-day holidays keep workday style with 1-day weekends", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Half day", ["PART_DAY_HOLIDAY"]] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Half day", flags: ["PART_DAY_HOLIDAY"] } } });
     const cal = makeCalendar({ holiday });
     cal.weekend_length = 1;
     cal.setDate(new Date(2026, 6, 9), true);
@@ -1633,7 +1633,7 @@ test("holiday annotation: part-day holidays keep workday style with 1-day weeken
 
 test("holiday annotation: religious-only dates stay working days", () => {
     const holiday = makeHolidayStub({
-        "2026/7": { "7/14": ["Local observance", ["religious_holiday", "taoism"]] }
+        "2026/7": { "7/14": { name: "Local observance", flags: ["religious_holiday", "taoism"] } }
     });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
@@ -1648,8 +1648,7 @@ test("holiday annotation: religious-only dates stay working days", () => {
 test("holiday annotation: merged public and religious dates are non-working", () => {
     const holiday = makeHolidayStub({
         "2026/7": {
-            "7/14": ["Public holiday\nLocal observance",
-                ["public_holiday", "religious_holiday", "taoism"]]
+            "7/14": { name: "Public holiday\nLocal observance", flags: ["public_holiday", "religious_holiday", "taoism"] }
         }
     });
     const cal = makeCalendar({ holiday });
@@ -1894,7 +1893,7 @@ test("Calendar.destroy disconnects its events-manager signals", () => {
 // month and the annotator's matched holidays were not.
 test("Calendar.destroy releases the cached month and the matched holidays", () => {
     const cal = makeCalendar({
-        holiday: makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } })
+        holiday: makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } })
     });
     cal.setDate(new Date(2026, 6, 9), true);
 
@@ -1947,7 +1946,7 @@ test("day cells: a reused button clicks through to its current date", () => {
 });
 
 test("day cells: holiday annotations do not leak into the next month", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 14), true);
     const day14 = dayButtons(cal).find((b) => b.label === "14" &&
@@ -2270,7 +2269,7 @@ test("in place: selecting another day moves only the selected pseudo class", () 
 });
 
 test("in place: a holiday cell never accumulates duplicate style classes", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
     cal._update();
@@ -2338,7 +2337,7 @@ test("fuzz: in-place dot updates always match the color source", () => {
 });
 
 test("an inactive provider is never queried", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["X", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "X", flags: [] } } });
     holiday.active = false;
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
@@ -2687,7 +2686,7 @@ test("a direct selection cancels a pending month browse", () => {
 // relayouts for text that had not changed. The grid already diffs its styles, its
 // dots and its accessible names; the tooltips were the ones that were missed.
 test("a tooltip is not rewritten with the text it already has", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
@@ -2717,7 +2716,7 @@ test("a tooltip is not rewritten with the text it already has", () => {
 // connections, one of them on global.stage, and its own Gio.Settings.
 test("a day cell hands its holiday tooltip back when it stops being a holiday", () => {
     const datesByMonth = { "2026/7": {
-        "7/14": ["Bastille Day", []], "7/15": ["Assumption", []]
+        "7/14": { name: "Bastille Day", flags: [] }, "7/15": { name: "Assumption", flags: [] }
     } };
     const cal = makeCalendar({ holiday: makeHolidayStub(datesByMonth) });
     cal.setDate(new Date(2026, 6, 9), true);
@@ -2741,7 +2740,7 @@ test("a day cell hands its holiday tooltip back when it stops being a holiday", 
     // ...and the day can become a holiday again. A replacement Tooltip starts
     // empty, so the text last written to the destroyed one must not go on
     // suppressing the first write to its successor.
-    datesByMonth["2026/7"]["7/14"] = ["Bastille Day", []];
+    datesByMonth["2026/7"]["7/14"] = { name: "Bastille Day", flags: [] };
     cal._update();
     assert.notEqual(day14.holidayTooltip, null);
     assert.notEqual(day14.holidayTooltip, first, "a fresh one, not the destroyed one");
@@ -2753,7 +2752,7 @@ test("a day cell hands its holiday tooltip back when it stops being a holiday", 
 // asking about: the cells keep their dates, so nothing in the grid pass clears
 // them, and the annotator used to return early without touching them.
 test("switching holidays off clears the marks they left", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
@@ -2779,7 +2778,7 @@ test("switching holidays off clears the marks they left", () => {
 // through the same contract. The new pass must replace that contract's complete
 // result, not merely overlay it onto the previous configuration's cells.
 test("an active holiday configuration replaces its old annotations", () => {
-    const datesByMonth = { "2026/7": { "7/14": ["Bastille Day", []] } };
+    const datesByMonth = { "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } };
     const holiday = makeHolidayStub(datesByMonth);
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
@@ -2789,7 +2788,7 @@ test("an active holiday configuration replaces its old annotations", () => {
     assert.equal(day14.holiday_name, "Bastille Day");
 
     datesByMonth["2026/7"] = {
-        "7/15": ["Replacement observance", ["religious_holiday"]]
+        "7/15": { name: "Replacement observance", flags: ["religious_holiday"] }
     };
     cal._update();
 
@@ -2804,7 +2803,7 @@ test("an active holiday configuration replaces its old annotations", () => {
 });
 
 test("holiday reconciliation waits for every displayed month", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
@@ -2815,7 +2814,7 @@ test("holiday reconciliation waits for every displayed month", () => {
     cal._update();
 
     pending.get("2026/7")(new Map([
-        ["7/15", ["Replacement observance", ["religious_holiday"]]]
+        ["7/15", { name: "Replacement observance", flags: ["religious_holiday"] }]
     ]), "", "stub-provider");
     const siblings = Array.from(pending.entries())
         .filter(([month]) => month !== "2026/7");
@@ -2836,7 +2835,7 @@ test("holiday reconciliation waits for every displayed month", () => {
 // actors, but the pass guard only watched for a *newer pass*, so the async
 // answer annotated disposed buttons — eleven Gjs-CRITICALs per login.
 test("a header rebuild strands the annotation pass that captured the old cells", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
@@ -2851,7 +2850,7 @@ test("a header rebuild strands the annotation pass that captured the old cells",
     // ...then the holiday answer for the stranded pass arrives
     for (const callback of pending.values()) {
         callback(new Map([
-            ["7/15", ["Replacement observance", ["religious_holiday"]]]
+            ["7/15", { name: "Replacement observance", flags: ["religious_holiday"] }]
         ]), "", "stub-provider");
     }
 
@@ -2861,7 +2860,7 @@ test("a header rebuild strands the annotation pass that captured the old cells",
         "nor publish dates the visible grid does not carry");
 
     // the next update owns fresh cells and annotates them normally
-    const restored = makeHolidayStub({ "2026/7": { "7/14": ["Bastille Day", []] } });
+    const restored = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
     holiday.getHolidays = restored.getHolidays.bind(restored);
     cal._update();
     const newDay14 = cal._gridView.dayCells.find((cell) => cell.button.label === "14");

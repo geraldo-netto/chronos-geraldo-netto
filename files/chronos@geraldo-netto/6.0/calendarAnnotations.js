@@ -52,10 +52,11 @@ function sameHolidayFlags(current, incoming) {
     return current.every((flag, index) => flag === incoming[index]);
 }
 
-// One entry of the matched-month map: [name, flags].
+// One entry of the matched-month map, as holidayRecord.monthHolidayEntry builds
+// it: { name, flags }.
 function sameHolidayAnnotation(current, incoming) {
-    return Array.isArray(current) && current[0] === incoming[0] &&
-        sameHolidayFlags(current[1], incoming[1]);
+    return Boolean(current) && current.name === incoming.name &&
+        sameHolidayFlags(current.flags, incoming.flags);
 }
 
 // Cinnamon's Tooltip.set_text() has no equality guard: it calls
@@ -366,7 +367,7 @@ class CalendarHolidayAnnotator {
         for (const [date, cell] of cells.entries()) {
             const holiday = dates.get(date);
             if (holiday) {
-                this._annotateCell(cell, holiday[0], holiday[1]);
+                this._annotateCell(cell, holiday.name, holiday.flags);
                 selectedDates.set(calendarDateKey(cell.date), holiday);
             } else {
                 this._clearCell(cell);

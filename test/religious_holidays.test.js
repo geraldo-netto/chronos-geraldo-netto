@@ -102,7 +102,7 @@ test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
         assert.deepEqual(
             ReligiousHolidays.monthMap(year, thirtyThird[0], ["judaism"])
                 .get(`${thirtyThird[0]}/${thirtyThird[1]}`),
-            ["Sefirat HaOmer — Day 33 (Judaism)", ["religious_holiday", "judaism"]],
+            { name: "Sefirat HaOmer — Day 33 (Judaism)", flags: ["religious_holiday", "judaism"] },
             `calendar map carries Omer ${year}`);
 
         for (let index = 1; index < omer.length; index++) {
@@ -179,39 +179,30 @@ test("same-day observances merge names and unique flags deterministically", () =
     const map = ReligiousHolidays.monthMap(2025, 3,
         ["islam", "hinduism", "judaism"]);
 
-    assert.deepEqual(map.get("3/14"), [
-        "Holi (Hinduism)\nPurim (Judaism)",
-        ["religious_holiday", "hinduism", "judaism"]
-    ]);
+    assert.deepEqual(map.get("3/14"), { name: "Holi (Hinduism)\nPurim (Judaism)", flags: ["religious_holiday", "hinduism", "judaism"] });
 });
 
 test("map merging preserves inputs and orders public names first", () => {
-    const base = new Map([["12/25", ["Public Christmas", ["public_holiday"]]]]);
+    const base = new Map([["12/25", { name: "Public Christmas", flags: ["public_holiday"] }]]);
     const extra = ReligiousHolidays.monthMap(2026, 12, ["christianity"]);
     const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
 
-    assert.deepEqual(merged.get("12/25"), [
-        "Public Christmas\nChristmas Day (Christianity)",
-        ["public_holiday", "religious_holiday", "christianity"]
-    ]);
-    assert.deepEqual(base.get("12/25"), ["Public Christmas", ["public_holiday"]]);
+    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday", "christianity"] });
+    assert.deepEqual(base.get("12/25"), { name: "Public Christmas", flags: ["public_holiday"] });
     assert.notEqual(merged, base);
 });
 
 test("merging explicitly marks public rows even when a provider supplies no flags", () => {
     const base = new Map([
-        ["1/1", ["Public only", []]],
-        ["12/25", ["Public Christmas", []]]
+        ["1/1", { name: "Public only", flags: [] }],
+        ["12/25", { name: "Public Christmas", flags: [] }]
     ]);
     const extra = ReligiousHolidays.monthMap(2026, 12, ["christianity"]);
     const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
 
-    assert.deepEqual(merged.get("1/1"), ["Public only", ["public_holiday"]]);
-    assert.deepEqual(merged.get("12/25"), [
-        "Public Christmas\nChristmas Day (Christianity)",
-        ["public_holiday", "religious_holiday", "christianity"]
-    ]);
-    assert.deepEqual(base.get("1/1"), ["Public only", []], "the provider map stays untouched");
+    assert.deepEqual(merged.get("1/1"), { name: "Public only", flags: ["public_holiday"] });
+    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday", "christianity"] });
+    assert.deepEqual(base.get("1/1"), { name: "Public only", flags: [] }, "the provider map stays untouched");
 });
 
 test("invalid years, months and religion selections fail closed", () => {
@@ -318,7 +309,7 @@ test("property: Easter stays inside the canonical March 22 - April 25 window", (
 function joinedNameCount(year) {
     let joined = 0;
     for (let month = 1; month <= 12; month++) {
-        for (const [key, [name, flags]] of ReligiousHolidays.monthMap(year, month)) {
+        for (const [key, { name, flags }] of ReligiousHolidays.monthMap(year, month)) {
             assert.ok(key.startsWith(`${month}/`), `${key} in month ${month}`);
             assert.equal(flags[0], ReligiousHolidays.RELIGIOUS_HOLIDAY_FLAG);
             joined += name.split("\n").length;
@@ -346,7 +337,7 @@ function randomBaseMap(rand) {
     const map = new Map();
     for (let i = Math.floor(rand() * 4); i > 0; i--) {
         const key = `${1 + Math.floor(rand() * 12)}/${1 + Math.floor(rand() * 31)}`;
-        map.set(key, [`Public ${Math.floor(rand() * 100)}`, ["public_holiday"]]);
+        map.set(key, { name: `Public ${Math.floor(rand() * 100)}`, flags: ["public_holiday"] });
     }
     return map;
 }
@@ -390,8 +381,8 @@ test("fuzz: merging keeps base names first and mutates neither input", () => {
 
         assert.equal(JSON.stringify([...base]), baseSnapshot);
         assert.equal(JSON.stringify([...extra]), extraSnapshot);
-        for (const [key, [name]] of base) {
-            assert.ok(merged.get(key)[0].startsWith(name), `${key} lost its base name`);
+        for (const [key, { name }] of base) {
+            assert.ok(merged.get(key).name.startsWith(name), `${key} lost its base name`);
         }
         for (const key of extra.keys()) {
             assert.ok(merged.has(key), `${key} dropped in the merge`);

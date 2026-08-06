@@ -894,7 +894,8 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
             return this._rememberMonth(monthKey, new Map());
         }
 
-        const matched = new Map(Array.from(holidays.entries()).map(([date, holiday]) => [date, [holiday.name, holiday.flags]]));
+        const matched = new Map(Array.from(holidays.entries()).map(
+            ([date, holiday]) => [date, HolidayConstants.monthHolidayEntry(holiday.name, holiday.flags)]));
         return this._rememberMonth(monthKey, matched);
     }
 
