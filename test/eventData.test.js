@@ -49,6 +49,7 @@ let monotonic = 1000;
 global.imports = {
     gi: {
         GLib: {
+            get_language_names: () => ["C"],
             TIME_SPAN_DAY: DAY_US,
             TIME_SPAN_MINUTE: 60 * 1000 * 1000,
             get_monotonic_time: () => monotonic++,

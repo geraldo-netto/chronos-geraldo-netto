@@ -69,6 +69,10 @@ global.imports = {
             EVENT_PROPAGATE: false, KEY_Return: 65293, KEY_KP_Enter: 65421, KEY_space: 32 },
         Gio: { Settings: class { connect() { return 1; } } },
         GLib: {
+            // g_get_language_names() is documented always to include the
+            // default locale, so the list is never empty. A stub that left it
+            // out sent hostMessageLocale down a fallback Cinnamon cannot reach.
+            get_language_names: () => ["C"],
             get_home_dir: () => "/home/x",
             get_user_cache_dir: () => "/tmp/cache", // NOSONAR [S5443] -- in-memory test path
             build_filenamev: (parts) => parts.join("/"),

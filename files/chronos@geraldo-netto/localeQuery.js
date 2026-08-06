@@ -195,11 +195,18 @@ function _defaultInfo(env) {
     return Object.assign({}, DEFAULT_LOCALE_INFO[env] || {}); // NOSONAR [S6661] -- accepted compatible form
 }
 
+// g_get_language_names() reads the same LC_ALL/LC_MESSAGES/LANG/LANGUAGE chain
+// this used to walk by hand, in the order the C library defines, and is
+// documented always to include the default locale "C" — so the list is never
+// empty and its first entry is never falsy.
+//
+// The hand-walked fallback behind it was therefore dead in Cinnamon twice over:
+// it could not be reached, and cjs has no `process` to read anyway. Only the
+// harness took it, because the GLib stub had no get_language_names — so the one
+// branch with a test was the one production cannot run, and the one production
+// always runs had none. That is the shape worldclockData.js:88-92 condemns.
 function hostMessageLocale() {
-    const environment = typeof process === "undefined" ? {} : process.env;
-    const names = GLib.get_language_names ? GLib.get_language_names() : [];
-    return names[0] || environment.LC_ALL || environment.LC_MESSAGES ||
-        environment.LANG || environment.LANGUAGE || "";
+    return GLib.get_language_names()[0] || "";
 }
 
 // Display and request language follows the message locale, independently of

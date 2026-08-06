@@ -210,6 +210,7 @@ global.imports = {
         Clutter: { ActorAlign: { START: 0, END: 1, CENTER: 2 }, BUTTON_PRIMARY: 1, EVENT_STOP: true,
             EVENT_PROPAGATE: false, KEY_Return: 65293, KEY_KP_Enter: 65421, KEY_space: 32 },
         GLib: {
+            get_language_names: () => ["C"],
             SOURCE_REMOVE: false,
             TIME_SPAN_MINUTE: 60 * 1000 * 1000,
             TIME_SPAN_DAY: DAY_US,

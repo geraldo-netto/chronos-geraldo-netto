@@ -768,37 +768,34 @@ test("the holiday language resolver is consulted after construction", () => {
     assert.equal(new BareContract().language, "en");
 });
 
+// T791: this used to set process.env and read it back, which is a path
+// Cinnamon cannot take — cjs has no `process`. g_get_language_names() is what
+// production reads, and it has already applied the LC_ALL/LC_MESSAGES/LANG/
+// LANGUAGE precedence in the order the C library defines; LC_ADDRESS is not in
+// that chain, which is the point of the test.
 test("holiday names and requests follow LC_MESSAGES, not LC_ADDRESS", () => {
-    const variables = ["LC_ALL", "LC_MESSAGES", "LC_ADDRESS", "LANG", "LANGUAGE"];
-    const saved = variables.map((name) => [name, process.env[name]]);
-    variables.forEach((name) => delete process.env[name]);
-    process.env.LC_MESSAGES = "fr_FR.UTF-8";
-    process.env.LC_ADDRESS = "it_IT.UTF-8";
-    process.env.LANG = "it_IT.UTF-8";
+    const { createHolidayProvider, OpenHolidaysServiceAdapter } = loadHolidays();
+    const GLib = global.imports.gi.GLib;
+    const savedNames = GLib.get_language_names;
+    GLib.get_language_names = () => ["fr_FR.UTF-8", "fr", "C"];
 
     try {
-        const { createHolidayProvider, OpenHolidaysServiceAdapter } = loadHolidays();
         const provider = createHolidayProvider({ cache: makeMemoryCache(), load: () => {} });
         assert.equal(provider._base._provider.record.language, "fr");
 
         const adapter = new OpenHolidaysServiceAdapter(() => {});
         assert.equal(adapter.params("fra", "global", 2026).languageIsoCode, "FR");
 
-        const { HolidayRecordContract } = require(holidayRecordPath);
-        const record = new HolidayRecordContract();
+        // the shipped record, not a fresh one: this is the contract the chain
+        // actually validates and localizes through
+        const record = provider._base._provider.record;
         assert.equal(record.localizeName({ name: [
             { lang: "it", text: "Festa nazionale" },
             { lang: "fr", text: "Fête nationale" },
             { lang: "en", text: "Bastille Day" }
         ] }), "Fête nationale");
     } finally {
-        saved.forEach(([name, value]) => {
-            if (value === undefined) {
-                delete process.env[name];
-            } else {
-                process.env[name] = value;
-            }
-        });
+        GLib.get_language_names = savedNames;
     }
 });
 

@@ -28,6 +28,7 @@ function gjsImportsMock() {
             Clutter: {},
             Gio: {},
             GLib: {
+                get_language_names: () => ["C"],
                 SpawnFlags: { SEARCH_PATH: 4 },
                 get_monotonic_time() {
                     return 2500000;

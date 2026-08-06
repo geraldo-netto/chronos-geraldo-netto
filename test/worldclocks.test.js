@@ -264,6 +264,7 @@ function loadWorldclocks(options = {}) {
         gi: {
             Pango: { EllipsizeMode: { NONE: 0, END: 3 } },
             GLib: {
+                get_language_names: () => ["C"],
                 get_monotonic_time: () => 1000000,
                 // GLib >= 2.68, which is what Cinnamon 5.4 ships: new_identifier
                 // answers null for a zone it does not know. The pre-2.68

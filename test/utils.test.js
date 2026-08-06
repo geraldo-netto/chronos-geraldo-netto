@@ -140,6 +140,7 @@ function loadUtils(options = "") {
             },
             Soup: makeSoup3(),
             GLib: {
+                get_language_names: () => ["C"],
                 SpawnFlags: { SEARCH_PATH: 4 },
                 PRIORITY_DEFAULT: 0,
                 timeout_add_seconds: () => 1,
@@ -2699,4 +2700,48 @@ test("a query abandoned before any consumer returns is resumed by the next one",
     assert.equal(global.imports.gi.Gio.Cancellable.last, replacement);
 
     localeQuery.cancelPendingLocaleQueries();
+});
+
+// T791: hostMessageLocale used to fall back to process.env behind
+// g_get_language_names(). Both halves were dead in Cinnamon — the GLib call is
+// documented always to include the default locale, so it never returns an empty
+// list, and cjs has no `process` to read anyway. Only the harness took the
+// fallback, because its GLib stub had no get_language_names: the branch with a
+// test was the one production cannot run, and the branch production always runs
+// had none. That is the shape worldclockData.js:88-92 condemns.
+test("the message language comes from GLib, in the order the C library defines", () => {
+    const localeQuery = loadLocaleModules();
+    const GLib = global.imports.gi.GLib;
+    const saved = GLib.get_language_names;
+
+    try {
+        // g_get_language_names has already resolved LC_ALL over LC_MESSAGES over
+        // LANG over LANGUAGE; the applet does not re-derive that precedence
+        GLib.get_language_names = () => ["pt_BR.UTF-8", "pt", "C"];
+        assert.equal(localeQuery.messageLanguage(), "pt");
+
+        // "C" is what the list holds when the session sets no locale at all,
+        // and it names no language a provider knows
+        GLib.get_language_names = () => ["C"];
+        assert.equal(localeQuery.messageLanguage(), "en");
+
+        // an explicit locale still wins over the session's
+        assert.equal(localeQuery.messageLanguage("de_DE.UTF-8"), "de");
+
+        // process.env is not consulted, whatever it says: cjs has no `process`
+        const savedLang = process.env.LANG;
+        process.env.LANG = "ja_JP.UTF-8";
+        try {
+            assert.equal(localeQuery.messageLanguage(), "en",
+                "the environment is the C library's business, not the applet's");
+        } finally {
+            if (savedLang === undefined) {
+                delete process.env.LANG;
+            } else {
+                process.env.LANG = savedLang;
+            }
+        }
+    } finally {
+        GLib.get_language_names = saved;
+    }
 });

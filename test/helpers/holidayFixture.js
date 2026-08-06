@@ -36,6 +36,7 @@ const holidayConstantsPath = path.join(__dirname, "..", "..", "files", "chronos@
 const holidayRecordPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayRecord.js");
 const holidayServiceAdaptersPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js");
 const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "holidays.js");
+const localeQueryPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "localeQuery.js");
 
 let originalImports;
 let originalLog;
@@ -104,6 +105,10 @@ function loadHolidays(options = {}) {
     delete require.cache[require.resolve(holidayConstantsPath)];
     delete require.cache[require.resolve(holidayRecordPath)];
     delete require.cache[require.resolve(holidayServiceAdaptersPath)];
+    // localeQuery captures GLib at load, and the message locale decides which
+    // translation of a holiday name the record picks: reload it with the rest
+    // so it binds this call's GLib rather than an earlier test file's
+    delete require.cache[require.resolve(localeQueryPath)];
 
     const soup = options.soup || makeSoup3();
 
@@ -149,6 +154,7 @@ function loadHolidays(options = {}) {
                 }
             },
             GLib: {
+                get_language_names: () => ["C"],
                 PRIORITY_DEFAULT: 0,
                 timeout_add_seconds: () => 1,
                 source_remove: () => {},

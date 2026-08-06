@@ -349,25 +349,21 @@ test("Open-Meteo places retain app-owned observer fields and drop provider paylo
     assert.ok(bounded.name.endsWith("…"));
 });
 
-const LOCALE_VARIABLES = ["LC_ALL", "LC_MESSAGES", "LANG", "LANGUAGE"];
 
-function withLocaleEnvironment(locale, assertions) {
-    const saved = LOCALE_VARIABLES.map((name) => [name, process.env[name]]);
-    LOCALE_VARIABLES.forEach((name) => delete process.env[name]);
-    if (locale) {
-        process.env.LANG = locale;
-    }
+// T791: this used to set process.env and read it back, which is a path
+// Cinnamon cannot take — cjs has no `process`. g_get_language_names() is what
+// production reads, and it has already applied the LC_ALL/LC_MESSAGES/LANG/
+// LANGUAGE precedence in the order the C library defines. It is documented
+// always to include the default locale, so "no locale set" is ["C"], not [].
+function withSessionLocale(locale, assertions) {
+    const GLib = global.imports.gi.GLib;
+    const saved = GLib.get_language_names;
+    GLib.get_language_names = () => (locale ? [locale, "C"] : ["C"]);
 
     try {
         assertions();
     } finally {
-        saved.forEach(([name, value]) => {
-            if (value === undefined) {
-                delete process.env[name];
-            } else {
-                process.env[name] = value;
-            }
-        });
+        GLib.get_language_names = saved;
     }
 }
 
@@ -382,10 +378,10 @@ test("the geocoder is asked in the language the session runs in", () => {
     assert.equal(Weather.geocodeLanguage("POSIX"), "en");
 
     // no locale given: the session's own is what the search is run in
-    withLocaleEnvironment("de_DE.UTF-8", () => {
+    withSessionLocale("de_DE.UTF-8", () => {
         assert.equal(Weather.geocodeLanguage(), "de");
     });
-    withLocaleEnvironment("", () => {
+    withSessionLocale("", () => {
         assert.equal(Weather.geocodeLanguage(), "en");
     });
 });

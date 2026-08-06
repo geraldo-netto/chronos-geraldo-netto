@@ -34,6 +34,7 @@ function loadCityWeather(soupOptions = {}) {
             CinnamonDesktop: { WallClock: { lctime_format: (domain, format) => format } },
             Gio: {},
             GLib: {
+                get_language_names: () => ["C"],
                 PRIORITY_DEFAULT: 0,
                 SOURCE_CONTINUE: true,
                 SOURCE_REMOVE: false,

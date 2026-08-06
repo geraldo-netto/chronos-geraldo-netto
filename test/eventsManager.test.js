@@ -161,6 +161,7 @@ global.imports = {
             }
         },
         GLib: {
+            get_language_names: () => ["C"],
             SOURCE_REMOVE: false,
             TIME_SPAN_DAY: DAY_US,
             get_monotonic_time: (() => {

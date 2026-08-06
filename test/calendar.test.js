@@ -58,6 +58,7 @@ global.imports = {
             }
         },
         GLib: {
+            get_language_names: () => ["C"],
             SOURCE_REMOVE: false,
             PRIORITY_DEFAULT: 0,
             timeout_add_seconds: () => 1,
