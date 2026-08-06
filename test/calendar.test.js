@@ -1642,6 +1642,44 @@ test("dot box: the theme is asked once, and again only when it changes", () => {
     assert.equal(lookups, 2);
 });
 
+// Clutter copies the box it is handed, so one box serves the whole allocation.
+// This runs inside the allocate handler of all 42 day cells on every relayout
+// of the grid, which is the reason a per-row construction is worth removing —
+// and the row geometry above is what proves the reuse still resets every edge.
+test("dot box: one ActorBox serves every row of an allocation", () => {
+    const dots = Array.from({ length: 12 }, () => makeDot(10, 10));
+    const actor = {
+        get_children: () => dots,
+        get_theme_node: () => ({ lookup_double: () => [true, 2] })
+    };
+    let constructed = 0;
+    global.imports.gi.Clutter.ActorBox = class {
+        constructor() {
+            constructed++;
+            this.x1 = 0;
+            this.y1 = 0;
+            this.x2 = 0;
+            this.y2 = 0;
+        }
+    };
+
+    const cal = makeCalendar();
+    cal._gridView.allocateDotBox(actor, { x1: 0, y1: 0, x2: 100, y2: 20 }, {});
+    assert.equal(constructed, 1, "two rows, one box");
+
+    // ...and the second row still starts from its own centred origin rather
+    // than continuing where the first one stopped
+    const secondRow = dots.filter((dot) => dot.allocations[0].y1 === 10);
+    assert.equal(secondRow.length, 2);
+    assert.equal(secondRow[0].allocations[0].x1, 40, "10 wide, 2 dots, centred in 100");
+
+    // an allocation with nothing to place builds no box at all
+    constructed = 0;
+    cal._gridView.allocateDotBox(
+        { get_children: () => [] }, { x1: 0, y1: 0, x2: 100, y2: 20 }, {});
+    assert.equal(constructed, 0);
+});
+
 test("dot box: dots that fit stay centered on one row", () => {
     const dots = allocateDots(3, 100);
     assert.equal(dots.capacity, 20, "the renderer receives the shared layout capacity");

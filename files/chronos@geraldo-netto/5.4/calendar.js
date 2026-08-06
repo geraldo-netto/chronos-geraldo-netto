@@ -648,9 +648,14 @@ class CalendarGridView {
         const visibleCount = Math.min(children.length, capacity);
         const rowCount = Math.min(maxRows, Math.ceil(visibleCount / perRow));
         let childIndex = 0;
+        // One box for the whole allocation: allocate() copies what it is given,
+        // so nothing downstream holds this. It used to be constructed per row,
+        // inside the allocate handler of all 42 day cells — which Clutter runs
+        // on every relayout of the grid, and the grid relayouts on every menu
+        // open, month change, settings change and coalesced event update.
+        const childBox = new Clutter.ActorBox();
         for (let row = 0; row < rowCount; row++) {
             const rowDots = Math.min(visibleCount - row * perRow, perRow);
-            const childBox = new Clutter.ActorBox();
             childBox.x1 = Math.floor((boxWidth - nw * rowDots) / 2);
             childBox.y1 = row * nh;
             childBox.x2 = childBox.x1 + nw;
