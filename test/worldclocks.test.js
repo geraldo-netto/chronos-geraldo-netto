@@ -7,6 +7,7 @@ const { makeRandom: makeSeededRandom } = require("./helpers/prng");
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "worldclocks.js");
 const dataModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "worldclockData.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "worldclockData.js");
+const ioUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const localeTextPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeText.js");
 const textUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "textUtils.js");
 const style52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "stylesheet.css");
@@ -312,6 +313,9 @@ function clearWorldclockCaches() {
     delete require.cache[require.resolve(shimPath)];
     delete require.cache[require.resolve(dataModulePath)];
     delete require.cache[require.resolve(textUtilsPath)];
+    // the shared I/O adapter captures GLib at load, and the OS-timezone tests
+    // below stub GLib.file_get_contents on this call's imports object (T809)
+    delete require.cache[require.resolve(ioUtilsPath)];
 }
 
 // 6.0/worldclocks.js reaches the shared data module through the 6.0 shim,
@@ -1235,7 +1239,8 @@ test("worldclockData exposes the same API under the GJS importer and under Node"
                             localeText: { translate: (str) => str },
                             textUtils: {
                                 clampText: (text, max) => String(text).slice(0, max)
-                            }
+                            },
+                            ioUtils: { readTextFileCapped: () => "" }
                         }
                     }
                 }
@@ -1254,6 +1259,9 @@ test("worldclockData exposes the same API under the GJS importer and under Node"
         process: { versions: { node: process.versions.node } }
     };
     require.cache[require.resolve(localeTextPath)] = { exports: { translate: (str) => str } };
+    // the shared I/O adapter binds Gio at load, and this context has no imports
+    require.cache[require.resolve(ioUtilsPath)] =
+        { exports: { readTextFileCapped: () => "" } };
     script.runInNewContext(nodeContext);
 
     for (const symbol of Object.keys(nodeContext.module.exports)) {

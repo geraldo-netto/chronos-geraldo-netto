@@ -59,6 +59,29 @@ function decodeUtf8(data) {
     return new TextDecoder().decode(data);
 }
 
+// The one synchronous read this applet makes, and the two files it makes it on:
+// /etc/timezone and /usr/share/zoneinfo/zone.tab, both on the once-per-install
+// path that derives a holiday country from the OS zone.
+//
+// It lives here because this is the module that owns file reading. worldclockData
+// carried its own copy - GLib.file_get_contents behind its own two byte caps -
+// so it was a second I/O regime that nothing applied here could reach, and the
+// two disagreed on failure: this one says an oversized file was ignored, that
+// one answered "" without a word. The bound is the caller's, because these two
+// files are nothing like a holiday cache in size.
+function readTextFileCapped(filename, maximumBytes, what = filename) {
+    try {
+        const [success, contents] = GLib.file_get_contents(filename);
+        if (!success || contents === null || contents === undefined ||
+            tooBig(contents.length, maximumBytes, what)) {
+            return "";
+        }
+        return typeof contents === "string" ? contents : decodeUtf8(contents);
+    } catch {
+        return "";
+    }
+}
+
 // The cache file is read while the applet is being constructed, i.e. on the
 // compositor thread during Cinnamon startup and every reload. Reading it
 // asynchronously keeps the shell responsive; callers repaint when it lands.
@@ -698,6 +721,7 @@ if (typeof module !== "undefined") {
         MAX_CACHE_FILE_BYTES,
         httpGetJson,
         urlForLog,
+        readTextFileCapped,
         readJsonFileAsync,
         writeJsonFileAsync
     };

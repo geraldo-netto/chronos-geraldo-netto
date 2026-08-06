@@ -2781,3 +2781,41 @@ test("the message language comes from GLib, in the order the C library defines",
         GLib.get_language_names = saved;
     }
 });
+
+// T809: worldclockData carried its own synchronous file reader - GLib
+// .file_get_contents behind two byte caps of its own - so the two paths that
+// read /etc/timezone and /usr/share/zoneinfo/zone.tab were a second I/O regime
+// that no hardening applied to the shared adapter could reach. The two also
+// disagreed on failure: ioUtils logs an oversized file, worldclockData answered
+// "" without a word.
+test("the capped text read is the shared adapter's, and says when it refuses", () => {
+    const utils = loadIoUtils();
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
+    const GLib = global.imports.gi.GLib;
+    const original = GLib.file_get_contents;
+
+    GLib.file_get_contents = () => [true, Buffer.from("Europe/Rome\n")];
+    assert.equal(utils.readTextFileCapped("/etc/timezone", 1024), "Europe/Rome\n");
+    assert.deepEqual(logged, []);
+
+    // past the caller's cap: nothing is returned, and the operator is told
+    assert.equal(utils.readTextFileCapped("/etc/timezone", 4), "");
+    assert.equal(logged.length, 1);
+    assert.match(logged[0], /\/etc\/timezone is 12 bytes, past the 4-byte cap/);
+
+    // a missing file, an unreadable one and a throwing GLib are all "no file"
+    GLib.file_get_contents = () => [false, null];
+    assert.equal(utils.readTextFileCapped("/etc/timezone", 1024), "");
+    GLib.file_get_contents = () => [true, undefined];
+    assert.equal(utils.readTextFileCapped("/etc/timezone", 1024), "");
+    GLib.file_get_contents = () => { throw new Error("EACCES"); };
+    assert.equal(utils.readTextFileCapped("/etc/timezone", 1024), "");
+    assert.equal(logged.length, 1, "and none of those is an oversize report");
+
+    // a GLib that hands back a string rather than bytes is read as it is
+    GLib.file_get_contents = () => [true, "Asia/Tokyo\n"];
+    assert.equal(utils.readTextFileCapped("/etc/timezone", 1024), "Asia/Tokyo\n");
+
+    GLib.file_get_contents = original;
+});

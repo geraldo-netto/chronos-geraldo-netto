@@ -35,6 +35,9 @@ const TextUtils = IS_NODE ?
 const ClockLimits = IS_NODE ?
     require("./clockLimits") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].clockLimits;
+const IoUtils = IS_NODE ?
+    require("./ioUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 const _ = LocaleText.translate;
 
 var MAX_CLOCKS = ClockLimits.MAX_CLOCKS; // NOSONAR [S3504] -- GJS importer export
@@ -412,18 +415,12 @@ function countryCodeFromZoneTab(timezone, zoneTab) {
     return country;
 }
 
+// ioUtils is the project's I/O adapter, and this module used to reach past it:
+// GLib.file_get_contents behind two byte caps of its own, a second regime that
+// no hardening applied to the shared adapter could reach - and one that
+// answered "" for an oversized file without a word, where ioUtils logs it.
 function readTextFile(filename, maximumBytes) {
-    try {
-        const [success, contents] = GLib.file_get_contents(filename);
-        if (!success || contents === null || contents === undefined ||
-            contents.length > maximumBytes) {
-            return "";
-        }
-        return typeof contents === "string" ? contents :
-            new TextDecoder().decode(contents);
-    } catch {
-        return "";
-    }
+    return IoUtils.readTextFileCapped(filename, maximumBytes, filename);
 }
 
 // Read on every call rather than memoizing: changing the operating-system
