@@ -100,6 +100,27 @@ function logProviderFailover(provider) {
     }
 }
 
+// Fan-out callbacks are independent waiters for one settled operation. One
+// consumer failing must not discard the consumers behind it, but its exception
+// still belongs to that consumer and must remain visible after delivery.
+function notifyAll(callbacks) {
+    let failed = false;
+    let firstError;
+    for (const callback of callbacks) {
+        try {
+            callback();
+        } catch (error) {
+            if (!failed) {
+                failed = true;
+                firstError = error;
+            }
+        }
+    }
+    if (failed) {
+        throw firstError;
+    }
+}
+
 // Failing over is the whole point of this chain, and a provider that raises
 // rather than answering used to be the one failure it could not survive: the
 // throw unwound every pending step and neither onSuccess nor onExhausted ever
@@ -154,6 +175,7 @@ function tryProvidersInOrder(providers, attempt, accept, onSuccess, onExhausted)
 if (typeof module !== "undefined") {
     module.exports = {
         backoffDelay,
+        notifyAll,
         providerName,
         orderProvidersByLastSuccess,
         tryProvidersInOrder

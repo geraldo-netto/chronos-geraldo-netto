@@ -30,6 +30,9 @@ const GLib = GjsImports.gi.GLib;
 const IoUtils = IS_NODE ?
     require("./ioUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
@@ -557,11 +560,14 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         callback();
     }
 
-    _flushReady() {
+    _flushReady(first = null) {
         this._loading = false;
         const waiting = this._onReady;
         this._onReady = [];
-        waiting.forEach((callback) => callback());
+        if (first) {
+            waiting.unshift(first);
+        }
+        ProviderUtils.notifyAll(waiting);
     }
 
     _touchYear(year) {
@@ -638,8 +644,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
             this.years = data.years;
             this.attempts = {};
             this.setData(data.holidays);
-            ready();
-            this._flushReady();
+            this._flushReady(ready);
         });
     }
 

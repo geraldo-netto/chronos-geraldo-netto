@@ -622,6 +622,33 @@ test("a cache load cannot repopulate or notify after release", () => {
     assert.deepEqual(callbacks, []);
 });
 
+test("a failing cache-ready callback cannot discard later waiters", () => {
+    const { HolidayCache } = loadHolidays();
+    let deliverLoad = null;
+    const cache = new HolidayCache((_country, done) => { deliverLoad = done; }, () => {});
+    const calls = [];
+    const first = new Error("place repaint failed");
+
+    cache.setPlace("ita", "global", () => {
+        calls.push("place");
+        throw first;
+    });
+    cache.whenReady(() => {
+        calls.push("first waiter");
+        throw new Error("waiter failed");
+    });
+    cache.whenReady(() => calls.push("last waiter"));
+
+    assert.throws(() => deliverLoad({ years: {}, holidays: [] }),
+        (error) => error === first);
+    assert.deepEqual(calls, ["place", "first waiter", "last waiter"]);
+    assert.equal(cache._loading, false);
+    assert.deepEqual(cache._onReady, []);
+
+    cache.whenReady(() => calls.push("after load"));
+    assert.deepEqual(calls, ["place", "first waiter", "last waiter", "after load"]);
+});
+
 test("a released cache rejects every public re-entry path", () => {
     const { HolidayCache } = loadHolidays();
     let loads = 0;

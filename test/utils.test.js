@@ -2040,6 +2040,21 @@ test("orderProvidersByLastSuccess prefers the last successful provider", () => {
         ["a", "b", "c"]);
 });
 
+test("notifyAll delivers every callback before rethrowing the first failure", () => {
+    const ProviderUtils = loadProviderUtils();
+    const calls = [];
+    const first = new Error("first listener failed");
+
+    assert.throws(() => ProviderUtils.notifyAll([
+        () => { calls.push("first"); throw first; },
+        () => { calls.push("second"); throw new Error("second listener failed"); },
+        () => calls.push("third")
+    ]), (error) => error === first);
+
+    assert.deepEqual(calls, ["first", "second", "third"]);
+    assert.doesNotThrow(() => ProviderUtils.notifyAll([]));
+});
+
 test("a failing provider is never logged with the location in its URL", () => {
     const ProviderUtils = loadProviderUtils();
     const logs = [];
