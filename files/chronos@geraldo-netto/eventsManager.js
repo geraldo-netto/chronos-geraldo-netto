@@ -859,8 +859,28 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             () => this.is_active(),
             (month_year, force) => this.fetch_month_events(month_year, force),
             (name, ...args) => this.emit(name, ...args));
+        this._retire_stranded_resync_overflow();
 
         return GLib.SOURCE_REMOVE;
+    }
+
+    // The mutation-flood marker is a temporary warning that stands only until
+    // the authoritative replacement request is dispatched, and a dispatched
+    // range call is its one retirement point. But the reload it waits on can
+    // decline: reloadSelected returns before emitting anything when the service
+    // is gone or no day has been selected yet. The marker would then stand over
+    // an emptied index for the rest of the session, and the next genuine
+    // markOverflow() would be silently retired by the first range call after it,
+    // because a stale flag cannot be told from a live one.
+    _retire_stranded_resync_overflow() {
+        if (!this._resync_overflow_pending) {
+            return;
+        }
+
+        this._resync_overflow_pending = false;
+        if (this._event_index.clearOverflow()) {
+            this._emit_event_index_changed();
+        }
     }
 
     select_date(date, force) {

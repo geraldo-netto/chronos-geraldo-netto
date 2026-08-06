@@ -2280,6 +2280,40 @@ test("an OS timezone change discards the indexed buckets and refetches", () => {
     assert.equal(proxy.instance.set_time_range_calls.length, before + 1);
 });
 
+// T802: _apply_event_resync marks the index overflowed as a temporary warning
+// that stands until the authoritative replacement request is dispatched, and a
+// dispatched range call is its only retirement point. reloadSelected declines
+// when the service is gone or no day has been selected, so no range call ran and
+// the marker stood over an emptied index for the rest of the session — and the
+// next genuine overflow was then silently retired by the first range call after
+// it, because the dispatcher cannot tell a stale flag from a live one.
+test("a resync whose reload declines does not leave the overflow warning behind", () => {
+    const manager = readyManager();
+    manager.select_date(new Date(10 * DAY_S * 1000), true);
+
+    // the calendar server goes away between the resync and the idle
+    manager._apply_event_resync();
+    assert.equal(manager._event_index.overflowed, true, "the temporary warning is up");
+    assert.equal(manager._resync_overflow_pending, true);
+
+    const dispatches = proxy.instance.set_time_range_calls.length;
+    manager._window_coordinator.current_selected_signature = null;
+    fireTimer(manager._reload_selected_id);
+
+    assert.equal(proxy.instance.set_time_range_calls.length, dispatches,
+        "the reload declined, so no replacement was ever requested");
+    assert.equal(manager._resync_overflow_pending, false);
+    assert.equal(manager._event_index.overflowed, false,
+        "and the warning goes with the request that was never made");
+
+    // a genuine overflow after that is its own warning, and survives
+    manager._apply_event_overflow();
+    assert.equal(manager._event_index.overflowed, true);
+    manager.select_date(new Date(40 * DAY_S * 1000), true);
+    assert.equal(manager._event_index.overflowed, true,
+        "a real overflow is not retired by the next range call");
+});
+
 // T778: the buckets were re-keyed and the selection was not. The re-delivered
 // events registered under new-zone keys while reloadSelected looked the day up
 // with the old-zone one, so the grid kept painting dots — calendar.js derives
