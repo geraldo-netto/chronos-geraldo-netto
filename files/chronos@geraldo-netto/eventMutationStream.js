@@ -134,25 +134,14 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         }
     }
 
-    _recountPayload() {
+    _collapseToResync() {
+        this._eventMutations = [{ type: "resync" }];
         this._queuedEventRecords = 0;
         this._queuedEventBytes = 0;
-        for (const mutation of this._eventMutations) {
-            if (mutation.type === "add") {
-                this._queuedEventRecords += mutation.events.filter(Boolean).length;
-                this._queuedEventBytes += mutation.retainedBytes;
-            }
-        }
-    }
-
-    _collapseToResync() {
-        const current = this._eventMutations[0];
-        this._eventMutations = current ?
-            [current, { type: "resync" }] : [{ type: "resync" }];
-        this._overflowMutationQueued =
-            Boolean(current && current.type === "overflow");
+        this._overflowMutationQueued = false;
         this._resyncMutationQueued = true;
-        this._recountPayload();
+        this.cancelPendingEmit();
+        this._pendingEmit = null;
     }
 
     _applyAdd(mutation) {

@@ -1104,9 +1104,12 @@ test("a mutation flood collapses to one bounded authoritative resync", () => {
     }
 
     assert.deepEqual(manager._mutation_stream._eventMutations.map((mutation) => mutation.type),
-        ["add", "resync"]);
-    assert.equal(manager._mutation_stream._queuedEventRecords, 35);
+        ["resync"]);
+    assert.equal(manager._mutation_stream._queuedEventRecords, 0);
+    assert.equal(manager._mutation_stream._queuedEventBytes, 0);
     assert.equal(manager._mutation_stream._resyncMutationQueued, true);
+    assert.equal(manager._mutation_stream._pendingEmit, null,
+        "the doomed partial delivery is not announced");
 
     let inspected = false;
     proxy.instance.signal("events-added-or-updated", {
@@ -1118,13 +1121,19 @@ test("a mutation flood collapses to one bounded authoritative resync", () => {
     assert.equal(inspected, false,
         "signals behind an authoritative resync are not materialized");
 
-    drainEventMutations(manager);
+    const updatesBeforeRecovery = emitted(manager, "events-updated").length;
+    assert.equal(manager._mutation_stream._eventBatchIds.length, 1,
+        "the already-armed idle now owns the resync");
+    fireTimer(manager._mutation_stream._eventBatchIds[0]);
+    assert.deepEqual(manager._mutation_stream._eventMutations, []);
     assert.equal(manager._event_index.get(new FakeDateTime(10 * DAY_US)), null);
     assert.equal(manager._event_index.overflowed, true);
     assert.ok(manager._fetch_coordinator._reloadSelectedId > 0);
     assert.equal(manager._fetch_coordinator._resyncOverflowPending, true);
     assert.equal(manager._mutation_stream._queuedEventRecords, 0);
     assert.equal(manager._mutation_stream._resyncMutationQueued, false);
+    assert.equal(emitted(manager, "events-updated").length, updatesBeforeRecovery + 1,
+        "only the authoritative recovery repaints");
 
     fireTimer(manager._fetch_coordinator._reloadSelectedId);
     assert.equal(manager.current_selected_date.to_unix(), browsed.to_unix(),
