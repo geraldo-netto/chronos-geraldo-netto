@@ -117,7 +117,9 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
             this._removeTimer(this._timer_id);
             this._timer_id = 0;
         }
-        this._active = false;
+        // The active request cannot be cancelled here and still owns the
+        // release closure created by _drain(). Keep its slot occupied until
+        // that closure runs; a replacement consumer may enqueue meanwhile.
     }
 
     // A departing consumer's jobs are dead the moment its repository is

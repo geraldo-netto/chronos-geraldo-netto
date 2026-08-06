@@ -1257,6 +1257,35 @@ test("the Nominatim queue is released by the last consumer, not the first", () =
     assert.equal(queue._jobs.length, 1, "and the queued request is still queued");
 });
 
+test("last-consumer cancellation retains an in-flight Nominatim slot", () => {
+    const Weather = loadWeather();
+    let now = 0;
+    const starts = [];
+    const releases = [];
+    const queue = new Weather.NominatimRequestQueue({
+        elapsedNow: () => now
+    });
+
+    queue.enqueue((release) => {
+        starts.push("old");
+        releases.push(release);
+    });
+    queue.cancelPending();
+
+    now = Weather.NOMINATIM_MIN_INTERVAL_MS;
+    queue.enqueue((release) => {
+        starts.push("new");
+        releases.push(release);
+    });
+
+    assert.deepEqual(starts, ["old"],
+        "teardown cannot release a request that is still running");
+    releases.shift()();
+    assert.deepEqual(starts, ["old", "new"],
+        "the replacement starts when the old owner releases its slot");
+    releases.shift()();
+});
+
 test("panel and city resolvers share the process-wide Nominatim queue", () => {
     const Weather = loadWeather();
     const panelResolver = new Weather.WeatherLocationResolver({ httpGetJson() {} });
