@@ -472,19 +472,30 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
 
     // A year and its freshness stamp go together: dropping the rows but keeping
     // the stamp would leave the year looking fetched and rendering nothing.
-    _evictYear(year) {
+    _forgetYear(year) {
         this._yearUse.delete(year);
         delete this.years[year];
         delete this.attempts[year];
-        this.data = this.data.filter((single) => Number(single.year) !== year);
-        this._rebuildIndex();
     }
 
+    // Choosing the victims is per year; rebuilding the indexes is not. Each
+    // eviction used to filter the whole row list and then replay every survivor
+    // through _addUnique, clearing and refilling three Maps as it went — so
+    // evicting k years paid k full rebuilds of a list that only ever shrinks.
     _pruneYears() {
+        const evicted = new Set();
         while (this._yearUse.size > MAX_CACHED_YEARS) {
             const oldest = this._yearUse.keys().next().value;
-            this._evictYear(oldest);
+            this._forgetYear(oldest);
+            evicted.add(oldest);
         }
+
+        if (evicted.size === 0) {
+            return;
+        }
+
+        this.data = this.data.filter((single) => !evicted.has(Number(single.year)));
+        this._rebuildIndex();
     }
 
     // `onReady` runs once the country's cached data is in place — the load is

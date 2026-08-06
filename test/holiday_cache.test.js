@@ -396,6 +396,69 @@ test("the years the user scrolled past are not kept for the session", () => {
     assert.equal(cache.matchMonth(2055, 1).size, 1, "the year on screen is still there");
 });
 
+// matchMonth touches a year without pruning — reading the grid is not the
+// moment to throw data away — so browsing back through many years inflates the
+// LRU, and the next fetch evicts the whole backlog in one call. Each eviction
+// used to filter the row list and then replay every survivor through
+// _addUnique, clearing and refilling three Maps as it went; the rebuild is
+// bookkeeping over what is left, and there is one "what is left" per prune.
+test("pruning a batch of years rebuilds the index once, not once per year", () => {
+    const { HolidayCache } = loadHolidays();
+    const { MAX_CACHED_YEARS } = require(holidayCachePath);
+    const row = (year) => ({
+        year, month: 1, day: 1, region: "global", name: "New Year", flags: []
+    });
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }), () => {});
+    cache.setPlace("ita", "global");
+
+    // one year with rows and a freshness stamp, one that only ever failed, then
+    // a long scroll back
+    cache.recordFetch(2000, "global", new Date().toUTCString(), [row(2000)]);
+    cache.recordAttempt(1999, "global");
+    const browsed = MAX_CACHED_YEARS * 2;
+    for (let year = 2001; year <= 2000 + browsed; year++) {
+        cache.matchMonth(year, 1);
+    }
+    assert.equal(cache._yearUse.size, browsed + 2, "browsing touches without pruning");
+    assert.equal(cache.stale(1999, "global"), false,
+        "a recent failed attempt throttles its own refetch");
+
+    let rebuilds = 0;
+    const realRebuild = cache._rebuildIndex.bind(cache);
+    cache._rebuildIndex = () => {
+        rebuilds++;
+        realRebuild();
+    };
+
+    cache.recordFetch(2100, "global", new Date().toUTCString(), [row(2100)]);
+
+    assert.equal(rebuilds, 1,
+        `${browsed + 2 - MAX_CACHED_YEARS} years evicted, one rebuild`);
+    assert.equal(cache._yearUse.size, MAX_CACHED_YEARS);
+
+    // the batch really went, rows and stamps together
+    assert.deepEqual(cache.data.map((single) => single.year), [2100],
+        "the evicted year's rows went with it");
+    assert.equal(cache.stale(2000, "global"), true,
+        "and it is stale again, not silently empty");
+    // the attempt stamp is what suppresses a refetch, so it cannot outlive the
+    // year it belongs to: kept, it would throttle a year holding nothing
+    assert.equal(cache.stale(1999, "global"), true,
+        "the evicted year's attempt stamp went with it");
+
+    // a record that evicts nothing rebuilds nothing. This has to be asked
+    // before any matchMonth below: a read touches the year it reads, which is
+    // what puts the LRU back over the cap.
+    rebuilds = 0;
+    cache.recordAttempt(2100, "global");
+    assert.equal(rebuilds, 0);
+
+    // ...and the indexes agree with the rows that are left
+    assert.equal(cache.matchMonth(2100, 1).size, 1, "the year just fetched is there");
+    assert.equal(cache.matchMonth(2000, 1).size, 0, "the oldest is gone");
+});
+
 // T725: eviction calls _rebuildIndex, which replays `data` through _addUnique —
 // and _addUnique ends in _touchYear. Every eviction therefore rewrote the whole
 // recency order into `data` insertion order, so the LRU degenerated to
