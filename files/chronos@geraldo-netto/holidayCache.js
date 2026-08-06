@@ -163,6 +163,26 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         this._writing = false;
         this._dirty = false;
         this._now = params.now || (() => Date.now());
+        this._released = false;
+    }
+
+    // Terminal: the applet object outlives its panel, while async file
+    // callbacks can outlive this call. Drop every completed snapshot now and
+    // refuse new work. A write already in flight retains only its pending
+    // countries until it settles, so teardown never loses a fetched cache row
+    // merely to save memory.
+    release() {
+        if (this._released) {
+            return;
+        }
+        this._released = true;
+        this._all = null;
+        this._load_waiters = null;
+        this._fileHandle = null;
+        if (!this._writing) {
+            this._pending = {};
+            this._dirty = false;
+        }
     }
 
     // prune() trims the *years* of the country in use; the per-country blobs of
@@ -243,10 +263,39 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             () => callback(this._country(this._all, country))));
     }
 
+    _acceptLegacyLoad(file, legacy) {
+        if (this._released) {
+            return;
+        }
+        this._all = legacy || {};
+        this._migrate(file);
+        this._releaseLoadWaiters();
+    }
+
+    _acceptCurrentLoad(file, all) {
+        if (this._released) {
+            return;
+        }
+        if (all && Object.keys(all).length > 0) {
+            this._all = all;
+            this._releaseLoadWaiters();
+            return;
+        }
+
+        // The new cache file is absent or empty: one-shot fallback to the
+        // pre-rename enrico.json so upgrading does not throw a user's cached
+        // holidays away. Once anything is saved the new file is no longer
+        // empty and this never runs again.
+        this._loadLegacy((legacy) => this._acceptLegacyLoad(file, legacy));
+    }
+
     // The read happens while the applet is being constructed, so a synchronous
     // one blocks the compositor at every Cinnamon start and reload. Callers
     // hand in a callback and repaint when the data lands.
     loadAsync(country, callback) {
+        if (this._released) {
+            return;
+        }
         const file = this._file();
         if (!file) {
             callback({ years: {}, holidays: []});
@@ -264,23 +313,7 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         }
         this._load_waiters = [{ country, callback }];
 
-        IoUtils.readJsonFileAsync(file, (all) => {
-            if (all && Object.keys(all).length > 0) {
-                this._all = all;
-                this._releaseLoadWaiters();
-                return;
-            }
-
-            // the new cache file is absent or empty: one-shot fallback to the
-            // pre-rename enrico.json so upgrading does not throw a user's cached
-            // holidays away. Once anything is saved the new file is no longer
-            // empty and this never runs again.
-            this._loadLegacy((legacy) => {
-                this._all = legacy || {};
-                this._migrate(file);
-                this._releaseLoadWaiters();
-            });
-        });
+        IoUtils.readJsonFileAsync(file, (all) => this._acceptCurrentLoad(file, all));
     }
 
     // Copy what the old file held into the new one, through the same pending/
@@ -357,6 +390,37 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         }
     }
 
+    _mergePending(data, flushing) {
+        Object.keys(flushing).forEach((country) => {
+            data[country] = flushing[country];
+        });
+        const allData = this._pruneCountries(data);
+        if (!this._released) {
+            this._all = allData;
+        }
+        return allData;
+    }
+
+    _settleFlush(file, flushing, merges, stale) {
+        this._writing = false;
+
+        if (stale && merges < MAX_MERGE_RETRIES) {
+            // Our snapshot is out of date, not our data: re-read and merge the
+            // pending countries into the newer file. The pending entries stay
+            // put because the retry is what writes them.
+            this._all = null;
+            this._flush(file, merges + 1);
+            return;
+        }
+
+        this._releasePending(flushing);
+        if (this._dirty) {
+            this._flush(file);
+        } else if (this._released) {
+            this._pending = {};
+        }
+    }
+
     _flush(file, merges = 0) {
         this._writing = true;
         this._dirty = false;
@@ -364,11 +428,7 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         const flushing = Object.assign({}, this._pending); // NOSONAR [S6661] -- accepted compatible form
 
         IoUtils.readJsonFileAsync(file, (data, etag) => {
-            Object.keys(flushing).forEach((country) => {
-                data[country] = flushing[country];
-            });
-            const allData = this._pruneCountries(data);
-            this._all = allData;
+            const allData = this._mergePending(data, flushing);
 
             // Two writes in flight at once race, and the loser's payload is the
             // older snapshot: let one settle before starting the next. That
@@ -377,26 +437,8 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             // merges writes that had already settled. The etag closes the rest:
             // if the file moved between our read and our write, the write fails
             // and we merge again against what is actually there.
-            IoUtils.writeJsonFileAsync(file, allData, (stale) => {
-                this._writing = false;
-
-                if (stale && merges < MAX_MERGE_RETRIES) {
-                    // our snapshot is out of date, not our data: re-read, merge
-                    // the pending countries into the newer file, write again.
-                    // Bounded: a cache is a cache, and spinning against a busy
-                    // writer would be worse than losing a holiday refetch. The
-                    // pending entries stay put — the retry is what writes them.
-                    this._all = null;
-                    this._flush(file, merges + 1);
-                    return;
-                }
-
-                this._releasePending(flushing);
-
-                if (this._dirty) {
-                    this._flush(file);
-                }
-            }, etag);
+            IoUtils.writeJsonFileAsync(file, allData,
+                (stale) => this._settleFlush(file, flushing, merges, stale), etag);
         });
     }
 
@@ -412,6 +454,9 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
     }
 
     save(country, data) {
+        if (this._released) {
+            return;
+        }
         const file = this._file();
         if (!file) {
             return;

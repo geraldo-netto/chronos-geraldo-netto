@@ -319,6 +319,11 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         if (this.cache && this.cache.release) { // NOSONAR [S6582] -- accepted compatible form
             this.cache.release();
         }
+        const repository = this.cacheRepository;
+        this.cacheRepository = null;
+        if (repository && repository.release) { // NOSONAR [S6582] -- injected repositories may predate release
+            repository.release();
+        }
     }
 
     _statusFor(year) {

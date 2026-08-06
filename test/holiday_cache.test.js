@@ -816,6 +816,58 @@ test("HolidayCacheRepository reads and writes the per-country cache file", () =>
     assert.ok(Number.isFinite(written.usa.savedAt));
 });
 
+test("releasing a holiday repository drops its parsed snapshot and rejects re-entry", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify(LEGACY_CACHE));
+    assert.equal(loadCountry(repository, "usa").holidays.length, 1);
+    assert.ok(repository._all);
+
+    repository.release();
+
+    assert.equal(repository._all, null);
+    assert.equal(repository._load_waiters, null);
+    assert.deepEqual(repository._pending, {});
+    let answered = 0;
+    repository.loadAsync("usa", () => answered++);
+    repository.save("usa", { years: {}, holidays: [] });
+    repository.release();
+    assert.equal(answered, 0);
+    assert.equal(repository._all, null);
+    assert.deepEqual(repository._pending, {});
+});
+
+test("a repository read landing after release restores no cache snapshot", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const payload = Buffer.from(JSON.stringify(LEGACY_CACHE));
+    let settleStat = null;
+    let settleLoad = null;
+    global.imports.gi.Gio.file_new_for_path = (filePath) => ({
+        get_path: () => filePath,
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            settleStat = () => callback(this, { ok: true });
+        },
+        query_info_finish: () => ({ get_size: () => payload.length }),
+        load_contents_async(_cancellable, callback) {
+            settleLoad = () => callback(this, { ok: true });
+        },
+        load_contents_finish: () => [true, payload]
+    });
+    const repository = new HolidayCacheRepository("/holidays.json");
+    let answered = 0;
+
+    repository.loadAsync("usa", () => answered++);
+    repository.release();
+    settleStat();
+    settleLoad();
+
+    assert.equal(answered, 0);
+    assert.equal(repository._all, null);
+    assert.equal(repository._load_waiters, null);
+});
+
 // The cache file was named after one of the three providers; renaming it to
 // holidays.json would orphan every installed user's cache — a year of holidays
 // per country, refetched over the network — unless the old path is read once.
@@ -1032,6 +1084,36 @@ test("a second write waits for the one in flight instead of racing it", () => {
 
     settle.shift()();
     assert.equal(writes.length, 2, "nothing is left over to write");
+});
+
+test("repository release lets queued writes settle without retaining their snapshot", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const settle = [];
+    const writes = [];
+    global.imports.gi.Gio.file_new_for_path = (filePath) => ({
+        query_exists: () => false,
+        get_path: () => filePath,
+        replace_contents_async(bytes, _etag, _backup, _flags, _cancellable, callback) {
+            writes.push(JSON.parse(Buffer.from(bytes).toString("utf8")));
+            settle.push(() => callback(this, { ok: true }));
+        },
+        replace_contents_finish: (result) => result.ok
+    });
+    const repository = new HolidayCacheRepository("/holidays.json");
+
+    repository.save("usa", { years: {}, holidays: [{ name: "first" }] });
+    repository.save("ita", { years: {}, holidays: [{ name: "queued" }] });
+    repository.release();
+    assert.equal(repository._all, null);
+
+    settle.shift()();
+    assert.equal(writes.length, 2, "the write queued before release still persists");
+    assert.deepEqual(writes[1].ita.holidays, [{ name: "queued" }]);
+    assert.equal(repository._all, null, "the late merge is not retained");
+
+    settle.shift()();
+    assert.deepEqual(repository._pending, {});
+    assert.equal(repository._all, null);
 });
 
 test("the country the user left does not overwrite the one they picked", () => {

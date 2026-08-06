@@ -494,13 +494,19 @@ test("a provider given a cache does not build a repository it cannot use", () =>
 
     // ...and it is built, and used, when it is the thing backing the cache
     const loads = [];
+    let releases = 0;
     const repository = {
         loadAsync: (country, done) => { loads.push(country); done({ years: {}, holidays: [] }); },
-        save: () => {}
+        save: () => {},
+        release: () => { releases++; }
     };
     const backed = new HolidayService({ fetchYear() {} }, null, { cacheRepository: repository });
     backed.cache.setPlace("fra", "global", () => {});
     assert.deepEqual(loads, ["fra"]);
+    backed.destroy();
+    assert.equal(releases, 1);
+    assert.equal(backed.cacheRepository, null,
+        "the retained service no longer owns the released repository");
 });
 
 test("the status ledger keeps one record per year and region, and prunes", () => {
