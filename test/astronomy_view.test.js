@@ -9,7 +9,8 @@ const viewPath = path.join(appletDir, "5.4", "astronomyView.js");
 let unixDateTime = null;
 let utcDateTimeFactory = () => null;
 let dateTimeFactory = () => null;
-const localTimezone = timezone("Europe/Rome");
+// mutable: the OS timezone is the one thing under the applet that moves
+let localTimezone = timezone("Europe/Rome");
 
 function timezone(identifier) {
     return { get_identifier: () => identifier };
@@ -91,6 +92,7 @@ function loadView() {
 }
 
 beforeEach(() => {
+    localTimezone = timezone("Europe/Rome");
     localTimezoneLookups = 0;
     unixDateTime = null;
     utcDateTimeFactory = () => null;
@@ -265,6 +267,54 @@ test("the popup view reuses one daily result and hides without cached coordinate
         latitude: 91, longitude: 12, timezone: "Europe/Rome"
     }, use24h: true });
     assert.equal(view.actor.visible, false, "invalid observer coordinates hide the rows");
+});
+
+// The fallback zone is this machine's, memoised so an open-menu tick does not
+// rebuild it — and the OS zone is the one input under the applet that moves.
+// Both halves have to be dropped: the memo, and the render key that carries the
+// old zone's identity and would otherwise report "nothing to redraw".
+test("an OS timezone change re-resolves the astronomy fallback zone", () => {
+    const View = loadView();
+    const view = new View.AstronomyView(new MockBox(), {
+        now: () => new Date(2026, 2, 5, 12),
+        dayBounds: () => ({ startMs: 100, endMs: 200 }),
+        calculate: () => ({
+            sun: { rise: 1, set: 2, state: "normal" },
+            moon: { rise: 3, set: 4, state: "normal" }
+        }),
+        formatTime: (timestamp, use24h, placeTimezone) =>
+            `${placeTimezone.get_identifier()}:${timestamp}`
+    });
+    // no zone on the place, so the rows are read off this machine's clock
+    const request = { visible: true, place: { latitude: 41.9, longitude: 12.48 }, use24h: true };
+
+    view.update(request);
+    assert.equal(view.sunLabel.text, "Sunrise: Europe/Rome:1 — Sunset: Europe/Rome:2");
+    assert.equal(view.zoneLabel.visible, true, "the substitution is disclosed");
+
+    // the user flies to Tokyo and the desktop follows; without the reset the
+    // memo and the render key both still say Rome
+    localTimezone = timezone("Asia/Tokyo");
+    view.update(request);
+    assert.equal(view.sunLabel.text, "Sunrise: Europe/Rome:1 — Sunset: Europe/Rome:2",
+        "nothing tells the view on its own");
+
+    view.refreshTimezone();
+    view.update(request);
+    assert.equal(view.sunLabel.text, "Sunrise: Asia/Tokyo:1 — Sunset: Asia/Tokyo:2");
+    assert.equal(localTimezoneLookups, 2, "re-resolved once, not once per tick");
+
+    view.update(request);
+    assert.equal(localTimezoneLookups, 2, "and memoised again afterwards");
+
+    // a place that names its own zone is unaffected: an IANA identifier does
+    // not start meaning somewhere else
+    view.refreshTimezone();
+    view.update({ visible: true, place: {
+        latitude: 41.9, longitude: 12.48, timezone: "Asia/Seoul"
+    }, use24h: true });
+    assert.equal(view.sunLabel.text, "Sunrise: Asia/Seoul:1 — Sunset: Asia/Seoul:2");
+    assert.equal(view.zoneLabel.visible, false);
 });
 
 test("the shipped view uses its local clock, solver, and formatter defaults", () => {

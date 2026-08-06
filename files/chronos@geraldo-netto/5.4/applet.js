@@ -329,7 +329,19 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._guarded("timezone", () => {
             this._reconcileWorldclocks();
             this._reconcileCalendarTimezone();
+            this._reconcileAstronomyTimezone();
         });
+    }
+
+    // The sunrise and sunset rows fall back to this machine's zone whenever the
+    // resolved place carries none of its own, and that fallback is memoised
+    // against a zone that has just been replaced.
+    _reconcileAstronomyTimezone() {
+        if (!this._astronomy) {
+            return;
+        }
+        this._astronomy.refreshTimezone();
+        this._updateAstronomy();
     }
 
     // The grid matches event dots by absolute day keys, and both sides of that

@@ -1003,6 +1003,12 @@ test("OS timezone changes reconcile popup and city-weather clock projections", (
             _calendar: {
                 refreshTimezone: () => reconciled.push("calendar")
             },
+            // the sunrise/sunset rows fall back to this machine's zone, and
+            // that fallback is memoised behind a render key derived from it
+            _astronomy: {
+                refreshTimezone: () => reconciled.push("astronomy")
+            },
+            _updateAstronomy: () => reconciled.push("astronomy-redraw"),
             _guarded: (source, fn) => fn()
         });
         stub._weatherCoordinator = new CoordinatorModule.AppletWeatherCoordinator({
@@ -1036,9 +1042,10 @@ test("OS timezone changes reconcile popup and city-weather clock projections", (
         assert.deepEqual(refreshes, [true, true, true]);
         // Every day key the grid matches dots on, on both sides of the match,
         // was derived from the zone that just went away.
-        assert.deepEqual(reconciled, [
-            "events", "calendar", "events", "calendar", "events", "calendar"
-        ], "each change also resets the calendar's and the index's day keys");
+        const oneChange = ["events", "calendar", "astronomy", "astronomy-redraw"];
+        assert.deepEqual(reconciled, [...oneChange, ...oneChange, ...oneChange],
+            "each change resets the day keys on both sides of the grid match, " +
+            "and the astronomy view's memoised fallback zone with them");
     } finally {
         global.imports.gi.GLib.TimeZone.new_local = originalNewLocal;
     }

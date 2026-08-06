@@ -81,6 +81,7 @@ class AstronomyView {
         this._renderedKey = "";
         this._timezoneKey = "";
         this._timezone = null;
+        this._local_timezone = null;
 
         this.actor = new St.BoxLayout({
             vertical: true,
@@ -128,6 +129,22 @@ class AstronomyView {
                 WorldclockData.timezoneFromIdentifier(WorldclockData.LOCAL_TIMEZONE);
         }
         return this._local_timezone;
+    }
+
+    // The OS zone moved under us. The named-zone memo above survives it — an
+    // IANA identifier does not start meaning somewhere else — but the fallback
+    // is *this machine's* zone, which is precisely what changed, so the rows
+    // would go on showing a city's sunrise in the old offset for the rest of
+    // the session. Worldclocks re-reads the same zone once a minute for this
+    // reason; the calendar grid and the event index are reset from the same
+    // signal.
+    //
+    // Only the memo is dropped. _renderedKey already carries the resolved
+    // zone's identity, so the next update() sees a different key and redraws on
+    // its own; clearing it here as well would be a second reset that no input
+    // can distinguish from this one.
+    refreshTimezone() {
+        this._local_timezone = null;
     }
 
     _render(events, use24h, day) {
