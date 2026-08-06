@@ -592,9 +592,15 @@ test("CI runs the gates the README promises", () => {
     assert.equal(pkg.scripts["i18n:check"], "node scripts/check-i18n.mjs");
     assert.equal(pkg.scripts["release:check"], "node scripts/release.mjs check");
     assert.match(readme,
-        /replacing\s+that\s+same deterministic artifact when all jobs are rerun/);
+        /replacing\s+that\s+same deterministic artifact when\s+all jobs are rerun/);
     assert.match(readme, /default and release\s+branch is `develop`/);
     assert.match(readme, /`0\.0\.1` records the untagged development baseline,\s+not a published release/);
+    assert.doesNotMatch(readme, /three version manifests/,
+        "the release has more synchronized version owners than that");
+    for (const owner of ["`metadata.json`", "`package.json`", "`package-lock.json`",
+        "`Project-Id-Version`"]) {
+        assert.ok(readme.includes(owner), `the release instructions must name ${owner}`);
+    }
     assert.match(readme, /verifies every checksum and executable mode/);
     assert.match(readme, /do not rebuild the release\s+from a local\s+checkout/);
     // A Spices update reloads the applet, and the reload does not clear the GJS

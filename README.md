@@ -193,13 +193,15 @@ git tag -a v0.0.2 -m "Cinnamon Chronos 0.0.2"
 git push origin v0.0.2
 ```
 
-Tag CI reruns both runtime pairs, packages on the supported Node floor, then
-rejects any tag that does not match all three version manifests. The packaging job
-puts the exact gated tree and its SHA-256 manifest in a mode-preserving
-`chronos-spices.tar`, then uploads it as `chronos-spices-<commit SHA>`, replacing
-that same deterministic artifact when all jobs are rerun. The archive sorts
-paths and normalizes timestamps, ownership, and portable file modes while
-preserving which tracked files are executable. The release job
+Tag CI reruns both gate matrix pairs, packages on the supported Node floor, then
+rejects any tag that disagrees with `metadata.json`, `package.json`, either
+version owner in `package-lock.json`, or the translation template's
+`Project-Id-Version`. The packaging job puts the exact gated tree and its
+SHA-256 manifest in a mode-preserving `chronos-spices.tar`, then uploads it as
+`chronos-spices-<commit SHA>`, replacing that same deterministic artifact when
+all jobs are rerun. The archive sorts paths and normalizes timestamps,
+ownership, and portable file modes while preserving which tracked files are
+executable. The release job
 downloads the tar, verifies every checksum and executable mode, and extracts the
 Spices tree. After the release job is green, download that artifact from the
 workflow run, extract `chronos-spices.tar`, and publish or submit the
