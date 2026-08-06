@@ -229,6 +229,43 @@ test("the composed catalog gate rejects a source sentence copied by every locale
     );
 });
 
+// T843: every msgid and msgstr fragment went through JSON.parse, and PO's
+// escapes are not a subset of JSON's — gettext writes \a and \v, and read-po
+// accepts octal \NNN and hexadecimal \xHH. A catalog carrying one threw a bare
+// SyntaxError out of this gate and failed `i18n:check`, which `packaging` needs
+// and `release` needs after it, naming neither the catalog nor the entry.
+test("the catalog gate reads the PO escapes JSON cannot", async () => {
+    const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
+    const { unexpectedCommonSourceCopies, catalogReferenceDrift } =
+        await import(scriptUrl);
+    // \a and \v are gettext's and not JSON's; \101 and \x41 are both "A"; \q is
+    // no escape at all, which read-po warns about and keeps as the character
+    const escaped = "\"bell:\\a vtab:\\v octal:\\101 hex:\\x41 kept:\\q " +
+        "json:\\n\\t\\\"\\\\\"";
+    const entry = (id, str) => `#: a.js:1\nmsgid ${id}\nmsgstr ${str}`;
+
+    assert.deepEqual(unexpectedCommonSourceCopies([entry(escaped, escaped)]),
+        ["bell:\u0007 vtab:\v octal:A hex:A kept:q json:\n\t\"\\"],
+        "decoded once, and the same both sides, so it reads as a verbatim copy");
+
+    // ...and the same string is one entry key, so a merged catalog does not
+    // look drifted because its msgid happens to carry an escape
+    assert.deepEqual(
+        catalogReferenceDrift(entry(escaped, escaped), entry(escaped, "\"\"")), []);
+
+    // a folded msgid is one string, and every fragment of it is decoded
+    assert.deepEqual(
+        unexpectedCommonSourceCopies(["msgid \"\"\n\"one\\a\"\n\"two\"\n" +
+            "msgstr \"one\\atwo\""]),
+        ["one\u0007two"]);
+
+    // msgfmt -c fronts this in the real pipeline, so a fragment that is not a
+    // PO string means the gate was handed something that is not a catalog
+    assert.throws(
+        () => unexpectedCommonSourceCopies(["msgid \"unterminated\nmsgstr \"\""]),
+        /not a PO string: "unterminated/);
+});
+
 test("the source-copy gate allows names and locale-specific invariants", async () => {
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "check-i18n.mjs")).href;
     const { unexpectedCommonSourceCopies } = await import(scriptUrl);

@@ -29,6 +29,45 @@ const SOURCE_COPY_ALLOWLIST = new Set([
     "Simon Wiles (simonwiles)"
 ]);
 
+// PO's escapes are not a subset of JSON's. gettext also writes \a and \v, and
+// read-po accepts octal \NNN and hexadecimal \xHH; JSON.parse rejects all four.
+// Every fragment used to go through JSON.parse, so a catalog carrying one threw
+// a bare SyntaxError out of checkCatalogSourceCopies or catalogReferenceDrift
+// and failed `i18n:check` — which `packaging` needs and `release` needs after it
+// — with a message naming neither the catalog nor the entry.
+const PO_ESCAPES = {
+    a: "\u0007", b: "\b", f: "\f", n: "\n", r: "\r", t: "\t", v: "\v",
+    "\"": "\"", "\\": "\\"
+};
+
+function poEscapeValue(escape) {
+    if (escape.startsWith("x")) {
+        return String.fromCharCode(parseInt(escape.slice(1), 16));
+    }
+    if (/^[0-7]/.test(escape)) {
+        return String.fromCharCode(parseInt(escape, 8));
+    }
+    // read-po warns and keeps the character; a gate is not the place to be
+    // stricter about a catalog than the tool that compiles it
+    return PO_ESCAPES[escape] ?? escape;
+}
+
+function poUnescape(text) {
+    return text.replace(/\\(x[0-9A-Fa-f]+|[0-7]{1,3}|[\s\S])/g,
+        (unused, escape) => poEscapeValue(escape));
+}
+
+// msgfmt -c runs over every catalog before anything here reads one, so a
+// fragment this rejects means the gate was handed something that is not a
+// catalog. Saying which line that was beats a parser error about a token.
+function poStringFragment(fragment) {
+    const quoted = /^"((?:[^"\\]|\\[\s\S])*)"$/.exec(fragment.trim());
+    if (!quoted) {
+        throw new Error(`not a PO string: ${fragment.trim()}`);
+    }
+    return poUnescape(quoted[1]);
+}
+
 function poField(block, name) {
     const lines = block.split("\n");
     const start = lines.findIndex((line) => line.startsWith(`${name} "`));
@@ -40,7 +79,7 @@ function poField(block, name) {
     for (let index = start + 1; index < lines.length && lines[index].startsWith("\""); index++) {
         fragments.push(lines[index]);
     }
-    return fragments.map((fragment) => JSON.parse(fragment)).join("");
+    return fragments.map(poStringFragment).join("");
 }
 
 function sourceCopies(catalog) {
