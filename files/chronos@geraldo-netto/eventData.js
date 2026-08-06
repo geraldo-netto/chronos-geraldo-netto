@@ -149,8 +149,7 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
             throw new Error("skipping an event with no usable start or end time");
         }
 
-        const uid = typeof id === "string" ? id : String(id);
-        if (!validEventUid(uid)) {
+        if (!validEventUid(id)) {
             throw new Error("skipping an event with an unusable id");
         }
         const localStart = GLib.DateTime.new_from_unix_local(start);
@@ -158,7 +157,7 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
         if (!localStart || !localEnd) {
             throw new Error("skipping an event with no usable start or end time");
         }
-        this.id = uid;
+        this.id = id;
         this.start = localStart;
         this.end = localEnd;
 

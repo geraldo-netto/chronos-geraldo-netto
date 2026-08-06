@@ -193,6 +193,14 @@ test("EventData rejects an all-day end whose inclusive second underflows", () =>
     }
 });
 
+test("EventData refuses non-text ids instead of inventing shared strings", () => {
+    for (const id of [null, 42, {}, [], true]) {
+        assert.throws(() => new EventData(makeVariant({
+            id, startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        }), 0), /unusable id/);
+    }
+});
+
 // The UID comes off whatever ICS or CalDAV feed the user subscribed to, so it
 // is the one string here an outsider chooses. On a plain object, "toString"
 // reads back as an inherited function rather than undefined, and "__proto__"
