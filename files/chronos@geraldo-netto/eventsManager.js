@@ -652,7 +652,6 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
         if (!failure) {
             this._fetch_retry_attempts = 0;
-            this._setRefreshFailed(false);
             // Signals emitted for SetTimeRange are ordered ahead of its reply,
             // but their bounded decoding may still be draining across idles.
             // Queue reconciliation behind that stream, including when the
@@ -662,13 +661,14 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
                 generation,
                 watermark
             });
+            this._setRefreshFailed(false);
         } else {
             // the month's events never arrived. Without a retry the grid keeps
             // the previous month's events and shows nothing for this one, and
             // no other path ever asks again.
             log(failure);
-            this._setRefreshFailed(true);
             this._queue_fetch_retry();
+            this._setRefreshFailed(true);
         }
     }
 

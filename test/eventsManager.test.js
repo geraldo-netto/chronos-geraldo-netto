@@ -1703,6 +1703,46 @@ test("an exception after the range callback is not a dispatch failure", () => {
         "a result that already succeeded must not be retried as a dispatch failure");
 });
 
+test("a failing refresh-error listener cannot suppress fetch retry", () => {
+    const manager = readyManager();
+    proxy.instance.call_set_time_range_finish = () => {
+        throw new Error("range failed");
+    };
+    manager.connect("refresh-error-changed", () => {
+        assert.equal(manager._refresh_failed, true);
+        assert.ok(manager._fetch_retry_id > 0, "retry exists before notification");
+        throw new Error("refresh listener failed");
+    });
+
+    assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
+        /refresh listener failed/);
+    assert.equal(manager._refresh_failed, true);
+    assert.ok(manager._fetch_retry_id > 0);
+});
+
+test("a failing refresh-error listener cannot suppress fetch reconciliation", () => {
+    const manager = readyManager();
+    manager._refresh_failed = true;
+    const queued = [];
+    const enqueue = manager._enqueue_event_mutation.bind(manager);
+    manager._enqueue_event_mutation = (mutation) => {
+        queued.push(mutation);
+        enqueue(mutation);
+    };
+    manager.connect("refresh-error-changed", () => {
+        assert.equal(manager._refresh_failed, false);
+        assert.equal(queued.at(-1).type, "fetch-complete",
+            "reconciliation exists before notification");
+        throw new Error("refresh listener failed");
+    });
+
+    assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
+        /refresh listener failed/);
+    assert.equal(manager._refresh_failed, false);
+    assert.equal(queued.at(-1).type, "fetch-complete");
+    assert.equal(manager._fetch_retry_id, 0);
+});
+
 test("only the latest month completion owns refresh and retry state", () => {
     const manager = readyManager();
     const server = proxy.instance;
