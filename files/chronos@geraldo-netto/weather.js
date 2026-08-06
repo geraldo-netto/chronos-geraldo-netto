@@ -120,12 +120,17 @@ class WeatherDisplayState {
     // else: what it looks like on the panel is decided where it is shown. A
     // failed refresh re-shows the last good record — marked, not dropped.
     reporter(staleKey, callback) {
-        return (reading, error, provider) => {
+        return (reading, error, provider, readingAt) => {
             if (reading && !error) {
                 this._last_good_reading = reading;
                 this._last_good_provider = provider;
                 this._last_good_key = staleKey;
-                this._last_good_fresh_at = this._freshness_now();
+                // when the reading was fetched, not when it arrived: a hit on
+                // the shared cache hands over a reading that may already be
+                // most of a period old, and stamping receipt time here reset
+                // its age and withheld the staleness marker for another one
+                this._last_good_fresh_at = Number.isFinite(readingAt) ?
+                    readingAt : this._freshness_now();
             } else if (error && this._last_good_reading && this._last_good_key === staleKey &&
                 !this.isStale()) {
                 callback(this._last_good_reading, error, this._last_good_provider);
@@ -332,9 +337,9 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
                 }
                 callback(reading, error, provider);
             });
-        return (reading, error, provider, place) => {
+        return (reading, error, provider, place, readingAt) => {
             this._rememberPlace(key, place);
-            report(reading, error, provider);
+            report(reading, error, provider, readingAt);
         };
     }
 

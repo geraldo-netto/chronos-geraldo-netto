@@ -670,6 +670,47 @@ test("a city that fails to read is retried, and says so once it is old", () => {
     assert.equal(timers.length, 3, "and no further retry is queued");
 });
 
+// T829: the repository stored the fetch time but published neither settle path
+// with it, so the city could only stamp receipt time — and a hit on the shared
+// cache hands over a reading that may already be most of a period old. The panel
+// and the city round share one repository and their periods drift, so this is
+// the ordinary case, not an edge one.
+test("a city keeps the age of the reading it was given, not its arrival", () => {
+    const CityWeather = loadCityWeather();
+    let clock = 5000000;
+    const fetchedAt = clock - 3000 * 1000;
+    const provider = new CityWeather.CityWeatherProvider({
+        freshnessNow: () => clock,
+        staleAfterSeconds: 3600,
+        scheduleTimer: () => 1,
+        removeTimer: () => {},
+        readingRepository: {
+            refresh(location, isCurrent, callback) {
+                if (!isCurrent()) {
+                    return;
+                }
+                callback(R("\u2600 7\u00b0C"), "", "Open-Meteo",
+                    { name: location }, fetchedAt);
+            },
+            destroy() {}
+        }
+    });
+
+    provider.schedule({ showWeather: true, units: "si", cities: ["Lisbon"] }, () => {});
+
+    assert.deepEqual(provider.recordFor("Lisbon"), R("\u2600 7\u00b0C"));
+    assert.equal(provider.staleFor("Lisbon"), false,
+        "3000 s of age is inside the 3600 s policy");
+
+    // 601 more seconds: the reading is 3601 seconds old. Stamping arrival would
+    // have left it another 2999 seconds before the marker appeared.
+    clock += 601 * 1000;
+    assert.equal(provider.staleFor("Lisbon"), true,
+        "the marker follows the reading's real age");
+
+    provider.destroy();
+});
+
 test("city weather counts suspend time before a failed wake refresh", () => {
     const CityWeather = loadCityWeather();
     const Weather = require(weatherPath);

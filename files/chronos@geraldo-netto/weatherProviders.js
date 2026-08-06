@@ -563,6 +563,11 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         this._cache.set(key, { reading, provider, startedAtFresh, place });
     }
 
+    // The fifth argument is when the reading was fetched, not when it was
+    // handed over. Without it a consumer can only stamp receipt time, and a
+    // cache hit on an almost-expired entry then resets the reading's apparent
+    // age: with cacheSeconds 1800 and a staleness policy of 3600, a hit at 1799
+    // seconds withheld the marker until 5399 seconds of real age.
     refresh(location, isCurrent, callback) {
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
         if (this._destroyed || !normalized) {
@@ -576,7 +581,8 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         const cached = this._freshReading(key);
         if (cached) {
             if (isCurrent()) {
-                callback(cached.reading, "", cached.provider, cached.place);
+                callback(cached.reading, "", cached.provider, cached.place,
+                    cached.startedAtFresh);
             }
             return;
         }
@@ -692,7 +698,8 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
                 continue;
             }
             try {
-                subscriber.callback(reading, error, provider, request.place);
+                subscriber.callback(reading, error, provider, request.place,
+                    request.startedAtFresh);
             } catch (e) {
                 raised = raised || e;
             }

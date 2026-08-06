@@ -443,12 +443,13 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         // the query is the timezone's city; the label is only ever a local key
         this._reading_repository.refresh(city.query,
             () => this._isCurrent(generation),
-            (reading, forecastError, provider) => this._cityForecastResolved(
-                city, generation, callback, round, reading, forecastError, provider));
+            (reading, forecastError, provider, place, readingAt) =>
+                this._cityForecastResolved(city, generation, callback, round,
+                    { reading, forecastError, provider, readingAt }));
     }
 
-    _cityForecastResolved(city, generation, callback, round,
-        reading, forecastError, provider) {
+    _cityForecastResolved(city, generation, callback, round, answer) {
+        const { reading, forecastError, provider, readingAt } = answer;
         if (!this._isCurrent(generation)) {
             return;
         }
@@ -469,7 +470,11 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             {
                 record: reading,
                 provider: provider || "",
-                freshAt: this._freshness_now()
+                // when the reading was fetched, which is not when it arrived: a
+                // hit on the shared cache hands over a reading that may already
+                // be most of a period old, and stamping receipt time here reset
+                // its age and withheld the staleness marker for another one
+                freshAt: Number.isFinite(readingAt) ? readingAt : this._freshness_now()
             });
         // the panel is repainted once, when the round finishes
         round.changed = true;

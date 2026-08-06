@@ -1556,6 +1556,54 @@ test("a subscriber that raises does not strand the rest of the shared flight", (
     repository.destroy();
 });
 
+// T829: the repository stored startedAtFresh but published neither settle path
+// with it, so a consumer could only stamp receipt time. The panel and the city
+// round share one repository and their periods drift — a location edit restarts
+// the panel's and leaves the city signature unchanged, so the city's is not
+// restarted — and a cache hit on an almost-expired entry then reset the
+// reading's apparent age. With cacheSeconds 1800 against a 3600 second
+// staleness policy, a hit at 1799 seconds withheld the marker until 5399
+// seconds of real age.
+test("a cache hit reports when the reading was fetched, not when it arrived", () => {
+    const Weather = loadWeather();
+    let now = 1000000;
+    const repository = new Weather.WeatherReadingRepository({
+        cacheSeconds: 1800,
+        freshnessNow: () => now,
+        locationResolver: {
+            resolve(location, _isCurrent, callback) {
+                callback({ name: location, latitude: 1, longitude: 2 }, "");
+            },
+            forget() {}
+        },
+        forecastResolver: {
+            refresh(_place, _isCurrent, callback) {
+                callback({ condition: "\u2600", temperatureC: 7 }, "", "test");
+            }
+        }
+    });
+
+    const answers = [];
+    const collect = (reading, error, provider, place, readingAt) =>
+        answers.push({ error, readingAt });
+
+    const fetchedAt = now;
+    repository.refresh("Lisbon", () => true, collect);
+    assert.equal(answers[0].readingAt, fetchedAt, "a fresh fetch is stamped now");
+
+    // 1799 seconds later the entry is still inside the 1800 second cache window,
+    // so this is a hit — and it is 1799 seconds old, not new
+    now += 1799 * 1000;
+    repository.refresh("Lisbon", () => true, collect);
+
+    assert.equal(answers.length, 2);
+    assert.equal(answers[1].error, "", "the cached reading is served");
+    assert.equal(answers[1].readingAt, fetchedAt,
+        "and it carries the age it actually has");
+
+    repository.destroy();
+});
+
 test("shared reading cache ships with a small fixed bound", () => {
     const Weather = loadWeather();
     const repository = new Weather.WeatherReadingRepository({ cacheSeconds: 1 });
