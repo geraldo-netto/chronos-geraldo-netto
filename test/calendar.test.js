@@ -635,6 +635,60 @@ test("a holiday failure is announced in words, not just a glyph", () => {
     assert.doesNotMatch(label.accessible_name, /Holiday data/);
 });
 
+// holidays-changed rebuilds the event column's holiday rows, so it must fire
+// on a real change and only on a real change. The map the annotator already
+// holds is the previous answer, so it is the comparison — this used to
+// serialise both sides on every annotate pass to find out.
+test("the holiday map is compared entry by entry, not by serialising it", () => {
+    let changes = 0;
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
+        holidaysChanged: () => { changes++; }
+    }));
+    // _reconcileCells keys what it stores by the cell's own date, so the cells
+    // have to be the days the annotations are for
+    const cellFor = (key) => {
+        const [month, day] = key.split("/").map(Number);
+        return { date: new Date(2026, month - 1, day), button: new MockActor(),
+            holidayTooltip: null };
+    };
+    const reconcile = (entries) => {
+        const cells = new Map(entries.map(([date]) => [date, cellFor(date)]));
+        annotator._reconcileCells(new Map(entries), cells);
+    };
+
+    reconcile([]);
+    assert.equal(changes, 0, "an empty month matches the empty starting state");
+
+    reconcile([["7/14", ["Bastille Day", ["PUBLIC_HOLIDAY"]]]]);
+    assert.equal(changes, 1);
+
+    // an equal-but-distinct array is the same annotation
+    reconcile([["7/14", ["Bastille Day", ["PUBLIC_HOLIDAY"]]]]);
+    assert.equal(changes, 1, "re-annotating the same month changes nothing");
+
+    reconcile([["7/14", ["Fête nationale", ["PUBLIC_HOLIDAY"]]]]);
+    assert.equal(changes, 2, "a renamed holiday is a change");
+
+    reconcile([["7/14", ["Fête nationale", ["PUBLIC_HOLIDAY", "PART_DAY_HOLIDAY"]]]]);
+    assert.equal(changes, 3, "so is a change of flags at the same name");
+
+    reconcile([["7/14", ["Fête nationale", ["PUBLIC_HOLIDAY", "RELIGIOUS_HOLIDAY"]]]]);
+    assert.equal(changes, 4, "...including one that keeps the same count");
+
+    // a second date at the same size is not the same map
+    reconcile([["7/15", ["Fête nationale", ["PUBLIC_HOLIDAY", "RELIGIOUS_HOLIDAY"]]]]);
+    assert.equal(changes, 5, "the same annotation on another day is a change");
+
+    // rows without flags are legitimate: mergeMonthMaps leaves the field off
+    reconcile([["7/15", ["Some observance"]]]);
+    assert.equal(changes, 6);
+    reconcile([["7/15", ["Some observance"]]]);
+    assert.equal(changes, 6, "two flagless rows are still equal");
+
+    reconcile([]);
+    assert.equal(changes, 7, "and a month that loses its holidays is a change");
+});
+
 test("holiday failures reach the shared footer and recovery clears them", () => {
     const issues = [];
     const label = new MockActor();

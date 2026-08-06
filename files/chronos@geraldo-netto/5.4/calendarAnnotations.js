@@ -37,6 +37,27 @@ function calendarDateKey(date) {
     return "";
 }
 
+// A month's holiday flags: a short array, or nothing at all — mergeMonthMaps
+// leaves the field off a row that carries none, and _annotateCell already
+// treats a falsy value as "no flags".
+function sameHolidayFlags(current, incoming) {
+    if (current === incoming) {
+        return true;
+    }
+    if (!Array.isArray(current) || !Array.isArray(incoming) ||
+        current.length !== incoming.length) {
+        return false;
+    }
+
+    return current.every((flag, index) => flag === incoming[index]);
+}
+
+// One entry of the matched-month map: [name, flags].
+function sameHolidayAnnotation(current, incoming) {
+    return Array.isArray(current) && current[0] === incoming[0] &&
+        sameHolidayFlags(current[1], incoming[1]);
+}
+
 // Cinnamon's Tooltip.set_text() has no equality guard: it calls
 // allocate_preferred_size() and queue_relayout() unconditionally, so writing
 // byte-identical text still forces a relayout. This applet writes the same text
@@ -166,7 +187,6 @@ class CalendarHolidayAnnotator {
         // whether it still has to hand us the cells when holidays are switched off
         this.annotated = false;
         this._dates = new Map();
-        this._datesKey = "[]";
         // months of the current pass still waiting on the network: only the
         // last outstanding answer may replace the pending marker with a final
         // status, or a slow January looks like a month with no holidays
@@ -335,12 +355,28 @@ class CalendarHolidayAnnotator {
         this._setDates(selectedDates);
     }
 
+    // The map this holds is already the previous pass's answer, so it is the
+    // comparison — serialising both sides to compare them built two strings and
+    // an entries array on every pass, and _update() drives one on every menu
+    // open, settings change and coalesced event delivery.
+    _sameDates(dates) {
+        if (dates.size !== this._dates.size) {
+            return false;
+        }
+
+        for (const [date, holiday] of dates.entries()) {
+            if (!sameHolidayAnnotation(this._dates.get(date), holiday)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     _setDates(dates) {
-        const key = JSON.stringify(Array.from(dates.entries()));
-        if (key === this._datesKey) {
+        if (this._sameDates(dates)) {
             return;
         }
-        this._datesKey = key;
         this._dates = new Map(dates);
         this.host.holidaysChanged();
     }
