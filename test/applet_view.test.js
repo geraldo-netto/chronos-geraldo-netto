@@ -5,6 +5,8 @@ const {
     updateStub, tooltipEntry
 } = require("./helpers/appletFixture");
 
+const AgendaColumn = require(path.join(APPLET_DIR, "6.0", "agendaColumn.js"));
+
 test("_styleTooltip marks the tooltip so the clock table stays left-aligned", () => {
     const classes = [];
     const stub = Object.assign(Object.create(Proto), {
@@ -1504,6 +1506,10 @@ test("the menu builder disconnects the calendar signal too", () => {
         getSelectedDate() { return null; }
     };
 
+    // _buildEventList is what constructs the coordinator; this test builds only
+    // the calendar, and is about the signal ids either way
+    builder._agenda = { setCalendar() {}, selectDate() {}, render() {}, destroy() {} };
+
     try {
         const calendar = builder._buildCalendar({ add_actor() {} });
         assert.deepEqual(calendar.connected, ["selected-date-changed", "holidays-changed"]);
@@ -1547,7 +1553,8 @@ test("a build that throws partway still tears down what it had built", () => {
         constructor() { this.actor = {}; }
         connect() { return 1; }
         disconnect() {}
-        getSelectedDate() { return null; }
+        // the seeding call, which is the first thing after both classes exist
+        getSelectedDate() { throw new Error("the date heading failed"); }
         holidayForDate() { return null; }
         destroy() { destroyed.push("calendar"); }
     };
@@ -1561,9 +1568,7 @@ test("a build that throws partway still tears down what it had built", () => {
         set_events() {}
         destroy() { destroyed.push("list"); }
     };
-    builder._selectDateInColumn = () => {
-        throw new Error("the date heading failed");
-    };
+
 
     try {
         assert.throws(() => builder.build(), /the date heading failed/);
@@ -1647,7 +1652,7 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
 
 // T721: `EventWindowCoordinator.selectDate()` returns before any emission when
 // `isActive()` is false, and the events manager's "selected-date-changed" was
-// the only writer of the column's date heading and of `_selectedEventDate`.
+// the only writer of the column's date heading and of its selected date.
 // With "Show events" on and evolution-data-server absent — or present with
 // every calendar disabled — that signal never fires for the life of the
 // session, while the column stays on screen. So the heading rendered
@@ -1658,7 +1663,7 @@ test("the event column follows the grid even with no calendar service", () => {
     // local components, not toISOString(): the grid selects local days, and a
     // UTC key is off by one for most of the world. GLib components, because the
     // column is handed a GLib.DateTime — the grid navigates in a JS `Date` and
-    // _selectDateInColumn is the seam that converts it.
+    // AgendaColumnCoordinator.selectDate is the seam that converts it.
     const key = (date) => `${date.get_year()}-` +
         `${String(date.get_month()).padStart(2, "0")}-` +
         `${String(date.get_day_of_month()).padStart(2, "0")}`;
@@ -1682,16 +1687,15 @@ test("the event column follows the grid even with no calendar service", () => {
 
     const dates = [];
     const agendas = [];
-    builder._eventList = {
+    const agenda = new AgendaColumn.AgendaColumnCoordinator(eventsManager, {
         set_date: (date) => dates.push(key(date)),
-        set_events: (agenda) => agendas.push(agenda)
-    };
-    builder._calendar = {
-        holidayForDate: (date) => holidays[key(date)] || null
-    };
+        set_events: (value) => agendas.push(value)
+    });
+    agenda.setCalendar({ holidayForDate: (date) => holidays[key(date)] || null });
+    builder._agenda = agenda;
 
-    builder._selectDateInColumn(new Date(2026, 2, 16));
-    builder._selectDateInColumn(new Date(2026, 2, 17));
+    builder._agenda.selectDate(new Date(2026, 2, 16));
+    builder._agenda.selectDate(new Date(2026, 2, 17));
 
     assert.deepEqual(dates, ["2026-03-16", "2026-03-17"],
         "the heading tracks the day the user clicked");
@@ -1706,13 +1710,13 @@ test("the event column follows the grid even with no calendar service", () => {
     // with a live service the events manager still owns the render, so the
     // column is not drawn twice for one click
     eventsManager.is_active = () => true;
-    builder._selectDateInColumn(new Date(2026, 2, 18));
+    builder._agenda.selectDate(new Date(2026, 2, 18));
     assert.deepEqual(dates.at(-1), "2026-03-18", "the heading is still updated");
     assert.equal(agendas.length, 2, "but the redraw is left to the events manager");
 
-    // and nothing is attempted before the column exists
-    builder._eventList = null;
-    assert.doesNotThrow(() => builder._selectDateInColumn(new Date(2026, 2, 19)));
+    // and nothing is attempted once the column is gone
+    agenda.destroy();
+    assert.doesNotThrow(() => agenda.selectDate(new Date(2026, 2, 19)));
 });
 
 // T819: two producers emit "selected-date-changed" with two different date
@@ -1740,18 +1744,20 @@ test("the calendar's JS Date reaches the real EventList.set_date as a GLib date"
     // to_unix() — and this.selected_date is truthy from construction, so the
     // first call is not protected by its own guard.
     const headings = [];
-    builder._eventList = {
-        selected_date: global.imports.gi.GLib.DateTime.new_now_local(),
-        selected_date_label: { set_text: (text) => headings.push(text) },
-        _syncSelectedDateLauncher() {},
-        set_events() {},
-        set_date: EventView.EventList.prototype.set_date
-    };
+    const agenda = new AgendaColumn.AgendaColumnCoordinator(
+        { connect: () => 1, disconnect() {}, is_active: () => false }, {
+            selected_date: global.imports.gi.GLib.DateTime.new_now_local(),
+            selected_date_label: { set_text: (text) => headings.push(text) },
+            _syncSelectedDateLauncher() {},
+            set_events() {},
+            set_date: EventView.EventList.prototype.set_date
+        });
+    builder._agenda = agenda;
 
-    assert.doesNotThrow(() => builder._selectDateInColumn(new Date(2026, 2, 17)));
+    assert.doesNotThrow(() => builder._agenda.selectDate(new Date(2026, 2, 17)));
     assert.equal(headings.length, 1, "the heading is written");
     assert.match(headings[0], /2026-03-17/, "with the day the grid selected");
-    assert.equal(builder._selectedEventDate.get_day_of_month(), 17,
+    assert.equal(builder._agenda.selectedDate.get_day_of_month(), 17,
         "and the builder keeps a GLib date whichever producer wrote it last");
 });
 
@@ -1860,7 +1866,7 @@ test("a day change with no delivery behind it still redraws the column", () => {
 
         fireIdles();
         assert.deepEqual(drawn, [null], "the safety net draws the empty day");
-        assert.equal(builder._agenda_render_id, 0);
+        assert.equal(builder._agenda._render_id, 0);
         // the source that just ran is spent; asking GLib to remove it again is
         // a critical warning in the log
         assert.deepEqual(removed, [], "a draw that fired removes nothing");

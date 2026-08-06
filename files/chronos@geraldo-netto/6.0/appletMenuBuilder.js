@@ -12,8 +12,6 @@
 
 const Atk = imports.gi.Atk;
 const Clutter = imports.gi.Clutter;
-const GLib = imports.gi.GLib;
-const Mainloop = imports.mainloop;
 const Pango = imports.gi.Pango;
 const St = imports.gi.St;
 const PopupMenu = imports.ui.popupMenu;
@@ -22,13 +20,11 @@ const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
 const Calendar = require("./calendar");
 const EventView = require("./eventView");
-const EventDataModule = require("./eventData");
+const AgendaColumn = require("./agendaColumn");
 const Worldclocks = require("./worldclocks");
 const AstronomyView = require("./astronomyView");
 
 const _ = LocaleText.translate;
-const date_only = EventDataModule.date_only;
-const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 const HOME_KEY_SYMBOLS = new Set([
     Clutter.KEY_Return,
     Clutter.KEY_KP_Enter,
@@ -113,18 +109,13 @@ class AppletIssueReporter {
 class AppletMenuBuilder {
     constructor(context) {
         this.context = context;
-        this._events_manager_signal_ids = [];
         this._event_list_signal_ids = [];
         this._calendar_signal_ids = [];
         this._calendar = null;
         this._eventList = null;
-        this._selectedEventDate = null;
-        this._eventDataList = null;
-        this._delayNoEventsBox = false;
-        this._eventsOverflowed = false;
+        this._agenda = null;
         this._menu_items = [];
         this._issueReporter = null;
-        this._agenda_render_id = 0;
     }
 
     build() {
@@ -168,7 +159,8 @@ class AppletMenuBuilder {
 
         // the heading has no writer until a selection changes, so seed it from
         // the calendar's own selection rather than leaving it blank until one does
-        this._selectDateInColumn(calendar.getSelectedDate());
+        this._agenda.setCalendar(calendar);
+        this._agenda.selectDate(calendar.getSelectedDate());
 
         const worldclocks = new Worldclocks.Worldclocks(calbox);
         const astronomy = new AstronomyView.AstronomyView(calbox);
@@ -177,6 +169,7 @@ class AppletMenuBuilder {
         return {
             eventList,
             calendar,
+            agenda: this._agenda,
             worldclocks,
             astronomy,
             issueReporter,
@@ -198,38 +191,20 @@ class AppletMenuBuilder {
         return new AppletIssueReporter(label);
     }
 
+    // The column's own signals — the ones about what the menu does when a row
+    // is clicked — stay here with the actors. Everything about what the column
+    // *shows* belongs to the coordinator, which owns that state for the life of
+    // the session; this class hands the menu contents back and is done.
+    //
     // These connections used to discard their handler ids, and there was no
     // teardown path from on_applet_removed_from_panel that could have used them.
-    // Nothing emits after EventsManager.destroy() today, so they do not fire on
-    // dead actors — but they were the only set of connects in the applet with no
-    // owner, which makes them the ones that break when something upstream starts
-    // emitting a little later than it used to.
     _buildEventList(box, reportIssue) {
         const context = this.context;
         const eventList = new EventView.EventList(
             context.desktopSettings, undefined, reportIssue);
 
-        this._events_manager_signal_ids.push(
-            context.eventsManager.connect("selected-date-changed", (em, gdate) => {
-                eventList.set_date(gdate);
-                this._selectedEventDate = gdate;
-                this._eventDataList = null;
-                this._delayNoEventsBox = true;
-                this._eventsOverflowed = false;
-                this._queueAgendaRender();
-            }));
-        this._events_manager_signal_ids.push( // NOSONAR [S7778] -- accepted compatible form
-            context.eventsManager.connect("selected-date-events-changed",
-                (em, eventDataList, delayNoEventsBox, overflowed) => {
-                    this._eventDataList = eventDataList;
-                    this._delayNoEventsBox = delayNoEventsBox;
-                    this._eventsOverflowed = overflowed;
-                    this._renderAgenda();
-                }));
-        this._events_manager_signal_ids.push(
-            context.eventsManager.connect("refresh-error-changed", (em, failed) => {
-                eventList.set_refresh_failed(failed);
-            }));
+        this._agenda = new AgendaColumn.AgendaColumnCoordinator(
+            context.eventsManager, eventList);
 
         this._event_list_signal_ids.push(
             eventList.connect("launched-calendar", () => context.menu.toggle()));
@@ -243,7 +218,6 @@ class AppletMenuBuilder {
             }));
 
         this._eventList = eventList;
-        this._selectedEventDate = eventList.selectedDate;
         box.add_actor(eventList.actor);
 
         return eventList;
@@ -278,9 +252,10 @@ class AppletMenuBuilder {
 
     destroy() {
         const steps = [
-            // the column may be waiting on an idle to draw itself; the actors
-            // it would draw into are destroyed two steps down
-            () => this._cancelAgendaRender(),
+            // the column may be waiting on an idle to draw itself, and it holds
+            // the events-manager handlers; the actors both would touch are
+            // destroyed further down
+            () => this._destroyOwned("_agenda"),
             // first, so an issue reported by any later teardown step — here or
             // in the applet's remaining destroy steps — cannot reach the
             // footer label once its actor's fate is out of this builder's hands
@@ -288,10 +263,6 @@ class AppletMenuBuilder {
                 if (this._issueReporter) {
                     this._issueReporter.detach();
                 }
-            },
-            () => {
-                this._disconnectAll(this.context.eventsManager, this._events_manager_signal_ids);
-                this._events_manager_signal_ids = [];
             },
             () => {
                 this._disconnectAll(this._eventList, this._event_list_signal_ids);
@@ -412,94 +383,16 @@ class AppletMenuBuilder {
         // owner, in the file whose comment above says why that is not acceptable
         this._calendar_signal_ids.push(
             calendar.connect("selected-date-changed", (unused, date) => {
-                this._selectDateInColumn(date);
+                this._agenda.selectDate(date);
                 context.onSelectedDateChanged();
             }));
         this._calendar_signal_ids.push(
-            calendar.connect("holidays-changed", () => this._renderAgenda()));
+            calendar.connect("holidays-changed", () => this._agenda.render()));
 
         this._calendar = calendar;
         calbox.add_actor(calendar.actor);
-        this._renderAgenda();
+        this._agenda.render();
         return calendar;
-    }
-
-    // The column's date heading and its holiday row used to come only from the
-    // events manager's "selected-date-changed", and `EventWindowCoordinator`
-    // returns before emitting anything when `isActive()` is false. With "Show
-    // events" on and evolution-data-server absent — or present with every
-    // calendar disabled — that signal never fires for the life of the session,
-    // while the column stays on screen: the heading was built with no text and
-    // had no other writer, so it rendered permanently blank, and
-    // `_selectedEventDate` stayed pinned to the applet's start date, so clicking
-    // through the grid moved the dots while the column kept announcing the
-    // holiday of the day the applet was added.
-    //
-    // The calendar's own signal fires regardless of event availability, and it
-    // fires first, so the events-manager handler still owns the rendering
-    // whenever it is going to run at all — this only fills the gap it leaves.
-    //
-    // Both callers hand over the calendar's own selection, which is a JS `Date`
-    // — the grid navigates in one. The event column is GLib all the way down:
-    // `set_date` formats the heading through `GLib.DateTime.format` and compares
-    // through `dt_equals`, which calls `to_unix()`. So the conversion belongs
-    // here, at the one seam between the two, exactly as
-    // `EventWindowCoordinator.selectDate` does it for the other producer. It
-    // also keeps `_selectedEventDate` one type whoever wrote it last.
-    _selectDateInColumn(date) {
-        if (!this._eventList || !date) {
-            return;
-        }
-
-        const gdate = date_only(js_date_to_gdatetime(date));
-        this._eventList.set_date(gdate);
-        this._selectedEventDate = gdate;
-        if (!this.context.eventsManager.is_active()) {
-            this._renderAgenda();
-        }
-    }
-
-    // The two signals arrive together: EventWindowCoordinator.selectDate emits
-    // the new day and then, in the same synchronous call, that day's events. So
-    // rendering on the first one only ever built a column the second one
-    // replaced — a _clearRows, a "Loading…" write and a 600 ms timer armed and
-    // cancelled, on every click, arrow key and go-home. On a day carrying a
-    // holiday it was real actors: composeSelectedDayAgenda(null, holiday) is a
-    // one-row agenda, so the holiday row was built, torn down and built again.
-    //
-    // The day handler marks the column stale and leaves the drawing to the
-    // delivery behind it. The idle is the safety net: nothing emits a day
-    // change on its own today, and if anything ever does, the column must not
-    // keep showing the previous day's events.
-    _queueAgendaRender() {
-        if (this._agenda_render_id > 0) {
-            return;
-        }
-
-        this._agenda_render_id = Mainloop.idle_add(() => {
-            this._agenda_render_id = 0;
-            this._renderAgenda();
-            return GLib.SOURCE_REMOVE;
-        });
-    }
-
-    _cancelAgendaRender() {
-        if (this._agenda_render_id > 0) {
-            Mainloop.source_remove(this._agenda_render_id);
-            this._agenda_render_id = 0;
-        }
-    }
-
-    _renderAgenda() {
-        this._cancelAgendaRender();
-        if (!this._eventList) {
-            return;
-        }
-        const holiday = this._calendar && this._selectedEventDate ?
-            this._calendar.holidayForDate(this._selectedEventDate) : null;
-        this._eventList.set_events(
-            EventView.composeSelectedDayAgenda(this._eventDataList, holiday),
-            this._delayNoEventsBox, this._eventsOverflowed);
     }
 
     _addSettingsMenuItems(issueLabel) {

@@ -239,7 +239,7 @@ test("date changes force a menu update explicitly", () => {
     assert.match(appletCode, /require\("\.\/appletMenuBuilder"\)/);
     assert.match(code, /class AppletMenuBuilder \{/);
     assert.match(code,
-        /connect\("selected-date-changed", \(unused, date\) => \{[\s\S]*?this\._selectDateInColumn\(date\);[\s\S]*?context\.onSelectedDateChanged\(\);/);
+        /connect\("selected-date-changed", \(unused, date\) => \{[\s\S]*?this\._agenda\.selectDate\(date\);[\s\S]*?context\.onSelectedDateChanged\(\);/);
     assert.match(appletCode,
         /onSelectedDateChanged: \(\) => this\._guarded\([\s\S]*?"selected-date", \(\) => this\._updateClockAndDate\(true\)\)/);
 });
