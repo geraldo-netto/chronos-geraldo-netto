@@ -151,6 +151,9 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this._overflow_mutation_queued = false;
         this._resync_mutation_queued = false;
         this._pending_emit = null;
+        // ...and at most one idle announces it, so a burst of one-instance
+        // deliveries repaints once rather than once per instance.
+        this._emit_idle_id = 0;
         // A mutation-flood resync uses overflow as a temporary warning until
         // its authoritative replacement request has actually been dispatched.
         // Payload limits reached after that boundary are independent warnings.
@@ -338,6 +341,11 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         if (mutation.type === "add") {
             return this._apply_add_mutation(mutation);
         }
+
+        // Everything below emits for itself, and the deliveries accumulated so
+        // far are older than what it is about to do.
+        this._flush_pending_emit();
+
         if (mutation.type === "remove") {
             this._apply_removed_events(mutation.uids);
             return true;
@@ -392,6 +400,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
                 this._overflow_mutation_queued = false;
                 this._resync_mutation_queued = false;
                 this._pending_emit = null;
+                this._cancel_pending_emit();
             } else {
                 this._apply_next_event_mutation();
             }
@@ -456,11 +465,48 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             this._start_gc_timer();
         }
 
-        if (!flush) {
-            this._pending_emit = pending;
+        this._pending_emit = pending;
+        if (flush) {
+            this._queue_pending_emit();
+        }
+    }
+
+    // One recurring event is not one delivery. cinnamon-calendar-server's
+    // recurrence_generated calls emit_events_added_or_updated once per
+    // generated instance, so a weekly meeting inside the 42-day window arrives
+    // as six separate signals and a working calendar as dozens — and each one
+    // drains synchronously inside its own handler, because a single-event
+    // mutation is enqueued into an empty queue and applied on the spot. So the
+    // accumulator above, which exists to say what changed once at the end of a
+    // batch, never saw two of them: measured at six signals for one weekly
+    // event, it emitted "events-updated" six times.
+    //
+    // Deferring by one idle is what lets a burst collapse into a single
+    // repaint. The grid has always absorbed its half this way (calendar.js
+    // queues its update on an idle); this is the same answer for the event
+    // column, which had no such coalescing and re-read the selected day on
+    // every instance.
+    _queue_pending_emit() {
+        if (this._destroyed || this._emit_idle_id > 0) {
             return;
         }
 
+        this._emit_idle_id = Mainloop.idle_add(() => {
+            this._emit_idle_id = 0;
+            this._flush_pending_emit();
+            return GLib.SOURCE_REMOVE;
+        });
+    }
+
+    // Anything that emits on its own account settles the accumulated delivery
+    // first, so consumers see the two in the order they happened rather than a
+    // removal followed by the addition it superseded.
+    _flush_pending_emit() {
+        this._cancel_pending_emit();
+        const pending = this._pending_emit;
+        if (!pending) {
+            return;
+        }
         this._pending_emit = null;
 
         if (pending.selected_date_changed || pending.overflow_changed) {
@@ -469,6 +515,13 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
 
         if (pending.events_changed || pending.overflow_changed) {
             this.emit("events-updated");
+        }
+    }
+
+    _cancel_pending_emit() {
+        if (this._emit_idle_id > 0) {
+            Mainloop.source_remove(this._emit_idle_id);
+            this._emit_idle_id = 0;
         }
     }
 
@@ -760,6 +813,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             Mainloop.source_remove(id);
         }
         this._event_batch_ids = [];
+        this._cancel_pending_emit();
         this._event_mutations = [];
         this._queued_event_records = 0;
         this._queued_event_bytes = 0;

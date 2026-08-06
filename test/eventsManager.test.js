@@ -296,11 +296,21 @@ function registerDays(manager, data) {
         data, manager.last_update_timestamp, manager.current_selected_date);
 }
 
+// A delivery announces what it changed one idle after applying it, so that a
+// burst of one-instance recurrence signals repaints once instead of once per
+// instance. A test that asserts what a delivery painted has to let that run.
+function settleEmits(manager) {
+    if (manager._emit_idle_id > 0) {
+        fireTimer(manager._emit_idle_id);
+    }
+}
+
 function drainEventMutations(manager, limit = 1000) {
     for (let turn = 0; turn < limit && manager._event_batch_ids.length > 0; turn++) {
         fireTimer(manager._event_batch_ids[0]);
     }
     assert.deepEqual(manager._event_batch_ids, [], "the mutation queue must settle");
+    settleEmits(manager);
 }
 
 function eventSummaries(manager) {
@@ -651,11 +661,13 @@ test("re-delivering the same events does not repaint the grid", () => {
     })];
 
     proxy.instance.signal("events-added-or-updated", { unpack: () => events });
+    settleEmits(manager);
     assert.equal(emitted(manager, "events-updated").length, 1, "the first delivery paints");
 
     // the same event, again — the server re-sends its whole window whenever
     // anything in it changes, and nothing in this one did
     proxy.instance.signal("events-added-or-updated", { unpack: () => events });
+    settleEmits(manager);
     assert.equal(emitted(manager, "events-updated").length, 1,
         "an unchanged redelivery must not rebuild the grid");
 
@@ -668,6 +680,7 @@ test("re-delivering the same events does not repaint the grid", () => {
             modTime: 2
         })]
     });
+    settleEmits(manager);
     assert.equal(emitted(manager, "events-updated").length, 2, "a moved event repaints");
 });
 
@@ -685,6 +698,7 @@ test("an event rescheduled off the selected day refreshes that day's list", () =
             id: "standup", startUnix: 11 * DAY_S + 3600, endUnix: 11 * DAY_S + 5400
         })]
     });
+    settleEmits(manager);
     assert.equal(emitted(manager, "selected-date-events-changed").length, 1,
         "the event lands on the selected day");
 
@@ -696,6 +710,7 @@ test("an event rescheduled off the selected day refreshes that day's list", () =
         })]
     });
 
+    settleEmits(manager);
     assert.equal(manager._event_index.getByUnixKey(11 * DAY_S), null,
         "the old day's bucket is gone");
     assert.equal(emitted(manager, "selected-date-events-changed").length, 2,
@@ -711,6 +726,7 @@ test("added events spread across days and emit updates", () => {
         ]
     };
     proxy.instance.signal("events-added-or-updated", varray);
+    settleEmits(manager);
 
     assert.deepEqual(
         Object.keys(manager._event_index.eventsByDate).map(Number).sort((a, b) => a - b),
@@ -1115,6 +1131,7 @@ test("a chunked delivery repaints once, not once per chunk", () => {
     for (let guard = 0; guard < 20 && manager._event_batch_ids.length > 0; guard++) {
         fireTimer(manager._event_batch_ids[0]);
     }
+    settleEmits(manager);
 
     assert.equal(manager._event_index.get(new FakeDateTime(10 * DAY_US)).length, 200);
     assert.equal(emitted(manager, "events-updated").length, 1,
@@ -1779,6 +1796,8 @@ test("removing an event refreshes the open list right away", () => {
         ]
     });
 
+    settleEmits(manager);
+
     const emitted = [];
     manager.connect("selected-date-events-changed", (em, list) => emitted.push(list));
 
@@ -1787,6 +1806,145 @@ test("removing an event refreshes the open list right away", () => {
     assert.equal(emitted.length, 1, "the selected day is re-fed without waiting for a reselect");
     assert.equal(emitted[0].length, 1);
     assert.equal(emitted[0]._events["drop"], undefined);
+});
+
+// cinnamon-calendar-server's recurrence_generated emits one signal per
+// generated instance, so a weekly meeting inside the 42-day window is six
+// deliveries, not one. Each is a single-event mutation enqueued into an empty
+// queue, which _enqueue_event_mutation applies on the spot — so the delivery
+// accumulator never spanned two of them and every instance paid its own
+// repaint. Measured before the fix: six "events-updated" for one event.
+test("a burst of one-instance deliveries repaints once", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(10 * DAY_US);
+
+    // Every instance joining the armed idle rather than arming another is what
+    // makes this one repaint; a per-signal idle_add would also strand five
+    // GLib sources, since only the newest id is tracked.
+    const armed = new Set();
+
+    // the six occurrences of one weekly event, each arriving on its own signal
+    for (let week = 0; week < 6; week++) {
+        proxy.instance.signal("events-added-or-updated", {
+            unpack: () => [eventVariant({
+                id: "weekly", modTime: week,
+                startUnix: (10 + 7 * week) * DAY_S + 3600,
+                endUnix: (10 + 7 * week) * DAY_S + 5400
+            })]
+        });
+        assert.deepEqual(manager._event_mutations, [],
+            "each signal drains inside its own handler, so nothing queues up");
+        armed.add(manager._emit_idle_id);
+    }
+
+    assert.equal(emitted(manager, "events-updated").length, 0,
+        "nothing is repainted while the burst is still arriving");
+    assert.equal(armed.size, 1, "one announcement is armed for the whole burst");
+
+    settleEmits(manager);
+    assert.equal(emitted(manager, "events-updated").length, 1,
+        "one grid rebuild for the whole burst, not one per instance");
+    assert.equal(emitted(manager, "selected-date-events-changed").length, 1,
+        "and one event-column re-feed");
+});
+
+test("a chunked delivery arms no announcement until its last chunk", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(10 * DAY_US);
+    const events = Array.from({ length: 200 }, (_unused, index) => eventVariant({
+        id: "ev" + index,
+        startUnix: 10 * DAY_S + index * 60,
+        endUnix: 10 * DAY_S + index * 60 + 30
+    }));
+
+    proxy.instance.signal("events-added-or-updated", { unpack: () => events });
+    assert.equal(manager._emit_idle_id, 0, "the first chunk is not the whole delivery");
+
+    // GLib would run this idle before the batch's own — it was added first — so
+    // an announcement armed here paints a partial day and clears the
+    // accumulator the remaining chunks are still filling
+    fireTimer(manager._event_batch_ids[0]);
+    settleEmits(manager);
+    assert.equal(emitted(manager, "events-updated").length, 0,
+        "a mid-batch chunk announces nothing");
+
+    drainEventMutations(manager);
+    assert.equal(emitted(manager, "events-updated").length, 1,
+        "the last chunk announces the whole delivery");
+});
+
+test("a removal settles the deliveries queued behind it first", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(10 * DAY_US);
+
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "doomed", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        })]
+    });
+    // no settle: the delivery is still on the idle when the removal lands
+    assert.ok(manager._emit_idle_id > 0, "the delivery is waiting to announce itself");
+
+    const order = [];
+    manager.connect("selected-date-events-changed", (em, list) =>
+        order.push(list ? list.length : 0));
+
+    proxy.instance.signal("events-removed", "doomed");
+
+    assert.deepEqual(order, [1, 0],
+        "the addition is announced before the removal that superseded it");
+    assert.equal(manager._emit_idle_id, 0, "and its idle is spent, not left armed");
+});
+
+// A reselect emits the selected day itself, so a delivery still on the idle
+// has to be announced ahead of it. Nothing in select_date does that on its own:
+// the reconciliation marker its fetch queues is a mutation, and every non-add
+// mutation settles the accumulator on the way past.
+test("a reselect settles a delivery still waiting on its idle", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(10 * DAY_US);
+
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "standup", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        })]
+    });
+    assert.ok(manager._emit_idle_id > 0);
+
+    const order = [];
+    manager.connect("selected-date-events-changed", () => order.push("column"));
+    manager.connect("selected-date-changed", () => order.push("day"));
+
+    manager.select_date(new Date(Date.UTC(1970, 0, 12)), true);
+
+    assert.equal(manager._emit_idle_id, 0, "the delivery has had its say");
+    assert.equal(order[0], "column",
+        "and had it before the reselect announced a different day");
+});
+
+test("a destroyed manager never fires its pending announcement", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date = new FakeDateTime(10 * DAY_US);
+
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [eventVariant({
+            id: "standup", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        })]
+    });
+    const idle = manager._emit_idle_id;
+    assert.ok(idle > 0);
+
+    manager.destroy();
+
+    assert.equal(manager._emit_idle_id, 0);
+    assert.equal(timers.pending.has(idle), false, "the idle is removed, not just forgotten");
+
+    // Destroyed is terminal, the way it is for the clock handler: no path
+    // reaches this today — _apply_next_event_mutation refuses first — but the
+    // whole point of the teardown is that nothing announces itself afterwards.
+    manager._pending_emit = { events_changed: true };
+    manager._queue_pending_emit();
+    assert.equal(manager._emit_idle_id, 0, "a destroyed manager arms nothing");
 });
 
 test("a removal the index never held repaints nothing", () => {
