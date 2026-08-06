@@ -2132,6 +2132,38 @@ test("a burst of one-instance deliveries repaints once", () => {
         "and one event-column re-feed");
 });
 
+test("a rejected announcement idle flushes the completed delivery", () => {
+    const manager = readyManager();
+    manager._window_coordinator.current_selected_date =
+        new FakeDateTime(10 * DAY_US);
+    const originalIdleAdd = global.imports.mainloop.idle_add;
+    const originalLogError = global.logError;
+    const logged = [];
+
+    try {
+        global.imports.mainloop.idle_add = () => 0;
+        global.logError = (error) => logged.push(String(error));
+        proxy.instance.signal("events-added-or-updated", {
+            unpack: () => [eventVariant({
+                id: "standup",
+                startUnix: 10 * DAY_S,
+                endUnix: 10 * DAY_S + 60
+            })]
+        });
+    } finally {
+        global.imports.mainloop.idle_add = originalIdleAdd;
+        global.logError = originalLogError;
+    }
+
+    assert.equal(manager._mutation_stream._emitIdleId, 0,
+        "a missing source id is never retained");
+    assert.equal(manager._mutation_stream._pendingEmit, null,
+        "the completed delivery is not left waiting for unrelated work");
+    assert.equal(emitted(manager, "events-updated").length, 1);
+    assert.equal(emitted(manager, "selected-date-events-changed").length, 1);
+    assert.match(logged[0], /could not register an announcement idle/);
+});
+
 test("a chunked delivery arms no announcement until its last chunk", () => {
     const manager = readyManager();
     manager._window_coordinator.current_selected_date = new FakeDateTime(10 * DAY_US);

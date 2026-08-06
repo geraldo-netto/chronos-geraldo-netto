@@ -328,11 +328,26 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
             return;
         }
 
-        this._emitIdleId = Mainloop.idle_add(() => {
+        try {
+            const sourceId = Mainloop.idle_add(() => {
+                this._emitIdleId = 0;
+                this.flushPendingEmit();
+                return GLib.SOURCE_REMOVE;
+            });
+            if (!(sourceId > 0)) {
+                throw new Error(
+                    "calendar events could not register an announcement idle");
+            }
+            this._emitIdleId = sourceId;
+        } catch (error) {
             this._emitIdleId = 0;
+            if (global.logError) {
+                global.logError(error);
+            }
+            // The index mutation is complete. Announce it now rather than
+            // retaining a presentation delta no source can ever flush.
             this.flushPendingEmit();
-            return GLib.SOURCE_REMOVE;
-        });
+        }
     }
 
     flushPendingEmit() {
