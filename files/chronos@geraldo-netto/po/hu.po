@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 00:52+0200\n"
+"POT-Creation-Date: 2026-08-07 01:37+0200\n"
 "PO-Revision-Date: 2024-11-24 20:59+0100\n"
 "Last-Translator: Vajda Örs <ors0092@gmail.com>\n"
 "Language-Team: \n"
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Go to today"
 msgstr "Ugrás a mai napra"
 
-#: 6.0/appletMenuBuilder.js:414
+#: 6.0/appletMenuBuilder.js:413
 msgid "Date and Time Settings"
 msgstr "Dátum és idő beállítások"
 
@@ -336,7 +336,7 @@ msgid "Fair"
 msgstr "Szép idő"
 
 #: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:540
-#: 6.0/appletPanelStatus.js:730
+#: 6.0/appletPanelStatus.js:734
 msgid "Weather: loading…"
 msgstr "Időjárás: betöltés…"
 
@@ -421,23 +421,23 @@ msgstr "Következő év"
 msgid "Week"
 msgstr "Hét"
 
-#: 6.0/calendarAnnotations.js:104
+#: 6.0/calendarAnnotations.js:111
 msgid "Holiday service unavailable"
 msgstr "Az ünnepnapi szolgáltatás nem érhető el"
 
-#: 6.0/calendarAnnotations.js:105
+#: 6.0/calendarAnnotations.js:112
 msgid "Holiday data unavailable"
 msgstr "Az ünnepnapi adatok nem érhetők el"
 
-#: 6.0/calendarAnnotations.js:107
+#: 6.0/calendarAnnotations.js:114
 msgid "Religious dates unavailable for this year"
 msgstr "A vallási időpontok nem érhetők el erre az évre"
 
-#: 6.0/calendarAnnotations.js:275
+#: 6.0/calendarAnnotations.js:282
 msgid "Holiday data: loading…"
 msgstr "Ünnepnapi adatok: betöltés…"
 
-#: 6.0/calendarAnnotations.js:317
+#: 6.0/calendarAnnotations.js:324
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Ünnepnapi adatok: %s"

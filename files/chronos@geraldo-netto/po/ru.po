@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 00:52+0200\n"
+"POT-Creation-Date: 2026-08-07 01:37+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: blogdron\n"
 "Language-Team: \n"
@@ -275,7 +275,7 @@ msgstr ""
 msgid "Go to today"
 msgstr "Перейти к сегодняшнему дню"
 
-#: 6.0/appletMenuBuilder.js:414
+#: 6.0/appletMenuBuilder.js:413
 msgid "Date and Time Settings"
 msgstr "Настройка Времени и Даты"
 
@@ -332,7 +332,7 @@ msgid "Fair"
 msgstr "Малооблачно"
 
 #: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:540
-#: 6.0/appletPanelStatus.js:730
+#: 6.0/appletPanelStatus.js:734
 msgid "Weather: loading…"
 msgstr "Погода: загрузка…"
 
@@ -418,23 +418,23 @@ msgstr "Следующий год"
 msgid "Week"
 msgstr "Неделя"
 
-#: 6.0/calendarAnnotations.js:104
+#: 6.0/calendarAnnotations.js:111
 msgid "Holiday service unavailable"
 msgstr "Сервис праздников недоступен"
 
-#: 6.0/calendarAnnotations.js:105
+#: 6.0/calendarAnnotations.js:112
 msgid "Holiday data unavailable"
 msgstr "Данные о праздниках недоступны"
 
-#: 6.0/calendarAnnotations.js:107
+#: 6.0/calendarAnnotations.js:114
 msgid "Religious dates unavailable for this year"
 msgstr "Религиозные даты недоступны для этого года"
 
-#: 6.0/calendarAnnotations.js:275
+#: 6.0/calendarAnnotations.js:282
 msgid "Holiday data: loading…"
 msgstr "Данные о праздниках: загрузка…"
 
-#: 6.0/calendarAnnotations.js:317
+#: 6.0/calendarAnnotations.js:324
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Данные о праздниках: %s"

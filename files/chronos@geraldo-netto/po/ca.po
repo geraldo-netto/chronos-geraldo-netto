@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 00:52+0200\n"
+"POT-Creation-Date: 2026-08-07 01:37+0200\n"
 "PO-Revision-Date: 2025-02-13 20:56+0100\n"
 "Last-Translator: Odyssey <odysseyhyd@gmail.com>\n"
 "Language-Team: \n"
@@ -279,7 +279,7 @@ msgstr ""
 msgid "Go to today"
 msgstr "Vés a avui"
 
-#: 6.0/appletMenuBuilder.js:414
+#: 6.0/appletMenuBuilder.js:413
 msgid "Date and Time Settings"
 msgstr "Configuració de data i hora"
 
@@ -336,7 +336,7 @@ msgid "Fair"
 msgstr "Bon temps"
 
 #: 6.0/appletPanelStatus.js:122 6.0/appletPanelStatus.js:540
-#: 6.0/appletPanelStatus.js:730
+#: 6.0/appletPanelStatus.js:734
 msgid "Weather: loading…"
 msgstr "Temps: s’està carregant…"
 
@@ -421,23 +421,23 @@ msgstr "Any següent"
 msgid "Week"
 msgstr "Setmana"
 
-#: 6.0/calendarAnnotations.js:104
+#: 6.0/calendarAnnotations.js:111
 msgid "Holiday service unavailable"
 msgstr "El servei de festius no està disponible"
 
-#: 6.0/calendarAnnotations.js:105
+#: 6.0/calendarAnnotations.js:112
 msgid "Holiday data unavailable"
 msgstr "Les dades de festius no estan disponibles"
 
-#: 6.0/calendarAnnotations.js:107
+#: 6.0/calendarAnnotations.js:114
 msgid "Religious dates unavailable for this year"
 msgstr "Les dates religioses no estan disponibles per a aquest any"
 
-#: 6.0/calendarAnnotations.js:275
+#: 6.0/calendarAnnotations.js:282
 msgid "Holiday data: loading…"
 msgstr "Dades de festius: s’està carregant…"
 
-#: 6.0/calendarAnnotations.js:317
+#: 6.0/calendarAnnotations.js:324
 #, javascript-format
 msgid "Holiday data: %s"
 msgstr "Dades de festius: %s"
