@@ -175,6 +175,31 @@ test("displayWidth measures fixed-width cells, not code points", () => {
     assert.equal(displayWidth("\u{1ffff}\u{20000}"), 3);
 });
 
+// T807: the table was hand-picked and had holes on both sides. A clock named
+// with a leading \ud83d\ude80 misaligned every column to its right by one cell, and the
+// same was true of the enclosed-alphanumeric and mahjong blocks and of the Wide
+// singletons below U+2E80 - while U+1F321..U+1F32C, which UAX #11 calls
+// Neutral, were counted as two. The tooltip is padded from this number.
+test("displayWidth agrees with UAX #11 across the blocks a label can carry", () => {
+    // one row per block the table used to miss, and one for the range it
+    // over-counted. Two cells:
+    for (const wide of ["\u{1F680}", "\u{1F6D5}", "\u{1F004}", "\u{1F0CF}",
+        "\u{1F19A}", "\u{1F210}", "\u231a", "\u2b1b", "\u2b50", "\u2b55",
+        "\u{1F7E0}", "\u{1FA90}", "\u{1F302}", "\u{1F950}"]) {
+        assert.equal(displayWidth(wide), 2,
+            "U+" + wide.codePointAt(0).toString(16).toUpperCase() + " is Wide");
+    }
+
+    // ...and one cell, including the Neutral pocket inside the pictographs and
+    // the Neutral neighbours just outside three of the ranges above
+    for (const narrow of ["\u{1F321}", "\u{1F32C}", "\u{1F1E6}", "\u{1F6C7}",
+        "\u2b1a", "\u2b51", "\u{1F003}", "\u{1F93B}"]) {
+        assert.equal(displayWidth(narrow), 1,
+            "U+" + narrow.codePointAt(0).toString(16).toUpperCase() + " is Neutral");
+    }
+
+});
+
 test("displayWidth is what lines the tooltip columns up", () => {
     const pad = (cell, width) => cell + " ".repeat(width - displayWidth(cell));
     const rows = [["東京", "18:52"], ["Rome", "10:52"]];

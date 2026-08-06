@@ -715,7 +715,7 @@ const TOOLTIP_FUZZ_ALPHABETS = [
     "abcdefghijklmnopqrstuvwxyz ",
     "ÅÄÖéèçñüß",
     "東京モスクワ",
-    "🌧⛈☀❄🇯🇵",
+    "🌧🌂⛈☀❄🇯🇵",
     "́̈-_/:.",
     ""
 ];
@@ -746,9 +746,12 @@ function randomTooltipRows(rand) {
 // say outright that the CJK one is double-width and the combining marks add
 // nothing. An alphabet extended without extending this map fails loudly.
 const FUZZ_CELL_WIDTHS = new Map();
-Array.from("abcdefghijklmnopqrstuvwxyz ÅÄÖéèçñüß-_/:.⛈☀❄🇯🇵").forEach(
+// T807: 🌧 U+1F327 sits in the U+1F321..U+1F32C pocket that UAX #11 calls
+// Neutral, and the oracle had it at two cells because the shipped table did.
+// 🌂 U+1F302 is next door and genuinely Wide, so the corpus keeps a wide emoji.
+Array.from("abcdefghijklmnopqrstuvwxyz ÅÄÖéèçñüß-_/:.⛈☀❄🇯🇵🌧").forEach(
     (character) => FUZZ_CELL_WIDTHS.set(character, 1));
-Array.from("東京モスクワ🌧").forEach(
+Array.from("東京モスクワ🌂").forEach(
     (character) => FUZZ_CELL_WIDTHS.set(character, 2));
 Array.from("́̈").forEach(
     (character) => FUZZ_CELL_WIDTHS.set(character, 0));
