@@ -469,8 +469,8 @@ test("a live release-lock claimant cannot be stolen", async (t) => {
 
     await retireStaleLock(lock);
 
-    await fs.access(lock);
-    await fs.access(claim);
+    await assert.doesNotReject(() => fs.access(lock));
+    await assert.doesNotReject(() => fs.access(claim));
 });
 
 test("stale retirement cannot remove a replacement live lock", async (t) => {
