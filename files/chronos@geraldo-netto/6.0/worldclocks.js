@@ -114,6 +114,21 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         });
     }
 
+    // The actors go with the menu, but the rows above do not, and the applet
+    // that holds this view outlives its removal from the panel: up to ten
+    // records, each keeping a GLib.TimeZone alive and three St.Label handles
+    // that are about to be disposed. Dropping them also leaves updateClocks and
+    // getClockEntries nothing to walk, so a tick that arrives after teardown
+    // cannot write into one of those labels — the same property the footer
+    // reporter's detach() is there for.
+    //
+    // The seam matters more than today's bytes: every other menu component
+    // states in its own comment why it must release, and without one here the
+    // first timer or signal this view acquires has nowhere to be torn down.
+    destroy() {
+        this.clocks = [];
+    }
+
     // The format decides how a time is *rendered*; the clock list decides what
     // actors exist. Only the second one needs actors rebuilt, and the two were
     // conflated: updateFormatString() called buildClocks(), and Cinnamon fires

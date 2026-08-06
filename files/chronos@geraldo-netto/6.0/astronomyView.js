@@ -156,6 +156,19 @@ class AstronomyView {
         this._local_timezone = null;
     }
 
+    // The same seam Worldclocks.destroy() describes, for the same reason: the
+    // three labels die with the menu, the memos behind them are this view's own
+    // and the applet outlives its removal from the panel — the place's
+    // GLib.TimeZone, this machine's, and a civil day's bounds. refreshTimezone
+    // above already drops one of them on its own signal; this drops the set.
+    destroy() {
+        this._renderedKey = "";
+        this._timezoneKey = "";
+        this._timezone = null;
+        this._local_timezone = null;
+        this._dayCache = null;
+    }
+
     _render(events, use24h, day) {
         const timezone = day.timezone;
         const formatTime = (timestamp) => this._formatTime(timestamp, use24h, timezone);

@@ -111,6 +111,8 @@ class AppletMenuBuilder {
         this._calendar = null;
         this._eventList = null;
         this._agenda = null;
+        this._worldclocks = null;
+        this._astronomy = null;
         this._menu_items = [];
         this._issueReporter = null;
     }
@@ -159,8 +161,13 @@ class AppletMenuBuilder {
         this._agenda.setCalendar(calendar);
         this._agenda.selectDate(calendar.getSelectedDate());
 
+        // recorded as owned for the same reason the reporter above is, and in
+        // the same place: _addSettingsMenuItems can throw, and a component this
+        // class constructed but never handed back has no other owner
         const worldclocks = new Worldclocks.Worldclocks(calbox);
+        this._worldclocks = worldclocks;
         const astronomy = new AstronomyView.AstronomyView(calbox);
+        this._astronomy = astronomy;
         this._addSettingsMenuItems(issueReporter.label);
 
         return {
@@ -272,6 +279,10 @@ class AppletMenuBuilder {
             // every consumer is detached above, so the producers can go
             () => this._destroyOwned("_calendar"),
             () => this._destroyOwned("_eventList"),
+            // leaves: no signals and no consumers, so they release whenever the
+            // producers above have
+            () => this._destroyOwned("_worldclocks"),
+            () => this._destroyOwned("_astronomy"),
             () => {
                 // the applet's own context menu is Cinnamon's, and it holds these
                 // items — and each item's activate closure holds this builder,

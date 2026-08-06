@@ -2073,3 +2073,26 @@ test("the popup row is the contract this view declares, not what it is handed", 
     // than throwing on the compositor thread
     assert.doesNotThrow(() => worldclocks.renderRow(tokyo));
 });
+
+// T841: this view declared no destroy(), and the builder that constructs it
+// handed it back without recording it as owned — so the rows outlived every
+// add/remove cycle, each one holding a GLib.TimeZone and three St.Label handles
+// the menu had already disposed.
+test("destroying the view drops the rows and leaves a late tick nothing to write", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
+    worldclocks.updateClocks();
+    const tokyo = worldclocks.clocks.at(-1);
+    const drawn = tokyo.display.text;
+
+    worldclocks.destroy();
+
+    assert.deepEqual(worldclocks.clocks, [],
+        "no record keeps a zone or a disposed label alive");
+    assert.deepEqual(worldclocks.getClockEntries(), []);
+    worldclocks.updateClocks();
+    assert.equal(tokyo.display.text, drawn,
+        "a tick after teardown has no row to render into");
+    assert.doesNotThrow(() => worldclocks.destroy(), "and a second pass is a no-op");
+});

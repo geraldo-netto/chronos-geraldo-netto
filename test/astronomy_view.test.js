@@ -431,3 +431,33 @@ test("the shipped view uses its local clock, solver, and formatter defaults", ()
     assert.match(view.sunLabel.text, /^Sunrise:/);
     assert.match(view.moonLabel.text, /^Moonrise:/);
 });
+
+// T841: this view declared no destroy(), and the menu builder that constructs
+// it recorded no ownership of it — so its memos survived every add/remove
+// cycle: the place's GLib.TimeZone, this machine's, and a civil day's bounds.
+test("destroying the view drops the zone and day memos it holds", () => {
+    const View = loadView();
+    const view = new View.AstronomyView(new MockBox(), {
+        now: () => new Date(2026, 2, 5, 12),
+        dayBounds: () => ({ startMs: 100, endMs: 200 }),
+        calculate: () => ({
+            sun: { rise: 1, set: 2, state: "normal" },
+            moon: { rise: 3, set: 4, state: "normal" }
+        }),
+        formatTime: (timestamp) => String(timestamp)
+    });
+
+    view.update({ visible: true, place: {
+        latitude: 41.9, longitude: 12.48, timezone: "Asia/Seoul"
+    }, use24h: true });
+    assert.ok(view._timezone && view._dayCache && view._renderedKey);
+
+    view.destroy();
+
+    assert.equal(view._timezone, null);
+    assert.equal(view._local_timezone, null);
+    assert.equal(view._dayCache, null);
+    assert.equal(view._timezoneKey, "");
+    assert.equal(view._renderedKey, "");
+    assert.doesNotThrow(() => view.destroy(), "and a second pass is a no-op");
+});

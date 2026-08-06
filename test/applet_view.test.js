@@ -1644,6 +1644,75 @@ test("a build that throws partway still tears down what it had built", () => {
     }
 });
 
+// T841: both were constructed here and handed straight back, with no field
+// recording them and no destroy() to call — so the builder's teardown reached
+// the calendar, the event list and the agenda column, and stopped there.
+test("the menu builder owns and tears down the world clocks and the sky view", () => {
+    const destroyed = [];
+    const builder = new AppletModule.AppletMenuBuilder({
+        menu: { addActor() {}, addMenuItem() {}, toggle() {} },
+        contextMenu: { addMenuItem() {} },
+        desktopSettings: { use24h: true },
+        calendarSettings: {},
+        eventsManager: { connect: () => 1, disconnect() {} },
+        holidayProvider: null,
+        onSelectedDateChanged() {},
+        onGoHome() {},
+        onLaunchSettings() {}
+    });
+
+    const Calendar52 = require(path.join(APPLET_DIR, "6.0", "calendar.js"));
+    const EventView = require(path.join(APPLET_DIR, "6.0", "eventView.js"));
+    const Worldclocks = require(path.join(APPLET_DIR, "6.0", "worldclocks.js"));
+    const AstronomyView = require(path.join(APPLET_DIR, "6.0", "astronomyView.js"));
+    const originals = {
+        calendar: Calendar52.Calendar,
+        list: EventView.EventList,
+        clocks: Worldclocks.Worldclocks,
+        sky: AstronomyView.AstronomyView
+    };
+    Calendar52.Calendar = class {
+        constructor() { this.actor = {}; }
+        connect() { return 1; }
+        disconnect() {}
+        getSelectedDate() { return null; }
+        holidayForDate() { return null; }
+        destroy() {}
+    };
+    EventView.EventList = class {
+        constructor() { this.actor = { add_actor() {} }; this.selectedDate = null; }
+        connect() { return 1; }
+        disconnect() {}
+        set_events() {}
+        destroy() {}
+    };
+    Worldclocks.Worldclocks = class {
+        destroy() { destroyed.push("worldclocks"); }
+    };
+    AstronomyView.AstronomyView = class {
+        destroy() { destroyed.push("astronomy"); }
+    };
+
+    try {
+        const ui = builder.build();
+        assert.equal(builder._worldclocks, ui.worldclocks,
+            "recorded as owned, not only handed back");
+        assert.equal(builder._astronomy, ui.astronomy);
+
+        builder.destroy();
+
+        assert.deepEqual(destroyed, ["worldclocks", "astronomy"]);
+        assert.doesNotThrow(() => builder.destroy());
+        assert.deepEqual(destroyed, ["worldclocks", "astronomy"],
+            "and a second pass is a no-op");
+    } finally {
+        Calendar52.Calendar = originals.calendar;
+        EventView.EventList = originals.list;
+        Worldclocks.Worldclocks = originals.clocks;
+        AstronomyView.AstronomyView = originals.sky;
+    }
+});
+
 // The panel button is what opens the menu, and it had no accessible role: the
 // home button and the date heading were both given PUSH_BUTTON in the
 // accessibility pass and this one was missed. Orca read out the date, the time
