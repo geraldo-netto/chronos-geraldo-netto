@@ -297,8 +297,13 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         if (bounds === null) {
             const selected_changed = this._selectedDayHas(data.id, currentSelectedDate);
             const changed = this._eventsById.has(data.id);
-            this.remove([data.id]);
-            return { changed, selected_changed };
+            // remove() is the one place the overflow flag is retired, and
+            // dropping its answer here meant a reschedule out of the window
+            // freed a slot without anything saying so: addOrUpdate accumulates
+            // overflow_changed, and the manager gates the column refresh on
+            // exactly that, so the column went on claiming rows were hidden on
+            // a day that now holds three.
+            return { changed, selected_changed, overflow_changed: this.remove([data.id]) };
         }
 
         // A reschedule rewrites the buckets below, and _registerOnDate reports

@@ -2370,6 +2370,38 @@ test("a timezone change before any selection renormalizes nothing", () => {
         "there is no chosen day to re-key, and epoch zero is not one");
 });
 
+// T801: remove() is the one place the overflow flag is retired, and register()'s
+// out-of-window branch discarded its answer. addOrUpdate accumulates
+// overflow_changed and the manager gates the column refresh on exactly that, so
+// an indexed event rescheduled outside the fetched window freed a slot with
+// nothing saying so: the column went on claiming rows were hidden on a day that
+// now holds fewer than the ceiling. The existing test drove index.remove()
+// directly and never this path.
+test("a reschedule out of the window retires the overflow notice", () => {
+    const index = new EventIndex({}, 3);
+    const selected = new FakeDateTime(10 * DAY_US);
+    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+
+    const flood = Array.from({ length: 5 }, (_unused, id) => eventVariant({
+        id: `flood-${id}`,
+        startUnix: 10 * DAY_S + id,
+        endUnix: 10 * DAY_S + id + 1
+    }));
+    index.addOrUpdate(flood, 1, selected);
+    assert.equal(index.overflowed, true, "the ceiling was hit");
+
+    // one of the indexed events is moved to a day outside the fetched window
+    const moved = index.addOrUpdate([eventVariant({
+        id: "flood-0",
+        startUnix: 400 * DAY_S,
+        endUnix: 400 * DAY_S + 60
+    })], 2, selected);
+
+    assert.equal(index.overflowed, false, "the freed slot retires the notice");
+    assert.equal(moved.overflow_changed, true,
+        "and the change is reported, so the column is refreshed rather than left stale");
+});
+
 // Only clear() and the full-range resync used to retire the flag, so garbage
 // collecting a flood back down to a handful left the event column still
 // telling the user rows were hidden on a day now holding three.
@@ -2600,13 +2632,18 @@ test("an event updated outside the active window releases its old buckets", () =
     const result = index.register(makeEventData({
         id: "moved", modTime: 2, startUnix: 30 * DAY_S, endUnix: 30 * DAY_S + 60
     }), 2, selected);
-    assert.deepEqual(result, { changed: true, selected_changed: true });
+    // overflow_changed is reported here because remove() is the one place the
+    // flag is retired: a reschedule out of the window frees a slot, and the
+    // column must stop claiming rows are hidden
+    assert.deepEqual(result,
+        { changed: true, selected_changed: true, overflow_changed: false });
     assert.equal(index.get(selected), null);
     assert.equal(index._eventIds.size, 0);
 
     assert.deepEqual(index.register(makeEventData({
         id: "never-seen", startUnix: 40 * DAY_S, endUnix: 40 * DAY_S + 60
-    }), 3, selected), { changed: false, selected_changed: false });
+    }), 3, selected),
+    { changed: false, selected_changed: false, overflow_changed: false });
 });
 
 test("day registration: re-registering the same event reports no change", () => {
