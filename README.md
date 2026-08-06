@@ -13,8 +13,10 @@ calendar fork.
   **libsoup 3** typelib (`gir1.2-soup-3.0`). Cinnamon ships both; libsoup 3 is
   what the 6.0 floor is really about, and it also covers the calendar server the
   event view talks to over DBus.
-- Python 3 with GTK bindings (`python3-gi`) — the settings dialog runs in its
-  own Python process, not inside Cinnamon.
+- Python **3.10 or newer** with GTK bindings (`python3-gi`) — the settings
+  dialog runs in its own Python process, not inside Cinnamon. Linux Mint 21.3,
+  the oldest desktop release covered by the Cinnamon 6.0 floor, ships Python
+  3.10.
 - An internet connection, only for public-holiday and weather data. Religious
   observances use bundled local data and need no connection. Weather is off by
   default. Public-holiday lookup starts automatically only when the
@@ -50,7 +52,7 @@ with the applet:
 | Tool | Version | Needed for | Install |
 | --- | --- | --- | --- |
 | Node.js | **≥ 22.13.0** | the JS suite and its coverage gate | install with `nvm` as described below |
-| Python 3 | ≥ 3.12 | the settings-widget suite | already present |
+| Python 3 | ≥ 3.12 | the development gates and settings-widget suite | use your distribution or `pyenv` |
 | eslint | `^10` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating `po/*.pot` via `po/makepot` | part of the `cinnamon` package |
@@ -137,7 +139,10 @@ tree, and are copied as real files for archive-based delivery.
 active fuzzy translations with `msgattrib`, and regenerates the translation
 template in a temporary directory to prove it is current. CI runs every check
 and builds the Spices tree after the lint and test gates pass on the supported
-Node 22.13.0 / Python 3.12 floors and the current Node 26 / Python 3.14 pair.
+Node 22.13.0 and development Python 3.12 floors, and on the current Node 26 /
+Python 3.14 pair. The lint gate separately parses every shipped Python module
+with Python 3.10's grammar, so raising the development-tool floor does not
+silently raise the applet's runtime floor.
 
 ### Releasing
 
@@ -276,8 +281,8 @@ PageUp/PageDown by month, Home returns to today.
 
 ### Running the tests and linters (development)
 
-From the repository root, after `npm ci`. The suites require Node ≥ 22.13.0 for the
-JavaScript tests and Python 3 for the settings tests:
+From the repository root, after `npm ci`. The suites require Node ≥ 22.13.0 for
+the JavaScript tests and Python ≥ 3.12 for the settings tests:
 
 ```sh
 npm test          # both suites, behind the coverage gate
@@ -294,9 +299,10 @@ by not running is worse than no lint step at all.
 npm ci                           # installs the locked JavaScript tooling
 python3 -m pip install pyflakes   # required: the Python lint step is a gate
 
-npm run lint      # eslint over the applet and the tests, pyflakes over the Python
-npm run lint:js   # eslint only
-npm run lint:py   # pyflakes only
+npm run lint                  # Python 3.10 syntax, eslint, and pyflakes
+npm run check:python-runtime  # shipped settings code against Python 3.10 grammar
+npm run lint:js               # eslint only
+npm run lint:py               # pyflakes over shipped code, scripts, and tests
 ```
 
 The eslint rules live in [`eslint.config.mjs`](eslint.config.mjs). It lints the

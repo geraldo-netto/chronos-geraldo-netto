@@ -491,6 +491,10 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
     assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
     assert.equal(pkg.engines.node, ">=22.13.0");
+    assert.equal(pkg.scripts["check:python-runtime"],
+        "python3 scripts/check_python_compat.py");
+    assert.match(pkg.scripts.lint, /npm run check:python-runtime/,
+        "the ordinary local and CI lint gate enforces shipped Python syntax");
     // Read the floor out of the README rather than repeating it, so the two
     // cannot drift: this assertion pinned '3.8' as a literal, which made it a
     // third place to edit and a silent way for the matrix and the requirements
@@ -772,6 +776,8 @@ test("the manifest declares the Cinnamon compatibility floor", () => {
     };
 
     assert.match(readme, /Cinnamon \*\*6\.0 or newer\*\*/);
+    assert.match(readme, /Python \*\*3\.10 or newer\*\*/,
+        "the settings runtime floor must be explicit and distinct from the suite floor");
     assert.deepEqual(supported, ["6.0"], "declare the compatibility floor once");
     assert.ok(supported.every((series) => /^\d+\.\d+$/.test(series)));
     assert.equal(supports("5.2"), false);

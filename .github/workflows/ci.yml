@@ -35,10 +35,10 @@ jobs:
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-      # Exercise both runtime floors and the current development versions
+      # Exercise the supported Node/developer-Python floors and the current versions
       # without multiplying two independent compatibility axes into four jobs.
       #
-      # The Python floor was 3.8 and is 3.12. 3.8 went end of life in October
+      # The suite's Python floor was 3.8 and is 3.12. 3.8 went end of life in October
       # 2024, before ubuntu-24.04 entered actions/python-versions' build matrix,
       # so pinning the image (which the template comparison below needs) left
       # this leg asking setup-python for an interpreter that image may carry no
@@ -65,9 +65,10 @@ jobs:
 
       - run: npm ci
 
+      # Python 3.10 shipped-source syntax plus eslint and pyflakes.
       - run: npm run lint
 
-      # both suites, both coverage gates: JS 98/90/100 per file, Python 98 lines.
+      # Both suites, both coverage gates: JS 98/90/100 per file, Python 98 lines.
       # CHRONOS_REQUIRE_PYTZ turns the pytz skips into a failure, so a future
       # dependency drop cannot quietly take those sixteen tests out of CI again.
       - run: npm test
