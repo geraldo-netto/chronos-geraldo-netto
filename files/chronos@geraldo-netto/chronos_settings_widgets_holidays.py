@@ -117,7 +117,13 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
 
     def connect_widget_handlers(self, *args):
         self.content_widget.connect('changed', self.on_combo_changed)
-        self.entry.connect('focus-out-event', self.on_entry_focus_out)
+        # the ways an edit ends. Not 'changed', which is every keystroke and
+        # which get_active_iter() answers None for while a name is half-typed.
+        self.entry.connect('activate', self.on_entry_commit)
+        self.entry.connect('focus-out-event', self.on_entry_commit)
+        # closing the settings window while the cursor is still in the field
+        # never fires focus-out, and the country the user typed would go with it
+        self.entry.connect('destroy', self.on_entry_commit)
 
     def on_combo_changed(self, widget):
         tree_iter = widget.get_active_iter()
@@ -132,9 +138,10 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         self.value = value
         self.set_value(value)
 
-    def on_entry_focus_out(self, *args) -> bool:
+    def on_entry_commit(self, *args) -> bool:
         self.restore_entry_text()
-        # False: let GTK carry on with the focus change
+        # False: an 'activate', a focus change or a teardown carries on as it
+        # would have
         return False
 
     def restore_entry_text(self):

@@ -291,7 +291,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("bra")
         widget.content_widget.type_text("Atlantis")
 
-        kept_open = widget.on_entry_focus_out()
+        kept_open = widget.on_entry_commit()
 
         # the field cannot sit there showing a country the applet is not using
         self.assertEqual(widget.entry.get_property("text"), "Brazil")
@@ -308,12 +308,38 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("prt")
         widget.content_widget.type_text("Brazil")
 
-        kept_open = widget.on_entry_focus_out()
+        kept_open = widget.on_entry_commit()
 
         self.assertEqual(widget.value, "bra")
         self.assertEqual(settings.values["country"], "bra")
         self.assertEqual(widget.entry.get_property("text"), "Brazil")
         self.assertFalse(kept_open, "the focus change carries on")
+
+    def test_closing_the_window_mid_edit_still_saves_the_country(self):
+        # T779: the sibling weather field connects 'destroy' for exactly this
+        # case and says why. Only half of T728's fix landed here: the commit
+        # path existed but focus-out was its only trigger, so typing a country
+        # and clicking the window close button dropped the edit, and holidays
+        # kept coming from the previous country with no error anywhere.
+        widget, settings = self.combo("prt")
+        widget.content_widget.type_text("Brazil")
+
+        handlers = dict(widget.entry.handlers)
+        self.assertIn("destroy", handlers, "the field commits when it is torn down")
+        handlers["destroy"](widget.entry)
+
+        self.assertEqual(settings.values["country"], "bra")
+
+    def test_pressing_enter_saves_the_country_without_leaving_the_field(self):
+        widget, settings = self.combo("prt")
+        widget.content_widget.type_text("Brazil")
+
+        handlers = dict(widget.entry.handlers)
+        self.assertIn("activate", handlers, "Enter ends an edit too")
+        self.assertFalse(handlers["activate"](widget.entry),
+                         "the activation carries on as it would have")
+
+        self.assertEqual(settings.values["country"], "bra")
 
     def test_a_typed_country_is_matched_the_way_the_completion_matches(self):
         # the completion folds case and underscores, so focus-out must not be
@@ -321,7 +347,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("prt")
         widget.content_widget.type_text("  united kingdom  ")
 
-        widget.on_entry_focus_out()
+        widget.on_entry_commit()
 
         self.assertEqual(settings.values["country"], "gbr")
         self.assertEqual(widget.entry.get_property("text"), "United Kingdom")
@@ -330,7 +356,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("bra")
         widget.content_widget.type_text("None (disable holidays)")
 
-        widget.on_entry_focus_out()
+        widget.on_entry_commit()
 
         self.assertEqual(settings.values["country"], "none")
 
