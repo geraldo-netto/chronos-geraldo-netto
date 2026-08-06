@@ -2233,7 +2233,7 @@ test("refresh caches geocode results by normalized location", () => {
     provider.refresh({ showWeather: true, location: " Rome ", units: "si" }, (reading) => values.push(shown(reading)));
     provider.refresh({ showWeather: true, location: "rome", units: "si" }, (reading) => values.push(shown(reading)));
 
-    assert.deepEqual(values, ["⛅ 10°C", "⛅ 10°C"]);
+    assert.deepEqual(values, ["☁ 10°C", "☁ 10°C"]);
     assert.ok(provider._reading_repository.locationResolver.placeFor("rome"));
     assert.equal(requests.filter((url) => url.includes("geocoding-api")).length, 1);
     assert.equal(requests.filter((url) => url.includes("/v1/forecast")).length, 2);

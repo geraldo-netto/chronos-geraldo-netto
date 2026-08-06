@@ -567,6 +567,62 @@ test("formats weather text and maps every fuzzed weather code to an icon", () =>
     }
 });
 
+// T826: the buckets were open-ended `<=` thresholds, so WMO 3 (overcast) fell
+// into the partly-cloudy one — the single code that means a grey sky was the
+// one that did not say cloudy — and 85/86 (snow showers) fell into the
+// rain-shower one, telling a user in a snow shower that it was raining. The
+// published WMO 4677 table Open-Meteo documents, one row per code.
+const WMO_CONDITIONS = {
+    0: "☀",
+    1: "⛅", 2: "⛅",
+    3: "☁", 45: "☁", 48: "☁",
+    51: "🌧", 53: "🌧", 55: "🌧", 56: "🌧", 57: "🌧",
+    61: "🌧", 63: "🌧", 65: "🌧", 66: "🌧", 67: "🌧",
+    71: "🌨", 73: "🌨", 75: "🌨", 77: "🌨",
+    80: "🌦", 81: "🌦", 82: "🌦",
+    85: "🌨", 86: "🌨",
+    95: "⛈", 96: "⛈", 99: "⛈"
+};
+
+test("every published Open-Meteo code renders the condition it means", () => {
+    const Weather = loadWeather();
+
+    for (const [code, icon] of Object.entries(WMO_CONDITIONS)) {
+        assert.equal(Weather.weatherIcon(Number(code)), icon,
+            `WMO ${code} => ${Weather.WEATHER_CONDITIONS[icon]}`);
+    }
+
+    // the gaps between the groups are not codes Open-Meteo emits, and a
+    // threshold chain adopted each of them into whichever class it reached
+    // first: 4-44 read as fog, 49-50 as rain, 83-84 as showers
+    for (const code of [4, 20, 44, 49, 50, 68, 70, 78, 79, 83, 84, 87, 94, 100]) {
+        assert.equal(Weather.weatherIcon(code), "🌤",
+            `WMO ${code} is not a published code and must not read as one`);
+    }
+});
+
+// The failover chain means the same real weather may be described by either
+// adapter from one refresh to the next, so they have to agree about it.
+test("the two adapters describe the same weather the same way", () => {
+    const Weather = loadWeather();
+    const agreements = [
+        ["clearsky_day", 0],
+        ["partlycloudy_night", 2],
+        ["cloudy", 3],
+        ["fog", 45],
+        ["lightrain", 61],
+        ["heavysnow", 75],
+        ["rainshowers_day", 80],
+        ["lightsnowshowers_day", 85],
+        ["heavyrainandthunder", 95]
+    ];
+
+    for (const [symbol, code] of agreements) {
+        assert.equal(Weather.metNoIcon(symbol), Weather.weatherIcon(code),
+            `met.no "${symbol}" and WMO ${code} are the same weather`);
+    }
+});
+
 test("formats MET.no forecast data with SI and imperial units", () => {
     const Weather = loadWeather();
     const forecast = {

@@ -56,29 +56,34 @@ var WEATHER_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
 // airports a city away without dragging in a neighbouring country's.
 var AVIATION_WEATHER_BBOX_DEGREES = 1; // NOSONAR [S3504] -- GJS importer export
 
+// The WMO 4677 present-weather codes Open-Meteo publishes, in the condition
+// classes the applet renders. Open-ended `<=` buckets put overcast in with
+// partly cloudy — so the one code that means a grey sky was the one that did
+// not say cloudy — and snow showers in with rain showers, telling a user in a
+// snow shower that it was raining. That second one also put this adapter at
+// odds with the met.no one, which tests snow before showers, so the same real
+// weather was described differently depending on which provider in the
+// failover chain answered.
+//
+// Closed ranges rather than thresholds: the gaps between the groups are not
+// codes Open-Meteo emits, and a threshold chain silently adopts them into
+// whichever class it happens to reach first.
+const WMO_CONDITION_RANGES = [
+    [0, 0, "☀"],    // clear sky
+    [1, 2, "⛅"],   // mainly clear, partly cloudy
+    [3, 3, "☁"],    // overcast
+    [45, 48, "☁"],  // fog, depositing rime fog
+    [51, 67, "🌧"], // drizzle, freezing drizzle, rain, freezing rain
+    [71, 77, "🌨"], // snow fall, snow grains
+    [80, 82, "🌦"], // rain showers
+    [85, 86, "🌨"], // snow showers
+    [95, 99, "⛈"]  // thunderstorm, thunderstorm with hail
+];
+
 function weatherIcon(weatherCode) {
-    if (weatherCode === 0) {
-        return "☀";
-    }
-    if (weatherCode <= 3) {
-        return "⛅";
-    }
-    if (weatherCode <= 48) {
-        return "☁";
-    }
-    if (weatherCode <= 67) {
-        return "🌧";
-    }
-    if (weatherCode <= 77) {
-        return "🌨";
-    }
-    if (weatherCode <= 86) {
-        return "🌦";
-    }
-    if (weatherCode >= 95 && weatherCode <= 99) {
-        return "⛈";
-    }
-    return "🌤";
+    const match = WMO_CONDITION_RANGES.find(
+        ([from, to]) => weatherCode >= from && weatherCode <= to);
+    return match ? match[2] : "🌤";
 }
 
 function geocodeLanguage(locale) {
