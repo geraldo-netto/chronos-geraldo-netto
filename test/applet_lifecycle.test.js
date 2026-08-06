@@ -1126,6 +1126,12 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         (row) => row[0] === "place" && row[1] === "usa" && row[2] === "ca"),
     "a remote custom-widget change reaches the provider in the same signal turn");
 
+    const activePlaceCalls = calls.filter((row) => row[0] === "place").length;
+    settings.values.region_can = "on";
+    listeners["changed::region_can"]();
+    assert.equal(calls.filter((row) => row[0] === "place").length, activePlaceCalls,
+        "an inactive country's region cannot restart the selected place");
+
     // the third argument repaints when the fetch for the new place lands
     const onUpdated = place[3];
     const before = calls.filter((row) => row[0] === "refresh").length;

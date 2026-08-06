@@ -248,7 +248,8 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
     bindRegions(target, callback) {
         for (let country of this.regionCountries) {
             mirrorSetting(
-                this._settings, target, REGION_KEY_PREFIX + country, country, callback);
+                this._settings, target, REGION_KEY_PREFIX + country, country,
+                () => callback(country));
         }
     }
 };

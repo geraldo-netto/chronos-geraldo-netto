@@ -343,7 +343,11 @@ class AppletProviderLifecycle {
         holidaySettings.connectCountryChanged(onPlaceChanged);
         // the regions mirror onto a real target: onHolidayPlaceChanged reads
         // holidayRegions[country] to find the region for the country in use
-        holidaySettings.bindRegions(this.holidayRegions, onPlaceChanged);
+        holidaySettings.bindRegions(this.holidayRegions, (country) => {
+            if (country === holidaySettings.country) {
+                onPlaceChanged();
+            }
+        });
         holidaySettings.connectReligionsChanged(this.onReligionsChanged.bind(this));
 
         // A missing legacy value still means disabled. New settings have
