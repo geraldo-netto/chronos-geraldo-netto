@@ -544,7 +544,11 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
             return;
         }
         this.data = Array.isArray(data) ? data : [];
-        this._rebuildIndex();
+        // a brand-new row set, so the LRU is derived from it rather than carried
+        // over from the rows it replaces — and the cap applies to it at once,
+        // rather than waiting for the next fetch to notice
+        this._rebuildIndex(false);
+        this._pruneYears();
     }
 
     // What gets persisted is the window the grid can actually reach, so the file
@@ -666,17 +670,36 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // arrived — and years with no rows at all (an attempt recorded but nothing
     // fetched) must survive too, since their stamp is what the retry throttle
     // reads.
-    _rebuildIndex() {
+    //
+    // "By construction" is true of `_pruneYears`, which rebuilds a list that
+    // only ever shrinks. It is false of `setData`, which installs a row set read
+    // from disk whose years this cache never touched: restoring the snapshot
+    // there left them holding rows in `data` and stamps in `years` with no
+    // `_yearUse` entry at all, so `_pruneYears` could never select them,
+    // `_forgetYear` could never reach them, and MAX_CACHED_YEARS was bypassed
+    // for the life of the place selection. Hence `preserveOrder`: a new row set
+    // derives its recency from the rows and stamps actually installed.
+    _rebuildIndex(preserveOrder = true) {
         const holidays = this.data;
-        const yearOrder = Array.from(this._yearUse.keys());
+        const yearOrder = preserveOrder ? Array.from(this._yearUse.keys()) : null;
         this.data = [];
         this._holidayIndex.clear();
         this._monthIndex.clear();
         this._matchedMonthCache.clear();
+        if (!preserveOrder) {
+            this._yearUse.clear();
+        }
 
         holidays.forEach((single) => this.addUnique(single));
 
-        this._yearUse = new Map(yearOrder.map((year) => [year, true]));
+        if (yearOrder) {
+            this._yearUse = new Map(yearOrder.map((year) => [year, true]));
+            return;
+        }
+
+        // a year may carry a freshness or attempt stamp and no rows at all, and
+        // that stamp is what suppresses its refetch: cachedYears() has to see it
+        Object.keys(this.years).forEach((year) => this._touchYear(year));
     }
 
     addUnique (single) {

@@ -396,6 +396,72 @@ test("the years the user scrolled past are not kept for the session", () => {
     assert.equal(cache.matchMonth(2055, 1).size, 1, "the year on screen is still there");
 });
 
+// T784: _rebuildIndex snapshots _yearUse before replaying the rows and restored
+// that exact snapshot afterwards, discarding the _touchYear calls the replay
+// performed. That is right for _pruneYears, which rebuilds a list that only
+// shrinks — every year with rows is already in the snapshot. It was wrong for
+// setData, which installs a row set read from disk whose years this cache never
+// touched: they held rows in `data` and stamps in `years` with no _yearUse entry
+// at all, so _pruneYears could never select them and _forgetYear could never
+// reach them. Every LRU test drove recordFetch and matchMonth; none drove a load.
+test("years read from disk are held by the LRU like the ones fetched", () => {
+    const { HolidayCache } = loadHolidays();
+    const { MAX_CACHED_YEARS } = require(holidayCachePath);
+    const stamp = new Date().toUTCString();
+    const stored = { years: {}, holidays: [] };
+    const first = 2000;
+    const loaded = MAX_CACHED_YEARS + 3;
+
+    for (let offset = 0; offset < loaded; offset++) {
+        const year = first + offset;
+        stored.years[year] = { global: stamp };
+        stored.holidays.push({
+            year, month: 1, day: 1, region: "global", name: "New Year", flags: []
+        });
+    }
+
+    const cache = new HolidayCache((_country, done) => done(stored), () => {});
+    cache.setPlace("ita", "global");
+
+    assert.equal(cache._yearUse.size, MAX_CACHED_YEARS,
+        "a file holding more years than the cap does not raise the cap");
+    assert.deepEqual(cache.cachedYears().sort((a, b) => a - b),
+        Array.from({ length: MAX_CACHED_YEARS },
+            (_unused, i) => first + loaded - MAX_CACHED_YEARS + i),
+        "and cachedYears reports every year the cache is actually holding");
+
+    // the years that survived are evictable like any other: fetching past the
+    // cap must be able to reach them
+    const survivor = first + loaded - MAX_CACHED_YEARS;
+    cache.recordFetch(2100, "global", stamp,
+        [{ year: 2100, month: 1, day: 1, region: "global", name: "New Year", flags: [] }]);
+
+    assert.equal(cache._yearUse.size, MAX_CACHED_YEARS, "still bounded");
+    assert.equal(cache.matchMonth(survivor, 1).size, 0,
+        "the least recently used disk year is the one evicted");
+    assert.equal(cache.stale(survivor, "global"), true,
+        "and it loses the stamp that suppressed its refetch with its rows");
+});
+
+// A year can carry a stamp and no rows at all — a country with no holidays that
+// year, or a recorded attempt that fetched nothing — and that stamp is what
+// throttles the refetch. Deriving the LRU from the rows alone would leave it
+// invisible to cachedYears and so to the status ledger that prunes in step.
+test("a loaded year with a stamp but no rows is still held by the LRU", () => {
+    const { HolidayCache } = loadHolidays();
+    const stamp = new Date().toUTCString();
+    const cache = new HolidayCache((_country, done) => done({
+        years: { 2026: { global: stamp }, 2027: { global: stamp } },
+        holidays: [{ year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: [] }]
+    }), () => {});
+
+    cache.setPlace("ita", "global");
+
+    assert.deepEqual(cache.cachedYears().sort((a, b) => a - b), [2026, 2027]);
+    assert.equal(cache.stale(2027, "global"), false,
+        "the stamp still throttles the year it belongs to");
+});
+
 // matchMonth touches a year without pruning — reading the grid is not the
 // moment to throw data away — so browsing back through many years inflates the
 // LRU, and the next fetch evicts the whole backlog in one call. Each eviction
