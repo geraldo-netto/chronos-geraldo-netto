@@ -162,6 +162,42 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return start.compare(end) <= 0 ? { start, end } : null;
     }
 
+    // A bare add_days() preserves h:m:s, and date_only() cannot always return
+    // midnight: where the DST jump lands on midnight — Africa/Cairo on
+    // 2023-04-28 — local 00:00 does not exist and GLib resolves it to 01:00.
+    // Stepping from there carries that hour into every later bucket, while the
+    // grid and the event column look days up by date_only().to_unix(), so none
+    // of them would ever be found. Re-normalising each step keeps the key the
+    // identity both sides share, and lets the span end on a date comparison
+    // rather than an instant equality that in that zone can never match.
+    _spannedDays(bounds) {
+        const days = [];
+        const last = date_only(bounds.end);
+        let date_iter = date_only(bounds.start);
+
+        while (days.length <= MAX_SPANNED_DAYS) {
+            days.push(date_iter);
+            if (date_iter.compare(last) >= 0) {
+                return days;
+            }
+            date_iter = date_only(date_iter.add_days(1));
+        }
+
+        this._reportClippedSpan();
+        return days;
+    }
+
+    // No UID and no summary: both are unbounded wire TEXT from whatever feed
+    // the user subscribed to, and this goes to the session log verbatim.
+    _reportClippedSpan() {
+        if (!global.logError) {
+            return;
+        }
+        global.logError(new Error(
+            "chronos: an event covers more than " + (MAX_SPANNED_DAYS + 1) +
+            " days of the fetched window; the later days are not indexed"));
+    }
+
     _selectedDayHas(id, currentSelectedDate) {
         const selected = this.get(currentSelectedDate);
         return Boolean(selected && selected.get_ids().includes(id));
@@ -217,18 +253,12 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
 
         let changed = false;
         let selected_changed = false;
-        let date_iter = bounds.start;
 
-        for (let escape = 0; escape <= MAX_SPANNED_DAYS; escape++) {
+        for (const date_iter of this._spannedDays(bounds)) {
             const result = this._registerOnDate(
                 data, timestamp, date_iter, currentSelectedDate);
             changed = changed || result.changed;
             selected_changed = selected_changed || result.selected_changed;
-
-            if (dt_equals(bounds.end, date_iter)) {
-                break;
-            }
-            date_iter = date_iter.add_days(1);
         }
 
         if (wasOnSelectedDay && !selected_changed) {

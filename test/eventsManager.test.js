@@ -1886,6 +1886,76 @@ test("EventIndex bounds distinct window events and recovers capacity", () => {
     assert.equal(index.get(selected), null);
 });
 
+// Africa/Cairo moves its clocks forward at midnight: on 2023-04-28 there is no
+// local 00:00, so date_only() resolves to 01:00. add_days() preserves h:m:s, so
+// every later day of a multi-day event used to be keyed an hour off the value
+// the grid and the event column look up — the event vanished from day two on,
+// and the span never terminated, leaving ~50 phantom buckets behind.
+test("a multi-day event keeps canonical day keys across a midnight DST jump", () => {
+    const HOUR_US = 3600 * 1000000;
+    const JUMP_DAY = 10;
+    const clock = global.imports.gi.GLib.DateTime;
+    const originalNewLocal = clock.new_local;
+    clock.new_local = (year, month, day) => new FakeDateTime(
+        day * DAY_US + (day === JUMP_DAY ? HOUR_US : 0));
+
+    try {
+        const index = new EventIndex();
+        const selected = new FakeDateTime(12 * DAY_US);
+        const result = index.register(makeEventData({
+            id: "spanning",
+            startUnix: JUMP_DAY * DAY_S + 4 * 3600,
+            endUnix: 12 * DAY_S + 4 * 3600
+        }), 1, selected);
+
+        assert.deepEqual(
+            Object.keys(index.eventsByDate).map(Number).sort((a, b) => a - b),
+            [JUMP_DAY * DAY_S + 3600, 11 * DAY_S, 12 * DAY_S],
+            "one bucket per covered day, each at the key that day resolves to");
+        assert.ok(index.get(new FakeDateTime(11 * DAY_US)),
+            "the day after the transition is reachable at its canonical key");
+        assert.equal(result.selected_changed, true,
+            "and the selected day is recognised as covered");
+    } finally {
+        clock.new_local = originalNewLocal;
+    }
+});
+
+// _spannedDays owns the day identities the whole index is keyed by, so it
+// normalises its own bounds rather than trusting the caller to have done it.
+test("a span covers whole days and terminates however its bounds are given", () => {
+    const index = new EventIndex();
+    const midDay = (day, hours) => new FakeDateTime(day * DAY_US + hours * 3600 * 1000000);
+    const covered = (bounds) => index._spannedDays(bounds).map((day) => day.to_unix());
+
+    assert.deepEqual(covered({ start: midDay(10, 9), end: midDay(11, 5) }),
+        [10 * DAY_S, 11 * DAY_S], "an end mid-day closes the span on that day");
+    assert.deepEqual(covered({ start: midDay(11, 0), end: midDay(10, 0) }),
+        [11 * DAY_S], "an end before the start stops rather than running to the ceiling");
+});
+
+test("an event covering more of the window than the ceiling allows is reported", () => {
+    const logged = [];
+    const originalLogError = global.logError;
+    global.logError = (e) => logged.push(String(e));
+
+    try {
+        const index = new EventIndex();
+        index.register(makeEventData({
+            id: "endless",
+            startUnix: 10 * DAY_S,
+            endUnix: 200 * DAY_S
+        }), 1, new FakeDateTime(10 * DAY_US));
+
+        assert.equal(Object.keys(index.eventsByDate).length, 51,
+            "the ceiling still bounds the retained buckets");
+        assert.deepEqual(logged.length, 1, "and the clipping is not silent");
+        assert.match(logged[0], /more than 51 days/);
+    } finally {
+        global.logError = originalLogError;
+    }
+});
+
 test("fuzz: moving one event cannot accumulate stale day buckets", () => {
     const index = new EventIndex({}, 1);
     const random = makeRandom(0x5701);
