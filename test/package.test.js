@@ -164,14 +164,19 @@ test("the documented release sequence packages the committed bumped version", as
     }
     await fs.copyFile(path.join(ROOT, "files", UUID, "metadata.json"),
         path.join(applet, "metadata.json"));
+    await fs.mkdir(path.join(applet, "po"), { recursive: true });
+    await fs.copyFile(path.join(ROOT, "files", UUID, "po", `${UUID}.pot`),
+        path.join(applet, "po", `${UUID}.pot`));
     await execFileAsync("git", ["-C", source, "add", "."]);
 
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
     const { bumpRelease } = await import(releaseUrl);
     await bumpRelease(source, "0.0.2");
+    // the same paths the README recipe stages, the template among them
     await execFileAsync("git", ["-C", source, "add",
         "package.json", "package-lock.json",
-        `files/${UUID}/metadata.json`]);
+        `files/${UUID}/metadata.json`,
+        `files/${UUID}/po/${UUID}.pot`]);
     await execFileAsync("git", ["-C", source,
         "-c", "user.name=Chronos Test", "-c", "user.email=chronos@example.invalid",
         "commit", "--quiet", "-m", "chore(release): 0.0.2"]);
@@ -181,6 +186,11 @@ test("the documented release sequence packages the committed bumped version", as
     const packagedMetadata = JSON.parse(await fs.readFile(
         path.join(output, "files", UUID, "metadata.json"), "utf8"));
     assert.equal(packagedMetadata.version, "0.0.2");
+    const packagedTemplate = await fs.readFile(
+        path.join(output, "files", UUID, "po", `${UUID}.pot`), "utf8");
+    assert.match(packagedTemplate,
+        /^"Project-Id-Version: chronos@geraldo-netto 0\.0\.2\\n"$/m,
+        "the submitted template names the version being submitted");
 });
 
 test("equal staged trees produce byte-identical normalized archives", async (t) => {

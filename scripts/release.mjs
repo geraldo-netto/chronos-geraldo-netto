@@ -18,11 +18,20 @@ const LOCK_CLAIM_OPERATIONS = new Set(["release", "stale"]);
 const LOCK_FILE = ".chronos-release-lock";
 const TRANSACTION_DIR = ".chronos-release-transaction";
 const TRANSACTION_MANIFEST = "manifest.json";
+// po/makepot bakes metadata.json's version into the template's
+// Project-Id-Version header, and check-i18n regenerates the template and
+// compares it after normalising only POT-Creation-Date. So the template is a
+// version owner like the other three: left out of the bump, the first
+// successful release made the i18n gate throw on a header line nobody had
+// touched, in the CI job that runs release:check and i18n:check back to back.
 const RELEASE_TARGETS = [
     "package.json",
     "package-lock.json",
-    `files/${UUID}/metadata.json`
+    `files/${UUID}/metadata.json`,
+    `files/${UUID}/po/${UUID}.pot`
 ];
+const TEMPLATE_VERSION_PATTERN = new RegExp(
+    `^"Project-Id-Version: ${UUID} (.*)\\\\n"$`, "m");
 
 export function parseProcessStartTime(stat) {
     if (typeof stat !== "string") {
@@ -341,7 +350,8 @@ async function readReleaseFiles(root) {
         original,
         pkg: JSON.parse(original[0]),
         lock: JSON.parse(original[1]),
-        metadata: JSON.parse(original[2])
+        metadata: JSON.parse(original[2]),
+        template: original[3]
     };
 }
 
@@ -423,13 +433,33 @@ async function writeReleaseTransaction(root, transaction) {
     await rm(published, { recursive: true });
 }
 
+export function templateVersion(template) {
+    const match = TEMPLATE_VERSION_PATTERN.exec(String(template || ""));
+    return match ? match[1] : null;
+}
+
+// The header line only, rewritten exactly as po/makepot would stamp it. The
+// alternative -- running makepot from the release transaction -- would put
+// xgettext and cinnamon-xlet-makepot on the critical path of every bump, and
+// would rewrite POT-Creation-Date and every source line reference as unrelated
+// churn in the release commit.
+export function patchTemplateVersion(original, nextVersion) {
+    const patched = String(original).replace(TEMPLATE_VERSION_PATTERN,
+        `"Project-Id-Version: ${UUID} ${nextVersion}\\n"`);
+    if (templateVersion(patched) !== nextVersion) {
+        throw new Error("the translation template version could not be replaced in place");
+    }
+    return patched;
+}
+
 function validateVersionOwners(files) {
     const version = files.metadata.version;
     parseVersion(version);
     const versions = [
         ["package.json", files.pkg.version],
         ["package-lock.json", files.lock.version],
-        ["package-lock.json root package", files.lock.packages?.[""]?.version]
+        ["package-lock.json root package", files.lock.packages?.[""]?.version],
+        [`po/${UUID}.pot`, templateVersion(files.template)]
     ];
     for (const [source, candidate] of versions) {
         if (candidate !== version) {
@@ -521,13 +551,15 @@ async function bumpReleaseLocked(root, nextVersion) {
     files.lock.version = nextVersion;
     files.lock.packages[""].version = nextVersion;
     files.metadata.version = nextVersion;
+    files.template = patchTemplateVersion(files.original[3], nextVersion);
 
     validateReleaseFiles(files);
 
     const after = [
         JSON.stringify(files.pkg, null, 2) + "\n",
         JSON.stringify(files.lock, null, 2) + "\n",
-        patchManifestVersion(files.original[2], nextVersion)
+        patchManifestVersion(files.original[2], nextVersion),
+        files.template
     ];
     await writeReleaseTransaction(root, {
         version: 1,

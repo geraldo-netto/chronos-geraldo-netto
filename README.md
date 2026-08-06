@@ -148,13 +148,16 @@ npm run lint
 npm test
 npm run i18n:check
 git diff --check
-git add package.json package-lock.json files/chronos@geraldo-netto/metadata.json
+git add package.json package-lock.json files/chronos@geraldo-netto/metadata.json \
+        files/chronos@geraldo-netto/po/chronos@geraldo-netto.pot
 git commit -m "chore(release): 0.0.2"
 npm run package:spices
 ```
 
 The bump command refuses a version that does not increase and atomically updates
-`metadata.json`, `package.json`, and both version owners in `package-lock.json`.
+`metadata.json`, `package.json`, both version owners in `package-lock.json`, and
+the `Project-Id-Version` header of the translation template, which `po/makepot`
+stamps from `metadata.json` and `npm run i18n:check` verifies.
 Review the changes before staging them, and replace the example version in both
 the command and commit message. Packaging comes after the commit because the
 submission is built from Git-index bytes; this guarantees the staged artifact

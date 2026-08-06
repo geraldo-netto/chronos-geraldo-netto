@@ -13,7 +13,8 @@ const execFileAsync = promisify(execFile);
 const RELEASE_FILES = [
     "package.json",
     "package-lock.json",
-    path.join("files", UUID, "metadata.json")
+    path.join("files", UUID, "metadata.json"),
+    path.join("files", UUID, "po", `${UUID}.pot`)
 ];
 const STALE_LOCK_TOKEN = "11111111-1111-4111-8111-111111111111";
 const LIVE_LOCK_TOKEN = "22222222-2222-4222-8222-222222222222";
@@ -35,6 +36,10 @@ async function makeReleaseFixture(t, mutate) {
     await fs.copyFile(
         path.join(ROOT, "files", UUID, "metadata.json"),
         path.join(temporary, "files", UUID, "metadata.json"));
+    await fs.mkdir(path.join(temporary, "files", UUID, "po"), { recursive: true });
+    await fs.copyFile(
+        path.join(ROOT, "files", UUID, "po", `${UUID}.pot`),
+        path.join(temporary, "files", UUID, "po", `${UUID}.pot`));
     if (mutate) {
         await mutate(temporary);
     }
@@ -148,11 +153,50 @@ test("the release bump updates every version owner", async (t) => {
     assert.equal(lock.version, "0.0.2");
     assert.equal(lock.packages[""].version, "0.0.2");
     assert.equal(metadata.version, "0.0.2");
+    // po/makepot stamps metadata.json's version into the template header, and
+    // the i18n gate regenerates the template and compares it. Left out of the
+    // bump, the first release made that gate throw on a line nobody touched.
+    const template = await fs.readFile(
+        path.join(temporary, "files", UUID, "po", `${UUID}.pot`), "utf8");
+    assert.match(template, /^"Project-Id-Version: chronos@geraldo-netto 0\.0\.2\\n"$/m);
     assert.equal(await checkRelease(temporary), "0.0.2");
 
     await assert.rejects(
         bumpRelease(temporary, "0.0.2"),
         /must be greater than 0\.0\.2/);
+});
+
+test("the translation template is a version owner the bump can patch", async () => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { patchTemplateVersion, templateVersion } = await import(releaseUrl);
+    const header = 'msgstr ""\n"Project-Id-Version: chronos@geraldo-netto 1.0.0\\n"\n' +
+        '"POT-Creation-Date: 2026-01-01\\n"\n';
+
+    assert.equal(templateVersion(header), "1.0.0");
+    assert.equal(patchTemplateVersion(header, "1.0.1"),
+        header.replace("1.0.0", "1.0.1"));
+    assert.equal(templateVersion('"Project-Id-Version: other 1.0.0\\n"'), null,
+        "a template for another package is not this one's version owner");
+
+    // silently writing it back unchanged would leave the header behind the
+    // other owners and reopen exactly the stale-template failure
+    assert.throws(() => patchTemplateVersion('msgstr ""\n', "1.0.1"),
+        /could not be replaced in place/);
+});
+
+test("release:check rejects a template left behind the other version owners", async (t) => {
+    const temporary = await makeReleaseFixture(t, async (root) => {
+        const templatePath = path.join(root, "files", UUID, "po", `${UUID}.pot`);
+        const template = await fs.readFile(templatePath, "utf8");
+        await fs.writeFile(templatePath,
+            template.replace(/^"Project-Id-Version: .*$/m,
+                '"Project-Id-Version: chronos@geraldo-netto 9.9.9\\n"'));
+    });
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease } = await import(releaseUrl);
+
+    await assert.rejects(checkRelease(temporary),
+        /po\/chronos@geraldo-netto\.pot version 9\.9\.9 does not match metadata\.json 0\.0\.1/);
 });
 
 test("an in-place manifest bump refuses a document it cannot patch", async () => {
