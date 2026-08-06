@@ -1490,6 +1490,65 @@ test("a throw from a settled subscriber is not reported as a resolve failure", (
     repository.destroy();
 });
 
+// T828: the composition root hands one repository to both the panel provider
+// and the city provider, and WeatherCoordinator.schedule() drives them in the
+// same synchronous call — so a world clock naming the panel's own location is
+// subscriber #1 on the panel's flight. A bare dispatch loop made the panel's
+// raise the end of the round: the city never heard back, cityWeather's
+// outstanding count never reached zero, and no repaint, no retry and no
+// backoff reset happened until the next 1800 s tick.
+test("a subscriber that raises does not strand the rest of the shared flight", () => {
+    const Weather = loadWeather();
+    // the geocode is left pending so the flight can gather subscribers the way
+    // a real one does, then settled on demand
+    let resolveLater = null;
+    const repository = new Weather.WeatherReadingRepository({
+        cacheSeconds: 0,
+        locationResolver: {
+            resolve(location, _isCurrent, callback) {
+                resolveLater = () =>
+                    callback({ name: location, latitude: 1, longitude: 2 }, "");
+            },
+            forget() {}
+        },
+        forecastResolver: {
+            refresh(_place, _isCurrent, callback) {
+                callback({ condition: "☀", temperatureC: 7 }, "", "test");
+            }
+        }
+    });
+
+    const settled = [];
+    let deferred = null;
+
+    // the panel starts the flight and raises when it settles
+    repository.refresh("Lisbon", () => true, () => {
+        throw new Error("panel label exploded");
+    });
+    assert.equal(repository._inflight.size, 1, "the flight is pending");
+
+    // a world clock naming the same place joins it, and behind that a consumer
+    // that has since moved on
+    repository.refresh("Lisbon", () => true, (reading) => settled.push(reading));
+    repository.refresh("Lisbon", () => false,
+        () => settled.push("a stale subscriber must be skipped"));
+    assert.equal(repository._inflight.size, 1, "one flight, three subscribers");
+
+    try {
+        resolveLater();
+    } catch (e) {
+        deferred = e;
+    }
+
+    assert.equal(settled.length, 1, "the subscriber behind the raise is still settled");
+    assert.equal(settled[0].temperatureC, 7);
+    assert.match(deferred.message, /panel label exploded/,
+        "and the raise is handed back to the caller it came from");
+    assert.equal(repository._inflight.size, 0, "the flight settled before the throw");
+
+    repository.destroy();
+});
+
 test("shared reading cache ships with a small fixed bound", () => {
     const Weather = loadWeather();
     const repository = new Weather.WeatherReadingRepository({ cacheSeconds: 1 });

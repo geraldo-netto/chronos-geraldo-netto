@@ -670,10 +670,36 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
                 key, reading, provider, request.startedAtFresh, request.place);
         }
 
+        this._dispatch(request, reading, error, provider);
+    }
+
+    // A flight is shared: the panel and a world clock naming the same place join
+    // one request, and the composition root gives both providers the same
+    // repository. Dispatching in a bare loop made the first subscriber that
+    // raised the last one to be settled, so the city round behind it never heard
+    // back — its outstanding count never reached zero, the freed slot was never
+    // pumped, and the rest of that round was stranded with no repaint, no retry
+    // and no backoff reset until the next period.
+    //
+    // Settle everyone, then hand the raise back the way it came. That is the
+    // settle-once discipline attemptOrFail, _abandonRequest and httpGetJson
+    // already keep; this was the one fan-out seam without it.
+    _dispatch(request, reading, error, provider) {
+        let raised = null;
+
         for (const subscriber of request.subscribers) {
-            if (subscriber.isCurrent()) {
-                subscriber.callback(reading, error, provider, request.place);
+            if (!subscriber.isCurrent()) {
+                continue;
             }
+            try {
+                subscriber.callback(reading, error, provider, request.place);
+            } catch (e) {
+                raised = raised || e;
+            }
+        }
+
+        if (raised) {
+            throw raised;
         }
     }
 
