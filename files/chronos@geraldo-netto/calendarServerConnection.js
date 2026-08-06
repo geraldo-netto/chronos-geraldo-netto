@@ -152,9 +152,8 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         this._bus_watch_id = 0;
 
         if (this._calendar_server == null) {
-            // once per connection lifetime: reconnects after an owner loss go
-            // through here again, and a session-long retry cadence must not
-            // repeat a support statement that cannot have changed
+            // Once per connection lifetime: construction failures retry through
+            // here, but must not repeat a support statement that cannot change.
             if (!this._support_logged) {
                 this._support_logged = true;
                 log(UUID + ": Calendar events supported.");
@@ -212,10 +211,11 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
             "client-disappeared", this.callbacks.onClientDisappeared));
         this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
             "notify::status", this._handle_status_notify.bind(this)));
-        this._calendar_server_signal_ids.push(this._calendar_server.connect( // NOSONAR [S7778] -- accepted compatible form
-            "notify::g-name-owner", this._handle_name_owner_notify.bind(this)));
 
-        // An activatable server may have no owner until the first range call.
+        // The activatable server normally has no owner before its first range
+        // call and again after each 20-second idle timeout. Gio keeps this proxy
+        // usable: a later range call activates the service through the same
+        // object. Watching g-name-owner would turn designed sleep into churn.
         this._inited = true;
         this._server_retry_attempts = 0;
         return true;
@@ -273,20 +273,6 @@ var CalendarServerConnection = class CalendarServerConnection { // NOSONAR [S350
         }
 
         this._cached_state = this._calendar_server.status;
-        this.callbacks.onStatusChanged();
-    }
-
-    _handle_name_owner_notify(server) {
-        if (server !== this._calendar_server || server.g_name_owner) {
-            return;
-        }
-
-        const disconnectError = this._disconnectServer();
-        this._calendar_server = null;
-        this._inited = false;
-        this._cached_state = STATUS_UNKNOWN;
-        this.queueRetry();
-        this._reportDisconnectFailure(disconnectError);
         this.callbacks.onStatusChanged();
     }
 

@@ -425,7 +425,7 @@ test("service found connects the proxy and emits ready", () => {
     assert.ok(proxy.pendingCancellable, "proxy construction carries an owned cancellable");
     assert.equal(manager._server_connection._proxy_cancellable, null);
     assert.ok(manager._server_connection._inited);
-    assert.equal(Object.keys(proxy.instance.connections).length, 5);
+    assert.equal(Object.keys(proxy.instance.connections).length, 4);
     assert.equal(emitted(manager, "events-manager-ready").length, 1);
 });
 
@@ -440,58 +440,50 @@ test("a throwing ready consumer does not tear down a healthy proxy", () => {
     assert.equal(conn._calendar_server, proxy.instance);
     assert.equal(conn._inited, true);
     assert.equal(conn._server_retry_id, 0);
-    assert.equal(Object.keys(proxy.instance.connections).length, 5);
+    assert.equal(Object.keys(proxy.instance.connections).length, 4);
 });
 
-test("calendar-server owner loss invalidates the proxy and reconnects", () => {
+test("calendar-server idle sleep preserves state and reuses its proxy", () => {
     const manager = readyManager();
-    const vanished = proxy.instance;
-    vanished.g_name_owner = null;
+    const server = proxy.instance;
+    const conn = manager._server_connection;
+    const selected = new Date(10 * DAY_S * 1000);
+    manager.select_date(selected, true);
+    registerDays(manager, makeEventData({
+        id: "kept-through-sleep",
+        startUnix: 10 * DAY_S + 3600,
+        endUnix: 10 * DAY_S + 5400
+    }));
+    assert.equal(conn._calendar_server, server);
+    assert.equal(server.set_time_range_calls.length, 1);
+    assert.equal(manager._event_index.hasEvent("kept-through-sleep"), true);
 
-    vanished.signal("notify::g-name-owner", null);
+    // Gio keeps a D-Bus-activatable proxy valid while its service has no owner.
+    // cinnamon-calendar-server deliberately exits after 20 idle seconds.
+    server.g_name_owner = null;
+    server.signal("notify::g-name-owner", null);
 
-    assert.equal(manager._server_connection._calendar_server, null);
-    assert.equal(manager._server_connection._inited, false);
-    assert.equal(manager.is_active(), false);
-    assert.equal(Object.keys(vanished.connections).length, 0);
-    assert.equal(emitted(manager, "has-calendars-changed").length, 1);
-    assert.ok(manager._server_connection._server_retry_id > 0);
+    assert.equal(conn._calendar_server, server, "sleep retains the reusable proxy");
+    assert.equal(conn._inited, true);
+    assert.equal(manager.is_active(), true);
+    assert.equal(conn._server_retry_id, 0, "normal sleep does not start reconnect churn");
+    assert.equal(manager._event_index.hasEvent("kept-through-sleep"), true,
+        "sleep does not blank the visible event state");
+    assert.equal(emitted(manager, "has-calendars-changed").length, 0);
 
-    fireTimer(manager._server_connection._server_retry_id);
-    assert.equal(gio.watches.length, 2, "retry re-arms discovery");
-    gio.watches.at(-1).foundCb(null, "eds", "owner");
-    proxy.pendingReadyCb(null, "reconnected");
-
-    assert.ok(manager._server_connection._inited);
-    assert.ok(manager.is_active());
-    assert.equal(emitted(manager, "events-manager-ready").length, 2);
+    manager.select_date(selected, true);
+    assert.equal(conn._calendar_server, server);
+    assert.equal(server.set_time_range_calls.length, 2,
+        "the next real range call wakes the service through the same proxy");
 });
 
-test("owner loss secures reconnection before notifying consumers", () => {
+test("one proxy disconnect failure cannot suppress remaining teardown cleanup", () => {
     const manager = readyManager();
     const conn = manager._server_connection;
-    const vanished = proxy.instance;
-    vanished.g_name_owner = null;
-    conn.callbacks.onStatusChanged = () => {
-        assert.ok(conn._server_retry_id > 0, "retry exists before notification");
-        throw new Error("status consumer failed");
-    };
-
-    assert.throws(() => vanished.signal("notify::g-name-owner", null),
-        /status consumer failed/);
-    assert.equal(conn._calendar_server, null);
-    assert.equal(conn._inited, false);
-    assert.ok(conn._server_retry_id > 0);
-});
-
-test("one proxy disconnect failure cannot suppress cleanup or retry", () => {
-    const manager = readyManager();
-    const conn = manager._server_connection;
-    const vanished = proxy.instance;
-    vanished.g_name_owner = null;
-    const originalDisconnect = vanished.disconnect;
+    const server = proxy.instance;
+    const originalDisconnect = server.disconnect;
     let attempts = 0;
-    vanished.disconnect = function(id) {
+    server.disconnect = function(id) {
         attempts++;
         assert.deepEqual(conn._calendar_server_signal_ids, [],
             "the signal ledger is detached before external calls");
@@ -501,17 +493,14 @@ test("one proxy disconnect failure cannot suppress cleanup or retry", () => {
         originalDisconnect.call(this, id);
     };
     const logs = [];
-    global.log = (message) => {
-        assert.ok(conn._server_retry_id > 0, "retry is secured before reporting cleanup");
-        logs.push(String(message));
-    };
+    global.log = (message) => logs.push(String(message));
 
-    assert.doesNotThrow(() => vanished.signal("notify::g-name-owner", null));
-    assert.equal(attempts, 5, "every remaining signal gets a cleanup attempt");
-    assert.equal(vanished.disconnected.length, 4);
+    assert.doesNotThrow(() => manager.destroy());
+    assert.equal(attempts, 4, "every remaining signal gets a cleanup attempt");
+    assert.equal(server.disconnected.length, 3);
     assert.equal(conn._calendar_server, null);
     assert.equal(conn._inited, false);
-    assert.ok(conn._server_retry_id > 0);
+    assert.equal(conn._server_retry_id, 0);
     assert.match(logs[0], /signal already gone/);
     global.log = () => {};
 });
@@ -550,11 +539,12 @@ test("a proxy built before the activatable server has an owner is published", ()
     manager.select_date(new Date(50 * DAY_S * 1000), true);
     assert.equal(proxy.instance.set_time_range_calls.length, 1);
 
-    // an owner the proxy *did* have going away is still a real disconnect
+    // Later idle exit is also normal. The proxy stays valid and the next call
+    // can activate its service again.
     proxy.instance.g_name_owner = null;
     proxy.instance.signal("notify::g-name-owner", null);
-    assert.equal(manager._server_connection._calendar_server, null);
-    assert.ok(manager._server_connection._server_retry_id > 0);
+    assert.equal(manager._server_connection._calendar_server, proxy.instance);
+    assert.equal(manager._server_connection._server_retry_id, 0);
 });
 
 test("the calendar support line is logged once, not per reconnect", () => {
@@ -562,11 +552,13 @@ test("the calendar support line is logged once, not per reconnect", () => {
     const originalLog = global.log;
     global.log = (message) => logged.push(String(message));
     try {
-        const manager = readyManager();
+        const manager = makeManager();
+        manager.start_events();
+        gio.watches.at(-1).foundCb(null, "eds", "owner");
+        proxy.finishError = new Error("first construction failed");
+        proxy.pendingReadyCb(null, "failed");
 
-        // idle-exit: the owner goes away, the connection retries and reconnects
-        proxy.instance.g_name_owner = null;
-        proxy.instance.signal("notify::g-name-owner", null);
+        proxy.finishError = null;
         fireTimer(manager._server_connection._server_retry_id);
         gio.watches.at(-1).foundCb(null, "eds", "owner");
         proxy.pendingReadyCb(null, "reconnected");
@@ -812,7 +804,7 @@ test("destroy cancels watch, retry and timers and disconnects proxy signals", ()
     manager.destroy();
 
     assert.equal(timers.pending.size, 0);
-    assert.equal(server.disconnected.length, 5);
+    assert.equal(server.disconnected.length, 4);
     assert.equal(manager._server_connection._calendar_server, null);
     assert.ok(manager._mutation_stream._destroyed);
     assert.ok(manager._fetch_coordinator._destroyed);
