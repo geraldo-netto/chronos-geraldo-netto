@@ -583,10 +583,15 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     }
 
     clearPlace () {
-        this.cache.clearPlace();
+        // clearPlace() flushes readers waiting behind an asynchronous cache
+        // load. Retire their generation and every place-scoped record before
+        // that synchronous callback fan-out: an abandoned reader must not see
+        // a half-cleared service, and one that throws must not prevent the
+        // service from finishing its opt-out transition.
         this._place_generation++;
         this._inflight.clear();
         this._status.clear();
+        this.cache.clearPlace();
     }
 
     setPlace (country, region = GLOBAL_REGION, onUpdated) { // NOSONAR [S1788] -- accepted compatible form
@@ -631,6 +636,32 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         return this.cache.matchMonth(year, month, this.region);
     }
 
+    _answerMonth(year, month, callback) {
+        const status = this._statusFor(year);
+        callback(this.matchMonth(year, month), status.error, status.provider);
+    }
+
+    _getHolidaysWhenReady(year, month, callback, generation) {
+        if (this._destroyed) {
+            return;
+        }
+        // The read was queued for a place the user intentionally left.
+        // Settle it so the annotator cannot remain pending, but do not turn
+        // the opt-out into a transient provider failure or read the next
+        // place through the old request.
+        if (generation !== this._place_generation) {
+            callback(new Map(), "", "");
+            return;
+        }
+
+        const respond = () => this._answerMonth(year, month, callback);
+        if (this.fetching(year) || this.staleCache(year)) {
+            this.retrieveForYear(year, respond);
+        } else {
+            respond();
+        }
+    }
+
     getHolidays (year, month, callback) {
         if (this._destroyed) {
             return;
@@ -646,13 +677,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             return;
         }
 
-        // the 42-day grid always spans two months, so the second one asks for
-        // a year whose fetch is already running: join it instead of answering
-        // from the still-empty cache
-        const respond = () => {
-            const status = this._statusFor(numericYear);
-            callback(this.matchMonth(numericYear, numericMonth), status.error, status.provider);
-        };
+        const generation = this._place_generation;
 
         // Cinnamon runs the first grid update in the same call stack as applet
         // construction, while setPlace's disk read is still in flight: judged
@@ -660,16 +685,10 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         // out for data already fresh on disk — bypassing the 50-day and 1-hour
         // throttles the cache exists to enforce. Staleness is judged once the
         // cache has answered; with no load pending this path is synchronous.
-        this.cache.whenReady(() => {
-            if (this._destroyed) {
-                return;
-            }
-            if (this.fetching(numericYear) || this.staleCache(numericYear)) {
-                this.retrieveForYear(numericYear, respond);
-            } else {
-                respond();
-            }
-        });
+        // The 42-day grid always spans two months, so the second one may join a
+        // year fetch already in flight instead of reading the still-empty cache.
+        this.cache.whenReady(() => this._getHolidaysWhenReady(
+            numericYear, numericMonth, callback, generation));
     }
 };
 // the on-disk cache. Renamed off the primary provider's name; the repository

@@ -1934,12 +1934,14 @@ test("the first grid read waits for the disk cache instead of fetching", () => {
 });
 
 // the queue must never wedge: leaving the place while a load is in flight
-// answers the waiters with the no-country state instead of never
+// answers the abandoned waiters without inventing a provider failure
 test("clearing the place releases readers queued behind a pending load", () => {
-    const { HolidayCache, HolidayService, HOLIDAY_ERRORS } = loadHolidays();
+    const { HolidayCache, HolidayService } = loadHolidays();
     const cache = new HolidayCache(() => {}, () => {});
     const service = { fetchYear() { throw new Error("no fetch expected"); }, validResponse: () => true };
     const enrico = new HolidayService(service, cache, { record: service });
+    const logged = [];
+    global.logError = (message) => logged.push(String(message));
 
     enrico.setPlace("usa", "global");
     const answers = [];
@@ -1947,7 +1949,30 @@ test("clearing the place releases readers queued behind a pending load", () => {
     assert.deepEqual(answers, []);
 
     enrico.clearPlace();
-    assert.deepEqual(answers, [[0, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE]]);
+    assert.deepEqual(answers, [[0, ""]]);
+    assert.deepEqual(logged, [], "an intentional opt-out is not a provider failure");
+});
+
+test("a failing abandoned holiday reader cannot interrupt place retirement", () => {
+    const { HolidayCache, HolidayService } = loadHolidays();
+    const cache = new HolidayCache(() => {}, () => {});
+    const service = { fetchYear() { throw new Error("no fetch expected"); }, validResponse: () => true };
+    const enrico = new HolidayService(service, cache, { record: service });
+    const failure = new Error("calendar was already rebuilt");
+
+    enrico.setPlace("usa", "global");
+    enrico.getHolidays(FIXED_YEAR, 7, () => { throw failure; });
+    enrico._inflight.start("2027/global", () => {}, enrico._place_generation);
+    enrico.last_error = "old failure";
+    enrico.last_provider = "old provider";
+    enrico._status.record("2027/global");
+    const generation = enrico._place_generation;
+
+    assert.throws(() => enrico.clearPlace(), (error) => error === failure);
+    assert.equal(enrico._place_generation, generation + 1);
+    assert.equal(enrico.fetching(2027), false);
+    assert.equal(enrico.last_error, "");
+    assert.equal(enrico.last_provider, "");
 });
 
 // after destroy the actors a repaint would touch are gone: a late grid read
