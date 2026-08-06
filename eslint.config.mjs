@@ -26,6 +26,7 @@ const gjsGlobals = {
     Array: "readonly",
     String: "readonly",
     Boolean: "readonly",
+    Symbol: "readonly",
     Error: "readonly",
     Promise: "readonly",
     console: "readonly"

@@ -87,8 +87,9 @@ function textWithinLimit(text, maxLength) {
         return true;
     }
 
+    const characters = text[Symbol.iterator]();
     let length = 0;
-    for (const _character of text) {
+    while (!characters.next().done) {
         length++;
         if (length > maxLength) {
             return false;
