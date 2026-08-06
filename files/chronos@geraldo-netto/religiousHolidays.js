@@ -404,24 +404,16 @@ function uncoveredReligions(year, enabledIds = religionIds()) {
             _tableBacked(entry) && _datesOf(entry, year).length === 0));
 }
 
-// the calendar hands over the strings its "year/month" keys split into, so
-// numbers and numeric strings coerce; anything else (booleans, arrays) would
-// coerce too, and true reading as January is not a conversion anyone asked for
-function _numericInput(value) {
-    return typeof value === "number" || typeof value === "string" ?
-        Number(value) : NaN;
-}
-
 // the month map the calendar grid consumes: "month/day" -> {name, flags},
 // same-day observances joined the way the holiday cache joins them
 function monthMap(year, month, enabledIds = religionIds(), translateName = _) {
     const map = new Map();
-    const numericMonth = _numericInput(month);
+    const numericMonth = TextUtils.numericInput(month);
     if (!Number.isInteger(numericMonth) || numericMonth < 1 || numericMonth > 12) {
         return map;
     }
 
-    for (const row of holidaysForYear(_numericInput(year), enabledIds, translateName)) {
+    for (const row of holidaysForYear(TextUtils.numericInput(year), enabledIds, translateName)) {
         if (row.month !== numericMonth) {
             continue;
         }

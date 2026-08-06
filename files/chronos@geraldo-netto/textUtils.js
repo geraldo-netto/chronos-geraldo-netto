@@ -276,6 +276,20 @@ function fillTemplate(template, values) {
         index < values.length ? values[index++] : "%s");
 }
 
+// The calendar grid splits its "YYYY/M" keys into strings, so both the holiday
+// service and the religious observance tables coerce their year and month the
+// same way: a number or a numeric string converts, and anything else - a
+// boolean, an array - reads as not-a-number rather than coercing. `true`
+// reading as January is not a conversion anyone asked for.
+//
+// It was byte-identical in both, and both sit on the path a single grid render
+// takes: ReligiousHolidayProvider.getHolidays coerces the pair, then
+// HolidayService.getHolidays coerces it again.
+function numericInput(value) {
+    return typeof value === "number" || typeof value === "string" ?
+        Number(value) : NaN;
+}
+
 if (typeof module !== "undefined") {
     module.exports = {
         clampText,
@@ -285,6 +299,7 @@ if (typeof module !== "undefined") {
         sanitizeControlCharacters,
         textWithinLimit,
         normalizeBoundedText,
+        numericInput,
         urlForLog,
         TEXT_ELLIPSIS
     };

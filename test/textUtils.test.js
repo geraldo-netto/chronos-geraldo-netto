@@ -171,6 +171,26 @@ test("a clamp never splits a surrogate pair", () => {
     }
 });
 
+// T805: byte-identical in holidays.js and religiousHolidays.js, and both on the
+// path a single grid render takes - the religious provider coerces the pair,
+// then the holiday service coerces it again. The comment in holidays.js pointed
+// at the copy rather than sharing it.
+test("numericInput coerces the strings a grid key splits into, and nothing else", () => {
+    const { numericInput } = require(path.join(APPLET_DIR, "textUtils.js"));
+
+    assert.equal(numericInput("2026"), 2026, "the calendar splits YYYY/M into strings");
+    assert.equal(numericInput(7), 7);
+    assert.equal(numericInput(" 7 "), 7);
+    assert.equal(Number.isNaN(numericInput("July")), true);
+    assert.equal(Number.isNaN(numericInput("")), false, "the empty string is 0 to Number");
+
+    // a boolean or an array would coerce too, and `true` reading as January is
+    // not a conversion anyone asked for
+    for (const junk of [true, false, [], [1], {}, null, undefined, () => 1]) {
+        assert.equal(Number.isNaN(numericInput(junk)), true, JSON.stringify(junk) || String(junk));
+    }
+});
+
 test("displayWidth measures fixed-width cells, not code points", () => {
     assert.equal(displayWidth("Rome"), 4, "Latin letters are one cell each");
     assert.equal(displayWidth(""), 0);

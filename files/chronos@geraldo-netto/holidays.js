@@ -65,13 +65,6 @@ function logHolidayDataError(provider, year, reason) {
     }
 }
 
-// same discipline as religiousHolidays' month/year guard: numbers and numeric
-// strings coerce, everything else reads as not-a-year
-function _numericInput(value) {
-    return typeof value === "number" || typeof value === "string" ?
-        Number(value) : NaN;
-}
-
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
 var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS importer export
 // How much of a provider's own diagnostic reaches the Cinnamon log.
@@ -647,8 +640,8 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         // strings; the staleness gate and the record contract compare numbers,
         // and a string year used to read every provider's valid payload as
         // invalid data. Coerce once here and everything below sees integers.
-        const numericYear = _numericInput(year);
-        const numericMonth = _numericInput(month);
+        const numericYear = TextUtils.numericInput(year);
+        const numericMonth = TextUtils.numericInput(month);
         if (!Number.isInteger(numericYear) || !Number.isInteger(numericMonth)) {
             callback(new Map(), HOLIDAY_ERRORS.INVALID_RESPONSE, "");
             return;
@@ -790,7 +783,7 @@ var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S350
     // there. A real provider failure still wins: the network is the more
     // actionable problem, and the two would otherwise contend for one label.
     _coverageError(year) {
-        return ReligiousHolidays.uncoveredReligions(_numericInput(year), this._enabledIds)
+        return ReligiousHolidays.uncoveredReligions(TextUtils.numericInput(year), this._enabledIds)
             .length > 0 ? HOLIDAY_ERRORS.RELIGIOUS_DATES_UNAVAILABLE : "";
     }
 
