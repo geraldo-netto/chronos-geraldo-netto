@@ -1789,6 +1789,52 @@ test("removing an event refreshes the open list right away", () => {
     assert.equal(emitted[0]._events["drop"], undefined);
 });
 
+test("a removal the index never held repaints nothing", () => {
+    const manager = readyManager();
+    const selected = new FakeDateTime(10 * DAY_S * 1000 * 1000);
+    manager._window_coordinator.current_selected_date = selected;
+
+    // delivered, but unindexable: eventUnixTime refuses a start outside the
+    // range GLib.DateTime can represent, so addOrUpdate logs and skips it
+    proxy.instance.signal("events-added-or-updated", {
+        unpack: () => [
+            eventVariant({ id: "kept", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 }),
+            eventVariant({ id: "unindexable", startUnix: 1e18, endUnix: 1e18 })
+        ]
+    });
+    drainEventMutations(manager);
+    assert.equal(manager._event_index.hasEvent("unindexable"), false);
+
+    const fed = [];
+    const updated = [];
+    manager.connect("selected-date-events-changed", (em, list) => fed.push(list));
+    manager.connect("events-updated", () => updated.push(true));
+
+    proxy.instance.signal("events-removed", "unindexable");
+    drainEventMutations(manager);
+    assert.deepEqual(fed, [], "the event column is not re-fed for an event it never showed");
+    assert.deepEqual(updated, [], "and the grid is not asked to rebuild");
+
+    // one this index does hold still repaints
+    proxy.instance.signal("events-removed", "kept");
+    drainEventMutations(manager);
+    assert.equal(fed.length, 1, "a removal that drops a row re-feeds the column");
+    assert.equal(updated.length, 1);
+});
+
+test("an ambiguous removal repaints even when it held none of the ids", () => {
+    const manager = readyManager();
+    const updated = [];
+    manager.connect("events-updated", () => updated.push(true));
+
+    // it cannot decode which ids these are, so it cannot know it holds none
+    proxy.instance.signal("events-removed", "never-seen::also-never-seen");
+    drainEventMutations(manager);
+
+    assert.equal(updated.length, 1,
+        "the window is cleared and refetched however little was in it");
+});
+
 test("culling the selected day's last event reports no events, not an empty list", () => {
     const manager = readyManager();
     const selected = new FakeDateTime(10 * DAY_US);
@@ -1884,6 +1930,49 @@ test("EventIndex rebuilds its id state only when a cull actually drops a row", (
     assert.equal(index.addOrUpdate([
         eventVariant({ id: "kept", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 })
     ], 7, selected).events_changed, true, "the culled UID can come back");
+});
+
+// hasEvent asks _eventIds because that is the set the ceiling counts and the
+// overflow resync consults. _daysById answers the same for every reachable
+// state — the two are kept in step by construction — so the choice is not
+// observable and no test can pin it. This is the witness search behind that
+// claim (see R28): drive the whole mutating surface and watch the two sets.
+test("fuzz: the id set and the day map always cover the same events", () => {
+    const random = makeRandom(0x763);
+    const selected = new FakeDateTime(10 * DAY_S * 1000 * 1000);
+    const index = new EventIndex();
+    index.setWindow(new FakeDateTime(0), new FakeDateTime(41 * DAY_S * 1000 * 1000));
+
+    const sameKeys = (step) => {
+        assert.deepEqual([...index._eventIds].sort(), [...index._daysById.keys()].sort(),
+            `the two sets disagree after ${step}`);
+    };
+
+    let watermark = 1;
+    for (let round = 0; round < 400; round++) {
+        const id = `fuzz-${Math.floor(random() * 8)}`;
+        const day = Math.floor(random() * 60);
+        const choice = random();
+
+        if (choice < 0.55) {
+            // in and out of the window, single-day and spanning
+            index.addOrUpdate([eventVariant({
+                id, modTime: watermark,
+                startUnix: day * DAY_S,
+                endUnix: (day + Math.floor(random() * 4)) * DAY_S + 60
+            })], watermark, selected);
+        } else if (choice < 0.75) {
+            index.remove([id]);
+        } else if (choice < 0.9) {
+            index.cull(++watermark);
+        } else {
+            index.clear();
+        }
+        sameKeys(`round ${round}`);
+        watermark++;
+    }
+
+    assert.ok(watermark > 400, "the rounds actually ran");
 });
 
 // Removal walks the days the uid actually occupies rather than every bucket in

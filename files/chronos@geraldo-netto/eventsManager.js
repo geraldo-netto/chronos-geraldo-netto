@@ -526,6 +526,20 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         // single ID is unambiguous and keeps the fast targeted path. null is
         // the ingress bound's oversized-payload marker: same resync.
         const ambiguous = uids_string === null || uids_string.indexOf("::") !== -1;
+
+        // A targeted removal for an event this index never held changes
+        // nothing on screen, and the two signals below are not cheap: one
+        // re-feeds the open event column, the other rebuilds all 42 grid
+        // cells. The server relays a removal for every event leaving a
+        // calendar's view, and the index is missing plenty of them — a
+        // payload skipped for an unusable time or id, one refused past
+        // MAX_INDEXED_EVENTS, one the quiet-window cull already dropped.
+        // The ambiguous branch is exempt: it cannot know what it is losing,
+        // so it clears and asks the authoritative source again regardless.
+        if (!ambiguous && !this._event_index.hasEvent(uids_string)) {
+            return;
+        }
+
         if (ambiguous) {
             this._event_index.clear();
         } else {

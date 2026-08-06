@@ -114,6 +114,13 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return event_data_list && event_data_list.length > 0 ? event_data_list : null;
     }
 
+    // Whether this index holds the event at all. The removal path asks before
+    // repainting: the calendar server relays a removal for every event that
+    // leaves a calendar's view, including ones that were never indexed.
+    hasEvent(id) {
+        return this._eventIds.has(id);
+    }
+
     getColorsByUnixKey(dateUnixKey) {
         const event_data_list = this.eventsByDate[dateUnixKey];
         return event_data_list !== undefined ? event_data_list.get_colors() : null;
