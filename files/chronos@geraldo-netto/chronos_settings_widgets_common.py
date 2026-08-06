@@ -62,6 +62,7 @@ class OptionLabelComboBox(ComboBox, JSONSettingsBackend):
         self.backend = "json"
         self.key = key
         self.settings = settings
+        self.default = info.get("default")
         options = [(value, label)
                    for label, value in info.get("options", {}).items()]
 
@@ -78,6 +79,9 @@ class OptionLabelComboBox(ComboBox, JSONSettingsBackend):
             accessible.set_name(label)
 
     def on_setting_changed(self, *args):
+        if (self.get_value() not in self.option_map and
+                self.default in self.option_map):
+            self.set_value(self.default)
         ComboBox.on_setting_changed(self, *args)
         self._sync_accessible_name()
 
@@ -304,5 +308,4 @@ def shared_timezone_resolver() -> TimezoneResolver:
         _TIMEZONE_RESOLVER = TimezoneResolver(pytz, available_timezones)
 
     return _TIMEZONE_RESOLVER
-
 

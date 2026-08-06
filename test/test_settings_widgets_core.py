@@ -38,6 +38,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         widget = self.module.common.OptionLabelComboBox({
             "description": "Weather units",
             "tooltip": "Scale",
+            "default": "si",
             "options": {
                 "SI (Celsius)": "si",
                 "Imperial (Fahrenheit)": "imperial",
@@ -56,8 +57,17 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(accessible.name, "Imperial (Fahrenheit)")
 
         settings.set_value("weather-units", "unknown")
-        self.assertEqual(accessible.name, "",
-                         "an invalid external value cannot leave a stale label")
+        self.assertEqual(settings.values["weather-units"], "si")
+        self.assertEqual(accessible.name, "SI (Celsius)",
+                         "an invalid external value recovers visibly to its default")
+
+        no_default_settings = FakeSettings({"unit": "unknown"})
+        no_default = self.module.common.OptionLabelComboBox({
+            "options": {"Known": "known"},
+        }, "unit", no_default_settings)
+        self.assertEqual(no_default_settings.values["unit"], "unknown",
+                         "the widget cannot invent a fallback the schema omitted")
+        self.assertEqual(no_default.content_widget.get_accessible().name, "")
 
     def test_the_column_widgets_are_declared_once_not_per_dialog(self):
         # PyGObject registers a GType for every subclass of a GObject type, and
