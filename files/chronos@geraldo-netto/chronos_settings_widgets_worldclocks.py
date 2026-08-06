@@ -338,7 +338,8 @@ class ClockDialogStatePresenter:
         if choice["timezone"] and not has_label:
             self._report(widgets, LABEL_MISSING_PREVIEW, invalid="label")
         elif choice["timezone"]:
-            self._report(widgets, self.clocks_list.format_timezone_preview(values))
+            self._report(widgets,
+                         self.clocks_list.format_timezone_preview(values, choice))
         else:
             # An empty field is not a wrong one. build_content ends by calling
             # this with both entries still untouched, so the dialog opened with
@@ -349,7 +350,8 @@ class ClockDialogStatePresenter:
             # equally empty Display name was left clean. Only text that resolves
             # to nothing, or a reserved built-in, is invalid; `reserved` already
             # implies `typed_invalid`.
-            self._report(widgets, self.clocks_list.format_timezone_preview(values),
+            self._report(widgets,
+                         self.clocks_list.format_timezone_preview(values, choice),
                          invalid="timezone" if choice["typed_invalid"] else None)
 
         self.dialog.set_response_sensitive(
@@ -600,20 +602,32 @@ class ClocksList(JSONSettingsList):
             if hasattr(self.add_button, "set_has_tooltip"):
                 self.add_button.set_has_tooltip(False)
 
-    def normalize_timezone(self, value):
-        return self.timezone_resolver.normalize(value)
+    def normalize_timezone(self, value, reserved=None):
+        return self.timezone_resolver.normalize(value, reserved)
 
+    # One resolve per call, and the answer is passed on rather than recomputed.
+    #
+    # is_reserved() re-reads the OS zone before deciding (d554f04), so it is the
+    # expensive half: an os.readlink of /etc/localtime, on the GTK main thread.
+    # It used to run twice here - once directly, once inside normalize() - and
+    # the presenter then threw the whole result away and called
+    # format_timezone_preview, which resolved again. Four readlinks and six
+    # _resolve() calls for one unchanged value, per character typed in *either*
+    # entry, since both are connected to the same handler. The two resolves
+    # could also observe different local zones, which is how the OK button and
+    # the preview came to disagree.
     def resolve_timezone_choice(self, values):
         timezone_text = values.get('timezone')
         has_timezone_text = bool(timezone_text and timezone_text.strip())
-        if self.timezone_resolver.is_reserved(timezone_text):
+        reserved = self.timezone_resolver.is_reserved(timezone_text)
+        if reserved:
             return {
                 "timezone": None,
                 "typed_invalid": True,
                 "reserved": True
             }
 
-        timezone = self.normalize_timezone(timezone_text)
+        timezone = self.normalize_timezone(timezone_text, reserved)
 
         if timezone is not None:
             return {
@@ -628,8 +642,15 @@ class ClocksList(JSONSettingsList):
             "reserved": False
         }
 
-    def format_timezone_preview(self, values):
-        choice = self.resolve_timezone_choice(values)
+    def format_timezone_preview(self, values, choice=None):
+        """What the dialog says about the timezone as typed.
+
+        `choice` is resolve_timezone_choice()'s answer when the caller already
+        has one: the presenter computes it to decide the OK button, and this
+        used to resolve the same text over again to describe it.
+        """
+        if choice is None:
+            choice = self.resolve_timezone_choice(values)
 
         if choice["reserved"]:
             return TIMEZONE_RESERVED_PREVIEW

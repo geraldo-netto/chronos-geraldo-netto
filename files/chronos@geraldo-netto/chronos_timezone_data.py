@@ -382,15 +382,24 @@ class TimezoneResolver:
         resolved = self._resolve(text)
         return bool(resolved) and resolved in self.builtin_timezones
 
-    def normalize(self, value: Any) -> Optional[str]:
-        # accept a full IANA identifier or a plain city name, case-insensitively
+    def normalize(self, value: Any, reserved: Optional[bool] = None) -> Optional[str]:
+        """Accept a full IANA identifier or a plain city name, case-insensitively.
+
+        `reserved` is is_reserved()'s answer when the caller has already asked.
+        It is not a micro-optimization: is_reserved re-reads the OS zone before
+        deciding, deliberately, so asking it twice for one value can get two
+        different answers - and the dialog's OK-button sensitivity and its
+        preview text were computed from separate calls.
+        """
         if not value:
             return None
 
         value = value.strip()
         if not value:
             return None
-        if self.is_reserved(value):
+        if reserved is None:
+            reserved = self.is_reserved(value)
+        if reserved:
             return None
 
         return self._resolve(value)

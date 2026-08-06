@@ -46,6 +46,58 @@ class BuildDialogContentTest(unittest.TestCase):
         self.assertEqual(preview.text, self.module.LABEL_MISSING_PREVIEW)
         self.assertEqual(dialog.sensitivity[-1], (1, False))
 
+    def test_one_keystroke_resolves_the_timezone_once(self):
+        """T812: update() computed the choice, discarded it and called
+        format_timezone_preview, which resolved the same text again. Each
+        resolve_timezone_choice ran is_reserved twice - once directly, once
+        inside normalize() - and is_reserved re-reads the OS zone before
+        deciding, deliberately, so that is an os.readlink of /etc/localtime.
+        Four of them and six _resolve() calls for one unchanged value, per
+        character, on the GTK main thread - and both entries are connected to
+        the same handler, so typing in the *Display name* field ran the whole
+        timezone pipeline too. The two resolves could also observe different
+        local zones, leaving the OK button and the preview disagreeing."""
+        clocks = self.module.ClocksList({
+            "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
+        }, "worldclocks", DialogSettings())
+        presenter = self.module.ClockDialogStatePresenter(
+            clocks, GtkDialog(), GtkLabel())
+        resolver = clocks.timezone_resolver
+        reads = []
+        original = resolver.refresh_builtin_timezones
+
+        def counted():
+            reads.append(True)
+            original()
+
+        resolver.refresh_builtin_timezones = counted
+        widgets = {
+            "label": types.SimpleNamespace(get_widget_value=lambda: "Home"),
+            "timezone": types.SimpleNamespace(get_widget_value=lambda: "Europe/Rome")
+        }
+
+        presenter.update(widgets)
+
+        self.assertEqual(len(reads), 1,
+                         "one keystroke asks the operating system once")
+
+        # ...and typing in the display name costs the same one, not four
+        reads.clear()
+        widgets["label"] = types.SimpleNamespace(get_widget_value=lambda: "Hom")
+        presenter.update(widgets)
+        self.assertEqual(len(reads), 1)
+
+    def test_normalize_still_asks_when_the_caller_did_not(self):
+        # the parameter is an answer the caller already has, not a way to skip
+        # the check: a direct caller gets the same reserved handling as before
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        resolver = clocks.timezone_resolver
+
+        self.assertIsNone(resolver.normalize("local"))
+        self.assertIsNone(resolver.normalize("UTC"))
+        # and an explicit answer is honoured over a fresh check
+        self.assertIsNone(resolver.normalize("Europe/Rome", True))
+
     def test_an_untouched_dialog_is_not_marked_invalid(self):
         # T732: build_content ends by validating with both entries still empty,
         # and the empty case fell through to _report(..., invalid="timezone").
