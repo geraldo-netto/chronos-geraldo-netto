@@ -1542,12 +1542,12 @@ test("gc defers until a chunked event mutation stream has drained", () => {
 
     assert.ok(manager._gc_timer_id > 0);
     assert.notEqual(manager._gc_timer_id, firstGc);
-    assert.ok(manager._event_index.get(day).get_ids().includes("stale-before-delivery"),
+    assert.ok(manager._event_index.get(day).has("stale-before-delivery"),
         "the incomplete stream is not reconciled early");
 
     drainEventMutations(manager);
     fireTimer(manager._gc_timer_id);
-    assert.ok(!manager._event_index.get(day).get_ids().includes("stale-before-delivery"));
+    assert.ok(!manager._event_index.get(day).has("stale-before-delivery"));
 });
 
 test("a failed month fetch is retried with backoff", () => {
@@ -1962,7 +1962,7 @@ test("EventIndex bounds distinct window events and recovers capacity", () => {
         startUnix: 10 * DAY_S + 10,
         endUnix: 10 * DAY_S + 11
     })], 2, selected).events_changed, true);
-    assert.deepEqual(index.get(selected).get_ids().sort(),
+    assert.deepEqual(index.get(selected).get_stored_events().map((event) => event.id).sort(),
         ["cap-1", "cap-2", "replacement"]);
 
     index.clear();

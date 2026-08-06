@@ -333,10 +333,6 @@ var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer exp
         return this._orderTodayWithAllDays(events_as_array, now);
     }
 
-    get_ids() {
-        return Object.keys(this._events);
-    }
-
     // Membership, without materialising the key array to find out. The index
     // asks this up to twice per registered event, so a delivery of a busy day
     // used to allocate one key array per event and scan it linearly.
