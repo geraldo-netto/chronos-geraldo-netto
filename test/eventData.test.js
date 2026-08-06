@@ -215,6 +215,31 @@ test("EventDataList: has() reports membership without inheriting Object properti
     assert.equal(list.has("ev1"), false, "a deleted event is gone");
 });
 
+// The index rebuild wants the day's contents, not its reading order, and
+// get_event_list() charges a sort plus two GLib.DateTimes per bucket to supply
+// an order the rebuild discards.
+test("EventDataList: get_stored_events yields every event and no ordering work", () => {
+    const list = new EventDataList(new FakeDateTime(10 * DAY_US));
+    assert.deepEqual(list.get_stored_events(), [], "an empty day stores nothing");
+
+    for (const id of ["b", "a", "__proto__"]) {
+        list.add_or_update(new EventData(makeVariant({
+            id, startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+        }), 1), 1);
+    }
+
+    const stored = list.get_stored_events();
+    assert.deepEqual(stored.map((ev) => ev.id).sort(), ["__proto__", "a", "b"],
+        "every stored event is yielded, whatever its UID");
+    assert.equal(stored.every((ev) => ev instanceof EventData), true,
+        "the events themselves, not their ids");
+    assert.equal(stored.length, list.length);
+
+    list.delete("a");
+    assert.deepEqual(list.get_stored_events().map((ev) => ev.id).sort(),
+        ["__proto__", "b"], "a deleted event is not stored any more");
+});
+
 test("EventDataList: cull removes only stale events", () => {
     const list = new EventDataList(new FakeDateTime(10 * DAY_US));
     const oldEv = new EventData(makeVariant({ id: "old", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 }), 1);

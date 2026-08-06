@@ -74,7 +74,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this._eventIds.clear();
         this._eventsById.clear();
         for (const eventList of Object.values(this.eventsByDate)) {
-            for (const event of eventList.get_event_list()) {
+            for (const event of eventList.get_stored_events()) {
                 this._eventIds.add(event.id);
                 this._eventsById.set(event.id, event);
             }
@@ -319,6 +319,11 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return this._resyncOverflow();
     }
 
+    // The quiet-window timer arms this after every fetch, so it runs on every
+    // month change and every forced refresh — usually finding nothing to cull,
+    // because the delivery that armed it re-reported the events it holds. The
+    // rebuild is what makes the id state match the buckets again, and nothing
+    // can have desynchronised them unless a row was actually dropped.
     cull(timestamp) {
         let any_removed = false;
         for (let date in this.eventsByDate) {
@@ -329,7 +334,9 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
                 delete this.eventsByDate[date];
             }
         }
-        this._rebuildEventState();
+        if (any_removed) {
+            this._rebuildEventState();
+        }
         this._resyncOverflow();
         return any_removed;
     }

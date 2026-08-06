@@ -344,6 +344,15 @@ var EventDataList = class EventDataList { // NOSONAR [S3504] -- GJS importer exp
         return Boolean(this._events[id]);
     }
 
+    // The events in storage order, for callers that want the day's contents
+    // rather than the day's *reading* order. get_event_list() sorts and builds
+    // a GLib.DateTime.new_now_local() plus a date_only() to decide where the
+    // all-day events sit relative to the current one — work an index rebuild
+    // pays once per bucket and then throws away.
+    get_stored_events() {
+        return Object.values(this._events);
+    }
+
     // for the current day keep all-day events just above the current or
     // first pending event
     _orderTodayWithAllDays(events_as_array, now) {

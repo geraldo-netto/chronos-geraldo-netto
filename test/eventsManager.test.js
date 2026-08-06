@@ -1851,6 +1851,41 @@ test("EventIndex owns event bucket mutation, removal, culling, and colors", () =
     assert.equal(index.getColorsByUnixKey(11 * DAY_S), null);
 });
 
+// The quiet-window timer arms cull() after every fetch, and the delivery that
+// armed it has usually just re-reported everything the index holds — so the
+// common case removes nothing. Rebuilding the id state there is work with no
+// result: nothing can desynchronise it from the buckets unless a row was
+// dropped. Counting the rebuilds is the only way to pin that, because a
+// redundant rebuild produces exactly the state the skipped one would have.
+test("EventIndex rebuilds its id state only when a cull actually drops a row", () => {
+    const index = new EventIndex();
+    const selected = new FakeDateTime(10 * DAY_US);
+    index.addOrUpdate([
+        eventVariant({ id: "kept", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 })
+    ], 5, selected);
+
+    let rebuilds = 0;
+    const realRebuild = index._rebuildEventState.bind(index);
+    index._rebuildEventState = () => {
+        rebuilds++;
+        realRebuild();
+    };
+
+    assert.equal(index.cull(5), false, "nothing is older than the watermark");
+    assert.equal(rebuilds, 0, "a cull that removes nothing rebuilds nothing");
+    assert.equal(index.get(selected).has("kept"), true, "and the day still holds it");
+
+    assert.equal(index.cull(6), true, "now the event is behind the watermark");
+    assert.equal(rebuilds, 1, "the removal is what earns the rebuild");
+    // the id state has to follow the buckets, or the ceiling never frees up and
+    // a re-delivery of the same UID is refused as a duplicate
+    assert.equal(index._eventIds.has("kept"), false);
+    assert.equal(index._eventsById.has("kept"), false);
+    assert.equal(index.addOrUpdate([
+        eventVariant({ id: "kept", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60 })
+    ], 7, selected).events_changed, true, "the culled UID can come back");
+});
+
 test("EventIndex bounds distinct window events and recovers capacity", () => {
     const index = new EventIndex({}, 3);
     const selected = new FakeDateTime(10 * DAY_US);
