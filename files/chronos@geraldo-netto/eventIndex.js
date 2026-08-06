@@ -297,12 +297,26 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return result;
     }
 
+    // The flag means "a delivery was refused because the ceiling was full", so
+    // it stops describing the window the moment the window shrinks back under
+    // it: the refusals belonged to a payload this removal has already revised,
+    // and the event column would go on telling the user rows are hidden on a
+    // day that now holds three. Nothing but a shrink clears it, and the next
+    // delivery that hits the ceiling arms it again.
+    _resyncOverflow() {
+        if (this._eventIds.size >= this._maxEvents) {
+            return false;
+        }
+        return this.clearOverflow();
+    }
+
     remove(uids) {
         this._removeFromBuckets(uids);
         uids.forEach((uid) => {
             this._eventIds.delete(uid);
             this._eventsById.delete(uid);
         });
+        return this._resyncOverflow();
     }
 
     cull(timestamp) {
@@ -316,6 +330,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
             }
         }
         this._rebuildEventState();
+        this._resyncOverflow();
         return any_removed;
     }
 };

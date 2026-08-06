@@ -1921,6 +1921,41 @@ test("a multi-day event keeps canonical day keys across a midnight DST jump", ()
     }
 });
 
+// Only clear() and the full-range resync used to retire the flag, so garbage
+// collecting a flood back down to a handful left the event column still
+// telling the user rows were hidden on a day now holding three.
+test("shrinking the index back under the ceiling retires the overflow notice", () => {
+    const index = new EventIndex({}, 3);
+    const selected = new FakeDateTime(10 * DAY_US);
+    const flood = Array.from({ length: 5 }, (_unused, id) => eventVariant({
+        id: `flood-${id}`,
+        startUnix: 10 * DAY_S + id,
+        endUnix: 10 * DAY_S + id + 1
+    }));
+
+    index.addOrUpdate(flood, 1, selected);
+    assert.equal(index.overflowed, true);
+
+    assert.equal(index.remove([]), false, "a removal that frees nothing changes nothing");
+    assert.equal(index.overflowed, true);
+
+    assert.equal(index.remove(["flood-0"]), true, "freeing a slot reports the change");
+    assert.equal(index.overflowed, false);
+
+    index.addOrUpdate([eventVariant({
+        id: "late", startUnix: 10 * DAY_S + 9, endUnix: 10 * DAY_S + 10
+    })], 2, selected);
+    assert.equal(index.overflowed, false, "the freed slot admits the next event");
+
+    index.addOrUpdate([eventVariant({
+        id: "later", startUnix: 10 * DAY_S + 11, endUnix: 10 * DAY_S + 12
+    })], 3, selected);
+    assert.equal(index.overflowed, true, "and the next refusal arms it again");
+
+    assert.equal(index.cull(4), true);
+    assert.equal(index.overflowed, false, "a cull retires it on the same rule");
+});
+
 // _spannedDays owns the day identities the whole index is keyed by, so it
 // normalises its own bounds rather than trusting the caller to have done it.
 test("a span covers whole days and terminates however its bounds are given", () => {
