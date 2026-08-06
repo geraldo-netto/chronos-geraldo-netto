@@ -36,6 +36,32 @@ test("the sanitizer removes every character that can break a line", () => {
     assert.equal(sanitizeControlCharacters(null), "");
 });
 
+// T833: the explicit directional formatting characters are category Cf, so the
+// control-block test let them through. Their effect is visual rather than
+// structural, and the visual is the point: a holiday name off a provider
+// carrying U+202E reverses the display order of everything after it in the same
+// Pango layout, rewriting how the rest of the month label, its accessible name
+// and its tooltip read - and doing the same to a Cinnamon log line.
+test("the sanitizer removes the overrides that reorder what follows them", () => {
+    const overrides = [0x202a, 0x202b, 0x202c, 0x202d, 0x202e,
+        0x2066, 0x2067, 0x2068, 0x2069];
+
+    for (const code of overrides) {
+        const point = code.toString(16).padStart(4, "0").toUpperCase();
+        assert.equal(
+            sanitizeControlCharacters("Dia" + String.fromCodePoint(code) + "livre"),
+            "Dia livre", "U+" + point + " must not reach a label or a log line");
+    }
+
+    // the neighbours on either side of both ranges are ordinary marks and text:
+    // U+2029 is handled above, U+202F is a space, U+2065 is unassigned and
+    // U+206A is a deprecated format character no renderer acts on
+    for (const code of [0x202f, 0x2065, 0x206a]) {
+        const kept = "a" + String.fromCodePoint(code) + "b";
+        assert.equal(sanitizeControlCharacters(kept), kept);
+    }
+});
+
 test("clampText counts code points and keeps what it cuts readable", () => {
     assert.equal(clampText("Rome", 10), "Rome", "shorter than the cap is untouched");
     assert.equal(clampText("Rome", 4), "Rome", "exactly the cap is untouched");

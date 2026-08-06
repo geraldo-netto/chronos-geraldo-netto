@@ -25,9 +25,26 @@ var TEXT_ELLIPSIS = "…"; // NOSONAR [S3504] -- GJS importer export
 // forges a second entry.
 const LINE_SEPARATORS = new Set([0x2028, 0x2029]);
 
+// The Unicode explicit directional formatting characters: the embeddings and
+// overrides U+202A..U+202E and the isolates U+2066..U+2069. They are category
+// Cf, so a control-block test lets them through as well.
+//
+// Their effect is purely visual, which is why they are not the line break
+// above — but the visual is the point. A holiday name off a provider carrying
+// U+202E RIGHT-TO-LEFT OVERRIDE reverses the display order of everything after
+// it in the same Pango layout, so a compromised endpoint rewrites how the rest
+// of the month label, its accessible name and its tooltip read, and does the
+// same to a Cinnamon log line. Nothing this applet displays needs to set a
+// direction by hand: Pango derives it from the text.
+const DIRECTIONAL_FORMATTING = [[0x202a, 0x202e], [0x2066, 0x2069]];
+
+function isDirectionalFormatting(code) {
+    return DIRECTIONAL_FORMATTING.some(([from, to]) => code >= from && code <= to);
+}
+
 function isRemovedControl(code) {
     return code <= 0x1f || (code >= 0x7f && code <= 0x9f) ||
-        LINE_SEPARATORS.has(code);
+        LINE_SEPARATORS.has(code) || isDirectionalFormatting(code);
 }
 
 function sanitizeControlCharacters(text) {
