@@ -68,6 +68,12 @@ const aviationWeatherReading = WeatherServiceAdapters.aviationWeatherReading;
 const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
 const metNoWeatherReading = WeatherServiceAdapters.metNoWeatherReading;
 
+// A cache key, and deliberately not the display fold in
+// weatherServiceAdapters.foldPlaceName. A key needs to be stable and to
+// separate places the user meant to keep apart; the fold needs to be diacritic-
+// and punctuation-insensitive so a keyboard spelling reaches the city. Genova
+// and Génova are two cities - the fold's own comment says so - and folding the
+// key would make one geocode answer for the other, forever, out of the cache.
 function locationCacheKey(location) {
     return WeatherFormat.normalizeWeatherLocation(location).toLowerCase();
 }

@@ -385,7 +385,10 @@ const UNDECOMPOSED_PATTERN =
 // joint (Saint-Étienne, Saint Etienne). Both sides of every comparison are
 // folded, so dropping them cannot favour one spelling over the other.
 const PLACE_NAME_PUNCTUATION = /['‘’ʻʼ´`]/g;
-const PLACE_NAME_GAPS = /[\s-]+/g;
+// An underscore is the same joint again: it is how an IANA identifier writes a
+// space, so a settings field completing "Buenos_Aires" against "Buenos Aires"
+// folds them together here rather than in a fourth rule of its own.
+const PLACE_NAME_GAPS = /[\s_-]+/g;
 
 function foldPlaceName(name) {
     return String(name || "")
@@ -567,5 +570,5 @@ if (typeof module !== "undefined") {
         metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber,
         aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon,
         metNoSummary, metNoWeatherReading, openMeteoReading,
-        openMeteoGeocodePlace, nominatimGeocodePlace };
+        openMeteoGeocodePlace, nominatimGeocodePlace, foldPlaceName };
 }

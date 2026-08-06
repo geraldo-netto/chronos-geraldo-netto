@@ -1099,3 +1099,34 @@ test("the panel state and the city readings are the same store", () => {
     assert.doesNotMatch(citySource, /readingIsStale/,
         "and the horizon is asked of the store, not recomputed beside it");
 });
+
+// T795: one conceptual rule - fold a place name so two spellings of it meet -
+// had three implementations. The settings-side completion list folded with
+// strip/lower/replace('_',' '), so it would not offer "São Paulo" for a typed
+// "Sao" nor "Saint-Étienne" for "saint etienne", while this matcher folded
+// both: the user was shown a narrower set of suggestions than the thing that
+// actually answers accepts. The Python port asserts the same table.
+test("the place fold matches the settings dialog's port of it", () => {
+    const Weather = loadWeather();
+    const fixture = require("./fixtures/place_name_fold_cases.json");
+
+    for (const { input, folded, why } of fixture.cases) {
+        assert.equal(Weather.foldPlaceName(input), folded, why);
+    }
+    for (const { left, right, why } of fixture.distinct) {
+        assert.notEqual(Weather.foldPlaceName(left), Weather.foldPlaceName(right), why);
+    }
+});
+
+// ...and the cache key is deliberately not that rule. A key needs to be stable
+// and to keep apart the places the user meant to keep apart; the fold needs to
+// reach a city from the spelling a keyboard can produce. Genova and Génova are
+// two cities, and one key for both would serve one geocode answer for the other.
+test("the geocode cache key is not the display fold", () => {
+    const Weather = loadWeather();
+
+    assert.notEqual(Weather.locationCacheKey("Genova"), Weather.locationCacheKey("Génova"));
+    assert.equal(Weather.foldPlaceName("Genova"), Weather.foldPlaceName("Génova"));
+    // what it does promise is stability: case and padding never make two keys
+    assert.equal(Weather.locationCacheKey("  LISBOA "), Weather.locationCacheKey("lisboa"));
+});

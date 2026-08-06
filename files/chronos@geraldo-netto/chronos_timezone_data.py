@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import logging
 import os
+import re
+import unicodedata
 from pathlib import Path
 from typing import Any, Callable, Iterable, Optional
 
@@ -174,15 +176,58 @@ def accepts_undatabased_timezone(value: Any) -> bool:
     return zoneinfo_spelling_exists(value.strip())
 
 
+# The port of weatherServiceAdapters.foldPlaceName, kept level with it by
+# test/fixtures/place_name_fold_cases.json. Only the marks a writer routinely
+# omits are stripped - Latin, Greek and Cyrillic accents, Cyrillic titlo, Hebrew
+# points, Arabic harakat - while Indic vowel signs and the Japanese dakuten are
+# letters and are left alone, or names that differ only by one would collide.
+_OPTIONAL_DIACRITICS = frozenset(
+    list(range(0x0300, 0x0370)) + list(range(0x0483, 0x048A)) +
+    list(range(0x0591, 0x05BE)) + [0x05BF, 0x05C1, 0x05C2, 0x05C4, 0x05C5, 0x05C7] +
+    list(range(0x064B, 0x0660)) + [0x0670])
+# letters that carry the accent in the code point and have no decomposition,
+# which is exactly why a keyboard without them produces the spelling on the right
+_UNDECOMPOSED_LETTERS = {
+    'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'ø': 'o',
+    'đ': 'd', 'ð': 'd', 'þ': 'th', 'ł': 'l',
+    'ħ': 'h', 'ı': 'i', 'ŋ': 'n', 'ĸ': 'k',
+    'ς': 'σ',
+}
+# an apostrophe is decoration and arrives in five shapes (Hawaiʻi, Coeur
+# d'Alene, N'Djamena); a space, a hyphen and an underscore are one joint
+_PLACE_NAME_PUNCTUATION = frozenset("'\u2018\u2019\u02bb\u02bc\u00b4`")
+_PLACE_NAME_GAPS = re.compile(r"[\s_-]+")
+
+
+def fold_place_name(text: Any) -> str:
+    """Fold a place name so two spellings of it meet.
+
+    The settings completion list used to fold with strip/lower/replace('_',' ')
+    alone, so it would not offer "São Paulo" for a typed "Sao" nor
+    "Saint-Étienne" for "saint etienne" - while the runtime geocode matcher
+    folded both. The user was shown a narrower set of suggestions than the
+    thing that actually answers accepts.
+    """
+    if not isinstance(text, str):
+        return ""
+
+    kept = []
+    for character in unicodedata.normalize("NFKD", text.lower()):
+        if ord(character) in _OPTIONAL_DIACRITICS or character in _PLACE_NAME_PUNCTUATION:
+            continue
+        kept.append(_UNDECOMPOSED_LETTERS.get(character, character))
+
+    return _PLACE_NAME_GAPS.sub(" ", "".join(kept)).strip()
+
+
 def completion_key(text: Any) -> str:
     """Fold a typed word and a suggestion onto the same shape.
 
     "buenos aires", "Buenos_Aires" and "BUENOS AIRES" all have to hit the same
-    suggestion, so underscores and case never decide a match.
+    suggestion, so neither case, nor an underscore, nor an accent the typist
+    left off decides a match.
     """
-    if not isinstance(text, str):
-        return ""
-    return text.strip().lower().replace('_', ' ')
+    return fold_place_name(text)
 
 
 def local_city_name(timezone: Optional[str] = None) -> str:

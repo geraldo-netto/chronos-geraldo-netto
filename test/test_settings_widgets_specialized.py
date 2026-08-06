@@ -589,6 +589,29 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
 
         self.assertIsNone(resolver.normalize("Europe/Rome"))
 
+    def test_the_place_fold_matches_the_runtime_geocode_matcher(self):
+        """T795: one rule - fold a place name so two spellings of it meet - had
+        three implementations. completion_key folded with
+        strip/lower/replace('_',' '), so the suggestion list would not offer
+        "São Paulo" for a typed "Sao" nor "Saint-Étienne" for "saint etienne",
+        while weatherServiceAdapters.foldPlaceName folded both: the user was
+        shown a narrower set of suggestions than the thing that actually
+        answers accepts. The JS suite asserts the same table."""
+        module = self.load_gi_free()
+        cases = json.loads(
+            (Path(__file__).parent / "fixtures" / "place_name_fold_cases.json").read_text())
+
+        for case in cases["cases"]:
+            self.assertEqual(module.fold_place_name(case["input"]),
+                             case["folded"], case["why"])
+        for pair in cases["distinct"]:
+            self.assertNotEqual(module.fold_place_name(pair["left"]),
+                                module.fold_place_name(pair["right"]), pair["why"])
+
+        # and the completion matcher is that fold, not a fourth rule beside it
+        self.assertEqual(module.completion_key("  SÃO_PAULO "), "sao paulo")
+        self.assertEqual(module.completion_key(None), "")
+
     def test_a_broken_zoneinfo_alias_names_no_city(self):
         module = self.load_gi_free()
 

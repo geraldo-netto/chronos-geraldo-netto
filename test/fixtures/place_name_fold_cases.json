@@ -1,0 +1,102 @@
+{
+  "_comment": "Shared parity fixture for T795: the JS foldPlaceName (weatherServiceAdapters.js) and the Python fold_place_name (chronos_timezone_data.py) are one rule - fold a place name so two spellings of it meet - and they had drifted into three implementations. The settings completion list folded with strip/lower/replace('_',' '), so it would not offer 'São Paulo' for a typed 'Sao' nor 'Saint-Étienne' for 'saint etienne', while the runtime geocode matcher folded both: the user was shown a narrower set of suggestions than the thing that would actually answer accepts. weather_adapters.test.js and test_settings_widgets_specialized.py each assert this table, so a one-sided change fails one suite. The cache key (weatherProviders.locationCacheKey) is deliberately NOT this rule and is not in here: Genova and Génova are two cities, and folding them onto one key would make one geocode answer for the other.",
+  "cases": [
+    {
+      "input": "São Paulo",
+      "folded": "sao paulo",
+      "why": "a Latin accent"
+    },
+    {
+      "input": "Straße",
+      "folded": "strasse",
+      "why": "a letter with no decomposition"
+    },
+    {
+      "input": "Tromsø",
+      "folded": "tromso",
+      "why": "a slashed vowel"
+    },
+    {
+      "input": "Łódź",
+      "folded": "lodz",
+      "why": "a barred consonant"
+    },
+    {
+      "input": "İzmir",
+      "folded": "izmir",
+      "why": "a dotted capital I"
+    },
+    {
+      "input": "Þórshavn",
+      "folded": "thorshavn",
+      "why": "a thorn"
+    },
+    {
+      "input": "ＴＯＫＹＯ",
+      "folded": "tokyo",
+      "why": "a full-width compatibility form"
+    },
+    {
+      "input": "Hawaiʻi",
+      "folded": "hawaii",
+      "why": "an okina"
+    },
+    {
+      "input": "Coeur d’Alene",
+      "folded": "coeur dalene",
+      "why": "a curly apostrophe"
+    },
+    {
+      "input": "Saint-Étienne",
+      "folded": "saint etienne",
+      "why": "a hyphen for a space"
+    },
+    {
+      "input": "Buenos_Aires",
+      "folded": "buenos aires",
+      "why": "an underscore for a space"
+    },
+    {
+      "input": "  BUENOS   AIRES  ",
+      "folded": "buenos aires",
+      "why": "case, padding and a run of gaps"
+    },
+    {
+      "input": "Θεσσαλονίκης",
+      "folded": "θεσσαλονικησ",
+      "why": "a Greek tonos and final sigma"
+    },
+    {
+      "input": "اَلْقَاهِرَة",
+      "folded": "القاهرة",
+      "why": "Arabic harakat"
+    },
+    {
+      "input": "יְרוּשָׁלַיִם",
+      "folded": "ירושלים",
+      "why": "Hebrew niqqud"
+    },
+    {
+      "input": "",
+      "folded": "",
+      "why": "nothing folds to nothing"
+    }
+  ],
+  "distinct": [
+    {
+      "left": "मुंबइ",
+      "right": "मंबइ",
+      "why": "an Indic vowel sign is a letter: folding it would collide two names"
+    },
+    {
+      "left": "ガワ",
+      "right": "カワ",
+      "why": "so is a Japanese dakuten"
+    },
+    {
+      "left": "Genova",
+      "right": "Genoa",
+      "why": "and two names that merely look alike are still two names"
+    }
+  ]
+}
