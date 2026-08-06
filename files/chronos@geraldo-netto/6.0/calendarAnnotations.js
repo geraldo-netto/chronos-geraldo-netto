@@ -22,7 +22,7 @@ const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
 const formatJsDate = CalendarDate.formatJsDate;
 
-const PART_DAY_HOLIDAY = 'PART_DAY_HOLIDAY';
+const PART_DAY_HOLIDAY = Holidays.PART_DAY_HOLIDAY;
 const PUBLIC_HOLIDAY_FLAG = Holidays.PUBLIC_HOLIDAY_FLAG;
 const RELIGIOUS_HOLIDAY_FLAG = Holidays.RELIGIOUS_HOLIDAY_FLAG;
 const HOLIDAY_ERROR_MARKER = "⚠";

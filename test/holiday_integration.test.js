@@ -1,6 +1,6 @@
 const {
     assert, test, vm, fs, makeSoup3, FIXED_YEAR, STAMP,
-    holidayRecordPath, holidayServiceAdaptersPath, shimPath,
+    holidayRecordPath, holidayServiceAdaptersPath, shimPath, holidayConstantsPath,
     loadHolidays, holiday, anyRecord
 } = require("./helpers/holidayFixture");
 
@@ -958,4 +958,44 @@ test("the rows a payload expands to are bounded too", () => {
     assert.equal(expanded.length, MAX_EXPANDED_HOLIDAY_ROWS,
         "the expansion stops at the cap instead of building 36,600 rows");
     assert.ok(logged.some((line) => /expands past/.test(line)), "and it says so");
+});
+
+// T806: the merge rule for PART_DAY_HOLIDAY and the calendar cell style keyed on
+// it were recorded as having no producer, because the two _flags implementations
+// that lowercase a type enum can never emit an uppercase token. The third one
+// can, and does: Enrico's v2.0 rows carry an optional `flags` array beside
+// `holidayType` - Christmas Eve in Italy is the row that has it - and
+// EnricoServiceAdapter._flags keeps that array verbatim. This is the wire token
+// travelling the whole way to the map the grid annotates from.
+test("Enrico's part-day flag survives the wire, the contract and the cache", () => {
+    const { EnricoServiceAdapter, HolidayService, HolidayCache,
+        HolidayRecordContract } = loadHolidays();
+    const { PART_DAY_HOLIDAY } = require(holidayConstantsPath);
+    const wireRow = {
+        date: { year: FIXED_YEAR, month: 12, day: 24, dayOfWeek: 4 },
+        name: [{ lang: "en", text: "Christmas Eve" }],
+        flags: [PART_DAY_HOLIDAY],
+        holidayType: "public_holiday"
+    };
+    const adapter = new EnricoServiceAdapter((_url, params, callback) => {
+        callback([wireRow], params, STAMP);
+    });
+    const service = new HolidayService(adapter,
+        new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {}),
+        { record: new HolidayRecordContract("en") });
+    service.setPlace("ita", "global");
+
+    service.retrieveForYear(FIXED_YEAR, () => {});
+
+    assert.deepEqual(service.matchMonth(FIXED_YEAR, 12).get("12/24"),
+        { name: "Christmas Eve", flags: [PART_DAY_HOLIDAY] });
+
+    // ...and a full public holiday landing on the same date takes the whole day:
+    // the flag is a per-provider claim, so the merge keeps it only if both agree
+    service.cache.addUnique({
+        year: FIXED_YEAR, month: 12, day: 24, region: "global",
+        name: "Also a holiday", flags: ["public_holiday"]
+    });
+    assert.deepEqual(
+        service.matchMonth(FIXED_YEAR, 12).get("12/24").flags, ["public_holiday"]);
 });

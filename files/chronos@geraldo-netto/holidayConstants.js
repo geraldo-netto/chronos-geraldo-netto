@@ -53,6 +53,17 @@ function monthHolidayEntry(name, flags) {
 
 var PUBLIC_HOLIDAY_FLAG = "public_holiday"; // NOSONAR [S3504] -- GJS importer export
 var RELIGIOUS_HOLIDAY_FLAG = "religious_holiday"; // NOSONAR [S3504] -- GJS importer export
+// Enrico's own token, and the only holiday flag this applet does not mint
+// itself. Its v2.0 rows carry an optional `flags` array beside `holidayType`,
+// and EnricoServiceAdapter._flags keeps that array verbatim when it is present;
+// Christmas Eve in Italy is the row that has it. The uppercase spelling is the
+// wire's, which is why the two _flags implementations that lowercase a type
+// enum can never produce it.
+//
+// It is a per-provider claim about one date, so holidayCache's merge keeps it
+// only when both rows agree the day is partial: a full public holiday landing on
+// the same date makes the whole day non-working.
+var PART_DAY_HOLIDAY = "PART_DAY_HOLIDAY"; // NOSONAR [S3504] -- GJS importer export
 // the countries the settings combobox offers; a value outside this list
 // cannot be picked in the UI and no provider can answer for it
 var SUPPORTED_COUNTRIES = [ // NOSONAR [S3504] -- GJS importer export
@@ -445,6 +456,6 @@ var REGION_COUNTRIES = Object.keys(REGION_TO_SUBDIVISION); // NOSONAR [S3504] --
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HOLIDAY_ERRORS, isHolidayErrorCode, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG,
+    module.exports = { HOLIDAY_ERRORS, isHolidayErrorCode, HOLIDAY_PROVIDER_NAMES, GLOBAL_REGION, PUBLIC_HOLIDAY_FLAG, PART_DAY_HOLIDAY,
         monthHolidayEntry, RELIGIOUS_HOLIDAY_FLAG, SUPPORTED_COUNTRIES, OPEN_HOLIDAYS_COUNTRIES, COUNTRY_TO_ISO2, ISO2_TO_COUNTRY, countryFromIso2, REGION_TO_SUBDIVISION, REGION_COUNTRIES, COUNTRY_TO_LANGUAGE };
 }

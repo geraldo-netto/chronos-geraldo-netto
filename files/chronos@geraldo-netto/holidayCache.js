@@ -77,7 +77,7 @@ var MAX_CACHED_COUNTRIES = 4; // NOSONAR [S3504] -- GJS importer export
 // re-merges attempted when another applet instance wrote the file underneath
 // us; the loser of the last round simply gives up and refetches later
 var MAX_MERGE_RETRIES = 3; // NOSONAR [S3504] -- GJS importer export
-var PART_DAY_HOLIDAY = "PART_DAY_HOLIDAY"; // NOSONAR [S3504] -- GJS importer export
+var PART_DAY_HOLIDAY = HolidayConstants.PART_DAY_HOLIDAY; // NOSONAR [S3504] -- GJS importer export
 var GLOBAL_REGION = HolidayConstants.GLOBAL_REGION; // NOSONAR [S3504] -- GJS importer export
 var MAX_EXPANDED_HOLIDAY_ROWS = HolidayRecord.MAX_EXPANDED_HOLIDAY_ROWS; // NOSONAR [S3504] -- GJS importer export
 
@@ -915,5 +915,5 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HolidayCacheRepository, HolidayCache, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_YEARS, MAX_CACHED_COUNTRIES, UPDATE_PERIOD_DAYS, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
+    module.exports = { HolidayCacheRepository, HolidayCache, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_YEARS, MAX_CACHED_COUNTRIES, PART_DAY_HOLIDAY, UPDATE_PERIOD_DAYS, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
 }

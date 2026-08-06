@@ -133,14 +133,11 @@ global.imports.ui.appletManager.applets["chronos@geraldo-netto"].settingsFacade 
 // the grid reads the error identifiers and nothing else out of the holiday
 // feature, so it requires the constants, not the barrel that carries the HTTP
 // stack behind them
-global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants = {
-    PUBLIC_HOLIDAY_FLAG: "public_holiday",
-    RELIGIOUS_HOLIDAY_FLAG: "religious_holiday",
-    HOLIDAY_ERRORS: {
-        SERVICE_UNAVAILABLE: "Holiday service unavailable",
-        INVALID_RESPONSE: "Holiday data unavailable"
-    }
-};
+// the real module, not a hand-written stub of it: it reaches for nothing, and a
+// stub is a second definition of the flag vocabulary that drifts from the first
+// (T806 - PART_DAY_HOLIDAY was missing from this one)
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants =
+    require(path.join(APPLET_DIR, "holidayConstants.js"));
 
 const CalendarModule = require(path.join(APPLET_DIR, "6.0", "calendar.js"));
 const AnnotationsModule = require(path.join(APPLET_DIR, "6.0", "calendarAnnotations.js"));
