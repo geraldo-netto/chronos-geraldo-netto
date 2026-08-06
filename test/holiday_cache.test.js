@@ -364,7 +364,7 @@ test("one malformed row is dropped; the rest of the country's holidays survive",
 // measured 469 KiB, and the ceiling is MAX_EXPANDED_HOLIDAY_ROWS × years browsed.
 //
 // The prune is an LRU on use rather than a window around today, because a window
-// is what _windowedForPersist's comment warns about: it dropped a just-fetched
+// is what HolidayPersistWindow.snapshot's comment warns about: it dropped a just-fetched
 // out-of-window year and the stamp that throttles it, and the year was then
 // refetched on every calendar update, forever.
 test("the years the user scrolled past are not kept for the session", () => {
@@ -2796,4 +2796,92 @@ test("HolidayService deduplicates in-flight year fetches", () => {
     assert.equal(fetches, 1);
     pending({ error: "offline" }, { year: 2026, region: "global" }, null);
     assert.equal(callbacks, 2);
+});
+
+// T803: HolidayCache held five unrelated responsibilities - the row store and
+// its two indexes, a year LRU, a month memo with its own eviction, the
+// freshness policy and the persistence windowing. T784 was a direct consequence
+// of the last two sharing a helper with the first. These two are collaborators
+// the store is given now, and each can be driven without a cache at all.
+test("the freshness policy answers on its own, with no store around it", () => {
+    const { HolidayFreshness, UPDATE_PERIOD, RETRY_PERIOD } = loadHolidays();
+    const freshness = new HolidayFreshness();
+    const now = Date.UTC(2026, 6, 14, 12);
+    const stamp = (msAgo) => new Date(now - msAgo).toUTCString();
+
+    assert.equal(freshness.stale(null, null, now), true, "never asked is stale");
+    assert.equal(freshness.stale(stamp(UPDATE_PERIOD - 60_000), null, now), false);
+    assert.equal(freshness.stale(stamp(UPDATE_PERIOD + 60_000), null, now), true);
+
+    // a failure inside the retry period is what stops a provider being hammered
+    // while it is down, and it is a different period from the fetch's
+    assert.equal(freshness.stale(null, stamp(RETRY_PERIOD - 60_000), now), false);
+    assert.equal(freshness.stale(null, stamp(RETRY_PERIOD + 60_000), now), true);
+    assert.equal(
+        freshness.stale(stamp(UPDATE_PERIOD + 60_000), stamp(RETRY_PERIOD - 60_000), now),
+        false, "an old fetch and a recent failure still hold the refetch off");
+
+    // and the periods are the collaborator's, so a caller can hold a different
+    // policy without the store knowing
+    const impatient = new HolidayFreshness({ updatePeriod: 1000, retryPeriod: 1 });
+    assert.equal(impatient.stale(stamp(2000), null, now), true);
+});
+
+test("the persist window answers on its own, and copies rather than prunes", () => {
+    const { HolidayPersistWindow } = loadHolidays();
+    const window = new HolidayPersistWindow({ yearWindow: 1, maxRows: 3 });
+    const now = new Date(Date.UTC(2026, 6, 14));
+    const row = (year, day) => ({ year, month: 1, day, region: "global",
+        name: `H${year}/${day}`, flags: [] });
+    const years = { 2025: { global: "a" }, 2026: { global: "b" },
+        2028: { global: "far" } };
+    const rows = [row(2025, 1), row(2026, 1), row(2028, 1)];
+
+    const snapshot = window.snapshot(years, rows, now);
+
+    assert.deepEqual(Object.keys(snapshot.years), ["2025", "2026"],
+        "out of the ±1-year window and off the disk");
+    assert.deepEqual(snapshot.holidays.map((single) => single.year), [2025, 2026]);
+    assert.deepEqual(Object.keys(years), ["2025", "2026", "2028"],
+        "and the live tables are untouched: pruning them in place lost a "
+        + "just-fetched year and the stamp that throttles it");
+
+    // over the row ceiling, whole years go, farthest from today first
+    const many = [row(2025, 1), row(2025, 2), row(2026, 1), row(2026, 2)];
+    const bounded = window.snapshot(
+        { 2025: { global: "a" }, 2026: { global: "b" } }, many, now);
+    assert.deepEqual(Object.keys(bounded.years), ["2026"]);
+    assert.deepEqual(bounded.holidays.map((single) => single.year), [2026, 2026]);
+
+    // one year alone over the ceiling: what fits is written, and its stamp is
+    // dropped so the truncated year is refetched rather than trusted
+    const single = [row(2026, 1), row(2026, 2), row(2026, 3), row(2026, 4)];
+    const truncated = window.snapshot({ 2026: { global: "b" } }, single, now);
+    assert.equal(truncated.holidays.length, 3);
+    assert.deepEqual(truncated.years, {});
+});
+
+test("the cache can be given a different freshness and a different window", () => {
+    const { HolidayCache, HolidayFreshness, HolidayPersistWindow } = loadHolidays();
+    const saved = [];
+    const cache = new HolidayCache(
+        (_country, done) => done({ years: {}, holidays: [] }),
+        (country, snapshot) => saved.push([country, snapshot]),
+        {
+            freshness: new HolidayFreshness({ updatePeriod: 1, retryPeriod: 1 }),
+            persistWindow: new HolidayPersistWindow({ yearWindow: 0, maxRows: 10 })
+        });
+    cache.setPlace("fra", "global");
+    const now = Date.UTC(2026, 6, 14, 12);
+    cache.recordFetch(2026, "global", new Date(now).toUTCString(),
+        [{ year: 2026, month: 7, day: 14, region: "global", name: "Fête", flags: [] }]);
+    cache.addUnique({ year: 2027, month: 1, day: 1, region: "global",
+        name: "Next", flags: [] });
+
+    assert.equal(cache.stale(2026, "global", now + 10), true,
+        "a one-millisecond update period is the policy the cache was given");
+
+    cache.persist(new Date(Date.UTC(2026, 6, 14)));
+    assert.deepEqual(saved.at(-1)[1].holidays.map((single) => single.year), [2026],
+        "and a zero-year window keeps only this year");
 });

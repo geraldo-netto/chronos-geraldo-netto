@@ -95,6 +95,12 @@ var Provider = class Provider { // NOSONAR [S3504] -- GJS importer export
 
 var HolidayCacheRepository = HolidayCacheModule.HolidayCacheRepository; // NOSONAR [S3504] -- GJS importer export
 var HolidayCache = HolidayCacheModule.HolidayCache; // NOSONAR [S3504] -- GJS importer export
+// the two policies the cache is given, re-exported so the composition root and
+// the suite can hand it different ones without reaching past the barrel
+var HolidayFreshness = HolidayCacheModule.HolidayFreshness; // NOSONAR [S3504] -- GJS importer export
+var HolidayPersistWindow = HolidayCacheModule.HolidayPersistWindow; // NOSONAR [S3504] -- GJS importer export
+var UPDATE_PERIOD = HolidayCacheModule.UPDATE_PERIOD; // NOSONAR [S3504] -- GJS importer export
+var RETRY_PERIOD = HolidayCacheModule.RETRY_PERIOD; // NOSONAR [S3504] -- GJS importer export
 
 var EnricoServiceAdapter = HolidayServiceAdapters.EnricoServiceAdapter; // NOSONAR [S3504] -- GJS importer export
 var NagerDateServiceAdapter = HolidayServiceAdapters.NagerDateServiceAdapter; // NOSONAR [S3504] -- GJS importer export
@@ -797,5 +803,5 @@ var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S350
 
 if (typeof module !== "undefined") {
     module.exports = {
-        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, ReligiousHolidayProvider, HOLIDAY_ERRORS };
+        HTTP_TIMEOUT_SECONDS, Provider, HolidayCacheRepository, HolidayCache, HolidayFreshness, HolidayPersistWindow, UPDATE_PERIOD, RETRY_PERIOD, EnricoServiceAdapter, NagerDateServiceAdapter, OpenHolidaysServiceAdapter, createHolidayServiceChain, HolidayRecordContract, HolidayStatusLedger, HolidayInflight, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS, httpBackedService, createHolidayProvider, HolidayService, HolidayProviderFacade, ReligiousHolidayProvider, HOLIDAY_ERRORS };
 }

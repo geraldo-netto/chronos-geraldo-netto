@@ -62,7 +62,7 @@ var MAX_MEMOIZED_MONTHS = 32; // NOSONAR [S3504] -- GJS importer export
 // the ceiling.
 //
 // It is an LRU on use, not a window around today: a hard window is what the
-// comment on _windowedForPersist warns about — it discarded a *just-fetched*
+// comment on HolidayPersistWindow.snapshot warns about — it discarded a *just-fetched*
 // out-of-window year together with the freshness stamp that throttles it, so the
 // year was refetched on every calendar update, forever. The year the user is
 // looking at is by definition the most recently used one.
@@ -412,10 +412,114 @@ HolidayCacheRepository.path = GLib.build_filenamev([GLib.get_user_cache_dir(), "
 // reads it once when the current file has nothing, so an upgrade keeps its cache
 HolidayCacheRepository.LEGACY_FN = "/enrico.json";
 
+
+// When a stored stamp stops being trusted.
+//
+// The store below is a data structure - rows, two indexes and a year LRU - and
+// this is release policy: how long a fetch is believed, and how long a failure
+// suppresses the next attempt. It used to be a third responsibility of that
+// class, alongside a month memo and the persistence windowing, and the cache is
+// given it now instead of owning it.
+var HolidayFreshness = class HolidayFreshness { // NOSONAR [S3504] -- GJS importer export
+    constructor(params = {}) {
+        this._update_period = params.updatePeriod || UPDATE_PERIOD;
+        this._retry_period = params.retryPeriod || RETRY_PERIOD;
+    }
+
+    // A year has to be asked for again unless a fetch inside the update period,
+    // or a failed attempt inside the retry period, says otherwise. The second
+    // is what stops a provider being hammered while it is down.
+    stale(fetched, attempted, now) {
+        return !cachedStampIsFresh(fetched, now, this._update_period) &&
+            !cachedStampIsFresh(attempted, now, this._retry_period);
+    }
+};
+
+// Which of the cache's years and rows reach the disk.
+//
+// Two rules, both about the file rather than about the data structure: the
+// ±YEAR_WINDOW the 42-day grid can reach, and the row ceiling the loader treats
+// a snapshot as complete below. recordFetch's own comment explains why
+// persistence was pulled out of the store; persist() and this pair stayed.
+var HolidayPersistWindow = class HolidayPersistWindow { // NOSONAR [S3504] -- GJS importer export
+    constructor(params = {}) {
+        this._year_window = Number.isInteger(params.yearWindow) ?
+            params.yearWindow : YEAR_WINDOW;
+        this._max_rows = params.maxRows || MAX_EXPANDED_HOLIDAY_ROWS;
+    }
+
+    // A *copy*: the live years, attempts and rows are left whole. Pruning them
+    // in place discarded a just-fetched out-of-window year and the freshness
+    // stamp that throttles it, so browsing two years ahead refetched over the
+    // network and rewrote the disk on every calendar update, forever, and the
+    // holidays never rendered.
+    snapshot(allYears, allHolidays, now = new Date()) {
+        const current = now.getFullYear();
+        const keep = (year) => Math.abs(Number(year) - current) <= this._year_window;
+
+        const years = {};
+        for (const year of Object.keys(allYears)) {
+            if (keep(year)) {
+                years[year] = allYears[year];
+            }
+        }
+
+        return this._bounded(years,
+            allHolidays.filter((single) => keep(single.year)), current);
+    }
+
+    // The loader accepts at most MAX_EXPANDED_HOLIDAY_ROWS rows per country and
+    // treats a longer snapshot as incomplete, wiping every stamp beside it — so
+    // persisting more than that turned one region-heavy session into a refetch
+    // and rewrite on every applet load, forever. Evict whole years from the
+    // snapshot, farthest from today first, stamps together with rows (in this
+    // copy only), until it fits: what is persisted is then loaded back whole,
+    // freshness included.
+    _bounded(years, holidays, current) {
+        if (holidays.length <= this._max_rows) {
+            return { years, holidays };
+        }
+
+        const rowsPerYear = new Map();
+        holidays.forEach((single) => {
+            const year = Number(single.year);
+            rowsPerYear.set(year, (rowsPerYear.get(year) || 0) + 1);
+        });
+
+        const evicted = new Set();
+        let total = holidays.length;
+        const farthestFirst = Array.from(rowsPerYear.keys())
+            .sort((a, b) => Math.abs(b - current) - Math.abs(a - current) || a - b);
+        for (const year of farthestFirst) {
+            if (total <= this._max_rows || evicted.size === rowsPerYear.size - 1) {
+                break;
+            }
+            evicted.add(year);
+            total -= rowsPerYear.get(year);
+            delete years[year];
+        }
+
+        let kept = holidays.filter((single) => !evicted.has(Number(single.year)));
+        if (kept.length > this._max_rows) {
+            // one year alone overflows the loader's cap: persist what fits and
+            // drop that year's stamp, so the truncated year is refetched rather
+            // than trusted as complete
+            delete years[Number(kept[0].year)];
+            kept = kept.slice(0, this._max_rows);
+        }
+
+        return { years, holidays: kept };
+    }
+};
+
 var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer export
-    constructor(load, save) {
+    constructor(load, save, params = {}) {
         this._load = load;
         this._save = save;
+        // the two policies this class used to hold alongside the row store, the
+        // indexes, the year LRU and the month memo
+        this._freshness = params.freshness || new HolidayFreshness();
+        this._persist_window = params.persistWindow || new HolidayPersistWindow();
         this.country = null;
         this.region = GLOBAL_REGION;
         this.years = {};
@@ -549,71 +653,6 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         // rather than waiting for the next fetch to notice
         this._rebuildIndex(false);
         this._pruneYears();
-    }
-
-    // What gets persisted is the window the grid can actually reach, so the file
-    // does not grow for every year ever browsed and startup does not re-parse all
-    // of it. This is a *copy*: the live data, years and attempts are left whole.
-    // Pruning them in place discarded a just-fetched out-of-window year and the
-    // freshness stamp that throttles it, so browsing two years ahead refetched
-    // over the network and rewrote the disk on every calendar update, forever,
-    // and the holidays never rendered.
-    _windowedForPersist(now = new Date()) {
-        const current = now.getFullYear();
-        const keep = (year) => Math.abs(Number(year) - current) <= YEAR_WINDOW;
-
-        const years = {};
-        for (const year of Object.keys(this.years)) {
-            if (keep(year)) {
-                years[year] = this.years[year];
-            }
-        }
-
-        return this._boundedForPersist(years,
-            this.data.filter((single) => keep(single.year)), current);
-    }
-
-    // The loader accepts at most MAX_EXPANDED_HOLIDAY_ROWS rows per country and
-    // treats a longer snapshot as incomplete, wiping every stamp beside it — so
-    // persisting more than that turned one region-heavy session into a refetch
-    // and rewrite on every applet load, forever. Evict whole years from the
-    // snapshot, farthest from today first, stamps together with rows (in this
-    // copy only), until it fits: what is persisted is then loaded back whole,
-    // freshness included.
-    _boundedForPersist(years, holidays, current) {
-        if (holidays.length <= MAX_EXPANDED_HOLIDAY_ROWS) {
-            return { years, holidays };
-        }
-
-        const rowsPerYear = new Map();
-        holidays.forEach((single) => {
-            const year = Number(single.year);
-            rowsPerYear.set(year, (rowsPerYear.get(year) || 0) + 1);
-        });
-
-        const evicted = new Set();
-        let total = holidays.length;
-        const farthestFirst = Array.from(rowsPerYear.keys())
-            .sort((a, b) => Math.abs(b - current) - Math.abs(a - current) || a - b);
-        for (const year of farthestFirst) {
-            if (total <= MAX_EXPANDED_HOLIDAY_ROWS || evicted.size === rowsPerYear.size - 1) {
-                break;
-            }
-            evicted.add(year);
-            total -= rowsPerYear.get(year);
-            delete years[year];
-        }
-
-        let kept = holidays.filter((single) => !evicted.has(Number(single.year)));
-        if (kept.length > MAX_EXPANDED_HOLIDAY_ROWS) {
-            // one year alone overflows the loader's cap: persist what fits and
-            // drop that year's stamp, so the truncated year is refetched rather
-            // than trusted as complete
-            delete years[Number(kept[0].year)];
-            kept = kept.slice(0, MAX_EXPANDED_HOLIDAY_ROWS);
-        }
-
-        return { years, holidays: kept };
     }
 
     // The memo gains an entry for every month scrolled to, empty ones
@@ -852,21 +891,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
 
     // `now` is injectable so staleness math is testable with a fixed clock
     stale(year, region = this.region, now = Date.now()) {
-        if (this.years[year]) {
-            const retrieved = this.years[year][region];
-            if (retrieved && cachedStampIsFresh(retrieved, now, UPDATE_PERIOD)) {
-                return false;
-            }
-        }
-
-        if (this.attempts[year]) {
-            const attempted = this.attempts[year][region];
-            if (attempted && cachedStampIsFresh(attempted, now, RETRY_PERIOD)) {
-                return false;
-            }
-        }
-
-        return true;
+        const stampFor = (table) => (table[year] ? table[year][region] : null);
+        return this._freshness.stale(
+            stampFor(this.years), stampFor(this.attempts), now);
     }
 
     matchMonth(year, month, region = this.region) {
@@ -909,11 +936,12 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
             return;
         }
 
-        this._save(this.country, this._windowedForPersist(now));
+        this._save(this.country,
+            this._persist_window.snapshot(this.years, this.data, now));
     }
 };
 
 
 if (typeof module !== "undefined") {
-    module.exports = { HolidayCacheRepository, HolidayCache, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_YEARS, MAX_CACHED_COUNTRIES, PART_DAY_HOLIDAY, UPDATE_PERIOD_DAYS, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
+    module.exports = { HolidayCacheRepository, HolidayCache, HolidayFreshness, HolidayPersistWindow, validCachedHoliday, validCachedStamp, validCachedYears, clampHolidayName, MAX_HOLIDAY_NAME_LENGTH, MAX_MEMOIZED_MONTHS, MAX_CACHED_YEARS, MAX_CACHED_COUNTRIES, PART_DAY_HOLIDAY, UPDATE_PERIOD_DAYS, UPDATE_PERIOD, RETRY_PERIOD, YEAR_WINDOW, GLOBAL_REGION };
 }
