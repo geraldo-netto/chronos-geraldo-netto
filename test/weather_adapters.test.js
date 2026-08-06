@@ -1036,3 +1036,66 @@ test("a provider given its HTTP is not handed a session it cannot use", () => {
     given.destroy();
     assert.equal(session.aborted, true);
 });
+
+// T796: "the last reading, who provided it, when it was fetched, and is that
+// still the weather?" was written twice - four fields in WeatherDisplayState,
+// the same four per city and unnamed in CityWeatherProvider's Map - while both
+// derived the horizon from staleAfterSeconds. The two copies had already forked
+// on policy, so the panel and the popup rows of one feature answered the
+// staleness question differently. cityWeather.js calls this module the twin of
+// the panel provider, and the refresh scheduler was de-duplicated the same way.
+test("one reading store answers freshness for the panel and for a city", () => {
+    const Weather = loadWeather();
+    let now = 1_000_000;
+    const store = new Weather.WeatherReadingStore({
+        freshnessNow: () => now,
+        refreshSeconds: 60
+    });
+    const record = { condition: "☀", temperatureC: 20 };
+
+    assert.equal(store.has("lisbon"), false);
+    assert.equal(store.recordFor("lisbon"), null);
+    assert.equal(store.providerFor("lisbon"), "");
+    assert.equal(store.isStale("lisbon"), false, "no reading is not a stale one");
+
+    // the fetch time travels with the reading: a shared-cache hit hands over a
+    // reading that may already be most of a period old
+    store.record("lisbon", record, "Open-Meteo", now - 100_000);
+    assert.equal(store.recordFor("lisbon"), record);
+    assert.equal(store.providerFor("lisbon"), "Open-Meteo");
+    assert.equal(store.has("lisbon"), true);
+    assert.equal(store.isStale("lisbon"), false, "100s old against a 120s horizon");
+
+    now += 30_000;
+    assert.equal(store.isStale("lisbon"), true, "two refresh periods, and it is not the weather");
+    assert.equal(store.isStale("lisbon", now - 30_000), false, "an explicit clock is honoured");
+
+    // a receipt with no fetch time falls back to now, and a provider with no
+    // name is the empty string rather than undefined
+    store.record("tokyo", record, undefined, NaN);
+    assert.equal(store.providerFor("tokyo"), "");
+    assert.equal(store.isStale("tokyo"), false);
+
+    // a reading for a place the user removed must not outlive its row
+    store.keepOnly(new Set(["tokyo"]));
+    assert.equal(store.has("lisbon"), false);
+    assert.equal(store.has("tokyo"), true);
+    store.clear();
+    assert.equal(store.has("tokyo"), false);
+});
+
+test("the panel state and the city readings are the same store", () => {
+    const displaySource = fs.readFileSync(modulePath, "utf8");
+    const citySource = fs.readFileSync(
+        path.join(path.dirname(modulePath), "cityWeather.js"), "utf8");
+
+    for (const [name, source] of [["weather.js", displaySource],
+        ["cityWeather.js", citySource]]) {
+        assert.match(source, /WeatherReadingStore/,
+            name + " must hold its readings in the shared store");
+        assert.doesNotMatch(source, /freshAt:/,
+            name + " must not lay the reading record out a second time");
+    }
+    assert.doesNotMatch(citySource, /readingIsStale/,
+        "and the horizon is asked of the store, not recomputed beside it");
+});

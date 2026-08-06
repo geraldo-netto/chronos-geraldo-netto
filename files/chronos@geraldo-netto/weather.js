@@ -56,25 +56,22 @@ var cancelPendingWeatherRequests = WeatherProviders.cancelPendingWeatherRequests
 
 class WeatherDisplayState {
     constructor(params = {}) {
-        // the reading is the unit-free record, and it is all there is: nothing
-        // on this side of the port renders it
-        this._last_good_reading = null; // NOSONAR [S7757] -- accepted compatible form
-        this._last_good_provider = "";
-        this._last_good_key = "";
-        this._last_good_fresh_at = 0;
-        this._freshness_now = params.freshnessNow || params.now ||
-            ElapsedTime.civilMilliseconds;
-        // Two refresh periods with nothing getting through means nobody is
-        // refreshing this successfully any more, and what is on the panel is
-        // not the weather. The rule, and the derivation from the refresh period,
-        // are weatherFormat's — the city rows of the same feature use the same
-        // ones.
-        this._stale_after_seconds = params.staleAfterSeconds ||
-            WeatherFormat.staleAfterSeconds(params.refreshSeconds);
+        // The panel watches one place, so this is a one-key store — the same
+        // one the city rows keep eight of. Two refresh periods with nothing
+        // getting through means nobody is refreshing this successfully any
+        // more, and what is on the panel is not the weather; that rule and its
+        // derivation from the refresh period are weatherFormat's.
+        this._last_good_key = ""; // NOSONAR [S7757] -- accepted compatible form
+        this._store = new WeatherFormat.WeatherReadingStore({
+            freshnessNow: params.freshnessNow || params.now ||
+                ElapsedTime.civilMilliseconds,
+            staleAfterSeconds: params.staleAfterSeconds,
+            refreshSeconds: params.refreshSeconds
+        });
     }
 
     hasReading() {
-        return Boolean(this._last_good_reading);
+        return this._store.has(this._last_good_key);
     }
 
     // A reading belongs to the place and the units it was fetched for. The error
@@ -92,21 +89,16 @@ class WeatherDisplayState {
             return;
         }
 
-        this._last_good_reading = null;
-        this._last_good_provider = "";
+        this._store.clear();
         this._last_good_key = "";
-        this._last_good_fresh_at = 0;
     }
 
     // a reading nobody has managed to refresh for two periods is no longer a
     // reading, and showing it is worse than showing nothing
-    isStale(now = this._freshness_now()) {
-        if (!this._last_good_reading) {
-            return false;
-        }
-
-        return WeatherFormat.readingIsStale(
-            this._last_good_fresh_at, now, this._stale_after_seconds);
+    isStale(now) {
+        return now === undefined ?
+            this._store.isStale(this._last_good_key) :
+            this._store.isStale(this._last_good_key, now);
     }
 
     // The forecast resolver reports the unit-free reading record, and nothing
@@ -115,18 +107,16 @@ class WeatherDisplayState {
     reporter(staleKey, callback) {
         return (reading, error, provider, readingAt) => {
             if (reading && !error) {
-                this._last_good_reading = reading;
-                this._last_good_provider = provider;
                 this._last_good_key = staleKey;
-                // when the reading was fetched, not when it arrived: a hit on
-                // the shared cache hands over a reading that may already be
-                // most of a period old, and stamping receipt time here reset
-                // its age and withheld the staleness marker for another one
-                this._last_good_fresh_at = Number.isFinite(readingAt) ?
-                    readingAt : this._freshness_now();
-            } else if (error && this._last_good_reading && this._last_good_key === staleKey &&
-                !this.isStale()) {
-                callback(this._last_good_reading, error, this._last_good_provider);
+                this._store.record(staleKey, reading, provider, readingAt);
+            } else if (error && this._last_good_key === staleKey &&
+                this._store.has(staleKey) && !this.isStale()) {
+                // The panel is one line, and its ⚠ cannot say "old" apart from
+                // "failed": past the horizon it stops re-showing the reading.
+                // A tooltip row has room for "Last known reading" beside the
+                // temperature, so the city rows keep theirs and say so.
+                callback(this._store.recordFor(staleKey), error,
+                    this._store.providerFor(staleKey));
                 return;
             }
             callback(reading, error, provider);

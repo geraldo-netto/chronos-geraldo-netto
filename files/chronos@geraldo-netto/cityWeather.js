@@ -73,18 +73,25 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     constructor(params = {}) {
         this._destroyed = false; // NOSONAR [S7757] -- accepted compatible form
         this._generation = 0;
-        this._readings = new Map();
         this._errors = new Map();
         this._applied_signature = null;
         this._freshness_now = params.freshnessNow || params.now ||
             ElapsedTime.civilMilliseconds;
         this._refresh_seconds = params.refreshSeconds || CITY_REFRESH_SECONDS;
-        // derived from the period this provider actually refreshes on, not from
-        // the module default: staleFor() used to read the constant and ignore
-        // the injected period entirely, so a provider refreshing every minute
-        // called an hour-old temperature current
-        this._stale_after_seconds = params.staleAfterSeconds ||
-            Weather.staleAfterSeconds(this._refresh_seconds);
+        // One store per provider, holding one last-good reading per city: the
+        // panel provider this module is the twin of holds the same thing for
+        // one place, and the four fields and the freshness derivation behind
+        // them used to be written out here a second time.
+        //
+        // The horizon is derived from the period this provider actually
+        // refreshes on, not from the module default: staleFor() used to read
+        // the constant and ignore the injected period entirely, so a provider
+        // refreshing every minute called an hour-old temperature current.
+        this._reading_store = new Weather.WeatherReadingStore({
+            freshnessNow: this._freshness_now,
+            staleAfterSeconds: params.staleAfterSeconds,
+            refreshSeconds: this._refresh_seconds
+        });
 
         // The panel weather's scheduler, doing the same job for the cities: the
         // period, the exponential backoff with its cap and jitter, the attempt
@@ -147,13 +154,13 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     // reading is the unit-free record { condition, temperatureC }; the tooltip
     // renders it in the user's unit.
     recordFor(city) {
-        const reading = this._readingFor(city);
-        return reading ? reading.record : null;
+        const key = this._readingKey(city);
+        return key ? this._reading_store.recordFor(key) : null;
     }
 
     providerFor(city) {
-        const reading = this._readingFor(city);
-        return reading ? reading.provider : "";
+        const key = this._readingKey(city);
+        return key ? this._reading_store.providerFor(key) : "";
     }
 
     errorFor(city) {
@@ -182,21 +189,16 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     // not the weather any more, and saying so is the difference between a
     // temperature and a temperature from this morning
     staleFor(city, now = this._freshness_now()) {
-        const reading = this._readingFor(city);
-        if (!reading) {
-            return false;
-        }
-
-        return Weather.readingIsStale(
-            reading.freshAt, now, this._stale_after_seconds);
+        const key = this._readingKey(city);
+        return key ? this._reading_store.isStale(key, now) : false;
     }
 
-    _readingFor(city) {
+    _readingKey(city) {
         if (typeof city !== "string" || !city.trim()) {
-            return null;
+            return "";
         }
 
-        return this._readings.get(locationCacheKey(city)) || null;
+        return locationCacheKey(city);
     }
 
     stop() {
@@ -234,7 +236,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     destroy() {
         this._destroyed = true;
         this.stop();
-        this._readings.clear();
+        this._reading_store.clear();
         this._errors.clear();
 
         if (this._owns_reading_repository) {
@@ -302,7 +304,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         if (!this._active(settings) || !cities.length) {
             // weather off, or every clock is a built-in: drop what was read
             // for a city the user has since removed
-            this._readings.clear();
+            this._reading_store.clear();
             this._errors.clear();
             this._scheduler.succeeded();
             callback(this);
@@ -331,11 +333,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
     // a reading or an error for a city the user has since removed must not
     // outlive the clock row that showed it
     _forgetRemovedCities(wanted) {
-        for (const key of Array.from(this._readings.keys())) {
-            if (!wanted.has(key)) {
-                this._readings.delete(key);
-            }
-        }
+        this._reading_store.keepOnly(wanted);
         for (const key of Array.from(this._errors.keys())) {
             if (!wanted.has(key)) {
                 this._errors.delete(key);
@@ -495,17 +493,8 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         }
 
         this._setError(city.query, "");
-        this._readings.set(
-            locationCacheKey(city.query),
-            {
-                record: reading,
-                provider: provider || "",
-                // when the reading was fetched, which is not when it arrived: a
-                // hit on the shared cache hands over a reading that may already
-                // be most of a period old, and stamping receipt time here reset
-                // its age and withheld the staleness marker for another one
-                freshAt: Number.isFinite(readingAt) ? readingAt : this._freshness_now()
-            });
+        this._reading_store.record(
+            locationCacheKey(city.query), reading, provider, readingAt);
         // the panel is repainted once, when the round finishes
         round.changed = true;
         this._cityDone(generation, round, round.settings, callback, true);

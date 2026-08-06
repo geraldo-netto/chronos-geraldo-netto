@@ -923,7 +923,7 @@ function randomCityWeatherSettings(rand, cities) {
 function assertNoStrayCityReadings(provider, settings) {
     const wanted = new Set(provider._cities(settings)
         .map((city) => city.label.trim().toLowerCase()));
-    for (const key of provider._readings.keys()) {
+    for (const key of provider._reading_store._readings.keys()) {
         assert.ok(wanted.has(key), "no temperature survives for a clock the user removed");
     }
 }

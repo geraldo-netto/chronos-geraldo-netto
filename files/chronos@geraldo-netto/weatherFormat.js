@@ -84,9 +84,79 @@ function formatTemperature(celsius, units) {
     return Math.round(value) + (imperial ? "°F" : "°C");
 }
 
+
+// One last-good reading per place, and the rule for when it stops being one.
+//
+// "the last reading, who provided it, when it was fetched, and is that still
+// the weather?" was written twice: WeatherDisplayState held the panel's four
+// fields, and CityWeatherProvider held the same four per city, unnamed, in a
+// Map — while both derived the staleness horizon from staleAfterSeconds above.
+// One policy, two implementations, in the two files that call each other twins;
+// the refresh scheduler had already been de-duplicated the same way.
+//
+// The store keeps readings and answers how old they are. What a surface does
+// with a reading that has gone stale stays with that surface: the panel is one
+// line where a marker cannot say "old" apart from "failed", so it stops
+// re-showing it; a tooltip row has room for "Last known reading" beside the
+// temperature, so it keeps it and says so.
+var WeatherReadingStore = class WeatherReadingStore { // NOSONAR [S3504] -- GJS importer export
+    constructor(params = {}) {
+        this._readings = new Map();
+        this._now = params.freshnessNow;
+        this._stale_after_seconds = params.staleAfterSeconds ||
+            staleAfterSeconds(params.refreshSeconds);
+    }
+
+    // `readingAt` is when the reading was fetched, which is not when it
+    // arrived: a hit on the shared cache hands over a reading that may already
+    // be most of a period old, and stamping receipt time here reset its age and
+    // withheld the staleness marker for another one.
+    record(key, reading, provider, readingAt) {
+        this._readings.set(key, {
+            record: reading,
+            provider: provider || "",
+            freshAt: Number.isFinite(readingAt) ? readingAt : this._now()
+        });
+    }
+
+    recordFor(key) {
+        const entry = this._readings.get(key);
+        return entry ? entry.record : null;
+    }
+
+    providerFor(key) {
+        const entry = this._readings.get(key);
+        return entry ? entry.provider : "";
+    }
+
+    has(key) {
+        return Boolean(this.recordFor(key));
+    }
+
+    isStale(key, now = this._now()) {
+        const entry = this._readings.get(key);
+        return entry ?
+            readingIsStale(entry.freshAt, now, this._stale_after_seconds) : false;
+    }
+
+    // a reading for a place the user has since removed must not outlive the row
+    // that showed it
+    keepOnly(keys) {
+        for (const key of Array.from(this._readings.keys())) {
+            if (!keys.has(key)) {
+                this._readings.delete(key);
+            }
+        }
+    }
+
+    clear() {
+        this._readings.clear();
+    }
+};
+
 if (typeof module !== "undefined") {
     module.exports = { REFRESH_SECONDS, RETRY_SECONDS, STALE_PERIODS,
-        staleAfterSeconds, readingIsStale, MAX_RETRY_ATTEMPTS,
+        staleAfterSeconds, readingIsStale, WeatherReadingStore, MAX_RETRY_ATTEMPTS,
         MAX_GEOCODE_CACHE_ENTRIES, MAX_WEATHER_LOCATION_LENGTH,
         WEATHER_DEBOUNCE_MS, WEATHER_UNITS,
         WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS,
