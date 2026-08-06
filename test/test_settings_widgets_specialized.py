@@ -55,6 +55,38 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertNotIn("error", classes)
         self.assertEqual(description, "")
 
+    def test_typing_a_valid_replacement_clears_an_external_refusal(self):
+        oversized = "x" * (self.module.MAX_WEATHER_LOCATION_LENGTH + 1)
+        widget, _settings = self.entry({"weather-location": oversized})
+
+        widget.bind_object.set_text("Porto")
+        widget.bind_object.emit_changed()
+
+        classes, description = self.marks_of(widget)
+        self.assertNotIn("error", classes)
+        self.assertEqual(description, "")
+
+    def test_external_refusal_survives_its_programmatic_text_change(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+        entry = widget.bind_object
+        set_text = entry.set_text
+
+        def gtk_set_text(text):
+            set_text(text)
+            entry.emit_changed()
+
+        entry.set_text = gtk_set_text
+        settings.values["weather-location"] = (
+            "x" * (self.module.MAX_WEATHER_LOCATION_LENGTH + 1)
+        )
+
+        widget.on_setting_changed()
+
+        classes, description = self.marks_of(widget)
+        self.assertEqual(entry.get_text(), "")
+        self.assertIn("error", classes)
+        self.assertEqual(description, "This location is too long to save")
+
     def test_committing_an_oversized_location_marks_and_saves_nothing(self):
         widget, settings = self.entry({"weather-location": "Lisbon"})
 

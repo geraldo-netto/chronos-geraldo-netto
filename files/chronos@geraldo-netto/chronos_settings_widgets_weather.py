@@ -156,14 +156,24 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         # the key changed under the dialog — another instance of the applet, or
         # the applet's own timezone prefill
         stored = self.get_value()
-        self.mark_refused(refuses_weather_location(stored))
         text = normalize_weather_location(stored)
         if self.content_widget.get_text() != text:
             self.content_widget.set_text(text)
+        # Gtk.Entry.set_text() emits "changed". Mark the rejected stored value
+        # after that signal so the empty normalization above cannot clear the
+        # reason the key itself was refused.
+        self.mark_refused(refuses_weather_location(stored))
+
+    def on_entry_edited(self, *args):
+        # This changes only the field state. Saving still belongs to commit(), so
+        # typing a replacement neither writes the key nor starts geocoding it.
+        self.mark_refused(
+            refuses_weather_location(self.content_widget.get_text()))
 
     def connect_widget_handlers(self, *args):
         self.content_widget.connect("focus-in-event", self.ensure_completion)
-        # the ways an edit ends. Not "changed", which is every keystroke.
+        self.content_widget.connect("changed", self.on_entry_edited)
+        # the ways an edit ends
         self.content_widget.connect("activate", self.on_commit)
         self.content_widget.connect("focus-out-event", self.on_commit)
         # closing the settings window while the cursor is still in the field
