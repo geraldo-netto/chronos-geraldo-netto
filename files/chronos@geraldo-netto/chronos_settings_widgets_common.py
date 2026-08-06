@@ -198,8 +198,36 @@ def set_invalid(widget, is_invalid, description=""):
             atk.set_description(description if is_invalid else "")
 
 
+def _relate(atk, label, described):
+    """At most one DESCRIBED_BY target, and only while the message is about it.
+
+    atk_object_add_relationship appends to the existing relation's target list
+    rather than replacing it, so removing first is what makes calling this twice
+    the same as calling it once. Removing a relation that is not there is a
+    no-op, which is also how the "stop describing this field" case is served.
+    """
+    target = label.get_accessible() if hasattr(label, "get_accessible") else None
+    if target is None or not hasattr(atk, "remove_relationship"):
+        return
+
+    # ATK_RELATION_DESCRIBED_BY: "the thing that explains me is that label"
+    atk.remove_relationship(Atk.RelationType.DESCRIBED_BY, target)
+    if described and hasattr(atk, "add_relationship"):
+        atk.add_relationship(Atk.RelationType.DESCRIBED_BY, target)
+
+
 def describe_widget(widget, label, text):
-    """Tie the message to the field it is about, for a screen reader."""
+    """Tie the message to the field it is about, for a screen reader.
+
+    Empty `text` means "the message is not about this field", and takes the tie
+    off again. Nothing used to: the only caller runs on every keystroke, so an
+    invalid field stacked the same DESCRIBED_BY target once per character, and a
+    field that stopped being the invalid one kept pointing at a preview label
+    that had since started explaining the *other* field. A valid timezone with
+    an empty display name announced "Enter a display name for this clock" on the
+    timezone entry. set_invalid clears the widgets it is not marking; this now
+    does the same.
+    """
     if widget is None:
         return
 
@@ -211,9 +239,7 @@ def describe_widget(widget, label, text):
     atk = accessible()
     if hasattr(atk, "set_description"):
         atk.set_description(text)
-    if hasattr(label, "get_accessible") and hasattr(atk, "add_relationship"):
-        # ATK_RELATION_DESCRIBED_BY: "the thing that explains me is that label"
-        atk.add_relationship(Atk.RelationType.DESCRIBED_BY, label.get_accessible())
+    _relate(atk, label, bool(text))
 
 
 

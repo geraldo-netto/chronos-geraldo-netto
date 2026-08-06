@@ -231,7 +231,16 @@ class AtkObject:
         self.description = text
 
     def add_relationship(self, relation, target):
+        # atk_object_add_relationship appends to the existing relation's target
+        # list; it does not replace or de-duplicate. Modelled, because that
+        # append is what a per-keystroke caller turns into a growing list.
         self.relationships.append((relation, target))
+
+    def remove_relationship(self, relation, target):
+        before = len(self.relationships)
+        self.relationships = [
+            pair for pair in self.relationships if pair != (relation, target)]
+        return len(self.relationships) != before
 
 
 class StyleContext:

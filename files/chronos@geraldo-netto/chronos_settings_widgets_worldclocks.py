@@ -379,14 +379,18 @@ class ClockDialogStatePresenter:
         # ATK description on that entry, so describe_widget has to run *after* it
         # — a valid timezone with an empty name is not an invalid timezone, and
         # the screen reader must hear the real reason, not the generic one.
+        #
+        # Both, per widget, in one pass. describe_widget used to be called once
+        # for the offending field alone, which meant the field that stopped
+        # being the offending one was never told: it kept a DESCRIBED_BY
+        # relation to a preview label that had moved on to explaining its
+        # neighbour. The message is about a field, so a screen reader reads it
+        # *with* that field — and only with that field.
         set_error_state(self.preview_label, bool(invalid))
         for field, widget in widgets.items():
-            set_invalid(widget, field == invalid)
-
-        # the message is about a field, so a screen reader reads it *with* that
-        # field; this description wins over the generic one set_invalid wrote
-        described = widgets.get(invalid) if invalid else None
-        describe_widget(described, self.preview_label, text)
+            offending = field == invalid
+            set_invalid(widget, offending)
+            describe_widget(widget, self.preview_label, text if offending else "")
 
 class ClockDialogBuilder:
     def __init__(self, clocks_list):

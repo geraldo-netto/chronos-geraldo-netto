@@ -916,6 +916,41 @@ class DialogValidationFeedbackTest(unittest.TestCase):
             "Enter a display name for this clock",
             "a screen reader hears the real problem with the field")
 
+    def test_the_message_follows_the_field_it_is_about(self):
+        # T835: describe_widget was called for the offending field alone, and
+        # nothing ever removed a relation. Fix the timezone and leave the name
+        # empty and the timezone entry still pointed at a preview label that had
+        # moved on to explaining the name field, so a screen reader on the
+        # timezone announced the other field's problem.
+        _dialog, widgets = self._dialog({"label": "Home", "timezone": "Not A Zone"})
+        timezone = widgets["timezone"].bind_object.get_accessible()
+        self.assertTrue(timezone.relationships, "the timezone is the problem")
+
+        # the user fixes the zone and clears the name
+        widgets["timezone"].set_widget_value("Europe/Rome")
+        widgets["label"].set_widget_value("")
+        widgets["timezone"].bind_object.emit_changed()
+
+        self.assertFalse(timezone.relationships,
+                         "the timezone is no longer what the preview is about")
+        self.assertEqual(timezone.description, "",
+                         "and it says nothing rather than the wrong thing")
+        self.assertTrue(widgets["label"].bind_object.get_accessible().relationships,
+                        "the name field is")
+
+    def test_typing_does_not_stack_the_same_relation(self):
+        # add_relationship appends to the relation's target list, and update()
+        # runs on every keystroke: an invalid zone grew one duplicate target per
+        # character typed.
+        _dialog, widgets = self._dialog({"label": "Home", "timezone": "Nope"})
+        entry = widgets["timezone"].bind_object
+
+        for text in ("Nope1", "Nope12", "Nope123"):
+            widgets["timezone"].set_widget_value(text)
+            entry.emit_changed()
+
+        self.assertEqual(len(entry.get_accessible().relationships), 1)
+
     def test_a_valid_clock_clears_every_mark(self):
         dialog, widgets = self._dialog({"label": "Home", "timezone": "Europe/Rome"})
 
