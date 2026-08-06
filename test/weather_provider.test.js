@@ -1117,6 +1117,58 @@ test("the Nominatim queue does not reinterpret an exception after release", () =
     assert.equal(queue._active, false);
 });
 
+test("a Nominatim timer failure drops its job and advances the queue", () => {
+    const Weather = loadWeather();
+    let now = 0;
+    let scheduleCalls = 0;
+    const timers = [];
+    const queue = new Weather.NominatimRequestQueue({
+        elapsedNow: () => now,
+        schedule(delay, callback) {
+            scheduleCalls++;
+            if (scheduleCalls === 1) {
+                throw new Error("timer registration failed");
+            }
+            timers.push({ delay, callback });
+            return scheduleCalls;
+        }
+    });
+    let releaseFirst = null;
+    const starts = [];
+    const failures = [];
+    queue.enqueue((release) => { releaseFirst = release; });
+    queue.enqueue(() => starts.push("replayed"), () => true,
+        (error) => failures.push(error.message));
+    queue.enqueue(() => starts.push("next"));
+
+    releaseFirst();
+    assert.deepEqual(failures, ["timer registration failed"]);
+    assert.deepEqual(starts, [], "the failed job was not dispatched");
+    assert.equal(queue._jobs.length, 1, "only the later job remains parked");
+    assert.equal(timers.length, 1, "queue progress was secured before failure reporting");
+
+    now = Weather.NOMINATIM_MIN_INTERVAL_MS;
+    timers[0].callback();
+    assert.deepEqual(starts, ["next"], "a later wake cannot replay the failed job");
+});
+
+test("a timer failure without a continuation still removes its job", () => {
+    const Weather = loadWeather();
+    const queue = new Weather.NominatimRequestQueue({
+        elapsedNow: () => 0,
+        schedule() {
+            return 0;
+        }
+    });
+    let releaseFirst = null;
+    queue.enqueue((release) => { releaseFirst = release; });
+    queue.enqueue(() => assert.fail("failed timer job must not start"));
+
+    assert.throws(() => releaseFirst(), /could not register its spacing timer/);
+    assert.deepEqual(queue._jobs, []);
+    assert.equal(queue._timer_id, 0);
+});
+
 // The spacing timer is armed inside a module-global queue, so no instance owns
 // it: without a teardown path it outlives the applet, which is what
 // cancelPendingLocaleQueries() exists to prevent for the other module-level

@@ -161,12 +161,7 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
             measuredElapsed : 0;
         const delay = Math.max(0, NOMINATIM_MIN_INTERVAL_MS - elapsed);
         if (delay > 0) {
-            this._jobs.unshift(job);
-            this._timer_id = this._schedule(delay, () => {
-                this._timer_id = 0;
-                this._drain();
-                return false;
-            });
+            this._scheduleJob(job, delay);
             return;
         }
 
@@ -187,6 +182,39 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
         } catch (error) {
             this._handleStartFailure(job, released, release, error);
         }
+    }
+
+    _scheduleJob(job, delay) {
+        this._jobs.unshift(job);
+        try {
+            const timerId = this._schedule(delay, () => {
+                this._timer_id = 0;
+                this._drain();
+                return false;
+            });
+            if (!timerId) {
+                throw new Error("Nominatim queue could not register its spacing timer");
+            }
+            this._timer_id = timerId;
+        } catch (error) {
+            this._removeParkedJob(job);
+            this._reportParkedFailure(job, error);
+        }
+    }
+
+    _removeParkedJob(job) {
+        const index = this._jobs.indexOf(job);
+        if (index >= 0) {
+            this._jobs.splice(index, 1);
+        }
+    }
+
+    _reportParkedFailure(job, error) {
+        this._drain();
+        if (!job.onFailure) {
+            throw error;
+        }
+        job.onFailure(error);
     }
 
     _handleStartFailure(job, released, release, error) {
