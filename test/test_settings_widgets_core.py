@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from unittest import mock
 
 from helpers.settings_widgets_fixture import (
@@ -220,6 +221,27 @@ class SettingsWidgetsTest(unittest.TestCase):
         clamped = self.module.normalize_clock_label(long_label)
         self.assertEqual(len(clamped), self.module.MAX_CLOCK_INPUT_LABEL_LENGTH)
         self.assertNotIn("\n", clamped)
+
+    def test_the_sanitizer_matches_the_runtime_copy_of_the_rule(self):
+        """T786: one rule for one string - a world clock's Display name, which
+        this dialog persists and the applet reads back - written twice with no
+        gate between the two. It had already drifted: the line separators (T783)
+        and the bidi overrides (T833) were added to textUtils alone, so the
+        dialog went on saving exactly what the runtime then had to strip. The JS
+        suite asserts the same table."""
+        cases = json.loads(
+            (Path(__file__).parent / "fixtures" / "control_character_cases.json").read_text())
+        sanitize = self.module.sanitize_control_characters
+
+        for case in cases["removed"]:
+            self.assertEqual(sanitize("a%sb" % chr(case["codePoint"])), "a b",
+                             case["why"])
+        for case in cases["kept"]:
+            kept = "a%sb" % chr(case["codePoint"])
+            self.assertEqual(sanitize(kept), kept, case["why"])
+        for case in cases["runs"]:
+            run = "".join(chr(code) for code in case["codePoints"])
+            self.assertEqual(sanitize("a%sb" % run), "a b", case["why"])
 
     def test_clock_entry_serializer_matches_schema_column_order(self):
         schema = json.loads((APPLET_DIR / "6.0" / "settings-schema.json").read_text())

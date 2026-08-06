@@ -62,6 +62,30 @@ test("the sanitizer removes the overrides that reorder what follows them", () =>
     }
 });
 
+// T786: one rule, one string - a world clock's Display name, which the settings
+// dialog persists and the runtime reads back - and two implementations with no
+// gate between them. It had already drifted twice: the line separators and the
+// bidi overrides were added here alone, so the dialog went on saving what the
+// applet then had to strip. The Python suite asserts the same table.
+test("the sanitizer matches the settings dialog's copy of the rule", () => {
+    const cases = require("./fixtures/control_character_cases.json");
+
+    for (const { codePoint, why } of cases.removed) {
+        assert.equal(
+            sanitizeControlCharacters("a" + String.fromCodePoint(codePoint) + "b"),
+            "a b", why);
+    }
+    for (const { codePoint, why } of cases.kept) {
+        const kept = "a" + String.fromCodePoint(codePoint) + "b";
+        assert.equal(sanitizeControlCharacters(kept), kept, why);
+    }
+    for (const { codePoints, why } of cases.runs) {
+        assert.equal(
+            sanitizeControlCharacters("a" + String.fromCodePoint(...codePoints) + "b"),
+            "a b", why);
+    }
+});
+
 // T792: MAX_CLOCK_LABEL_CELLS exists to bound a layout its own comment
 // describes in cells - the popup grid, and the monospace tooltip padded to the
 // widest cell - and it was enforced with clampText, a code-point clamp.

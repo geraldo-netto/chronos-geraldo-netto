@@ -1,0 +1,41 @@
+{
+  "_comment": "Shared parity fixture for T786: the JS TextUtils.sanitizeControlCharacters (textUtils.js) and the Python sanitize_control_characters (chronos_settings_widgets_worldclocks.py) implement one rule for one string - a world clock's Display name, which the dialog persists and the runtime reads back. They had already drifted twice: the line separators (T783) and the bidi overrides (T833) were added to the JS side alone, so the dialog saved what the applet then had to strip. textUtils.test.js and test_settings_widgets_core.py each assert against this table, so a one-sided change fails one suite. Code points are given as numbers because a control character in a JSON string is not readable, and the expected value is what \"a<CP>b\" sanitizes to.",
+  "removed": [
+    { "codePoint": 0, "why": "NUL" },
+    { "codePoint": 9, "why": "TAB" },
+    { "codePoint": 10, "why": "LF" },
+    { "codePoint": 11, "why": "VT" },
+    { "codePoint": 12, "why": "FF" },
+    { "codePoint": 13, "why": "CR" },
+    { "codePoint": 27, "why": "ESC - starts an ANSI/OSC sequence in a log" },
+    { "codePoint": 31, "why": "the top of C0" },
+    { "codePoint": 127, "why": "DEL" },
+    { "codePoint": 133, "why": "NEL - a line break to Pango" },
+    { "codePoint": 159, "why": "the top of C1" },
+    { "codePoint": 8232, "why": "U+2028 LINE SEPARATOR - category Zl, not Cc" },
+    { "codePoint": 8233, "why": "U+2029 PARAGRAPH SEPARATOR - category Zp" },
+    { "codePoint": 8234, "why": "U+202A LEFT-TO-RIGHT EMBEDDING" },
+    { "codePoint": 8235, "why": "U+202B RIGHT-TO-LEFT EMBEDDING" },
+    { "codePoint": 8236, "why": "U+202C POP DIRECTIONAL FORMATTING" },
+    { "codePoint": 8237, "why": "U+202D LEFT-TO-RIGHT OVERRIDE" },
+    { "codePoint": 8238, "why": "U+202E RIGHT-TO-LEFT OVERRIDE - reverses everything after it" },
+    { "codePoint": 8294, "why": "U+2066 LEFT-TO-RIGHT ISOLATE" },
+    { "codePoint": 8295, "why": "U+2067 RIGHT-TO-LEFT ISOLATE" },
+    { "codePoint": 8296, "why": "U+2068 FIRST STRONG ISOLATE" },
+    { "codePoint": 8297, "why": "U+2069 POP DIRECTIONAL ISOLATE" }
+  ],
+  "kept": [
+    { "codePoint": 32, "why": "an ordinary space is text" },
+    { "codePoint": 160, "why": "U+00A0 NO-BREAK SPACE prints" },
+    { "codePoint": 8199, "why": "U+2007 FIGURE SPACE is Zs" },
+    { "codePoint": 8239, "why": "U+202F NARROW NO-BREAK SPACE, just past the overrides" },
+    { "codePoint": 8293, "why": "U+2065, unassigned and just before the isolates" },
+    { "codePoint": 8298, "why": "U+206A, deprecated and acted on by no renderer" },
+    { "codePoint": 12288, "why": "U+3000 IDEOGRAPHIC SPACE is Zs" },
+    { "codePoint": 128512, "why": "an astral code point is not a control character" }
+  ],
+  "runs": [
+    { "codePoints": [8232, 10, 8233], "why": "a run of removals collapses to one space" },
+    { "codePoints": [8238, 27], "why": "an override beside a C0 control is still one space" }
+  ]
+}

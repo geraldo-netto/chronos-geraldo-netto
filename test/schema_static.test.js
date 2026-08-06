@@ -804,6 +804,32 @@ test("the clock cap is the same in schema, JS, Python, and the README", () => {
     }
 });
 
+// T786: MAX_CLOCKS above and MAX_WEATHER_LOCATION_LENGTH in the Python suite
+// were the only two settings rules with a cross-language gate. These two are
+// duplicated the same way and had none, so a one-sided change kept both suites
+// green: the label clamp decides what the dialog writes and what the runtime
+// re-truncates on read - a drift there is a double ellipsis, or a silently
+// shortened saved value with no feedback in the dialog - and worldclockData's
+// own comment records that a past drift on the Etc guard already made the two
+// sides write different weather-location keys.
+test("the label clamp and the no-region area are the same in JS and Python", () => {
+    const worldclockData = fs.readFileSync(path.join(appletDir, "worldclockData.js"), "utf8");
+    const widgets = fs.readFileSync(
+        path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
+    const timezoneData = fs.readFileSync(
+        path.join(appletDir, "chronos_timezone_data.py"), "utf8");
+
+    const jsClamp = /^var MAX_CLOCK_INPUT_LABEL_LENGTH = (\d+);/m.exec(worldclockData);
+    const pyClamp = /^MAX_CLOCK_INPUT_LABEL_LENGTH = (\d+)$/m.exec(widgets);
+    assert.ok(jsClamp && pyClamp, "both sides must declare the label clamp");
+    assert.equal(Number(jsClamp[1]), Number(pyClamp[1]));
+
+    const jsArea = /^var TZ_NO_REGION = "([^"]+)";/m.exec(worldclockData);
+    const pyArea = /^TZ_NO_REGION = '([^']+)'$/m.exec(timezoneData);
+    assert.ok(jsArea && pyArea, "both sides must declare the no-region area");
+    assert.equal(jsArea[1], pyArea[1]);
+});
+
 test("the holiday refresh period is the same in code and the README", () => {
     // UPDATE_PERIOD_DAYS is the one source; the README quotes it in prose
     const cache = fs.readFileSync(path.join(appletDir, "holidayCache.js"), "utf8");
