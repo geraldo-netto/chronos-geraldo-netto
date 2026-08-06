@@ -266,7 +266,14 @@ class PanelView {
         }
 
         actor.set_accessible_name(name);
-        if (Atk.Role && actor.accessible_role !== Atk.Role.PUSH_BUTTON) {
+        // Assigned, never compared. Reading accessible_role calls
+        // atk_object_get_role() on the actor's accessible, and on the xlet
+        // reload path that accessible is not an ATK object yet, so the read
+        // trips an assertion once per reload — but only while an AT-SPI client
+        // is attached, which is to say only for the screen-reader users this
+        // name is here to serve. The assignment is idempotent, so the
+        // comparison that guarded it bought nothing to pay for that.
+        if (Atk.Role) {
             actor.accessible_role = Atk.Role.PUSH_BUTTON;
         }
     }

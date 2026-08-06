@@ -1728,6 +1728,32 @@ test("the panel button announces that it is a button", () => {
     assert.equal(actor.accessible_role, Atk.Role.PUSH_BUTTON);
 });
 
+// Reading the property is what atk_object_get_role() hangs off, and on the
+// reload path the accessible behind it is not an ATK object yet: with a screen
+// reader attached, every ReloadXlet logged one
+// `atk_object_get_role: assertion 'ATK_IS_OBJECT (accessible)' failed`.
+// Removing the read silenced it across three reloads and restoring it brought
+// it straight back, so the role is now assigned without first asking for it.
+test("the panel button is given its role without reading the old one", () => {
+    const Atk = global.imports.gi.Atk;
+    let reads = 0;
+    const actor = { set_accessible_name(name) { this.accessible_name = name; } };
+    Object.defineProperty(actor, "accessible_role", {
+        get() {
+            reads += 1;
+            throw new Error("atk_object_get_role: accessible is not an ATK object");
+        },
+        set(role) { this._role = role; },
+        configurable: true
+    });
+    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort({ actor }));
+
+    assert.doesNotThrow(() => view.setAccessibleName("12 Jul 14:03"));
+
+    assert.equal(reads, 0, "the role is written, never read back");
+    assert.equal(actor._role, Atk.Role.PUSH_BUTTON);
+});
+
 // The tooltip is rebuilt on every tick while the panel is hovered — 1 Hz — and
 // alignTooltipRows makes two passes over every cell with Array.from() plus a
 // " ".repeat() each: some eighty allocations for ten clocks. The format carries
