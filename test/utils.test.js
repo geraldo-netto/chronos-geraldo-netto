@@ -1842,6 +1842,7 @@ test("readJsonFileAsync reads off the main loop and never throws at the caller",
     assert.deepEqual(read(asyncFile('{"usa":{"holidays":[]}}')), { usa: { holidays: [] } });
     assert.deepEqual(read(asyncFile("{ not json")), {}, "a corrupt file reads as empty");
     assert.deepEqual(read(asyncFile("null")), {}, "a file that parses to a scalar reads as empty");
+    assert.deepEqual(read(asyncFile("[]")), {}, "an array cannot hold country-keyed cache data");
     assert.deepEqual(read(asyncFile("{}", { missing: true })), {}, "a missing file is not read at all");
     assert.deepEqual(read(asyncFile("{}", { throwOnFinish: true })), {});
     assert.deepEqual(read(asyncFile("{}", { throwOnCall: true })), {});

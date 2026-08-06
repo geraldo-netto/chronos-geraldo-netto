@@ -101,8 +101,11 @@ function _parseCacheFile(contents, ok) {
 
     const parsed = JSON.parse(decodeUtf8(contents));
 
-    // a corrupt file may parse to null or a scalar
-    return parsed && typeof parsed === "object" ? parsed : {};
+    // The cache is a country-keyed mapping. Arrays are objects in JavaScript,
+    // but string-key properties written onto one disappear when JSON.stringify
+    // serializes it, so accepting an array here would make the next save look
+    // successful while dropping every pending country.
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
 }
 
 // The cap was applied inside _parseCacheFile — that is, after
