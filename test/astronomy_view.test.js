@@ -269,6 +269,74 @@ test("the popup view reuses one daily result and hides without cached coordinate
     assert.equal(view.actor.visible, false, "invalid observer coordinates hide the rows");
 });
 
+// The civil-day bounds used to be recomputed in front of the render memo, so
+// an open-menu tick paid four GLib.DateTime constructions for a value that
+// changes once a day. Its validity rule is simply "the clock is still inside
+// the day it describes", so the day the cache holds is checked against now.
+test("the astronomy civil day is computed once per day, per zone", () => {
+    const View = loadView();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const startOfDay = Date.UTC(2026, 2, 5);
+    let now = new Date(startOfDay + 12 * 60 * 60 * 1000);
+    const boundsCalls = [];
+    const view = new View.AstronomyView(new MockBox(), {
+        now: () => now,
+        dayBounds(_now, placeTimezone) {
+            boundsCalls.push(placeTimezone.get_identifier());
+            // a real day contains the clock that asked for it
+            const start = Math.floor(_now.getTime() / dayMs) * dayMs;
+            return { startMs: start, endMs: start + dayMs };
+        },
+        calculate: () => ({
+            sun: { rise: 1, set: 2, state: "normal" },
+            moon: { rise: 3, set: 4, state: "normal" }
+        }),
+        formatTime: (timestamp) => String(timestamp)
+    });
+    const seoul = { visible: true, place: {
+        latitude: 41.9, longitude: 12.48, timezone: "Asia/Seoul"
+    }, use24h: true };
+
+    view.update(seoul);
+    view.update(seoul);
+    view.update(seoul);
+    assert.deepEqual(boundsCalls, ["Asia/Seoul"], "three ticks, one civil day");
+    assert.equal(view.actor.visible, true);
+
+    // still the same day, an hour later
+    now = new Date(startOfDay + 13 * 60 * 60 * 1000);
+    view.update(seoul);
+    assert.deepEqual(boundsCalls, ["Asia/Seoul"]);
+
+    // the day's own first instant belongs to it
+    now = new Date(startOfDay);
+    view.update(seoul);
+    assert.deepEqual(boundsCalls, ["Asia/Seoul"], "midnight is inside the day it starts");
+
+    // ...and its last is the next day's first, not this one's: reusing the
+    // cached day here would show yesterday's sunrise on the new date
+    now = new Date(startOfDay + dayMs);
+    view.update(seoul);
+    assert.deepEqual(boundsCalls, ["Asia/Seoul", "Asia/Seoul"],
+        "the end bound belongs to the following day");
+
+    // a minute further in is inside the day just computed
+    now = new Date(startOfDay + dayMs + 60 * 1000);
+    view.update(seoul);
+    assert.deepEqual(boundsCalls, ["Asia/Seoul", "Asia/Seoul"]);
+
+    // a different place is a different day, even at the same instant
+    view.update({ visible: true, place: {
+        latitude: 41.9, longitude: 12.48, timezone: "Pacific/Auckland"
+    }, use24h: true });
+    assert.deepEqual(boundsCalls,
+        ["Asia/Seoul", "Asia/Seoul", "Pacific/Auckland"], "the zone is part of the day");
+
+    // ...and switching back does not keep Auckland's day for Seoul
+    view.update(seoul);
+    assert.deepEqual(boundsCalls.at(-1), "Asia/Seoul");
+});
+
 // The fallback zone is this machine's, memoised so an open-menu tick does not
 // rebuild it — and the OS zone is the one input under the applet that moves.
 // Both halves have to be dropped: the memo, and the render key that carries the

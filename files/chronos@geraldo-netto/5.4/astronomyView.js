@@ -82,6 +82,7 @@ class AstronomyView {
         this._timezoneKey = "";
         this._timezone = null;
         this._local_timezone = null;
+        this._dayCache = null;
 
         this.actor = new St.BoxLayout({
             vertical: true,
@@ -166,13 +167,45 @@ class AstronomyView {
             _("Moon is below the horizon all day"), formatTime));
     }
 
+    // A day's bounds are only the day's bounds while the clock is inside them,
+    // which is the whole validity rule — no separate key is needed, and none
+    // could be cheaper than the answer it would be guarding.
+    _cachedBounds(key, nowMs) {
+        const cached = this._dayCache;
+        if (!cached || cached.key !== key) {
+            return null;
+        }
+
+        return nowMs >= cached.bounds.startMs && nowMs < cached.bounds.endMs ?
+            cached.bounds : null;
+    }
+
+    // update() runs on every clock notify while the menu is open, and this used
+    // to run in front of the render memo rather than behind it: four
+    // GLib.DateTimes per tick — new_from_unix_utc, to_timezone, new() and
+    // add_days — for a value that changes once a civil day.
+    _civilDay(timezone) {
+        const now = this._now();
+        const key = WorldclockData.timezoneIdentity(timezone) || "";
+        const nowMs = now && typeof now.getTime === "function" ? // NOSONAR [S6582] -- accepted compatible form
+            now.getTime() : NaN;
+        const cached = this._cachedBounds(key, nowMs);
+        if (cached) {
+            return cached;
+        }
+
+        const bounds = this._dayBounds(now, timezone);
+        this._dayCache = bounds ? { key, bounds } : null;
+        return bounds;
+    }
+
     _observerDay(visible, place) {
         if (!visible || !place ||
             !Astronomy.validCoordinates(place.latitude, place.longitude)) {
             return null;
         }
         const zone = this._placeTimezone(place.timezone);
-        const bounds = zone.timezone ? this._dayBounds(this._now(), zone.timezone) : null;
+        const bounds = zone.timezone ? this._civilDay(zone.timezone) : null;
         if (!bounds || !Astronomy.validDayBounds(bounds.startMs, bounds.endMs)) {
             return null;
         }
