@@ -303,8 +303,8 @@ The eslint rules live in [`eslint.config.mjs`](eslint.config.mjs). It lints the
 applet under `files/` as GJS and the suites under `test/` as Node, so run it
 before opening a pull request — a lint failure is a build failure. That is
 literal: [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs `npm run
-lint` and `npm test` — both suites and both coverage gates — on every push and
-pull request.
+lint` and `npm test` — both suites and both coverage gates — on every pull
+request and on pushes to `develop` and `v*` tags.
 
 ### How the source is laid out (development)
 

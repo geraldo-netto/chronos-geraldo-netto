@@ -473,6 +473,11 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /on:[\s\S]*push:[\s\S]*pull_request:/, "on push and on pull request");
     assert.match(workflow, /^ {4}branches: \[develop\]$/m,
         "the real upstream release branch gets a post-push CI result");
+    assert.match(readme,
+        /on every pull\s+request and on pushes to `develop` and `v\*` tags/,
+        "the README names the workflow's actual triggers");
+    assert.doesNotMatch(readme, /on every push and\s+pull request/,
+        "feature-branch pushes without a pull request do not run CI");
     // every job runs repository and dependency code; the token must not be
     // able to write back, and a mutable action tag must not be able to move
     assert.match(workflow, /^permissions:\n {2}contents: read$/m,
