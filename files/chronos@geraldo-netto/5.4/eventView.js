@@ -821,12 +821,50 @@ class EventRowPresenter {
         });
     }
 
+    // St compares by pointer, so writing a byte-identical string still queues a
+    // relayout — the reason the day cells diff rendered_style and dot_key, the
+    // panel diffs _rendered_label, and the tooltips diff rendered_tooltip. The
+    // rows were the ones that did not: refresh_time_state() runs them all on
+    // every tick while the menu is open, and a row's time range never changes
+    // while its day is on screen and its countdown changes once a minute at
+    // most, so 200 rows paid four forced relayouts each, a second, for text
+    // that was already there.
+    //
+    // Each writer guards exactly the properties the caller writes today. The
+    // pseudo-class on event_time is deliberately not reset on the branches that
+    // never set it: "all-day" belongs to an event whose kind cannot change
+    // while the row exists, and clearing it here would be a new write, not a
+    // saved one.
+    _setTimeText(text) {
+        if (this.row.rendered_time_text === text) {
+            return;
+        }
+        this.row.rendered_time_text = text;
+        this.row.event_time.set_text(text);
+    }
+
+    _setTimeStyleClass(styleClass) {
+        if (this.row.rendered_time_style === styleClass) {
+            return;
+        }
+        this.row.rendered_time_style = styleClass;
+        this.row.event_time.set_style_class_name(styleClass);
+    }
+
+    _setTimePseudoClass(pseudoClass) {
+        if (this.row.rendered_time_pseudo === pseudoClass) {
+            return;
+        }
+        this.row.rendered_time_pseudo = pseudoClass;
+        this.row.event_time.set_style_pseudo_class(pseudoClass);
+    }
+
     update(now = GLib.DateTime.new_now_local(), today = date_only(now)) {
         if (this.row.event.is_holiday) {
             this.row.is_current_or_next = false;
-            this.row.event_time.set_style_class_name("calendar-event-time-present");
-            this.row.event_time.set_style_pseudo_class("all-day");
-            this.row.event_time.set_text(holidayAgendaType(this.row.event.flags));
+            this._setTimeStyleClass("calendar-event-time-present");
+            this._setTimePseudoClass("all-day");
+            this._setTimeText(holidayAgendaType(this.row.event.flags));
             this._setCountdown("");
             this._announce();
             return;
@@ -836,7 +874,7 @@ class EventRowPresenter {
         this.row.is_current_or_next = state.is_current_or_next;
 
         this._applyState(state);
-        this.row.event_time.set_text(EventFormat.formatEventTimeRange(
+        this._setTimeText(EventFormat.formatEventTimeRange(
             this.row.event, selectedDateOnly, today,
             {
                 timeFormat: this.row.use_24h ? "%H:%M" : "%-l:%M %p",
@@ -868,13 +906,13 @@ class EventRowPresenter {
 
     _applyState(state) {
         if (state.phase === EventFormat.EVENT_PHASE_PAST) {
-            this.row.event_time.set_style_class_name("calendar-event-time-past");
+            this._setTimeStyleClass("calendar-event-time-past");
             // The time colour is theme-dependent and cannot be the only state
             // cue. This word is visible and also becomes part of the row's
             // accessible name through _announce().
             this._setCountdown(_("Ended"), "ended");
         } else if (state.phase === EventFormat.EVENT_PHASE_UPCOMING) {
-            this.row.event_time.set_style_class_name("calendar-event-time-future");
+            this._setTimeStyleClass("calendar-event-time-future");
             this._applyUpcomingState(state);
         } else {
             this._applyPresentState();
@@ -884,8 +922,14 @@ class EventRowPresenter {
     // rows refresh in place while the menu is open, so the countdown
     // pseudo-class must be replaced, never accumulated
     _setCountdown(text, pseudoClass = "") {
-        this.row.countdown_label.set_text(text);
-        this.row.countdown_label.set_style_pseudo_class(pseudoClass);
+        if (this.row.rendered_countdown !== text) {
+            this.row.rendered_countdown = text;
+            this.row.countdown_label.set_text(text);
+        }
+        if (this.row.rendered_countdown_pseudo !== pseudoClass) {
+            this.row.rendered_countdown_pseudo = pseudoClass;
+            this.row.countdown_label.set_style_pseudo_class(pseudoClass);
+        }
     }
 
     _applyUpcomingState(state) {
@@ -898,10 +942,10 @@ class EventRowPresenter {
     }
 
     _applyPresentState() {
-        this.row.event_time.set_style_class_name("calendar-event-time-present");
+        this._setTimeStyleClass("calendar-event-time-present");
         if (this.row.event.all_day || this.row.event.multi_day) {
             this._setCountdown("");
-            this.row.event_time.set_style_pseudo_class("all-day");
+            this._setTimePseudoClass("all-day");
         } else {
             this._setCountdown(_("In progress"), "current");
         }

@@ -1185,6 +1185,63 @@ test("countdown pseudo-classes never accumulate across refreshes", () => {
     assert.equal(row.countdown_label.text, "Ended");
 });
 
+// refresh_time_state() runs every row on every tick while the menu is open, and
+// St compares by pointer — an identical string still queues a relayout. Count
+// the writes, because a redundant one produces exactly the state the skipped
+// one would have and is invisible to a value assertion.
+test("an unchanged event row writes nothing back to its actors on a refresh", () => {
+    const event = makeRowEvent({
+        startUnix: 50 * DAY_S + 13 * 3600,
+        endUnix: 50 * DAY_S + 14 * 3600
+    });
+    const row = new EventView.EventRow(event, TODAY, rowParams());
+    const at = (h, m) => new FakeDateTime(50 * DAY_US + (h * 3600 + m * 60) * 1000000);
+
+    // render the row once, then watch what a repeat of that same pass costs
+    row.update_variations(at(12, 15), TODAY);
+
+    let writes = 0;
+    for (const actor of [row.event_time, row.countdown_label]) {
+        const setText = actor.set_text.bind(actor);
+        const setStyle = actor.set_style_class_name.bind(actor);
+        const setPseudo = actor.set_style_pseudo_class.bind(actor);
+        actor.set_text = (text) => { writes++; setText(text); };
+        actor.set_style_class_name = (name) => { writes++; setStyle(name); };
+        actor.set_style_pseudo_class = (name) => { writes++; setPseudo(name); };
+    }
+
+    row.update_variations(at(12, 15), TODAY);
+    assert.equal(writes, 0, "an identical refresh writes nothing back");
+
+    // a minute later, still 'soon': only the countdown text has moved
+    row.update_variations(at(12, 16), TODAY);
+    assert.equal(writes, 1, "only the value that changed is written");
+    assert.equal(row.countdown_label.text, "Starting in 44 minutes");
+
+    // ...and a phase change still gets the style and the countdown through
+    row.update_variations(at(13, 30), TODAY);
+    assert.equal(row.countdown_label.text, "In progress");
+    assert.deepEqual([...row.countdown_label.pseudo_classes], ["current"]);
+    assert.equal(row.event_time.style_class, "calendar-event-time-present");
+
+    // An all-day row is the only kind that writes a pseudo-class onto the time
+    // label, and it writes the same one on every pass — so it is the only place
+    // that guard can be observed at all.
+    const allDay = new EventView.EventRow(makeRowEvent({
+        startUnix: 50 * DAY_S, endUnix: 51 * DAY_S, allDay: true
+    }), TODAY, rowParams());
+    allDay.update_variations(at(12, 15), TODAY);
+    let pseudoWrites = 0;
+    const setPseudo = allDay.event_time.set_style_pseudo_class.bind(allDay.event_time);
+    allDay.event_time.set_style_pseudo_class = (name) => {
+        pseudoWrites++;
+        setPseudo(name);
+    };
+    allDay.update_variations(at(13, 30), TODAY);
+    assert.equal(pseudoWrites, 0, "'all-day' is already on the label");
+    assert.ok(allDay.event_time.pseudo_classes.has("all-day"), "and it stays there");
+});
+
 test("EventRow activation covers mouse, keyboard, and current all-day branches", () => {
     global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
     const event = makeRowEvent({
