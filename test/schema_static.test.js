@@ -819,7 +819,10 @@ test("the Spices manifest credits the applets this one was merged from", () => {
     assert.equal(info.uuid, "chronos@geraldo-netto");
     assert.equal(info.uuid, metadata.uuid,
         "info.json and metadata.json disagree about the uuid");
-    assert.equal(info.author, "Geraldo Netto");
+    assert.equal(info.author, "geraldo-netto",
+        "the Spices author must be the maintainer's GitHub username");
+    assert.doesNotMatch(info.author, /\s/,
+        "the official Spices validator rejects whitespace in info.json.author");
     assert.match(info.original_author, /ccprog/);
     assert.match(info.original_author, /simonwiles/);
     // the README names the same two upstreams
