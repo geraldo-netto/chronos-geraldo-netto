@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: 2021-07-05 18:36+0300\n"
 "Last-Translator: Serkan ÖNDER <serkanonder@outlook.com>\n"
 "Language-Team: \n"
@@ -265,12 +265,12 @@ msgstr "Geçersiz saat dilimi"
 msgid "Local time"
 msgstr "Yerel saat"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "Takvim uygulamacığı bir hatayla karşılaştı. Sistem günlüğünü denetleyin."
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr ""
 "Chronos güncellendi. Güncellemeyi tamamlamak için Cinnamon'ı yeniden "
@@ -1887,6 +1887,14 @@ msgstr "Görünüm Adı"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zaman dilimi"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "Panel metni boyutu"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "Temanın panel yazı tipi boyutunu çarpar. 1.0 temanın kendi boyutunu korur."
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: 2025-08-29 01:27+0800\n"
 "Last-Translator: Peter Dave Hello <hsu@peterdavehello.org>\n"
 "Language-Team: \n"
@@ -263,11 +263,11 @@ msgstr "無效的時區"
 msgid "Local time"
 msgstr "當地時間"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "行事曆小程式發生錯誤。請檢查系統日誌。"
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr "Chronos 已更新。請重新啟動 Cinnamon 以完成更新。"
 
@@ -1858,6 +1858,14 @@ msgstr "顯示名稱"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "時區"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "面板文字大小"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "以主題的面板字型大小為基準相乘。1.0 維持主題本身的大小。"
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

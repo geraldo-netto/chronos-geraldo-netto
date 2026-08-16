@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: 2025-04-03 19:37+0300\n"
 "Last-Translator: Kimmo Kujansuu <mrkujansuu@gmail.com>\n"
 "Language-Team: \n"
@@ -265,11 +265,11 @@ msgstr "Virheellinen aikavyöhyke"
 msgid "Local time"
 msgstr "Paikallinen aika"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Kalenterisovelmassa tapahtui virhe. Tarkista järjestelmäloki."
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr ""
 "Chronos päivitettiin. Viimeistele päivitys käynnistämällä Cinnamon uudelleen."
@@ -1883,6 +1883,14 @@ msgstr "Näyttönimi"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Aikavyöhyke"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "Paneelin tekstin koko"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "Kertoo teeman paneelin kirjasinkoon. 1.0 säilyttää teeman oman koon."
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

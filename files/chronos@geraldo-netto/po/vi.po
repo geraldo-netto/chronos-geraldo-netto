@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: loccun <huynhloc.contact@gmail.com>\n"
 "Language-Team: \n"
@@ -264,11 +264,11 @@ msgstr "Múi giờ không hợp lệ"
 msgid "Local time"
 msgstr "Giờ địa phương"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr "Tiểu dụng lịch gặp lỗi. Hãy kiểm tra nhật ký hệ thống."
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr ""
 "Chronos đã được cập nhật. Hãy khởi động lại Cinnamon để hoàn tất cập nhật."
@@ -1873,6 +1873,14 @@ msgstr "Tên hiển thị"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Múi giờ"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "Cỡ chữ trên bảng điều khiển"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "Nhân cỡ chữ bảng điều khiển của chủ đề. 1.0 giữ nguyên cỡ chữ của chủ đề."
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

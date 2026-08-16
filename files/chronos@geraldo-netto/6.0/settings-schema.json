@@ -39,6 +39,7 @@
                 "weekend-length",
                 "custom-format",
                 "custom-tooltip-format",
+                "panel-font-scale",
                 "format-button"
             ]
         },
@@ -171,7 +172,7 @@
     },
     "openstreetmap-attribution": {
         "type": "button",
-        "description": "© OpenStreetMap contributors",
+        "description": "\u00a9 OpenStreetMap contributors",
         "callback": "on_openstreetmap_attribution_pressed",
         "tooltip": "Open the OpenStreetMap copyright and attribution page.",
         "dependency": "show-weather"
@@ -240,7 +241,7 @@
     "religion-bahai": {
         "type": "switch",
         "default": false,
-        "description": "Bahá'í Faith",
+        "description": "Bah\u00e1'\u00ed Faith",
         "dependency": "show-religious-observances",
         "indent": true
     },
@@ -405,7 +406,7 @@
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
-            "Baden-Württemberg": "bw",
+            "Baden-W\u00fcrttemberg": "bw",
             "Bayern": "by",
             "Berlin": "be",
             "Brandenburg": "bb",
@@ -420,7 +421,7 @@
             "Sachsen": "sn",
             "Sachsen-Anhalt": "st",
             "Schleswig-Holstein": "sh",
-            "Thüringen": "th"
+            "Th\u00fcringen": "th"
         },
         "dependency": "country=deu"
     },
@@ -433,14 +434,14 @@
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
-            "Andalucía": "an",
-            "Aragón": "ar",
+            "Andaluc\u00eda": "an",
+            "Arag\u00f3n": "ar",
             "Asturias": "as",
             "Canarias": "cn",
             "Cantabria": "cb",
-            "Castilla y León": "cl",
+            "Castilla y Le\u00f3n": "cl",
             "Castilla-La Mancha": "cm",
-            "Cataluña": "ct",
+            "Catalu\u00f1a": "ct",
             "Ceuta": "ce",
             "Extremadura": "ex",
             "Galicia": "ga",
@@ -450,7 +451,7 @@
             "Melilla": "ml",
             "Murcia": "mc",
             "Navarra": "nc",
-            "País Vasco": "pv",
+            "Pa\u00eds Vasco": "pv",
             "Valencia": "vc"
         },
         "dependency": "country=esp"
@@ -493,14 +494,14 @@
         "tooltip": "Region whose public holidays are marked, on top of the national ones. Leave it unset to mark only the holidays that apply nationwide.",
         "options": {
             "Nationwide only": "global",
-            "Banskobystrický kraj": "bc",
-            "Bratislavský kraj": "bl",
-            "Košický kraj": "ki",
+            "Banskobystrick\u00fd kraj": "bc",
+            "Bratislavsk\u00fd kraj": "bl",
+            "Ko\u0161ick\u00fd kraj": "ki",
             "Nitriansky kraj": "ni",
-            "Prešovský kraj": "pv",
-            "Trnavský kraj": "ta",
-            "Trenčiansky kraj": "tc",
-            "Žilinský kraj": "zi"
+            "Pre\u0161ovsk\u00fd kraj": "pv",
+            "Trnavsk\u00fd kraj": "ta",
+            "Tren\u010diansky kraj": "tc",
+            "\u017dilinsk\u00fd kraj": "zi"
         },
         "dependency": "country=svk"
     },
@@ -525,7 +526,7 @@
             "Grisons": "gr",
             "Jura": "ju",
             "Luzern": "lu",
-            "Neuchâtel": "ne",
+            "Neuch\u00e2tel": "ne",
             "Nidwalden": "nw",
             "Obwalden": "ow",
             "St. Gallen": "sg",
@@ -538,7 +539,7 @@
             "Valais": "vs",
             "Vaud": "vd",
             "Zug": "zg",
-            "Zürich": "zh"
+            "Z\u00fcrich": "zh"
         },
         "dependency": "country=che"
     },
@@ -637,7 +638,7 @@
         "type": "custom",
         "description": "World Clocks",
         "dependency": "show-worldclocks",
-        "tooltip": "UTC and your local time are always shown in the calendar menu; add up to 8 timezones on top of them. Type a city name and pick it from the suggestions. With weather on, each clock’s timezone names a city, and that city is sent to the same third-party services as the location above.",
+        "tooltip": "UTC and your local time are always shown in the calendar menu; add up to 8 timezones on top of them. Type a city name and pick it from the suggestions. With weather on, each clock\u2019s timezone names a city, and that city is sent to the same third-party services as the location above.",
         "file": "settings_widgets.py",
         "widget": "ClocksList",
         "height": 288,
@@ -654,5 +655,14 @@
             }
         ],
         "default": []
+    },
+    "panel-font-scale": {
+        "type": "scale",
+        "default": 1.0,
+        "min": 0.8,
+        "max": 1.6,
+        "step": 0.05,
+        "description": "Panel text size",
+        "tooltip": "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
     }
 }

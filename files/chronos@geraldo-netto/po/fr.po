@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: claudiux\n"
 "Language-Team: \n"
@@ -261,12 +261,12 @@ msgstr "Fuseau horaire non valide"
 msgid "Local time"
 msgstr "Heure locale"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "L’applet de calendrier a rencontré une erreur. Consultez le journal système."
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr ""
 "Chronos a été mis à jour. Redémarrez Cinnamon pour terminer la mise à jour."
@@ -1892,6 +1892,14 @@ msgstr "Nom affiché"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Fuseau horaire"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "Taille du texte du panneau"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "Multiplie la taille de police du panneau définie par le thème. 1.0 conserve la taille du thème."
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

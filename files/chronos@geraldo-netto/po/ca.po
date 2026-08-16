@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: 2025-02-13 20:56+0100\n"
 "Last-Translator: Odyssey <odysseyhyd@gmail.com>\n"
 "Language-Team: \n"
@@ -264,13 +264,13 @@ msgstr "Zona horària no vàlida"
 msgid "Local time"
 msgstr "Hora local"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "La miniaplicació del calendari ha trobat un error. Consulteu el registre del "
 "sistema."
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr ""
 "S'ha actualitzat el Chronos. Reinicieu Cinnamon per acabar l'actualització."
@@ -1887,6 +1887,14 @@ msgstr "Nom a mostrar"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zona horària"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "Mida del text del plafó"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "Multiplica la mida de lletra del plafó del tema. 1.0 manté la mida del tema."
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

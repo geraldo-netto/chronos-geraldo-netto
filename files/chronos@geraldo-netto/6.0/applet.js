@@ -21,6 +21,7 @@ const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleQuery = AppletModules.localeQuery;
 const LocaleText = AppletModules.localeText;
 const AppletPanelStatus = require("./appletPanelStatus");
+const PanelFont = require("./panelFont");
 const AppletMenu = require("./appletMenuBuilder");
 const Main = imports.ui.main;
 const AppletSettingsBinder = AppletLifecycle.AppletSettingsBinder;
@@ -133,6 +134,11 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             this._initProviders();
 
             this._buildUi();
+
+            // After the label exists, and before the first clock is written:
+            // a scale applied only on change would leave a restarted session
+            // at the theme's size until the user touched the setting again.
+            this._applyPanelFontScale();
 
             this._providerLifecycle.bindSystemSignals();
 
@@ -265,6 +271,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             onShowEventsChanged: this._onShowEventsChanged.bind(this),
             onPanelFormatChanged: this._onPanelFormatChanged.bind(this),
             onTooltipFormatChanged: this._onTooltipFormatChanged.bind(this),
+            onPanelFontScaleChanged: this._onPanelFontScaleChanged.bind(this),
             onShowWorldclocksChanged: this._onShowWorldclocksChanged.bind(this),
             onShowAstronomyChanged: this._onShowAstronomyChanged.bind(this),
             onWeatherSettingsChanged: this._onWeatherSettingsChanged.bind(this),
@@ -465,6 +472,25 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
     _onTooltipFormatChanged() {
         this._guarded("tooltip-format-settings", () => this._updateClockAndDate());
+    }
+
+    // Opt-in, and off by default: panel text size is a desktop-wide
+    // typographic decision that the theme and the user's font settings own, so
+    // the applet only departs from it when asked. At 1.0 the inline style is
+    // cleared rather than set to 1em, leaving the theme in charge of a
+    // property nobody here has an opinion about.
+    _onPanelFontScaleChanged() {
+        this._guarded("panel-font-scale-settings", () => this._applyPanelFontScale());
+    }
+
+    _applyPanelFontScale() {
+        const label = this._applet_label;
+        if (!label || typeof label.set_style !== "function") {
+            return false;
+        }
+        const scale = PanelFont.panelFontStyle(this.panel_font_scale);
+        label.set_style(scale);
+        return true;
     }
 
     _onShowWorldclocksChanged() {

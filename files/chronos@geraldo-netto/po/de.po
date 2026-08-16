@@ -4,7 +4,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: 2024-11-20 18:59+0100\n"
 "Last-Translator: Claus Colloseus <ccprog@gmx.de>\n"
 "Language-Team: German\n"
@@ -261,13 +261,13 @@ msgstr "Ungültige Zeitzone"
 msgid "Local time"
 msgstr "Ortszeit"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "Das Kalender-Applet hat einen Fehler festgestellt. Prüfen Sie das "
 "Systemprotokoll."
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr ""
 "Chronos wurde aktualisiert. Starten Sie Cinnamon neu, um die Aktualisierung "
@@ -1888,6 +1888,14 @@ msgstr "Anzeigename"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Zeitzone"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "Textgröße in der Leiste"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "Multipliziert die Schriftgröße der Leiste aus dem Thema. 1.0 behält die Größe des Themas bei."
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

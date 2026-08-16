@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: chronos@geraldo-netto 0.0.1\n"
 "Report-Msgid-Bugs-To: https://github.com/geraldo-netto/cinnamon-chronos/"
 "issues\n"
-"POT-Creation-Date: 2026-08-07 01:37+0200\n"
+"POT-Creation-Date: 2026-08-16 15:08+0200\n"
 "PO-Revision-Date: 2024-11-28 17:19+0100\n"
 "Last-Translator: qadzek\n"
 "Language-Team: \n"
@@ -263,12 +263,12 @@ msgstr "Ongeldige tijdzone"
 msgid "Local time"
 msgstr "Lokale tijd"
 
-#: 6.0/applet.js:35
+#: 6.0/applet.js:36
 msgid "Calendar applet encountered an error. Check the system log."
 msgstr ""
 "De agenda-applet heeft een fout aangetroffen. Controleer het systeemlogboek."
 
-#: 6.0/applet.js:37
+#: 6.0/applet.js:38
 msgid "Chronos was updated. Restart Cinnamon to finish the update."
 msgstr "Chronos is bijgewerkt. Herstart Cinnamon om de update te voltooien."
 
@@ -1884,6 +1884,14 @@ msgstr "Weergavenaam"
 #. 6.0->settings-schema.json->worldclocks->columns->title
 msgid "Timezone"
 msgstr "Tijdzone"
+
+#. 6.0->settings-schema.json->panel-font-scale->description
+msgid "Panel text size"
+msgstr "Tekstgrootte in de balk"
+
+#. 6.0->settings-schema.json->panel-font-scale->tooltip
+msgid "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+msgstr "Vermenigvuldigt de lettergrootte van de balk uit het thema. 1.0 behoudt de grootte van het thema."
 
 #, javascript-format
 #~ msgid "Sunrise: %s — Sunset: %s"

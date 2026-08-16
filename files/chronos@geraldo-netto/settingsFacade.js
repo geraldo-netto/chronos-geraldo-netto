@@ -49,6 +49,7 @@ var KEY_OPEN_KEY = "keyOpen"; // NOSONAR [S3504] -- GJS importer export
 var WEATHER_LOCATION_KEY = "weather-location"; // NOSONAR [S3504] -- GJS importer export
 var CUSTOM_FORMAT_KEY = "custom-format"; // NOSONAR [S3504] -- GJS importer export
 var CUSTOM_TOOLTIP_FORMAT_KEY = "custom-tooltip-format"; // NOSONAR [S3504] -- GJS importer export
+var PANEL_FONT_SCALE_KEY = "panel-font-scale"; // NOSONAR [S3504] -- GJS importer export
 var DATE_FORMAT_DEFAULTS_MIGRATED_KEY = "date-format-defaults-migrated"; // NOSONAR [S3504] -- GJS importer export
 var LEGACY_DATE_TIME_FORMAT = "%A, %B %e, %H:%M"; // NOSONAR [S3504] -- GJS importer export
 var DEFAULT_DATE_TIME_FORMAT = "%d %b %H:%M"; // NOSONAR [S3504] -- GJS importer export
@@ -61,6 +62,7 @@ var PANEL_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     [SHOW_EVENTS_KEY, "show_events", "onShowEventsChanged"],
     [CUSTOM_FORMAT_KEY, "custom_format", "onPanelFormatChanged"],
     [CUSTOM_TOOLTIP_FORMAT_KEY, "custom_tooltip_format", "onTooltipFormatChanged"],
+    [PANEL_FONT_SCALE_KEY, "panel_font_scale", "onPanelFontScaleChanged"],
     [SHOW_WORLDCLOCKS_KEY, "show_worldclocks", "onShowWorldclocksChanged"],
     [SHOW_ASTRONOMY_KEY, "show_astronomy", "onShowAstronomyChanged"]
 ];
@@ -390,6 +392,7 @@ if (typeof module !== "undefined") {
         WEATHER_LOCATION_KEY,
         CUSTOM_FORMAT_KEY,
         CUSTOM_TOOLTIP_FORMAT_KEY,
+        PANEL_FONT_SCALE_KEY,
         DEFAULT_DATE_TIME_FORMAT,
         NO_HOLIDAYS,
         PANEL_KEYS,
