@@ -20,11 +20,19 @@ Use this module for projects where generated or modified code must be backed by 
 
 ## Mutation Testing
 
-- Mutation-test every changed production behavior in addition to running the ordinary test and coverage gates.
-- Kill every non-equivalent mutant in the changed logic by strengthening tests around observable behavior, boundaries, and failure paths.
-- Do not weaken the mutation scope or exclude surviving mutants merely to make the run green.
-- Prove genuinely equivalent mutants with domain-wide reasoning or exhaustive witnesses, and preserve that rationale in the project's rejected-findings ledger so later audits do not rediscover them.
-- When no mutation runner exists, perform a focused manual operator, constant, condition, and branch mutation audit over the changed production logic and report that limitation explicitly.
+- **Mutation testing belongs to the maintainer.** They create and run it by hand. An
+  agent never writes a mutation test, never invokes a mutation runner, and never reports
+  mutation results as one of its own gates.
+- Do not substitute a hand-written "mutation audit" for a real run when no runner exists.
+  Reasoning about which operators, constants and branches a mutant might flip is not
+  evidence, and reporting it as a limitation still leaves an unrun gate described as
+  though it had been considered. Say the runner is absent and stop there.
+- Write the tests the ordinary gates ask for — unit, regression, boundary and failure
+  paths — on their own merits. Tests that are strong because they pin observable
+  behaviour are what survives a mutation run anyway, and they are worth writing whether
+  or not one is ever performed.
+- If a change genuinely needs mutation evidence before it can be trusted, record that in
+  `TODO.md` for the maintainer instead of producing the evidence yourself.
 
 ## Fuzz And Property Tests
 
