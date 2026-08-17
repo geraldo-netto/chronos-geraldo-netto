@@ -220,6 +220,7 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Show week numbers in calendar | off | Adds the week-number gutter. |
 | Mark as weekend days | two days | How many days a week are styled as non-working; which days come from your locale. |
 | Date formats | `%d %b %H:%M` | The always-visible **Date format** and **Date format for tooltip** fields control the panel label and each tooltip row; the **Show information on date format syntax** button opens the reference. |
+| Panel text size | 1.0 | Multiplies the theme's panel font size for this applet's label only, from 0.8 to 1.6 — the panel itself and its other applets are untouched. At 1.0 the applet sets no size of its own, so the theme and your font scaling stay in charge, exactly as before the setting existed. |
 | Country / Region | country from the operating-system timezone, or None | Marks that country's nationwide public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; any country you select overrides the inferred default. |
 | Religious observances / religions | off / none selected | Shows locally calculated observances for the religions you select. They are underlined but remain working days; see the date limits below. |
 | Show calendar (under **Keyboard shortcuts**) | `<Super>c` | Opens the calendar menu. |
