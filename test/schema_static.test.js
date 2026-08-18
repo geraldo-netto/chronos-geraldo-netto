@@ -532,6 +532,23 @@ test("CI runs the gates the README promises", () => {
         "an advisory can land against an untouched repository");
     assert.match(workflow, /^ {2}gates:\n {4}if: github\.event_name != 'schedule'$/m,
         "and the weekly tick runs only that audit");
+    // T939: every job ran under the six-hour default, so a hung apt mirror or a
+    // wedged test held a runner for the rest of the working day, and a
+    // superseded pull-request push kept its predecessor running against a
+    // commit nobody would merge. Tag and develop runs are deliberately not
+    // cancellable: `release` downloads the artifact `packaging` uploaded under
+    // the same SHA.
+    assert.match(workflow,
+        /^concurrency:\n {2}group: \$\{\{ github\.workflow \}\}-\$\{\{ github\.ref \}\}\n {2}cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}$/m,
+        "superseded pull-request runs are cancelled, release-path runs are not");
+    for (const job of ["gates", "audit", "packaging", "release"]) {
+        const start = workflow.indexOf(`  ${job}:\n`);
+        assert.ok(start >= 0, `${job} job is present`);
+        const next = workflow.indexOf("\n  ", workflow.indexOf("steps:", start));
+        const body = workflow.slice(start, next < 0 ? undefined : next);
+        assert.match(body, /^ {4}timeout-minutes: \d+$/m,
+            `${job} must bound its own execution rather than inherit the six-hour default`);
+    }
     assert.match(workflow, /run: npm run i18n:check/,
         "catalog syntax and template freshness");
     assert.match(workflow, /run: npm run package:spices/,
