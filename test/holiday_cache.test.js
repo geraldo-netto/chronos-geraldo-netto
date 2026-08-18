@@ -1191,7 +1191,8 @@ test("a fetch that lands after the place was cleared is not persisted", () => {
 // session. Nothing reads them again — the facade reports inactive with no
 // country, and re-selecting the same country reloads from disk anyway.
 test("clearing the place releases the rows it was holding", () => {
-    const { HolidayCache, GLOBAL_REGION } = loadHolidays();
+    const { HolidayCache } = loadHolidays();
+    const { GLOBAL_REGION } = require(holidayCachePath);
     let loads = 0;
     const stored = {
         years: { 2026: { [GLOBAL_REGION]: new Date().toUTCString() } },
@@ -3140,4 +3141,94 @@ test("the cache can be given a different freshness and a different window", () =
     cache.persist(new Date(Date.UTC(2026, 6, 14)));
     assert.deepEqual(saved.at(-1)[1].holidays.map((single) => single.year), [2026],
         "and a zero-year window keeps only this year");
+});
+
+// T986: each incoming row is capped at MAX_HOLIDAY_FLAGS on the way in, and the
+// merge of two same-day rows was not — so a union of disjoint flag sets could
+// mint a row the loader would reject, at which point _country saw a row count
+// that no longer matched what had been written and threw away *every* freshness
+// stamp for the country. The country then refetched at every login, forever.
+test("merging same-day holiday rows keeps the flag count inside the loader's bound", () => {
+    const { HolidayCache } = loadHolidays();
+    const { MAX_HOLIDAY_FLAGS, validHolidayFlags } = require(holidayRecordPath);
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    cache.setPlace("ita", "global");
+
+    const row = (name, flags) => ({
+        year: 2026, month: 1, day: 1, region: "global", name, flags
+    });
+    cache.addUnique(row("First", ["a", "b", "c", "d", "e", "f", "g", "h"]));
+    cache.addUnique(row("Second", ["i", "j", "k", "l", "m", "n", "o", "p"]));
+
+    const [merged] = cache.data;
+    assert.ok(merged.flags.length <= MAX_HOLIDAY_FLAGS,
+        `merged row carries ${merged.flags.length} flags, past the bound of ${MAX_HOLIDAY_FLAGS}`);
+    assert.equal(validHolidayFlags(merged.flags), true,
+        "and the row the loader reads back survives its own validator");
+});
+
+// T997: past MAX_HOLIDAY_NAME_LENGTH the clamp cuts the trailing names off, so
+// the `includes` membership test could never find them again and every later
+// same-day row evicted the month memo for a string that had not moved.
+test("a same-day row that cannot lengthen the clamped name leaves the memo alone", () => {
+    const { HolidayCache } = loadHolidays();
+    const makeCache = () =>
+        new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    const row = (name) => ({ year: 2026, month: 1, day: 1, region: "global", name, flags: [] });
+
+    // read the bound off the clamp rather than importing it: holidayCache.js
+    // cannot be required outside this fixture's GLib stubs (see T988)
+    const probe = makeCache();
+    probe.setPlace("ita", "global");
+    probe.addUnique(row("x".repeat(4000)));
+    const nameLimit = probe.data[0].name.length;
+    assert.ok(nameLimit > 0 && nameLimit < 4000, "the name is clamped at all");
+
+    const cache = makeCache();
+    cache.setPlace("ita", "global");
+    cache.addUnique(row("x".repeat(nameLimit)));
+
+    let invalidations = 0;
+    const realInvalidate = cache._invalidateMonth.bind(cache);
+    cache._invalidateMonth = (single) => {
+        invalidations++;
+        realInvalidate(single);
+    };
+
+    // the first join genuinely changes the string — it gains the ellipsis the
+    // clamp writes — so it is a change and must invalidate
+    cache.addUnique(row("Overflowing name one"));
+    assert.equal(invalidations, 1);
+    const settled = cache.data[0].name;
+
+    // every join after that re-clamps to the same bytes, and used to invalidate
+    // the month memo anyway, once per row, forever
+    cache.addUnique(row("Overflowing name two"));
+    cache.addUnique(row("Overflowing name three"));
+    assert.equal(cache.data[0].name, settled, "the clamped name cannot grow further");
+    assert.equal(invalidations, 1,
+        "so no later row is a change, and the month memo is not rebuilt for nothing");
+});
+
+// T996: release() reset the region and clearPlace() did not, so two methods
+// that both mean "no place is selected" left the cache in two different states
+// and stale()/matchMonth() kept defaulting to the departed place's region.
+test("clearing the place resets the region, exactly as releasing does", () => {
+    const { HolidayCache } = loadHolidays();
+    const makeCache = () =>
+        new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+
+    // a cache that has never held a place is the definition of the default
+    const defaultRegion = makeCache().region;
+
+    const cleared = makeCache();
+    cleared.setPlace("ita", "veneto");
+    assert.equal(cleared.region, "veneto");
+    cleared.clearPlace();
+    assert.equal(cleared.region, defaultRegion);
+
+    const released = makeCache();
+    released.setPlace("ita", "veneto");
+    released.release();
+    assert.equal(released.region, defaultRegion, "the two paths agree");
 });

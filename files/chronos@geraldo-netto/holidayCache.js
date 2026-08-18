@@ -107,12 +107,20 @@ function clampHolidayName(name) {
     return TextUtils.clampText(name, MAX_HOLIDAY_NAME_LENGTH);
 }
 
+// The union has to respect the same bound each side was admitted under.
+// Without the cap, two same-day rows with disjoint flag sets — Nager's
+// lowercased `types`, Enrico's verbatim `flags` — could merge to sixteen; the
+// loader then rejected that row on `validHolidayFlags`, the row count no longer
+// matched what was written, and `_country` responded by discarding **every**
+// freshness stamp for the country. The country was then refetched over the
+// network at every login for as long as the merge recurred.
 function mergeHolidayFlags(current, incoming) {
     const bothPartDay = current.includes(PART_DAY_HOLIDAY) &&
         incoming.includes(PART_DAY_HOLIDAY);
     return Array.from(new Set(current.concat(incoming)))
         .filter((flag) => bothPartDay || flag !== PART_DAY_HOLIDAY)
-        .sort(compareCodeUnits);
+        .sort(compareCodeUnits)
+        .slice(0, HolidayRecord.MAX_HOLIDAY_FLAGS);
 }
 
 // The rows are checked; the freshness record has to be too. stale() only asks
@@ -238,7 +246,7 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             return struct;
         }
         if (stored.years && typeof stored.years === "object") {
-            struct.years = validCachedYears(stored.years);
+            struct.years = validCachedYears(stored.years, this._now());
         }
         if (!Array.isArray(stored.holidays)) {
             struct.years = {};
@@ -823,28 +831,47 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._addUnique(single);
     }
 
+    // Compare the clamped result, not the membership test: past
+    // MAX_HOLIDAY_NAME_LENGTH the truncated-away names can never be found by
+    // `includes`, so every later same-day row re-entered this branch and
+    // evicted the month memo for a string that had not moved.
+    static _joinName(known, name) {
+        if (known.name.split('\n').includes(name)) {
+            return false;
+        }
+        const joined = clampHolidayName(known.name + '\n' + name);
+        if (joined === known.name) {
+            return false;
+        }
+        known.name = joined;
+        return true;
+    }
+
+    static _joinFlags(known, incoming) {
+        const flags = mergeHolidayFlags(known.flags, incoming);
+        if (flags.length === known.flags.length &&
+            flags.every((flag, index) => flag === known.flags[index])) {
+            return false;
+        }
+        known.flags = flags;
+        return true;
+    }
+
+    _mergeInto(known, single) {
+        const nameChanged = HolidayCache._joinName(known, single.name);
+        const flagsChanged = HolidayCache._joinFlags(known, single.flags);
+        if (nameChanged || flagsChanged) {
+            this._invalidateMonth(known);
+        }
+    }
+
     _addUnique(single) {
         single.region = single.region || GLOBAL_REGION;
         single.name = clampHolidayName(single.name);
         const known = this._holidayIndex.get(this._holidayKey(single));
 
         if (known) {
-            let changed = false;
-            if (!known.name.split('\n').includes(single.name)) {
-                known.name = clampHolidayName(known.name + '\n' + single.name);
-                changed = true;
-            }
-
-            const flags = mergeHolidayFlags(known.flags, single.flags);
-            if (flags.length !== known.flags.length ||
-                flags.some((flag, index) => flag !== known.flags[index])) {
-                known.flags = flags;
-                changed = true;
-            }
-
-            if (changed) {
-                this._invalidateMonth(known);
-            }
+            this._mergeInto(known, single);
         } else {
             this.data.push(single);
             this._indexHoliday(single);
@@ -905,6 +932,11 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     // MAX_EXPANDED_HOLIDAY_ROWS rows and their indexes alive for the rest of the
     // session for a user who simply switched holidays off.
     _dropCachedPlace() {
+        // The region belongs to the departed place too. release() reset it and
+        // clearPlace() did not, so the two methods that both mean "no place is
+        // selected" left the object in two different states, and stale()/
+        // matchMonth() went on defaulting to a region nobody had chosen.
+        this.region = GLOBAL_REGION;
         this.data = [];
         this.years = {};
         this.attempts = {};
