@@ -37,7 +37,17 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         // event covers at most MAX_SPANNED_DAYS + 1 of them, and every walk
         // allocated a fresh pairs array to do it.
         this._daysById = new Map();
-        this._overflowed = false;
+        // Two independent reasons the column may be hiding rows, and they
+        // retire on different rules. The ceiling flag says "this index refused
+        // a delivery because it is full", so it stops being true the moment the
+        // index shrinks back under the cap. The delivery flag says "the wire
+        // payload was truncated before it ever reached this index"
+        // (boundedEventVariants), which no amount of shrinking here can undo —
+        // only a discard or an explicit retirement can. They shared one field,
+        // so an ordinary EDS removal retired a truncation warning while the
+        // truncated events were still missing.
+        this._ceilingOverflow = false;
+        this._deliveryOverflow = false;
         this._windowStart = null;
         this._windowEnd = null;
         this._rebuildEventState();
@@ -79,26 +89,40 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this._eventIds.clear();
         this._eventsById.clear();
         this._daysById.clear();
-        this._overflowed = false;
+        this._ceilingOverflow = false;
+        this._deliveryOverflow = false;
     }
 
     get overflowed() {
-        return this._overflowed;
+        return this._ceilingOverflow || this._deliveryOverflow;
     }
 
+    // The delivery half: the payload was cut before this index saw it.
     markOverflow() {
-        if (this._overflowed) {
-            return false;
-        }
-        this._overflowed = true;
-        return true;
+        return this._raiseOverflow("_deliveryOverflow");
     }
 
-    clearOverflow() {
-        if (!this._overflowed) {
+    _markCeilingOverflow() {
+        return this._raiseOverflow("_ceilingOverflow");
+    }
+
+    _raiseOverflow(field) {
+        if (this[field]) {
             return false;
         }
-        this._overflowed = false;
+        const wasOverflowed = this.overflowed;
+        this[field] = true;
+        return !wasOverflowed;
+    }
+
+    // Retires both halves: the resync path that calls this has already
+    // discarded the contents, so neither reason survives it.
+    clearOverflow() {
+        if (!this.overflowed) {
+            return false;
+        }
+        this._ceilingOverflow = false;
+        this._deliveryOverflow = false;
         return true;
     }
 
@@ -160,7 +184,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
             return {
                 changed: false,
                 selected_changed: false,
-                overflow_changed: this.markOverflow()
+                overflow_changed: this._markCeilingOverflow()
             };
         }
 
@@ -390,17 +414,21 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return result;
     }
 
-    // The flag means "a delivery was refused because the ceiling was full", so
-    // it stops describing the window the moment the window shrinks back under
-    // it: the refusals belonged to a payload this removal has already revised,
-    // and the event column would go on telling the user rows are hidden on a
-    // day that now holds three. Nothing but a shrink clears it, and the next
-    // delivery that hits the ceiling arms it again.
+    // The ceiling flag means "a delivery was refused because the index was
+    // full", so it stops describing the window the moment the window shrinks
+    // back under it: the refusals belonged to a payload this removal has
+    // already revised, and the event column would go on telling the user rows
+    // are hidden on a day that now holds three. Nothing but a shrink clears it,
+    // and the next delivery that hits the ceiling arms it again. The delivery
+    // flag is deliberately untouched here — a shrink in this index says nothing
+    // about a payload that was truncated on the wire.
     _resyncOverflow() {
-        if (this._eventIds.size >= this._maxEvents) {
+        if (!this._ceilingOverflow || this._eventIds.size >= this._maxEvents) {
             return false;
         }
-        return this.clearOverflow();
+        const wasOverflowed = this.overflowed;
+        this._ceilingOverflow = false;
+        return wasOverflowed !== this.overflowed;
     }
 
     remove(uids) {
@@ -430,8 +458,11 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         if (any_removed) {
             this._rebuildEventState();
         }
-        this._resyncOverflow();
-        return any_removed;
+        // Both halves of the answer: a cull that frees nothing but does retire
+        // the ceiling notice still has to repaint, or the column keeps telling
+        // the user rows are hidden. The one caller repaints on this boolean.
+        const overflowChanged = this._resyncOverflow();
+        return any_removed || overflowChanged;
     }
 };
 

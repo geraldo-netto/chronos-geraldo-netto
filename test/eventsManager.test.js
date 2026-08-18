@@ -2955,6 +2955,82 @@ test("shrinking the index back under the ceiling retires the overflow notice", (
     assert.equal(index.overflowed, false, "a cull retires it on the same rule");
 });
 
+// T973: the ceiling flag and the delivery flag are two different claims. A
+// truncated wire payload (boundedEventVariants refusing a 5 MB signal whole) is
+// not undone by this index shrinking — the events it dropped never arrived here
+// at all. They shared one field, so the next ordinary EDS removal retired the
+// truncation warning and the user stopped being told rows were missing while
+// they still were.
+test("a shrink retires the ceiling notice but not a truncated delivery", () => {
+    const index = new EventIndex({}, 3);
+    const selected = new FakeDateTime(10 * DAY_US);
+    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+
+    index.addOrUpdate([eventVariant({
+        id: "kept", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 1
+    })], 1, selected);
+    assert.equal(index.overflowed, false);
+
+    // the wire payload was cut before this index saw any of it
+    assert.equal(index.markOverflow(), true, "a truncated delivery arms the notice");
+    assert.equal(index.remove(["kept"]), false,
+        "and an ordinary removal cannot retire it, because the shrink is not the reason");
+    assert.equal(index.overflowed, true);
+    assert.equal(index.cull(9), false, "nor can a cull");
+    assert.equal(index.overflowed, true);
+
+    // only the explicit resync retirement, which discards the contents, clears it
+    assert.equal(index.clearOverflow(), true);
+    assert.equal(index.overflowed, false);
+});
+
+// The two halves also have to compose: a ceiling refusal on top of a truncated
+// delivery must not let the shrink retire both.
+test("a ceiling refusal on top of a truncated delivery retires only its own half", () => {
+    const index = new EventIndex({}, 2);
+    const selected = new FakeDateTime(10 * DAY_US);
+    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+
+    assert.equal(index.markOverflow(), true);
+    const flood = Array.from({ length: 4 }, (_unused, id) => eventVariant({
+        id: `flood-${id}`,
+        startUnix: 10 * DAY_S + id,
+        endUnix: 10 * DAY_S + id + 1
+    }));
+    index.addOrUpdate(flood, 1, selected);
+    assert.equal(index.overflowed, true);
+
+    index.remove(["flood-0", "flood-1"]);
+    assert.equal(index.overflowed, true,
+        "the ceiling half is retired, the delivery half is not");
+    assert.equal(index.clearOverflow(), true);
+    assert.equal(index.overflowed, false);
+});
+
+// T974: cull returned only "did I remove anything", and its one caller repaints
+// on that boolean — so a cull whose whole effect was retiring the notice
+// repainted nothing and the stale warning survived until an unrelated change.
+test("a cull that only retires the overflow notice still reports a change", () => {
+    const index = new EventIndex({}, 3);
+    const selected = new FakeDateTime(10 * DAY_US);
+    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+
+    const flood = Array.from({ length: 5 }, (_unused, id) => eventVariant({
+        id: `flood-${id}`,
+        startUnix: 10 * DAY_S + id,
+        endUnix: 10 * DAY_S + id + 1
+    }));
+    index.addOrUpdate(flood, 1, selected);
+    assert.equal(index.overflowed, true);
+
+    // free a slot without going through cull, so the cull below removes nothing
+    index._eventIds.delete("flood-0");
+    assert.equal(index.cull(1), true,
+        "nothing was culled, but the notice was retired, so the column must repaint");
+    assert.equal(index.overflowed, false);
+    assert.equal(index.cull(1), false, "and a cull with no effect at all reports none");
+});
+
 // _spannedDays owns the day identities the whole index is keyed by, so it
 // normalises its own bounds rather than trusting the caller to have done it.
 test("a span covers whole days and terminates however its bounds are given", () => {
