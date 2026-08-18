@@ -138,15 +138,41 @@ function metNoForecastUrl(place) {
         encodeURIComponent(place.latitude) + "&lon=" + encodeURIComponent(place.longitude);
 }
 
+// Longitude is a circle, so the difference between two of them is the shorter
+// way round: a place at 179.9°E and a station at 179.5°W are 0.6° apart, not
+// 359.4°. Subtracting them directly made every station across the seam the
+// furthest one on the list, so the nearest station there could never be picked.
+function longitudeDelta(from, to) {
+    const delta = (from - to) % 360;
+    if (delta > 180) {
+        return delta - 360;
+    }
+    if (delta < -180) {
+        return delta + 360;
+    }
+    return delta;
+}
+
+// Latitude has ends and longitude does not: a box drawn past a pole is not a
+// place, while one drawn past ±180 is the same box written in coordinates the
+// service does not accept. Clamp the first and hold the second inside range.
+function aviationWeatherBox(latitude, longitude) {
+    const clampLatitude = (value) => Math.min(90, Math.max(-90, value));
+    const clampLongitude = (value) => Math.min(180, Math.max(-180, value));
+
+    return [
+        clampLatitude(latitude - AVIATION_WEATHER_BBOX_DEGREES),
+        clampLongitude(longitude - AVIATION_WEATHER_BBOX_DEGREES),
+        clampLatitude(latitude + AVIATION_WEATHER_BBOX_DEGREES),
+        clampLongitude(longitude + AVIATION_WEATHER_BBOX_DEGREES)
+    ];
+}
+
 function aviationWeatherUrl(place) {
     const latitude = Number(place.latitude);
     const longitude = Number(place.longitude);
-    const box = [
-        latitude - AVIATION_WEATHER_BBOX_DEGREES,
-        longitude - AVIATION_WEATHER_BBOX_DEGREES,
-        latitude + AVIATION_WEATHER_BBOX_DEGREES,
-        longitude + AVIATION_WEATHER_BBOX_DEGREES
-    ].map((value) => value.toFixed(3)).join(",");
+    const box = aviationWeatherBox(latitude, longitude)
+        .map((value) => value.toFixed(3)).join(",");
 
     return "https://aviationweather.gov/api/data/metar?format=json&bbox=" + encodeURIComponent(box);
 }
@@ -223,7 +249,8 @@ function aviationWeatherStation(stations, place) {
         // ranking only, so the flat approximation is enough inside a
         // one-degree box; the longitude gap shrinks toward the poles
         const dLatitude = stationLatitude - latitude;
-        const dLongitude = (stationLongitude - longitude) * Math.cos(latitude * Math.PI / 180);
+        const dLongitude = longitudeDelta(stationLongitude, longitude) *
+            Math.cos(latitude * Math.PI / 180);
         const distance = dLatitude * dLatitude + dLongitude * dLongitude;
 
         if (distance < nearestDistance) {

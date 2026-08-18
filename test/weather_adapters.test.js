@@ -1148,3 +1148,50 @@ test("the geocode cache key is not the display fold", () => {
     // what it does promise is stability: case and padding never make two keys
     assert.equal(Weather.locationCacheKey("  LISBOA "), Weather.locationCacheKey("lisboa"));
 });
+
+test("the METAR box stays inside the coordinate ranges the service accepts", () => {
+    const Weather = loadWeather();
+    const boxOf = (place) => decodeURIComponent(
+        Weather.aviationWeatherUrl(place).split("bbox=")[1]
+    ).split(",").map(Number);
+
+    // Eastern Fiji: the eastern edge runs past the antimeridian
+    assert.deepEqual(boxOf({ latitude: -18.05, longitude: 179.9 }),
+        [-19.05, 178.9, -17.05, 180]);
+    // and the western side of the seam is the same case mirrored
+    assert.deepEqual(boxOf({ latitude: -18.05, longitude: -179.9 }),
+        [-19.05, -180, -17.05, -178.9]);
+    // Latitude has ends: a box drawn past a pole is not a place
+    assert.deepEqual(boxOf({ latitude: 89.5, longitude: 10 }), [88.5, 9, 90, 11]);
+    assert.deepEqual(boxOf({ latitude: -89.5, longitude: 10 }), [-90, 9, -88.5, 11]);
+    // Away from either edge nothing is clamped
+    assert.deepEqual(boxOf({ latitude: -23.55, longitude: -46.63 }),
+        [-24.55, -47.63, -22.55, -45.63]);
+});
+
+test("the nearest METAR station is measured the shorter way round the meridian", () => {
+    const Weather = loadWeather();
+    const place = { latitude: 0.5, longitude: 179.8 };
+
+    // 0.7° east across the seam, against 3.3° west of the place: subtracting
+    // the longitudes directly made the near one 359.3° away and picked the far
+    // one, so a place beside the antimeridian never saw the station next to it
+    const across = { icaoId: "NEAR", lat: 0.5, lon: -179.5, temp: 21, cover: "CLR" };
+    const behind = { icaoId: "FAR", lat: 0.5, lon: 176.5, temp: 25, cover: "CLR" };
+
+    assert.equal(Weather.aviationWeatherStation([behind, across], place).icaoId, "NEAR");
+    assert.equal(Weather.aviationWeatherStation([across, behind], place).icaoId, "NEAR");
+
+    // the same case seen from the western side of the seam: the place is at
+    // 179.8°W and the near station 0.7° east of it is written as 179.5°E
+    const west = { latitude: 0.5, longitude: -179.8 };
+    assert.equal(Weather.aviationWeatherStation([
+        { icaoId: "FAR", lat: 0.5, lon: -176.5, temp: 25, cover: "CLR" },
+        { icaoId: "NEAR", lat: 0.5, lon: 179.5, temp: 21, cover: "CLR" }
+    ], west).icaoId, "NEAR");
+    // and the ranking is unchanged where no seam is crossed
+    assert.equal(Weather.aviationWeatherStation([
+        { icaoId: "FAR", lat: 0.5, lon: 12, temp: 25, cover: "CLR" },
+        { icaoId: "NEAR", lat: 0.5, lon: 10.2, temp: 21, cover: "CLR" }
+    ], { latitude: 0.5, longitude: 10 }).icaoId, "NEAR");
+});
