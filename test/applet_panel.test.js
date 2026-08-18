@@ -1142,3 +1142,35 @@ test("OS timezone changes reconcile popup and city-weather clock projections", (
         global.imports.gi.GLib.TimeZone.new_local = originalNewLocal;
     }
 });
+
+test("the panel text size setting reaches the label, and 1.0 hands it back", () => {
+    const styles = [];
+    const stub = Object.assign(Object.create(Proto), {
+        panel_font_scale: 1.25,
+        _applet_label: { set_style: (style) => styles.push(style) }
+    });
+
+    Proto._onPanelFontScaleChanged.call(stub);
+    assert.deepEqual(styles, ["font-size: 1.25em;"]);
+
+    stub.panel_font_scale = 1;
+    Proto._onPanelFontScaleChanged.call(stub);
+    assert.deepEqual(styles, ["font-size: 1.25em;", ""],
+        "at 1.0 the inline style is cleared, not written as 1em");
+
+    // an applet whose label is not stylable is not a runtime failure
+    stub._applet_label = {};
+    Proto._onPanelFontScaleChanged.call(stub);
+    assert.equal(styles.length, 2);
+});
+
+test("a timezone change before the popup exists reconciles nothing", () => {
+    const stub = Object.assign(Object.create(Proto), {
+        _astronomy: null,
+        _updateAstronomy: () => assert.fail("there is nothing built to redraw")
+    });
+
+    // the setting can change while the menu has never been opened, so the
+    // sunrise/sunset rows the reconciliation exists for do not exist yet
+    Proto._reconcileAstronomyTimezone.call(stub);
+});

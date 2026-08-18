@@ -252,6 +252,7 @@ rootModules.worldclockData = require(path.join(APPLET_DIR, "worldclockData.js"))
 rootModules.astronomy = require(path.join(APPLET_DIR, "astronomy.js"));
 rootModules.worldclocks = require(path.join(APPLET_DIR, "6.0", "worldclocks.js"));
 rootModules.settingsFacade = require(path.join(APPLET_DIR, "settingsFacade.js"));
+rootModules.panelFont = require(path.join(APPLET_DIR, "panelFont.js"));
 
 const AppletModule = require(path.join(APPLET_DIR, "6.0", "applet.js"));
 const CoordinatorModule = require(path.join(APPLET_DIR, "6.0", "appletCoordinators.js"));
