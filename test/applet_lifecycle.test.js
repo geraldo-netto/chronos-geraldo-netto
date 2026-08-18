@@ -653,6 +653,60 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
     }
 });
 
+// T943: the popup measures the work area when it opens and never again, so a
+// monitor hotplug, a resolution change or a panel resize left the previous shape
+// on screen until the menu was closed and reopened — on a shrinking work area,
+// a month grid pushed off the bottom.
+test("bindSystemSignals reflows the open popup on monitors-changed", () => {
+    const reflows = [];
+    const connected = [];
+    const disconnected = [];
+    let handler = null;
+    const layoutManager = {
+        connect: (name, callback) => {
+            connected.push(name);
+            handler = callback;
+            return 91;
+        },
+        disconnect: (id) => disconnected.push(id)
+    };
+    const context = {
+        desktopSettings: { connectClockFormatChanged: () => [] },
+        layoutManager,
+        onMonitorsChanged: () => reflows.push(true)
+    };
+    const lifecycle = new AppletModule.AppletProviderLifecycle(context);
+    lifecycle._dayRollover = { destroy() {} };
+
+    lifecycle.bindSystemSignals();
+    assert.deepEqual(connected, ["monitors-changed"]);
+    assert.equal(lifecycle._monitors_signal_id, 91);
+
+    handler();
+    assert.deepEqual(reflows, [true], "a geometry change re-decides the layout");
+
+    lifecycle.destroy();
+    assert.deepEqual(disconnected, [91],
+        "the layout manager outlives the applet, so its handler must go with it");
+    assert.equal(lifecycle._monitors_signal_id, 0);
+});
+
+// A Cinnamon without the signal source, or one mid-teardown, must not take the
+// applet down with it: binding is optional and teardown stays a no-op.
+test("bindSystemSignals tolerates a layout manager it cannot connect to", () => {
+    for (const layoutManager of [null, undefined, {}, { connect: 7 }]) {
+        const lifecycle = new AppletModule.AppletProviderLifecycle({
+            desktopSettings: { connectClockFormatChanged: () => [] },
+            layoutManager,
+            onMonitorsChanged: () => assert.fail("nothing is connected")
+        });
+        lifecycle._dayRollover = { destroy() {} };
+        lifecycle.bindSystemSignals();
+        assert.equal(lifecycle._monitors_signal_id, 0);
+        lifecycle.destroy();
+    }
+});
+
 test("settings binding wires schema keys and creates settings facades", () => {
     const binds = [];
     const callbacks = {};
@@ -1499,6 +1553,15 @@ test("provider initialization wires hover and event manager signals", () => {
     stub._providerLifecycle.context.onTextScaleChanged();
     assert.ok(calls.some((row) => row[0] === "reflow"),
         "a desktop text scale change reaches the popup's layout");
+    // T943: the same reflow, from the other direction — the applet is the only
+    // place that knows which layout manager the geometry comes from
+    assert.equal(stub._providerLifecycle.context.layoutManager,
+        global.imports.ui.main.layoutManager,
+        "the lifecycle is handed the desktop's own layout manager to watch");
+    const beforeMonitors = calls.length;
+    stub._providerLifecycle.context.onMonitorsChanged();
+    assert.deepEqual(calls.slice(beforeMonitors), [["reflow"]],
+        "a monitor or resolution change reaches the popup's layout too");
     assert.ok(calls.some((row) => row[0] === "infer-country"),
         "an unresolved country reaches the binder's one-time inference");
     stub.show_weather = true;

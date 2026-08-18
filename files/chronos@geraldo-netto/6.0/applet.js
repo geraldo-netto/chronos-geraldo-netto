@@ -195,7 +195,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             onDayChanged: () => this._guarded(
                 "day-rollover", () => this._onDayChanged()),
             onTextScaleChanged: () => this._guarded(
-                "text-scale", () => this._reflowMenu())
+                "text-scale", () => this._reflowMenu()),
+            layoutManager: Main.layoutManager,
+            onMonitorsChanged: () => this._guarded(
+                "monitors-changed", () => this._reflowMenu())
         });
 
         const providers = this._providerLifecycle.initProviders();

@@ -274,6 +274,7 @@ class AppletProviderLifecycle {
         this._events_manager_signal_ids = [];
         this._logind_sleep_signal_id = 0;
         this._timedate_signal_id = 0;
+        this._monitors_signal_id = 0;
         this._destroyed = false;
     }
 
@@ -441,6 +442,22 @@ class AppletProviderLifecycle {
         });
     }
 
+    // The popup decides horizontal-or-stacked from the work area it measured
+    // when it opened. A monitor hotplug, a resolution change or a panel resize
+    // does not reopen it, so without this the shape stays wrong until the user
+    // closes and reopens the menu — and on a shrinking work area that is a grid
+    // pushed off the bottom of the screen. Cinnamon emits `monitors-changed` on
+    // Main.layoutManager for all three. The reflow is idempotent and returns
+    // without writing when the answer is unchanged.
+    _bindMonitorSignals(context) {
+        const layoutManager = context.layoutManager;
+        if (!layoutManager || typeof layoutManager.connect !== "function") {
+            return;
+        }
+        this._monitors_signal_id = layoutManager.connect(
+            "monitors-changed", () => context.onMonitorsChanged());
+    }
+
     bindSystemSignals() {
         const context = this.context;
 
@@ -454,6 +471,7 @@ class AppletProviderLifecycle {
         }
 
         this._bindNetworkSignals(context);
+        this._bindMonitorSignals(context);
 
         // logind's PrepareForSleep is true on the way into sleep and false on
         // resume, so refresh on the false transition.
@@ -543,6 +561,14 @@ class AppletProviderLifecycle {
         }
     }
 
+    _releaseMonitorSignals() {
+        const layoutManager = this.context.layoutManager;
+        if (this._monitors_signal_id > 0 && layoutManager) {
+            layoutManager.disconnect(this._monitors_signal_id);
+            this._monitors_signal_id = 0;
+        }
+    }
+
     _releaseWeatherConsumer() {
         if (this._weatherConsumerRegistered) {
             this._weatherConsumerRegistered = false;
@@ -575,6 +601,7 @@ class AppletProviderLifecycle {
             () => this._releaseEventsManager(),
             () => this._releaseDesktopSettings(),
             () => this._releaseLogind(),
+            () => this._releaseMonitorSignals(),
             () => this._releaseWeatherConsumer(),
             () => this._releaseWorldclockConsumer()
         ];
