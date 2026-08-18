@@ -177,3 +177,13 @@
     border: 1px solid rgba(0, 0, 0, 0.7);
     outline: 1px solid rgba(255, 255, 255, 0.7);
 }
+
+/*
+ * The stacked shape of the popup, chosen by menuLayout.js when the month grid
+ * and the agenda column will not fit side by side in the monitor's work area.
+ * Horizontally the two columns are separated by their own padding; one above
+ * the other they meet, so the join is given a gap of its own.
+ */
+.calendar-main-box-stacked {
+    spacing: 0.5em;
+}

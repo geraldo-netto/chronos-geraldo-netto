@@ -446,6 +446,12 @@ class AppletProviderLifecycle {
 
         this._desktop_settings_signal_ids =
             context.desktopSettings.connectClockFormatChanged(context.onSettingsChanged);
+        // Same schema, same teardown list, different effect: large text changes
+        // how much room the popup's two columns need, not how a clock reads.
+        if (typeof context.desktopSettings.connectTextScaleChanged === "function") {
+            this._desktop_settings_signal_ids.push(
+                context.desktopSettings.connectTextScaleChanged(context.onTextScaleChanged));
+        }
 
         this._bindNetworkSignals(context);
 

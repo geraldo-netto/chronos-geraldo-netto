@@ -193,7 +193,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             onNetworkRestored: () => this._onNetworkRestored(),
             onTimezoneChanged: () => this._onTimezoneChanged(),
             onDayChanged: () => this._guarded(
-                "day-rollover", () => this._onDayChanged())
+                "day-rollover", () => this._onDayChanged()),
+            onTextScaleChanged: () => this._guarded(
+                "text-scale", () => this._reflowMenu())
         });
 
         const providers = this._providerLifecycle.initProviders();
@@ -679,6 +681,53 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         runTeardownSteps(steps);
     }
 
+    // The one place that reads the desktop's own geometry. Everything the
+    // layout rule needs and nothing it does not: the work area of the monitor
+    // this applet sits on, the theme's scale factor, and the accessibility text
+    // factor. Each is optional, because a monitor can be mid-hotplug and an
+    // older Cinnamon need not carry every accessor.
+    _menuLayoutEnvironment() {
+        const area = this._menuWorkArea(Main.layoutManager);
+        return {
+            workAreaWidth: area ? area.width : 0,
+            workAreaHeight: area ? area.height : 0,
+            uiScale: global.ui_scale,
+            textScale: this.desktop_settings ? this.desktop_settings.textScale : 1
+        };
+    }
+
+    // The work area, not the monitor: this applet's own panel is subtracted
+    // from it, and so is the side panel a vertical layout puts against the
+    // screen edge the popup has to clear.
+    _menuWorkArea(layoutManager) {
+        if (!layoutManager) {
+            return null;
+        }
+        const monitor = this._menuLayoutMonitor(layoutManager);
+        if (!monitor) {
+            return null;
+        }
+        if (typeof layoutManager.getWorkAreaForMonitor === "function" &&
+            Number.isInteger(monitor.index)) {
+            return layoutManager.getWorkAreaForMonitor(monitor.index) || monitor;
+        }
+        return monitor;
+    }
+
+    _menuLayoutMonitor(layoutManager) {
+        if (typeof layoutManager.findMonitorForActor === "function" && this.actor) {
+            return layoutManager.findMonitorForActor(this.actor);
+        }
+        return layoutManager.primaryMonitor;
+    }
+
+    _reflowMenu() {
+        if (!this._menuBuilder) {
+            return null;
+        }
+        return this._menuBuilder.reflow(this._menuLayoutEnvironment());
+    }
+
     _initContextMenu () {
         this.menu = new Applet.AppletPopupMenu(this, this.orientation);
         this.menuManager.addMenu(this.menu);
@@ -699,6 +748,11 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
                     // here is what puts the calendar's key handler on the event
                     // path. Without it the arrows, PageUp/PageDown and Home only
                     // ever worked after a mouse click on a cell.
+                    // Before focus moves into the grid: the work area, the UI
+                    // scale and the text size can all have changed since the
+                    // last time this popup was on screen, and reflowing after
+                    // focus would move the focused cell under the pointer.
+                    this._reflowMenu();
                     if (this._calendar) {
                         this._calendar.focusSelectedDay();
                     }
@@ -716,6 +770,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             this.orientation = orientation;
             this.menu.setOrientation(orientation);
             this._applyPanelFormat();
+            // A side panel takes its width out of the same work area the popup
+            // has to fit into, and a vertical panel puts the popup against a
+            // screen edge the horizontal shape may no longer clear.
+            this._reflowMenu();
         });
     }
 }

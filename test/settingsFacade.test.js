@@ -529,3 +529,52 @@ test("an empty weather location is filled with the city the timezone names", () 
     assert.equal(panel.fillEmptyWeatherLocation(applet, ""), "");
     assert.equal(values["weather-location"], "");
 });
+
+// T935: the popup's layout depends on how big the desktop's text is, and the
+// factor comes from the same schema the clock keys do. Gio answers 0.0 for a
+// double the schema does not carry, and 0 is not "no scaling" — it is text
+// that takes no room, which would tell the layout rule the columns always fit.
+test("accessibility text scaling is read, and a missing factor is 1.0", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+
+    const scaled = new SettingsFacade.DesktopSettings({
+        list_keys: () => SettingsFacade.DESKTOP_KEYS,
+        get_double: (key) => (key === SettingsFacade.TEXT_SCALING_FACTOR_KEY ? 1.25 : 0)
+    });
+    assert.equal(scaled.textScale, 1.25);
+
+    // a schema without the key, and a Gio that answers 0 for it
+    const missing = new SettingsFacade.DesktopSettings({
+        list_keys: () => [SettingsFacade.CLOCK_USE_24H_KEY,
+            SettingsFacade.CLOCK_SHOW_SECONDS_KEY, SettingsFacade.FIRST_DAY_OF_WEEK_KEY],
+        get_double: () => 0
+    });
+    assert.equal(missing.textScale, SettingsFacade.DEFAULT_TEXT_SCALE);
+
+    const zero = new SettingsFacade.DesktopSettings({
+        list_keys: () => SettingsFacade.DESKTOP_KEYS,
+        get_double: () => 0
+    });
+    assert.equal(zero.textScale, SettingsFacade.DEFAULT_TEXT_SCALE);
+
+    // an older Gio binding with no double accessor at all
+    const bare = new SettingsFacade.DesktopSettings({ get_boolean: () => true });
+    assert.equal(bare.textScale, SettingsFacade.DEFAULT_TEXT_SCALE);
+});
+
+test("a text scale change is a signal on the same settings object", () => {
+    delete require.cache[require.resolve(modulePath)];
+    const SettingsFacade = require(modulePath);
+    const connected = [];
+    const desktop = new SettingsFacade.DesktopSettings({
+        list_keys: () => SettingsFacade.DESKTOP_KEYS,
+        connect(name) {
+            connected.push(name);
+            return connected.length;
+        }
+    });
+
+    assert.equal(desktop.connectTextScaleChanged(() => {}), 1);
+    assert.deepEqual(connected, ["changed::text-scaling-factor"]);
+});

@@ -1174,3 +1174,79 @@ test("a timezone change before the popup exists reconciles nothing", () => {
     // sunrise/sunset rows the reconciliation exists for do not exist yet
     Proto._reconcileAstronomyTimezone.call(stub);
 });
+
+// T935: the popup's shape is decided from the desktop's own geometry, and this
+// is the only place in the applet that reads it. Every source is optional — a
+// monitor can be mid-hotplug, and an older Cinnamon need not carry every
+// accessor — and a missing one must not stop the menu from opening.
+test("the popup reflows against the monitor the applet actually sits on", () => {
+    const Main = global.imports.ui.main;
+    const originalLayoutManager = Main.layoutManager;
+    const environments = [];
+
+    try {
+        Main.layoutManager = {
+            primaryMonitor: { width: 1920, height: 1080 },
+            findMonitorForActor: () => ({ index: 1, width: 1024, height: 600 }),
+            // the panel this applet sits in comes out of the monitor, and so
+            // does the side panel a vertical layout puts against the edge the
+            // popup has to clear
+            getWorkAreaForMonitor: (index) => (
+                index === 1 ? { width: 1024, height: 560 } : null)
+        };
+        global.ui_scale = 2;
+
+        const stub = Object.assign(Object.create(Proto), {
+            actor: {},
+            desktop_settings: { textScale: 1.25 },
+            _menuBuilder: {
+                reflow(environment) {
+                    environments.push(environment);
+                    return "stacked";
+                }
+            }
+        });
+
+        assert.equal(Proto._reflowMenu.call(stub), "stacked");
+        assert.deepEqual(environments.at(-1), {
+            workAreaWidth: 1024, workAreaHeight: 560, uiScale: 2, textScale: 1.25
+        }, "the applet's own monitor, less the panels on it");
+
+        // a monitor index the compositor has no work area for falls back to the
+        // monitor's own rectangle rather than to nothing
+        Main.layoutManager.getWorkAreaForMonitor = () => null;
+        Proto._reflowMenu.call(stub);
+        assert.equal(environments.at(-1).workAreaHeight, 600);
+
+        // an applet not yet parented falls back to the primary monitor
+        stub.actor = null;
+        Proto._reflowMenu.call(stub);
+        assert.equal(environments.at(-1).workAreaWidth, 1920);
+
+        // ...and so does a Cinnamon with no per-actor lookup
+        stub.actor = {};
+        delete Main.layoutManager.findMonitorForActor;
+        Proto._reflowMenu.call(stub);
+        assert.equal(environments.at(-1).workAreaWidth, 1920);
+
+        // a monitor nobody has reported yet, and a desktop schema that is gone:
+        // zero sizes are what tells the layout rule to leave the popup alone
+        Main.layoutManager = { primaryMonitor: null };
+        stub.desktop_settings = null;
+        Proto._reflowMenu.call(stub);
+        assert.deepEqual(environments.at(-1),
+            { workAreaWidth: 0, workAreaHeight: 0, uiScale: 2, textScale: 1 });
+
+        Main.layoutManager = null;
+        Proto._reflowMenu.call(stub);
+        assert.equal(environments.at(-1).workAreaWidth, 0);
+
+        // and a menu that was never built has nothing to reflow
+        stub._menuBuilder = null;
+        assert.equal(Proto._reflowMenu.call(stub), null);
+        assert.equal(environments.length, 6, "no further reflow was attempted");
+    } finally {
+        Main.layoutManager = originalLayoutManager;
+        delete global.ui_scale;
+    }
+});

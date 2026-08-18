@@ -1493,6 +1493,12 @@ test("provider initialization wires hover and event manager signals", () => {
     // the lifecycle fires this when the country key holds the schema's empty
     // sentinel; only the applet knows the binder that owns the inference
     stub._providerLifecycle.context.onHolidayCountryUnresolved();
+    // large text changes how much room the popup's columns need, and only the
+    // applet holds the menu builder that can be told to reflow
+    stub._menuBuilder = { reflow: () => calls.push(["reflow"]) };
+    stub._providerLifecycle.context.onTextScaleChanged();
+    assert.ok(calls.some((row) => row[0] === "reflow"),
+        "a desktop text scale change reaches the popup's layout");
     assert.ok(calls.some((row) => row[0] === "infer-country"),
         "an unresolved country reaches the binder's one-time inference");
     stub.show_weather = true;
@@ -2059,3 +2065,40 @@ test("constructor registers desktop and lifecycle callbacks", () => {
 
 // themes centre tooltip text; a centred block staggers every row of the clock
 // table, so the applet's own style class has to reach the tooltip actor
+
+// T935: large text changes how much room the popup's two columns need, and the
+// key lives in the same desktop schema the clock keys do. It joins the same
+// teardown list, so nothing new has to be released.
+test("a text scale change is bound beside the clock keys and released with them", () => {
+    const released = [];
+    const reflows = [];
+    const desktopSettings = {
+        connectClockFormatChanged: () => [1, 2],
+        connectTextScaleChanged: (callback) => {
+            desktopSettings.textScaleCallback = callback;
+            return 3;
+        },
+        disconnect: (id) => released.push(id)
+    };
+    const lifecycle = new AppletModule.AppletProviderLifecycle({
+        desktopSettings,
+        onSettingsChanged: () => {},
+        onTextScaleChanged: () => reflows.push(true)
+    });
+
+    lifecycle.bindSystemSignals();
+    assert.deepEqual(lifecycle._desktop_settings_signal_ids, [1, 2, 3]);
+
+    desktopSettings.textScaleCallback();
+    assert.deepEqual(reflows, [true]);
+
+    lifecycle._releaseDesktopSettings();
+    assert.deepEqual(released, [1, 2, 3], "the new handler is released with the old ones");
+
+    // a Cinnamon whose facade predates the accessor binds the clock keys alone
+    const older = { connectClockFormatChanged: () => [7] };
+    const legacy = new AppletModule.AppletProviderLifecycle(
+        { desktopSettings: older, onSettingsChanged: () => {} });
+    legacy.bindSystemSignals();
+    assert.deepEqual(legacy._desktop_settings_signal_ids, [7]);
+});

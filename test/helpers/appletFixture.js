@@ -118,9 +118,13 @@ global.imports = {
             Align: { START: 0, END: 1 },
             Side: { LEFT: 0, RIGHT: 1, TOP: 2, BOTTOM: 3 },
             BoxLayout: class {
-                constructor() {} // NOSONAR [S6647] -- deliberate test seam
+                constructor(options = {}) {
+                    Object.assign(this, options);
+                    this.children = [];
+                }
                 connect() {} // NOSONAR [S1186] -- deliberate test seam
-                add_actor() {} // NOSONAR [S1186] -- deliberate test seam
+                add_actor(actor) { this.children.push(actor); }
+                set_style_class_name(name) { this.style_class = name; }
             },
             Table: class {
                 constructor() {
@@ -211,7 +215,8 @@ global.imports = {
                 addActor(actor) { this.children.push(actor); }
             }
         },
-        main: { keybindingManager: {
+        main: { layoutManager: { primaryMonitor: { width: 1920, height: 1080 } },
+            keybindingManager: {
             addHotKey() {},
             removeHotKey() {},
             addXletHotKey() {},
@@ -253,6 +258,7 @@ rootModules.astronomy = require(path.join(APPLET_DIR, "astronomy.js"));
 rootModules.worldclocks = require(path.join(APPLET_DIR, "6.0", "worldclocks.js"));
 rootModules.settingsFacade = require(path.join(APPLET_DIR, "settingsFacade.js"));
 rootModules.panelFont = require(path.join(APPLET_DIR, "panelFont.js"));
+rootModules.menuLayout = require(path.join(APPLET_DIR, "menuLayout.js"));
 
 const AppletModule = require(path.join(APPLET_DIR, "6.0", "applet.js"));
 const CoordinatorModule = require(path.join(APPLET_DIR, "6.0", "appletCoordinators.js"));

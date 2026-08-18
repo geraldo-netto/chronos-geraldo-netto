@@ -6,6 +6,7 @@ const {
 } = require("./helpers/appletFixture");
 
 const AgendaColumn = require(path.join(APPLET_DIR, "6.0", "agendaColumn.js"));
+const MenuLayoutModule = require(path.join(APPLET_DIR, "menuLayout.js"));
 
 test("_styleTooltip marks the tooltip so the clock table stays left-aligned", () => {
     const classes = [];
@@ -2091,4 +2092,120 @@ test("the clock tick drives the event column from the applet, not the presenter"
         guard: (source, fn) => fn()
     });
     assert.doesNotThrow(() => unbuilt.tick());
+});
+
+// T935: the popup was built horizontally and only horizontally — a 42-cell grid
+// beside an event column whose theme floor is 350 px — on every monitor, at
+// every UI scale and at every text size. The decision is menuLayout.js's; these
+// tests are about the seam: what the builder measures, and what it does with
+// the answer.
+function reflowBuilder(sizes) {
+    const builder = new AppletModule.AppletMenuBuilder({
+        eventsManager: { connect: () => 1, disconnect() {} }
+    });
+    const measured = (width, height) => ({
+        get_preferred_width: () => [0, width],
+        get_preferred_height: () => [0, height]
+    });
+
+    builder._mainBox = {
+        vertical: false,
+        style_class: "calendar-main-box",
+        set_style_class_name(name) { this.style_class = name; }
+    };
+    builder._calbox = measured(sizes.calendarWidth, sizes.calendarHeight);
+    builder._eventList = { actor: measured(sizes.eventsWidth, sizes.eventsHeight) };
+    return builder;
+}
+
+const ROOMY_COLUMNS = {
+    calendarWidth: 300, calendarHeight: 420, eventsWidth: 350, eventsHeight: 400
+};
+
+test("the popup stacks when its two columns will not fit the work area", () => {
+    const builder = reflowBuilder(ROOMY_COLUMNS);
+
+    assert.equal(builder.layout, MenuLayoutModule.MENU_LAYOUT_HORIZONTAL);
+    assert.equal(builder.reflow({ workAreaWidth: 1920, workAreaHeight: 1080 }),
+        MenuLayoutModule.MENU_LAYOUT_HORIZONTAL);
+    assert.equal(builder._mainBox.vertical, false);
+    assert.equal(builder._mainBox.style_class, "calendar-main-box");
+
+    assert.equal(builder.reflow({ workAreaWidth: 700, workAreaHeight: 1080 }),
+        MenuLayoutModule.MENU_LAYOUT_STACKED);
+    assert.equal(builder._mainBox.vertical, true);
+    assert.equal(builder._mainBox.style_class,
+        "calendar-main-box calendar-main-box-stacked",
+        "the stacked shape is nameable from the stylesheet");
+
+    // ...and back again when the popup moves to a monitor that has the room
+    assert.equal(builder.reflow({ workAreaWidth: 1920, workAreaHeight: 1080 }),
+        MenuLayoutModule.MENU_LAYOUT_HORIZONTAL);
+    assert.equal(builder._mainBox.vertical, false);
+    assert.equal(builder._mainBox.style_class, "calendar-main-box");
+});
+
+test("a reflow changes one property and touches nothing else", () => {
+    const builder = reflowBuilder(ROOMY_COLUMNS);
+    // the actors a reflow must not disturb: the agenda's scrollbox keeps its
+    // adjustment, the children keep the order the keyboard walks them in, and
+    // the calendar's focused day is state the builder never even reads
+    const box = builder._mainBox;
+    box.children = ["events", "calendar"];
+    box.destroy_all_children = () => assert.fail("a reflow rebuilt the popup");
+    box.remove_actor = () => assert.fail("a reflow reparented a column");
+    box.add_actor = () => assert.fail("a reflow re-added a column");
+
+    builder.reflow({ workAreaWidth: 700, workAreaHeight: 1080 });
+    builder.reflow({ workAreaWidth: 1920, workAreaHeight: 1080 });
+
+    assert.deepEqual(box.children, ["events", "calendar"],
+        "child order is keyboard order, and it is the same order both ways round");
+});
+
+test("the same layout twice is not a second write to the actor", () => {
+    const builder = reflowBuilder(ROOMY_COLUMNS);
+    const environment = { workAreaWidth: 700, workAreaHeight: 1080 };
+    builder.reflow(environment);
+
+    let rewrites = 0;
+    builder._mainBox.set_style_class_name = () => {
+        rewrites += 1;
+    };
+    assert.equal(builder.reflow(environment), MenuLayoutModule.MENU_LAYOUT_STACKED);
+    assert.equal(rewrites, 0, "an unchanged layout does not relayout the popup");
+    assert.equal(builder.layout, MenuLayoutModule.MENU_LAYOUT_STACKED);
+});
+
+test("the measurement carries the text size back out of itself", () => {
+    // St measures at whatever text size is in effect; the rule wants the sizes
+    // at the default one, so the same monitor and the same actors answer
+    // differently only through the factor
+    const builder = reflowBuilder({
+        calendarWidth: 450, calendarHeight: 630, eventsWidth: 525, eventsHeight: 600
+    });
+    const metrics = builder.layoutMetrics(
+        { workAreaWidth: 1920, workAreaHeight: 1080, textScale: 1.5 });
+
+    assert.equal(metrics.textScale, 1.5);
+    assert.equal(metrics.calendarWidth, 300);
+    assert.equal(metrics.eventsWidth, 350);
+    assert.equal(metrics.calendarHeight, 420);
+    assert.equal(metrics.eventsHeight, 400);
+});
+
+test("a popup that was never built has nothing to reflow", () => {
+    const builder = new AppletModule.AppletMenuBuilder({
+        eventsManager: { connect: () => 1, disconnect() {} }
+    });
+
+    assert.equal(builder.reflow({ workAreaWidth: 700, workAreaHeight: 1080 }),
+        MenuLayoutModule.MENU_LAYOUT_HORIZONTAL);
+    // and an actor that predates get_preferred_width is measured as unmeasured,
+    // which the rule reads as "do not reflow on this"
+    builder._mainBox = { vertical: false };
+    builder._calbox = {};
+    assert.equal(builder.reflow({ workAreaWidth: 700, workAreaHeight: 1080 }),
+        MenuLayoutModule.MENU_LAYOUT_HORIZONTAL);
+    assert.equal(builder._mainBox.vertical, false);
 });

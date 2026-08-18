@@ -89,12 +89,21 @@ function mirrorSetting(settings, target, key, property, callback) {
     });
 }
 
-// Cinnamon's desktop schema, and the three keys this applet reads from it.
+// Cinnamon's desktop schema, and the keys this applet reads from it.
 var DESKTOP_SCHEMA = "org.cinnamon.desktop.interface"; // NOSONAR [S3504] -- GJS importer export
 var CLOCK_USE_24H_KEY = "clock-use-24h"; // NOSONAR [S3504] -- GJS importer export
 var CLOCK_SHOW_SECONDS_KEY = "clock-show-seconds"; // NOSONAR [S3504] -- GJS importer export
 var FIRST_DAY_OF_WEEK_KEY = "first-day-of-week"; // NOSONAR [S3504] -- GJS importer export
-var DESKTOP_KEYS = [CLOCK_USE_24H_KEY, CLOCK_SHOW_SECONDS_KEY, FIRST_DAY_OF_WEEK_KEY]; // NOSONAR [S3504] -- GJS importer export
+// Accessibility large text. It scales every label in the popup, so it changes
+// how much room the month grid and the agenda column need beside each other.
+var TEXT_SCALING_FACTOR_KEY = "text-scaling-factor"; // NOSONAR [S3504] -- GJS importer export
+var DEFAULT_TEXT_SCALE = 1; // NOSONAR [S3504] -- GJS importer export
+var DESKTOP_KEYS = [CLOCK_USE_24H_KEY, CLOCK_SHOW_SECONDS_KEY, FIRST_DAY_OF_WEEK_KEY, TEXT_SCALING_FACTOR_KEY]; // NOSONAR [S3504] -- GJS importer export
+// The subset whose absence is worth a log line. Gio reads a missing boolean as
+// `false`, which is how a renamed clock key would silently switch the whole
+// applet to 12-hour; a missing text factor is 1.0, which is the factor it would
+// have had anyway.
+var DESKTOP_REPORTED_KEYS = [CLOCK_USE_24H_KEY, CLOCK_SHOW_SECONDS_KEY, FIRST_DAY_OF_WEEK_KEY]; // NOSONAR [S3504] -- GJS importer export
 
 // Gio.Settings.get_boolean() on a key the schema does not carry answers `false`.
 // Not an error, not a warning — false. So if Cinnamon ever renames one of these,
@@ -111,7 +120,7 @@ var DesktopSettings = class DesktopSettings { // NOSONAR [S3504] -- GJS importer
         }
 
         this._known = new Set(settings.list_keys());
-        for (const key of DESKTOP_KEYS) {
+        for (const key of DESKTOP_REPORTED_KEYS) {
             if (!this._known.has(key) && global.logError) {
                 global.logError(`chronos@geraldo-netto: ${DESKTOP_SCHEMA} has no "${key}"; ` +
                     "falling back to the 24-hour default rather than reading it as off");
@@ -136,6 +145,25 @@ var DesktopSettings = class DesktopSettings { // NOSONAR [S3504] -- GJS importer
 
     get showSeconds() {
         return this._boolean(CLOCK_SHOW_SECONDS_KEY, false);
+    }
+
+    // A missing or nonsensical factor is 1.0, not 0: reading it as Gio would
+    // (0.0 for an absent double) would tell the layout rule that the popup's
+    // text takes no room at all.
+    get textScale() {
+        if (this._known && !this._known.has(TEXT_SCALING_FACTOR_KEY)) {
+            return DEFAULT_TEXT_SCALE;
+        }
+        if (typeof this._settings.get_double !== "function") {
+            return DEFAULT_TEXT_SCALE;
+        }
+        const value = this._settings.get_double(TEXT_SCALING_FACTOR_KEY);
+        return Number.isFinite(value) && value > 0 ? value : DEFAULT_TEXT_SCALE;
+    }
+
+    connectTextScaleChanged(callback) {
+        return this._settings.connect(
+            "changed::" + TEXT_SCALING_FACTOR_KEY, callback);
     }
 
     connectClockFormatChanged(callback) {
@@ -372,9 +400,12 @@ if (typeof module !== "undefined") {
         PanelSettings,
         DESKTOP_SCHEMA,
         DESKTOP_KEYS,
+        DESKTOP_REPORTED_KEYS,
         CLOCK_USE_24H_KEY,
         CLOCK_SHOW_SECONDS_KEY,
         FIRST_DAY_OF_WEEK_KEY,
+        TEXT_SCALING_FACTOR_KEY,
+        DEFAULT_TEXT_SCALE,
         SHOW_EVENTS_KEY,
         SHOW_WEEK_NUMBERS_KEY,
         WEEKEND_LENGTH_KEY,

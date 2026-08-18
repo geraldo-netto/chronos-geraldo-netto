@@ -21,6 +21,7 @@ const LocaleText = AppletModules.localeText;
 const Calendar = require("./calendar");
 const EventView = require("./eventView");
 const AgendaColumn = require("./agendaColumn");
+const MenuLayout = require("./menuLayout");
 const UiVocabulary = require("./uiVocabulary");
 const Worldclocks = require("./worldclocks");
 const AstronomyView = require("./astronomyView");
@@ -28,6 +29,8 @@ const AstronomyView = require("./astronomyView");
 const _ = LocaleText.translate;
 const HOME_KEY_SYMBOLS = UiVocabulary.ACTIVATION_KEY_SYMBOLS;
 const ISSUE_MARKER = AppletModules.textUtils.WARNING_MARKER;
+const MAIN_BOX_STYLE_CLASS = "calendar-main-box";
+const STACKED_STYLE_CLASS = "calendar-main-box-stacked";
 
 // One footer owns every current user-facing problem. Sources update their own
 // key, so a recovered weather request cannot erase a simultaneous calendar
@@ -115,6 +118,9 @@ class AppletMenuBuilder {
         this._astronomy = null;
         this._menu_items = [];
         this._issueReporter = null;
+        this._mainBox = null;
+        this._calbox = null;
+        this._layout = MenuLayout.MENU_LAYOUT_HORIZONTAL;
     }
 
     build() {
@@ -128,10 +134,11 @@ class AppletMenuBuilder {
         const reportIssue = issueReporter.set.bind(issueReporter);
         let box = new St.BoxLayout(
             {
-                style_class: 'calendar-main-box',
+                style_class: MAIN_BOX_STYLE_CLASS,
                 vertical: false
             }
         );
+        this._mainBox = box;
 
         // The body is one actor, not a stack of PopupBaseMenuItems — a 42-cell
         // grid and a scrolling event list are not things PopupMenuSection models.
@@ -154,6 +161,7 @@ class AppletMenuBuilder {
         const home = this._buildHomeButton(calbox);
         const calendar = this._buildCalendar(calbox, reportIssue);
 
+        this._calbox = calbox;
         box.add_actor(calbox);
 
         // the heading has no writer until a selection changes, so seed it from
@@ -181,6 +189,73 @@ class AppletMenuBuilder {
             dayLabel: home.day,
             dateLabel: home.date
         };
+    }
+
+    // The popup's two columns, measured as St would lay them out with no width
+    // imposed on them. Cinnamon's own theme puts a 350 px floor under the event
+    // column, and the translated strings and the current font size are already
+    // in these numbers — which is why the layout rule reads a measurement and
+    // not a table of guessed widths.
+    _naturalSize(actor) {
+        if (!actor || typeof actor.get_preferred_width !== "function") {
+            return { width: 0, height: 0 };
+        }
+        const [, width] = actor.get_preferred_width(-1);
+        const [, height] = actor.get_preferred_height(-1);
+        return { width, height };
+    }
+
+    // The actors are measured at whatever text size is in effect, and the rule
+    // wants them at the default one, so the factor comes back out here. That is
+    // the seam: this method is the only thing that touches actors, everything
+    // downstream of it is arithmetic.
+    layoutMetrics(environment) {
+        const environmentMetrics = MenuLayout.menuLayoutMetrics(environment);
+        const textScale = environmentMetrics.textScale;
+        const calendar = this._naturalSize(this._calbox);
+        const events = this._naturalSize(this._eventList && this._eventList.actor);
+
+        return {
+            workAreaWidth: environmentMetrics.workAreaWidth,
+            workAreaHeight: environmentMetrics.workAreaHeight,
+            uiScale: environmentMetrics.uiScale,
+            textScale,
+            calendarWidth: calendar.width / textScale,
+            calendarHeight: calendar.height / textScale,
+            eventsWidth: events.width / textScale,
+            eventsHeight: events.height / textScale
+        };
+    }
+
+    get layout() {
+        return this._layout;
+    }
+
+    // One property changes, and nothing else. No actor is created, destroyed,
+    // reparented or reordered, so the agenda's scroll position survives, the
+    // children stay in the order the keyboard walks them in, and the calendar's
+    // focused day and the event list's selected date are not even consulted —
+    // a reflow cannot lose state it never touches.
+    applyLayout(layout) {
+        const stacked = MenuLayout.isStackedLayout(layout);
+        this._layout = stacked ?
+            MenuLayout.MENU_LAYOUT_STACKED : MenuLayout.MENU_LAYOUT_HORIZONTAL;
+
+        const box = this._mainBox;
+        if (!box || Boolean(box.vertical) === stacked) {
+            return this._layout;
+        }
+
+        box.vertical = stacked;
+        if (typeof box.set_style_class_name === "function") {
+            box.set_style_class_name(stacked ?
+                MAIN_BOX_STYLE_CLASS + " " + STACKED_STYLE_CLASS : MAIN_BOX_STYLE_CLASS);
+        }
+        return this._layout;
+    }
+
+    reflow(environment) {
+        return this.applyLayout(MenuLayout.menuLayoutFor(this.layoutMetrics(environment)));
     }
 
     _buildIssueReporter() {
