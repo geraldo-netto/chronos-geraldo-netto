@@ -871,13 +871,24 @@ test("a METAR station with no temperature never wins the nearest-station race", 
     assert.equal(Weather.aviationWeatherStation(
         [{ icaoId: "NOWHERE", lat: null, lon: null, temp: 5 }], place), null);
 
-    assert.equal(Weather.metarNumber(null), null);
-    assert.equal(Weather.metarNumber(""), null);
-    assert.equal(Weather.metarNumber([]), null);
-    assert.equal(Weather.metarNumber(false), null);
-    assert.equal(Weather.metarNumber("  "), null);
-    assert.equal(Weather.metarNumber("-3"), -3);
-    assert.equal(Weather.metarNumber(0), 0);
+    assert.equal(Weather.finiteNumber(null), null);
+    assert.equal(Weather.finiteNumber(""), null);
+    assert.equal(Weather.finiteNumber([]), null);
+    assert.equal(Weather.finiteNumber(false), null);
+    assert.equal(Weather.finiteNumber("  "), null);
+    assert.equal(Weather.finiteNumber("-3"), -3);
+    assert.equal(Weather.finiteNumber(0), 0);
+
+    // the METAR fields are read unbounded: the range test is the coordinate
+    // reader's, and imposing it here would drop fields this file may not judge
+    assert.equal(Weather.finiteNumber(-273.15), -273.15);
+    assert.equal(Weather.finiteNumber(1e9), 1e9);
+    assert.equal(Weather.finiteNumber(Infinity), null);
+
+    // and with bounds it is the coordinate reader the geocode parsers use
+    assert.equal(Weather.finiteNumber("48.85", -90, 90), 48.85);
+    assert.equal(Weather.finiteNumber(91, -90, 90), null);
+    assert.equal(Weather.finiteNumber(-181, -180, 180), null);
 });
 
 // null, "" and [] belong in here: Number() coerces all three to 0, and a station

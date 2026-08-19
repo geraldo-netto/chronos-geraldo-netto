@@ -18,6 +18,9 @@ const IS_NODE = typeof process !== "undefined" &&
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 var MESSAGE_LANGUAGE_FALLBACK = "en"; // NOSONAR [S3504] -- GJS importer export
 // `locale -k` answers in milliseconds when it answers at all; this is a
 // deadline, not a budget
@@ -221,9 +224,8 @@ function hostMessageLocale() {
 // Display and request language follows the message locale, independently of
 // LC_ADDRESS/LC_TIME regional formatting. Providers accept ISO 639-1 only.
 function messageLanguage(locale) {
-    const language = String(locale || hostMessageLocale())
-        .toLowerCase().split(/[._@:-]/)[0];
-    return (/^[a-z]{2}$/).test(language) ? language : MESSAGE_LANGUAGE_FALLBACK;
+    return TextUtils.isoLanguageCode(locale || hostMessageLocale(),
+        MESSAGE_LANGUAGE_FALLBACK);
 }
 
 // values derived from locale info are memoized against this: they are all

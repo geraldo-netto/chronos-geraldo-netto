@@ -289,6 +289,20 @@ function fillTemplate(template, values) {
 // It was byte-identical in both, and both sit on the path a single grid render
 // takes: ReligiousHolidayProvider.getHolidays coerces the pair, then
 // HolidayService.getHolidays coerces it again.
+// Providers, catalogs and the geocoders all take a bare ISO 639-1 code, and a
+// session locale is not one: "pt_BR.UTF-8", "en_US@euro", "C", "POSIX" and ""
+// all reach the applet. The extraction was written twice - once for the
+// geocoders' `language`/`accept-language` query parameters
+// (weatherServiceAdapters.geocodeLanguage) and once for the display language
+// (localeQuery.messageLanguage) - with the same separator set and the same
+// two-letter test. The fallback stays the caller's, because the two differ in
+// where the default comes from, not in how a code is read.
+function isoLanguageCode(locale, fallback) {
+    const language = String(locale || "")
+        .toLowerCase().split(/[._@:-]/)[0];
+    return (/^[a-z]{2}$/).test(language) ? language : fallback;
+}
+
 function numericInput(value) {
     return typeof value === "number" || typeof value === "string" ?
         Number(value) : Number.NaN;
@@ -304,6 +318,7 @@ if (typeof module !== "undefined") {
         textWithinLimit,
         normalizeBoundedText,
         numericInput,
+        isoLanguageCode,
         urlForLog,
         TEXT_ELLIPSIS,
         WARNING_MARKER

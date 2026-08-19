@@ -191,6 +191,29 @@ test("numericInput coerces the strings a grid key splits into, and nothing else"
     }
 });
 
+// T947: the same ISO-639-1 extraction stood in weatherServiceAdapters
+// (geocodeLanguage) and localeQuery (messageLanguage). One rule now, with the
+// fallback left to the caller because that is the only part that differed.
+test("isoLanguageCode reduces a session locale to the code providers take", () => {
+    const { isoLanguageCode } = require(path.join(APPLET_DIR, "textUtils.js"));
+
+    assert.equal(isoLanguageCode("pt_BR.UTF-8", "en"), "pt");
+    assert.equal(isoLanguageCode("de_DE@euro", "en"), "de");
+    assert.equal(isoLanguageCode("it-IT", "en"), "it");
+    assert.equal(isoLanguageCode("IT", "en"), "it");
+    assert.equal(isoLanguageCode("en:en_GB", "xx"), "en");
+
+    // a locale naming no language, or naming it in anything but two letters, is
+    // not a language a provider knows: the caller's fallback stands instead
+    assert.equal(isoLanguageCode("C", "en"), "en");
+    assert.equal(isoLanguageCode("POSIX", "pt"), "pt");
+    assert.equal(isoLanguageCode("", "pt"), "pt");
+    assert.equal(isoLanguageCode(undefined, "pt"), "pt");
+    assert.equal(isoLanguageCode(null, "pt"), "pt");
+    assert.equal(isoLanguageCode(0, "pt"), "pt");
+    assert.equal(isoLanguageCode("eng_GB", "en"), "en");
+});
+
 test("displayWidth measures fixed-width cells, not code points", () => {
     assert.equal(displayWidth("Rome"), 4, "Latin letters are one cell each");
     assert.equal(displayWidth(""), 0);

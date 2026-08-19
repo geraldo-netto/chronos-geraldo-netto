@@ -92,10 +92,12 @@ function weatherIcon(weatherCode) {
     return match ? match[2] : WeatherFormat.WEATHER_UNKNOWN_CONDITION;
 }
 
+// The geocoders answer in whatever language they are asked in, and both of
+// them want a bare ISO 639-1 code. The extraction rule is TextUtils'; the
+// fallback is this vendor boundary's, because a geocoder asked in no language
+// ranks by its own default rather than refusing.
 function geocodeLanguage(locale) {
-    const language = String(locale || "en")
-        .toLowerCase().split(/[._@:-]/)[0];
-    return (/^[a-z]{2}$/).test(language) ? language : "en";
+    return TextUtils.isoLanguageCode(locale, "en");
 }
 
 // Open-Meteo ranks a search by the language it is asked in, not only by the name
@@ -186,6 +188,22 @@ function aviationWeatherUrl(place) {
 // oktas-based cover. These are two lookup tables written as data: the present
 // codes are tried in order (the precipitation code wins, as a rain shower under
 // a broken sky is rain to the person reading the panel), then the cover code.
+// Two vendors describe the sky as free text this applet has to classify, and
+// both classify it the same way: normalise the case, walk `[tokens, icon]` rules
+// in order, first substring hit wins. Only the case direction, the source field
+// and what a miss means differ, so those stay with the callers - the aviation
+// adapter falls through to its cover table on a miss, the met.no one calls the
+// sky undescribed.
+function iconFromTokenRules(rules, text) {
+    for (const [tokens, icon] of rules) {
+        if (tokens.some((token) => text.indexOf(token) !== -1)) { // NOSONAR [S7765] -- accepted compatible form
+            return icon;
+        }
+    }
+
+    return null;
+}
+
 const AVIATION_PRESENT_ICONS = [
     [["TS"], "⛈"],
     [["SN", "SG", "IC"], "🌨"],
@@ -202,32 +220,34 @@ const AVIATION_COVER_ICONS = {
 
 function aviationWeatherIcon(station) {
     const present = typeof station.wxString === "string" ? station.wxString.toUpperCase() : "";
-    for (const [codes, icon] of AVIATION_PRESENT_ICONS) {
-        if (codes.some((code) => present.indexOf(code) !== -1)) { // NOSONAR [S7765] -- accepted compatible form
-            return icon;
-        }
+    const reported = iconFromTokenRules(AVIATION_PRESENT_ICONS, present);
+    if (reported) {
+        return reported;
     }
 
     const cover = typeof station.cover === "string" ? station.cover.toUpperCase() : "";
     return AVIATION_COVER_ICONS[cover] || WeatherFormat.WEATHER_UNKNOWN_CONDITION;
 }
 
-// A METAR station with nothing to report sends "temp": null, and Number(null),
+// Every number this file takes off a vendor payload is read here. A METAR
+// station with nothing to report sends "temp": null, and Number(null),
 // Number(""), Number([]) and Number(false) are all 0. Coercing straight off the
 // payload therefore turns a silent station into one reporting 0 °C at Null
 // Island, and it can win the nearest-station race. Only a real number or a
 // non-blank numeric string is a reading.
-function metarNumber(value) {
-    if (typeof value === "number") {
-        return Number.isFinite(value) ? value : null;
+//
+// The bounds are optional because they are not the same question: a coordinate
+// outside [-90, 90] / [-180, 180] is not a coordinate, while a METAR field has
+// no range this file is entitled to impose. Unbounded is the METAR reading, and
+// it is what the defaults give.
+function finiteNumber(value, minimum = -Infinity, maximum = Infinity) {
+    if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) {
+        return null;
     }
 
-    if (typeof value === "string" && value.trim()) {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : null;
-    }
-
-    return null;
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= minimum && parsed <= maximum ?
+        parsed : null;
 }
 
 function aviationWeatherStation(stations, place) {
@@ -241,12 +261,12 @@ function aviationWeatherStation(stations, place) {
     let nearestDistance = Infinity;
 
     for (const station of stations) {
-        if (!station || typeof station !== "object" || metarNumber(station.temp) === null) {
+        if (!station || typeof station !== "object" || finiteNumber(station.temp) === null) {
             continue;
         }
 
-        const stationLatitude = metarNumber(station.lat);
-        const stationLongitude = metarNumber(station.lon);
+        const stationLatitude = finiteNumber(station.lat);
+        const stationLongitude = finiteNumber(station.lon);
         if (stationLatitude === null || stationLongitude === null) {
             continue;
         }
@@ -280,7 +300,7 @@ function aviationWeatherReading(stations, place) {
     }
 
     // METAR temperatures are Celsius by definition
-    return { condition: aviationWeatherIcon(station), temperatureC: metarNumber(station.temp) };
+    return { condition: aviationWeatherIcon(station), temperatureC: finiteNumber(station.temp) };
 }
 
 function weatherReading(weather) {
@@ -323,15 +343,11 @@ const MET_NO_ICON_RULES = [
 
 function metNoIcon(symbolCode) {
     const symbol = typeof symbolCode === "string" ? symbolCode.toLowerCase() : "";
-    for (const [tokens, icon] of MET_NO_ICON_RULES) {
-        if (tokens.some((token) => symbol.indexOf(token) !== -1)) { // NOSONAR [S7765] -- accepted compatible form
-            return icon;
-        }
-    }
 
-    // "fair" above is a real met.no symbol, so it cannot double as the answer
-    // for a symbol_code this table does not know.
-    return WeatherFormat.WEATHER_UNKNOWN_CONDITION;
+    // "fair" in the table above is a real met.no symbol, so it cannot double as
+    // the answer for a symbol_code this table does not know.
+    return iconFromTokenRules(MET_NO_ICON_RULES, symbol) ||
+        WeatherFormat.WEATHER_UNKNOWN_CONDITION;
 }
 
 function metNoSummary(data) {
@@ -432,16 +448,6 @@ function foldPlaceName(name) {
         .trim();
 }
 
-function coordinateNumber(value, minimum, maximum) {
-    if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) {
-        return null;
-    }
-
-    const coordinate = Number(value);
-    return Number.isFinite(coordinate) && coordinate >= minimum && coordinate <= maximum ?
-        coordinate : null;
-}
-
 function geocodePlaceName(name) {
     return TextUtils.clampText(name, MAX_GEOCODE_PLACE_NAME_LENGTH);
 }
@@ -456,8 +462,8 @@ function placeCandidate(place) {
         return null;
     }
 
-    const latitude = coordinateNumber(place.latitude, -90, 90);
-    const longitude = coordinateNumber(place.longitude, -180, 180);
+    const latitude = finiteNumber(place.latitude, -90, 90);
+    const longitude = finiteNumber(place.longitude, -180, 180);
 
     if (latitude === null || longitude === null) {
         return null;
@@ -538,8 +544,8 @@ function nominatimCandidate(place) {
         return null;
     }
 
-    const latitude = coordinateNumber(place.lat, -90, 90);
-    const longitude = coordinateNumber(place.lon, -180, 180);
+    const latitude = finiteNumber(place.lat, -90, 90);
+    const longitude = finiteNumber(place.lon, -180, 180);
 
     if (latitude === null || longitude === null) {
         return null;
@@ -598,7 +604,7 @@ if (typeof module !== "undefined") {
         MAX_GEOCODE_PLACE_NAME_LENGTH,
         WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES,
         weatherIcon, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, forecastUrl,
-        metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, metarNumber,
+        metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, finiteNumber,
         aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon,
         metNoSummary, metNoWeatherReading, openMeteoReading,
         openMeteoGeocodePlace, nominatimGeocodePlace, foldPlaceName };
