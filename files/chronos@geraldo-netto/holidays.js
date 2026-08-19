@@ -10,7 +10,6 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
-const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 // Which host is loading this file — and it is asked of the *host*, not of
 // require(). It used to test `typeof require === "function"`, on the stated
 // assumption that "Cinnamon provides neither require() nor module". That was true
@@ -27,36 +26,30 @@ const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
 // Under GJS this file is reached through the native importer, which provides
 // neither require() nor module; Node (tests) provides both.
-const IoUtils = IS_NODE ?
-    require("./ioUtils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
-const LocaleQuery = IS_NODE ?
-    require("./localeQuery") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
-const LocaleText = IS_NODE ?
-    require("./localeText") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].localeText;
-const ProviderUtils = IS_NODE ?
-    require("./providerUtils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
-const HolidayConstants = IS_NODE ?
-    require("./holidayConstants") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
-const HolidayCacheModule = IS_NODE ?
-    require("./holidayCache") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayCache;
-const TextUtils = IS_NODE ?
-    require("./textUtils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
-const HolidayServiceAdapters = IS_NODE ?
-    require("./holidayServiceAdapters") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayServiceAdapters;
-const HolidayRecord = IS_NODE ?
-    require("./holidayRecord") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
-const ReligiousHolidays = IS_NODE ?
-    require("./religiousHolidays") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].religiousHolidays;
+//
+// Asked once. This preamble was twelve copies of one ternary, and each copy is
+// a branch whose GJS side no Node test can ever take — so growing the file's
+// dependency list lowered its measured branch coverage, and the *number* of
+// siblings a module has is not a fact about how well it is tested.
+const APPLET_MODULES = IS_NODE ?
+    null : imports.ui.appletManager.applets["chronos@geraldo-netto"];
+
+function sibling(name) {
+    return APPLET_MODULES ? APPLET_MODULES[name] : require("./" + name); // NOSONAR [S7773] -- the Node guard is APPLET_MODULES
+}
+
+const IoUtils = sibling("ioUtils");
+const LocaleQuery = sibling("localeQuery");
+const LocaleText = sibling("localeText");
+const ProviderUtils = sibling("providerUtils");
+const HolidayConstants = sibling("holidayConstants");
+const HolidayCacheModule = sibling("holidayCache");
+const TextUtils = sibling("textUtils");
+const HolidayServiceAdapters = sibling("holidayServiceAdapters");
+const HolidayRecord = sibling("holidayRecord");
+const HolidayStatusLedgerModule = sibling("holidayStatusLedger");
+const HolidayInflightModule = sibling("holidayInflight");
+const HolidayProviderFacadeModule = sibling("holidayProviderFacade");
 
 const _lcLang = LocaleQuery.messageLanguage;
 
@@ -138,112 +131,13 @@ function httpBackedService(getSession, params = {}) {
     );
 }
 
-// The outcome of the last fetch for a year+region: what the month label shows.
-//
-// HolidayService kept this as a bare object and pruned it by hand, alongside the HTTP
-// session, the provider chain, the cache repository, the cache, the inflight
-// map, the place-generation counter, the staleness policy and the validation
-// policy. It is a small thing with a rule of its own — the key carries no
-// country, so it must be cleared whenever the place changes — and that rule is
-// easier to see, and to test, on its own.
-var HolidayStatusLedger = class HolidayStatusLedger { // NOSONAR [S3504] -- GJS importer export
-    constructor() {
-        this._status = {};
-        this.lastError = "";
-        this.lastProvider = "";
-    }
-
-    for(key) {
-        return this._status[key] || { error: "", provider: "" };
-    }
-
-    record(key) {
-        this._status[key] = {
-            error: this.lastError,
-            provider: this.lastProvider
-        };
-    }
-
-    // The inflight entry deletes itself when the fetch lands; the status beside
-    // it stays, one entry per year+region ever browsed. The cache evicts years
-    // LRU-style, so the status follows the years the cache still stamps: pruning
-    // by calendar distance instead deleted the record the moment it was written
-    // for any year past the persist window, while the attempt stamp it belonged
-    // to lived on and suppressed the refetch — a failure two years out rendered
-    // a bare month with no warning at all.
-    prune(liveYears) {
-        const keep = new Set(liveYears.map(Number));
-
-        Object.keys(this._status).forEach((key) => {
-            if (!keep.has(Number(key.split("/")[0]))) {
-                delete this._status[key];
-            }
-        });
-    }
-
-    clear() { // NOSONAR [S4144] -- distinct provider contract
-        this._status = {};
-        this.lastError = "";
-        this.lastProvider = "";
-    }
-};
-
-// The fetches in flight, and who is waiting for each. The 42-day grid always
-// spans two months, so the second one asks for a year whose fetch is already
-// running: it joins that one rather than issuing a second request.
-var HolidayInflight = class HolidayInflight { // NOSONAR [S3504] -- GJS importer export
-    constructor() {
-        this._waiting = {};
-    }
-
-    has(key) {
-        return Boolean(this._waiting[key]);
-    }
-
-    // Every entry is tagged with the place generation that started it, and only
-    // that generation can settle it.
-    //
-    // Without the tag: change country mid-fetch, and the old (BR) response lands
-    // after setPlace() has already emptied this map and the new (FR) request has
-    // refilled it under the same `${year}/${region}` key. The old response then
-    // deleted the *new* request's entry — so the FR response found no callbacks
-    // and nothing repainted, and `fetching()` answered false while a request was
-    // still live, which fired a duplicate. The month stayed on the old country's
-    // holidays until the user scrolled a month or reopened the menu.
-    //
-    // returns true when this call started the fetch, false when it joined one
-    start(key, callback, generation = 0) {
-        const entry = this._waiting[key];
-        if (entry) {
-            if (callback) {
-                entry.callbacks.push(callback);
-            }
-            return false;
-        }
-
-        this._waiting[key] = {
-            generation,
-            callbacks: callback ? [callback] : []
-        };
-        return true;
-    }
-
-    // a response for a generation that is no longer current owns nothing here:
-    // it takes no callbacks and, crucially, removes nothing
-    settle(key, generation = 0) {
-        const entry = this._waiting[key];
-        if (!entry || entry.generation !== generation) { // NOSONAR [S6582] -- accepted compatible form
-            return [];
-        }
-
-        delete this._waiting[key];
-        return entry.callbacks;
-    }
-
-    clear() {
-        this._waiting = {};
-    }
-};
+// The service's two collaborators, and the two decorators the composition root
+// wraps it in. Re-exported because the suite and any consumer outside this tree
+// reach them through this barrel.
+var HolidayStatusLedger = HolidayStatusLedgerModule.HolidayStatusLedger; // NOSONAR [S3504] -- GJS importer export
+var HolidayInflight = HolidayInflightModule.HolidayInflight; // NOSONAR [S3504] -- GJS importer export
+var HolidayProviderFacade = HolidayProviderFacadeModule.HolidayProviderFacade; // NOSONAR [S3504] -- GJS importer export
+var ReligiousHolidayProvider = HolidayProviderFacadeModule.ReligiousHolidayProvider; // NOSONAR [S3504] -- GJS importer export
 
 var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer export
     constructor (service, cache, params = {}) {
@@ -753,106 +647,6 @@ function createHolidayProvider(params = {}) {
         new HolidayProviderFacade(provider), params.religiousIds,
         params.translateName || LocaleText.translate);
 }
-
-var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- GJS importer export
-    constructor(provider) {
-        this._provider = provider;
-    }
-
-    get country() {
-        return this._provider.country;
-    }
-
-    // whether this provider has anything to annotate: the calendar gates on
-    // this, never on country-truthiness
-    get active() {
-        return Boolean(this._provider.country);
-    }
-
-    destroy() {
-        this._provider.destroy();
-    }
-
-    clearPlace() {
-        this._provider.clearPlace();
-    }
-
-    setPlace(country, region = GLOBAL_REGION, onUpdated) { // NOSONAR [S1788] -- accepted compatible form
-        this._provider.setPlace(country, region, onUpdated);
-    }
-
-    getHolidays(year, month, callback) {
-        this._provider.getHolidays(year, month, callback);
-    }
-};
-
-// Decorates the facade with the locally-computed religious observances the
-// catalogue module expands: the merged month keeps the public provider's
-// names first, the way the cache joins same-day rows. The provider contract
-// lives here, beside the facade it wraps. The catalogue is pure per call but
-// not stateless -- it memoizes its year expansions at module scope, which is
-// why teardown reaches into it below.
-var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S3504] -- GJS importer export
-    constructor(provider, enabledIds = [], translateName = (text) => text) {
-        this._base = provider;
-        this._translateName = translateName;
-        this.setEnabledIds(enabledIds);
-    }
-
-    get country() {
-        return this._base.country;
-    }
-
-    get active() {
-        return this._base.active || this._enabledIds.length > 0;
-    }
-
-    setEnabledIds(enabledIds) {
-        this._enabledIds = ReligiousHolidays.enabledReligionIds(enabledIds);
-    }
-
-    destroy() {
-        this._base.destroy();
-        // The catalogue's memos are module scope and shared by every applet
-        // instance, so nothing else would ever drop them: without this they
-        // outlive the last applet for the rest of the login session.
-        ReligiousHolidays.releaseMemos();
-    }
-
-    clearPlace() {
-        this._base.clearPlace();
-    }
-
-    setPlace(country, region, onUpdated) {
-        this._base.setPlace(country, region, onUpdated);
-    }
-
-    // The observance tables cover a bounded window, and past its end a
-    // table-backed religion rendered zero rows with no marker, no tooltip and
-    // no status line — indistinguishable from a month that simply has none.
-    // The provider status channel already reaches the month label, so say it
-    // there. A real provider failure still wins: the network is the more
-    // actionable problem, and the two would otherwise contend for one label.
-    _coverageError(year) {
-        return ReligiousHolidays.uncoveredReligions(TextUtils.numericInput(year), this._enabledIds)
-            .length > 0 ? HOLIDAY_ERRORS.RELIGIOUS_DATES_UNAVAILABLE : "";
-    }
-
-    getHolidays(year, month, callback) {
-        const religious = ReligiousHolidays.monthMap(
-            year, month, this._enabledIds, this._translateName);
-        const coverage = this._coverageError(year);
-        if (!this._base.active) {
-            callback(religious, coverage, "");
-            return;
-        }
-
-        this._base.getHolidays(year, month, (publicHolidays, error, providerName) => {
-            callback(ReligiousHolidays.mergeMonthMaps(publicHolidays, religious),
-                error || coverage, providerName);
-        });
-    }
-};
 
 if (typeof module !== "undefined") {
     module.exports = {

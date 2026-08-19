@@ -300,6 +300,12 @@ function gjsImportsMock() {
                             }
                         },
                         religiousHolidays: {},
+                        holidayStatusLedger: { HolidayStatusLedger: class {} },
+                        holidayInflight: { HolidayInflight: class {} },
+                        holidayProviderFacade: {
+                            HolidayProviderFacade: class {},
+                            ReligiousHolidayProvider: class {}
+                        },
                         holidayServiceAdapters: {
                             EnricoServiceAdapter: class {},
                             NagerDateServiceAdapter: class {},
@@ -371,6 +377,9 @@ const EXPORTS = {
         "NagerDateServiceAdapter", "OpenHolidaysServiceAdapter",
         "createHolidayServiceChain", "HolidayService", "HolidayProviderFacade",
         "ReligiousHolidayProvider", "HOLIDAY_ERRORS"],
+    holidayStatusLedger: ["HolidayStatusLedger"],
+    holidayInflight: ["HolidayInflight"],
+    holidayProviderFacade: ["HolidayProviderFacade", "ReligiousHolidayProvider"],
     religiousCatalog: ["RELIGIONS", "RELIGION_IDS"],
     hebrewCalendar: ["hebrewLeapYear", "gregorianFromHebrew", "hebrewObservances"],
     religiousHolidays: ["RELIGIOUS_HOLIDAY_FLAG", "RELIGIONS", "gregorianEaster",
@@ -574,8 +583,10 @@ test("root modules never call require() outside the Node guard", () => {
             }
             // the guarded shape is `typeof require === "function" ? require("./x") : …`,
             // so the require sits either on the typeof line or on the true branch's own
-            // line — naming every module here made the pattern a list to maintain
-            assert.match(line, /typeof require|^require\("\.\/\w+"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$/,
+            // line — naming every module here made the pattern a list to maintain.
+            // The last alternative is the same guard asked once for a whole
+            // preamble: `APPLET_MODULES` is null exactly when this is Node.
+            assert.match(line, /typeof require|^require\("\.\/\w+"\) :$|APPLET_MODULES \? APPLET_MODULES\.\w+ : require\("\.\/\w+"\);$|^return APPLET_MODULES \? APPLET_MODULES\[name\] : require\("\.\/" \+ name\);/,
                 `${moduleName}.js: unguarded require: ${line}`);
         }
     }
