@@ -51,7 +51,7 @@ const ClockLimits = IS_NODE ?
     require("./clockLimits") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].clockLimits;
 
-const locationCacheKey = WeatherProviders.locationCacheKey;
+const locationCacheKey = WeatherFormat.locationCacheKey;
 
 function compareCodeUnits(left, right) {
     if (left < right) {

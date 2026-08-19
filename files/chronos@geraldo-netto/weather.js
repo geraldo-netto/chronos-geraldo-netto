@@ -150,7 +150,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             return null;
         }
 
-        const key = WeatherProviders.locationCacheKey(normalized);
+        const key = WeatherFormat.locationCacheKey(normalized);
         if (key === this._resolved_place_key) {
             return this._resolved_place;
         }
@@ -192,7 +192,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         }
 
         const location = WeatherFormat.normalizeWeatherLocation(settings.location);
-        this._setLocationKey(location ? WeatherProviders.locationCacheKey(location) : "");
+        this._setLocationKey(location ? WeatherFormat.locationCacheKey(location) : "");
         // the reading on the panel belongs to the place it was fetched for; if
         // that is not the place being asked about now, it is not the weather
         this._display_state.forgetUnless(this._staleKey(settings));
@@ -217,7 +217,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     // serves both display systems.
     _forgetIfLocationChanged(location) {
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
-        const key = normalized ? WeatherProviders.locationCacheKey(normalized) : "";
+        const key = normalized ? WeatherFormat.locationCacheKey(normalized) : "";
         const changed = key !== this._resolved_location_key;
         if (key && changed) {
             this._reading_repository.forget(normalized);
@@ -274,7 +274,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
 
         const generation = ++this._request_generation;
         const location = WeatherFormat.normalizeWeatherLocation(settings.location);
-        this._setLocationKey(location ? WeatherProviders.locationCacheKey(location) : "");
+        this._setLocationKey(location ? WeatherFormat.locationCacheKey(location) : "");
         if (!settings.showWeather) {
             callback(null, "", "");
             return;
@@ -334,7 +334,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
     // and only a change of place invalidates it.
     _staleKey(settings) {
         const location = WeatherFormat.normalizeWeatherLocation(settings.location);
-        return WeatherProviders.locationCacheKey(location);
+        return WeatherFormat.locationCacheKey(location);
     }
 
 };

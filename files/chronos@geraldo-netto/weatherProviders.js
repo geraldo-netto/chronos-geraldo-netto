@@ -68,15 +68,10 @@ const aviationWeatherReading = WeatherServiceAdapters.aviationWeatherReading;
 const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
 const metNoWeatherReading = WeatherServiceAdapters.metNoWeatherReading;
 
-// A cache key, and deliberately not the display fold in
-// weatherServiceAdapters.foldPlaceName. A key needs to be stable and to
-// separate places the user meant to keep apart; the fold needs to be diacritic-
-// and punctuation-insensitive so a keyboard spelling reaches the city. Genova
-// and Génova are two cities - the fold's own comment says so - and folding the
-// key would make one geocode answer for the other, forever, out of the cache.
-function locationCacheKey(location) {
-    return WeatherFormat.normalizeWeatherLocation(location).toLowerCase();
-}
+// The rule itself is weatherFormat's - it is place identity, not transport.
+// Re-exported under the old name because every consumer in this tree, and any
+// outside it, reached it through this module.
+const locationCacheKey = WeatherFormat.locationCacheKey;
 
 var NOMINATIM_MIN_INTERVAL_MS = 1000; // NOSONAR [S3504] -- GJS importer export
 
@@ -798,7 +793,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
 
 if (typeof module !== "undefined") {
     module.exports = {
-        GEOCODE_PROVIDERS, FORECAST_PROVIDERS, locationCacheKey,
+        GEOCODE_PROVIDERS, FORECAST_PROVIDERS,
         MAX_WEATHER_READING_CACHE_ENTRIES, GEOCODE_CACHE_MILLISECONDS,
         NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
         registerWeatherConsumer, releaseWeatherConsumer, cancelPendingWeatherRequests,

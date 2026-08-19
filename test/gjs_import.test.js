@@ -178,7 +178,6 @@ function gjsImportsMock() {
                         weatherProviders: {
                             GEOCODE_PROVIDERS: [],
                             FORECAST_PROVIDERS: [],
-                            locationCacheKey() {},
                             NOMINATIM_MIN_INTERVAL_MS: 1000,
                             NominatimRequestQueue: class {},
                             WeatherLocationResolver: class {},
@@ -186,6 +185,7 @@ function gjsImportsMock() {
                             WeatherReadingRepository: class {}
                         },
                         weatherFormat: {
+                            locationCacheKey() {},
                             REFRESH_SECONDS: 1800,
                             RETRY_SECONDS: 30,
                             STALE_PERIODS: 2,
@@ -354,7 +354,7 @@ const EXPORTS = {
         "aviationWeatherStation", "finiteNumber", "metNoIcon", "metNoSummary",
         "openMeteoGeocodePlace", "nominatimGeocodePlace"],
     weatherScheduler: ["WeatherRefreshScheduler"],
-    weatherProviders: ["GEOCODE_PROVIDERS", "FORECAST_PROVIDERS", "locationCacheKey",
+    weatherProviders: ["GEOCODE_PROVIDERS", "FORECAST_PROVIDERS",
         "NOMINATIM_MIN_INTERVAL_MS", "NominatimRequestQueue",
         "WeatherLocationResolver", "WeatherForecastResolver", "WeatherReadingRepository"],
     // The panel provider and the composition-root repository cross the version

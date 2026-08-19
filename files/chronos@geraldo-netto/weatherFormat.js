@@ -78,6 +78,22 @@ function normalizeWeatherLocation(location) {
     return TextUtils.normalizeBoundedText(location, MAX_WEATHER_LOCATION_LENGTH);
 }
 
+// A cache key, and deliberately not the display fold in
+// weatherServiceAdapters.foldPlaceName. A key needs to be stable and to
+// separate places the user meant to keep apart; the fold needs to be diacritic-
+// and punctuation-insensitive so a keyboard spelling reaches the city. Genova
+// and Génova are two cities - the fold's own comment says so - and folding the
+// key would make one geocode answer for the other, forever, out of the cache.
+//
+// It lives here, beside the normalization it wraps, because it is a rule about
+// place identity and nothing else: weatherProviders.js, where it used to sit,
+// is the Soup and GLib layer, and the domain modules that key by it - the
+// reading store, the per-city error map, the city dedup - would have had to
+// reach downstream through the transport to ask what a place is called.
+function locationCacheKey(location) {
+    return normalizeWeatherLocation(location).toLowerCase();
+}
+
 function formatTemperature(celsius, units) {
     const imperial = normalizeUnits(units) === WEATHER_UNITS.IMPERIAL;
     const value = imperial ? celsius * 9 / 5 + 32 : celsius;
@@ -173,6 +189,6 @@ if (typeof module !== "undefined") {
         WEATHER_DEBOUNCE_MS, WEATHER_UNITS,
         WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS,
         WEATHER_CONDITIONS, WEATHER_UNKNOWN_CONDITION,
-        normalizeUnits, normalizeWeatherLocation,
+        normalizeUnits, normalizeWeatherLocation, locationCacheKey,
         formatTemperature };
 }
