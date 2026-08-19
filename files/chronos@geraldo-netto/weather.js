@@ -37,6 +37,9 @@ const WeatherFormat = IS_NODE ?
 // The refresh clock and the provider chains live in their own modules; this one
 // composes them into the panel's WeatherProvider. It no longer hands them on:
 // its exports are its own bindings, which is all GJS exposes.
+const WeatherConsumer = IS_NODE ?
+    require("./weatherConsumer") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherConsumer;
 const WeatherScheduler = IS_NODE ?
     require("./weatherScheduler") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
@@ -125,23 +128,26 @@ class WeatherDisplayState {
     }
 }
 
-var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer export
+var WeatherProvider = class WeatherProvider extends WeatherConsumer.WeatherConsumer { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
-        this._request_generation = 0; // NOSONAR [S7757] -- accepted compatible form
-        this._destroyed = false;
+        // the destroyed flag, the request generation, the online test, stop(),
+        // destroy() and the retry decision are the shared consumer's: this
+        // provider and the city one are two instances of one lifecycle
+        super({
+            logName: "panel weather",
+            isOnline: params.isOnline,
+            scheduler: params.scheduler ||
+                new WeatherScheduler.WeatherRefreshScheduler(params),
+            readingRepository: params.readingRepository ||
+                new WeatherReadingRepository(params),
+            ownsReadingRepository: !params.readingRepository
+        });
         // the location the geocode cache was last asked about, so a settings
         // change that did not touch it does not throw the geocode away
         this._resolved_location_key = "";
         this._resolved_place_key = "";
         this._resolved_place = null;
         this._display_state = params.displayState || new WeatherDisplayState(params);
-        // "always online" is the pre-monitor behavior; the composition root
-        // injects the real Gio.NetworkMonitor-backed answer
-        this._isOnline = params.isOnline || (() => true);
-        this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler(params);
-        this._reading_repository = params.readingRepository ||
-            new WeatherReadingRepository(params);
-        this._owns_reading_repository = !params.readingRepository;
     }
 
     placeFor(location) {
@@ -172,20 +178,6 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
         }
     }
 
-    stop() {
-        this._request_generation++;
-        this._scheduler.stop();
-    }
-
-    destroy() {
-        this._destroyed = true;
-        this.stop();
-
-        if (this._owns_reading_repository) {
-            this._reading_repository.destroy();
-        }
-    }
-
     schedule(settings, callback) {
         if (this._destroyed) {
             return;
@@ -205,7 +197,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             callback(null, "", "", true);
         }
 
-        this._request_generation++;
+        this._startRequest();
         this._scheduler.schedule(settings, () => this.refresh(settings, callback));
     }
 
@@ -272,7 +264,7 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             return;
         }
 
-        const generation = ++this._request_generation;
+        const generation = this._startRequest();
         const location = WeatherFormat.normalizeWeatherLocation(settings.location);
         this._setLocationKey(location ? WeatherFormat.locationCacheKey(location) : "");
         if (!settings.showWeather) {
@@ -300,25 +292,13 @@ var WeatherProvider = class WeatherProvider { // NOSONAR [S3504] -- GJS importer
             () => this._isCurrent(generation), report);
     }
 
-    _isCurrent(generation) {
-        return !this._destroyed && generation === this._request_generation;
-    }
-
     _refreshReporter(settings, callback) {
         const key = this._staleKey(settings);
         const report = this._display_state.reporter(key,
             (reading, error, provider) => {
-                // Service outages may recover before the normal period. A name
-                // that both geocoders answered but could not resolve will not —
-                // and neither will a missing network, whose recovery signal is
-                // the monitor's flip, not a timer.
-                if (error &&
-                    error !== WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND &&
-                    error !== WeatherFormat.WEATHER_ERRORS.OFFLINE) {
-                    this._scheduler.retry(() => this.refresh(settings, callback));
-                } else {
-                    this._scheduler.succeeded();
-                }
+                // which failures are worth retrying, and the one line the
+                // ceiling is worth, are the shared consumer's policy
+                this._settleRefresh(error, () => this.refresh(settings, callback));
                 callback(reading, error, provider);
             });
         return (reading, error, provider, place, readingAt) => {

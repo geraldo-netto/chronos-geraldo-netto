@@ -44,6 +44,9 @@ const WeatherFormat = IS_NODE ?
 const WeatherProviders = IS_NODE ?
     require("./weatherProviders") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherProviders;
+const WeatherConsumer = IS_NODE ?
+    require("./weatherConsumer") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherConsumer;
 const WeatherScheduler = IS_NODE ?
     require("./weatherScheduler") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherScheduler;
@@ -83,15 +86,16 @@ const CITY_RETRY_SECONDS = WeatherFormat.RETRY_SECONDS;
 // configured world clock, so each city carries its own place lookup and its
 // own last-good reading; a city that fails to geocode simply has no
 // temperature and its row still shows the time.
-var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS importer export
+var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.WeatherConsumer { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
-        this._destroyed = false; // NOSONAR [S7757] -- accepted compatible form
-        this._generation = 0;
-        this._errors = new Map();
-        this._applied_signature = null;
-        this._freshness_now = params.freshnessNow || params.now ||
+        // Read before super(), because they are what the scheduler and the
+        // reading store are built from and `this` does not exist yet. The
+        // destroyed flag, the generation, the online test, stop(), destroy()
+        // and the retry decision are the shared consumer's: this provider and
+        // the panel one are two instances of one lifecycle.
+        const freshnessNow = params.freshnessNow || params.now ||
             ElapsedTime.civilMilliseconds;
-        this._refresh_seconds = params.refreshSeconds || CITY_REFRESH_SECONDS;
+        const refreshSeconds = params.refreshSeconds || CITY_REFRESH_SECONDS;
         // One store per provider, holding one last-good reading per city: the
         // panel provider this module is the twin of holds the same thing for
         // one place, and the four fields and the freshness derivation behind
@@ -101,10 +105,10 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         // refreshes on, not from the module default: staleFor() used to read
         // the constant and ignore the injected period entirely, so a provider
         // refreshing every minute called an hour-old temperature current.
-        this._reading_store = new WeatherFormat.WeatherReadingStore({
-            freshnessNow: this._freshness_now,
+        const readingStore = new WeatherFormat.WeatherReadingStore({
+            freshnessNow,
             staleAfterSeconds: params.staleAfterSeconds,
-            refreshSeconds: this._refresh_seconds
+            refreshSeconds
         });
 
         // The panel weather's scheduler, doing the same job for the cities: the
@@ -124,19 +128,22 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         // scheduler, the reading repository and the two resolvers behind it, so
         // adding a parameter to any one of the three files changed the meaning
         // of a call to the other two and nothing checked it.
-        this._scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler({
-            refreshSeconds: this._refresh_seconds,
+        // No debounce parameters: the scheduler debounces in queue(), and this
+        // provider never calls it. A city round is short-circuited by
+        // `_applied_signature` instead, which is the one debounce rule here;
+        // forwarding `debounceMs` and `scheduleDebounceTimer` into a code path
+        // nothing reaches read as a second one.
+        const scheduler = params.scheduler || new WeatherScheduler.WeatherRefreshScheduler({
+            refreshSeconds,
             retrySeconds: CITY_RETRY_SECONDS,
             isActive: (settings) =>
                 Boolean(this._active(settings) && this._cities(settings).length),
             random: params.random,
             scheduleTimer: params.scheduleTimer,
-            scheduleDebounceTimer: params.scheduleDebounceTimer,
-            removeTimer: params.removeTimer,
-            debounceMs: params.debounceMs
+            removeTimer: params.removeTimer
         });
 
-        this._reading_repository = params.readingRepository ||
+        const readingRepository = params.readingRepository ||
             new WeatherProviders.WeatherReadingRepository({
                 // the repository's own collaborators, named: it reaches two
                 // resolvers and an HTTP session behind them. cacheSeconds is
@@ -153,11 +160,27 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
                 freshnessNow: params.freshnessNow,
                 now: params.now
             });
-        this._owns_reading_repository = !params.readingRepository;
-        // "always online" is the pre-monitor behavior; the composition root
-        // injects the real Gio.NetworkMonitor-backed answer
-        this._isOnline = params.isOnline || (() => true);
-        this._retry_ceiling_reported = false;
+
+        super({
+            logName: "city weather",
+            isOnline: params.isOnline,
+            scheduler,
+            readingRepository,
+            ownsReadingRepository: !params.readingRepository
+        });
+
+        this._errors = new Map();
+        this._applied_signature = null;
+        this._freshness_now = freshnessNow;
+        this._refresh_seconds = refreshSeconds;
+        this._reading_store = readingStore;
+    }
+
+    // the readings and the per-city errors are this consumer's own: a city row
+    // that is going away must not outlive the provider that filled it
+    _releaseHeldState() {
+        this._reading_store.clear();
+        this._errors.clear();
     }
 
     // `city` is the geocoded city — what the reading is *of* — and not the clock's
@@ -215,47 +238,14 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         return locationCacheKey(city);
     }
 
-    stop() {
-        this._generation++;
-        this._scheduler.stop();
-    }
-
     // The panel reading retries a failed refresh instead of waiting out the
     // whole period; the cities used to drop the failure on the floor, so a city
     // that failed to read kept yesterday's temperature until something else
     // happened to reschedule it — or forever, if the network was down at every
-    // tick. The backoff, its ceiling and its jitter are the scheduler's.
+    // tick. The backoff, its ceiling and its jitter are the scheduler's, and
+    // the one line the ceiling is worth is the shared consumer's.
     _retry(settings, callback) {
-        if (this._scheduler.retry(() => this.refresh(settings, callback))) {
-            // the budget is live again after a recovery, so the next time it
-            // runs out is news again
-            this._retry_ceiling_reported = false;
-            return;
-        }
-
-        // The scheduler refused: either weather is off, or the budget is spent
-        // and the periodic timer is the schedule from here. Only the second is
-        // worth a line, and only the first time it happens.
-        if (!this._scheduler.retriesExhausted() || this._retry_ceiling_reported) {
-            return;
-        }
-        this._retry_ceiling_reported = true;
-        if (global.log) {
-            global.log("city weather: still failing after " +
-                WeatherFormat.MAX_RETRY_ATTEMPTS +
-                " attempts; falling back to the normal refresh period");
-        }
-    }
-
-    destroy() {
-        this._destroyed = true;
-        this.stop();
-        this._reading_store.clear();
-        this._errors.clear();
-
-        if (this._owns_reading_repository) {
-            this._reading_repository.destroy();
-        }
+        this._retryFailedRefresh(() => this.refresh(settings, callback));
     }
 
     // What the cities are read from: the clock list, and whether weather is on at
@@ -303,7 +293,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         // dropped; the scheduler owns the timers. Nothing to read means nothing
         // to re-read: a clock list of built-ins only, or weather switched off,
         // arms no timer — that is what isActive() tells it.
-        this._generation++;
+        this._startRequest();
         this._scheduler.schedule(settings, () => this.refresh(settings, callback));
     }
 
@@ -312,7 +302,7 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             return;
         }
 
-        const generation = ++this._generation;
+        const generation = this._startRequest();
         const cities = this._cities(settings);
 
         if (!this._active(settings) || !cities.length) {
@@ -477,10 +467,6 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
         return unique;
     }
 
-    _isCurrent(generation) {
-        return !this._destroyed && generation === this._generation;
-    }
-
     _refreshCity(city, generation, callback, round) {
         // the query is the timezone's city; the label is only ever a local key
         this._reading_repository.refresh(city.query,
@@ -501,7 +487,11 @@ var CityWeatherProvider = class CityWeatherProvider { // NOSONAR [S3504] -- GJS 
             // improve on retry; a service failure may.
             const cityError = forecastError || WeatherFormat.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
             round.changed = this._setError(city.query, cityError) || round.changed;
-            const ok = cityError === WeatherFormat.WEATHER_ERRORS.LOCATION_NOT_FOUND;
+            // "not worth retrying", which is the shared decision. It used to be
+            // written here as "unresolvable", which made an offline city arm a
+            // retry the panel deliberately does not arm — and offline already
+            // has its own round above, which arms none either.
+            const ok = !this._shouldRetry(cityError);
             this._cityDone(generation, round, round.settings, callback, ok);
             return;
         }

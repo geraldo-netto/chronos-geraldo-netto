@@ -299,9 +299,13 @@ test("panel weather settles an unknown place but retries a service outage", () =
     const scheduler = {
         retry() {
             calls.push("retry");
+            return true;
         },
         succeeded() {
             calls.push("succeeded");
+        },
+        retriesExhausted() {
+            return false;
         },
         stop() {}
     };
@@ -325,6 +329,62 @@ test("panel weather settles an unknown place but retries a service outage", () =
     }
 
     assert.deepEqual(calls, ["succeeded", "retry"]);
+});
+
+// T949: `retriesExhausted()` exists, its comment says, "so the caller can say so
+// once". The city weather said it; the panel discarded the answer to retry()
+// and burned its whole eight-attempt budget with nothing anywhere in the log.
+test("the panel says once when its retry ladder runs out", () => {
+    const Weather = loadWeather();
+    const lines = [];
+    const originalLog = global.log;
+    global.log = (line) => lines.push(line);
+
+    let exhausted = false;
+    const scheduler = {
+        retry() {
+            return !exhausted;
+        },
+        succeeded() {},
+        retriesExhausted() {
+            return exhausted;
+        },
+        stop() {}
+    };
+    const settings = { showWeather: true, location: "Atlantis", units: "si" };
+    const provider = new Weather.WeatherProvider({
+        scheduler,
+        locationResolver: {
+            forget() {},
+            resolve(_location, _isCurrent, callback) {
+                callback(null, Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE);
+            }
+        },
+        httpGetJson() {}
+    });
+
+    try {
+        provider.refresh(settings, () => {});
+        assert.deepEqual(lines, [], "a retry that was armed is not news");
+
+        exhausted = true;
+        provider.refresh(settings, () => {});
+        assert.equal(lines.length, 1, "the ceiling is worth exactly one line");
+        assert.match(lines[0], /^panel weather: still failing after 8 attempts/,
+            "and it says which of the two weather consumers is failing");
+
+        provider.refresh(settings, () => {});
+        assert.equal(lines.length, 1, "every later failure is the same news");
+
+        // a recovery makes the next exhaustion news again
+        exhausted = false;
+        provider.refresh(settings, () => {});
+        exhausted = true;
+        provider.refresh(settings, () => {});
+        assert.equal(lines.length, 2);
+    } finally {
+        global.log = originalLog;
+    }
 });
 
 test("the geocode cache is bounded and re-resolves an edited location", () => {

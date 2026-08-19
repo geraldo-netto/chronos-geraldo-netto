@@ -175,6 +175,9 @@ function gjsImportsMock() {
                         weatherScheduler: {
                             WeatherRefreshScheduler: class {}
                         },
+                        weatherConsumer: {
+                            WeatherConsumer: class {}
+                        },
                         weatherProviders: {
                             GEOCODE_PROVIDERS: [],
                             FORECAST_PROVIDERS: [],
@@ -354,6 +357,7 @@ const EXPORTS = {
         "aviationWeatherStation", "finiteNumber", "metNoIcon", "metNoSummary",
         "openMeteoGeocodePlace", "nominatimGeocodePlace"],
     weatherScheduler: ["WeatherRefreshScheduler"],
+    weatherConsumer: ["WeatherConsumer"],
     weatherProviders: ["GEOCODE_PROVIDERS", "FORECAST_PROVIDERS",
         "NOMINATIM_MIN_INTERVAL_MS", "NominatimRequestQueue",
         "WeatherLocationResolver", "WeatherForecastResolver", "WeatherReadingRepository"],
@@ -471,7 +475,8 @@ test("weather.js exports the same names to Node that GJS can see", () => {
 
     const originalImports = global.imports;
     global.imports = gjsImportsMock();
-    for (const file of ["weather.js", "weatherScheduler.js", "weatherProviders.js",
+    for (const file of ["weather.js", "weatherScheduler.js", "weatherConsumer.js",
+        "weatherProviders.js",
         "weatherFormat.js", "weatherServiceAdapters.js", "ioUtils.js", "styleUtils.js",
         "providerUtils.js", "localeQuery.js"]) {
         delete require.cache[require.resolve(path.join(APPLET_DIR, file))];
