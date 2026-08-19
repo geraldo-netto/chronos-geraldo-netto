@@ -38,7 +38,7 @@ def country_options(options: dict) -> list[tuple[str, str]]:
     return [(value, label) for label, value in options.items()]
 
 
-class CountryComboBox(SettingsWidget, JSONSettingsBackend):
+class CountryComboBox(common.CommitOnEditEnd, SettingsWidget, JSONSettingsBackend):
     """The holiday country, picked from the list or typed into.
 
     The list is ~100 countries deep. A plain Gtk.ComboBox has no type-ahead at
@@ -151,16 +151,9 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
 
     def connect_widget_handlers(self, *args):
         self.content_widget.connect('changed', self.on_combo_changed)
-        # the mark describes text that is no longer on screen once the user
-        # starts answering it
-        self.entry.connect('changed', self.on_entry_edited)
-        # the ways an edit ends. Not 'changed', which is every keystroke and
-        # which get_active_iter() answers None for while a name is half-typed.
-        self.entry.connect('activate', self.on_entry_commit)
-        self.entry.connect('focus-out-event', self.on_entry_commit)
-        # closing the settings window while the cursor is still in the field
-        # never fires focus-out, and the country the user typed would go with it
-        self.entry.connect('destroy', self.on_entry_commit)
+        # 'changed', 'activate', 'focus-out-event' and 'destroy': the shared
+        # edit-end lifecycle, which the weather location field answers too
+        self.connect_edit_end_handlers(self.entry)
 
     def on_entry_edited(self, *args):
         if self.refused:
@@ -183,11 +176,8 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         self.value = value
         self.set_value(value)
 
-    def on_entry_commit(self, *args) -> bool:
+    def commit_edit(self):
         self.restore_entry_text()
-        # False: an 'activate', a focus change or a teardown carries on as it
-        # would have
-        return False
 
     def restore_entry_text(self):
         # A country typed out in full used to be thrown away. GtkComboBox's

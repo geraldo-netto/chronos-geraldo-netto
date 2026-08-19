@@ -109,7 +109,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         oversized = "x" * (self.module.MAX_WEATHER_LOCATION_LENGTH + 1)
         widget, settings = self.entry({"weather-location": oversized})
 
-        kept_open = widget.on_commit()
+        kept_open = widget.on_edit_end()
 
         self.assertFalse(kept_open, "the focus change carries on")
         self.assertEqual(settings.writes, [])
@@ -125,7 +125,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         widget, settings = self.entry({"weather-location": oversized})
 
         widget.content_widget.set_text("Porto")
-        widget.on_commit()
+        widget.on_edit_end()
 
         self.assertEqual(settings.values["weather-location"], "Porto")
         self.assertNotIn("error", self.marks_of(widget)[0])
@@ -134,7 +134,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         widget, settings = self.entry({"weather-location": "Lisbon"})
 
         widget.content_widget.set_text("")
-        widget.on_commit()
+        widget.on_edit_end()
 
         self.assertEqual(settings.values["weather-location"], "")
 
@@ -288,7 +288,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertEqual(settings.writes, [], "a half-typed name is not a location")
 
         # leaving the field ends the edit, and that is the one write
-        widget.on_commit()
+        widget.on_edit_end()
         self.assertEqual(settings.writes, [("weather-location", "Genoa")])
 
     def test_picking_a_suggestion_saves_it_at_once(self):
@@ -307,9 +307,9 @@ class WeatherLocationCompletionTest(unittest.TestCase):
 
         # focus leaves the field and nothing was edited: a write here would
         # refetch the same place for nothing
-        widget.on_commit()
+        widget.on_edit_end()
         widget.content_widget.set_text("  Lisbon  ")
-        widget.on_commit()
+        widget.on_edit_end()
 
         self.assertEqual(settings.writes, [])
         self.assertEqual(widget.content_widget.get_text(), "Lisbon",
@@ -419,7 +419,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("bra")
         widget.content_widget.type_text("Atlantis")
 
-        kept_open = widget.on_entry_commit()
+        kept_open = widget.on_edit_end()
 
         # the field cannot sit there showing a country the applet is not using
         self.assertEqual(widget.entry.get_property("text"), "Brazil")
@@ -436,7 +436,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("prt")
         widget.content_widget.type_text("Brazil")
 
-        kept_open = widget.on_entry_commit()
+        kept_open = widget.on_edit_end()
 
         self.assertEqual(widget.value, "bra")
         self.assertEqual(settings.values["country"], "bra")
@@ -456,7 +456,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("prt")
         widget.content_widget.type_text("Atlantis")
 
-        widget.on_entry_commit()
+        widget.on_edit_end()
 
         classes, description = self.marks_of(widget)
         self.assertIn("error", classes, "the field is marked, not just reverted")
@@ -500,7 +500,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, _settings = self.combo("prt")
         widget.content_widget.type_text("   ")
 
-        widget.on_entry_commit()
+        widget.on_edit_end()
 
         classes, description = self.marks_of(widget)
         self.assertNotIn("error", classes)
@@ -519,7 +519,7 @@ class CountryComboBoxTest(unittest.TestCase):
             "country", settings)
         self.assertIn("error", self.marks_of(widget)[0], "the mark starts up")
 
-        widget.on_entry_commit()
+        widget.on_edit_end()
 
         classes, description = self.marks_of(widget)
         self.assertIn("error", classes)
@@ -530,7 +530,7 @@ class CountryComboBoxTest(unittest.TestCase):
     def test_the_mark_comes_off_when_the_user_answers_it(self):
         widget, _settings = self.combo("prt")
         widget.content_widget.type_text("Atlantis")
-        widget.on_entry_commit()
+        widget.on_edit_end()
         self.assertIn("error", self.marks_of(widget)[0])
 
         # the message named text that is gone the moment editing resumes
@@ -545,7 +545,7 @@ class CountryComboBoxTest(unittest.TestCase):
         # after that early return would leave the mark on for good
         widget, _settings = self.combo("prt")
         widget.content_widget.type_text("Atlantis")
-        widget.on_entry_commit()
+        widget.on_edit_end()
 
         widget.completion.select(self.row_of(widget, "prt"))
 
@@ -583,7 +583,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("prt")
         widget.content_widget.type_text("  united kingdom  ")
 
-        widget.on_entry_commit()
+        widget.on_edit_end()
 
         self.assertEqual(settings.values["country"], "gbr")
         self.assertEqual(widget.entry.get_property("text"), "United Kingdom")
@@ -592,7 +592,7 @@ class CountryComboBoxTest(unittest.TestCase):
         widget, settings = self.combo("bra")
         widget.content_widget.type_text("None (disable holidays)")
 
-        widget.on_entry_commit()
+        widget.on_edit_end()
 
         self.assertEqual(settings.values["country"], "none")
 

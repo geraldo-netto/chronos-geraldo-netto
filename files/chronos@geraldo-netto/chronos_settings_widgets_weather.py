@@ -68,14 +68,11 @@ def attach_city_completion(entry, cities):
     will not be suggested. The field stays free text and any name still saves;
     the completion is a shortcut, not a whitelist.
     """
-    if not cities:
-        return None
-
     # the suggestion *is* the value here, so completing inline is safe — unlike
     # the timezone field, where the suggestion is a label and only the identifier
     # behind it may be saved
-    return common.attach_completion(
-        entry, city_completion_model(cities), inline_completion=True)
+    return common.attach_suggestions(
+        entry, cities, _city_completion_columns, inline_completion=True)
 
 
 
@@ -91,7 +88,7 @@ def weather_cities() -> list[str]:
     return _WEATHER_CITIES
 
 
-class WeatherLocationEntry(Entry, JSONSettingsBackend):
+class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
     """The weather location, typed with city-name suggestions.
 
     A plain entry against a geocoder is a guessing game: the user types a name,
@@ -172,13 +169,9 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
 
     def connect_widget_handlers(self, *args):
         self.content_widget.connect("focus-in-event", self.ensure_completion)
-        self.content_widget.connect("changed", self.on_entry_edited)
-        # the ways an edit ends
-        self.content_widget.connect("activate", self.on_commit)
-        self.content_widget.connect("focus-out-event", self.on_commit)
-        # closing the settings window while the cursor is still in the field
-        # never fires focus-out, and the name the user typed would go with it
-        self.content_widget.connect("destroy", self.on_commit)
+        # 'changed', 'activate', 'focus-out-event' and 'destroy': the shared
+        # edit-end lifecycle, which the holiday country field answers too
+        self.connect_edit_end_handlers(self.content_widget)
 
     def ensure_completion(self, *args) -> bool:  # NOSONAR [S3516] -- False propagates the GTK focus event
         if self._completion_loaded:
@@ -199,10 +192,8 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         self.commit(city)
         return True
 
-    def on_commit(self, *args) -> bool:
+    def commit_edit(self):
         self.commit(self.content_widget.get_text())
-        # False: an "activate" or a focus change carries on as it would have
-        return False
 
     def commit(self, text) -> str:
         if refuses_weather_location(text):

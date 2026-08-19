@@ -203,6 +203,62 @@ def attach_completion(entry, model, text_column=0, minimum_key_length=2,
     return completion
 
 
+def attach_suggestions(entry, rows, row_columns, text_column=0,
+                       minimum_key_length=2, inline_completion=False,
+                       on_selected=None):
+    """Suggestions for `entry`, built from `rows` through `row_columns`.
+
+    The world-clock dialog and the weather page each wrote this out as a
+    columns function, a model function over `completion_model` and an attach
+    function over `attach_completion` - including the same "no rows, no
+    completion" guard, which is what this shares. An empty suggestion list is a
+    field with no completion at all, not a completion that matches nothing.
+
+    The holiday country field does not come through here: its model is the
+    combo's own, so it has rows without a row-columns transform of its own.
+    """
+    if not rows:
+        return None
+
+    return attach_completion(
+        entry, completion_model(rows, row_columns), text_column=text_column,
+        minimum_key_length=minimum_key_length,
+        inline_completion=inline_completion, on_selected=on_selected)
+
+
+class CommitOnEditEnd:
+    """The edit-end lifecycle the two free-text settings fields share.
+
+    An edit in a Gtk.Entry ends in four ways, and both the weather location and
+    the holiday country have to answer all four: Enter (`activate`), leaving the
+    field (`focus-out-event`), and the settings window closing with the cursor
+    still in the field - which fires no focus-out at all, so what the user typed
+    would go with it - which is `destroy`. `changed` is not one of them: it is
+    every keystroke, and a combo answers `get_active_iter()` None for it while a
+    name is half-typed.
+
+    A user of this mixin supplies `commit_edit()`, which is what ending an edit
+    means for it, and `on_entry_edited()`, which is what a keystroke does to a
+    standing refusal mark. The mark itself stays per widget: the two say
+    different things about different targets, and only the shape below was ever
+    the same.
+    """
+
+    def connect_edit_end_handlers(self, entry):
+        # the mark describes text that is no longer on screen once the user
+        # starts answering it
+        entry.connect("changed", self.on_entry_edited)
+        entry.connect("activate", self.on_edit_end)
+        entry.connect("focus-out-event", self.on_edit_end)
+        entry.connect("destroy", self.on_edit_end)
+
+    def on_edit_end(self, *args) -> bool:
+        self.commit_edit()
+        # False: an 'activate', a focus change or a teardown carries on as it
+        # would have
+        return False
+
+
 # GTK's own name for "this widget is holding something wrong". Themes draw it;
 # assistive technologies report it.
 #

@@ -132,13 +132,10 @@ def timezone_completion_model(completions):
 
 def attach_timezone_completion(entry, completions):
     """Give a timezone Gtk.Entry a city-name autocompletion."""
-    if not completions:
-        return None
-
     # not inline: the suggestion is a label, and the field must hold the
     # identifier behind it, so only an explicit pick fills it
-    return common.attach_completion(
-        entry, timezone_completion_model(completions),
+    return common.attach_suggestions(
+        entry, completions, _timezone_completion_columns,
         on_selected=timezone_completion_selected)
 
 
