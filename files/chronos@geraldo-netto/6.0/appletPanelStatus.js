@@ -209,36 +209,55 @@ class AppletPanelStatusPresenter {
         this._tooltipFormatWasRejected = false;
         this._formatIssue = "";
         this._tooltipFormatIssue = "";
-        // the diff-then-write caches, declared here rather than sprung into
-        // existence on the first tick: the class's shape is its contract
-        this._rendered_tooltip_key = null;
-        this._rendered_accessible_name = null;
-        this._rendered_label = null;
-        this._rendered_day = null;
-        this._rendered_date = null;
-        this._rendered_home_enabled = null;
+        // What has already been written, and therefore need not be written
+        // again. Declared here rather than sprung into existence on the first
+        // tick: the class's shape is its contract, and one of these used to be
+        // reached as `this[cacheKey]` from a dynamic name — invisible to lint
+        // and to anyone grepping for the field.
+        this._rendered = {
+            tooltipKey: null,
+            accessibleName: null,
+            panelLabel: null,
+            day: null,
+            date: null,
+            homeEnabled: null
+        };
+    }
+
+    // One diff-then-write for the six writes on the once-a-second path. None of
+    // them is free: St.Label compares by pointer, so a byte-identical string
+    // still queues a relayout; set_style_class_name queues one for a
+    // byte-identical name; and the tooltip is re-tabulated (two passes over
+    // every cell) at 1 Hz for as long as the panel is hovered.
+    //
+    // It was written out five times, no two alike.
+    _writeIfChanged(key, value, write) {
+        if (this._rendered[key] === value) {
+            return;
+        }
+        this._rendered[key] = value;
+        write(value);
     }
 
     // this runs on every open-menu tick, and these writes were the one undiffed
     // path left in it: reactive/can_focus self-diff in Clutter, but
     // set_style_class_name queues a relayout for a byte-identical name
     _setHomeEnabled(enabled) {
-        const next = Boolean(enabled);
-        if (next === this._rendered_home_enabled) {
-            return;
-        }
-        this._rendered_home_enabled = next;
+        this._writeIfChanged("homeEnabled", Boolean(enabled), () => {
+            const button = this.port.homeButton();
 
-        const button = this.port.homeButton();
+            // before can_focus drops: St gives up the stage focus when the
+            // focused actor stops being focusable, and Cinnamon closes a menu
+            // whose focus left
+            if (!enabled && button.can_focus && hasKeyFocus(button)) {
+                this.port.focusSelectedDay();
+            }
 
-        if (!enabled && button.can_focus && hasKeyFocus(button)) {
-            this.port.focusSelectedDay();
-        }
-
-        button.reactive = enabled;
-        button.can_focus = enabled;
-        button.set_style_class_name(enabled ?
-            "calendar-today-home-button-enabled" : "calendar-today-home-button");
+            button.reactive = enabled;
+            button.can_focus = enabled;
+            button.set_style_class_name(enabled ?
+                "calendar-today-home-button-enabled" : "calendar-today-home-button");
+        });
     }
 
     updateFormatString() {
@@ -559,12 +578,8 @@ class AppletPanelStatusPresenter {
     // changes. The key uses the rendered row stamps so byte-identical text is not
     // written and laid out again.
     _setTooltipModel(model) {
-        if (this._rendered_tooltip_key === model.key) {
-            return;
-        }
-        this._rendered_tooltip_key = model.key;
-
-        this.port.setTooltip(this._tooltipText(model));
+        this._writeIfChanged("tooltipKey", model.key,
+            () => this.port.setTooltip(this._tooltipText(model)));
     }
 
     // a tooltip is plain text, so the columns can only be lined up by padding;
@@ -683,30 +698,12 @@ class AppletPanelStatusPresenter {
         const name = error ? joinPhrases(labelString, error) :
             describeWeather(labelString, condition, pending);
 
-        if (this._rendered_accessible_name === name) {
-            return;
-        }
-        this._rendered_accessible_name = name;
-
-        writeAccessibleName(this.port, name);
-    }
-
-    _setLabel(label, cacheKey, text) {
-        if (this[cacheKey] === text) {
-            return;
-        }
-
-        this[cacheKey] = text;
-        label.set_text(text);
+        this._writeIfChanged("accessibleName", name,
+            () => writeAccessibleName(this.port, name));
     }
 
     _setPanelLabel(text) {
-        if (this._rendered_label === text) {
-            return;
-        }
-
-        this._rendered_label = text;
-        this.port.setLabel(text);
+        this._writeIfChanged("panelLabel", text, () => this.port.setLabel(text));
     }
 
     getClockEntries() {
@@ -760,8 +757,10 @@ class AppletPanelStatusPresenter {
         // St.Label compares by pointer, so writing a byte-identical string still
         // queues a relayout; these change once a day, and the tick is a minute —
         // or a second, if clock-show-seconds is on
-        this._setLabel(port.dayLabel(), "_rendered_day", formattedToday.day);
-        this._setLabel(port.dateLabel(), "_rendered_date", formattedToday.short);
+        this._writeIfChanged("day", formattedToday.day,
+            (text) => port.dayLabel().set_text(text));
+        this._writeIfChanged("date", formattedToday.short,
+            (text) => port.dateLabel().set_text(text));
         this._setTooltipModel(clockModel);
         // Unlike a tooltip, this actor is reachable from a keyboard-opened menu
         // and remains present when the world-clock block is switched off.
