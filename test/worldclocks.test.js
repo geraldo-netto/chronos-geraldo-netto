@@ -1685,6 +1685,32 @@ test("countryCodeFromZoneTab performs an exact timezone lookup", () => {
     assert.equal(countryCodeFromZoneTab("+02", zoneTab), "");
 });
 
+// T1013: aborting the whole table on one bad row withdraws automatic
+// holiday-country inference for the machine. Fail-closed stays, but not
+// silently: the log line is the only way anyone finds out.
+test("a malformed zone.tab row is reported, not swallowed", () => {
+    loadWorldclocks();
+    const { countryCodeFromZoneTab } = require(dataModulePath);
+    const logged = [];
+    global.logError = (message) => logged.push(message);
+
+    const zoneTab = [
+        "IT\t+4154+01229\tEurope/Rome",
+        "FR\t+4852+00220\tEurope/Rome"
+    ].join("\n");
+
+    assert.equal(countryCodeFromZoneTab("Europe/Rome", zoneTab), "");
+    assert.equal(logged.length, 1, "the parse failure is reported once");
+    assert.ok(logged[0].includes("zone.tab"), "the log names the file");
+    assert.ok(logged[0].includes("Europe/Rome"), "and the offending row");
+
+    // a table that parses says nothing
+    logged.length = 0;
+    assert.equal(countryCodeFromZoneTab("Europe/Rome",
+        "IT\t+4154+01229\tEurope/Rome"), "IT");
+    assert.deepEqual(logged, [], "a clean table is silent");
+});
+
 test("countryCodeFromZoneTab rejects malformed, missing, and oversized tables", () => {
     loadWorldclocks();
     const { countryCodeFromZoneTab, MAX_ZONE_TAB_BYTES } = require(dataModulePath);
