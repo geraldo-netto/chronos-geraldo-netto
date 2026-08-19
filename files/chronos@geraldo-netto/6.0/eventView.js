@@ -413,7 +413,7 @@ class EventList {
         // the label opens the calendar app: without focus, a key handler and a
         // tooltip it is a click target no keyboard user can reach and no user
         // can discover
-        const canLaunch = this._calendar_launcher.isAvailable();
+        const canLaunch = this._canLaunchCalendar();
         this.selected_date_label = this._buildSelectedDateLabel(canLaunch);
         this.actor.add_actor(this.selected_date_label);
         this._buildOverflowView();
@@ -631,9 +631,8 @@ class EventList {
 
         // with no calendar app the button launches nothing, and while events
         // are unavailable it adds nothing: either way it is only a label
-        const canAdd = this._calendar_launcher.isAvailable() && !this._unavailable;
         this.no_events_button.set_accessible_name(
-            canAdd ? joinPhrases(text, _("Add an event")) : text);
+            this._canLaunchCalendar() ? joinPhrases(text, _("Add an event")) : text);
     }
 
     set_date(gdate) {
@@ -799,16 +798,17 @@ class EventList {
         // to launch_calendar(). So it read as "no calendar service is running",
         // and pressing Enter on it opened gnome-calendar. A control's name has to
         // say what activating it does; this one is not a control at all here.
-        const canLaunch = this._calendar_launcher.isAvailable() && !unavailable;
+        const canLaunch = this._canLaunchCalendar();
         this.no_events_button.reactive = canLaunch;
         this.no_events_button.can_focus = canLaunch;
         this.no_events_button.set_style_class_name(
             canLaunch ? "calendar-events-no-events-button" : "");
 
+        // the unavailable state's own text is written by _syncIssues above;
+        // coming back from it restores the ordinary one. The re-render is
+        // unconditional either way.
         if (!unavailable) {
             this.set_no_events_text(_("No Events"));
-            this._renderCurrentEvents();
-            return;
         }
 
         this._renderCurrentEvents();
