@@ -58,7 +58,17 @@ function removeOwnedMenu(applet) {
 }
 
 // Explicit adapter from the Cinnamon applet to the panel presenter's port. The
-// presenter/view receive this object, never the applet or its private shape.
+// presenter and the view receive this object and never the applet itself, so
+// they name no Cinnamon type and no field of this class.
+//
+// The applet's private shape is not hidden here, though — it is *concentrated*
+// here. Every accessor below reads the applet's own fields (`_panel_hovered`,
+// `_weatherCoordinator`, `_worldclocks`, `_issueReporter`, `_day`, `_date`,
+// `_calendar`), which is the point of a composition root: one file knows those
+// names, and everything downstream is testable without one. The cost is that a
+// rename here is silent — `applet._worldclocks` becoming undefined is falsy all
+// the way down rather than an error — so this function is the place to check
+// when a field is renamed.
 function createPanelPort(applet) {
     return {
         showWeather: () => applet.show_weather,
