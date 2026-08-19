@@ -17,8 +17,7 @@ const Clutter = GjsImports.gi.Clutter;
 const GLib = GjsImports.gi.GLib;
 const St = GjsImports.gi.St;
 const Astronomy = require("./astronomy");
-const AppletModules = GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
-const LocaleText = AppletModules.localeText;
+const LocaleText = require("./localeText");
 // through the 6.0 shim, as worldclocks.js, appletCoordinators.js and
 // appletPanelStatus.js do: the shims are the seam where a future version tree
 // adapts a root module for its Cinnamon version, so a file that reaches past

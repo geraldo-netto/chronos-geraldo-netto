@@ -6,7 +6,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 const GLib = imports.gi.GLib;
-const DateFormats = imports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats;
+const DateFormats = require("./dateFormats");
 
 function sameDay(dateA, dateB) {
     if (!dateA || !dateB) {

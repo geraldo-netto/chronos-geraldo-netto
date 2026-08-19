@@ -9,9 +9,8 @@
 /* eslint camelcase: "off" */
 
 const Tooltips = imports.ui.tooltips;
-const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
-const LocaleText = AppletModules.localeText;
-const TextUtils = AppletModules.textUtils;
+const LocaleText = require("./localeText");
+const TextUtils = require("./textUtils");
 const CalendarDate = require("./calendarDate");
 // only the flag and error-id constants are read here; requiring the holidays
 // barrel would link the cache repository, every vendor adapter and the HTTP

@@ -15,7 +15,6 @@ const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const Mainloop = imports.mainloop;
 const Settings = imports.ui.settings;
-const IoUtils = imports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
 const EventsManagerModule = require("./eventsManager");
 const Weather = require("./weather");
 const WeatherFormat = require("./weatherFormat");
@@ -25,7 +24,8 @@ const SettingsFacade = require("./settingsFacade");
 const WorldclockData = require("./worldclockData");
 const HolidayConstants = require("./holidayConstants");
 const AppletTeardown = require("./appletTeardown");
-const LocaleQuery = imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
+const IoUtils = require("./ioUtils");
+const LocaleQuery = require("./localeQuery");
 
 const runTeardownSteps = AppletTeardown.runTeardownSteps;
 const NO_HOLIDAYS = SettingsFacade.NO_HOLIDAYS;

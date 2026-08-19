@@ -19,14 +19,14 @@ const St = GjsImports.gi.St;
 // same-dir shim like every other 6.0 module: it hands back the single
 // importer-loaded root module instead of a second CJS copy of it
 const WorldclockData = require("./worldclockData");
-const AppletModules = GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
-const LocaleText = AppletModules.localeText;
-const DateFormats = AppletModules.dateFormats;
-const ElapsedTime = AppletModules.elapsedTime;
+const DateFormats = require("./dateFormats");
+const ElapsedTime = require("./elapsedTime");
+const LocaleText = require("./localeText");
+const TextUtils = require("./textUtils");
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
-const fillTemplate = AppletModules.textUtils.fillTemplate;
+const fillTemplate = TextUtils.fillTemplate;
 
 const MAX_CLOCKS = WorldclockData.MAX_CLOCKS;
 const INVALID_TIMEZONE_TEXT = WorldclockData.INVALID_TIMEZONE_TEXT;

@@ -11,10 +11,9 @@
 /* eslint camelcase: "off" */
 
 const Atk = imports.gi.Atk;
-const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
-const DateFormats = AppletModules.dateFormats;
-const LocaleText = AppletModules.localeText;
-const TextUtils = AppletModules.textUtils;
+const DateFormats = require("./dateFormats");
+const LocaleText = require("./localeText");
+const TextUtils = require("./textUtils");
 // the pure half of the weather module: the constants and the formatters. The
 // panel presenter renders — it must not link the Soup session, the provider
 // chains and the refresh scheduler that the weather.js barrel drags in.

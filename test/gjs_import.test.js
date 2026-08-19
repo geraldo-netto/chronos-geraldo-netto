@@ -604,3 +604,55 @@ test("the shipped tree compiles under the cjs that runs it", () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /compiles \d+ shipped files/);
 });
+
+
+// T984: two module-resolution mechanisms used to coexist inside single 6.0/
+// files — `AppletModules.dateFormats` straight through the importer beside
+// `require("./eventData")` through a shim — with no rule for which root module
+// got which. Five root modules had no shim while four did.
+//
+// The rule is the one astronomyView.js already stated in a comment: a 6.0/ file
+// reaches a root module through the same-directory shim, because the shim is
+// the seam where a future version tree adapts that root module for its Cinnamon
+// version. A file that reaches past it keeps the unadapted root while its
+// siblings pick the adaptation up, and nothing fails.
+const SHIM_BODY =
+    /^const (\w+) = imports\.ui\.appletManager\.applets\["chronos@geraldo-netto"\]\.(\w+);\n\nif \(typeof module !== "undefined"\) \{\n {4}module\.exports = \1;\n\}\n$/;
+
+function versionedSources() {
+    const directory = path.join(APPLET_DIR, "6.0");
+    return fs.readdirSync(directory)
+        .filter((name) => name.endsWith(".js"))
+        .map((name) => ({
+            name,
+            source: fs.readFileSync(path.join(directory, name), "utf8")
+        }));
+}
+
+// everything after the licence header and the eslint/global pragmas
+function shimBody(source) {
+    const start = source.indexOf('const ');
+    return start === -1 ? source : source.slice(start);
+}
+
+test("a 6.0 module reaches a root module only through its shim", () => {
+    for (const { name, source } of versionedSources()) {
+        if (!source.includes("appletManager.applets[")) {
+            continue;
+        }
+
+        assert.match(shimBody(source), SHIM_BODY,
+            `6.0/${name} names the importer, so it must be a shim and nothing else`);
+    }
+});
+
+test("every root module a 6.0 module requires has a shim beside it", () => {
+    const directory = path.join(APPLET_DIR, "6.0");
+
+    for (const { name, source } of versionedSources()) {
+        for (const [, required] of source.matchAll(/require\("\.\/(\w+)"\)/g)) {
+            assert.ok(fs.existsSync(path.join(directory, `${required}.js`)),
+                `6.0/${name} requires ./${required}, which is not in 6.0/`);
+        }
+    }
+});

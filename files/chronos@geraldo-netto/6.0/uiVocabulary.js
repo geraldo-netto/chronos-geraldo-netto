@@ -13,8 +13,8 @@
 /* global imports */
 
 const Clutter = imports.gi.Clutter;
-const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
-const _ = AppletModules.localeText.translate;
+const LocaleText = require("./localeText");
+const _ = LocaleText.translate;
 
 // What activates a focused thing from the keyboard. This set existed three
 // times — once in appletMenuBuilder and twice in eventView, the second pair
