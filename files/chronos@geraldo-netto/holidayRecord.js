@@ -118,7 +118,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
         const usable = holiday.name.filter((entry) => nonBlankText(entry.text));
         const localized = usable
             .filter((entry) => entry.lang === lang || entry.lang === "en")
-            .sort((a, b) => a.lang === "en" ? 1 : b.lang === "en" ? -1 : 0)[0]; // NOSONAR [S3358] -- accepted compatible form
+            .sort((a, b) => Number(a.lang === "en") - Number(b.lang === "en"))[0];
 
         return (localized || usable[0] || { text: "" }).text.trim();
     }

@@ -150,6 +150,14 @@ function attemptOrFail(attempt, provider, onResult) {
 }
 
 function tryProvidersInOrder(providers, attempt, accept, onSuccess, onExhausted) {
+    // An empty chain is a configuration state, not a failure to report. Without
+    // this, step(0) hands `undefined` to the attempt, which dereferences it and
+    // turns a settings choice into a logged stack trace.
+    if (!providers.length) {
+        onExhausted(null);
+        return;
+    }
+
     const step = (index, firstFailure) => {
         const provider = providers[index];
         attemptOrFail(attempt, provider, (result) => {

@@ -44,11 +44,7 @@ function positiveNumber(value, fallback) {
 }
 
 function measuredSize(value) {
-    const numeric = typeof value === "number" ? value : Number(value);
-    if (!Number.isFinite(numeric) || numeric <= 0) {
-        return 0;
-    }
-    return numeric;
+    return positiveNumber(value, 0);
 }
 
 // Every field defensively normalized, because three of the four sources are

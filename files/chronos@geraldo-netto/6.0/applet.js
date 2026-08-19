@@ -436,7 +436,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     // month, so both are gated on the values that actually drive them.
     _formatSignature() {
         return [
-            this.orientation,
             this.custom_format,
             this.show_worldclocks,
             this.desktop_settings.use24h,

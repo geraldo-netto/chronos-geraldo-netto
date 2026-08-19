@@ -181,7 +181,6 @@ class AppletMenuBuilder {
         return {
             eventList,
             calendar,
-            agenda: this._agenda,
             worldclocks,
             astronomy,
             issueReporter,

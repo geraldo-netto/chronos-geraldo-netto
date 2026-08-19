@@ -2170,6 +2170,22 @@ test("a failing provider is never logged with the location in its URL", () => {
         "the host still names the provider that failed");
 });
 
+test("tryProvidersInOrder exhausts an empty chain without attempting anything", () => {
+    const ProviderUtils = loadProviderUtils();
+    const errors = [];
+    global.logError = (error) => errors.push(error);
+    let exhausted = "unset";
+    ProviderUtils.tryProvidersInOrder(
+        [],
+        () => { throw new Error("should not attempt"); },
+        () => { throw new Error("should not accept"); },
+        () => { throw new Error("should not succeed"); },
+        (failure) => { exhausted = failure; }
+    );
+    assert.equal(exhausted, null, "an empty chain exhausts");
+    assert.deepEqual(errors, [], "and it does so without logging a stack trace");
+});
+
 test("tryProvidersInOrder falls back and retains the first failure", () => {
     const ProviderUtils = loadProviderUtils();
     const results = { a: null, b: "good" };
