@@ -65,9 +65,18 @@ var AVIATION_WEATHER_BBOX_DEGREES = 1; // NOSONAR [S3504] -- GJS importer export
 // Closed ranges rather than thresholds: the gaps between the groups are not
 // codes Open-Meteo emits, and a threshold chain silently adopts them into
 // whichever class it happens to reach first.
+//
+// WMO 1 (mainly clear) is 🌤 and WMO 2 (partly cloudy) is ⛅ because the other
+// two vendors already draw that line: aviationweather's FEW (one to two oktas)
+// and met.no's `fair` are both 🌤, and SCT and `partlycloudy` are both ⛅.
+// Grouping 1 with 2 here made a lightly clouded sky read "🌤 Fair" or
+// "⛅ Partly cloudy" - different glyph, different wording, different accessible
+// name - according to which provider in the failover chain happened to answer,
+// which is the cross-provider disagreement this table was closed to prevent.
 const WMO_CONDITION_RANGES = [
     [0, 0, "☀"],    // clear sky
-    [1, 2, "⛅"],   // mainly clear, partly cloudy
+    [1, 1, "🌤"],   // mainly clear
+    [2, 2, "⛅"],   // partly cloudy
     [3, 3, "☁"],    // overcast
     [45, 48, "☁"],  // fog, depositing rime fog
     [51, 67, "🌧"], // drizzle, freezing drizzle, rain, freezing rain

@@ -462,13 +462,13 @@ test("supports selectable SI and imperial weather units", () => {
 
     for (const units of ["si", "metric", "", null, undefined]) {
         assert.equal(Weather.normalizeUnits(units), "si");
-        assert.equal(shown(Weather.weatherReading({ weathercode: 1, temperature: 20.2 }), units), "⛅ 20°C");
+        assert.equal(shown(Weather.weatherReading({ weathercode: 2, temperature: 20.2 }), units), "⛅ 20°C");
     }
 
     assert.equal(Weather.normalizeUnits("imperial"), "imperial");
     // the temperature is Celsius now (Open-Meteo is asked for Celsius); imperial
     // converts it: 20 °C is 68 °F
-    assert.equal(shown(Weather.weatherReading({ weathercode: 1, temperature: 20 }), "imperial"), "⛅ 68°F");
+    assert.equal(shown(Weather.weatherReading({ weathercode: 2, temperature: 20 }), "imperial"), "⛅ 68°F");
 
     const schema = JSON.parse(fs.readFileSync(schema52Path, "utf8"));
     assert.equal(schema["weather-units"].default, "si");
@@ -586,7 +586,7 @@ test("formats weather text and maps every fuzzed weather code to an icon", () =>
 // published WMO 4677 table Open-Meteo documents, one row per code.
 const WMO_CONDITIONS = {
     0: "☀",
-    1: "⛅", 2: "⛅",
+    1: "🌤", 2: "⛅",
     3: "☁", 45: "☁", 48: "☁",
     51: "🌧", 53: "🌧", 55: "🌧", 56: "🌧", 57: "🌧",
     61: "🌧", 63: "🌧", 65: "🌧", 66: "🌧", 67: "🌧",
@@ -619,6 +619,7 @@ test("the two adapters describe the same weather the same way", () => {
     const Weather = loadWeather();
     const agreements = [
         ["clearsky_day", 0],
+        ["fair_day", 1],
         ["partlycloudy_night", 2],
         ["cloudy", 3],
         ["fog", 45],
@@ -632,6 +633,16 @@ test("the two adapters describe the same weather the same way", () => {
     for (const [symbol, code] of agreements) {
         assert.equal(Weather.metNoIcon(symbol), Weather.weatherIcon(code),
             `met.no "${symbol}" and WMO ${code} are the same weather`);
+    }
+
+    // T957: and the third vendor draws the same line. A lightly clouded sky used
+    // to read "🌤 Fair" from aviationweather and met.no and "⛅ Partly cloudy"
+    // from Open-Meteo, so the wording, the glyph and the accessible name all
+    // changed when the failover chain moved.
+    const covers = [["FEW", 1], ["SCT", 2], ["BKN", 3], ["CLR", 0]];
+    for (const [cover, code] of covers) {
+        assert.equal(Weather.aviationWeatherIcon({ cover }), Weather.weatherIcon(code),
+            `METAR ${cover} and WMO ${code} are the same weather`);
     }
 });
 

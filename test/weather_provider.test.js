@@ -1631,7 +1631,7 @@ test("shared reading repository coalesces one remote read per refresh period", (
         results: [{ latitude: 41.9, longitude: 12.5, population: 2873000 }]
     });
     assert.equal(requests.length, 2, "and one forecast");
-    pending.shift().callback({ current_weather: { weathercode: 1, temperature: 18 } });
+    pending.shift().callback({ current_weather: { weathercode: 2, temperature: 18 } });
     assert.deepEqual(reports.map((row) => row.slice(0, 3)), [
         ["panel", "⛅ 18°C", ""],
         ["city", "⛅ 18°C", ""]
@@ -2208,7 +2208,7 @@ test("refresh falls back to Nominatim geocode with required user agent", () => {
                 return;
             }
 
-            callback({ current_weather: { weathercode: 1, temperature: 15.4 } });
+            callback({ current_weather: { weathercode: 2, temperature: 15.4 } });
         }
     });
     const values = [];

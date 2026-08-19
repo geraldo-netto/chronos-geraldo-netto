@@ -229,7 +229,7 @@ test("every Open-Meteo code boundary maps to the glyph on its own side", () => {
     // so did the threshold chain this replaced, which read 4-44 as fog, 49-50
     // as rain and 83-84 as showers.
     const boundaries = [
-        [0, "☀"], [1, "⛅"], [2, "⛅"], [3, "☁"], [4, UNKNOWN], [44, UNKNOWN],
+        [0, "☀"], [1, "🌤"], [2, "⛅"], [3, "☁"], [4, UNKNOWN], [44, UNKNOWN],
         [45, "☁"], [48, "☁"], [49, UNKNOWN], [51, "🌧"], [67, "🌧"], [68, UNKNOWN],
         [71, "🌨"], [77, "🌨"], [78, UNKNOWN], [80, "🌦"], [82, "🌦"], [83, UNKNOWN],
         [85, "🌨"], [86, "🌨"], [87, UNKNOWN], [94, UNKNOWN], [95, "⛈"], [99, "⛈"],
