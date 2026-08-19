@@ -950,6 +950,32 @@ class WorldClockSavedNormalizationTest(unittest.TestCase):
         self.assertEqual(self.module.normalize_saved_clocks(rejected), [])
         self.assertEqual(len(examined), self.module.MAX_SAVED_CLOCK_ROWS)
 
+    def test_a_reset_or_import_is_projected_too(self):
+        """T1014: the projection ran once, in __init__. "Reset to defaults" and
+        "Import from a file" reach the list through do_key_update, whose base
+        handler clears the model and repopulates straight from the stored value
+        — so an imported file was drawn verbatim, and the Add button and the
+        dialog's duplicate check judged rows the applet drops."""
+        saved = [{"label": "Rome", "timezone": "Europe/Rome"}]
+        settings = FakeSettings({"worldclocks": saved})
+        clocks = self.module.ClocksList({"value": saved}, "worldclocks", settings)
+        settings.writes.clear()
+
+        imported = [
+            {"label": "Local marker", "timezone": "local"},
+            {"label": "Rome", "timezone": "Europe/Rome"},
+            {"label": "Rome again", "timezone": ":Europe/Rome"},
+        ] + [{"label": "Clock %d" % index, "timezone": "Region/City_%d" % index}
+             for index in range(self.module.MAX_CLOCKS)]
+        settings.values["worldclocks"] = imported
+        clocks.on_setting_changed()
+
+        expected = self.module.normalize_saved_clocks(imported)
+        self.assertEqual(len(expected), self.module.MAX_CLOCKS)
+        self.assertEqual(settings.values["worldclocks"], expected)
+        self.assertEqual(clocks.model.rows, expected)
+        self.assertFalse(clocks.add_button.sensitive)
+
     def test_an_effective_list_is_not_rewritten(self):
         saved = [{"label": "Rome", "timezone": "Europe/Rome"}]
         settings = FakeSettings({"worldclocks": saved})

@@ -280,16 +280,28 @@ def normalize_saved_clocks(value) -> list[dict[str, str]]:
     return normalized
 
 
-def normalize_clock_setting(info, key, settings):
+def normalize_stored_clocks(key, settings, fallback=None) -> list[dict[str, str]]:
+    """Project what is stored under `key` and write the projection back.
+
+    Every path that puts rows in front of the user goes through here, not just
+    page construction: "Reset to defaults" and "Import from a file" reach the
+    list through JSONSettingsHandler.do_key_update, which repopulates from the
+    stored value directly. Normalising only in __init__ left those two drawing
+    raw JSON — twenty rows, duplicate zones, a 5000-character label — that the
+    applet would never show.
+    """
     getter = getattr(settings, "get_value", None)
-    value = getter(key) if callable(getter) else info.get("value")
+    value = getter(key) if callable(getter) else fallback
     normalized = normalize_saved_clocks(value)
     setter = getattr(settings, "set_value", None)
     if normalized != value and callable(setter):
         setter(key, normalized)
+    return normalized
 
+
+def normalize_clock_setting(info, key, settings):
     prepared = dict(info)
-    prepared["value"] = normalized
+    prepared["value"] = normalize_stored_clocks(key, settings, info.get("value"))
     return prepared
 
 
@@ -624,7 +636,13 @@ class ClocksList(JSONSettingsList):
         button stayed insensitive and still tooltipped "No more than 8 clocks
         can be added.", so no clock could be added until the settings window was
         closed and reopened.
+
+        The projection runs first, for the same reason: the base repopulates
+        straight from the stored value, so without it those two entry points
+        drew rows the applet drops at runtime, and the Add button and the
+        dialog's duplicate check then judged a list that does not exist.
         """
+        normalize_stored_clocks(self.key, self.settings)
         super().on_setting_changed(*args)
         self.update_button_sensitivity()
 
