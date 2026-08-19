@@ -38,6 +38,16 @@ function validateManifestPath(relative) {
     }
 }
 
+// Both entry points order paths the same way, by UTF-16 code unit: localeCompare
+// answers differently per host locale and ICU version, and the two paths would
+// then disagree about which validation error surfaces first.
+function compareCodeUnits(left, right) {
+    if (left < right) {
+        return -1;
+    }
+    return left > right ? 1 : 0;
+}
+
 export function parseTrackedSpicesFiles(stdout) {
     return stdout.toString("utf8").split("\0").filter(Boolean).map((entry) => {
         const match = /^([0-7]{6}) ([0-9a-f]+) ([0-3])\t([\s\S]+)$/.exec(entry);
@@ -54,7 +64,7 @@ export function parseTrackedSpicesFiles(stdout) {
             indexMode,
             objectId: match[2]
         };
-    }).sort((left, right) => left.relative.localeCompare(right.relative));
+    }).sort((left, right) => compareCodeUnits(left.relative, right.relative));
 }
 
 export async function listTrackedSpicesFiles(sourceRoot) {
@@ -230,7 +240,7 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
     }
 
     const trackedEntries = trackedFiles ?
-        [...trackedFiles].sort().map((relative) => ({ relative, mode: null })) : // NOSONAR [S2871] -- lexicographic paths required
+        [...trackedFiles].sort(compareCodeUnits).map((relative) => ({ relative, mode: null })) :
         await listTrackedSpicesFiles(source);
     const files = trackedEntries.map(({ relative }) => relative);
     const indexedModes = new Map(trackedEntries.map(({ relative, mode }) => [relative, mode]));
