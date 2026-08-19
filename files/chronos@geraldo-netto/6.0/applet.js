@@ -186,7 +186,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             },
             onEventsManagerReady: () => this._events_manager_ready(),
             onHasCalendarsChanged: () => this._has_calendars_changed(),
-            onHolidayPlaceChanged: () => this._guarded("holiday-place", () => {
+            onHolidayDataChanged: () => this._guarded("holiday-place", () => {
                 if (this._calendar) {
                     this._calendar.refreshHolidays();
                 }

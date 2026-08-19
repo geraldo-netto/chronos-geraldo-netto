@@ -363,9 +363,17 @@ class AppletProviderLifecycle {
         this.onHolidayPlaceChanged();
     }
 
+    // Resolve the configured country and region and apply them to the provider.
+    // The applet-side callback it ends with is `onHolidayDataChanged`, which
+    // repaints the grid — a different thing, and it used to share this name.
+    // Both were reachable as `onHolidayPlaceChanged`, one on `this` and one on
+    // `this.context`, so a missing or added `context.` at any of five sites
+    // compiled, ran and changed behaviour: `onReligionsChanged` calling the
+    // method rather than the callback would have refetched every holiday on
+    // every checkbox toggle.
     onReligionsChanged() {
         this.holidayProvider.setEnabledIds(this.context.holidaySettings.religiousIds);
-        this.context.onHolidayPlaceChanged();
+        this.context.onHolidayDataChanged();
     }
 
     onHolidayPlaceChanged() {
@@ -388,10 +396,10 @@ class AppletProviderLifecycle {
             // the second callback repaints when the fetch for the new place
             // lands, which is long after this call returns
             this.holidayProvider.setPlace(country, this.holidayRegions[country],
-                () => this.context.onHolidayPlaceChanged());
+                () => this.context.onHolidayDataChanged());
         }
 
-        this.context.onHolidayPlaceChanged();
+        this.context.onHolidayDataChanged();
     }
 
     // WallClock drives the rendered panel string. It notifies when the string

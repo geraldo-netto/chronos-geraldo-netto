@@ -312,7 +312,7 @@ test("an empty holiday country is treated as none", () => {
     const calls = [];
     const lifecycle = new AppletModule.AppletProviderLifecycle({
         holidaySettings: { country: "" },
-        onHolidayPlaceChanged: () => calls.push("refresh")
+        onHolidayDataChanged: () => calls.push("refresh")
     });
     lifecycle.holidayProvider = {
         clearPlace: () => calls.push("clear"),

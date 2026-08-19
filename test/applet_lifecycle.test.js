@@ -149,7 +149,7 @@ test("an unsupported configured country falls back to none", () => {
 
     const lifecycle = new AppletModule.AppletProviderLifecycle({
         holidaySettings: new rootModules.settingsFacade.HolidaySettings(settings),
-        onHolidayPlaceChanged: () => {}
+        onHolidayDataChanged: () => {}
     }, { holidayProvider: () => holidayProvider });
     lifecycle.initHolidayProvider();
 
@@ -327,7 +327,7 @@ function consumerLifecycle(onUpgradeRequired) {
         eventsSettings: {},
         onEventsManagerReady: () => {},
         onHasCalendarsChanged: () => {},
-        onHolidayPlaceChanged: () => {},
+        onHolidayDataChanged: () => {},
         onUpgradeRequired
     }, {
         clock: () => ({}),
@@ -1134,7 +1134,7 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     };
     const lifecycle = new AppletModule.AppletProviderLifecycle({
         holidaySettings: new rootModules.settingsFacade.HolidaySettings(settings),
-        onHolidayPlaceChanged: () => calls.push(["refresh"])
+        onHolidayDataChanged: () => calls.push(["refresh"])
     }, {
         holidayProvider: (religiousIds) => {
             calls.push(["factory-religions", religiousIds]);
@@ -1223,7 +1223,7 @@ test("a country reset to the schema default is inferred again, not left blank", 
     };
     const lifecycle = new AppletModule.AppletProviderLifecycle({
         holidaySettings: new rootModules.settingsFacade.HolidaySettings(settings),
-        onHolidayPlaceChanged: () => {},
+        onHolidayDataChanged: () => {},
         onHolidayCountryUnresolved: () => unresolved.push(true)
     }, {
         holidayProvider: () => ({
@@ -2095,7 +2095,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     context.onResume();
     context.onNetworkRestored();
     context.onDayChanged();
-    context.onHolidayPlaceChanged();
+    context.onHolidayDataChanged();
     context.onPanelHover(true);
     context.onPanelHover(false);
     assert.equal(applet._panel_hovered, false);
