@@ -368,28 +368,70 @@ function _nameOf(entry, count, translateName) {
 // expanded rows in the shape the holiday cache emits: the religion's label is
 // part of the display name, which is what "split by religion" means on a grid
 // cell that shows one tooltip
+// One slot, like _hebrewObservances above and for the same reason. The 42-day
+// grid spans two months, so one repaint asked for the same year twice, and
+// each ask expanded every enabled religion twice over — once for the rows and
+// once for the coverage report — rebuilding all 49 omer dates every time and
+// then discarding eleven twelfths of the result by month filter.
+//
+// The expansion memoized here is name-free: which dates an observance falls on
+// does not depend on the display language, so the memo survives a locale
+// change and the (cheap) name formatting stays per call. It also yields the
+// coverage answer from the same walk, because "this table ran out of years" is
+// just "this entry produced no dates".
+let _expansionKey = "";
+let _expansion = null;
+
+// Appends the religion's dated observances and answers whether any of its
+// table-backed entries ran out of published years.
+function _expandReligion(id, year, dated) {
+    let exhausted = false;
+    for (const entry of OBSERVANCES[id] || []) {
+        const dates = _datesOf(entry, year);
+        if (dates.length === 0 && _tableBacked(entry)) {
+            exhausted = true;
+        }
+        for (const [date, count] of dates) {
+            dated.push({ id, entry, date, count });
+        }
+    }
+
+    return exhausted;
+}
+
+function _expandYear(year, ids) {
+    const key = `${year}|${ids.join(",")}`;
+    if (_expansionKey === key && _expansion) {
+        return _expansion;
+    }
+
+    const dated = [];
+    const uncovered = [];
+    for (const id of ids) {
+        if (_expandReligion(id, year, dated)) {
+            uncovered.push(id);
+        }
+    }
+
+    _expansionKey = key;
+    _expansion = { dated, uncovered };
+    return _expansion;
+}
+
 function holidaysForYear(year, enabledIds = religionIds(), translateName = _) {
     if (!_validYear(year)) {
         return [];
     }
 
-    const rows = [];
-    for (const id of enabledReligionIds(enabledIds)) {
-        for (const entry of OBSERVANCES[id] || []) {
-            for (const [date, count] of _datesOf(entry, year)) {
-                rows.push({
-                    year,
-                    month: date[0],
-                    day: date[1],
-                    name: `${_nameOf(entry, count, translateName)} ` +
-                        `(${translateName(_religionLabel(id))})`,
-                    flags: [RELIGIOUS_HOLIDAY_FLAG, id]
-                });
-            }
-        }
-    }
-
-    return rows;
+    return _expandYear(year, enabledReligionIds(enabledIds)).dated
+        .map(({ id, entry, date, count }) => ({
+            year,
+            month: date[0],
+            day: date[1],
+            name: `${_nameOf(entry, count, translateName)} ` +
+                `(${translateName(_religionLabel(id))})`,
+            flags: [RELIGIOUS_HOLIDAY_FLAG, id]
+        }));
 }
 
 // Which of the enabled religions lose observances in this year because their
@@ -403,9 +445,9 @@ function uncoveredReligions(year, enabledIds = religionIds()) {
         return [];
     }
 
-    return enabledReligionIds(enabledIds).filter((id) =>
-        (OBSERVANCES[id] || []).some((entry) =>
-            _tableBacked(entry) && _datesOf(entry, year).length === 0));
+    // Same walk as the rows: the memo answers both, so the coverage report no
+    // longer re-expands the year (and the omer series) on its own.
+    return _expandYear(year, enabledReligionIds(enabledIds)).uncovered.slice();
 }
 
 // the month map the calendar grid consumes: "month/day" -> {name, flags},

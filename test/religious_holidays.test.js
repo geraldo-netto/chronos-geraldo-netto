@@ -513,3 +513,41 @@ test("a year past the tables reports the gap instead of rendering nothing", () =
     assert.deepEqual(ReligiousHolidays.uncoveredReligions("nope", ["islam"]), []);
     assert.deepEqual(ReligiousHolidays.uncoveredReligions(beyond, []), []);
 });
+
+// T993: the year expansion is memoized in one slot, so a repaint of the
+// 42-day grid stops expanding every enabled religion (and all 49 omer rows)
+// once per month key and again for the coverage report. The memo must key on
+// the enabled ids and must not cache the *names*, which are language-dependent
+// while the dates are not.
+test("the memoized year expansion still tracks ids, language and coverage", () => {
+    const english = ReligiousHolidays.holidaysForYear(2026, ["judaism"]);
+    // uppercased word by word, so the "%s" the omer template fills stays intact
+    const shouted = ReligiousHolidays.holidaysForYear(2026, ["judaism"],
+        (text) => text.replace(/[a-z]+/g, (word) => word.toUpperCase()));
+    assert.ok(english.length > 0);
+    assert.deepEqual(shouted.map((row) => [row.month, row.day]),
+        english.map((row) => [row.month, row.day]),
+        "same dates whatever the display language");
+    assert.ok(shouted.every((row) => row.name.includes("(JUDAISM)")),
+        "names are formatted per call, never served from the memo");
+    assert.ok(english.every((row) => row.name.includes("(Judaism)")),
+        "and the untranslated call is unaffected by the translated one");
+
+    const islam = ReligiousHolidays.holidaysForYear(2026, ["islam"]);
+    assert.notDeepEqual(islam.map((row) => row.name), english.map((row) => row.name),
+        "a different id set is a different expansion");
+    assert.deepEqual(ReligiousHolidays.holidaysForYear(2026, ["judaism"])
+        .map((row) => row.name), english.map((row) => row.name),
+        "and the first id set is unaffected by the second");
+
+    // coverage comes off the same walk, interleaved with row requests
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2066, ["bahai"]), ["bahai"]);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2026, ["bahai"]), []);
+    assert.ok(ReligiousHolidays.holidaysForYear(2026, ["bahai"]).length > 0);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2066, ["bahai"]), ["bahai"]);
+
+    // the answer is a copy: a caller mutating it must not poison the memo
+    const uncovered = ReligiousHolidays.uncoveredReligions(2066, ["bahai"]);
+    uncovered.push("islam");
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2066, ["bahai"]), ["bahai"]);
+});
