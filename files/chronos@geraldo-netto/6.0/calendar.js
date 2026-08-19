@@ -701,7 +701,7 @@ class Calendar {
         // construction any more: the one caller always passes one, and the
         // fallback existed only for tests that did not.
         this.desktop_settings = desktop_settings;
-        this._desktop_settings_signal_id =
+        this._desktop_settings_signal_ids =
             this.desktop_settings.connectFirstDayOfWeekChanged(this._onSettingsChange.bind(this));
 
         // The weekday abbreviations and the weekend days come from the locale
@@ -839,9 +839,9 @@ class Calendar {
             this._locale_listener();
             this._locale_listener = null;
         }
-        if (this._desktop_settings_signal_id > 0) {
-            this.desktop_settings.disconnect(this._desktop_settings_signal_id);
-            this._desktop_settings_signal_id = 0;
+        if (this._desktop_settings_signal_ids.length > 0) {
+            this.desktop_settings.disconnect(this._desktop_settings_signal_ids);
+            this._desktop_settings_signal_ids = [];
         }
 
         for (let id of this._events_manager_signal_ids) {

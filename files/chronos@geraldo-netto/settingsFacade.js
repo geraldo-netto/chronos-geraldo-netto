@@ -166,9 +166,14 @@ var DesktopSettings = class DesktopSettings { // NOSONAR [S3504] -- GJS importer
         return Number.isFinite(value) && value > 0 ? value : DEFAULT_TEXT_SCALE;
     }
 
+    // Every connect* here answers with a list of handler ids and disconnect
+    // takes whatever they answered. One returned an array and two returned
+    // scalars while disconnect took only a scalar, so swapping one call for
+    // another passed an array to Gio.Settings.disconnect: a handler leaked on
+    // a global schema for the session, with no error.
     connectTextScaleChanged(callback) {
-        return this._settings.connect(
-            "changed::" + TEXT_SCALING_FACTOR_KEY, callback);
+        return [this._settings.connect(
+            "changed::" + TEXT_SCALING_FACTOR_KEY, callback)];
     }
 
     connectClockFormatChanged(callback) {
@@ -177,11 +182,13 @@ var DesktopSettings = class DesktopSettings { // NOSONAR [S3504] -- GJS importer
     }
 
     connectFirstDayOfWeekChanged(callback) {
-        return this._settings.connect("changed::" + FIRST_DAY_OF_WEEK_KEY, callback);
+        return [this._settings.connect("changed::" + FIRST_DAY_OF_WEEK_KEY, callback)];
     }
 
-    disconnect(id) {
-        this._settings.disconnect(id);
+    disconnect(ids) {
+        for (const id of [].concat(ids)) {
+            this._settings.disconnect(id);
+        }
     }
 };
 
@@ -282,7 +289,7 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
     // the file `setValue` has already written. Any self-write that something
     // must react to has to say so in-band.
     connectCountryChanged(callback) {
-        return this._settings.connect("changed::" + COUNTRY_KEY, callback);
+        return [this._settings.connect("changed::" + COUNTRY_KEY, callback)];
     }
 
     get religiousIds() {

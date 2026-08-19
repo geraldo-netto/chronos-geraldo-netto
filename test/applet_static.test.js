@@ -268,8 +268,8 @@ test("calendar and event list destroy pending timers", () => {
     assert.match(navigation52,
         /cancelQueuedDate\(\) \{[\s\S]*?Mainloop\.source_remove\(this\.setDateIdleId\);/);
     assert.match(calendar52, /destroy\(\) \{[\s\S]*?this\._cancel_update\(\);[\s\S]*?this\._cancel_set_date_idle\(\);/);
-    assert.match(calendar52, /this\._desktop_settings_signal_id =\n\s*this\.desktop_settings\.connectFirstDayOfWeekChanged\(/);
-    assert.match(calendar52, /destroy\(\) \{[\s\S]*?this\.desktop_settings\.disconnect\(this\._desktop_settings_signal_id\);/);
+    assert.match(calendar52, /this\._desktop_settings_signal_ids =\n\s*this\.desktop_settings\.connectFirstDayOfWeekChanged\(/);
+    assert.match(calendar52, /destroy\(\) \{[\s\S]*?this\.desktop_settings\.disconnect\(this\._desktop_settings_signal_ids\);/);
 
     // the renderer arms these sources, so the renderer removes them; the list's
     // destroy() hands the job to it rather than reaching into ids it never set
@@ -298,7 +298,7 @@ test("applets disconnect settings and resume handlers on removal", () => {
     assert.match(code, /this\._desktop_settings_signal_ids = \[\];/);
     assert.match(code, /class AppletProviderLifecycle \{/);
     assert.match(code, /this\._desktop_settings_signal_ids =\n\s*context\.desktopSettings\.connectClockFormatChanged\(context\.onSettingsChanged\);/);
-    assert.match(code, /for \(let id of this\._desktop_settings_signal_ids\) \{[\s\S]*?this\.context\.desktopSettings\.disconnect\(id\);/);
+    assert.match(code, /this\.context\.desktopSettings\.disconnect\(this\._desktop_settings_signal_ids\);/);
     assert.match(code, /"PrepareForSleep"/);
     assert.match(code, /signal_unsubscribe\(this\._logind_sleep_signal_id\)/);
     assert.doesNotMatch(code, /UPower|notify-resume|notify::resume|_up_/);

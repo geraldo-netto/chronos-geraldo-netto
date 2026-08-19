@@ -240,9 +240,9 @@ test("the country is watched for changes, not bound onto the applet", () => {
     const facade = new SettingsFacade.HolidaySettings(settings);
     const callback = function() {};
 
-    const id = facade.connectCountryChanged(callback);
+    const ids = facade.connectCountryChanged(callback);
 
-    assert.equal(id, 7);
+    assert.deepEqual(ids, [7]);
     assert.deepEqual(calls, [["connect", "changed::" + SettingsFacade.COUNTRY_KEY]]);
     assert.equal(facade.country, "ita", "and the read still goes through the accessor");
 });
@@ -406,7 +406,7 @@ test("the desktop settings read the keys the schema does carry", () => {
     assert.deepEqual(asked, ["clock-use-24h", "clock-show-seconds"]);
 
     assert.deepEqual(desktop.connectClockFormatChanged(() => {}), [1, 2]);
-    assert.equal(desktop.connectFirstDayOfWeekChanged(() => {}), 3);
+    assert.deepEqual(desktop.connectFirstDayOfWeekChanged(() => {}), [3]);
     assert.deepEqual(connected.slice(0, 3), [
         "changed::clock-use-24h",
         "changed::clock-show-seconds",
@@ -575,6 +575,6 @@ test("a text scale change is a signal on the same settings object", () => {
         }
     });
 
-    assert.equal(desktop.connectTextScaleChanged(() => {}), 1);
+    assert.deepEqual(desktop.connectTextScaleChanged(() => {}), [1]);
     assert.deepEqual(connected, ["changed::text-scaling-factor"]);
 });

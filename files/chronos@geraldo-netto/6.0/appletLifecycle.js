@@ -468,7 +468,7 @@ class AppletProviderLifecycle {
         // Same schema, same teardown list, different effect: large text changes
         // how much room the popup's two columns need, not how a clock reads.
         if (typeof context.desktopSettings.connectTextScaleChanged === "function") {
-            this._desktop_settings_signal_ids.push(
+            this._desktop_settings_signal_ids = this._desktop_settings_signal_ids.concat(
                 context.desktopSettings.connectTextScaleChanged(context.onTextScaleChanged));
         }
 
@@ -546,10 +546,10 @@ class AppletProviderLifecycle {
     }
 
     _releaseDesktopSettings() {
-        for (let id of this._desktop_settings_signal_ids) {
-            this.context.desktopSettings.disconnect(id);
+        if (this._desktop_settings_signal_ids.length > 0) {
+            this.context.desktopSettings.disconnect(this._desktop_settings_signal_ids);
+            this._desktop_settings_signal_ids = [];
         }
-        this._desktop_settings_signal_ids = [];
     }
 
     _releaseLogind() {

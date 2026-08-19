@@ -281,7 +281,7 @@ test("one failing teardown step does not strand the rest", () => {
 
     const desktopSettings = {
         connectClockFormatChanged: () => [1, 2],
-        disconnect: (id) => torn.push(["desktop", id])
+        disconnect: (ids) => [].concat(ids).forEach((id) => torn.push(["desktop", id]))
     };
     const lifecycle = new AppletModule.AppletProviderLifecycle({
         actor: { connect: () => 1, disconnect: () => torn.push(["actor"]) },
@@ -511,7 +511,9 @@ test("provider lifecycle tears down provider and system resources", () => {
     const torn = [];
     const context = {
         actor: { disconnect: (id) => torn.push(["actor", id]) },
-        desktopSettings: { disconnect: (id) => torn.push(["desk", id]) }
+        desktopSettings: {
+            disconnect: (ids) => [].concat(ids).forEach((id) => torn.push(["desk", id]))
+        }
     };
 
     const lifecycle = new AppletModule.AppletProviderLifecycle(context);
@@ -2139,9 +2141,9 @@ test("a text scale change is bound beside the clock keys and released with them"
         connectClockFormatChanged: () => [1, 2],
         connectTextScaleChanged: (callback) => {
             desktopSettings.textScaleCallback = callback;
-            return 3;
+            return [3];
         },
-        disconnect: (id) => released.push(id)
+        disconnect: (ids) => released.push(...[].concat(ids))
     };
     const lifecycle = new AppletModule.AppletProviderLifecycle({
         desktopSettings,
