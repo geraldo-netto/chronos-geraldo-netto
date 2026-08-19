@@ -276,10 +276,17 @@ function tryProvidersInOrder(providers, attempt, accept, onSuccess, onExhausted)
 // first. That rule was written out by hand in each of them, which is how the two
 // copies came to disagree about what the release half is even called. One
 // definition: the count lives in the closure, `register` runs `onFirstRegister`
-// when the count leaves zero, and `release` runs `onRelease` unconditionally and
-// `onLastRelease` only when the count reaches zero. A release with no matching
-// register cannot drive the count negative, so a caller that releases twice
-// cannot tear down a surviving instance's state.
+// when the count leaves zero, and `release` runs `onRelease` and then
+// `onLastRelease` when the count reaches zero.
+//
+// A release with no matching register runs neither. Guarding only the decrement
+// was not enough: with two instances registered, an instance that releases twice
+// reaches zero and fires `onLastRelease` while the other one is still on the
+// panel — cancelling the survivor's in-flight geocodes and clearing the memo it
+// is reading from. `cancelPendingWeatherRequests`, still exported under its old
+// name, is exactly the caller that may arrive unmatched. localeQuery's
+// `_lastLocaleConsumerLeft` has always answered "no" to an unmatched release for
+// this reason; this is the shared definition it states.
 function moduleConsumerCount(handlers = {}) {
     const { onFirstRegister, onRelease, onLastRelease } = handlers;
     let count = 0;
@@ -295,9 +302,10 @@ function moduleConsumerCount(handlers = {}) {
             }
         },
         release(...args) {
-            if (count > 0) {
-                count--;
+            if (count === 0) {
+                return;
             }
+            count--;
             if (onRelease) {
                 onRelease(...args);
             }

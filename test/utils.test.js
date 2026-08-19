@@ -2218,6 +2218,42 @@ test("orderProvidersByLastSuccess prefers the last successful provider", () => {
         ["a", "b", "c"]);
 });
 
+// T1043: the count guards the decrement but not the handlers, so an instance
+// that released twice reached zero while another was still registered and fired
+// the last-consumer teardown on it. localeQuery's hand-written copy of this rule
+// has always answered "no" to an unmatched release; the shared definition that
+// replaced the copies had lost it.
+test("a release with no matching register tears nothing down", () => {
+    const ProviderUtils = loadProviderUtils();
+    const events = [];
+    const consumers = ProviderUtils.moduleConsumerCount({
+        onFirstRegister: () => events.push("first"),
+        onRelease: (tag) => events.push("release:" + tag),
+        onLastRelease: (tag) => events.push("last:" + tag)
+    });
+
+    // two instances on the panel; one of them releases twice
+    consumers.register();
+    consumers.register();
+    consumers.release("a");
+    consumers.release("a");
+    assert.equal(consumers.count, 0);
+    assert.deepEqual(events, ["first", "release:a", "release:a", "last:a"]);
+
+    // the survivor's own release is now unmatched, and must not run again
+    events.length = 0;
+    consumers.release("b");
+    assert.deepEqual(events, [],
+        "an unmatched release is a caller bug, not the last consumer leaving");
+    assert.equal(consumers.count, 0);
+
+    // ...and the count still works afterwards
+    consumers.register();
+    assert.deepEqual(events, ["first"]);
+    consumers.release("c");
+    assert.deepEqual(events, ["first", "release:c", "last:c"]);
+});
+
 test("notifyAll delivers every callback before rethrowing the first failure", () => {
     const ProviderUtils = loadProviderUtils();
     const calls = [];
