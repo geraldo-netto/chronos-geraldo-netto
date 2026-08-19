@@ -264,7 +264,9 @@ const AppletModule = require(path.join(APPLET_DIR, "6.0", "applet.js"));
 const CoordinatorModule = require(path.join(APPLET_DIR, "6.0", "appletCoordinators.js"));
 const PanelStatusModule = require(path.join(APPLET_DIR, "6.0", "appletPanelStatus.js"));
 const MAX_SUFFIX = PanelStatusModule.LABEL_SUFFIX_MAX_LENGTH;
-const ELLIPSIS = PanelStatusModule.LABEL_ELLIPSIS;
+// the one clampText appends, read from the module that owns it: the panel
+// presenter used to re-export it purely so this line could reach it
+const ELLIPSIS = rootModules.textUtils.TEXT_ELLIPSIS;
 const Proto = AppletModule.CinnamonCalendarApplet.prototype;
 const DateFormats = rootModules.dateFormats;
 // weather.js exports its own five bindings and nothing else, because that is

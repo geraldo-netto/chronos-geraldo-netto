@@ -43,9 +43,6 @@ const LABEL_SUFFIX_MAX_LENGTH = 48;
 // say the applet did it: the stylesheet sets no max-width and St does not
 // ellipsize a panel label on its own.
 const LABEL_MAX_LENGTH = 64;
-// the ellipsis everything else in this applet uses, rather than three dots — it
-// is the one clampText appends, and the tests read it from here
-const LABEL_ELLIPSIS = TextUtils.TEXT_ELLIPSIS;
 // The shipped panel and tooltip formats keep the same day-month, 24-hour order
 // in every locale. %b still localizes the abbreviated month name itself.
 // The value is the facade's: the schema defaults, the legacy-format migration
@@ -720,6 +717,9 @@ class AppletPanelStatusPresenter {
         return lines.join("\n");
     }
 
+    // Test seam (decision D02): no production caller — the runtime path is
+    // _clockRenderModel → _setTooltipModel → _tooltipText. It is here so a test
+    // can read the rendered tooltip without reaching two privates to do it.
     buildTooltipText(clockEntries = []) {
         return this._tooltipText(this._clockRenderModel(clockEntries));
     }
@@ -894,5 +894,5 @@ class AppletPanelStatusPresenter {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, weatherConditionWords, markedWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_MAX_LENGTH, LABEL_ELLIPSIS };
+    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, weatherConditionWords, markedWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_MAX_LENGTH };
 }
