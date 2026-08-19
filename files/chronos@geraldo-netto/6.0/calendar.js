@@ -955,18 +955,39 @@ class Calendar {
         return button;
     }
 
+    // The header is the month and year lines, the four navigation buttons, the
+    // optional week-number gutter heading and the seven weekday headings. It
+    // was one 115-line method, so the destructive-rebuild semantics above were
+    // buried in the middle of actor plumbing.
     _buildHeader() {
-        let offsetCols = this.show_week_numbers ? 1 : 0;
+        const offsetCols = this.show_week_numbers ? 1 : 0;
+
+        this._resetGridForRebuild();
+        this._buildHeaderBoxes(offsetCols);
+        this._buildMonthHeader();
+        this._buildYearHeader();
+        this._buildWeekNumberHeading();
+        this._buildWeekdayHeadings(offsetCols);
+
+        this._header_signature = this._headerSignature();
+    }
+
+    // A destructive rebuild: every actor below is new, and the day cells the
+    // last pass handed to the annotator are gone. That is why the generation
+    // moves here — an annotation pass still in flight captured those cells, and
+    // its generation guard only watches for a *newer pass*. destroy() already
+    // strands in-flight passes this way; a rebuild kills the same actors and
+    // must too, or the async holiday answer writes tooltips onto disposed
+    // buttons.
+    _resetGridForRebuild() {
         this.actor.destroy_all_children();
-        // The day-cell actors died with the table children. An annotation pass
-        // still in flight captured those cells, and its generation guard only
-        // watches for a *newer pass* — destroy() already strands in-flight
-        // passes this way; a rebuild kills the same actors and must too, or the
-        // async holiday answer writes tooltips onto disposed buttons.
         this._holiday_update_generation++;
         this._gridView.reset();
+    }
 
-        // Top line of the calendar '<| September |> <| 2009 |>'
+    // Top line of the calendar '<| September |> <| 2009 |>', in the order the
+    // locale puts them.
+    _buildHeaderBoxes(offsetCols) {
         this._topBoxMonth = new St.BoxLayout();
         this._topBoxYear = new St.BoxLayout();
 
@@ -981,7 +1002,9 @@ class Calendar {
             this.actor.add(this._topBoxYear,
                        {row: 0, col: 0, col_span: offsetCols + 3});
         }
+    }
 
+    _buildMonthHeader() {
         let back = this._navButton('calendar-change-month-back', _("Previous month"));
         this._topBoxMonth.add(back);
         back.connect('clicked', this._onPrevMonthButtonClicked.bind(this));
@@ -1012,11 +1035,13 @@ class Calendar {
 
         this._topBoxMonth.add(monthBox, { expand: true, x_fill: false, x_align: St.Align.MIDDLE });
 
-        let forward = this._navButton('calendar-change-month-forward', _("Next month"));
+        const forward = this._navButton('calendar-change-month-forward', _("Next month"));
         this._topBoxMonth.add(forward);
         forward.connect('clicked', this._onNextMonthButtonClicked.bind(this));
+    }
 
-        back = this._navButton('calendar-change-month-back', _("Previous year"));
+    _buildYearHeader() {
+        const back = this._navButton('calendar-change-month-back', _("Previous year"));
         this._topBoxYear.add(back);
         back.connect('clicked', this._onPrevYearButtonClicked.bind(this));
 
@@ -1027,39 +1052,44 @@ class Calendar {
         this._rendered_year = null;
         this._topBoxYear.add(this._yearLabel, {expand: true, x_fill: false, x_align: St.Align.MIDDLE});
 
-        forward = this._navButton('calendar-change-month-forward', _("Next year"));
+        const forward = this._navButton('calendar-change-month-forward', _("Next year"));
         this._topBoxYear.add(forward);
         forward.connect('clicked', this._onNextYearButtonClicked.bind(this));
+    }
 
-        // the week-number gutter needs a header cell so the column
-        // reserves its digit-based width above the week labels
+    // the week-number gutter needs a header cell so the column
+    // reserves its digit-based width above the week labels
+    _buildWeekNumberHeading() {
         this._weekdateHeader = null;
-        if (this.show_week_numbers) {
-            this._weekdateHeader = new St.Label(
-                { style_class: 'calendar-day-base calendar-day-heading' });
-            // it exists to reserve the column's width, so it carries no text —
-            // which leaves the week-number column with no heading at all
-            if (this._weekdateHeader.set_accessible_name) {
-                this._weekdateHeader.set_accessible_name(_("Week"));
-            }
-            this.actor.add(this._weekdateHeader,
-                { row: 1, col: 0, x_fill: false, x_align: St.Align.MIDDLE });
-            this._setWeekdateHeaderWidth();
+        if (!this.show_week_numbers) {
+            return;
         }
 
-        // Add weekday labels...
-        //
-        // We need to figure out the abbreviated localized names for the days of the week;
-        // we do this by just getting the next 7 days starting from right now and then putting
-        // them in the right cell in the table. It doesn't matter if we add them in order
-        let iter = new Date(this._selectedDate);
+        this._weekdateHeader = new St.Label(
+            { style_class: 'calendar-day-base calendar-day-heading' });
+        // it exists to reserve the column's width, so it carries no text —
+        // which leaves the week-number column with no heading at all
+        if (this._weekdateHeader.set_accessible_name) {
+            this._weekdateHeader.set_accessible_name(_("Week"));
+        }
+        this.actor.add(this._weekdateHeader,
+            { row: 1, col: 0, x_fill: false, x_align: St.Align.MIDDLE });
+        this._setWeekdateHeaderWidth();
+    }
+
+    // We need to figure out the abbreviated localized names for the days of the
+    // week; we do this by just getting the next 7 days starting from right now
+    // and then putting them in the right cell in the table. It doesn't matter if
+    // we add them in order.
+    _buildWeekdayHeadings(offsetCols) {
+        const iter = new Date(this._selectedDate);
         iter.setSeconds(0); // Leap second protection. Hah!
         iter.setHours(12);
         for (let i = 0; i < 7; i++) {
             // Could use iter.toLocaleFormat('%a') but that normally gives three characters
             // and we want, ideally, a single character for e.g. S M T W T F S
-            let customDayAbbrev = _getCalendarDayAbbreviation(iter.getDay());
-            let label = new St.Label({ style_class: this._dayHeadingStyleClass(iter), text: customDayAbbrev });
+            const customDayAbbrev = _getCalendarDayAbbreviation(iter.getDay());
+            const label = new St.Label({ style_class: this._dayHeadingStyleClass(iter), text: customDayAbbrev });
             this._gridView.addDayHeading(label, new Date(iter));
             this.actor.add(label,
                            { row: 1,
@@ -1067,8 +1097,6 @@ class Calendar {
                              x_fill: false, x_align: St.Align.MIDDLE });
             iter.setTime(iter.getTime() + MSECS_IN_DAY);
         }
-
-        this._header_signature = this._headerSignature();
     }
 
     _onStyleChange() {

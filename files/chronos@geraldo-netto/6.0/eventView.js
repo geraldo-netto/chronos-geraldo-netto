@@ -994,6 +994,10 @@ class EventRowPresenter {
 }
 
 class EventRow {
+    // The row is a policy decision (can this event be opened at all?), an actor
+    // tree of two nested boxes and three labels, and the first render. It was
+    // one 124-line constructor; the sibling EventList decomposes its own tree
+    // into _build* methods, and this follows it.
     constructor(event, date, params) {
         this.event = event;
         this.is_current_or_next = false;
@@ -1015,6 +1019,14 @@ class EventRow {
         const canActivate = this._calendar_launcher.isAvailable() &&
             eventUidCanLaunch(this.event.id);
 
+        this._buildRowActor(canActivate);
+        this.actor.add(this._buildColorStrip());
+        this.actor.add_actor(this._buildContent());
+
+        this.update_variations();
+    }
+
+    _buildRowActor(canActivate) {
         this.actor = new St.BoxLayout(
             {
                 style_class: "calendar-event-button",
@@ -1040,19 +1052,21 @@ class EventRow {
         }
 
         this._presenter.connectActivation();
+    }
 
-        // The strip is the only sign of which calendar an event belongs to, and
-        // it is a colour and nothing else — no text, no tooltip, no name. That is
-        // information a colour-blind user does not get and a screen reader cannot
-        // say.
-        //
-        // The applet cannot fix that half: cinnamon-calendar-server sends the
-        // calendar's *colour* and never its display name (see the Event tuple in
-        // /usr/libexec/cinnamon/cinnamon-calendar-server.py — uid, color, summary,
-        // all_day, start, end, mod), so there is no name here to announce. What it
-        // can do is stop the strip being read out as an unnamed object beside the
-        // row that already says the time, the summary and the countdown.
-        let color_strip = new St.Bin(
+    // The strip is the only sign of which calendar an event belongs to, and it
+    // is a colour and nothing else — no text, no tooltip, no name. That is
+    // information a colour-blind user does not get and a screen reader cannot
+    // say.
+    //
+    // The applet cannot fix that half: cinnamon-calendar-server sends the
+    // calendar's *colour* and never its display name (see the Event tuple in
+    // /usr/libexec/cinnamon/cinnamon-calendar-server.py — uid, color, summary,
+    // all_day, start, end, mod), so there is no name here to announce. What it
+    // can do is stop the strip being read out as an unnamed object beside the
+    // row that already says the time, the summary and the countdown.
+    _buildColorStrip() {
+        const color_strip = new St.Bin(
             {
                 style_class: "calendar-event-color-strip",
                 style: this._presenter.colorStyle()
@@ -1062,25 +1076,31 @@ class EventRow {
             // decorative: the row's own accessible name carries the content
             color_strip.accessible_role = Atk.Role.SEPARATOR;
         }
+        return color_strip;
+    }
 
-        this.actor.add(color_strip);
-
-        let vbox = new St.BoxLayout(
+    // the time and the countdown share a line; the summary wraps under them
+    _buildContent() {
+        const vbox = new St.BoxLayout(
             {
                 style_class: "calendar-event-row-content",
                 x_expand: true,
                 vertical: true
             }
         );
-        this.actor.add_actor(vbox);
 
-        let label_box = new St.BoxLayout(
+        vbox.add_actor(this._buildLabelBox());
+        vbox.add(this._buildSummary(), { expand: true });
+        return vbox;
+    }
+
+    _buildLabelBox() {
+        const label_box = new St.BoxLayout(
             {
                 name: "label-box",
                 x_expand: true
             }
         );
-        vbox.add_actor(label_box);
 
         this.event_time = new St.Label(
             {
@@ -1098,10 +1118,13 @@ class EventRow {
                 style_class: "calendar-event-countdown",
             }
         );
-
         label_box.add(this.countdown_label, { expand: true, x_fill: true });
 
-        let event_summary = new St.Label(
+        return label_box;
+    }
+
+    _buildSummary() {
+        const event_summary = new St.Label(
             {
                 text: this.event.summary,
                 y_expand: true,
@@ -1114,9 +1137,7 @@ class EventRow {
         // GJS coerces to 0 — the value of NONE — so this line has been getting
         // the behaviour it wanted by accident. Say what it means.
         event_summary.get_clutter_text().ellipsize = Pango.EllipsizeMode.NONE;
-        vbox.add(event_summary, { expand: true });
-
-        this.update_variations();
+        return event_summary;
     }
 
     // the presenter reads it; the row stays the only writer of its own fields,
