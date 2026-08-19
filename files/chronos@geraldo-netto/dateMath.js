@@ -17,6 +17,15 @@ function monthWindowStartOffset(isoWeekDay, weekStart) {
     return ((isoWeekDay % 7) - weekStart + 7) % 7;
 }
 
+// GLib.DateTime.equal is broken, so identity is compared through the epoch
+// seconds instead. It lives here because both the domain model (eventData, which
+// pulls GLib at module scope) and the presentation formatter (eventFormat, which
+// deliberately pulls neither GLib nor Clutter) need it, and this module is the
+// only one both can load.
+function dtEquals(dt1, dt2) {
+    return dt1.to_unix() === dt2.to_unix();
+}
+
 if (typeof module !== "undefined") {
-    module.exports = { MSECS_IN_DAY, monthWindowStartOffset };
+    module.exports = { MSECS_IN_DAY, monthWindowStartOffset, dtEquals };
 }

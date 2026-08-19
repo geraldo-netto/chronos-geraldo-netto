@@ -26,17 +26,19 @@ const EventDataModule = IS_NODE ?
     require("./eventData") :
     APPLET_MODULES.eventData;
 
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    APPLET_MODULES.providerUtils;
+
 const boundedEventVariants = CalendarServerModule.boundedEventVariants;
 const decodeRemovedUids = CalendarServerModule.decodeRemovedUids;
+
+const validSourceId = ProviderUtils.validSourceId;
 
 var EVENT_BATCH_CHUNK = 25; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_RECORDS = 2000; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_BYTES = 8 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 var MAX_QUEUED_EVENT_MUTATIONS = 256; // NOSONAR [S3504] -- GJS importer export
-
-function validSourceId(sourceId) {
-    return Number.isInteger(sourceId) && sourceId > 0;
-}
 
 var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS importer export
     constructor(params) {
@@ -268,10 +270,16 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         this._eventBatchIds.push(sourceId);
     }
 
+    // The one place the overflow notice is worded. It reached the user from two
+    // call sites with the sentence written out twice, so the two could drift.
+    _logOverflow() {
+        log("calendar events: safety limit reached; some events are hidden");
+    }
+
     _markOverflow() {
         const changed = this._eventIndex.markOverflow();
         if (changed) {
-            log("calendar events: safety limit reached; some events are hidden");
+            this._logOverflow();
         }
         return changed;
     }
@@ -293,7 +301,7 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
 
     _accumulateOverflow(pending, result, flush, inputOverflowed) {
         if (result.overflow_changed) {
-            log("calendar events: safety limit reached; some events are hidden");
+            this._logOverflow();
             pending.overflow_changed = true;
         }
         if (flush && inputOverflowed && this._markOverflow()) {

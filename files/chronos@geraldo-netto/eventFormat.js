@@ -12,23 +12,24 @@
 // Pure helpers for the event-row label logic in 6.0/eventView.js. No toolkit
 // on purpose: everything operates on the EventData day-comparison interface
 // and injected formatting options, so Node tests can drive the full matrix of
-// date permutations without Clutter or GLib. textUtils is the one import, and
-// it reaches for neither.
+// date permutations without Clutter or GLib. Its two imports, textUtils and
+// dateMath, reach for neither either.
 
 /* global imports */
 const TextUtils = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node) ? // NOSONAR [S6582] -- accepted compatible form
     require("./textUtils") :
     imports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+const DateMath = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node) ? // NOSONAR [S6582] -- accepted compatible form
+    require("./dateMath") :
+    imports.ui.appletManager.applets["chronos@geraldo-netto"].dateMath;
 const fillTemplate = TextUtils.fillTemplate;
+var dtEquals = DateMath.dtEquals; // NOSONAR [S3504] -- GJS importer export
 
 var EVENT_PHASE_PAST = "past"; // NOSONAR [S3504] -- GJS importer export
 var EVENT_PHASE_UPCOMING = "upcoming"; // NOSONAR [S3504] -- GJS importer export
 var EVENT_PHASE_CURRENT = "current"; // NOSONAR [S3504] -- GJS importer export
-
-function dtEquals(dt1, dt2) {
-    return dt1.to_unix() === dt2.to_unix();
-}
 
 // Mirrors the branch structure at the top of EventRow.update_variations:
 // which phase the event is in relative to now, and the row flags derived

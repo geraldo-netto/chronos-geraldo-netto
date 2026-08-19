@@ -207,26 +207,39 @@ function urlForLog(url) {
     return url.split(/[?#]/)[0];
 }
 
-// Code points, not UTF-16 units. The trailing whitespace goes before the
-// ellipsis: "Rome …" reads as a broken word, "Rome…" as a truncated one.
-function clampText(text, maxLength) {
+// One truncation, two units. `measure` is what a character costs and `fits` is
+// the cheap "no truncation needed" test in that same unit; everything else — the
+// non-string coercion, the nonsense-cap guard, the accumulate-to-`max - 1` loop
+// and the trailing-whitespace-then-ellipsis tail — is the rule itself, and the
+// header above records what happened the last time it existed in more than one
+// copy.
+function clampBy(text, max, measure, fits) {
     const source = typeof text === "string" ? text : "";
-    if (!Number.isInteger(maxLength) || maxLength < 1) {
+    if (!Number.isInteger(max) || max < 1) {
         return "";
     }
-    if (textWithinLimit(source, maxLength)) {
+    if (fits(source, max)) {
         return source;
     }
 
     const prefix = [];
+    let used = 0;
     for (const character of source) {
-        if (prefix.length >= maxLength - 1) {
+        const cost = measure(character);
+        if (used + cost > max - 1) {
             break;
         }
+        used += cost;
         prefix.push(character);
     }
 
-    return prefix.join("").replace(/\s+$/, "") + TEXT_ELLIPSIS; // NOSONAR [S8786] -- prefix length is bounded
+    return prefix.join("").replace(/\s+$/, "") + TEXT_ELLIPSIS; // NOSONAR [S8786] -- prefix cost is bounded
+}
+
+// Code points, not UTF-16 units. The trailing whitespace goes before the
+// ellipsis: "Rome …" reads as a broken word, "Rome…" as a truncated one.
+function clampText(text, maxLength) {
+    return clampBy(text, maxLength, () => 1, textWithinLimit);
 }
 
 // The same rule in the unit the tooltip's padding is made of.
@@ -238,25 +251,7 @@ function clampText(text, maxLength) {
 // never exceeds maxCells; a wide character that would straddle the last cell is
 // dropped rather than half-shown.
 function clampToWidth(text, maxCells) {
-    const source = typeof text === "string" ? text : "";
-    if (!Number.isInteger(maxCells) || maxCells < 1) {
-        return "";
-    }
-    if (displayWidth(source) <= maxCells) {
-        return source;
-    }
-
-    const prefix = [];
-    let width = 0;
-    for (const character of source) {
-        width += displayWidth(character);
-        if (width > maxCells - 1) {
-            break;
-        }
-        prefix.push(character);
-    }
-
-    return prefix.join("").replace(/\s+$/, "") + TEXT_ELLIPSIS; // NOSONAR [S8786] -- prefix width is bounded
+    return clampBy(text, maxCells, displayWidth, (source, max) => displayWidth(source) <= max);
 }
 
 // The parts are an event summary from whatever ICS or CalDAV feed the user

@@ -104,7 +104,8 @@ function gjsImportsMock() {
                         },
                         dateMath: {
                             MSECS_IN_DAY: 86400000,
-                            monthWindowStartOffset() {}
+                            monthWindowStartOffset() {},
+                            dtEquals() {}
                         },
                         textUtils: {
                             clampText(text, max) { return String(text).slice(0, max); },
@@ -164,6 +165,7 @@ function gjsImportsMock() {
                             backoffDelay() {},
                             orderProvidersByLastSuccess() {},
                             tryProvidersInOrder() {},
+                            validSourceId() {},
                             providerName() {}
                         },
                         weatherScheduler: {
@@ -314,7 +316,7 @@ const EXPORTS = {
         "calculateAstronomyEvents"],
     clockLimits: ["MAX_CLOCKS"],
     elapsedTime: ["civilMilliseconds", "monotonicMilliseconds", "monotonicSeconds"],
-    dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset"],
+    dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset", "dtEquals"],
     ioUtils: ["createHttpSession", "decodeUtf8", "HTTP_TIMEOUT_SECONDS", "MAX_RESPONSE_BYTES", "httpGetJson", "urlForLog", "readTextFileCapped", "readJsonFileAsync", "writeJsonFileAsync"],
     styleUtils: ["safeCssColor"],
     textUtils: ["clampText", "displayWidth", "textWithinLimit", "normalizeBoundedText",
@@ -327,7 +329,7 @@ const EXPORTS = {
         "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "monthWindowStartOffset", "dateFormatWithinLimit", "dateFormatOrDefault",
         "clampClockStamp", "formatDateWithFallback"],
-    providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "tryProvidersInOrder"],
+    providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "validSourceId", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale",
         "MAX_WEATHER_LOCATION_LENGTH", "normalizeWeatherLocation",

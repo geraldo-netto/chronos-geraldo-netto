@@ -24,13 +24,11 @@ const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     APPLET_MODULES.providerUtils;
 
+const validSourceId = ProviderUtils.validSourceId;
+
 var FETCH_RETRY_SECONDS = 5; // NOSONAR [S3504] -- GJS importer export
 var FETCH_RETRY_MAX_SECONDS = 120; // NOSONAR [S3504] -- GJS importer export
 var FETCH_RETRY_MAX_ATTEMPTS = 5; // NOSONAR [S3504] -- GJS importer export
-
-function validSourceId(sourceId) {
-    return Number.isInteger(sourceId) && sourceId > 0;
-}
 
 var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- GJS importer export
     constructor(params) {

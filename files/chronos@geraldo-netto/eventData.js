@@ -35,6 +35,10 @@ const TextUtils = IS_NODE ?
 const StyleUtils = IS_NODE ?
     require("./styleUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].styleUtils;
+const DateMath = IS_NODE ?
+    require("./dateMath") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateMath;
+var dt_equals = DateMath.dtEquals; // NOSONAR [S3504] -- GJS importer export
 
 // EventListRenderer uses equality to distinguish a changing event's countdown
 // from a structurally different list that must rebuild its rows. Monotonic time
@@ -71,11 +75,6 @@ function month_year_only(gdatetime) {
         gdatetime.get_month(),
         1, 0, 0, 0
     );
-}
-
-// GLib.DateTime.equal is broken
-function dt_equals(dt1, dt2) {
-    return dt1.to_unix() === dt2.to_unix();
 }
 
 // GLib.DateTime only spans years 1 to 9999: new_from_unix_local() returns null

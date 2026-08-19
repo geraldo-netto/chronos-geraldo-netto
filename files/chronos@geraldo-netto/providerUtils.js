@@ -149,6 +149,12 @@ function attemptOrFail(attempt, provider, onResult) {
     }
 }
 
+// Calendar-server source ids. Shared by the fetch coordinator and the mutation
+// stream, which both reject anything a server handed them that is not one.
+function validSourceId(sourceId) {
+    return Number.isInteger(sourceId) && sourceId > 0;
+}
+
 function tryProvidersInOrder(providers, attempt, accept, onSuccess, onExhausted) {
     // An empty chain is a configuration state, not a failure to report. Without
     // this, step(0) hands `undefined` to the attempt, which dereferences it and
@@ -186,6 +192,7 @@ if (typeof module !== "undefined") {
         notifyAll,
         providerName,
         orderProvidersByLastSuccess,
+        validSourceId,
         tryProvidersInOrder
     };
 }
