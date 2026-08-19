@@ -542,11 +542,25 @@ class AppletPanelStatusPresenter {
         };
     }
 
-    _clockModelKey(rows, localStamp, status) {
+    // With the world clocks switched off there is no row to carry a provider
+    // name, and the popup's own credit is written into the accessible name of
+    // the block `show_worldclocks` hides — so nothing credited the services at
+    // all. The panel's own reading still came from somewhere.
+    _panelWeatherSources() {
+        const port = this.port;
+        const provider = port.showWeather() && port.weatherReading() ?
+            port.weatherProvider() : "";
+        return provider ? [provider] : [];
+    }
+
+    _clockModelKey(rows, localStamp, status, sources) {
         return [
             rows.map((row) => row.cells.join("\u0001")).join("\u0002"),
             localStamp,
-            status
+            status,
+            // the credit is part of the rendered text when there is no table,
+            // so a provider that changed without the cells changing is a rewrite
+            sources.join("\u0001")
         ].join("\u0003");
     }
 
@@ -562,13 +576,16 @@ class AppletPanelStatusPresenter {
         // the built-in "Local time" clock — so a header line above it would say
         // the same thing twice. With no table it is the tooltip.
         const localStamp = rows.length ? "" : this.tooltipLocalStamp();
+        const sources = rows.length ?
+            [...new Set(rows.map((row) => row.source).filter(Boolean))] :
+            this._panelWeatherSources();
 
         return {
-            key: this._clockModelKey(rows, localStamp, status),
+            key: this._clockModelKey(rows, localStamp, status, sources),
             popupEntries: rows.map((row) => row.popupEntry),
             rows: rows.map((row) => row.cells),
             issues: rows.map((row) => row.issue).filter(Boolean),
-            sources: [...new Set(rows.map((row) => row.source).filter(Boolean))],
+            sources,
             localStamp,
             status
         };
@@ -611,9 +628,19 @@ class AppletPanelStatusPresenter {
             lines.push(model.status);
         }
 
-        // The provider used to be credited here, under a blank line. It is still
-        // credited in the world-clock popup's accessible name and in the README —
-        // the tooltip is a table of times, and a footer is not part of the table.
+        // The provider is credited in the world-clock popup's accessible name
+        // and in the README — the tooltip is a table of times, and a footer is
+        // not part of the table.
+        //
+        // But the popup's credit is written into the accessible name of the
+        // block `show_worldclocks` hides, and there are no rows to carry a
+        // per-row provider either, so with the world clocks switched off no
+        // surface credited the data services at all. With no table there is no
+        // table for a footer to intrude on, and this is the one surface left.
+        if (!model.rows.length && model.sources.length) {
+            lines.push(fillTemplate(_("Source: %s"), [model.sources.join(", ")]));
+        }
+
         return lines.join("\n");
     }
 
@@ -719,39 +746,56 @@ class AppletPanelStatusPresenter {
     // two concerns impossible to change or test apart.
     updateClockAndDate(forceMenuUpdate = false) {
         const port = this.port;
-        let label_string = DateFormats.clampClockStamp(port.formattedClock());
-
-        let refreshMenu = forceMenuUpdate || port.menuOpen();
-        const clocksOn = this.worldclocksEnabled();
+        const refreshMenu = forceMenuUpdate || port.menuOpen();
         // Nobody reads a clock off the closed panel any more, so a closed panel
         // formats none: a GLib.DateTime per city per second, for a table only the
         // tooltip and the popup draw. They are built when one of those two is
         // about to be shown, and then in full.
         const showingClocks = Boolean(refreshMenu || port.panelHovered());
-        let clockEntries = (clocksOn && showingClocks) ? this.getClockEntries() : [];
-        let clockModel = showingClocks ? this._clockRenderModel(clockEntries) : null;
-        let label_suffix = this.buildLabelSuffix();
-        if (label_suffix) {
-            // the temperature reads as part of the clock line, so no bullet
-            // divides them; any world clocks after it keep theirs
-            label_string += " " + this.ellipsizeLabelSuffix(label_suffix);
-        }
-        label_string = DateFormats.clampClockStamp(label_string);
+        const clockEntries = (this.worldclocksEnabled() && showingClocks) ?
+            this.getClockEntries() : [];
+        const clockModel = showingClocks ? this._clockRenderModel(clockEntries) : null;
 
-        this._setPanelLabel(TextUtils.clampText(label_string, LABEL_MAX_LENGTH));
-        // The screen reader gets more than the narrow visible label, but the
-        // configured clock portion is still bounded before accessibility and
-        // layout consumers receive it.
-        this._announce(label_string);
+        this._renderPanel();
 
         if (!refreshMenu) {
+            // the tooltip is the panel's, not the menu's: it is drawn for a
+            // hovered panel whether or not the menu is open
             if (port.panelHovered()) {
                 this._setTooltipModel(clockModel);
             }
             return false;
         }
 
-        let formattedToday = this.getFormattedToday();
+        this._renderMenu(clockModel, clockEntries);
+        return true;
+    }
+
+    // The one line on the panel, and the same line said in full to a screen
+    // reader. Answers the label it wrote, which is what the accessible name is
+    // built from.
+    _renderPanel() {
+        let labelString = DateFormats.clampClockStamp(this.port.formattedClock());
+        const suffix = this.buildLabelSuffix();
+        if (suffix) {
+            // the temperature reads as part of the clock line, so no bullet
+            // divides them; any world clocks after it keep theirs
+            labelString += " " + this.ellipsizeLabelSuffix(suffix);
+        }
+        labelString = DateFormats.clampClockStamp(labelString);
+
+        this._setPanelLabel(TextUtils.clampText(labelString, LABEL_MAX_LENGTH));
+        // The screen reader gets more than the narrow visible label, but the
+        // configured clock portion is still bounded before accessibility and
+        // layout consumers receive it.
+        this._announce(labelString);
+    }
+
+    // Everything behind the popup: the date headers, the today button, the
+    // tooltip, the status line and the world-clock rows.
+    _renderMenu(clockModel, clockEntries) {
+        const port = this.port;
+        const formattedToday = this.getFormattedToday();
         this._setHomeEnabled(!port.todaySelected());
 
         // St.Label compares by pointer, so writing a byte-identical string still
@@ -772,8 +816,6 @@ class AppletPanelStatusPresenter {
         // a courtesy the data services are owed.
         port.updateWorldclocks(clockModel.popupEntries);
         port.setWeatherSource(port.showWeather() ? clockModel.sources.join(", ") : "");
-
-        return true;
     }
 }
 

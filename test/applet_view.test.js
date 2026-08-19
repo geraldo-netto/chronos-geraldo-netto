@@ -1139,6 +1139,52 @@ test("a panel view can be substituted whole", () => {
     assert.ok(reads.includes("weatherReading"));
 });
 
+// T966: the provider credit lives in the world-clock popup's accessible name,
+// which is inside the block `show_worldclocks` hides, and in the per-row source
+// of a table that has no rows when the clocks are off. So with clocks off no
+// surface credited the data services at all.
+test("the weather service is credited with the world clocks switched off", () => {
+    const port = panelPort({
+        showWeather: true,
+        worldclocksEnabled: false,
+        weatherReading: { condition: "☀", temperatureC: 20 },
+        weatherUnits: "metric",
+        weatherError: "",
+        weatherProvider: "Open-Meteo",
+        customTooltipFormat: "%H:%M",
+        formatClock: () => "14:03",
+        formattedClock: () => "14:03"
+    });
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(port);
+
+    const tooltip = presenter.buildTooltipText([]);
+    assert.match(tooltip, /Source: Open-Meteo/,
+        "with no table to intrude on, the footer is the surface left");
+    assert.equal(tooltip.split("\n")[0], "14:03", "and it follows the stamp");
+
+    // a table of clocks carries the credit in its own rows and in the popup,
+    // so the footer stays out of it
+    const entry = {
+        label: "Tokyo", timezone: "Asia/Tokyo", builtin: false,
+        localTime: { format: () => "22:03" }
+    };
+    assert.doesNotMatch(presenter.buildTooltipText([entry]), /Source:/);
+
+    // and nothing is credited for a reading that has not landed
+    const pending = new PanelStatusModule.AppletPanelStatusPresenter(panelPort({
+        showWeather: true,
+        worldclocksEnabled: false,
+        weatherReading: null,
+        weatherPending: true,
+        weatherUnits: "metric",
+        weatherError: "",
+        weatherProvider: "Open-Meteo",
+        customTooltipFormat: "%H:%M",
+        formatClock: () => "14:03"
+    }));
+    assert.doesNotMatch(pending.buildTooltipText([]), /Source:/);
+});
+
 // The weather error's words reached the user only through per-clock weather
 // cells — and there are no rows when the world clocks are
 // off. So with weather on and clocks off, a failed lookup painted a bare ⚠ on the
