@@ -350,6 +350,13 @@ class AppletPanelStatusPresenter {
         this._tooltipFormatWasRejected = false;
         this._formatIssue = "";
         this._tooltipFormatIssue = "";
+        // the diff-then-write caches, declared here rather than sprung into
+        // existence on the first tick: the class's shape is its contract
+        this._rendered_tooltip_key = null;
+        this._rendered_accessible_name = null;
+        this._rendered_label = null;
+        this._rendered_day = null;
+        this._rendered_date = null;
     }
 
     updateFormatString() {

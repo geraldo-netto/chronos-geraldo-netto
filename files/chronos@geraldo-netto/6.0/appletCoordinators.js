@@ -24,6 +24,9 @@ class AppletWeatherCoordinator {
         this.pending = false;
         this.error = "";
         this.providerName = "";
+        // undefined, not false: the first applyShowWorldclocks must schedule
+        // whichever way the setting reads, the way the event coordinator does
+        this._appliedShowWorldclocks = undefined;
     }
 
     _request() {
