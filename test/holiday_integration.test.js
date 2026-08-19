@@ -1016,8 +1016,10 @@ test("Enrico's part-day flag survives the wire, the contract and the cache", () 
 
     service.retrieveForYear(FIXED_YEAR, () => {});
 
+    // the row is public — that is the type this adapter asks for — and partial;
+    // the part-day flag is the vendor's claim, minted from its own token
     assert.deepEqual(service.matchMonth(FIXED_YEAR, 12).get("12/24"),
-        { name: "Christmas Eve", flags: [PART_DAY_HOLIDAY] });
+        { name: "Christmas Eve", flags: [PART_DAY_HOLIDAY, "public_holiday"] });
 
     // ...and a full public holiday landing on the same date takes the whole day:
     // the flag is a per-provider claim, so the merge keeps it only if both agree

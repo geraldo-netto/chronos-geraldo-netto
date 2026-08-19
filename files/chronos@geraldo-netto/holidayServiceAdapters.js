@@ -49,11 +49,11 @@ const HolidayRecord = IS_NODE ?
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
 
 const validDateParts = HolidayRecord.validDateParts;
+const normalizeProviderFlags = HolidayRecord.normalizeProviderFlags;
 const nonBlankText = HolidayRecord.nonBlankText;
 const HolidayRecordContract = HolidayRecord.HolidayRecordContract;
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
-const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
 const ENRICO_PUBLIC_HOLIDAY_TYPE = "public_holiday";
 var HOLIDAY_ERRORS = HolidayConstants.HOLIDAY_ERRORS; // NOSONAR [S3504] -- GJS importer export
 var HOLIDAY_PROVIDER_NAMES = HolidayConstants.HOLIDAY_PROVIDER_NAMES; // NOSONAR [S3504] -- GJS importer export
@@ -122,12 +122,20 @@ var EnricoServiceAdapter = class EnricoServiceAdapter { // NOSONAR [S3504] -- GJ
         return url;
     }
 
+    // v2.0 rows carry an optional `flags` array beside `holidayType`; when it is
+    // absent the type is the only claim the row makes about itself. Either way
+    // the strings are the vendor's, and normalizeProviderFlags is what keeps
+    // them out of the applet's own flag namespace: `holidayType` happens to
+    // spell the app's public sentinel, so publicness is decided here — this
+    // adapter only ever asks for public holidays — rather than copied through.
     _flags(holiday) {
-        if (Array.isArray(holiday.flags)) {
-            return holiday.flags;
+        const hasFlags = Array.isArray(holiday.flags);
+        if (!hasFlags && typeof holiday.holidayType !== "string") {
+            return null;
         }
 
-        return typeof holiday.holidayType === "string" ? [holiday.holidayType] : null;
+        return normalizeProviderFlags(hasFlags ? holiday.flags : [holiday.holidayType],
+            holiday.holidayType === ENRICO_PUBLIC_HOLIDAY_TYPE);
     }
 
     _translateHoliday(holiday) {
@@ -312,7 +320,9 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     _flags(holiday) {
         const types = Array.isArray(holiday.types) && holiday.types.length ? holiday.types : ["Public"];
 
-        return types.map((type) => type === "Public" ? PUBLIC_HOLIDAY_FLAG : type.toLowerCase());
+        return normalizeProviderFlags(
+            types.filter((type) => type !== "Public").map((type) => type.toLowerCase()),
+            types.indexOf("Public") >= 0); // NOSONAR [S7765] -- accepted compatible form
     }
 
     // The local name was tagged `lang: "local"`, which `localizeName` can never
@@ -430,7 +440,8 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     _flags(holiday) {
         const type = holiday.type || "Public";
 
-        return [type === "Public" ? PUBLIC_HOLIDAY_FLAG : type.toLowerCase()];
+        return normalizeProviderFlags(
+            type === "Public" ? [] : [type.toLowerCase()], type === "Public");
     }
 
     _name(holiday) {

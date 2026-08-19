@@ -1,6 +1,7 @@
 const {
     assert, test, fs, makeRandom, STAMP, NAGER_STAMP, OPENHOLIDAYS_STAMP,
     holidayConstantsPath, holidayRecordPath, holidayServiceAdaptersPath,
+    religiousCatalogPath,
     loadHolidays, anyRecord
 } = require("./helpers/holidayFixture");
 
@@ -12,8 +13,63 @@ test("provider adapters distinguish wire and domain public-holiday values", () =
         "the Enrico request value is a named vendor-protocol constant");
     assert.equal((source.match(/"public_holiday"/g) || []).length, 1,
         "normalized records must not copy the domain flag literal");
-    assert.match(source,
-        /type === "Public" \? PUBLIC_HOLIDAY_FLAG : type\.toLowerCase\(\)/);
+
+    // T991: no adapter mints an app flag itself any more. Each one says whether
+    // the row is public and hands its vendor strings to normalizeProviderFlags,
+    // which is the single place the sentinel is added and the only thing
+    // standing between a vendor payload and the applet's flag namespace.
+    assert.doesNotMatch(source, /PUBLIC_HOLIDAY_FLAG/,
+        "publicness is expressed to the normalizer, not written into a record here");
+    assert.equal((source.match(/normalizeProviderFlags\(/g) || []).length, 3,
+        "one call in each of the three adapters");
+});
+
+// T991: the flags decide how a day is drawn — PUBLIC_HOLIDAY_FLAG styles it
+// non-working, RELIGIOUS_HOLIDAY_FLAG plus a religion id styles an observance —
+// and the vendor payloads used to land in that same namespace verbatim. Each
+// adapter gets every app-minted sentinel handed to it in the field it copies
+// from, and none of them may come back out unless the adapter itself decided it.
+test("no vendor payload can mint an app-minted holiday flag", () => {
+    const { EnricoServiceAdapter, NagerDateServiceAdapter,
+        OpenHolidaysServiceAdapter } = loadHolidays();
+    const { RELIGIOUS_HOLIDAY_FLAG, PUBLIC_HOLIDAY_FLAG } = require(holidayConstantsPath);
+    const { RELIGION_IDS } = require(religiousCatalogPath);
+    const sentinels = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG].concat(RELIGION_IDS);
+
+    for (const sentinel of sentinels) {
+        const enrico = new EnricoServiceAdapter();
+        // "public_holiday" is also Enrico's own token for the type this adapter
+        // asks for, so that one row legitimately mints the flag; every other
+        // sentinel spelled into the same field must not.
+        if (sentinel !== PUBLIC_HOLIDAY_FLAG) {
+            assert.deepEqual(enrico._flags({ holidayType: sentinel }), [],
+                `Enrico's holidayType minted ${sentinel}`);
+        }
+        assert.deepEqual(enrico._flags({ flags: [sentinel, "bank_holiday"] }),
+            ["bank_holiday"], `Enrico's flags array minted ${sentinel}`);
+
+        const nager = new NagerDateServiceAdapter();
+        assert.deepEqual(nager._flags({ types: [sentinel] }), [],
+            `Nager's types minted ${sentinel}`);
+
+        const open = new OpenHolidaysServiceAdapter();
+        assert.deepEqual(open._flags({ type: sentinel }), [],
+            `OpenHolidays' type minted ${sentinel}`);
+    }
+
+    // and a spelling that only *becomes* a sentinel after the case fold
+    assert.deepEqual(new NagerDateServiceAdapter()._flags({ types: ["Religious_Holiday"] }), []);
+    assert.deepEqual(new OpenHolidaysServiceAdapter()._flags({ type: "Christianity" }), []);
+
+    // the public flag still reaches a record — minted by the adapter, from the
+    // vendor field that actually answers the question
+    assert.deepEqual(
+        new EnricoServiceAdapter()._flags({ holidayType: "public_holiday" }),
+        [PUBLIC_HOLIDAY_FLAG]);
+    assert.deepEqual(new NagerDateServiceAdapter()._flags({ types: ["Public", "Bank"] }),
+        [PUBLIC_HOLIDAY_FLAG, "bank"]);
+    assert.deepEqual(new OpenHolidaysServiceAdapter()._flags({ type: "Public" }),
+        [PUBLIC_HOLIDAY_FLAG]);
 });
 
 // T781: the matched-month map's value used to be an anonymous [name, flags]
@@ -1394,7 +1450,12 @@ test("EnricoServiceAdapter normalizes live rows whose optional flags are absent"
             date: wireRows[1].date,
             dateTo: wireRows[1].dateTo,
             name: wireRows[1].name,
-            flags: ["PART_DAY_HOLIDAY"]
+            // T991: the vendor array carries the vendor's own token only, and
+            // the public sentinel is minted here from `holidayType` — the field
+            // this adapter queried on. The row is a public holiday that happens
+            // to be partial, and the part-day flag is what the calendar and the
+            // cache merge key their partial handling on.
+            flags: ["public_holiday", "PART_DAY_HOLIDAY"]
         }
     ]);
     assert.equal(new HolidayRecordContract("it").validResponse(answer.data), true);

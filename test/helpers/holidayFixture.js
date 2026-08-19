@@ -35,6 +35,7 @@ const holidayCachePath = path.join(__dirname, "..", "..", "files", "chronos@gera
 const holidayConstantsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayConstants.js");
 const holidayRecordPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayRecord.js");
 const holidayServiceAdaptersPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js");
+const religiousCatalogPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "religiousCatalog.js");
 const shimPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "6.0", "holidays.js");
 const localeQueryPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "localeQuery.js");
 
@@ -183,10 +184,15 @@ function loadHolidays(options = {}) {
     return require(modulePath);
 }
 
+// A row as Enrico puts it on the wire. `holidayType` is what says the day is
+// public — the adapter mints the app's own flag from it — and a wire row that
+// only *claims* "public_holiday" in its free-text flags no longer gets one
+// (T991), so a fixture without the type would be testing the denied path.
 function holiday(name, year, month, day, flags = ["public_holiday"]) {
     return {
         date: { year, month, day },
         name: [{ lang: "en", text: name }],
+        holidayType: "public_holiday",
         flags
     };
 }
@@ -225,6 +231,6 @@ module.exports = {
     assert, test, vm, fs, os, path, makeRandom, makeSoup3, FIXED_YEAR,
     STAMP, NAGER_STAMP, OPENHOLIDAYS_STAMP,
     modulePath, ioUtilsPath, holidayCachePath, holidayConstantsPath,
-    holidayRecordPath, holidayServiceAdaptersPath, shimPath,
+    holidayRecordPath, holidayServiceAdaptersPath, religiousCatalogPath, shimPath,
     loadCountry, loadJson, cachePath, loadHolidays, holiday, anyRecord
 };
