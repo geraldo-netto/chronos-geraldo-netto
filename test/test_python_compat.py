@@ -5,8 +5,10 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
@@ -33,6 +35,56 @@ class PythonCompatibilityTests(unittest.TestCase):
 
         self.assertIsInstance(error, SyntaxError)
         self.assertEqual(error.filename, "new-syntax.py")
+
+    # T1026: the parse gate constrains a handful of grammar decisions and sees
+    # no runtime API use at all, so `datetime.UTC`, `tomllib` and
+    # `itertools.batched` all parsed clean and would have failed on the floor.
+    def test_symbols_newer_than_the_floor_are_rejected(self):
+        cases = {
+            "import tomllib\n": "tomllib",
+            "import tomllib.parser\n": "tomllib",
+            "from tomllib import loads\n": "tomllib",
+            "from datetime import UTC\n": "datetime.UTC",
+            "import datetime\nstamp = datetime.UTC\n": "datetime.UTC",
+            "from typing import Self\n": "typing.Self",
+            "import itertools\nrows = itertools.batched([], 2)\n": "itertools.batched",
+            "raise ExceptionGroup('x', [])\n": "ExceptionGroup",
+        }
+
+        for source, name in cases.items():
+            messages = COMPAT.runtime_symbol_errors(source, "shipped.py")
+
+            self.assertEqual(len(messages), 1, source)
+            self.assertIn(name, messages[0])
+            self.assertIn("the declared floor is 3.10", messages[0])
+
+    def test_symbols_the_floor_already_has_are_accepted(self):
+        source = (
+            "import datetime\n"
+            "from typing import Optional\n"
+            "from pathlib import Path\n"
+            "stamp = datetime.timezone.utc\n"
+            "value: Optional[str] = None\n"
+            "here = Path('.').resolve()\n"
+        )
+
+        self.assertEqual(COMPAT.runtime_symbol_errors(source, "shipped.py"), [])
+
+    def test_no_shipped_file_names_a_symbol_newer_than_the_floor(self):
+        for path in COMPAT.python_sources(COMPAT.APPLET_ROOT):
+            self.assertEqual(
+                COMPAT.runtime_symbol_errors(
+                    path.read_text(encoding="utf-8"), str(path)), [])
+
+    # ...and the success line says what was checked. It used to read
+    # "Python 3.10 syntax: N shipped files", which claims the whole floor.
+    def test_the_success_line_claims_only_what_was_checked(self):
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            status = COMPAT.main()
+
+        self.assertEqual(status, 0)
+        self.assertIn("syntax only", buffer.getvalue())
 
     def test_source_discovery_ignores_cache_directories(self):
         with tempfile.TemporaryDirectory() as temporary:
