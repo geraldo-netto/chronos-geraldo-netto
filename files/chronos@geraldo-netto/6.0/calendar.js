@@ -10,7 +10,6 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
-const Clutter = imports.gi.Clutter;
 const GLib = imports.gi.GLib;
 const St = imports.gi.St;
 const Signals = imports.signals;
@@ -21,25 +20,26 @@ const Mainloop = imports.mainloop;
 const DateFormats = require("./dateFormats");
 const LocaleQuery = require("./localeQuery");
 const LocaleText = require("./localeText");
-const StyleUtils = require("./styleUtils");
-const UiVocabulary = require("./uiVocabulary");
-const EventDataModule = require("./eventData");
 const CalendarNavigation = require("./calendarNavigation");
 const CalendarDate = require("./calendarDate");
 const CalendarNavigationController = CalendarNavigation.CalendarNavigationController;
-const clampCalendarDate = CalendarNavigation.clampCalendarDate;
 const _formatJsDate = CalendarDate.formatJsDate;
 const _sameDay = CalendarDate.sameDay;
 const _today = CalendarDate.isToday;
+const CalendarMonthWindowModule = require("./calendarMonthWindow");
+const CalendarGrid = require("./calendarGrid");
+const CalendarMonthWindow = CalendarMonthWindowModule.CalendarMonthWindow;
+const CalendarMonthWindowCache = CalendarMonthWindowModule.CalendarMonthWindowCache;
+const CalendarGridHost = CalendarGrid.CalendarGridHost;
+const CalendarGridView = CalendarGrid.CalendarGridView;
+const CalendarDayCellRenderer = CalendarGrid.CalendarDayCellRenderer;
+const CalendarEventDotRenderer = CalendarGrid.CalendarEventDotRenderer;
+const MAX_EVENT_DOTS_PER_CELL = CalendarGrid.MAX_EVENT_DOTS_PER_CELL;
+const _isWorkDay = CalendarGrid._isWorkDay;
 const CalendarAnnotations = require("./calendarAnnotations");
 const CalendarHolidayAnnotator = CalendarAnnotations.CalendarHolidayAnnotator;
-const releaseHolidayTooltip = CalendarAnnotations.releaseHolidayTooltip;
 
 const _ = LocaleText.translate;
-const joinPhrases = LocaleText.joinPhrases;
-const ngettext = LocaleText.translatePlural;
-const date_only = EventDataModule.date_only;
-const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 
 // GTK's own msgid, asked of GTK's own domain: it answers "calendar:MY" or
 // "calendar:YM" to say which way round the month and year go. Not a literal at the
@@ -47,31 +47,26 @@ const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 // GTK's msgid into our catalog, where nobody could translate it into anything
 // meaningful.
 const GTK_CALENDAR_ORDER_MSGID = 'calendar:MY';
+const GTK_CALENDAR_YEAR_FIRST = 'calendar:YM';
+
+// A pure reading of GTK's answer, so the two orders and the broken-translation
+// case can be exercised without reloading this module against three different
+// gettext domains. An answer that is neither is a translation bug in GTK's own
+// catalog, and month-first is the more common order to fall back to.
+function headerMonthFirst(order) {
+    if (order === GTK_CALENDAR_YEAR_FIRST) {
+        return false;
+    }
+    if (order !== GTK_CALENDAR_ORDER_MSGID) {
+        log('Translation of "calendar:MY" in GTK+ is not correct');
+    }
+    return true;
+}
 
 const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
-// weekday, day, month and year: what a sighted user reads off the grid
-// The visible full date is locale-ordered through the shared format, so a
-// hardcoded day-month order here meant an en_US user saw "Saturday, July 12,
-// 2026" while their screen reader said "Saturday, 12 July 2026". Same date,
-// same applet, two different orders.
-const ACCESSIBLE_DATE_FORMAT = DateFormats.DATE_FORMAT_FULL;
-const ACCESSIBLE_DATE_FORMAT_FALLBACK = DateFormats.DATE_FORMAT_FULL_FALLBACK;
-// Geometry remains the primary limit, but a broken or unusually permissive
-// theme must not turn one dense day into an arbitrary number of actors.
-const MAX_EVENT_DOTS_PER_CELL = 64;
-const EVENT_DOT_OVERFLOW_NOTICE = UiVocabulary.EVENTS_HIDDEN_TEXT;
 
 const _lcAbday = LocaleQuery.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
-const _lcFirstWorkday = LocaleQuery.lazyLocaleValue(
-    "LC_TIME", (info) => (info.first_workday + 6) % 7);
-
-// Weekend days are derived from the locale's first workday and configured length.
-function _isWorkDay(date, weekend_length) {
-    const firstWorkday = _lcFirstWorkday();
-    return date.getDay() !== (firstWorkday + 7 - weekend_length) % 7 &&
-    date.getDay() !== (firstWorkday + 6) % 7;
-}
 
 function _getDigitWidth(actor){
     let context = actor.get_pango_context();
@@ -84,597 +79,6 @@ function _getDigitWidth(actor){
 
 function _getCalendarDayAbbreviation(dayNumber) {
     return _lcAbday()[dayNumber];
-}
-
-// The window depends only on the displayed month and the week start, but
-// _update() runs on every menu open, settings change and event update, and
-// rebuilding it costs 42 Dates plus 84 GLib.DateTimes every time.
-class CalendarMonthWindowCache {
-    constructor() {
-        this._key = ""; // NOSONAR [S7757] -- accepted compatible form
-        this._window = null;
-    }
-
-    get(selectedDate, weekStart) {
-        const bounded = clampCalendarDate(selectedDate);
-        const key = `${bounded.getFullYear()}/${bounded.getMonth()}/${weekStart}`;
-        if (this._key !== key || !this._window) {
-            this._key = key;
-            this._window = new CalendarMonthWindow(bounded, weekStart);
-        }
-
-        return this._window;
-    }
-
-    // The key is year/month/weekStart, but dateUnixKeys and accessibleDates are
-    // absolute values derived from the process timezone the window was built
-    // in. A zone change leaves the key identical and every value inside wrong,
-    // so it has to be dropped from outside. Releasing the window rather than
-    // clearing the key is what frees the 42 Dates and 84 GLib.DateTimes it
-    // holds; get() rebuilds on either, and the key is rewritten there anyway.
-    invalidate() {
-        this._window = null;
-    }
-}
-
-class CalendarMonthWindow {
-    constructor(selectedDate, weekStart) {
-        this.selectedDate = clampCalendarDate(selectedDate);
-        this.weekStart = weekStart;
-        this.beginDate = this._beginDate();
-        this.days = this._buildDays();
-        this.dateUnixKeys = this.days.map((day) => {
-            const gdate = js_date_to_gdatetime(day);
-            return gdate ? date_only(gdate).to_unix() : null;
-        });
-        // one GLib.DateTime plus a format per cell, and _update() runs on every
-        // menu open, month change, settings change and coalesced event update:
-        // the name depends only on the date in the slot, so it belongs here
-        // with the rest of the per-month work
-        this.accessibleDates = this.days.map((day) =>
-            _formatJsDate(day, ACCESSIBLE_DATE_FORMAT, ACCESSIBLE_DATE_FORMAT_FALLBACK));
-        this.months = new Set();
-
-        for (const day of this.days) {
-            this.months.add(`${day.getFullYear()}/${day.getMonth() + 1}`);
-        }
-    }
-
-    _beginDate() {
-        let beginDate = new Date(this.selectedDate);
-        beginDate.setDate(1);
-        beginDate.setSeconds(0);
-        beginDate.setHours(12);
-        // monthWindowStartOffset speaks GLib's ISO weekday (1=Mon..7=Sun);
-        // Date.getDay() reports Sunday as 0
-        const daysToWeekStart = DateFormats.monthWindowStartOffset(
-            beginDate.getDay() || 7, this.weekStart);
-        beginDate.setTime(beginDate.getTime() - daysToWeekStart * MSECS_IN_DAY);
-        return beginDate;
-    }
-
-    _buildDays() {
-        const days = [];
-        let iter = new Date(this.beginDate);
-        for (let i = 0; i < 42; i++) {
-            days.push(new Date(iter));
-            iter.setTime(iter.getTime() + MSECS_IN_DAY);
-        }
-        return days;
-    }
-
-    weekLabelForRow(rowIndex) {
-        const thursday = this.days[rowIndex * 7 + ((4 - this.weekStart + 7) % 7)];
-        return _formatJsDate(thursday, '%V');
-    }
-}
-
-// What the grid's collaborators are allowed to know about the calendar.
-//
-// The three of them used to hold the Calendar itself and read and write its
-// privates — _selectedDate, _eventDotRenderer, _allocate_dot_box,
-// events_manager, _holiday_update_generation — and the annotator assigned three
-// more (_monthLabel.text, _holidayTooltip, _holiday_status_text) that
-// _buildHeader also owned and reset. Two objects owning the same field is not a
-// collaboration, it is a race with good manners. The extraction had moved the
-// code without decoupling it: the Calendar's private shape *was* the
-// collaborators' API, and none of them could be built or tested without a whole
-// Calendar.
-//
-// This is that API, written down. AppletMenuBuilder, AppletProviderLifecycle and
-// PanelView are the same idea one layer up.
-
-class CalendarGridHost {
-    constructor(port) {
-        this.port = port;
-    }
-
-    get selectedDate() {
-        return this.port.selectedDate();
-    }
-
-    get weekStart() {
-        return this.port.weekStart();
-    }
-
-    get weekendLength() {
-        return this.port.weekendLength();
-    }
-
-    get eventDataAvailable() {
-        return this.port.eventDataAvailable();
-    }
-
-    // The dot colours for one day, and not the whole EventsManager. Handing the
-    // collaborator out defeated the port: a test for the dot renderer needed a
-    // full-shaped manager double, and the field was captured as a *value* at
-    // construction, so it went stale the moment the Calendar reassigned it.
-    colorsForUnixKey(dateUnixKey) {
-        return this.port.colorsForUnixKey(dateUnixKey);
-    }
-
-    // ...and the same for the holiday provider: whether it has anything to
-    // annotate, and one month's holidays. Nothing downstream needs the object.
-    holidaysActive() {
-        return this.port.holidaysActive();
-    }
-
-    requestHolidays(year, month, callback) {
-        this.port.requestHolidays(year, month, callback);
-    }
-
-    // a fetch that lands after the grid moved on belongs to a month that is no
-    // longer on screen
-    get holidayGeneration() {
-        return this.port.holidayGeneration();
-    }
-
-    selectDate(date) {
-        this.port.selectDate(date);
-    }
-
-    allocateDotBox(actor, box, flags) {
-        return this.port.allocateDotBox(actor, box, flags);
-    }
-
-    dotCapacityChanged() {
-        this.port.dotCapacityChanged();
-    }
-
-    // the cell renderer draws the dots and the annotator renames the cell it
-    // just annotated: both used to reach through the calendar for the other
-    renderDots(cell, iter, dateUnixKey) {
-        this.port.renderDots(cell, iter, dateUnixKey);
-    }
-
-    nameCell(cell) {
-        this.port.nameCell(cell);
-    }
-
-    reportIssue(source, message) {
-        this.port.reportIssue(source, message);
-    }
-
-    holidaysChanged() {
-        this.port.holidaysChanged();
-    }
-}
-
-class CalendarDayCellRenderer {
-    constructor(host) {
-        this.host = host;
-    }
-
-    update(cell, iter, row, today, dateUnixKey, accessibleDate) {
-        const dateChanged = this._updateDateIdentity(
-            cell, iter, today, accessibleDate);
-        this._updateCellStyle(cell, iter, row, today);
-        this._updateSelection(cell, iter);
-        this._clearOldHolidayTooltip(cell, dateChanged);
-        this.host.renderDots(cell, iter, dateUnixKey);
-        this.applyAccessibleName(cell);
-    }
-
-    _updateDateIdentity(cell, iter, today, accessibleDate) {
-        // the slot is reused: whether it is showing a different day now is what
-        // decides whether last pass's holiday annotation still belongs to it
-        const dateChanged = !cell.date || !_sameDay(cell.date, iter);
-        cell.date = new Date(iter.getTime()); // NOSONAR [S7719] -- accepted compatible form
-        cell.is_today = _today(iter, today);
-
-        const label = iter.getDate().toString();
-        if (cell.button.label !== label) {
-            cell.button.label = label;
-        }
-
-        // a screen reader would otherwise announce 42 bare digits with no
-        // month, year or weekday to place them; the month window built this
-        // once for the whole grid
-        cell.accessible_date = accessibleDate;
-        // whatever the last date in this slot was annotated with is not this
-        // one's — but if the slot still shows the same day, its holiday has not
-        // changed either, and clearing it here only to have annotate() write the
-        // identical text back is two forced relayouts per cell per update
-        if (dateChanged) {
-            cell.holiday_name = "";
-        }
-        return dateChanged;
-    }
-
-    _updateCellStyle(cell, iter, row, today) {
-        // a holiday annotation appends classes after our write, so an
-        // annotated cell needs a rewrite even when the base is unchanged
-        const styleClass = this._dayStyleClass(iter, row, today);
-        if (cell.rendered_style !== styleClass || cell.holiday_styled) {
-            cell.button.style_class = styleClass;
-            cell.rendered_style = styleClass;
-            cell.holiday_styled = false;
-        }
-    }
-
-    _updateSelection(cell, iter) {
-        const selected = _sameDay(this.host.selectedDate, iter);
-        if (selected !== cell.selected) {
-            if (selected) {
-                cell.button.add_style_pseudo_class('selected');
-            } else {
-                cell.button.remove_style_pseudo_class('selected');
-            }
-            cell.selected = selected;
-            // roving focus: the tab stop moves with the selection, so the grid
-            // is one stop rather than forty-two
-            cell.button.can_focus = selected;
-        }
-    }
-
-    _clearOldHolidayTooltip(cell, dateChanged) {
-        // whatever holiday the date previously shown here had, this one does
-        // not inherit — and the tooltip that carried it goes with it
-        if (dateChanged && cell.holiday_tooltip_set) {
-            releaseHolidayTooltip(cell);
-            cell.holiday_tooltip_set = false;
-        }
-    }
-
-    // The date, whether it is today, whether it is the selected day, how many
-    // events sit on it, and its holiday — five things a sighted user reads off
-    // the cell at a glance, and only the first of which was ever said aloud.
-    // Today and the selection are drawn as a background colour and nothing
-    // else, the events are coloured 4px dots, and the holiday name lived in a
-    // hover tooltip, which a keyboard never opens.
-    applyAccessibleName(cell) {
-        if (!cell.button.set_accessible_name) {
-            return;
-        }
-
-        const parts = [cell.accessible_date];
-
-        // orienting the user in the grid is the whole job of these two colours
-        if (cell.is_today) {
-            parts.push(_("Today"));
-        }
-        if (cell.selected) {
-            parts.push(_("Selected"));
-        }
-
-        if (cell.event_count > 0) {
-            parts.push(ngettext("%d event", "%d events", cell.event_count).format(cell.event_count));
-        }
-        if (cell.event_dots_overflowed) {
-            parts.push(EVENT_DOT_OVERFLOW_NOTICE);
-        }
-        if (cell.holiday_name) {
-            parts.push(cell.holiday_name.split("\n").join(", ")); // NOSONAR [S7781] -- accepted compatible form
-        }
-
-        const accessibleName = joinPhrases(...parts);
-        if (cell.accessible_name !== accessibleName) {
-            cell.button.set_accessible_name(accessibleName);
-            cell.accessible_name = accessibleName;
-        }
-    }
-
-    // the row is what places the cell in the table, and _ensureGrid does that;
-    // the cell itself never needed to carry it, and nothing read it back
-    build() {
-        const cell = {
-            date: null,
-            selected: false,
-            rendered_style: "",
-            dot_key: "",
-            // The first allocation replaces this hard safety ceiling with the
-            // cell's exact themed capacity. Until then, startup stays bounded
-            // without deliberately under-rendering ordinary event days.
-            dot_capacity: MAX_EVENT_DOTS_PER_CELL,
-            event_dots_overflowed: false,
-            holiday_styled: false,
-            holiday_tooltip_set: false,
-            // what the cell's tooltip currently says, so identical text is not
-            // written again — Cinnamon's set_text() forces a relayout either way
-            rendered_tooltip: undefined,
-            holidayTooltip: null,
-            group: new Cinnamon.Stack(),
-            // Not focusable until it is the selected day. All 42 cells used to
-            // be tab stops, so the grid was 42 of them: from the cell the menu
-            // focuses on open, a keyboard user pressed Tab up to 42 times to
-            // reach the world clocks or "Date and Time Settings", and there was
-            // no way out of the grid at all. A date grid is one composite widget
-            // — one tab stop, with the arrow keys moving inside it, which is
-            // what the arrow-key navigation is for.
-            button: new St.Button({ label: "", can_focus: false }),
-            dot_box: new Cinnamon.GenericContainer(
-                {
-                    style_class: "calendar-day-event-dot-box",
-                }
-            )
-        };
-
-        cell.group.add_actor(cell.button);
-
-        cell.dot_box.connect('allocate', (actor, box, flags) => {
-            const capacity = this.host.allocateDotBox(actor, box, flags);
-            if (Number.isSafeInteger(capacity) && capacity >= 1 &&
-                capacity !== cell.dot_capacity) {
-                cell.dot_capacity = capacity;
-                this.host.dotCapacityChanged();
-            }
-        });
-        cell.group.add_actor(cell.dot_box);
-
-        // reads cell.date so the reused button always selects the date
-        // it currently displays
-        cell.button.connect('clicked', () => {
-            if (!cell.date) {
-                return;
-            }
-            this.host.selectDate(new Date(cell.date.getTime())); // NOSONAR [S7719] -- accepted compatible form
-        });
-
-        return cell;
-    }
-
-    _dayStyleClass(iter, row, today) {
-        let styleClass = ['calendar-day-base', 'calendar-day'];
-        if (_isWorkDay(iter, this.host.weekendLength)) {
-            styleClass.push('calendar-work-day');
-        } else {
-            styleClass.push("calendar-nonwork-day");
-        }
-
-        // Hack used in lieu of border-collapse - see cinnamon.css
-        if (row === 2) {
-            styleClass.push('calendar-day-top');
-        }
-        if (iter.getDay() === this.host.weekStart) {
-            styleClass.push('calendar-day-left');
-        }
-
-        if (_today(iter, today)) {
-            styleClass.push('calendar-today');
-        } else if (iter.getMonth() !== this.host.selectedDate.getMonth()) {
-            styleClass.push('calendar-other-month-day');
-        } else {
-            styleClass.push('calendar-not-today');
-        }
-
-        return styleClass.join(" ");
-    }
-}
-
-class CalendarEventDotRenderer {
-    constructor(host) {
-        this.host = host;
-    }
-
-    _projectColors(colorSet, requestedCapacity) {
-        const eventCount = colorSet !== null ? colorSet.length : 0;
-        const capacity = Number.isSafeInteger(requestedCapacity) && requestedCapacity >= 1 ?
-            Math.min(requestedCapacity, MAX_EVENT_DOTS_PER_CELL) : MAX_EVENT_DOTS_PER_CELL;
-        const colors = colorSet !== null ? colorSet.slice(0, capacity)
-            .map((color) => StyleUtils.safeCssColor(color)) : [];
-        return { eventCount, colors };
-    }
-
-    update(cell, iter, dateUnixKey) {
-        const color_set = this.host.eventDataAvailable ?
-            this.host.colorsForUnixKey(dateUnixKey) : null;
-        const { eventCount, colors } = this._projectColors(color_set, cell.dot_capacity);
-
-        // the dots are the only sign that a day has events, and they are 4px of
-        // colour: the count goes into the cell's name so it can be said as well
-        // as seen
-        cell.event_count = eventCount;
-        cell.event_dots_overflowed = eventCount > colors.length;
-
-        // Only the bounded visual projection participates in actor reuse. The
-        // real count above still refreshes the accessible name when hidden
-        // events are added or removed beyond the visible prefix.
-        const dot_key = `${colors.length}:${colors.join("|")}`;
-        if (dot_key === cell.dot_key) {
-            return;
-        }
-        cell.dot_key = dot_key;
-
-        const dots = cell.dot_box.get_children();
-        for (let i = dots.length - 1; i >= colors.length; i--) {
-            cell.dot_box.remove_actor(dots[i]);
-            dots[i].destroy();
-        }
-
-        for (let i = 0; i < colors.length; i++) {
-            const style = `background-color: ${colors[i]};`;
-            if (i < dots.length) {
-                dots[i].style = style;
-            } else {
-                cell.dot_box.add_actor(new St.Bin(
-                    {
-                        style_class: "calendar-day-event-dot",
-                        style: style,
-                        x_align: Clutter.ActorAlign.CENTER
-                    }
-                ));
-            }
-        }
-    }
-}
-
-// Owns the persistent 6x7 grid and all writes to its actors. Calendar chooses
-// the month and coordinates annotations; this view handles grid geometry and
-// rendering through a small state port.
-class CalendarGridView {
-    constructor(port, dayCellRenderer) {
-        this.port = port;
-        this.dayCellRenderer = dayCellRenderer;
-        this.dayCells = [];
-        this.weekLabels = [];
-        this.dayHeadings = [];
-        this.dotMetrics = null;
-    }
-
-    reset() {
-        this.dayCells = [];
-        this.weekLabels = [];
-        this.dayHeadings = [];
-    }
-
-    addDayHeading(label, date) {
-        this.dayHeadings.push({ label, date });
-    }
-
-    invalidateStyle() {
-        this.dotMetrics = null;
-    }
-
-    render(monthWindow, annotating, today = new Date()) {
-        this.ensureGrid();
-        this.updateDayHeadings();
-        const cells = new Map();
-
-        for (let i = 0; i < this.dayCells.length; i++) {
-            const iter = monthWindow.days[i];
-            const cell = this.dayCells[i];
-            this.dayCellRenderer.update(cell, iter, 2 + Math.trunc(i / 7), today,
-                monthWindow.dateUnixKeys[i], monthWindow.accessibleDates[i]);
-            if (annotating) {
-                cells.set(`${iter.getMonth() + 1}/${iter.getDate()}`, cell);
-            }
-        }
-
-        this.updateWeekNumbers(monthWindow);
-        return cells;
-    }
-
-    updateWeekNumbers(monthWindow) {
-        if (!this.port.showWeekNumbers()) {
-            return;
-        }
-
-        for (let rowIndex = 0; rowIndex < this.weekLabels.length; rowIndex++) {
-            const week = monthWindow.weekLabelForRow(rowIndex);
-            const label = this.weekLabels[rowIndex];
-            if (label.text === week) {
-                continue;
-            }
-            label.text = week;
-            const name = _("Week %s").format(week);
-            if (label.set_accessible_name) {
-                label.set_accessible_name(name);
-            }
-            label.accessible_name = name;
-        }
-    }
-
-    dayHeadingStyleClass(iter) {
-        let styleClass = 'calendar-day-base calendar-day-heading';
-        if (_isWorkDay(iter, this.port.weekendLength())) {
-            styleClass += ' calendar-work-day';
-        } else {
-            styleClass += ' calendar-nonwork-day';
-        }
-        return styleClass;
-    }
-
-    updateDayHeadings() {
-        for (const heading of this.dayHeadings) {
-            const styleClass = this.dayHeadingStyleClass(heading.date);
-            if (heading.label.style_class !== styleClass) {
-                heading.label.style_class = styleClass;
-            }
-        }
-    }
-
-    ensureGrid() {
-        if (this.dayCells.length > 0) {
-            return;
-        }
-
-        const actor = this.port.actor();
-        const showWeekNumbers = this.port.showWeekNumbers();
-        const offsetCols = showWeekNumbers ? 1 : 0;
-        for (let i = 0; i < 42; i++) {
-            const row = 2 + Math.trunc(i / 7);
-            const col = i % 7;
-            if (showWeekNumbers && col === 0) {
-                const label = new St.Label(
-                    { style_class: 'calendar-day-base calendar-week-number' });
-                actor.add(label, { row, col: 0, y_align: St.Align.MIDDLE });
-                this.weekLabels.push(label);
-            }
-            const cell = this.dayCellRenderer.build();
-            actor.add(cell.group, { row, col: offsetCols + col });
-            this.dayCells.push(cell);
-        }
-    }
-
-    metricsFor(actor, dot) {
-        if (!this.dotMetrics) {
-            const [, nw] = dot.get_preferred_width(-1);
-            const [, nh] = dot.get_preferred_height(-1);
-            const [found, rows] = actor.get_theme_node().lookup_double("max-rows", false);
-            const width = Number.isFinite(nw) && nw > 0 ? nw : 1;
-            const height = Number.isFinite(nh) && nh > 0 ? nh : 1;
-            const maxRows = found && Number.isFinite(rows) && rows >= 1 ?
-                Math.trunc(rows) : 2;
-            this.dotMetrics = { nw: width, nh: height, max_rows: maxRows };
-        }
-        return this.dotMetrics;
-    }
-
-    allocateDotBox(actor, box, flags) {
-        const children = actor.get_children();
-        if (children.length === 0) {
-            return 0;
-        }
-
-        const allocatedWidth = box.x2 - box.x1;
-        const boxWidth = Number.isFinite(allocatedWidth) && allocatedWidth > 0 ?
-            allocatedWidth : 0;
-        const { nw, nh, max_rows: maxRows } = this.metricsFor(actor, children[0]);
-        const perRow = Math.max(1, Math.trunc(boxWidth / nw));
-        const capacity = Math.min(MAX_EVENT_DOTS_PER_CELL, maxRows * perRow);
-        const visibleCount = Math.min(children.length, capacity);
-        const rowCount = Math.min(maxRows, Math.ceil(visibleCount / perRow));
-        let childIndex = 0;
-        // One box for the whole allocation: allocate() copies what it is given,
-        // so nothing downstream holds this. It used to be constructed per row,
-        // inside the allocate handler of all 42 day cells — which Clutter runs
-        // on every relayout of the grid, and the grid relayouts on every menu
-        // open, month change, settings change and coalesced event update.
-        const childBox = new Clutter.ActorBox();
-        for (let row = 0; row < rowCount; row++) {
-            const rowDots = Math.min(visibleCount - row * perRow, perRow);
-            childBox.x1 = Math.floor((boxWidth - nw * rowDots) / 2);
-            childBox.y1 = row * nh;
-            childBox.x2 = childBox.x1 + nw;
-            childBox.y2 = childBox.y1 + nh;
-            while (childIndex < row * perRow + rowDots) {
-                children[childIndex++].allocate(childBox, flags);
-                childBox.x1 += nw;
-                childBox.x2 += nw;
-            }
-        }
-        return capacity;
-    }
 }
 
 class Calendar {
@@ -736,19 +140,8 @@ class Calendar {
         ];
 
         // Find the ordering for month/year in the calendar heading
-
-        switch (Gettext_gtk30.gettext(GTK_CALENDAR_ORDER_MSGID)) {
-        case 'calendar:MY':
-            this._headerMonthFirst = true;
-            break;
-        case 'calendar:YM':
-            this._headerMonthFirst = false;
-            break;
-        default:
-            log('Translation of "calendar:MY" in GTK+ is not correct');
-            this._headerMonthFirst = true;
-            break;
-        }
+        this._headerMonthFirst = headerMonthFirst(
+            Gettext_gtk30.gettext(GTK_CALENDAR_ORDER_MSGID));
 
         this.actor = new St.Table({ homogeneous: false,
                                     style_class: 'calendar',
@@ -1191,6 +584,7 @@ Signals.addSignalMethods(Calendar.prototype);
 if (typeof module !== "undefined") {
     module.exports = {
         Calendar,
+        headerMonthFirst,
         CalendarMonthWindow,
         CalendarMonthWindowCache,
         CalendarGridHost,

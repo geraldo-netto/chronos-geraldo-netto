@@ -466,6 +466,33 @@ test("format_timespan: whole hours use the plural form", () => {
     assert.deepEqual(EventView.format_timespan(6 * 3600 * 1000 * 1000), ["", "In 6 hours"]);
 });
 
+// more than six hours out, the wording stops counting and names the time of day
+test("format_timespan: past six hours it names the part of the day", () => {
+    const GLibStub = global.imports.gi.GLib;
+    const original = GLibStub.DateTime.new_now_local;
+    const at = (hour) => new FakeDateTime(50 * DAY_US + hour * 3600 * 1000000);
+
+    try {
+        // noon plus seven hours is 19:00
+        GLibStub.DateTime.new_now_local = () => at(12);
+        assert.deepEqual(EventView.format_timespan(7 * 3600 * 1000 * 1000),
+            ["", "This evening"]);
+
+        // ...and the same seven hours from 06:00 is 13:00, which is not
+        GLibStub.DateTime.new_now_local = () => at(6);
+        assert.deepEqual(EventView.format_timespan(7 * 3600 * 1000 * 1000),
+            ["", "Starting later today"]);
+    } finally {
+        GLibStub.DateTime.new_now_local = original;
+    }
+});
+
+// a holiday with no flags at all is still a holiday
+test("holidayAgendaType names an unflagged holiday", () => {
+    assert.equal(EventView.holidayAgendaType([]), "Holiday");
+    assert.equal(EventView.holidayAgendaType(), "Holiday");
+});
+
 test("format_timespan uses UUID-domain plural translations when present", () => {
     const original = global.imports.gettext.dngettext;
     global.imports.gettext.dngettext = (domain, singular, plural, n) =>

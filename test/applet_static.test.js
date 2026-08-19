@@ -473,6 +473,8 @@ test("translating files use the applet's own gettext domain", () => {
         "6.0/appletPanelStatus.js",
         "6.0/calendar.js",
         "6.0/eventView.js",
+        "6.0/eventRow.js",
+        "6.0/selectedDayAgenda.js",
         "worldclockData.js"
     ]) {
         const code = source(relativePath);
@@ -491,10 +493,16 @@ test("translating files use the applet's own gettext domain", () => {
     }
 
     // the shipped .po files carry these plural msgids; the global ngettext
-    // (cinnamon domain) can never load them
-    const eventView = source("6.0/eventView.js");
-    assert.match(eventView, /const ngettext = LocaleText\.translatePlural;/);
-    assert.doesNotMatch(eventView, /function ngettext\(singular, plural, n\)/);
+    // (cinnamon domain) can never load them. The agenda's own wording moved to
+    // selectedDayAgenda.js with T985; the row's went to eventRow.js, which
+    // takes its plurals through this same binding.
+    for (const relativePath of ["6.0/selectedDayAgenda.js", "6.0/eventView.js"]) {
+        const code = source(relativePath);
+        assert.match(code, /const _ = LocaleText\.translate/);
+        assert.doesNotMatch(code, /function ngettext\(singular, plural, n\)/);
+    }
+    assert.match(source("6.0/selectedDayAgenda.js"),
+        /const ngettext = LocaleText\.translatePlural;/);
 });
 
 test("weather failures keep showing the stale reading with the marker", () => {

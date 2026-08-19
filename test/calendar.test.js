@@ -529,6 +529,58 @@ function makeCalendar({ colors = null, holiday = null } = {}) {
         makeDesktopSettings());
 }
 
+// T985: the month arithmetic sat in a 1140-line file with St, Clutter,
+// Cinnamon, Pango and the gtk30 gettext domain, so 42 Dates' worth of pure date
+// maths could not be loaded, let alone tested, without a toolkit.
+test("the month window names no toolkit", () => {
+    // the code, not the prose above it: the header comment names the toolkits
+    // it is free of
+    const source = fs.readFileSync(
+        path.join(APPLET_DIR, "6.0", "calendarMonthWindow.js"), "utf8")
+        .split("\n").filter((line) => !line.trim().startsWith("//")).join("\n");
+
+    for (const toolkit of [/\bSt\./, /Clutter/, /Pango/, /Cinnamon/, /gtk30/, /Tooltips/]) {
+        assert.doesNotMatch(source, toolkit,
+            "the window is date arithmetic; nothing in it draws anything");
+    }
+    assert.match(source, /class CalendarMonthWindow/);
+});
+
+// T985: the switch this replaced could only be exercised by reloading the
+// module against three different gtk30 gettext domains, so two of its three
+// arms — and the header layout under one of them — were never run.
+test("the header order follows GTK's own answer, and survives a broken one", () => {
+    assert.equal(CalendarModule.headerMonthFirst("calendar:MY"), true);
+    assert.equal(CalendarModule.headerMonthFirst("calendar:YM"), false);
+
+    const logged = [];
+    const originalLog = global.log;
+    global.log = (line) => logged.push(line);
+    try {
+        assert.equal(CalendarModule.headerMonthFirst("Kalender:JM"), true,
+            "a translation GTK got wrong falls back to the commoner order");
+    } finally {
+        global.log = originalLog;
+    }
+    assert.equal(logged.length, 1);
+    assert.match(logged[0], /not correct/);
+});
+
+// ...and the year-first order puts the same two boxes in the other columns
+test("a year-first locale builds the header the other way round", () => {
+    const cal = makeCalendar();
+    const columnOf = (box) => cal.actor.placements
+        .find((placement) => placement.child === box).opts.col;
+
+    assert.equal(columnOf(cal._topBoxMonth), 0, "month first by default");
+
+    cal._headerMonthFirst = false;
+    cal._buildHeader();
+
+    assert.equal(columnOf(cal._topBoxYear), 0, "the year takes the first columns");
+    assert.ok(columnOf(cal._topBoxMonth) > 0);
+});
+
 // the grid keeps its cells; the day button is the first child of each cell group
 function dayButtons(cal) {
     return cal._gridView.dayCells.map((cell) => cell.button);
