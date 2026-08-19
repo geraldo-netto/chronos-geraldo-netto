@@ -509,3 +509,35 @@ test("destroying the view drops the zone and day memos it holds", () => {
     assert.equal(view._renderedKey, "");
     assert.doesNotThrow(() => view.destroy(), "and a second pass is a no-op");
 });
+
+// T1012: the same seam Worldclocks now states — a destroyed view stays inert
+// rather than redrawing into the St.Labels the menu has disposed.
+test("a destroyed view neither redraws nor re-resolves", () => {
+    const View = loadView();
+    let calculated = 0;
+    const view = new View.AstronomyView(new MockBox(), {
+        now: () => new Date(2026, 2, 5, 12),
+        dayBounds: () => ({ startMs: 100, endMs: 200 }),
+        calculate: () => {
+            calculated++;
+            return {
+                sun: { rise: 1, set: 2, state: "normal" },
+                moon: { rise: 3, set: 4, state: "normal" }
+            };
+        },
+        formatTime: (timestamp) => String(timestamp)
+    });
+    const place = { latitude: 41.9, longitude: 12.48, timezone: "Asia/Seoul" };
+
+    view.update({ visible: true, place, use24h: true });
+    const drawn = calculated;
+
+    view.destroy();
+    view.actor.visible = true;
+    view.update({ visible: true, place, use24h: false });
+
+    assert.equal(calculated, drawn, "no day is recomputed");
+    assert.equal(view.actor.visible, true, "and the disposed actor is not shown or hidden");
+    view.refreshTimezone();
+    assert.equal(view._local_timezone, null);
+});

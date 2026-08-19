@@ -42,6 +42,7 @@ const clockDisplayLabel = WorldclockData.clockDisplayLabel;
 var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     constructor(box, params = {}) {
         this.clocks = [];
+        this._destroyed = false;
         this.format = "%H:%M";
         this._elapsed_now = params.elapsedNow || ElapsedTime.monotonicSeconds;
 
@@ -59,6 +60,9 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     }
 
     buildClocks(clocks) {
+        if (this._destroyed) {
+            return;
+        }
         this.actor.destroy_all_children();
         this.clocks = [];
         // remembered so the timezone recheck below can re-run this exact call:
@@ -131,7 +135,14 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // The seam matters more than today's bytes: every other menu component
     // states in its own comment why it must release, and without one here the
     // first timer or signal this view acquires has nowhere to be torn down.
+    //
+    // And the release is a state, not just a clear: every public method above
+    // short-circuits on `_destroyed`. Nothing calls one today, but the applet's
+    // teardown isolates each step, so a throw partway through leaves the menu's
+    // actors disposed while `applet._worldclocks` still points here — and the
+    // methods would then write into freed St.Labels.
     destroy() {
+        this._destroyed = true;
         this.clocks = [];
         // and nothing may rebuild them afterwards: the recheck below goes
         // through buildClocks, which would attach fresh actors to an actor the
@@ -147,6 +158,9 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // every GLib.TimeZone and relaid out the menu subtree twenty times, on the
     // compositor thread.
     setFormat(format) {
+        if (this._destroyed) {
+            return;
+        }
         const next = DateFormats.dateFormatOrDefault(format || "%H:%M", "%H:%M"); // NOSONAR [S7760] -- accepted compatible form
         if (next === this.format) {
             return;
@@ -161,6 +175,9 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     }
 
     setVisible(visible) {
+        if (this._destroyed) {
+            return;
+        }
         if (visible) {
             this.actor.show();
         } else {
@@ -210,12 +227,18 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // The one way the local zone is re-read: the timedate1 subscriber and the
     // fallback poll above both land here, so both do the whole job.
     refreshTimezone() {
+        if (this._destroyed) {
+            return;
+        }
         if (this._configured_clocks) {
             this.buildClocks(this._configured_clocks);
         }
     }
 
     getClockEntries() {
+        if (this._destroyed) {
+            return [];
+        }
         const time = GLib.DateTime.new_now_utc();
         this._refreshLocalTimezone();
 
@@ -252,6 +275,9 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // been fixed once already - the fix corrected the consumer and left the
     // contract open.
     renderRow(clock, { time, weather = "", temperature = "" } = {}) {
+        if (this._destroyed) {
+            return;
+        }
         const text = time;
 
         // a tick is a change in the *panel* clock's rendered string, and a
@@ -293,6 +319,9 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // the service that answered is a courtesy the data providers are owed, and
     // it was named only in the tooltip
     setWeatherSource(source) {
+        if (this._destroyed) {
+            return;
+        }
         const name = source ?
             joinPhrases(_("World clocks"), fillTemplate(_("Source: %s"), [source])) :
             _("World clocks");

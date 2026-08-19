@@ -2238,3 +2238,29 @@ test("destroying the view drops the rows and leaves a late tick nothing to write
         "a tick after teardown has no row to render into");
     assert.doesNotThrow(() => worldclocks.destroy(), "and a second pass is a no-op");
 });
+
+// T1012: destroy() used to clear the rows and leave every method callable, so a
+// teardown step that threw before the menu's actors were gone left the applet
+// holding a view that would happily rebuild into them.
+test("every public method of a destroyed view is a no-op", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
+    const tokyo = worldclocks.clocks.at(-1);
+    const format = worldclocks.format;
+
+    worldclocks.destroy();
+    worldclocks.actor.visible = true;
+
+    worldclocks.buildClocks([{ label: "Rome", timezone: "Europe/Rome" }]);
+    assert.deepEqual(worldclocks.clocks, [], "no actors are attached to a dead tree");
+    worldclocks.setFormat("%I:%M %p");
+    assert.equal(worldclocks.format, format, "and no render state moves");
+    worldclocks.setVisible(false);
+    assert.equal(worldclocks.actor.visible, true, "the disposed actor is not touched");
+    worldclocks.setWeatherSource("Open-Meteo");
+    assert.equal(worldclocks._rendered_source, undefined);
+    worldclocks.renderRow(tokyo, { time: "09:00", temperature: "5°" });
+    assert.equal(tokyo.display.text, "", "a late row render writes nothing");
+    assert.doesNotThrow(() => worldclocks.refreshTimezone());
+});

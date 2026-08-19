@@ -91,6 +91,7 @@ class AstronomyView {
         this._timezone = null;
         this._local_timezone = null;
         this._dayCache = null;
+        this._destroyed = false;
 
         this.actor = new St.BoxLayout({
             vertical: true,
@@ -152,6 +153,9 @@ class AstronomyView {
     // its own; clearing it here as well would be a second reset that no input
     // can distinguish from this one.
     refreshTimezone() {
+        if (this._destroyed) {
+            return;
+        }
         this._local_timezone = null;
     }
 
@@ -160,7 +164,11 @@ class AstronomyView {
     // and the applet outlives its removal from the panel — the place's
     // GLib.TimeZone, this machine's, and a civil day's bounds. refreshTimezone
     // above already drops one of them on its own signal; this drops the set.
+    // As there, the release is a state: `update` and `refreshTimezone` do
+    // nothing afterwards, so a teardown that throws before this view's box is
+    // gone cannot leave `update` drawing into disposed St.Labels.
     destroy() {
+        this._destroyed = true;
         this._renderedKey = "";
         this._timezoneKey = "";
         this._timezone = null;
@@ -284,6 +292,9 @@ class AstronomyView {
     }
 
     update({ visible, place, use24h }) {
+        if (this._destroyed) {
+            return;
+        }
         const day = this._observerDay(visible, place);
         if (!day) {
             this.actor.hide();
