@@ -30,8 +30,10 @@ test("provider adapters distinguish wire and domain public-holiday values", () =
 });
 
 // T991: the flags decide how a day is drawn — PUBLIC_HOLIDAY_FLAG styles it
-// non-working, RELIGIOUS_HOLIDAY_FLAG plus a religion id styles an observance —
-// and the vendor payloads used to land in that same namespace verbatim. Each
+// non-working, RELIGIOUS_HOLIDAY_FLAG styles an observance — and the vendor
+// payloads used to land in that same namespace verbatim. The religion ids are
+// checked too: they are reserved to this applet even though T999 removed the
+// only writer, and a vendor must not be able to spell one into the field. Each
 // adapter gets every app-minted sentinel handed to it in the field it copies
 // from, and none of them may come back out unless the adapter itself decided it.
 test("no vendor payload can mint an app-minted holiday flag", () => {

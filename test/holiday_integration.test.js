@@ -67,7 +67,7 @@ test("religious provider serves local observances while public holidays are disa
     assert.equal(provider.active, true);
     assert.equal(provider.country, "", "country stays honest: no place is set");
     assert.deepEqual(answer[0].get("12/25"),
-        { name: "Christmas Day (Christianity)", flags: ["christianity", "religious_holiday"] });
+        { name: "Christmas Day (Christianity)", flags: ["religious_holiday"] });
     assert.deepEqual(answer.slice(1), ["", ""]);
 });
 
@@ -82,7 +82,7 @@ test("the composition root injects religious display translation", () => {
 
     provider.getHolidays(2026, 12, (...args) => { answer = args; });
 
-    assert.deepEqual(answer[0].get("12/25"), { name: "translated:Christmas Day (translated:Christianity)", flags: ["christianity", "religious_holiday"] });
+    assert.deepEqual(answer[0].get("12/25"), { name: "translated:Christmas Day (translated:Christianity)", flags: ["religious_holiday"] });
 });
 
 test("religious provider merges public results and preserves provider status", () => {
@@ -93,7 +93,7 @@ test("religious provider merges public results and preserves provider status", (
 
     provider.getHolidays(2026, 12, (...args) => { answer = args; });
 
-    assert.deepEqual(answer[0].get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["christianity", "public_holiday", "religious_holiday"] });
+    assert.deepEqual(answer[0].get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday"] });
     assert.deepEqual(answer.slice(1), ["provider warning", "Public Provider"]);
 });
 
@@ -143,8 +143,21 @@ test("religious provider forwards lifecycle and accepts changed selections", () 
     provider.clearPlace();
     assert.equal(provider.country, "");
     assert.equal(provider.active, true, "clearing the place keeps the religions");
-    provider.destroy();
+
+    // T994: the catalogue's year memos are module scope and shared by every
+    // applet instance, so the last provider to go must drop them or they
+    // outlive the applet for the rest of the login session.
+    const catalogue = require("../files/chronos@geraldo-netto/religiousHolidays.js");
+    const realRelease = catalogue.releaseMemos;
+    let released = 0;
+    catalogue.releaseMemos = () => { released++; realRelease(); };
+    try {
+        provider.destroy();
+    } finally {
+        catalogue.releaseMemos = realRelease;
+    }
     assert.equal(base.destroyed, true);
+    assert.equal(released, 1, "teardown releases the catalogue's memos");
 });
 
 test("HolidayProviderFacade exposes only place and holiday retrieval", () => {

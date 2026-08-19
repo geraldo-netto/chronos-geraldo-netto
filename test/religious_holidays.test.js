@@ -51,7 +51,8 @@ test("fixed, Easter-relative and table-backed observances expand", () => {
     assert.deepEqual(byName.get("Good Friday (Christianity)"), [4, 3]);
     assert.deepEqual(byName.get("Ramadan begins (Islam)"), [2, 18]);
     assert.deepEqual(byName.get("Diwali (Hinduism)"), [11, 8]);
-    assert.deepEqual(rows[0].flags, ["religious_holiday", "christianity"]);
+    assert.deepEqual(rows[0].flags, ["religious_holiday"],
+        "the religion is carried by the display name, not by a second flag");
 });
 
 test("religion and observance names pass through the applet translator", () => {
@@ -102,7 +103,7 @@ test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
         assert.deepEqual(
             ReligiousHolidays.monthMap(year, thirtyThird[0], ["judaism"])
                 .get(`${thirtyThird[0]}/${thirtyThird[1]}`),
-            { name: "Sefirat HaOmer — Day 33 (Judaism)", flags: ["judaism", "religious_holiday"] },
+            { name: "Sefirat HaOmer — Day 33 (Judaism)", flags: ["religious_holiday"] },
             `calendar map carries Omer ${year}`);
 
         for (let index = 1; index < omer.length; index++) {
@@ -122,7 +123,7 @@ test("table dates stay absent outside their documented window", () => {
     const rows = ReligiousHolidays.holidaysForYear(
         2031, ["islam", "judaism", "christianity"]);
 
-    assert.equal(rows.some((row) => row.flags.includes("islam")), false);
+    assert.equal(rows.some((row) => row.name.endsWith("(Islam)")), false);
     assert.equal(rows.some((row) => row.name.startsWith("Sefirat HaOmer")), true);
     assert.equal(rows.some((row) => row.name === "Easter Sunday (Christianity)"), true);
 });
@@ -182,7 +183,7 @@ test("same-day observances merge names and unique flags deterministically", () =
     const map = ReligiousHolidays.monthMap(2025, 3,
         ["islam", "hinduism", "judaism"]);
 
-    assert.deepEqual(map.get("3/14"), { name: "Holi (Hinduism)\nPurim (Judaism)", flags: ["hinduism", "judaism", "religious_holiday"] });
+    assert.deepEqual(map.get("3/14"), { name: "Holi (Hinduism)\nPurim (Judaism)", flags: ["religious_holiday"] });
 });
 
 test("map merging preserves inputs and orders public names first", () => {
@@ -190,7 +191,7 @@ test("map merging preserves inputs and orders public names first", () => {
     const extra = ReligiousHolidays.monthMap(2026, 12, ["christianity"]);
     const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
 
-    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["christianity", "public_holiday", "religious_holiday"] });
+    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday"] });
     assert.deepEqual(base.get("12/25"), { name: "Public Christmas", flags: ["public_holiday"] });
     assert.notEqual(merged, base);
 });
@@ -204,7 +205,7 @@ test("merging explicitly marks public rows even when a provider supplies no flag
     const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
 
     assert.deepEqual(merged.get("1/1"), { name: "Public only", flags: ["public_holiday"] });
-    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["christianity", "public_holiday", "religious_holiday"] });
+    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday"] });
     assert.deepEqual(base.get("1/1"), { name: "Public only", flags: [] }, "the provider map stays untouched");
 });
 
@@ -519,6 +520,28 @@ test("a year past the tables reports the gap instead of rendering nothing", () =
 // once per month key and again for the coverage report. The memo must key on
 // the enabled ids and must not cache the *names*, which are language-dependent
 // while the dates are not.
+// T994: the memos are module scope, so they are shared by every applet instance
+// and nothing else would ever drop them. Releasing is safe at any moment: they
+// are pure memos, so an early release costs one recomputation and no answer.
+test("releasing the catalogue memos changes no answer", () => {
+    const before = ReligiousHolidays.holidaysForYear(2026, ["judaism", "bahai"]);
+    const uncoveredBefore = ReligiousHolidays.uncoveredReligions(2066, ["bahai"]);
+
+    ReligiousHolidays.releaseMemos();
+
+    assert.deepEqual(
+        ReligiousHolidays.holidaysForYear(2026, ["judaism", "bahai"]), before,
+        "a cold expansion answers exactly what the warm one did");
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2066, ["bahai"]),
+        uncoveredBefore);
+
+    // and a release between two identical asks is not observable either
+    ReligiousHolidays.releaseMemos();
+    ReligiousHolidays.releaseMemos();
+    assert.deepEqual(
+        ReligiousHolidays.holidaysForYear(2026, ["judaism", "bahai"]), before);
+});
+
 test("the memoized year expansion still tracks ids, language and coverage", () => {
     const english = ReligiousHolidays.holidaysForYear(2026, ["judaism"]);
     // uppercased word by word, so the "%s" the omer template fills stays intact

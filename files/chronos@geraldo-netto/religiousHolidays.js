@@ -382,6 +382,20 @@ function _nameOf(entry, count, translateName) {
 let _expansionKey = "";
 let _expansion = null;
 
+// The two memos above are module scope, so they are shared by every applet
+// instance in the process and would otherwise outlive the last one for the
+// login session -- every other cache in this subsystem (HolidayCache.release,
+// HolidayCacheRepository.release, CalendarHolidayAnnotator.release) has an
+// explicit release for exactly that reason. Both are pure memos, so a release
+// while another instance is still running costs one recomputation and nothing
+// else; there is no refcount to keep.
+function releaseMemos() {
+    _hebrewYear = 0;
+    _hebrewDates = null;
+    _expansionKey = "";
+    _expansion = null;
+}
+
 // Appends the religion's dated observances and answers whether any of its
 // table-backed entries ran out of published years.
 function _expandReligion(id, year, dated) {
@@ -430,7 +444,14 @@ function holidaysForYear(year, enabledIds = religionIds(), translateName = _) {
             day: date[1],
             name: `${_nameOf(entry, count, translateName)} ` +
                 `(${translateName(_religionLabel(id))})`,
-            flags: [RELIGIOUS_HOLIDAY_FLAG, id]
+            // The flag, and only the flag. The religion used to ride along in
+            // flags[1] and no reader anywhere took it: "split by religion" is
+            // served by the label already inside `name` above, and every flag
+            // consumer -- holidayRecord, holidayCache, the grid annotator, the
+            // event view -- asks whether a sentinel is present, never what
+            // sits beside it. Carrying it made the annotator's positional flag
+            // diff sensitive to a value nothing draws.
+            flags: [RELIGIOUS_HOLIDAY_FLAG]
         }));
 }
 
@@ -501,6 +522,7 @@ if (typeof module !== "undefined") {
         monthMap,
         mergeMonthMaps,
         uncoveredReligions,
+        releaseMemos,
         TABLE_COVERAGE_END
     };
 }

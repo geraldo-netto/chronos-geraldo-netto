@@ -773,8 +773,10 @@ var HolidayProviderFacade = class HolidayProviderFacade { // NOSONAR [S3504] -- 
 
 // Decorates the facade with the locally-computed religious observances the
 // catalogue module expands: the merged month keeps the public provider's
-// names first, the way the cache joins same-day rows. The catalogue stays a
-// pure helper; the provider contract lives here, beside the facade it wraps.
+// names first, the way the cache joins same-day rows. The provider contract
+// lives here, beside the facade it wraps. The catalogue is pure per call but
+// not stateless -- it memoizes its year expansions at module scope, which is
+// why teardown reaches into it below.
 var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S3504] -- GJS importer export
     constructor(provider, enabledIds = [], translateName = (text) => text) {
         this._base = provider;
@@ -796,6 +798,10 @@ var ReligiousHolidayProvider = class ReligiousHolidayProvider { // NOSONAR [S350
 
     destroy() {
         this._base.destroy();
+        // The catalogue's memos are module scope and shared by every applet
+        // instance, so nothing else would ever drop them: without this they
+        // outlive the last applet for the rest of the login session.
+        ReligiousHolidays.releaseMemos();
     }
 
     clearPlace() {
