@@ -1,7 +1,7 @@
 const {
     assert, test, rootModules, AppletModule, CoordinatorModule, PanelStatusModule,
     MAX_SUFFIX, ELLIPSIS, Proto, panelStatus, DateFormats,
-    clockStub, readingFrom, suffixStub, updateStub, tooltipEntry
+    clockStub, readingFrom, suffixStub, updateStub, tooltipEntry, panelPort
 } = require("./helpers/appletFixture");
 
 test("switching world clocks off stops the work they cost", () => {
@@ -265,14 +265,14 @@ test("disabling the home button hands its key focus to the calendar", () => {
         go_home_button: button,
         _calendar: { focusSelectedDay: () => focused.push("day") }
     };
-    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
+    const view = new PanelStatusModule.AppletPanelStatusPresenter(AppletModule.createPanelPort(applet));
     const originalStage = global.stage;
     global.stage = { get_key_focus: () => button };
 
     // pressing Enter on "Go to today" selects today, which disables the button
     // under the user's own hands: St drops the stage focus when the focused
     // actor stops being focusable, and Cinnamon closes a menu whose focus left
-    view.setHomeEnabled(false);
+    view._setHomeEnabled(false);
     global.stage = originalStage;
 
     assert.deepEqual(focused, ["day"], "focus must move before the button loses can_focus");
@@ -286,12 +286,12 @@ test("the home button leaves an unfocused calendar alone", () => {
         go_home_button: button,
         _calendar: { focusSelectedDay: () => focused.push("day") }
     };
-    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
+    const view = new PanelStatusModule.AppletPanelStatusPresenter(AppletModule.createPanelPort(applet));
     const originalStage = global.stage;
     global.stage = { get_key_focus: () => ({}) };
 
-    view.setHomeEnabled(false);
-    view.setHomeEnabled(true);
+    view._setHomeEnabled(false);
+    view._setHomeEnabled(true);
     global.stage = originalStage;
 
     assert.deepEqual(focused, [], "the focus is somewhere else; do not steal it");
@@ -308,14 +308,14 @@ test("an unchanged home state touches no actor", () => {
         set_style_class_name: (name) => styles.push(name)
     };
     const applet = { go_home_button: button, _calendar: { focusSelectedDay: () => {} } };
-    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet));
+    const view = new PanelStatusModule.AppletPanelStatusPresenter(AppletModule.createPanelPort(applet));
 
-    view.setHomeEnabled(true);
-    view.setHomeEnabled(true);
+    view._setHomeEnabled(true);
+    view._setHomeEnabled(true);
     assert.deepEqual(styles, ["calendar-today-home-button-enabled"],
         "a repeated identical state is not re-rendered");
 
-    view.setHomeEnabled(false);
+    view._setHomeEnabled(false);
     assert.deepEqual(styles, [
         "calendar-today-home-button-enabled", "calendar-today-home-button"
     ], "a real change still lands");
@@ -678,19 +678,25 @@ test("the panel presenter reads and writes through a view it is given", () => {
         setWeatherStatus: (text) => written.push(["weather-status", text]),
         setLabel: (text) => written.push(["label", text]),
         setTooltip: (text) => written.push(["tooltip", text]),
-        setAccessibleName: (name) => written.push(["name", name]),
-        setHomeEnabled: (enabled) => written.push(["home", enabled]),
+        actor: { set_accessible_name: (name) => written.push(["name", name]) },
+        homeButton: {
+            reactive: true,
+            can_focus: true,
+            set_style_class_name: (name) => written.push(["home", name])
+        },
+        focusSelectedDay: () => written.push(["focus-day"]),
         dayLabel: { set_text: (text) => written.push(["day", text]) },
         dateLabel: { set_text: (text) => written.push(["date", text]) }
     };
 
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(view));
     presenter.updateClockAndDate();
 
     // nothing is written by reaching into the applet
     assert.ok(written.some(([what]) => what === "label"));
     assert.ok(written.some(([what]) => what === "tooltip"));
-    assert.deepEqual(written.find(([what]) => what === "home"), ["home", false],
+    assert.deepEqual(written.find(([what]) => what === "home"),
+        ["home", "calendar-today-home-button"],
         "today is selected, so there is nowhere to go");
 });
 
@@ -698,8 +704,8 @@ test("a translation containing a percent sign cannot corrupt the panel label", (
     // The fallback is handed to strftime, where every % is a directive. A
     // translator can legitimately write "100 % ungültig", and xgettext does not
     // mark these strings c-format, so msgfmt would not catch a stray %d either.
-    const twentyFour = { desktopSettings: { use24h: true, showSeconds: false } };
-    const twelve = { desktopSettings: { use24h: false, showSeconds: false } };
+    const twentyFour = panelPort({ desktopSettings: { use24h: true, showSeconds: false } });
+    const twelve = panelPort({ desktopSettings: { use24h: false, showSeconds: false } });
 
     const escaped = PanelStatusModule.badFormatFallback(twentyFour, "Format 100 % ungültig");
     assert.match(escaped, /Format 100 %% ungültig/, "the percent is escaped for strftime");
@@ -861,7 +867,7 @@ test("the tooltip is rewritten when the clock-less stamp moves on", () => {
     });
     const written = [];
     const presenter = panelStatus(stub);
-    presenter.view.setTooltip = (text) => written.push(text);
+    presenter.port.setTooltip = (text) => written.push(text);
 
     presenter._setTooltipModel(presenter._clockRenderModel([]));
     presenter._setTooltipModel(presenter._clockRenderModel([]));

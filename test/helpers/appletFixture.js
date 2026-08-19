@@ -342,12 +342,47 @@ function legacyWeatherCoordinator(applet) {
     });
 }
 
+// The panel port is functions all the way down - `createPanelPort` builds it
+// from the applet, and the presenter calls every member. A double written as
+// plain values is the same port with the thunks left off, so this puts them
+// back rather than making every test spell out `() =>` thirty times.
+// Every member of the port `createPanelPort` returns. A double answers the ones
+// its own test is about; the rest are inert rather than missing, because the
+// presenter calls them all and a double is not a place to discover that.
+const PANEL_PORT_MEMBERS = [
+    "showWeather", "worldclocksEnabled", "customFormat", "customTooltipFormat",
+    "panelHovered", "menuOpen", "desktopSettings", "weatherReading",
+    "weatherPending", "weatherUnits", "weatherError", "weatherProvider",
+    "cityWeatherReading", "cityWeatherStale", "cityWeatherError",
+    "cityWeatherProviderName", "formattedClock", "formatClock",
+    "setClockFormatString", "setLabel", "setTooltip", "actor", "dayLabel",
+    "dateLabel", "setWorldclockFormat", "setWorldclocksVisible",
+    "updateWorldclocks", "setWeatherSource", "setWeatherStatus",
+    "getClockEntries", "todaySelected", "homeButton", "focusSelectedDay"
+];
+
+function panelPort(spec) {
+    const port = {};
+    for (const name of PANEL_PORT_MEMBERS) {
+        port[name] = () => undefined;
+    }
+    // read through to the spec on every call, not snapshotted: a test that flips
+    // `showWeather` or repoints `setClockFormatString` between two presenter
+    // calls is describing a settings change, and the real port reads the applet
+    // afresh every time too
+    for (const name of Object.keys(spec)) {
+        port[name] = (...args) => (typeof spec[name] === "function" ? // NOSONAR [S6582] -- accepted compatible form
+            spec[name](...args) : spec[name]);
+    }
+    return port;
+}
+
 function panelStatus(applet) {
     if (!applet._weatherCoordinator) {
         applet._weatherCoordinator = legacyWeatherCoordinator(applet);
     }
     return new AppletModule.AppletPanelStatusPresenter(
-        new PanelStatusModule.PanelView(AppletModule.createPanelPort(applet)));
+        AppletModule.createPanelPort(applet));
 }
 
 function suffixStub(overrides = {}) {
@@ -452,7 +487,8 @@ module.exports = {
     assert, test, fs, path, makeRandom, APPLET_DIR, rootModules,
     AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, ELLIPSIS, Proto, panelStatus,
     DateFormats, Weather, St, FUZZ_SEED, FixtureDateTime,
-    clockStub, readingFrom, weatherCoordinator, suffixStub, updateStub, tooltipEntry
+    clockStub, readingFrom, weatherCoordinator, suffixStub, updateStub, tooltipEntry,
+    panelPort
 };
 
 // show_worldclocks used to do exactly one thing: hide the popup grid. Every

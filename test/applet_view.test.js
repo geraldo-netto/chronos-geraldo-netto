@@ -2,7 +2,7 @@ const {
     assert, test, fs, path, makeRandom, APPLET_DIR, rootModules,
     AppletModule, CoordinatorModule, PanelStatusModule, MAX_SUFFIX, Proto, panelStatus,
     Weather, FUZZ_SEED, clockStub, readingFrom, weatherCoordinator, suffixStub,
-    updateStub, tooltipEntry
+    updateStub, tooltipEntry, panelPort
 } = require("./helpers/appletFixture");
 
 const AgendaColumn = require(path.join(APPLET_DIR, "6.0", "agendaColumn.js"));
@@ -1071,40 +1071,54 @@ test("the panel presenter goes through the view for every read", () => {
     assert.ok(presenterStart > 0);
     const presenter = source.slice(presenterStart);
 
-    assert.doesNotMatch(presenter, /this\.applet/,
-        "the presenter holds no applet: everything it knows comes through the view");
-    // ...and the view receives an explicit port, not the applet's shape
-    const view = source.slice(source.indexOf("class PanelView"), presenterStart);
-    assert.doesNotMatch(view, /this\.applet|_weather_reading|_worldclocks/);
-    assert.match(view, /this\.port\.weatherReading\(\)/);
-    assert.match(view, /this\.port\.setWorldclockFormat\(format\)/);
+    assert.doesNotMatch(presenter, /this\.applet|_weather_reading/,
+        "the presenter holds no applet: everything it knows comes through the port");
+    assert.match(presenter, /this\.port\.weatherReading\(\)/);
+    assert.match(presenter, /port\.setWorldclockFormat\(/);
+    // T959: and the seam is the port literal, not a class of pass-throughs over
+    // it. Twenty-two of PanelView's twenty-six members were `return
+    // this.port.X()`, which is the silent-blank failure mode the seam exists to
+    // prevent, one layer further in.
+    assert.doesNotMatch(source, /class PanelView/,
+        "one interface definition: createPanelPort in 6.0/applet.js");
 });
 
 // the record is on the surface now; the panel and tooltip read its fields in
 // T442d, so for now the view just exposes it
 test("the panel view exposes the weather reading record", () => {
-    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort({
+    const port = AppletModule.createPanelPort({
         _weatherCoordinator: weatherCoordinator({
             reading: { condition: "☀", temperatureC: 20 }
         })
-    }));
-    assert.deepEqual(view.weatherReading, { condition: "☀", temperatureC: 20 });
+    });
+    assert.deepEqual(port.weatherReading(), { condition: "☀", temperatureC: 20 });
 });
 
 // and the reads are a contract now, so a view can answer them without an applet
 test("a panel view can be substituted whole", () => {
     const reads = [];
-    const view = {
+    const written = {};
+    const actor = { set_accessible_name: (name) => { written.name = name; } };
+    const view = panelPort({
         showWeather: true,
         worldclocksEnabled: false,
         worldclocks: [],
         panelHovered: false,
         menuOpen: false,
         desktopSettings: { use24h: true },
-        get weatherReading() { reads.push("weatherReading"); return { condition: "☀", temperatureC: 20 }; },
-        get weatherPending() { reads.push("weatherPending"); return false; },
+        weatherReading: () => {
+            reads.push("weatherReading");
+            return { condition: "☀", temperatureC: 20 };
+        },
+        weatherPending: () => {
+            reads.push("weatherPending");
+            return false;
+        },
         weatherUnits: "si",
-        get weatherError() { reads.push("weatherError"); return ""; },
+        weatherError: () => {
+            reads.push("weatherError");
+            return "";
+        },
         weatherProvider: "Open-Meteo",
         cityWeatherReading: () => null,
         cityWeatherStale: () => false,
@@ -1112,16 +1126,16 @@ test("a panel view can be substituted whole", () => {
         formattedClock: () => "12 Jul 14:03",
         formatClock: () => "Sunday",
         getClockEntries: () => [],
-        setLabel(text) { this.label = text; },
-        setTooltip() {},
-        setAccessibleName(name) { this.name = name; }
-    };
+        actor,
+        setLabel: (text) => { written.label = text; },
+        setTooltip: () => {}
+    });
 
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(view));
     presenter.updateClockAndDate();
 
-    assert.equal(view.label, "12 Jul 14:03 20°C");
-    assert.match(view.name, /Clear/, "the condition is said in words, not left as a glyph");
+    assert.equal(written.label, "12 Jul 14:03 20°C");
+    assert.match(written.name, /Clear/, "the condition is said in words, not left as a glyph");
     assert.ok(reads.includes("weatherReading"));
 });
 
@@ -1145,11 +1159,11 @@ test("a weather failure explains itself even with no world clocks", () => {
         formatClock: () => "12 Jul 14:03"
     };
 
-    const failed = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
+    const failed = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(Object.assign({}, base, {
         weatherReading: { condition: "☀", temperatureC: 20 },
         weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE
-    }));
+    })));
     const tooltip = failed.buildTooltipText([]);
     assert.match(tooltip, /Weather service unavailable/,
         "hovering a bare ⚠ has to say what went wrong");
@@ -1157,29 +1171,29 @@ test("a weather failure explains itself even with no world clocks", () => {
     assert.equal(tooltip.split("\n")[0], "12 Jul 14:03");
 
     // the configured-nothing case: a lone ⚠ that never said what to do about it
-    const unset = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
+    const unset = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(Object.assign({}, base, {
         weatherReading: null,
         weatherUnits: "metric",
         weatherError: Weather.WEATHER_ERRORS.NO_LOCATION
-    }));
+    })));
     assert.match(unset.buildTooltipText([]), /Set a weather location/);
 
     // ...and the first refresh, which is an ellipsis on the panel and nothing at all aloud
-    const pending = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
+    const pending = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(Object.assign({}, base, {
         weatherReading: null,
         weatherPending: true,
         weatherUnits: "metric",
         weatherError: ""
-    }));
+    })));
     assert.match(pending.buildTooltipText([]), /loading/);
 
     // a working reading says nothing extra: the temperature is on the panel,
     // and the stamp is all that is left
-    const fine = new PanelStatusModule.AppletPanelStatusPresenter(Object.assign({}, base, {
+    const fine = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(Object.assign({}, base, {
         weatherReading: { condition: "☀", temperatureC: 20 },
         weatherUnits: "metric",
         weatherError: ""
-    }));
+    })));
     assert.equal(fine.buildTooltipText([]), "12 Jul 14:03");
 });
 
@@ -1323,7 +1337,7 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
         customTooltipFormat: "%H:%M",
         formatClock: () => "14:03"
     };
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(view));
     presenter.updateFormatString();
     const entries = [
         { label: "Broken", timezone: "Invalid/Zone", localTime: null, builtin: false },
@@ -1368,7 +1382,7 @@ test("a rejected panel format does not become the world-clock format", () => {
         setWorldclockFormat: (format) => written.push(format),
         setWorldclocksVisible() {}
     };
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(view));
 
     presenter.updateFormatString();
 
@@ -1403,7 +1417,7 @@ test("a tooltip-format issue is raised and retired by whatever renders the stamp
         formattedClock: () => "12:00",
         formatClock: (fmt) => fmt === "%broken" ? "" : "stamp"
     };
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(view));
     const entry = {
         label: "Tokyo",
         time: "12:00",
@@ -1727,9 +1741,9 @@ test("the menu builder owns and tears down the world clocks and the sky view", (
 test("the panel button announces that it is a button", () => {
     const Atk = global.imports.gi.Atk;
     const actor = { set_accessible_name(name) { this.accessible_name = name; } };
-    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort({ actor }));
+    const view = new PanelStatusModule.AppletPanelStatusPresenter(AppletModule.createPanelPort({ actor }));
 
-    view.setAccessibleName("12 Jul 14:03");
+    PanelStatusModule.writeAccessibleName(view.port, "12 Jul 14:03");
 
     assert.equal(actor.accessible_name, "12 Jul 14:03");
     assert.equal(actor.accessible_role, Atk.Role.PUSH_BUTTON);
@@ -1753,9 +1767,10 @@ test("the panel button is given its role without reading the old one", () => {
         set(role) { this._role = role; },
         configurable: true
     });
-    const view = new PanelStatusModule.PanelView(AppletModule.createPanelPort({ actor }));
+    const view = new PanelStatusModule.AppletPanelStatusPresenter(AppletModule.createPanelPort({ actor }));
 
-    assert.doesNotThrow(() => view.setAccessibleName("12 Jul 14:03"));
+    assert.doesNotThrow(
+        () => PanelStatusModule.writeAccessibleName(view.port, "12 Jul 14:03"));
 
     assert.equal(reads, 0, "the role is written, never read back");
     assert.equal(actor._role, Atk.Role.PUSH_BUTTON);
@@ -1790,7 +1805,7 @@ test("a hovered panel does not rebuild a tooltip that has not changed", () => {
         setTooltip: (text) => written.push(text)
     };
 
-    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(view);
+    const presenter = new PanelStatusModule.AppletPanelStatusPresenter(panelPort(view));
 
     presenter.updateClockAndDate();
     assert.equal(written.length, 1, "the first tick builds it");

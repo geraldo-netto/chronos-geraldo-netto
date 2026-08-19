@@ -133,14 +133,14 @@ function describeWeather(text, condition = "", pending = false) {
 // c-format, so msgfmt would not catch it either. %% is strftime's literal
 // percent, and the time beside the message follows the user's own clock rather
 // than a hardcoded 12-hour one.
-function safeClockFormat(view) {
-    const use24h = view.desktopSettings && view.desktopSettings.use24h; // NOSONAR [S6582] -- accepted compatible form
+function safeClockFormat(port) {
+    const use24h = port.desktopSettings() && port.desktopSettings().use24h; // NOSONAR [S6582] -- accepted compatible form
 
     return use24h ? "%H:%M" : "%-l:%M %p";
 }
 
-function badFormatFallback(view, message) {
-    return String(message).replace(/%/g, "%%") + " • " + safeClockFormat(view); // NOSONAR [S7781] -- accepted compatible form
+function badFormatFallback(port, message) {
+    return String(message).replace(/%/g, "%%") + " • " + safeClockFormat(port); // NOSONAR [S7781] -- accepted compatible form
 }
 
 // The date formats are translator-supplied strftime, and — like the custom
@@ -148,200 +148,62 @@ function badFormatFallback(view, message) {
 // broken msgstr makes get_clock_for_format answer null, which .capitalize()
 // used to turn into a TypeError on every menu open for that locale. The
 // untranslated msgid is known-valid, so the header falls back to it.
-function _localizedStamp(view, format, fallback) {
+function _localizedStamp(port, format, fallback) {
     const stamp = DateFormats.formatDateWithFallback(
-        (candidate) => view.formatClock(candidate), format, fallback);
+        (candidate) => port.formatClock(candidate), format, fallback);
     return stamp.capitalize();
 }
 
-// Everything the presenter reads and writes, behind one seam.
+// The presenter reads and writes the applet through one seam: the port literal
+// `createPanelPort` builds in 6.0/applet.js, which is the single definition of
+// that interface.
 //
-// It was the writes only, and the presenter went on reading about fifteen applet
-// privates straight through it — weather state, hover state,
-// _worldclocks, _calendar and events_manager. PanelView broke its own seam too,
-// reaching for applet._calendar. So the applet's private shape was still the presenter's API:
-// renaming any of those fields threw nothing, because `undefined` is falsy, and
-// the panel suffix, the tooltip's temperature column, the accessible name and
-// the "Source:" credit would all just silently go blank.
+// It used to reach the applet's privates directly — weather state, hover state,
+// `_worldclocks`, `_calendar`, `events_manager` — so the applet's private shape
+// was the presenter's API, and renaming any of those fields threw nothing:
+// `undefined` is falsy, and the panel suffix, the tooltip's temperature column,
+// the accessible name and the "Source:" credit would all just silently go blank.
 //
-// The reads are here now. AppletMenuBuilder and AppletProviderLifecycle take a
-// context and hand their products back; this is the same idea for the panel.
-class PanelView {
-    constructor(port) {
-        this.port = port;
-        this._rendered_home_enabled = null;
+// The seam was a `PanelView` class wrapping the port, and twenty-two of its
+// twenty-six members were `return this.port.X()`. That reproduced the failure
+// mode it was introduced to prevent: one datum meant an edit in three files,
+// and a typo in a view getter returned `undefined` — the same silent blank, one
+// layer further in. The four members that carried behaviour are below; the rest
+// of the interface is the port literal.
+
+// The port answers whatever the settings hold; the units the presenter renders
+// in are the normalized ones.
+function panelWeatherUnits(port) {
+    return WeatherFormat.normalizeUnits(port.weatherUnits());
+}
+
+function hasKeyFocus(actor) {
+    const stage = typeof global !== "undefined" ? global.stage : null;
+    return Boolean(stage && stage.get_key_focus && stage.get_key_focus() === actor); // NOSONAR [S6582] -- accepted compatible form
+}
+
+// Assigned, never compared. Reading accessible_role calls atk_object_get_role()
+// on the actor's accessible, and on the xlet reload path that accessible is not
+// an ATK object yet, so the read trips an assertion once per reload — but only
+// while an AT-SPI client is attached, which is to say only for the screen-reader
+// users this name is here to serve. The assignment is idempotent, so the
+// comparison that guarded it bought nothing to pay for that.
+function writeAccessibleName(port, name) {
+    const actor = port.actor();
+    if (!actor || !actor.set_accessible_name) { // NOSONAR [S6582] -- accepted compatible form
+        return;
     }
 
-    get showWeather() {
-        return this.port.showWeather();
-    }
-
-    get worldclocksEnabled() {
-        return this.port.worldclocksEnabled();
-    }
-
-    get customFormat() {
-        return this.port.customFormat();
-    }
-
-    get customTooltipFormat() {
-        return this.port.customTooltipFormat();
-    }
-
-    get panelHovered() {
-        return this.port.panelHovered();
-    }
-
-    get menuOpen() {
-        return this.port.menuOpen();
-    }
-
-    get desktopSettings() {
-        return this.port.desktopSettings();
-    }
-
-    get weatherReading() {
-        return this.port.weatherReading();
-    }
-
-    get weatherPending() {
-        return this.port.weatherPending();
-    }
-
-    get weatherUnits() {
-        return WeatherFormat.normalizeUnits(this.port.weatherUnits());
-    }
-
-    get weatherError() {
-        return this.port.weatherError();
-    }
-
-    get weatherProvider() {
-        return this.port.weatherProvider();
-    }
-
-    cityWeatherReading(city) {
-        return this.port.cityWeatherReading(city);
-    }
-
-    cityWeatherStale(city) {
-        return this.port.cityWeatherStale(city);
-    }
-
-    cityWeatherError(city) {
-        return this.port.cityWeatherError(city);
-    }
-
-    cityWeatherProviderName(city) {
-        return this.port.cityWeatherProviderName(city);
-    }
-
-    formattedClock() {
-        return this.port.formattedClock();
-    }
-
-    formatClock(format) {
-        return this.port.formatClock(format);
-    }
-
-    setClockFormatString(format) {
-        return this.port.setClockFormatString(format);
-    }
-
-    setLabel(text) {
-        this.port.setLabel(text);
-    }
-
-    setTooltip(text) {
-        this.port.setTooltip(text);
-    }
-
-    setAccessibleName(name) {
-        const actor = this.port.actor();
-        if (!actor || !actor.set_accessible_name) { // NOSONAR [S6582] -- accepted compatible form
-            return;
-        }
-
-        actor.set_accessible_name(name);
-        // Assigned, never compared. Reading accessible_role calls
-        // atk_object_get_role() on the actor's accessible, and on the xlet
-        // reload path that accessible is not an ATK object yet, so the read
-        // trips an assertion once per reload — but only while an AT-SPI client
-        // is attached, which is to say only for the screen-reader users this
-        // name is here to serve. The assignment is idempotent, so the
-        // comparison that guarded it bought nothing to pay for that.
-        if (Atk.Role) {
-            actor.accessible_role = Atk.Role.PUSH_BUTTON;
-        }
-    }
-
-    get dayLabel() {
-        return this.port.dayLabel();
-    }
-
-    get dateLabel() {
-        return this.port.dateLabel();
-    }
-
-    setWorldclockFormat(format) {
-        this.port.setWorldclockFormat(format);
-    }
-
-    setWorldclocksVisible(visible) {
-        this.port.setWorldclocksVisible(visible);
-    }
-
-    updateWorldclocks(entries) {
-        this.port.updateWorldclocks(entries);
-    }
-
-    setWeatherSource(source) {
-        this.port.setWeatherSource(source);
-    }
-
-    setWeatherStatus(text) {
-        this.port.setWeatherStatus(text);
-    }
-
-    getClockEntries() {
-        return this.port.getClockEntries();
-    }
-
-    todaySelected() {
-        return this.port.todaySelected();
-    }
-
-    setHomeEnabled(enabled) {
-        // this runs on every open-menu tick, and these writes were the one
-        // undiffed path left in it: reactive/can_focus self-diff in Clutter,
-        // but set_style_class_name queues a relayout for a byte-identical name
-        const next = Boolean(enabled);
-        if (next === this._rendered_home_enabled) {
-            return;
-        }
-        this._rendered_home_enabled = next;
-
-        const button = this.port.homeButton();
-
-        if (!enabled && button.can_focus && this._hasKeyFocus(button)) {
-            this.port.focusSelectedDay();
-        }
-
-        button.reactive = enabled;
-        button.can_focus = enabled;
-        button.set_style_class_name(enabled ?
-            "calendar-today-home-button-enabled" : "calendar-today-home-button");
-    }
-
-    _hasKeyFocus(actor) {
-        const stage = typeof global !== "undefined" ? global.stage : null;
-        return Boolean(stage && stage.get_key_focus && stage.get_key_focus() === actor); // NOSONAR [S6582] -- accepted compatible form
+    actor.set_accessible_name(name);
+    if (Atk.Role) {
+        actor.accessible_role = Atk.Role.PUSH_BUTTON;
     }
 }
+
 class AppletPanelStatusPresenter {
     // does not hold it, and reads and writes nothing but the seam
-    constructor(view) {
-        this.view = view;
+    constructor(port) {
+        this.port = port;
         this._todayFormatCache = null;
         this._invalidTooltipFormat = null;
         this._tooltipFormatWasRejected = false;
@@ -354,22 +216,45 @@ class AppletPanelStatusPresenter {
         this._rendered_label = null;
         this._rendered_day = null;
         this._rendered_date = null;
+        this._rendered_home_enabled = null;
+    }
+
+    // this runs on every open-menu tick, and these writes were the one undiffed
+    // path left in it: reactive/can_focus self-diff in Clutter, but
+    // set_style_class_name queues a relayout for a byte-identical name
+    _setHomeEnabled(enabled) {
+        const next = Boolean(enabled);
+        if (next === this._rendered_home_enabled) {
+            return;
+        }
+        this._rendered_home_enabled = next;
+
+        const button = this.port.homeButton();
+
+        if (!enabled && button.can_focus && hasKeyFocus(button)) {
+            this.port.focusSelectedDay();
+        }
+
+        button.reactive = enabled;
+        button.can_focus = enabled;
+        button.set_style_class_name(enabled ?
+            "calendar-today-home-button-enabled" : "calendar-today-home-button");
     }
 
     updateFormatString() {
-        const view = this.view;
-        let world_string = view.customFormat;
+        const port = this.port;
+        let world_string = port.customFormat();
         let accepted = false;
 
         if (DateFormats.dateFormatWithinLimit(world_string)) {
-            accepted = view.setClockFormatString(world_string);
+            accepted = port.setClockFormatString(world_string);
         }
 
         if (!accepted) {
             global.logError("Calendar applet: bad time format string - check your string.");
             this._formatIssue = INVALID_TIME_FORMAT_TEXT;
-            world_string = badFormatFallback(view, INVALID_TIME_FORMAT_TEXT);
-            view.setClockFormatString(world_string);
+            world_string = badFormatFallback(port, INVALID_TIME_FORMAT_TEXT);
+            port.setClockFormatString(world_string);
         } else {
             this._formatIssue = "";
         }
@@ -383,23 +268,23 @@ class AppletPanelStatusPresenter {
         // "Invalid time format; edit it in Settings" in every row — the time
         // column has no max-width, so the popup widened and pushed the calendar
         // grid across — while the footer was already saying it once.
-        view.setWorldclockFormat(accepted ? world_string : safeClockFormat(view));
-        view.setWorldclocksVisible(this.worldclocksEnabled());
+        port.setWorldclockFormat(accepted ? world_string : safeClockFormat(port));
+        port.setWorldclocksVisible(this.worldclocksEnabled());
     }
 
     // the panel carries the temperature, not the sky: the glyph is a picture of
     // what the tooltip and the accessible name already say in words. The record
     // is Celsius; the panel renders it in the user's unit.
     panelReadingText() {
-        const view = this.view;
+        const port = this.port;
         // the first refresh has not landed: the placeholder is the panel's, and
         // it is the one weather state the record cannot carry
-        if (view.weatherPending) {
+        if (port.weatherPending()) {
             return WeatherFormat.WEATHER_PENDING_TEXT;
         }
 
-        const record = view.weatherReading;
-        return record ? WeatherFormat.formatTemperature(record.temperatureC, view.weatherUnits) : "";
+        const record = port.weatherReading();
+        return record ? WeatherFormat.formatTemperature(record.temperatureC, panelWeatherUnits(port)) : "";
     }
 
     // The one thing show_worldclocks used to do was hide the popup grid. The
@@ -409,7 +294,7 @@ class AppletPanelStatusPresenter {
     // panel label and the tooltip, and still made 8 cities × 1 forecast every
     // 30 minutes — sixteen HTTP round-trips an hour for a feature that is off.
     worldclocksEnabled() {
-        return this.view.worldclocksEnabled;
+        return this.port.worldclocksEnabled();
     }
 
     // World clocks never reach the panel. They are a table — a label and a time
@@ -418,12 +303,12 @@ class AppletPanelStatusPresenter {
     // when it runs out of room. They are shown in full where there is room to
     // show them: the tooltip and the popup.
     buildLabelSuffix() {
-        const view = this.view;
+        const port = this.port;
         let parts = [];
 
-        if (view.showWeather) {
+        if (port.showWeather()) {
             const reading = this.panelReadingText();
-            if (view.weatherError) {
+            if (port.weatherError()) {
                 // the failure marker stays: it is the only sign on the panel
                 // that the reading may be stale
                 parts.push(reading ?
@@ -442,7 +327,7 @@ class AppletPanelStatusPresenter {
     }
 
     tooltipClockFormat() {
-        const configured = this.view.customTooltipFormat || DEFAULT_DATE_TIME_FORMAT;
+        const configured = this.port.customTooltipFormat() || DEFAULT_DATE_TIME_FORMAT;
         this._tooltipFormatWasRejected =
             !DateFormats.dateFormatWithinLimit(configured);
 
@@ -505,7 +390,7 @@ class AppletPanelStatusPresenter {
     // nowhere, and the panel was left with no tooltip at all.
     tooltipLocalStamp() {
         const format = this.tooltipClockFormat();
-        const stamp = this.view.formatClock(format);
+        const stamp = this.port.formatClock(format);
         if (stamp) {
             this._acceptTooltipFormat();
             return DateFormats.clampClockStamp(stamp);
@@ -514,7 +399,7 @@ class AppletPanelStatusPresenter {
         this._rejectTooltipFormat(format);
 
         return DateFormats.clampClockStamp(
-            this.view.formatClock(DEFAULT_DATE_TIME_FORMAT) || this.view.formattedClock());
+            this.port.formatClock(DEFAULT_DATE_TIME_FORMAT) || this.port.formattedClock());
     }
 
     // a temperature cell and a condition cell, rendered from the reading record.
@@ -523,7 +408,7 @@ class AppletPanelStatusPresenter {
     // condition words: the marker says the reading may be old, not gone.
     _readingCells(record, error) {
         return [
-            WeatherFormat.formatTemperature(record.temperatureC, this.view.weatherUnits),
+            WeatherFormat.formatTemperature(record.temperatureC, panelWeatherUnits(this.port)),
             error || weatherConditionWords(record.condition)
         ];
     }
@@ -532,19 +417,19 @@ class AppletPanelStatusPresenter {
     // shows no weather. A failed refresh keeps the last good reading, as the
     // panel does — the marker says it may be old, not gone.
     _builtinWeatherCells(entry) {
-        const view = this.view;
+        const port = this.port;
         if (entry.timezone === WorldclockData.UTC_TIMEZONE) {
             return ["", ""];
         }
 
-        const error = view.weatherError ? markedWeatherError(view.weatherError) : "";
+        const error = port.weatherError() ? markedWeatherError(port.weatherError()) : "";
         // the first refresh has not landed: an ellipsis in the temperature
         // column, with nothing beside it, says less than nothing
-        if (view.weatherPending) {
+        if (port.weatherPending()) {
             return ["", error || _("Weather: loading…")];
         }
 
-        const record = view.weatherReading;
+        const record = port.weatherReading();
         return record ? this._readingCells(record, error) : ["", error];
     }
 
@@ -554,7 +439,7 @@ class AppletPanelStatusPresenter {
     // cell rather than a placeholder: unlike the panel, the city provider reserves
     // no slot, so there is no "loading" state to report.
     _cityWeatherModel(entry) {
-        const view = this.view;
+        const port = this.port;
         // the reading is of the city the timezone names, which is also what was
         // geocoded; the label is the user's name for the row and two rows may
         // share one
@@ -568,12 +453,12 @@ class AppletPanelStatusPresenter {
             return { cells: ["", _("No weather for this timezone")], issue: "", source: "" };
         }
 
-        const record = view.cityWeatherReading(city);
-        const currentError = view.cityWeatherError(city);
+        const record = port.cityWeatherReading(city);
+        const currentError = port.cityWeatherError(city);
         let rowError = currentError ? markedWeatherError(currentError) : "";
         let issue = currentError ?
             joinPhrases(entry.label, translateWeatherError(currentError)) : "";
-        if (!rowError && view.cityWeatherStale(city)) {
+        if (!rowError && port.cityWeatherStale(city)) {
             // one msgid: the marker is a glyph the phrase is built around, and a
             // translator has to be able to put it where it belongs
             rowError = fillTemplate(_("%s Last known reading"),
@@ -585,7 +470,7 @@ class AppletPanelStatusPresenter {
         return {
             cells: record ? this._readingCells(record, rowError) : ["", rowError],
             issue,
-            source: record ? view.cityWeatherProviderName(city) : ""
+            source: record ? port.cityWeatherProviderName(city) : ""
         };
     }
 
@@ -596,10 +481,10 @@ class AppletPanelStatusPresenter {
         if (cityModel) {
             return cityModel.source;
         }
-        if (entry.timezone === WorldclockData.UTC_TIMEZONE || !this.view.weatherReading) {
+        if (entry.timezone === WorldclockData.UTC_TIMEZONE || !this.port.weatherReading()) {
             return "";
         }
-        return this.view.weatherProvider;
+        return this.port.weatherProvider();
     }
 
     _clockRenderRow(entry, showWeather) {
@@ -652,7 +537,7 @@ class AppletPanelStatusPresenter {
     // consumer is expensive on the compositor thread.
     _clockRenderModel(clockEntries = []) {
         const rows = clockEntries.map(
-            (entry) => this._clockRenderRow(entry, this.view.showWeather));
+            (entry) => this._clockRenderRow(entry, this.port.showWeather()));
         const status = rows.length ? "" : this.weatherStatusLine();
         // With a table on screen the local stamp is already one of its rows —
         // the built-in "Local time" clock — so a header line above it would say
@@ -679,7 +564,7 @@ class AppletPanelStatusPresenter {
         }
         this._rendered_tooltip_key = model.key;
 
-        this.view.setTooltip(this._tooltipText(model));
+        this.port.setTooltip(this._tooltipText(model));
     }
 
     // a tooltip is plain text, so the columns can only be lined up by padding;
@@ -727,17 +612,17 @@ class AppletPanelStatusPresenter {
     // what the panel's weather is doing, in words, for a tooltip with no clock
     // rows to hang it on
     weatherStatusLine() {
-        const view = this.view;
-        if (!view.showWeather) {
+        const port = this.port;
+        if (!port.showWeather()) {
             return "";
         }
 
-        if (view.weatherError) {
-            return markedWeatherError(view.weatherError);
+        if (port.weatherError()) {
+            return markedWeatherError(port.weatherError());
         }
 
         // the first refresh has not landed: an ellipsis on the panel says nothing
-        if (view.weatherPending) {
+        if (port.weatherPending()) {
             return _("Weather: loading…");
         }
 
@@ -753,12 +638,12 @@ class AppletPanelStatusPresenter {
     }
 
     issueStatus(clockEntries, renderIssues) {
-        const view = this.view;
+        const port = this.port;
         const issues = [
             this._formatIssue,
             this._tooltipFormatIssue,
-            view.showWeather && view.weatherError ?
-                translateWeatherError(view.weatherError) : "",
+            port.showWeather() && port.weatherError() ?
+                translateWeatherError(port.weatherError()) : "",
             this._clockIssues(clockEntries),
             ...renderIssues
         ];
@@ -766,7 +651,7 @@ class AppletPanelStatusPresenter {
     }
 
     getFormattedToday() {
-        const view = this.view;
+        const port = this.port;
         const now = new Date();
         const yearStart = Date.UTC(now.getFullYear(), 0, 0);
         const dayOfYear = Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - yearStart) / MSECS_IN_DAY);
@@ -778,23 +663,23 @@ class AppletPanelStatusPresenter {
 
         this._todayFormatCache = {
             key,
-            full: _localizedStamp(view, DateFormats.DATE_FORMAT_FULL,
+            full: _localizedStamp(port, DateFormats.DATE_FORMAT_FULL,
                 DateFormats.DATE_FORMAT_FULL_FALLBACK),
-            short: _localizedStamp(view, DateFormats.DATE_FORMAT_SHORT,
+            short: _localizedStamp(port, DateFormats.DATE_FORMAT_SHORT,
                 DateFormats.DATE_FORMAT_SHORT_FALLBACK),
-            day: _localizedStamp(view, DateFormats.DAY_FORMAT, DateFormats.DAY_FORMAT)
+            day: _localizedStamp(port, DateFormats.DAY_FORMAT, DateFormats.DAY_FORMAT)
         };
 
         return this._todayFormatCache;
     }
 
     _announce(labelString) {
-        const view = this.view;
-        const error = view.showWeather && view.weatherError ?
-            translateWeatherError(view.weatherError) : "";
-        const showing = !error && view.showWeather;
-        const pending = showing && view.weatherPending;
-        const condition = showing && view.weatherReading ? view.weatherReading.condition : "";
+        const port = this.port;
+        const error = port.showWeather() && port.weatherError() ?
+            translateWeatherError(port.weatherError()) : "";
+        const showing = !error && port.showWeather();
+        const pending = showing && port.weatherPending();
+        const condition = showing && port.weatherReading() ? port.weatherReading().condition : "";
         const name = error ? joinPhrases(labelString, error) :
             describeWeather(labelString, condition, pending);
 
@@ -803,7 +688,7 @@ class AppletPanelStatusPresenter {
         }
         this._rendered_accessible_name = name;
 
-        this.view.setAccessibleName(name);
+        writeAccessibleName(this.port, name);
     }
 
     _setLabel(label, cacheKey, text) {
@@ -821,11 +706,11 @@ class AppletPanelStatusPresenter {
         }
 
         this._rendered_label = text;
-        this.view.setLabel(text);
+        this.port.setLabel(text);
     }
 
     getClockEntries() {
-        return this.view.getClockEntries();
+        return this.port.getClockEntries();
     }
 
     // Answers whether it refreshed the menu. The caller drives the event column
@@ -836,16 +721,16 @@ class AppletPanelStatusPresenter {
     // policy the only thing deciding when calendar data reloads, and left the
     // two concerns impossible to change or test apart.
     updateClockAndDate(forceMenuUpdate = false) {
-        const view = this.view;
-        let label_string = DateFormats.clampClockStamp(view.formattedClock());
+        const port = this.port;
+        let label_string = DateFormats.clampClockStamp(port.formattedClock());
 
-        let refreshMenu = forceMenuUpdate || view.menuOpen;
+        let refreshMenu = forceMenuUpdate || port.menuOpen();
         const clocksOn = this.worldclocksEnabled();
         // Nobody reads a clock off the closed panel any more, so a closed panel
         // formats none: a GLib.DateTime per city per second, for a table only the
         // tooltip and the popup draw. They are built when one of those two is
         // about to be shown, and then in full.
-        const showingClocks = Boolean(refreshMenu || view.panelHovered);
+        const showingClocks = Boolean(refreshMenu || port.panelHovered());
         let clockEntries = (clocksOn && showingClocks) ? this.getClockEntries() : [];
         let clockModel = showingClocks ? this._clockRenderModel(clockEntries) : null;
         let label_suffix = this.buildLabelSuffix();
@@ -863,36 +748,36 @@ class AppletPanelStatusPresenter {
         this._announce(label_string);
 
         if (!refreshMenu) {
-            if (view.panelHovered) {
+            if (port.panelHovered()) {
                 this._setTooltipModel(clockModel);
             }
             return false;
         }
 
         let formattedToday = this.getFormattedToday();
-        view.setHomeEnabled(!view.todaySelected());
+        this._setHomeEnabled(!port.todaySelected());
 
         // St.Label compares by pointer, so writing a byte-identical string still
         // queues a relayout; these change once a day, and the tick is a minute —
         // or a second, if clock-show-seconds is on
-        this._setLabel(view.dayLabel, "_rendered_day", formattedToday.day);
-        this._setLabel(view.dateLabel, "_rendered_date", formattedToday.short);
+        this._setLabel(port.dayLabel(), "_rendered_day", formattedToday.day);
+        this._setLabel(port.dateLabel(), "_rendered_date", formattedToday.short);
         this._setTooltipModel(clockModel);
         // Unlike a tooltip, this actor is reachable from a keyboard-opened menu
         // and remains present when the world-clock block is switched off.
-        view.setWeatherStatus(this.issueStatus(clockEntries, clockModel.issues));
+        port.setWeatherStatus(this.issueStatus(clockEntries, clockModel.issues));
 
         // The per-city temperature, the condition in words and the service that
         // answered lived only in the panel's mouse tooltip, so a keyboard-only
         // or screen-reader user never got any of it — and the provider credit is
         // a courtesy the data services are owed.
-        view.updateWorldclocks(clockModel.popupEntries);
-        view.setWeatherSource(view.showWeather ? clockModel.sources.join(", ") : "");
+        port.updateWorldclocks(clockModel.popupEntries);
+        port.setWeatherSource(port.showWeather() ? clockModel.sources.join(", ") : "");
 
         return true;
     }
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { AppletPanelStatusPresenter, PanelView, translateWeatherError, weatherConditionWords, markedWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_MAX_LENGTH };
+    module.exports = { AppletPanelStatusPresenter, writeAccessibleName, translateWeatherError, weatherConditionWords, markedWeatherError, describeWeather, badFormatFallback, WEATHER_ERROR_TEXT, WEATHER_CONDITION_TEXT, LABEL_SUFFIX_MAX_LENGTH, LABEL_MAX_LENGTH };
 }

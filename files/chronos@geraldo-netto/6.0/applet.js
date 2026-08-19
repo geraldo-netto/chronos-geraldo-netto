@@ -28,7 +28,6 @@ const Main = imports.ui.main;
 const AppletSettingsBinder = AppletLifecycle.AppletSettingsBinder;
 const AppletProviderLifecycle = AppletLifecycle.AppletProviderLifecycle;
 const AppletPanelStatusPresenter = AppletPanelStatus.AppletPanelStatusPresenter;
-const PanelView = AppletPanelStatus.PanelView;
 const AppletMenuBuilder = AppletMenu.AppletMenuBuilder;
 const runTeardownSteps = AppletTeardown.runTeardownSteps;
 const AppletWeatherCoordinator = AppletCoordinators.AppletWeatherCoordinator;
@@ -560,7 +559,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     _panelStatus() {
         if (!this._panelStatusPresenter) {
             this._panelStatusPresenter = new AppletPanelStatusPresenter(
-                new PanelView(createPanelPort(this)));
+                createPanelPort(this));
         }
         return this._panelStatusPresenter;
     }
