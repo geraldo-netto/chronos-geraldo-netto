@@ -33,9 +33,6 @@ const IoUtils = IS_NODE ?
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
-const TextUtils = IS_NODE ?
-    require("./textUtils") :
-    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const HolidayConstants = IS_NODE ?
     require("./holidayConstants") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayConstants;
@@ -48,18 +45,11 @@ const HolidayRecord = IS_NODE ?
 var UPDATE_PERIOD_DAYS = 50; // NOSONAR [S3504] -- GJS importer export
 var UPDATE_PERIOD = UPDATE_PERIOD_DAYS * 24 * 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
 var RETRY_PERIOD = 60 * 60 * 1000; // NOSONAR [S3504] -- GJS importer export
-// Holiday names come from three third-party services and land in a Pango
-// tooltip. Same-day names are joined, so a provider that repeats itself grows
-// the string without limit; a megabyte of tooltip stalls the compositor on
-// layout. Real names are a few words, and this is the whole joined cell.
-var MAX_HOLIDAY_NAME_LENGTH = 300; // NOSONAR [S3504] -- GJS importer export
-
-function compareCodeUnits(left, right) {
-    if (left < right) {
-        return -1;
-    }
-    return left > right ? 1 : 0;
-}
+// The joined-name bound, the join itself and the flag merge live in
+// holidayRecord.js beside the record contract they belong to; the religious
+// layer joins the same way and cannot import this module.
+var MAX_HOLIDAY_NAME_LENGTH = HolidayRecord.MAX_HOLIDAY_NAME_LENGTH; // NOSONAR [S3504] -- GJS importer export
+var clampHolidayName = HolidayRecord.clampHolidayName; // NOSONAR [S3504] -- GJS importer export
 // months of match results kept around: enough that scrolling a year back and
 // forth stays free, small enough that a long session cannot grow on it
 var MAX_MEMOIZED_MONTHS = 32; // NOSONAR [S3504] -- GJS importer export
@@ -101,26 +91,6 @@ function validCachedHoliday(single) {
         HolidayRecord.nonBlankText(single.name) &&
         HolidayRecord.validHolidayFlags(single.flags) &&
         (single.region === undefined || typeof single.region === "string");
-}
-
-function clampHolidayName(name) {
-    return TextUtils.clampText(name, MAX_HOLIDAY_NAME_LENGTH);
-}
-
-// The union has to respect the same bound each side was admitted under.
-// Without the cap, two same-day rows with disjoint flag sets — Nager's
-// lowercased `types`, Enrico's verbatim `flags` — could merge to sixteen; the
-// loader then rejected that row on `validHolidayFlags`, the row count no longer
-// matched what was written, and `_country` responded by discarding **every**
-// freshness stamp for the country. The country was then refetched over the
-// network at every login for as long as the merge recurred.
-function mergeHolidayFlags(current, incoming) {
-    const bothPartDay = current.includes(PART_DAY_HOLIDAY) &&
-        incoming.includes(PART_DAY_HOLIDAY);
-    return Array.from(new Set(current.concat(incoming)))
-        .filter((flag) => bothPartDay || flag !== PART_DAY_HOLIDAY)
-        .sort(compareCodeUnits)
-        .slice(0, HolidayRecord.MAX_HOLIDAY_FLAGS);
 }
 
 // The rows are checked; the freshness record has to be too. stale() only asks
@@ -831,38 +801,20 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._addUnique(single);
     }
 
-    // Compare the clamped result, not the membership test: past
-    // MAX_HOLIDAY_NAME_LENGTH the truncated-away names can never be found by
-    // `includes`, so every later same-day row re-entered this branch and
+    // Past MAX_HOLIDAY_NAME_LENGTH the truncated-away names can never be found
+    // by the join's duplicate test, so the result is compared rather than the
+    // membership: every later same-day row otherwise re-entered this branch and
     // evicted the month memo for a string that had not moved.
-    static _joinName(known, name) {
-        if (known.name.split('\n').includes(name)) {
-            return false;
-        }
-        const joined = clampHolidayName(known.name + '\n' + name);
-        if (joined === known.name) {
-            return false;
-        }
-        known.name = joined;
-        return true;
-    }
-
-    static _joinFlags(known, incoming) {
-        const flags = mergeHolidayFlags(known.flags, incoming);
-        if (flags.length === known.flags.length &&
-            flags.every((flag, index) => flag === known.flags[index])) {
-            return false;
-        }
-        known.flags = flags;
-        return true;
-    }
-
     _mergeInto(known, single) {
-        const nameChanged = HolidayCache._joinName(known, single.name);
-        const flagsChanged = HolidayCache._joinFlags(known, single.flags);
-        if (nameChanged || flagsChanged) {
-            this._invalidateMonth(known);
+        const joined = HolidayRecord.joinHolidayEntry(known, single.name, single.flags);
+        if (joined.name === known.name &&
+            HolidayRecord.sameHolidayFlags(joined.flags, known.flags)) {
+            return;
         }
+
+        known.name = joined.name;
+        known.flags = joined.flags;
+        this._invalidateMonth(known);
     }
 
     _addUnique(single) {

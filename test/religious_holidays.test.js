@@ -102,7 +102,7 @@ test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
         assert.deepEqual(
             ReligiousHolidays.monthMap(year, thirtyThird[0], ["judaism"])
                 .get(`${thirtyThird[0]}/${thirtyThird[1]}`),
-            { name: "Sefirat HaOmer — Day 33 (Judaism)", flags: ["religious_holiday", "judaism"] },
+            { name: "Sefirat HaOmer — Day 33 (Judaism)", flags: ["judaism", "religious_holiday"] },
             `calendar map carries Omer ${year}`);
 
         for (let index = 1; index < omer.length; index++) {
@@ -175,11 +175,14 @@ test("Bahá'í observances stop at both ends of what is published", () => {
         "and the gap is reported rather than rendered blank");
 });
 
+// One flag order for every producer: 6.0/calendarAnnotations.js diffs a cell's
+// flags positionally, so the cache's code-unit sort is what the religious join
+// uses too.
 test("same-day observances merge names and unique flags deterministically", () => {
     const map = ReligiousHolidays.monthMap(2025, 3,
         ["islam", "hinduism", "judaism"]);
 
-    assert.deepEqual(map.get("3/14"), { name: "Holi (Hinduism)\nPurim (Judaism)", flags: ["religious_holiday", "hinduism", "judaism"] });
+    assert.deepEqual(map.get("3/14"), { name: "Holi (Hinduism)\nPurim (Judaism)", flags: ["hinduism", "judaism", "religious_holiday"] });
 });
 
 test("map merging preserves inputs and orders public names first", () => {
@@ -187,7 +190,7 @@ test("map merging preserves inputs and orders public names first", () => {
     const extra = ReligiousHolidays.monthMap(2026, 12, ["christianity"]);
     const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
 
-    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday", "christianity"] });
+    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["christianity", "public_holiday", "religious_holiday"] });
     assert.deepEqual(base.get("12/25"), { name: "Public Christmas", flags: ["public_holiday"] });
     assert.notEqual(merged, base);
 });
@@ -201,7 +204,7 @@ test("merging explicitly marks public rows even when a provider supplies no flag
     const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
 
     assert.deepEqual(merged.get("1/1"), { name: "Public only", flags: ["public_holiday"] });
-    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday", "christianity"] });
+    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["christianity", "public_holiday", "religious_holiday"] });
     assert.deepEqual(base.get("1/1"), { name: "Public only", flags: [] }, "the provider map stays untouched");
 });
 
@@ -316,7 +319,7 @@ function joinedNameCount(year) {
     for (let month = 1; month <= 12; month++) {
         for (const [key, { name, flags }] of ReligiousHolidays.monthMap(year, month)) {
             assert.ok(key.startsWith(`${month}/`), `${key} in month ${month}`);
-            assert.equal(flags[0], ReligiousHolidays.RELIGIOUS_HOLIDAY_FLAG);
+            assert.ok(flags.includes(ReligiousHolidays.RELIGIOUS_HOLIDAY_FLAG));
             joined += name.split("\n").length;
         }
     }

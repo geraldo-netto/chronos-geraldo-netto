@@ -1028,6 +1028,51 @@ test("the month-match memo keeps the months being read, not the first seen", () 
         "the month being read is not the one thrown away");
 });
 
+// T990: the cache and the religious layer each had their own "join two rows
+// that fall on the same day", under comments in three files claiming the two
+// agreed. They did not — one repeated a name it already carried, left the
+// joined string unbounded and kept insertion order where the other sorted.
+test("the shared same-day join bounds, deduplicates and orders", () => {
+    const {
+        joinHolidayEntry, withHolidayFlag, sameHolidayFlags,
+        MAX_HOLIDAY_NAME_LENGTH
+    } = require(holidayRecordPath);
+
+    // a first row is the row, with one flag order
+    assert.deepEqual(joinHolidayEntry(null, "Christmas", ["religious_holiday", "christianity"]),
+        { name: "Christmas", flags: ["christianity", "religious_holiday"] });
+    assert.deepEqual(joinHolidayEntry(null, "Christmas"), { name: "Christmas", flags: [] });
+
+    // a name already present is not appended again
+    const known = joinHolidayEntry(null, "Christmas", ["public_holiday"]);
+    assert.deepEqual(joinHolidayEntry(known, "Christmas", ["christianity"]),
+        { name: "Christmas", flags: ["christianity", "public_holiday"] });
+    assert.deepEqual(known, { name: "Christmas", flags: ["public_holiday"] },
+        "the existing entry is not mutated");
+
+    // and a joined cell is bounded like any other holiday name
+    let cell = { name: "", flags: [] };
+    for (let i = 0; i < 200; i++) {
+        cell = joinHolidayEntry(cell, "Observance " + i, ["religious_holiday"]);
+    }
+    assert.ok(Array.from(cell.name).length <= MAX_HOLIDAY_NAME_LENGTH);
+
+    // PART_DAY is a claim about the day: it survives a merge only when both
+    // rows agree, but tagging one row public leaves it alone
+    assert.deepEqual(
+        joinHolidayEntry({ name: "Eve", flags: ["PART_DAY_HOLIDAY"] }, "Public Eve", ["public_holiday"]).flags,
+        ["public_holiday"]);
+    assert.deepEqual(
+        joinHolidayEntry({ name: "Eve", flags: ["PART_DAY_HOLIDAY"] }, "Other Eve", ["PART_DAY_HOLIDAY"]).flags,
+        ["PART_DAY_HOLIDAY"]);
+    assert.deepEqual(withHolidayFlag(["PART_DAY_HOLIDAY"], "public_holiday"),
+        ["PART_DAY_HOLIDAY", "public_holiday"]);
+
+    assert.ok(sameHolidayFlags(["a", "b"], ["a", "b"]));
+    assert.ok(!sameHolidayFlags(["a"], ["a", "b"]));
+    assert.ok(!sameHolidayFlags(["a"], ["b"]));
+});
+
 test("a holiday name cannot grow without bound", () => {
     const { HolidayCache } = loadHolidays();
     const { clampHolidayName, MAX_HOLIDAY_NAME_LENGTH } = require(holidayCachePath);

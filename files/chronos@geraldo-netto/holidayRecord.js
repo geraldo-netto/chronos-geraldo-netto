@@ -22,10 +22,15 @@ const HolidayConstants = IS_NODE ?
 const ReligiousCatalog = IS_NODE ?
     require("./religiousCatalog") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].religiousCatalog;
+const TextUtils = IS_NODE ?
+    require("./textUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 
 const MSECS_IN_DAY = DateMath.MSECS_IN_DAY;
 const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
 const RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG;
+const PART_DAY_HOLIDAY = HolidayConstants.PART_DAY_HOLIDAY;
+const monthHolidayEntry = HolidayConstants.monthHolidayEntry;
 
 var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export
 var MAX_HOLIDAYS_PER_YEAR = 1000; // NOSONAR [S3504] -- GJS importer export
@@ -36,6 +41,86 @@ var MAX_EXPANDED_HOLIDAY_ROWS = 4000; // NOSONAR [S3504] -- GJS importer export
 // toward gigabytes. Real flag sets are one or two short enum words.
 var MAX_HOLIDAY_FLAGS = 8; // NOSONAR [S3504] -- GJS importer export
 var MAX_HOLIDAY_FLAG_LENGTH = 64; // NOSONAR [S3504] -- GJS importer export
+
+// Holiday names come from three third-party services and land in a Pango
+// tooltip. Same-day names are joined, so a provider that repeats itself grows
+// the string without limit; a megabyte of tooltip stalls the compositor on
+// layout. Real names are a few words, and this is the whole joined cell.
+var MAX_HOLIDAY_NAME_LENGTH = 300; // NOSONAR [S3504] -- GJS importer export
+
+function compareCodeUnits(left, right) {
+    if (left < right) {
+        return -1;
+    }
+    return left > right ? 1 : 0;
+}
+
+function clampHolidayName(name) {
+    return TextUtils.clampText(name, MAX_HOLIDAY_NAME_LENGTH);
+}
+
+// One order and one bound for every flag list this applet stores or renders.
+// 6.0/calendarAnnotations.js diffs a cell's flags positionally, so two
+// producers with different orders repaint a tooltip that has not changed.
+function _sortedBoundedFlags(flags) {
+    return Array.from(new Set(flags))
+        .sort(compareCodeUnits)
+        .slice(0, MAX_HOLIDAY_FLAGS);
+}
+
+// The union has to respect the same bound each side was admitted under.
+// Without the cap, two same-day rows with disjoint flag sets — Nager's
+// lowercased `types`, Enrico's verbatim `flags` — could merge to sixteen; the
+// loader then rejected that row on `validHolidayFlags`, the row count no longer
+// matched what was written, and `_country` responded by discarding **every**
+// freshness stamp for the country. The country was then refetched over the
+// network at every login for as long as the merge recurred.
+//
+// PART_DAY_HOLIDAY is a per-provider claim about one date, so it survives only
+// when both rows agree the day is partial: a full public holiday landing on the
+// same date makes the whole day non-working.
+function mergeHolidayFlags(current, incoming) {
+    const bothPartDay = current.includes(PART_DAY_HOLIDAY) &&
+        incoming.includes(PART_DAY_HOLIDAY);
+    return _sortedBoundedFlags(current.concat(incoming)
+        .filter((flag) => bothPartDay || flag !== PART_DAY_HOLIDAY));
+}
+
+// Tagging one row with a flag it is entitled to — not a merge of two claims, so
+// the part-day rule does not apply and a partial day stays partial.
+function withHolidayFlag(flags, flag) {
+    return _sortedBoundedFlags(flags.concat([flag]));
+}
+
+// The one join for "two things happen on this day": the public row the cache
+// merges into another public row, and the religious observance the calendar
+// layers on top of both. It was written twice, under comments in three files
+// claiming the two agreed — and they did not: the religious copy re-appended a
+// name it already carried, left the joined string unbounded (so a merged
+// public+religious cell could carry exactly the tooltip MAX_HOLIDAY_NAME_LENGTH
+// exists to prevent), and kept insertion order where the cache sorted.
+//
+// `existing` is not mutated; the caller decides whether the result is a change.
+function joinHolidayEntry(existing, name, flags) {
+    const incoming = flags || [];
+    if (!existing) {
+        return monthHolidayEntry(clampHolidayName(name),
+            _sortedBoundedFlags(incoming));
+    }
+
+    const merged = mergeHolidayFlags(existing.flags, incoming);
+    if (existing.name.split("\n").includes(name)) {
+        return monthHolidayEntry(existing.name, merged);
+    }
+
+    return monthHolidayEntry(clampHolidayName(existing.name + "\n" + name),
+        merged);
+}
+
+function sameHolidayFlags(left, right) {
+    return left.length === right.length &&
+        left.every((flag, index) => flag === right[index]);
+}
 
 function validHolidayFlags(flags) {
     return Array.isArray(flags) &&
@@ -187,6 +272,8 @@ if (typeof module !== "undefined") {
     module.exports = { validDateParts, validHolidaySpan, holidaySpanDays, holidayOverlapsYear, nonBlankText,
         publicHolidayFlags, normalizeProviderFlags, APP_MINTED_FLAGS,
         validHolidayFlags, MAX_HOLIDAY_SPAN_DAYS, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
-        MAX_HOLIDAY_FLAGS, MAX_HOLIDAY_FLAG_LENGTH,
+        MAX_HOLIDAY_FLAGS, MAX_HOLIDAY_FLAG_LENGTH, MAX_HOLIDAY_NAME_LENGTH,
+        clampHolidayName, compareCodeUnits, mergeHolidayFlags, withHolidayFlag,
+        joinHolidayEntry, sameHolidayFlags,
         HolidayRecordContract };
 }

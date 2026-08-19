@@ -41,6 +41,10 @@ const HolidayConstants = IS_NODE ?
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     AppletModules.textUtils;
+const HolidayRecord = IS_NODE ?
+    require("./holidayRecord") :
+    AppletModules.holidayRecord;
+const joinHolidayEntry = HolidayRecord.joinHolidayEntry;
 const monthHolidayEntry = HolidayConstants.monthHolidayEntry;
 
 // Translation marker for observance names. Religion labels live in the shared
@@ -405,7 +409,7 @@ function uncoveredReligions(year, enabledIds = religionIds()) {
 }
 
 // the month map the calendar grid consumes: "month/day" -> {name, flags},
-// same-day observances joined the way the holiday cache joins them
+// same-day observances joined by the one shared join
 function monthMap(year, month, enabledIds = religionIds(), translateName = _) {
     const map = new Map();
     const numericMonth = TextUtils.numericInput(month);
@@ -419,33 +423,26 @@ function monthMap(year, month, enabledIds = religionIds(), translateName = _) {
         }
 
         const key = `${row.month}/${row.day}`;
-        map.set(key, _joinEntry(map.get(key), row.name, row.flags));
+        map.set(key, joinHolidayEntry(map.get(key), row.name, row.flags));
     }
 
     return map;
 }
 
-function _mergeFlags(known, extra) {
-    return known.concat(extra.filter((flag) => known.indexOf(flag) === -1)); // NOSONAR [S7765] -- accepted compatible form
-}
-
-// joined the way the holiday cache joins same-day rows: earlier names first,
-// duplicate flags dropped
-function _joinEntry(known, name, flags) {
-    return known ?
-        monthHolidayEntry(known.name + "\n" + name, _mergeFlags(known.flags, flags)) :
-        monthHolidayEntry(name, flags);
-}
-
 // merge locally-computed rows into a provider month map without mutating
-// either: the provider's names come first, as they do in the cache
+// either: the provider's names come first, as they do in the cache, and the
+// join is the cache's own — bounded name, no repeated name, one flag order.
+//
+// A provider row is *tagged* public rather than merged with a public row, so
+// the part-day rule does not apply to it and Enrico's half-day stays a half day.
 function mergeMonthMaps(base, extra) {
     const merged = new Map();
     for (const [key, { name, flags }] of base.entries()) {
-        merged.set(key, monthHolidayEntry(name, _mergeFlags(flags, [PUBLIC_HOLIDAY_FLAG])));
+        merged.set(key, monthHolidayEntry(name,
+            HolidayRecord.withHolidayFlag(flags, PUBLIC_HOLIDAY_FLAG)));
     }
     for (const [key, { name, flags }] of extra.entries()) {
-        merged.set(key, _joinEntry(merged.get(key), name, flags));
+        merged.set(key, joinHolidayEntry(merged.get(key), name, flags));
     }
 
     return merged;
