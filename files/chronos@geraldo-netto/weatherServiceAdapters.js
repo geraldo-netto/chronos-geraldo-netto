@@ -115,13 +115,18 @@ function geocodeUrl(location, locale) {
         "&language=" + geocodeLanguage(locale) + "&format=json";
 }
 
-function nominatimGeocodeUrl(location) {
+// Nominatim ranks and names results by `accept-language` the same way Open-Meteo
+// ranks by `language`, and it is the provider that answers exactly when
+// Open-Meteo is down or refuses on the population floor — so asking it in
+// English would reintroduce the Genova/Génova mismatch on the fallback path.
+function nominatimGeocodeUrl(location, locale) {
     const normalized = WeatherFormat.normalizeWeatherLocation(location);
     if (!normalized) {
         return "";
     }
     return "https://nominatim.openstreetmap.org/search?q=" +
-        encodeURIComponent(normalized) + "&format=json&limit=" + GEOCODE_CANDIDATE_COUNT;
+        encodeURIComponent(normalized) + "&format=json&limit=" + GEOCODE_CANDIDATE_COUNT +
+        "&accept-language=" + geocodeLanguage(locale);
 }
 
 function forecastUrl(place) {

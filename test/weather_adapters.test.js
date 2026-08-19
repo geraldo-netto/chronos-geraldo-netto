@@ -90,9 +90,16 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
         "https://geocoding-api.open-meteo.com/v1/search?name=Genova&count=10&language=it&format=json"
     );
     assert.equal(
-        Weather.nominatimGeocodeUrl(" New York "),
+        Weather.nominatimGeocodeUrl(" New York ", "en_US.UTF-8"),
         "https://nominatim.openstreetmap.org/search?q=New%20York&format=json&limit=" +
-        Weather.GEOCODE_CANDIDATE_COUNT
+        Weather.GEOCODE_CANDIDATE_COUNT + "&accept-language=en"
+    );
+    // the fallback geocoder is asked in the session language too, or the
+    // Genova/Génova mismatch comes back whenever Open-Meteo is the one that fails
+    assert.equal(
+        Weather.nominatimGeocodeUrl("Genova", "it_IT.UTF-8"),
+        "https://nominatim.openstreetmap.org/search?q=Genova&format=json&limit=" +
+        Weather.GEOCODE_CANDIDATE_COUNT + "&accept-language=it"
     );
     assert.equal(Weather.locationCacheKey(" New York "), "new york");
     const maximum = Weather.MAX_WEATHER_LOCATION_LENGTH;
@@ -101,7 +108,7 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
     for (const location of [exact, unicodeExact]) {
         assert.equal(Weather.normalizeWeatherLocation(location), location);
         assert.notEqual(Weather.geocodeUrl(location, "en"), "");
-        assert.notEqual(Weather.nominatimGeocodeUrl(location), "");
+        assert.notEqual(Weather.nominatimGeocodeUrl(location, "en"), "");
         assert.equal(Weather.locationCacheKey(location), location.toLowerCase());
     }
     for (const location of [
@@ -111,7 +118,7 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
     ]) {
         assert.equal(Weather.normalizeWeatherLocation(location), "");
         assert.equal(Weather.geocodeUrl(location, "en"), "");
-        assert.equal(Weather.nominatimGeocodeUrl(location), "");
+        assert.equal(Weather.nominatimGeocodeUrl(location, "en"), "");
         assert.equal(Weather.locationCacheKey(location), "");
     }
     // always Celsius now, whatever the units: formatTemperature does the
