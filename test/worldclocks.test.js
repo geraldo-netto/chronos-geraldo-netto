@@ -451,6 +451,56 @@ test("the local row follows the system timezone when it changes", () => {
         "and within the minute the popup agrees with the panel again");
 });
 
+// T1002: the recheck used to swap `clock.tz` in place, which cannot re-run the
+// selection — so a configured clock hidden as a duplicate of the built-in local
+// row stayed hidden after the system zone moved away from it.
+test("a zone change re-selects the configured rows, not just the local one", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const GLib = global.imports.gi.GLib;
+    let systemZone = "Europe/Rome";
+    GLib.TimeZone.new_local = () => fakeTimeZone(systemZone);
+
+    let elapsedNow = 1000;
+    const worldclocks = new Worldclocks(
+        { add_actor() {} }, { elapsedNow: () => elapsedNow });
+    worldclocks.buildClocks([{ label: "Rome", timezone: "Europe/Rome" }]);
+    worldclocks.updateClocks();
+    assert.equal(worldclocks.clocks.length, BUILTIN_ROWS,
+        "a configured clock on the local zone is covered by the built-in row");
+
+    systemZone = "Asia/Tokyo";
+    elapsedNow += 60;
+    worldclocks.updateClocks();
+
+    assert.deepEqual(worldclocks.clocks.map((clock) => clock.timezone),
+        ["UTC", "local", "Europe/Rome"],
+        "and it comes back once the local zone no longer covers it");
+    assert.equal(worldclocks.clocks[1].display.text, timeIn("Asia/Tokyo"));
+    assert.equal(worldclocks.clocks[2].display.text, timeIn("Europe/Rome"));
+});
+
+// a tick can still arrive after the menu is torn down, and the recheck now
+// rebuilds actors — it must not do that into a destroyed view
+test("a timezone recheck after destroy rebuilds nothing", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const GLib = global.imports.gi.GLib;
+    let systemZone = "Europe/Rome";
+    GLib.TimeZone.new_local = () => fakeTimeZone(systemZone);
+
+    let elapsedNow = 1000;
+    const worldclocks = new Worldclocks(
+        { add_actor() {} }, { elapsedNow: () => elapsedNow });
+    worldclocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
+    worldclocks.destroy();
+
+    systemZone = "Asia/Tokyo";
+    elapsedNow += 60;
+    worldclocks.updateClocks();
+    worldclocks.refreshTimezone();
+
+    assert.deepEqual(worldclocks.clocks, []);
+});
+
 test("buildClocks caps configured clocks at 8 on top of the built-ins", () => {
     const { Worldclocks, MAX_CLOCKS } = loadWorldclocks();
     const worldclocks = new Worldclocks({ add_actor() {} });

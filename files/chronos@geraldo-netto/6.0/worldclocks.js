@@ -61,6 +61,11 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     buildClocks(clocks) {
         this.actor.destroy_all_children();
         this.clocks = [];
+        // remembered so the timezone recheck below can re-run this exact call:
+        // re-resolving the local zone in place is not enough, because which
+        // configured rows survive selectUserClocks depends on that zone
+        this._configured_clocks = clocks;
+        this._local_tz_identity = timezoneIdentity(timezoneFromIdentifier(LOCAL_TIMEZONE));
 
         // UTC and the local time are always shown; configured clocks follow.
         // Which of them count is worldclockData's answer, and the weather side
@@ -128,6 +133,10 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // first timer or signal this view acquires has nowhere to be torn down.
     destroy() {
         this.clocks = [];
+        // and nothing may rebuild them afterwards: the recheck below goes
+        // through buildClocks, which would attach fresh actors to an actor the
+        // menu is disposing
+        this._configured_clocks = null;
     }
 
     // The format decides how a time is *rendered*; the clock list decides what
@@ -163,9 +172,22 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
     // is whatever /etc/localtime said at that moment. A user who travels and
     // changes the system timezone keeps seeing the old offset in the popup
     // while the panel clock - which rides CinnamonDesktop.WallClock - moves: the
-    // same applet, disagreeing with itself. Re-resolving it every tick would
-    // build a GLib.TimeZone a second; the popup shows minutes, so once a minute
-    // is enough to be right and cheap enough to not matter.
+    // same applet, disagreeing with itself. The applet subscribes to
+    // org.freedesktop.timedate1 and rebuilds on its PropertiesChanged, so this
+    // poll is only the fallback for a session where that signal never arrives.
+    //
+    // It used to swap `clock.tz` in place, which is *less* than the rebuild the
+    // signal path does: which configured rows exist depends on the local zone
+    // too - selectUserClocks drops a configured clock that collides with the
+    // built-in local row - so a zone change that makes a row a duplicate, or
+    // stops it being one, has to re-select, not just re-resolve. Left in place,
+    // the popup drew the same zone twice or silently dropped a clock until
+    // something else forced a rebuild. So the fallback now runs the same
+    // buildClocks path the signal does.
+    //
+    // Re-resolving on every tick would build a GLib.TimeZone a second; the
+    // popup shows minutes, so once a minute is enough to be right and cheap
+    // enough to not matter.
     _refreshLocalTimezone(nowSeconds = this._elapsed_now()) {
         const elapsed = nowSeconds - this._local_tz_checked_elapsed;
         if (this._local_tz_checked_elapsed !== undefined &&
@@ -174,18 +196,22 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
             return;
         }
         this._local_tz_checked_elapsed = nowSeconds;
+        if (!this._configured_clocks) {
+            return;
+        }
 
-        const local = timezoneFromIdentifier(LOCAL_TIMEZONE);
-        const identity = timezoneIdentity(local);
+        const identity = timezoneIdentity(timezoneFromIdentifier(LOCAL_TIMEZONE));
+        if (identity === this._local_tz_identity) {
+            return;
+        }
+        this.refreshTimezone();
+    }
 
-        for (const clock of this.clocks) {
-            if (clock.builtin && clock.timezone === LOCAL_TIMEZONE &&
-                timezoneIdentity(clock.tz) !== identity) {
-                clock.tz = local;
-                // the text is compared against the last one written; the zone
-                // moved under it, so it has to be written again
-                clock.rendered_time = null;
-            }
+    // The one way the local zone is re-read: the timedate1 subscriber and the
+    // fallback poll above both land here, so both do the whole job.
+    refreshTimezone() {
+        if (this._configured_clocks) {
+            this.buildClocks(this._configured_clocks);
         }
     }
 
