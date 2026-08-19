@@ -220,4 +220,14 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         # after the restore, so the entry's own 'changed' does not take the mark
         # straight back off. An empty field is not a wrong one, it is an
         # unfinished one — the same rule the clock dialog states.
-        self.mark_refused(text.strip())
+        #
+        # ...but an empty field that was empty before the edit began is not an
+        # answer to a standing refusal either. on_setting_changed marks a stored
+        # code this build does not offer and says the mark "stays up"; it did
+        # not, because activate/focus-out/destroy all reach here and cleared it,
+        # leaving an unexplained blank combo for a key the applet still queries.
+        # A keystroke clears the mark in on_entry_edited, so self.refused is
+        # standing only while the field really has not been touched.
+        typed = text.strip()
+        if typed or not self.refused:
+            self.mark_refused(typed)

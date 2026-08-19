@@ -99,6 +99,45 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         widget.commit("Porto")
         self.assertNotIn("error", self.marks_of(widget)[0])
 
+    def test_a_refused_stored_location_survives_the_end_of_an_edit(self):
+        # T1044: on_setting_changed blanks the field for a stored value past the
+        # network bound and marks it refused. The blank is a projection of that
+        # value, not an edit of it — but activate/focus-out/destroy all reach
+        # on_commit, which committed the blank. Opening the settings page and
+        # closing it again, without touching the field, wrote "" over the key
+        # the widget had just finished explaining it could not show.
+        oversized = "x" * (self.module.MAX_WEATHER_LOCATION_LENGTH + 1)
+        widget, settings = self.entry({"weather-location": oversized})
+
+        kept_open = widget.on_commit()
+
+        self.assertFalse(kept_open, "the focus change carries on")
+        self.assertEqual(settings.writes, [])
+        self.assertEqual(settings.values["weather-location"], oversized)
+        classes, description = self.marks_of(widget)
+        self.assertIn("error", classes, "and the refusal is still on screen")
+        self.assertEqual(description, "This location is too long to save")
+
+    def test_a_replacement_still_clears_a_refused_stored_location(self):
+        # the guard above is about the untouched blank only: a name the user
+        # actually types still replaces the refused value
+        oversized = "x" * (self.module.MAX_WEATHER_LOCATION_LENGTH + 1)
+        widget, settings = self.entry({"weather-location": oversized})
+
+        widget.content_widget.set_text("Porto")
+        widget.on_commit()
+
+        self.assertEqual(settings.values["weather-location"], "Porto")
+        self.assertNotIn("error", self.marks_of(widget)[0])
+
+    def test_an_empty_field_over_a_savable_value_still_clears_it(self):
+        widget, settings = self.entry({"weather-location": "Lisbon"})
+
+        widget.content_widget.set_text("")
+        widget.on_commit()
+
+        self.assertEqual(settings.values["weather-location"], "")
+
     def test_whitespace_is_not_reported_as_too_long(self):
         # normalize_weather_location returns "" for both; only one is a refusal
         self.assertFalse(self.module.refuses_weather_location("   "))
@@ -466,6 +505,27 @@ class CountryComboBoxTest(unittest.TestCase):
         classes, description = self.marks_of(widget)
         self.assertNotIn("error", classes)
         self.assertEqual(description, "")
+
+    def test_a_stored_refusal_is_not_cleared_by_an_edit_that_never_happened(self):
+        # T1045: on_setting_changed states that for a stored code with nothing to
+        # heal to "no row goes active, so on_combo_changed early-returns and this
+        # mark stays up". It did not: activate/focus-out/destroy reach
+        # restore_entry_text, which found nothing typed, set the entry to "" and
+        # ended with mark_refused("") — clearing the mark and leaving an
+        # unexplained blank combo for a key the applet is still querying.
+        settings = FakeSettings({"country": "atl"})
+        widget = self.module.CountryComboBox(
+            {"description": "Country", "tooltip": "holidays", "options": self.OPTIONS},
+            "country", settings)
+        self.assertIn("error", self.marks_of(widget)[0], "the mark starts up")
+
+        widget.on_entry_commit()
+
+        classes, description = self.marks_of(widget)
+        self.assertIn("error", classes)
+        self.assertEqual(
+            description, "atl is not in the list, so the holiday country is unchanged")
+        self.assertEqual(settings.writes, [])
 
     def test_the_mark_comes_off_when_the_user_answers_it(self):
         widget, _settings = self.combo("prt")

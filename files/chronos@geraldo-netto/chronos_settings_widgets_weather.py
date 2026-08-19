@@ -205,12 +205,25 @@ class WeatherLocationEntry(Entry, JSONSettingsBackend):
         return False
 
     def commit(self, text) -> str:
-        refused = refuses_weather_location(text)
-        self.mark_refused(refused)
-        if refused:
+        if refuses_weather_location(text):
+            self.mark_refused(True)
             return ""
 
         location = normalize_weather_location(text)
+        # The blank field is a *projection* of a stored value too long to save,
+        # not an edit of it — on_setting_changed puts it there and marks it
+        # refused. Every way an edit can end reaches here, including the
+        # `destroy` that fires when the settings window closes, so committing
+        # that blank meant opening the page and closing it again wrote "" over
+        # the key the widget had just finished explaining it could not show.
+        # Clearing the field on purpose still works once there is a savable
+        # value in it; the sibling CountryComboBox restores rather than writes
+        # for the same case.
+        if not location and refuses_weather_location(self.get_value()):
+            self.mark_refused(True)
+            return ""
+
+        self.mark_refused(False)
         if self.content_widget.get_text() != location:
             self.content_widget.set_text(location)
             self.content_widget.set_position(-1)
