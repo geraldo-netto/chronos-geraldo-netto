@@ -20,8 +20,13 @@ test("provider adapters distinguish wire and domain public-holiday values", () =
     // standing between a vendor payload and the applet's flag namespace.
     assert.doesNotMatch(source, /PUBLIC_HOLIDAY_FLAG/,
         "publicness is expressed to the normalizer, not written into a record here");
-    assert.equal((source.match(/normalizeProviderFlags\(/g) || []).length, 3,
-        "one call in each of the three adapters");
+    // T992: two calls, not three — the two ISO adapters answer the same
+    // question ("which of the vendor's type strings are ours") and now share
+    // the base class's _publicOrLowercase, which makes that one call for both.
+    assert.equal((source.match(/normalizeProviderFlags\(/g) || []).length, 2,
+        "one call in Enrico and one in the shared ISO base");
+    assert.equal((source.match(/this\._publicOrLowercase\(/g) || []).length, 2,
+        "both ISO adapters reach the normalizer through the shared helper");
 });
 
 // T991: the flags decide how a day is drawn — PUBLIC_HOLIDAY_FLAG styles it

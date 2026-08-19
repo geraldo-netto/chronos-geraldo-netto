@@ -228,6 +228,62 @@ var IsoHolidayServiceAdapter = class IsoHolidayServiceAdapter { // NOSONAR [S350
         return translated;
     }
 
+    // Both ISO vendors describe a holiday's kind as type strings, and both
+    // spell the public one "Public". Publicness is decided here rather than
+    // copied through, and every other type is lowercased into the applet's own
+    // flag namespace; an empty list means an ordinary public holiday.
+    _publicOrLowercase(types) {
+        const list = types.length > 0 ? types : ["Public"];
+
+        return normalizeProviderFlags(
+            list.filter((type) => type !== "Public").map((type) => type.toLowerCase()),
+            list.indexOf("Public") >= 0); // NOSONAR [S7765] -- accepted compatible form
+    }
+
+    // One region rule for both, with the vendor's field names behind hooks:
+    // _regionList/_regionCode name the row's regions, _isNationwide names its
+    // "applies everywhere" field, _appliesToAllRegions says what an unscoped
+    // row means once a region *was* requested — Nager rows carry no nationwide
+    // marker there and say it by listing no counties — and _subdivisionMatches
+    // refines the comparison for vendors with hierarchical codes.
+    _regionList(holiday) {
+        return [];
+    }
+
+    _regionCode(entry) {
+        return "";
+    }
+
+    _isNationwide(holiday) {
+        return false;
+    }
+
+    _requestedRegionCode(params) {
+        return "";
+    }
+
+    _subdivisionMatches(code, expectedCode) {
+        return code === expectedCode;
+    }
+
+    _appliesToAllRegions(holiday, regions) {
+        return this._isNationwide(holiday);
+    }
+
+    _matchesRegion(holiday, params) {
+        const regions = this._regionList(holiday);
+        const expected = this._requestedRegionCode(params);
+        if (params.region === GLOBAL_REGION || !expected) {
+            return this._isNationwide(holiday) || regions.length === 0;
+        }
+
+        return this._appliesToAllRegions(holiday, regions) ||
+            regions.some((entry) => {
+                const code = this._regionCode(entry);
+                return Boolean(code) && this._subdivisionMatches(code, expected);
+            });
+    }
+
     _translateHoliday(holiday, params) {
         if (!this._validHoliday(holiday) || !this._matchesRegion(holiday, params)) {
             return null;
@@ -308,21 +364,30 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
                 holiday.types.every((type) => typeof type === "string")));
     }
 
-    _matchesRegion(holiday, params) {
-        const counties = Array.isArray(holiday.counties) ? holiday.counties : [];
-        if (params.region === GLOBAL_REGION || !params.countyCode) {
-            return holiday.global === true || counties.length === 0;
-        }
+    _regionList(holiday) {
+        return Array.isArray(holiday.counties) ? holiday.counties : [];
+    }
 
-        return counties.length === 0 || counties.indexOf(params.countyCode) !== -1; // NOSONAR [S7765] -- accepted compatible form
+    _regionCode(entry) {
+        return typeof entry === "string" ? entry : "";
+    }
+
+    _isNationwide(holiday) {
+        return holiday.global === true;
+    }
+
+    _requestedRegionCode(params) {
+        return params.countyCode;
+    }
+
+    // A Nager row that lists no counties is the nationwide one; `global` is a
+    // separate field the vendor sets on those same rows.
+    _appliesToAllRegions(holiday, regions) {
+        return regions.length === 0;
     }
 
     _flags(holiday) {
-        const types = Array.isArray(holiday.types) && holiday.types.length ? holiday.types : ["Public"];
-
-        return normalizeProviderFlags(
-            types.filter((type) => type !== "Public").map((type) => type.toLowerCase()),
-            types.indexOf("Public") >= 0); // NOSONAR [S7765] -- accepted compatible form
+        return this._publicOrLowercase(Array.isArray(holiday.types) ? holiday.types : []);
     }
 
     // The local name was tagged `lang: "local"`, which `localizeName` can never
@@ -422,26 +487,30 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
             (!holiday.subdivisions || Array.isArray(holiday.subdivisions));
     }
 
+    // OpenHolidays writes hierarchical subdivision codes, so a request for a
+    // state also takes its districts.
     _subdivisionMatches(code, expectedCode) {
         return code === expectedCode || code.indexOf(expectedCode + "-") === 0;
     }
 
-    _matchesRegion(holiday, params) {
-        const subdivisions = Array.isArray(holiday.subdivisions) ? holiday.subdivisions : [];
-        if (params.region === GLOBAL_REGION || !params.subdivisionCode) {
-            return holiday.nationwide === true || subdivisions.length === 0;
-        }
+    _regionList(holiday) {
+        return Array.isArray(holiday.subdivisions) ? holiday.subdivisions : [];
+    }
 
-        return holiday.nationwide === true ||
-            subdivisions.some((subdivision) => subdivision && typeof subdivision.code === "string" &&
-                this._subdivisionMatches(subdivision.code, params.subdivisionCode));
+    _regionCode(entry) {
+        return entry && typeof entry.code === "string" ? entry.code : "";
+    }
+
+    _isNationwide(holiday) {
+        return holiday.nationwide === true;
+    }
+
+    _requestedRegionCode(params) {
+        return params.subdivisionCode;
     }
 
     _flags(holiday) {
-        const type = holiday.type || "Public";
-
-        return normalizeProviderFlags(
-            type === "Public" ? [] : [type.toLowerCase()], type === "Public");
+        return this._publicOrLowercase(holiday.type ? [holiday.type] : []);
     }
 
     _name(holiday) {
