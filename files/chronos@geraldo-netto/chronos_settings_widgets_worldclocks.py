@@ -336,7 +336,6 @@ def wrap_label(label):
 # widget-marking for any dialog field, and living here was why this was the only
 # one of the three feature dialogs that had one. The generic ATK description is
 # this field's, which is why it is an argument.
-ERROR_STYLE_CLASS = common.ERROR_STYLE_CLASS
 set_error_state = common.set_error_state
 describe_widget = common.describe_widget
 
@@ -578,14 +577,17 @@ class SettingsWindowCenterer:
 
 
 class ClocksList(JSONSettingsList):
-    def __init__(self, info, key, settings):
+    def __init__(self, info, key, settings, resolver=None):
         # Built on first use, not at page construction.
         #
         # Opening the applet's settings — any page of them — used to build a
         # 594-entry timezone map, a city map and a 439-entry completions list,
         # and casefold-sort the last of them, on the GTK main thread, for a user
         # who may never open the World Clocks page at all.
-        self._timezone_resolver = None
+        #
+        # `resolver` is constructor injection for a caller that already has one;
+        # production passes nothing and gets the shared lazy one.
+        self._timezone_resolver = resolver
 
         normalized_info = normalize_clock_setting(info, key, settings)
         JSONSettingsList.__init__(self, key, settings, normalized_info)
@@ -605,10 +607,6 @@ class ClocksList(JSONSettingsList):
             self._timezone_resolver = common.shared_timezone_resolver()
 
         return self._timezone_resolver
-
-    @timezone_resolver.setter
-    def timezone_resolver(self, resolver):
-        self._timezone_resolver = resolver
 
     @property
     def completions(self):

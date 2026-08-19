@@ -164,16 +164,15 @@ class BuildDialogContentTest(unittest.TestCase):
         self.assertTrue(dialog.sensitivity)
 
     def test_collect_dialog_values_resolves_the_typed_timezone(self):
-        clocks = self.module.ClocksList({
-            "value": []
-        }, "worldclocks", DialogSettings())
         # the resolver is injected, so what the dialog resolves does not depend
         # on whether the machine running the tests happens to have pytz: this
         # assertion used to expect a different answer on a host without it, and
         # therefore asserted almost nothing on either
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Europe/Rome"], common_timezones=["Europe/Rome"])
-        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
+        clocks = self.module.ClocksList(
+            {"value": []}, "worldclocks", DialogSettings(),
+            self.module.common.TimezoneResolver(fake_pytz, None))
         dialog = GtkDialog()
         widgets = clocks._build_dialog_content(
             dialog, {"label": " Home ", "timezone": "europe/rome"})
@@ -842,12 +841,12 @@ class DialogSizingTest(unittest.TestCase):
         self.module = load_module(WORLDCLOCKS_PATH, "settings_widgets_wrap_test")
 
     def test_the_dialog_labels_wrap_instead_of_widening_the_window(self):
-        clocks = self.module.ClocksList({
-            "value": [{"label": "Rome", "timezone": "Europe/Rome"}]
-        }, "worldclocks", DialogSettings())
         # no timezone database: the dialog carries the 140-character hint that
         # says what to install
-        clocks.timezone_resolver = self.module.common.TimezoneResolver(None, None)
+        clocks = self.module.ClocksList(
+            {"value": [{"label": "Rome", "timezone": "Europe/Rome"}]},
+            "worldclocks", DialogSettings(),
+            self.module.common.TimezoneResolver(None, None))
 
         dialog = GtkDialog()
         GtkLabel.instances.clear()
@@ -876,12 +875,11 @@ class DialogValidationFeedbackTest(unittest.TestCase):
         BaseWidget.instances.clear()
 
     def _dialog(self, data):
-        clocks = self.module.ClocksList({
-            "value": []
-        }, "worldclocks", DialogSettings())
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Europe/Rome"], common_timezones=["Europe/Rome"])
-        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
+        clocks = self.module.ClocksList(
+            {"value": []}, "worldclocks", DialogSettings(),
+            self.module.common.TimezoneResolver(fake_pytz, None))
 
         dialog = GtkDialog()
         widgets = clocks._build_dialog_content(dialog, data)

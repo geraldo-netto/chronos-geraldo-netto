@@ -443,8 +443,9 @@ class SettingsWidgetsTest(unittest.TestCase):
         # the warning otherwise only reaches a log line nobody opening this
         # dialog will ever read
         module = load_module(WORLDCLOCKS_PATH, "settings_widgets_no_tz_hint", missing_pytz=True)
-        clocks = module.ClocksList({"value": []}, "worldclocks", DialogSettings())
-        clocks.timezone_resolver = module.common.TimezoneResolver(None, None)
+        clocks = module.ClocksList(
+            {"value": []}, "worldclocks", DialogSettings(),
+            module.common.TimezoneResolver(None, None))
 
         labels = []
 
@@ -566,9 +567,10 @@ class SettingsWidgetsTest(unittest.TestCase):
     def test_the_dialog_says_why_a_built_in_zone_was_refused(self):
         fake_pytz = types.SimpleNamespace(
             all_timezones=["America/Sao_Paulo"], common_timezones=["America/Sao_Paulo"])
-        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
-        clocks.timezone_resolver = self.module.common.TimezoneResolver(
-            fake_pytz, None, local_timezone="America/Sao_Paulo")
+        clocks = self.module.ClocksList(
+            {"value": []}, "worldclocks", object(),
+            self.module.common.TimezoneResolver(
+                fake_pytz, None, local_timezone="America/Sao_Paulo"))
 
         values = {"label": "Home", "timezone": "Sao Paulo"}
         choice = clocks.resolve_timezone_choice(values)
@@ -771,12 +773,12 @@ class SettingsWidgetsTest(unittest.TestCase):
             {"label": "Tokyo", "timezone": "Asia/Tokyo"},
             {"label": "Rome", "timezone": "Europe/Rome"},
         ]
-        clocks = self.module.ClocksList(
-            {"value": saved}, "worldclocks", DialogSettings())
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Asia/Tokyo", "Europe/Rome"],
             common_timezones=["Asia/Tokyo", "Europe/Rome"])
-        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
+        clocks = self.module.ClocksList(
+            {"value": saved}, "worldclocks", DialogSettings(),
+            self.module.common.TimezoneResolver(fake_pytz, None))
         values = {"label": "Other Tokyo", "timezone": " asia/tokyo "}
 
         choice = clocks.resolve_timezone_choice(values)
@@ -797,12 +799,12 @@ class SettingsWidgetsTest(unittest.TestCase):
 
     def test_timezone_choice_compares_reduced_zoneinfo_identities(self):
         saved = [{"label": "Rome", "timezone": ":Europe/Rome"}]
-        clocks = self.module.ClocksList(
-            {"value": saved}, "worldclocks", DialogSettings())
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Europe/Rome"],
             common_timezones=["Europe/Rome"])
-        clocks.timezone_resolver = self.module.common.TimezoneResolver(fake_pytz, None)
+        clocks = self.module.ClocksList(
+            {"value": saved}, "worldclocks", DialogSettings(),
+            self.module.common.TimezoneResolver(fake_pytz, None))
         values = {"label": "Other Rome", "timezone": "Europe/Rome"}
 
         choice = clocks.resolve_timezone_choice(values)
