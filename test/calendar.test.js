@@ -1901,12 +1901,32 @@ test("settings churn rebuilds the header only when week geometry changes", () =>
     cal.setDate(new Date(2026, 6, 9), true);
     const headerBefore = cal._monthLabel;
 
-    cal._onSettingsChange(null, "unrelated-key", 0, 1);
+    cal._onGridGeometryChanged();
     assert.equal(cal._monthLabel, headerBefore, "same geometry: header actors kept");
 
     cal.show_week_numbers = !cal.show_week_numbers;
-    cal._onSettingsChange(null, "show-week-numbers", false, true);
+    cal._onGridGeometryChanged();
     assert.notEqual(cal._monthLabel, headerBefore, "geometry change rebuilds header");
+});
+
+// T977: the desktop first-day-of-week handler is the only caller that may move
+// the week start; the two bind-path callers never could, because Cinnamon
+// invokes them as (value, user_data) and the old key test never matched.
+test("the first-weekday handler recomputes the week start and rebuilds", () => {
+    const cal = makeCalendar();
+    cal.setDate(new Date(2026, 6, 9), true);
+    const headerBefore = cal._monthLabel;
+    assert.equal(cal._weekStart, 0);
+
+    global.imports.gi.Cinnamon.util_get_week_start = () => 1;
+    try {
+        cal._onFirstWeekdayChanged();
+    } finally {
+        global.imports.gi.Cinnamon.util_get_week_start = () => 0;
+    }
+
+    assert.equal(cal._weekStart, 1, "week start comes from the desktop");
+    assert.notEqual(cal._monthLabel, headerBefore, "week geometry moved: header rebuilt");
 });
 
 // T978: destroy() cancelled the pending idle but set no flag, so any later
@@ -2033,7 +2053,7 @@ test("day cells: geometry change rebuilds the grid with week-number labels", () 
     assert.equal(cal._gridView.weekLabels.length, 0);
 
     cal.show_week_numbers = true;
-    cal._onSettingsChange(null, "show-week-numbers", false, true);
+    cal._onGridGeometryChanged();
 
     const after = dayButtons(cal);
     assert.equal(after.length, 42);
@@ -2065,7 +2085,7 @@ test("day cells: refreshes and month navigation do not rebuild the grid", () => 
     cal._update(); // same-month refresh, e.g. events-updated
     cal.setDate(new Date(2026, 7, 9), true); // month navigation
     cal.weekend_length = 1;
-    cal._onSettingsChange(null, "weekend-length", 2, 1); // style-only setting
+    cal._onGridGeometryChanged(); // style-only setting
 
     assert.equal(rebuilds, 0);
     const after = dayButtons(cal);
@@ -2075,7 +2095,7 @@ test("day cells: refreshes and month navigation do not rebuild the grid", () => 
     }
 
     cal.show_week_numbers = true;
-    cal._onSettingsChange(null, "show-week-numbers", false, true);
+    cal._onGridGeometryChanged();
     assert.equal(rebuilds, 1, "week-number geometry still rebuilds the grid");
 });
 
@@ -2101,7 +2121,7 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
     };
 
     cal.weekend_length = 1;
-    cal._onSettingsChange(null, "weekend-length", 2, 1);
+    cal._onGridGeometryChanged();
 
     assert.equal(rebuilds, 0, "weekend length is style-only, no rebuild");
     assert.equal(nonwork().length, 1, "one weekend heading after the change");
@@ -2155,7 +2175,7 @@ test("week-number gutter gets a header cell sized by digit width", () => {
     assert.equal(cal._weekdateHeader, null, "no gutter header without week numbers");
 
     cal.show_week_numbers = true;
-    cal._onSettingsChange(null, "show-week-numbers", false, true);
+    cal._onGridGeometryChanged();
 
     assert.ok(cal._weekdateHeader, "gutter header exists with week numbers");
     const placement = cal.actor.placements.find((p) => p.child === cal._weekdateHeader);
@@ -2172,7 +2192,7 @@ test("week-number gutter gets a header cell sized by digit width", () => {
     assert.equal(cal._weekdateHeader.width, 9, "3 digits at 3px each");
 
     cal.show_week_numbers = false;
-    cal._onSettingsChange(null, "show-week-numbers", true, false);
+    cal._onGridGeometryChanged();
     assert.equal(cal._weekdateHeader, null, "gutter header cleared on rebuild");
 });
 

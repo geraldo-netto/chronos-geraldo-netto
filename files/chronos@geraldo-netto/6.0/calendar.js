@@ -23,7 +23,6 @@ const DateFormats = AppletModules.dateFormats;
 const LocaleQuery = AppletModules.localeQuery;
 const LocaleText = AppletModules.localeText;
 const StyleUtils = AppletModules.styleUtils;
-const SettingsFacade = require("./settingsFacade");
 const UiVocabulary = require("./uiVocabulary");
 const EventDataModule = require("./eventData");
 const CalendarNavigation = require("./calendarNavigation");
@@ -52,8 +51,6 @@ const GTK_CALENDAR_ORDER_MSGID = 'calendar:MY';
 
 const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
-// the key name itself lives in the settings boundary, with the schema
-const FIRST_WEEKDAY_KEY = SettingsFacade.FIRST_DAY_OF_WEEK_KEY;
 // weekday, day, month and year: what a sighted user reads off the grid
 // The visible full date is locale-ordered through the shared format, so a
 // hardcoded day-month order here meant an en_US user saw "Saturday, July 12,
@@ -693,8 +690,8 @@ class Calendar {
         this._update_id = 0;
         this._destroyed = false;
 
-        this.settings.bindShowWeekNumbers(this, "show_week_numbers", this._onSettingsChange);
-        this.settings.bindWeekendLength(this, "weekend_length", this._onSettingsChange);
+        this.settings.bindShowWeekNumbers(this, "show_week_numbers", this._onGridGeometryChanged);
+        this.settings.bindWeekendLength(this, "weekend_length", this._onGridGeometryChanged);
         // The applet already owns a Gio.Settings for this schema and already
         // listens to it; a second object for the same schema meant two owners
         // of the same thing, so it is handed in. There is no fallback
@@ -702,7 +699,7 @@ class Calendar {
         // fallback existed only for tests that did not.
         this.desktop_settings = desktop_settings;
         this._desktop_settings_signal_ids =
-            this.desktop_settings.connectFirstDayOfWeekChanged(this._onSettingsChange.bind(this));
+            this.desktop_settings.connectFirstDayOfWeekChanged(this._onFirstWeekdayChanged.bind(this));
 
         // The weekday abbreviations and the weekend days come from the locale
         // query, which answers after the first paint — and they are both LC_TIME.
@@ -875,8 +872,22 @@ class Calendar {
         return this._weekStart + "|" + this.show_week_numbers;
     }
 
-    _onSettingsChange(object, key) {
-        if (key == FIRST_WEEKDAY_KEY) this._weekStart = Cinnamon.util_get_week_start();
+    // Two callers, two contracts. Cinnamon's bindWithObject invokes its
+    // callback as (value, user_data) and Gio's "changed::" handler as
+    // (settings, key), so one method taking (object, key) meant its parameters
+    // named different things per caller and the key test was dead on the bind
+    // path. Each contract gets its own zero-argument entry point and they
+    // share the rebuild below.
+    _onGridGeometryChanged() {
+        this._applySettingsChange();
+    }
+
+    _onFirstWeekdayChanged() {
+        this._weekStart = Cinnamon.util_get_week_start();
+        this._applySettingsChange();
+    }
+
+    _applySettingsChange() {
         // destroying and rebuilding the header on unrelated settings churn
         // is wasted allocation; only grid geometry affects it
         const signature = this._headerSignature();
