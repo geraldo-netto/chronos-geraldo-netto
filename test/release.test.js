@@ -70,6 +70,18 @@ async function initializeReleaseRepository(root) {
         "commit", "--quiet", "-m", "release fixture");
 }
 
+// The journal a bump would have published, taken from a fixture that really was
+// bumped so every version owner in it is self-consistent.
+async function pendingTransactionEntries(t, before) {
+    const completed = await makeBumpedReleaseFixture(t);
+    const after = await releaseSnapshot(completed);
+    return RELEASE_FILES.map((relative, index) => ({
+        target: relative.split(path.sep).join("/"),
+        before: before[index],
+        after: after[index]
+    }));
+}
+
 async function makeBumpedReleaseFixture(t) {
     const root = await makeReleaseFixture(t);
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
@@ -261,7 +273,7 @@ test("the release bump rejects bad input before touching any file", async (t) =>
 
 test("release recovery rejects malformed transaction journals", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
-    const { checkRelease } = await import(releaseUrl);
+    const { recoverRelease } = await import(releaseUrl);
 
     for (const [name, manifest, expected] of [
         ["wrong target count", JSON.stringify({ version: 1, entries: [] }), /invalid target list/],
@@ -280,8 +292,30 @@ test("release recovery rejects malformed transaction journals", async (t) => {
         const transaction = path.join(root, ".chronos-release-transaction");
         await fs.mkdir(transaction);
         await fs.writeFile(path.join(transaction, "manifest.json"), manifest);
-        await assert.rejects(checkRelease(root), expected, `accepted ${name}`);
+        await assert.rejects(recoverRelease(root), expected, `accepted ${name}`);
     }
+});
+
+// T1019: `check` is what CI runs, and it used to apply any pending journal and
+// then call the version it had just written consistent. Recovery is a separate,
+// explicitly requested command now, and `check` reports the pending state.
+test("release:check refuses a pending transaction instead of applying it", async (t) => {
+    const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
+    const { checkRelease, recoverRelease } = await import(releaseUrl);
+    const root = await makeReleaseFixture(t);
+    const before = await releaseSnapshot(root);
+    const transaction = path.join(root, ".chronos-release-transaction");
+    await fs.mkdir(transaction);
+    await fs.writeFile(path.join(transaction, "manifest.json"),
+        JSON.stringify({ version: 1, entries: await pendingTransactionEntries(t, before) }));
+
+    await assert.rejects(checkRelease(root), /pending release transaction exists/);
+    assert.deepEqual(await releaseSnapshot(root), before,
+        "check must not write the release targets it reports on");
+    await fs.access(transaction);
+
+    assert.equal(await recoverRelease(root), "0.0.2");
+    await assert.rejects(fs.access(transaction));
 });
 
 test("a failed transaction publish removes its staging directory", async (t) => {
@@ -301,9 +335,9 @@ test("a failed transaction publish removes its staging directory", async (t) => 
         []);
 });
 
-test("release startup removes staging left before journal publication", async (t) => {
+test("release recovery removes staging left before journal publication", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
-    const { checkRelease } = await import(releaseUrl);
+    const { checkRelease, recoverRelease } = await import(releaseUrl);
     const root = await makeReleaseFixture(t);
     const staging = path.join(root, ".chronos-release-transaction-abandoned");
     await fs.mkdir(staging);
@@ -316,7 +350,11 @@ test("release startup removes staging left before journal publication", async (t
     const unrelated = path.join(root, "notes.chronos-release-dead.tmp");
     await fs.writeFile(unrelated, "keep");
 
+    // check leaves the ground exactly as it found it; recover is the sweeper
     assert.equal(await checkRelease(root), "0.0.1");
+    await fs.access(staging);
+
+    assert.equal(await recoverRelease(root), "0.0.1");
     await assert.rejects(fs.access(staging));
     for (const temporary of orphaned) {
         await assert.rejects(fs.access(temporary));
@@ -328,7 +366,7 @@ test("release startup removes staging left before journal publication", async (t
 
 test("release cleanup never crosses a live command lock", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
-    const { checkRelease, readProcessStartTime } = await import(releaseUrl);
+    const { readProcessStartTime, recoverRelease } = await import(releaseUrl);
     const root = await makeReleaseFixture(t);
     const lock = path.join(root, ".chronos-release-lock");
     const staging = path.join(root, ".chronos-release-transaction-active");
@@ -338,12 +376,12 @@ test("release cleanup never crosses a live command lock", async (t) => {
     }));
     await fs.mkdir(staging);
 
-    await assert.rejects(checkRelease(root),
+    await assert.rejects(recoverRelease(root),
         new RegExp(`another release command is running as process ${process.pid}`));
     await fs.access(staging);
     await fs.rm(lock);
 
-    assert.equal(await checkRelease(root), "0.0.1");
+    assert.equal(await recoverRelease(root), "0.0.1");
     await assert.rejects(fs.access(staging));
 });
 
@@ -550,9 +588,9 @@ test("process start identities parse the comm field safely", async () => {
     }), /permission denied/);
 });
 
-test("an interrupted release transaction is completed before the next check", async (t) => {
+test("an interrupted release transaction is completed by an explicit recovery", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
-    const { bumpRelease, checkRelease } = await import(releaseUrl);
+    const { bumpRelease, recoverRelease } = await import(releaseUrl);
     const interrupted = await makeReleaseFixture(t);
     const completed = await makeReleaseFixture(t);
     await bumpRelease(completed, "0.0.2");
@@ -570,13 +608,13 @@ test("an interrupted release transaction is completed before the next check", as
         JSON.stringify({ version: 1, entries }));
     await fs.writeFile(path.join(interrupted, RELEASE_FILES[0]), entries[0].after);
 
-    assert.equal(await checkRelease(interrupted), "0.0.2");
+    assert.equal(await recoverRelease(interrupted), "0.0.2");
     await assert.rejects(fs.access(transaction), "the completed transaction is removed");
 });
 
 test("release recovery preserves files edited after interruption", async (t) => {
     const releaseUrl = pathToFileURL(path.join(ROOT, "scripts", "release.mjs")).href;
-    const { bumpRelease, checkRelease } = await import(releaseUrl);
+    const { bumpRelease, recoverRelease } = await import(releaseUrl);
     const interrupted = await makeReleaseFixture(t);
     const completed = await makeReleaseFixture(t);
     await bumpRelease(completed, "0.0.2");
@@ -596,7 +634,7 @@ test("release recovery preserves files edited after interruption", async (t) => 
     });
     const edited = await fs.readFile(path.join(interrupted, "package.json"), "utf8");
 
-    await assert.rejects(checkRelease(interrupted),
+    await assert.rejects(recoverRelease(interrupted),
         /conflicts with modified files: package\.json/);
     assert.equal(await fs.readFile(path.join(interrupted, "package.json"), "utf8"), edited);
     await fs.access(transaction);

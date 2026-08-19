@@ -305,12 +305,18 @@ async function cleanupReleaseStaging(root) {
     await cleanupReleaseTemporaries(root);
 }
 
-async function withReleaseLock(root, action) {
+// `recover` is what separates a reporting command from a mutating one: only a
+// command that is allowed to finish an interrupted release sweeps the staging
+// directories and applies the journal. `release:check` runs in CI, so it holds
+// the same lock but touches nothing -- see `refusePendingTransaction`.
+async function withReleaseLock(root, action, { recover = true } = {}) {
     const lock = await acquireReleaseLock(root);
     let result;
     let actionError = null;
     try {
-        await cleanupReleaseStaging(root);
+        if (recover) {
+            await cleanupReleaseStaging(root);
+        }
         result = await action();
     } catch (error) {
         actionError = error;
@@ -344,8 +350,12 @@ function compareVersions(left, right) {
     return 0;
 }
 
-async function readReleaseFiles(root) {
-    await recoverReleaseTransaction(root);
+async function readReleaseFiles(root, { recover = true } = {}) {
+    if (recover) {
+        await recoverReleaseTransaction(root);
+    } else {
+        await refusePendingTransaction(root);
+    }
     const original = await Promise.all(RELEASE_TARGETS.map((relative) =>
         readFile(path.join(root, ...relative.split("/")), "utf8")));
     return {
@@ -400,16 +410,33 @@ async function divergentReleaseTargets(root, transaction) {
     return divergent;
 }
 
-async function recoverReleaseTransaction(root) {
-    const transaction = path.join(root, TRANSACTION_DIR);
-    let manifest;
+async function readTransactionManifest(root) {
     try {
-        manifest = JSON.parse(await readFile(path.join(transaction, TRANSACTION_MANIFEST), "utf8"));
+        return JSON.parse(await readFile(
+            path.join(root, TRANSACTION_DIR, TRANSACTION_MANIFEST), "utf8"));
     } catch (error) {
         if (error?.code === "ENOENT") {
-            return;
+            return null;
         }
         throw error;
+    }
+}
+
+// A read-only command must not decide for the operator that a half-applied
+// release is what the tree should hold. It says so and stops instead, so a CI
+// run cannot report "consistent" about files it has just rewritten itself.
+async function refusePendingTransaction(root) {
+    if (await readTransactionManifest(root)) {
+        throw new Error(
+            "a pending release transaction exists; run npm run release:recover");
+    }
+}
+
+async function recoverReleaseTransaction(root) {
+    const transaction = path.join(root, TRANSACTION_DIR);
+    const manifest = await readTransactionManifest(root);
+    if (!manifest) {
+        return;
     }
     const divergent = await divergentReleaseTargets(root, manifest);
     if (divergent.length > 0) {
@@ -516,13 +543,21 @@ export function validateReleaseTag(projectRoot, tag, releaseBranch = RELEASE_BRA
 export async function checkRelease(projectRoot, tag, releaseBranch = RELEASE_BRANCH_REF) {
     const root = path.resolve(projectRoot);
     return withReleaseLock(root, async () => {
-        const files = await readReleaseFiles(root);
+        const files = await readReleaseFiles(root, { recover: false });
         const version = validateReleaseFiles(files, tag);
         if (tag !== undefined && tag !== null && tag !== "") {
             validateReleaseTag(root, tag, releaseBranch);
         }
         return version;
-    });
+    }, { recover: false });
+}
+
+// The mutating half of what `check` used to do implicitly: finish an
+// interrupted bump and clear its staging leftovers, then report the version the
+// tree now holds.
+export async function recoverRelease(projectRoot) {
+    const root = path.resolve(projectRoot);
+    return withReleaseLock(root, async () => validateReleaseFiles(await readReleaseFiles(root)));
 }
 
 // The bump used to re-serialise every target, and `JSON.stringify(metadata,
@@ -588,6 +623,9 @@ if (import.meta.url === scriptPath) {
     if (command === "check") {
         const version = await checkRelease(projectRoot, process.argv[3], process.argv[4]);
         process.stdout.write(`release metadata is consistent at v${version}\n`);
+    } else if (command === "recover") {
+        const version = await recoverRelease(projectRoot);
+        process.stdout.write(`release metadata recovered at v${version}\n`);
     } else if (command === "bump") {
         if (!process.argv[3]) {
             throw new Error("usage: npm run release:bump -- <major.minor.patch>");

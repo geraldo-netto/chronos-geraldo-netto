@@ -27,6 +27,7 @@
     "package:spices": "node scripts/package-spices.mjs",
     "release:bump": "node scripts/release.mjs bump",
     "release:check": "node scripts/release.mjs check",
+    "release:recover": "node scripts/release.mjs recover",
     "test": "npm run test:js && npm run test:py",
     "test:js": "node test/helpers/coverage.js",
     "test:py": "python3 test/helpers/coverage.py"
