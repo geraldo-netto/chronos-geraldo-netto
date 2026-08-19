@@ -115,9 +115,11 @@ test("on_applet_removed_from_panel tears everything down", () => {
     });
     Proto.on_applet_removed_from_panel.call(stub);
     // the menu is parented to Main.uiGroup: nothing else would ever destroy it
+    // T971: the settings are finalized first, so no `changed::` can reach a
+    // handler whose collaborators are being destroyed below it
     assert.deepEqual(torn, [
-        ["builder"], ["calendar"], ["list"], ["unmanage"], ["menu"],
-        ["lifecycle"], ["settings"]
+        ["settings"], ["builder"], ["calendar"], ["list"], ["unmanage"],
+        ["menu"], ["lifecycle"]
     ]);
 });
 
@@ -495,13 +497,13 @@ test("a half-built applet still tears down what it managed to build", () => {
     // the keybinding is bound inside the constructor's try, so a failure after
     // that left a live global hotkey opening a menu that no longer exists
     assert.deepEqual(torn, [
-        ["hotkey", 9, "calendar-open"], ["lifecycle"], ["settings"]
+        ["hotkey", 9, "calendar-open"], ["settings"], ["lifecycle"]
     ]);
 
     // removal after a failed construction must not tear down twice
     Proto.on_applet_removed_from_panel.call(stub);
     assert.deepEqual(torn, [
-        ["hotkey", 9, "calendar-open"], ["lifecycle"], ["settings"]
+        ["hotkey", 9, "calendar-open"], ["settings"], ["lifecycle"]
     ]);
 
     keybindings.removeXletHotKey = originalRemove;

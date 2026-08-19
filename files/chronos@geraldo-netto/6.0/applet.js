@@ -648,6 +648,18 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // failure after that point used to leave a live global hotkey bound
             // to a destroyed applet — pressing it opened a menu that was gone
             () => Main.keybindingManager.removeXletHotKey(this, "calendar-open"),
+            // Before the collaborators, not after them. Every settings handler
+            // this applet owns ends in a live object — `_onWorldclocksChanged`
+            // reaches `this._worldclocks.buildClocks`, which attaches actors —
+            // and finalize() is what disconnects them. Finalizing last meant
+            // the handlers stayed connected across the destruction of the menu
+            // builder, the menu and the provider lifecycle, so a `changed::`
+            // arriving in that window ran against torn-down objects. Nothing in
+            // the list below spins the main loop today, so it was unreachable
+            // rather than safe; the ordering makes it unreachable by
+            // construction. The binder holds no settings state of its own
+            // (destroy() drops one idle), so it is unaffected by going second.
+            () => finalizeIfPresent(this.settings),
             () => destroyIfPresent(this._settingsBinder),
             // The menu builder connects five signals on the events manager and
             // the event list, and it constructed the calendar and the event
@@ -665,7 +677,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             () => removeOwnedMenu(this),
             () => destroyIfPresent(this.menu),
             () => destroyIfPresent(this._providerLifecycle),
-            () => finalizeIfPresent(this.settings),
             // the locale query's deadline and its retry are module-level timers
             // with no other owner: without this the retry can still spawn
             // `locale` two minutes after the applet is gone
