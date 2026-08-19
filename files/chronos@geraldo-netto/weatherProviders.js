@@ -63,6 +63,7 @@ const nominatimGeocodeUrl = WeatherServiceAdapters.nominatimGeocodeUrl;
 const nominatimGeocodePlace = WeatherServiceAdapters.nominatimGeocodePlace;
 const forecastUrl = WeatherServiceAdapters.forecastUrl;
 const openMeteoReading = WeatherServiceAdapters.openMeteoReading;
+const openMeteoTimezone = WeatherServiceAdapters.openMeteoTimezone;
 const aviationWeatherUrl = WeatherServiceAdapters.aviationWeatherUrl;
 const aviationWeatherReading = WeatherServiceAdapters.aviationWeatherReading;
 const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
@@ -481,7 +482,10 @@ var FORECAST_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
         name: WEATHER_PROVIDER_NAMES.OPEN_METEO,
         url: (place) => forecastUrl(place),
         normalize: (data) => (data && data.current_weather ? // NOSONAR [S6582] -- accepted compatible form
-            openMeteoReading(data) : null)
+            openMeteoReading(data) : null),
+        // the one provider that can say where the place it just described is:
+        // a hint about the place, kept off the reading record
+        timezoneFor: (data) => openMeteoTimezone(data)
     },
     {
         name: WEATHER_PROVIDER_NAMES.AVIATION_WEATHER,
@@ -504,11 +508,13 @@ var FORECAST_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
 // or west, and the same city reading differently depending on which geocoder
 // answered. The forecast reply already names the point's zone, so the place is
 // completed from the round trip that was being made anyway.
-function placeWithTimezone(place, reading) {
-    if (!place || place.timezone || !reading?.timezone) {
+//
+// A geocoded zone wins: this only completes a place that has none.
+function placeWithTimezone(place, timezone) {
+    if (!place || place.timezone || !timezone) {
         return place;
     }
-    return {...place, timezone: reading.timezone};
+    return {...place, timezone};
 }
 
 var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504] -- GJS importer export
@@ -530,24 +536,37 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
             this._providers, this._last_forecast_provider);
     }
 
+    // One provider's turn: what it said the weather is, and whatever it was
+    // able to say about the place. A zone is only worth having from the answer
+    // that is being believed, so a provider that failed to describe the weather
+    // does not get to name the place either.
+    _forecastAttempt(provider, place, isCurrent, onResult) {
+        this._httpGetJson(provider.url(place), (data) => {
+            if (!isCurrent()) {
+                return;
+            }
+            const reading = provider.normalize(data, place);
+            onResult({
+                reading,
+                timezone: reading && provider.timezoneFor ?
+                    provider.timezoneFor(data) : ""
+            });
+        }, provider.options || {});
+    }
+
     _tryForecastProviders(providers, place, isCurrent, callback) {
         ProviderUtils.tryProvidersInOrder(
             providers,
-            (provider, onResult) => {
-                this._httpGetJson(provider.url(place), (data) => {
-                    if (!isCurrent()) {
-                        return;
-                    }
-                    onResult(provider.normalize(data, place));
-                }, provider.options || {});
-            },
-            (reading) => Boolean(reading), // NOSONAR [S7770] -- accepted compatible form
-            (provider, reading) => {
+            (provider, onResult) => this._forecastAttempt(
+                provider, place, isCurrent, onResult),
+            (result) => Boolean(result && result.reading), // NOSONAR [S7770] -- accepted compatible form
+            (provider, result) => {
                 this._last_forecast_provider = provider.name;
-                // the port ends here: a reading record, and who answered. No
-                // display text is built on this path at all — the presenter that
-                // knows the units renders it, once, at the edge that shows it
-                callback(reading, "", provider.name);
+                // the port ends here: a reading record, who answered, and any
+                // hint about the place that answer carried. No display text is
+                // built on this path at all — the presenter that knows the units
+                // renders it, once, at the edge that shows it
+                callback(result.reading, "", provider.name, result.timezone);
             },
             () => {
                 if (global.log) {
@@ -718,8 +737,8 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         }
         request.place = place;
         this.forecastResolver.refresh(place, requestIsCurrent,
-            (reading, forecastError, provider) => {
-                request.place = placeWithTimezone(request.place, reading);
+            (reading, forecastError, provider, timezone) => {
+                request.place = placeWithTimezone(request.place, timezone);
                 this._complete(key, request, reading, forecastError, provider);
             });
     }

@@ -327,16 +327,24 @@ function weatherReading(weather) {
     return { condition: weatherIcon(weather.weathercode), temperatureC: weather.temperature };
 }
 
+function openMeteoReading(data) {
+    return weatherReading(data.current_weather);
+}
+
 // forecastUrl asks timezone=auto, so the reply names the zone of the very point
 // it describes. That is the only authoritative zone available for a place the
 // Nominatim fallback resolved — it publishes none — and for anything Open-Meteo
 // geocoding refused under MIN_TRUSTED_GEOCODE_POPULATION, and it costs no extra
-// request. The zone rides on the reading only when the service actually sent
-// one, so a reading without it stays exactly the record it was.
-function openMeteoReading(data) {
-    const reading = weatherReading(data.current_weather);
-    const timezone = reading ? geocodeTimezone(data.timezone) : "";
-    return timezone ? {...reading, timezone} : reading;
+// request.
+//
+// It is a fact about the *place*, so it is answered separately from the
+// reading. It used to ride on the reading record, which is documented in three
+// places as the unit-free `{ condition, temperatureC }` and is cached, stored
+// and handed to presenters: its shape then depended on which provider in the
+// failover chain answered. The forecast registry carries this as the
+// `timezoneFor` hook, and the repository merges it into the place.
+function openMeteoTimezone(data) {
+    return geocodeTimezone(data?.timezone);
 }
 
 const MET_NO_ICON_RULES = [
@@ -615,6 +623,6 @@ if (typeof module !== "undefined") {
         weatherIcon, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, forecastUrl,
         metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, finiteNumber,
         aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon,
-        metNoSummary, metNoWeatherReading, openMeteoReading,
+        metNoSummary, metNoWeatherReading, openMeteoReading, openMeteoTimezone,
         openMeteoGeocodePlace, nominatimGeocodePlace, foldPlaceName };
 }

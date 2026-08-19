@@ -516,6 +516,42 @@ test("a place its geocoder could not place in time takes the forecast's zone", (
         "and the cached observer the astronomy view reads carries it too");
 });
 
+// T946: the zone is a fact about the place. Riding it on the reading made the
+// record - documented as unit-free `{ condition, temperatureC }`, cached and
+// handed to presenters - a different shape according to which provider in the
+// failover chain answered.
+test("the reading record is the same shape whichever provider answered", () => {
+    const Weather = loadWeather();
+    const readings = [];
+    const forecasts = {
+        "Ushuaia": {
+            timezone: "America/Argentina/Ushuaia",
+            current_weather: { weathercode: 0, temperature: 4 }
+        }
+    };
+    const httpGetJson = (url, callback) => {
+        if (url.includes("geocoding-api")) {
+            callback({ results: [{
+                name: "Ushuaia", latitude: -54.8, longitude: -68.3,
+                population: 1000000
+            }] });
+            return;
+        }
+        callback(forecasts.Ushuaia);
+    };
+    const repository = new Weather.WeatherReadingRepository({
+        httpGetJson,
+        requestQueue: { enqueue: (start) => start() },
+        cacheSeconds: 1800
+    });
+
+    repository.refresh("Ushuaia", () => true, (reading) => readings.push(reading));
+
+    assert.deepEqual(readings, [{ condition: "☀", temperatureC: 4 }]);
+    assert.deepEqual(Object.keys(readings[0]).sort(), ["condition", "temperatureC"],
+        "the Open-Meteo reading carries no more than the other two providers'");
+});
+
 test("a geocoder that named the zone keeps it against a disagreeing forecast", () => {
     const Weather = loadWeather();
     const httpGetJson = (url, callback) => {
@@ -550,14 +586,16 @@ test("a geocoded zone is never overwritten by the forecast's", () => {
     const Weather = loadWeather();
     const place = { name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "Europe/Rome" };
 
-    assert.equal(Weather.placeWithTimezone(place, { timezone: "Etc/UTC" }), place,
+    assert.equal(Weather.placeWithTimezone(place, "Etc/UTC"), place,
         "the geocoder named the place; the forecast only describes a point near it");
-    assert.equal(Weather.placeWithTimezone(null, { timezone: "Etc/UTC" }), null);
+    assert.equal(Weather.placeWithTimezone(null, "Etc/UTC"), null);
 
     const bare = { name: "Ushuaia", latitude: -54.8, longitude: -68.3 };
-    assert.equal(Weather.placeWithTimezone(bare, null), bare, "a failed forecast adds nothing");
-    assert.equal(Weather.placeWithTimezone(bare, { condition: "☀" }), bare,
+    assert.equal(Weather.placeWithTimezone(bare, ""), bare, "a failed forecast adds nothing");
+    assert.equal(Weather.placeWithTimezone(bare, undefined), bare,
         "and neither does a provider that does not publish zones");
+    assert.deepEqual(Weather.placeWithTimezone(bare, "America/Argentina/Ushuaia"),
+        {...bare, timezone: "America/Argentina/Ushuaia"});
 });
 
 test("a failed refresh retries sooner than the refresh period, with backoff", () => {
