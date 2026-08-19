@@ -2701,6 +2701,7 @@ test("the locale query's timers can be reaped when the applet goes away", () => 
     global.imports.gi.GLib.source_remove = (id) => removed.push(id);
 
     // asking for the locale arms the deadline; the query fails and arms the retry
+    localeQuery.registerLocaleConsumer();
     localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
     assert.ok(armed.length > 0, "the deadline is armed");
 
@@ -2733,6 +2734,7 @@ test("a timer that will not be removed does not strand the ones behind it", () =
         removed.push(id);
     };
 
+    localeQuery.registerLocaleConsumer();
     localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
     // The synchronous failure above needs only a retry. Keep a second locale
     // query genuinely in flight so teardown also owns a live deadline.
@@ -2754,6 +2756,7 @@ test("a timer that will not be removed does not strand the ones behind it", () =
 // that would have cancelled it is gone too, so the teardown cancels it directly.
 test("the teardown cancels the locale subprocess still in flight", () => {
     const localeQuery = loadLocaleModules({ neverAnswers: true });
+    localeQuery.registerLocaleConsumer();
     localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
 
     const cancellable = global.imports.gi.Gio.Cancellable.last;
@@ -2764,6 +2767,28 @@ test("the teardown cancels the locale subprocess still in flight", () => {
 
     assert.equal(cancellable.cancelled, true,
         "the subprocess is not left running after the applet is gone");
+});
+
+// T955: a release with no matching register is not "the last consumer left".
+// Answering it as one cancelled every in-flight query — including the surviving
+// instance's, the regression the consumer count exists to prevent.
+test("an unbalanced teardown does not cancel an in-flight query", () => {
+    const localeQuery = loadLocaleModules({ neverAnswers: true });
+
+    // a query is in flight and no consumer is registered against it
+    localeQuery.lazyLocaleValue("LC_TIME", (info) => info.abday)();
+    const cancellable = global.imports.gi.Gio.Cancellable.last;
+    assert.ok(cancellable, "a query is in flight");
+
+    localeQuery.cancelPendingLocaleQueries();
+    assert.equal(cancellable.cancelled, false,
+        "a release with no matching register cancels nothing");
+
+    // ...while a matched one still does
+    localeQuery.registerLocaleConsumer();
+    localeQuery.cancelPendingLocaleQueries();
+    assert.equal(cancellable.cancelled, true,
+        "the registered instance's own teardown still cancels");
 });
 
 // T584: a failed env is degraded and only its armed retry may re-ask — but the

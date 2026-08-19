@@ -110,6 +110,12 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // instance's teardown from cancelling their query. Claimed before
             // anything below can throw, because the catch tears down.
             LocaleQuery.registerLocaleConsumer();
+            // Per-instance proof that this applet holds one of those counts, so
+            // a teardown that runs without a matching register — a constructor
+            // that threw before this line, a second _destroy() — releases
+            // nothing. Same convention as the weather and worldclock consumers
+            // in appletLifecycle.js.
+            this._localeConsumerRegistered = true;
 
             this.menuManager = new PopupMenu.PopupMenuManager(this);
             this.orientation = orientation;
@@ -680,10 +686,19 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             // the locale query's deadline and its retry are module-level timers
             // with no other owner: without this the retry can still spawn
             // `locale` two minutes after the applet is gone
-            () => LocaleQuery.cancelPendingLocaleQueries()
+            () => this._releaseLocaleConsumer()
         ];
 
         runTeardownSteps(steps);
+    }
+
+    // Give back exactly the one consumer count this instance took, and only if
+    // it took one.
+    _releaseLocaleConsumer() {
+        if (this._localeConsumerRegistered) {
+            this._localeConsumerRegistered = false;
+            LocaleQuery.cancelPendingLocaleQueries();
+        }
     }
 
     // The one place that reads the desktop's own geometry. Everything the

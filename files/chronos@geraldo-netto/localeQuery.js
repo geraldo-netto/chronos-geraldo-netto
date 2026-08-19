@@ -99,9 +99,13 @@ function _resumeLocaleQuery(env) {
     _requestInfo(env, Boolean(degraded[env]));
 }
 
+// A release with no matching register is not the last consumer leaving; it is
+// a bug in the caller. Answering `true` there would cancel every in-flight
+// query — including the surviving instance's — which is the one outcome the
+// comment above exists to prevent. Say "no" and let the survivor keep waiting.
 function _lastLocaleConsumerLeft() {
     if (_consumers === 0) {
-        return true;
+        return false;
     }
     _consumers--;
     return _consumers === 0;
