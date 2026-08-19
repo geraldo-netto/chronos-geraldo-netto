@@ -83,6 +83,12 @@ var NOMINATIM_MIN_INTERVAL_MS = 1000; // NOSONAR [S3504] -- GJS importer export
 // The public Nominatim service permits one request at a time and at most one
 // request per second. This queue is module-global so every applet instance and
 // both the panel and world-clock weather paths share the same budget.
+// Held in `_timer_id` while `_schedule` is being called and before it has
+// answered with a real source id, so the slot is occupied for the whole arming
+// window. Negative because GLib source ids are positive, which lets every
+// reader tell "arming" from "armed" and from "idle" without a second field.
+const ARMING_TIMER_ID = -1;
+
 var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
         this._elapsed_now = params.elapsedNow || params.now ||
@@ -113,10 +119,12 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
     // geocode with nothing to retry it until its next refresh period.
     cancelPending() {
         this._jobs = [];
-        if (this._timer_id) {
+        // > 0 rather than truthy: the sentinel names a source that does not
+        // exist yet, and GLib would report removing it as a programming error.
+        if (this._timer_id > 0) {
             this._removeTimer(this._timer_id);
-            this._timer_id = 0;
         }
+        this._timer_id = 0;
         // The active request cannot be cancelled here and still owns the
         // release closure created by _drain(). Keep its slot occupied until
         // that closure runs; a replacement consumer may enqueue meanwhile.
@@ -186,8 +194,16 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
         }
     }
 
+    // `_schedule` is injectable, and nothing in its contract says the callback
+    // may not run before it returns. If it does, the callback clears
+    // `_timer_id` and drains — and writing the returned id back afterwards
+    // would park a spent id in the slot that `_drain()` treats as "a timer is
+    // pending", wedging this module-global queue for every applet instance in
+    // the process until `cancelPending()` runs. So the slot is claimed before
+    // arming and the real id is written only if it is still ours to write.
     _scheduleJob(job, delay) {
         this._jobs.unshift(job);
+        this._timer_id = ARMING_TIMER_ID;
         try {
             const timerId = this._schedule(delay, () => {
                 this._timer_id = 0;
@@ -197,8 +213,15 @@ var NominatimRequestQueue = class NominatimRequestQueue { // NOSONAR [S3504] -- 
             if (!timerId) {
                 throw new Error("Nominatim queue could not register its spacing timer");
             }
-            this._timer_id = timerId;
+            if (this._timer_id === ARMING_TIMER_ID) {
+                this._timer_id = timerId;
+            }
         } catch (error) {
+            // Nothing was armed, and `_reportParkedFailure` drains: release the
+            // slot first or the queue stalls on its own sentinel.
+            if (this._timer_id === ARMING_TIMER_ID) {
+                this._timer_id = 0;
+            }
             this._removeParkedJob(job);
             this._reportParkedFailure(job, error);
         }

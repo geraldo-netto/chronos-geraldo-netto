@@ -1083,6 +1083,53 @@ test("Nominatim requests are single-flight and use bounded elapsed delays", () =
         "a broken elapsed-time port cannot turn a backward jump into an unbounded wait");
 });
 
+// T956: the spacing timer's id used to be written back after `schedule`
+// returned, so a scheduler that ran its callback in line parked an already
+// spent id in `_timer_id`. `_drain()` reads that slot as "a timer is pending",
+// which wedges this module-global queue for every applet instance in the
+// process. GLib's timeout_add is asynchronous, so only an injected or future
+// in-line scheduler reaches it — but the blast radius is the whole panel.
+test("a synchronous scheduler does not wedge the Nominatim queue", () => {
+    const Weather = loadWeather();
+    let now = 0;
+    let scheduled = 0;
+    const starts = [];
+    const releases = [];
+    const queue = new Weather.NominatimRequestQueue({
+        elapsedNow: () => now,
+        schedule(delay, callback) {
+            scheduled++;
+            now += delay;
+            callback();
+            return scheduled;
+        }
+    });
+
+    queue.enqueue((release) => {
+        starts.push(now);
+        releases.push(release);
+    });
+    queue.enqueue((release) => {
+        starts.push(now);
+        releases.push(release);
+    });
+
+    assert.deepEqual(starts, [0], "only one request is in flight");
+    releases.shift()();
+    assert.equal(scheduled, 1, "the second job waits out the interval");
+    assert.deepEqual(starts, [0, Weather.NOMINATIM_MIN_INTERVAL_MS],
+        "the in-line callback dispatched the queued job");
+
+    // the slot must be free again, or nothing enqueued later ever starts
+    releases.shift()();
+    queue.enqueue((release) => {
+        starts.push(now);
+        releases.push(release);
+    });
+    assert.equal(starts.length, 3,
+        "a later job still starts after a synchronous spacing timer");
+});
+
 test("a delayed Nominatim dispatch failure completes its provider chain", () => {
     const Weather = loadWeather();
     let now = 0;
