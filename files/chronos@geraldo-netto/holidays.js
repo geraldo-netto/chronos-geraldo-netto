@@ -647,7 +647,13 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     }
 
     _getHolidaysWhenReady(year, month, callback, generation) {
+        // Settle a destroyed provider the same way the opt-out below settles,
+        // for the same reason: the annotator counts one callback per call and
+        // reconciles only at zero, so a silent return leaves the month label
+        // showing its pending marker and the previous country's holiday cells
+        // for the life of the grid.
         if (this._destroyed) {
+            callback(new Map(), "", "");
             return;
         }
         // The read was queued for a place the user intentionally left.
@@ -669,6 +675,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
 
     getHolidays (year, month, callback) {
         if (this._destroyed) {
+            callback(new Map(), "", "");
             return;
         }
         // The annotator splits its "YYYY/M" month keys, so both arrive as

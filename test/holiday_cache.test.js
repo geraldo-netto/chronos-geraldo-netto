@@ -2058,9 +2058,11 @@ test("a failing abandoned holiday reader cannot interrupt place retirement", () 
     assert.equal(enrico.last_provider, "");
 });
 
-// after destroy the actors a repaint would touch are gone: a late grid read
-// stays silent, exactly like retrieveForYear already does
-test("a grid read after destroy neither fetches nor answers", () => {
+// T975: after destroy the actors a repaint would touch are gone, so a late grid
+// read must not fetch — but it must still settle. calendarAnnotations counts one
+// callback per getHolidays() and reconciles only at zero, so a silent return left
+// the month label pending and the previous country's cells on the grid forever.
+test("a grid read after destroy settles empty without fetching", () => {
     const { HolidayCache, HolidayService } = loadHolidays();
     const fresh = new Date(Date.now() - 60000).toUTCString();
     const cache = new HolidayCache((_country, done) => done({
@@ -2071,12 +2073,14 @@ test("a grid read after destroy neither fetches nor answers", () => {
     enrico.setPlace("usa", "global");
     enrico.destroy();
 
-    let answered = 0;
-    assert.doesNotThrow(() => enrico.getHolidays(FIXED_YEAR, 7, () => answered++));
-    assert.equal(answered, 0);
+    const answers = [];
+    assert.doesNotThrow(() => enrico.getHolidays(
+        FIXED_YEAR, 7, (dates, error, provider) => answers.push([dates.size, error, provider])));
+    assert.deepEqual(answers, [[0, "", ""]],
+        "settled empty, and not as a transient provider failure");
 });
 
-test("destroy silences a pending read delivered by an injected cache", () => {
+test("destroy settles a pending read without reading through the cache", () => {
     const { HolidayService } = loadHolidays();
     let deliverReady = null;
     let matches = 0;
@@ -2098,7 +2102,7 @@ test("destroy silences a pending read delivered by an injected cache", () => {
     enrico.destroy();
     deliverReady();
 
-    assert.equal(answered, 0);
+    assert.equal(answered, 1, "the pending read settles rather than stranding the annotator");
     assert.equal(matches, 0, "the dead service does not read through its cache");
 });
 
