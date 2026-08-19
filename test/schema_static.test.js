@@ -500,6 +500,13 @@ test("CI runs the gates the README promises", () => {
         "python3 scripts/check_python_compat.py");
     assert.match(pkg.scripts.lint, /npm run check:python-runtime/,
         "the ordinary local and CI lint gate enforces shipped Python syntax");
+    // T937: eslint and the Node suite parse this tree with espree and with
+    // Node. The applet runs on SpiderMonkey behind Cinnamon's cjs, and a form
+    // both Node parsers accept and that runtime rejects would ship green. The
+    // job that installs Cinnamon is the one that has cjs to ask.
+    assert.equal(pkg.scripts["check:cjs-syntax"], "cjs scripts/check_cjs_syntax.js");
+    assert.match(workflow, /install --no-install-recommends cinnamon gettext[\s\S]*?run: npm run check:cjs-syntax/,
+        "the shipped tree is compiled by the runtime that runs it");
     // Read the floor out of the README rather than repeating it, so the two
     // cannot drift: this assertion pinned '3.8' as a literal, which made it a
     // third place to edit and a silent way for the matrix and the requirements

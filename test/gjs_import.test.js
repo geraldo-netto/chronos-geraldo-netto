@@ -1,5 +1,6 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
+const { spawnSync } = require("node:child_process");
 const vm = require("node:vm");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -576,4 +577,30 @@ test("root modules never call require() outside the Node guard", () => {
                 `${moduleName}.js: unguarded require: ${line}`);
         }
     }
+});
+
+
+// T937: everything above reproduces the importer's semantics with a vm context,
+// and eslint parses this tree with espree. Neither is the runtime: the applet
+// runs on SpiderMonkey behind Cinnamon's cjs, and a form both Node parsers
+// accept and that runtime rejects would ship green.
+//
+// `scripts/check_cjs_syntax.js` compiles every shipped file with the real thing
+// and CI runs it in the job that installs Cinnamon. Here it runs when the
+// developer has cjs — Linux Mint does — and says so when they do not, rather
+// than passing silently either way.
+test("the shipped tree compiles under the cjs that runs it", () => {
+    const root = path.join(__dirname, "..");
+    const probe = spawnSync("cjs", ["--version"], { encoding: "utf8" });
+    if (probe.error) {
+        assert.equal(probe.error.code, "ENOENT",
+            "cjs is either usable or absent; anything else is a broken install");
+        return;
+    }
+
+    const result = spawnSync("cjs", ["scripts/check_cjs_syntax.js"],
+        { cwd: root, encoding: "utf8" });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /compiles \d+ shipped files/);
 });

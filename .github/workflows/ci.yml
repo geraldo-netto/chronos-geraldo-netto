@@ -139,6 +139,14 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install --no-install-recommends cinnamon gettext
 
       - run: npm ci
+
+      # This job installs Cinnamon, so it is the one job that has the runtime
+      # the applet actually runs on. eslint and the Node suite parse the tree
+      # with espree and with Node; neither is cjs, and a form both accept and
+      # SpiderMonkey rejects would otherwise ship green. Syntax only, and only
+      # on whichever cjs this image carries — not the declared 6.0 floor.
+      - run: npm run check:cjs-syntax
+
       - run: npm run release:check
       - run: npm run i18n:check
       - run: npm run package:spices

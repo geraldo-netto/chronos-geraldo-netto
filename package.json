@@ -19,6 +19,7 @@
   "private": true,
   "scripts": {
     "audit:deps": "npm audit --audit-level=high --include=dev",
+    "check:cjs-syntax": "cjs scripts/check_cjs_syntax.js",
     "check:python-runtime": "python3 scripts/check_python_compat.py",
     "lint": "npm run check:python-runtime && npm run lint:js && npm run lint:py",
     "lint:js": "eslint .",
