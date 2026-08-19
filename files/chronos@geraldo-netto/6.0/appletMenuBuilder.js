@@ -25,8 +25,10 @@ const MenuLayout = require("./menuLayout");
 const UiVocabulary = require("./uiVocabulary");
 const Worldclocks = require("./worldclocks");
 const AstronomyView = require("./astronomyView");
+const AppletTeardown = require("./appletTeardown");
 
 const _ = LocaleText.translate;
+const runTeardownSteps = AppletTeardown.runTeardownSteps;
 const HOME_KEY_SYMBOLS = UiVocabulary.ACTIVATION_KEY_SYMBOLS;
 const ISSUE_MARKER = AppletModules.textUtils.WARNING_MARKER;
 const MAIN_BOX_STYLE_CLASS = "calendar-main-box";
@@ -368,13 +370,7 @@ class AppletMenuBuilder {
             }
         ];
 
-        for (const step of steps) {
-            try {
-                step();
-            } catch (e) {
-                global.logError(e);
-            }
-        }
+        runTeardownSteps(steps);
     }
 
     _buildHomeButton(calbox) {

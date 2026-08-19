@@ -23,12 +23,14 @@ const LocaleText = AppletModules.localeText;
 const AppletPanelStatus = require("./appletPanelStatus");
 const PanelFont = require("./panelFont");
 const AppletMenu = require("./appletMenuBuilder");
+const AppletTeardown = require("./appletTeardown");
 const Main = imports.ui.main;
 const AppletSettingsBinder = AppletLifecycle.AppletSettingsBinder;
 const AppletProviderLifecycle = AppletLifecycle.AppletProviderLifecycle;
 const AppletPanelStatusPresenter = AppletPanelStatus.AppletPanelStatusPresenter;
 const PanelView = AppletPanelStatus.PanelView;
 const AppletMenuBuilder = AppletMenu.AppletMenuBuilder;
+const runTeardownSteps = AppletTeardown.runTeardownSteps;
 const AppletWeatherCoordinator = AppletCoordinators.AppletWeatherCoordinator;
 const AppletEventListCoordinator = AppletCoordinators.AppletEventListCoordinator;
 const _ = LocaleText.translate;
@@ -52,16 +54,6 @@ function finalizeIfPresent(settings) {
 function removeOwnedMenu(applet) {
     if (applet.menu && applet.menuManager) {
         applet.menuManager.removeMenu(applet.menu);
-    }
-}
-
-function runTeardownSteps(steps) {
-    for (const step of steps) {
-        try {
-            step();
-        } catch (e) {
-            global.logError(e);
-        }
     }
 }
 

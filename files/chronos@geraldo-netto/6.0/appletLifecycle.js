@@ -24,8 +24,10 @@ const Holidays = require("./holidays");
 const SettingsFacade = require("./settingsFacade");
 const WorldclockData = require("./worldclockData");
 const HolidayConstants = require("./holidayConstants");
+const AppletTeardown = require("./appletTeardown");
 const LocaleQuery = imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
 
+const runTeardownSteps = AppletTeardown.runTeardownSteps;
 const NO_HOLIDAYS = SettingsFacade.NO_HOLIDAYS;
 const SUPPORTED_COUNTRIES = HolidayConstants.SUPPORTED_COUNTRIES;
 
@@ -583,9 +585,7 @@ class AppletProviderLifecycle {
         }
     }
 
-    // Every step runs even if an earlier one throws: a teardown that stops at the
-    // first failure leaves the rest of the applet's signals and timers connected
-    // to a destroyed object for the life of the session.
+    // runTeardownSteps: every step runs even if an earlier one throws.
     destroy() {
         this._destroyed = true;
 
@@ -606,13 +606,7 @@ class AppletProviderLifecycle {
             () => this._releaseWorldclockConsumer()
         ];
 
-        for (const step of steps) {
-            try {
-                step();
-            } catch (e) {
-                global.logError(e);
-            }
-        }
+        runTeardownSteps(steps);
     }
 }
 
