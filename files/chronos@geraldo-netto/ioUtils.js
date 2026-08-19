@@ -704,6 +704,7 @@ var LazyHttpSession = class LazyHttpSession { // NOSONAR [S3504] -- GJS importer
             idleTimeout: HTTP_TIMEOUT_SECONDS
         }));
         this._session = null;
+        this._aborted = false;
     }
 
     // null until something has asked: "no session yet" and "a session that was
@@ -712,7 +713,14 @@ var LazyHttpSession = class LazyHttpSession { // NOSONAR [S3504] -- GJS importer
         return this._session;
     }
 
+    // abort() is terminal, not a reset: both owners call it from destroy(), and a
+    // request arriving after that would otherwise build a Soup graph nothing is
+    // left to abort. httpGetJson reports a null session through the same
+    // failed-dispatch port as any other network failure.
     get() {
+        if (this._aborted) {
+            return null;
+        }
         if (!this._session) {
             this._session = this._create();
         }
@@ -725,6 +733,7 @@ var LazyHttpSession = class LazyHttpSession { // NOSONAR [S3504] -- GJS importer
     abort() {
         const session = this._session;
         this._session = null;
+        this._aborted = true;
         if (session && session.abort) { // NOSONAR [S6582] -- accepted compatible form
             session.abort();
         }

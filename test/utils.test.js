@@ -1443,14 +1443,17 @@ test("aborting a lazy HTTP session releases the transport", () => {
         }
     }));
 
-    lazy.abort();
-    assert.equal(lazy.created, null, "aborting before first use remains free");
-
     const first = lazy.get();
     lazy.abort();
     assert.equal(first.aborted, true);
     assert.equal(lazy.created, null, "the aborted Soup graph is no longer retained");
-    assert.notEqual(lazy.get(), first, "a later owner can lazily create a fresh session");
+    assert.equal(lazy.get(), null, "abort is terminal: no session is built after it");
+    assert.equal(creations, 1, "a late request does not construct a session nothing owns");
+
+    const unused = new utils.LazyHttpSession(() => ({ abort() {} }));
+    unused.abort();
+    assert.equal(unused.created, null, "aborting before first use remains free");
+    assert.equal(unused.get(), null, "and still closes the session for good");
 
     const throwing = new utils.LazyHttpSession(() => ({
         abort() {
