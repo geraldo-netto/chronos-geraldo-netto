@@ -722,7 +722,7 @@ test("disabling events quiesces the pipeline and re-enables from an empty index"
         .filter((callback) => typeof callback === "function");
 
     manager.settings.showEvents = false;
-    manager.set_enabled(false);
+    manager.disableIfOff(false);
 
     assert.equal(abandonedFetch.cancellable.cancelled, true,
         "the disabled feature cancels its in-flight D-Bus request");
@@ -751,7 +751,7 @@ test("disabling events quiesces the pipeline and re-enables from an empty index"
         "inactive server signals never enter the mutation stream");
 
     manager.settings.showEvents = true;
-    manager.set_enabled(true);
+    manager.disableIfOff(true);
     manager.select_date(selected, true);
     const replacementFetch = server.set_time_range_calls[1];
     assert.ok(replacementFetch);

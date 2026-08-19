@@ -145,7 +145,15 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         }
     }
 
-    set_enabled(enabled) {
+    // Named for the half it implements. It was `set_enabled(enabled)`, which
+    // promises both halves of the transition and delivers one: the enable path
+    // did nothing at all, and `AppletEventListCoordinator.apply` compensated
+    // with a forced `select_date` the manager appeared to have made
+    // unnecessary. The enable half stays with the coordinator because the date
+    // to re-select is the calendar's selection, which this class does not own -
+    // its own `current_selected_date` is the last window it fetched, not the
+    // day the user is looking at.
+    disableIfOff(enabled) {
         if (!enabled) {
             this._quiesce_event_pipeline();
         }

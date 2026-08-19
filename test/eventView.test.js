@@ -934,7 +934,7 @@ test("desktop clock-format changes repaint existing event rows", () => {
     const coordinator = new CoordinatorModule.AppletEventListCoordinator({
         manager: {
             is_active: () => true,
-            set_enabled: () => {},
+            disableIfOff: () => {},
             select_date: (...args) => selections.push(args)
         },
         eventList: () => list,

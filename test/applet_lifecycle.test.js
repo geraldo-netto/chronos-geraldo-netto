@@ -1444,7 +1444,7 @@ test("settings and weather changes update dependent views", () => {
         },
         events_manager: {
             is_active: () => true,
-            set_enabled: (enabled) => calls.push(["events-enabled", enabled]),
+            disableIfOff: (enabled) => calls.push(["events-enabled", enabled]),
             select_date: (date, force) => calls.push(["select", force])
         },
         _calendar: { getSelectedDate: () => new Date(2026, 6, 9) }

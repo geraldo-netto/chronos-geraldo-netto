@@ -147,7 +147,10 @@ class AppletEventListCoordinator {
         }
         if (enabled !== this._appliedShowEvents) {
             this._appliedShowEvents = enabled;
-            this.manager.set_enabled(enabled);
+            // off: the manager quiesces its own pipeline. On: the window to
+            // fetch is the day the calendar has selected, which is this
+            // coordinator's to say.
+            this.manager.disableIfOff(enabled);
             if (enabled) {
                 this.manager.select_date(this.selectedDate(), true);
             }

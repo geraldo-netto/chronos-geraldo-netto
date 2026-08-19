@@ -108,7 +108,7 @@ test("turning events off reaches the calendar grid's data-availability state", (
     const coordinator = new CoordinatorModule.AppletEventListCoordinator({
         manager: {
             is_active: () => false,
-            set_enabled: (value) => enabled.push(value),
+            disableIfOff: (value) => enabled.push(value),
             select_date: (...args) => selected.push(args)
         },
         eventList: () => ({
