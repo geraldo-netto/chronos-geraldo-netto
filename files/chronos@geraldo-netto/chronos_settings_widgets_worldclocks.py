@@ -442,6 +442,26 @@ class ClockDialogBuilder:
         return self.clocks_list.entry_serializer.initial_dialog_data(info)
 
     def build_content(self, dialog, data):
+        content = self._build_frame(dialog)
+        columns = self._decorate_columns()
+
+        preview_label = self._build_preview_label()
+        presenter = ClockDialogStatePresenter(
+            self.clocks_list, dialog, preview_label, data.get("timezone"))
+        widgets = {}
+
+        def on_widget_changed(bind_object):
+            presenter.update(widgets)
+
+        self._add_field_rows(content, columns, data, widgets, on_widget_changed)
+        self._add_footer(content, preview_label, bool(widgets))
+
+        on_widget_changed(None)
+
+        return widgets
+
+    def _build_frame(self, dialog):
+        """Dialog chrome only: margins, the framed view, and the box inside it."""
         content_area = dialog.get_content_area()
         content_area.set_margin_right(30)
         content_area.set_margin_left(30)
@@ -456,31 +476,40 @@ class ClockDialogBuilder:
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         frame.add(content)
+        return content
 
-        # both columns come from the schema, which is where the list's column
-        # headings already live; the dialog adds what only it needs.
-        #
-        # By id, not by position: this used to decorate schema_columns[0] and
-        # [1], so reordering the schema would have put the timezone
-        # completions and the city placeholder on the Display name field.
+    def _decorate_columns(self):
+        """The schema's columns plus the three decorations only the dialog needs.
+
+        Both columns come from the schema, which is where the list's column
+        headings already live; the dialog adds what only it needs.
+
+        By id, not by position: this used to decorate schema_columns[0] and
+        [1], so reordering the schema would have put the timezone completions
+        and the city placeholder on the Display name field. A missing id is
+        skipped rather than raised: the schema is pinned by the suite, and a
+        modal that opens with an undecorated entry beats one that cannot open.
+        """
         schema_columns = self.clocks_list.settings.get_property(
             self.clocks_list.key, 'columns')
         by_id = {column["id"]: dict(column) for column in schema_columns}
-        by_id["label"]["max_length"] = MAX_CLOCK_INPUT_LABEL_LENGTH
-        by_id["timezone"]["completions"] = self.clocks_list.completions
-        by_id["timezone"]["placeholder"] = TIMEZONE_TEXT_HINT
-        # the label column has always been bounded and this one was not, so
-        # ListEditEntry's `if max_length` guard skipped set_max_length and the
-        # entry accepted arbitrary text — which the match func then scanned once
-        # per row of the several-hundred-row completion model, per keystroke,
-        # on the GTK main thread
-        by_id["timezone"]["max_length"] = common.MAX_COMPLETION_INPUT_LENGTH
+        if "label" in by_id:
+            by_id["label"]["max_length"] = MAX_CLOCK_INPUT_LABEL_LENGTH
+        if "timezone" in by_id:
+            by_id["timezone"]["completions"] = self.clocks_list.completions
+            by_id["timezone"]["placeholder"] = TIMEZONE_TEXT_HINT
+            # the label column has always been bounded and this one was not, so
+            # ListEditEntry's `if max_length` guard skipped set_max_length and
+            # the entry accepted arbitrary text — which the match func then
+            # scanned once per row of the several-hundred-row completion model,
+            # per keystroke, on the GTK main thread
+            by_id["timezone"]["max_length"] = common.MAX_COMPLETION_INPUT_LENGTH
 
         # ...but the schema's order still decides which entry is on top, so the
         # dialog reads in the same order as the list's own headings
-        columns = [by_id[column["id"]] for column in schema_columns]
+        return [by_id[column["id"]] for column in schema_columns]
 
-        widgets = {}
+    def _build_preview_label(self):
         preview_label = Gtk.Label()
         preview_label.set_xalign(0)
         # A Gtk.Label does not wrap unless it is told to, and these two carry
@@ -489,12 +518,9 @@ class ClockDialogBuilder:
         # on a 1366 px screen, or in any language whose translation runs longer,
         # the dialog ran off the monitor.
         wrap_label(preview_label)
-        presenter = ClockDialogStatePresenter(
-            self.clocks_list, dialog, preview_label, data.get("timezone"))
+        return preview_label
 
-        def on_widget_changed(bind_object):
-            presenter.update(widgets)
-
+    def _add_field_rows(self, content, columns, data, widgets, on_widget_changed):
         for col in columns:
             if len(widgets) != 0:
                 content.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
@@ -513,7 +539,8 @@ class ClockDialogBuilder:
             if data[col['id']] is not None:
                 widget.set_widget_value(data[col['id']])
 
-        if len(widgets) != 0:
+    def _add_footer(self, content, preview_label, has_fields):
+        if has_fields:
             content.add(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL))
         content.add(preview_label)
 
@@ -526,10 +553,6 @@ class ClockDialogBuilder:
             wrap_label(hint)
             hint.set_text(NO_TIMEZONE_DATA_HINT)
             content.add(hint)
-
-        on_widget_changed(None)
-
-        return widgets
 
     def collect_values(self, widgets, original_timezone=None):
         label = widgets['label'].get_widget_value()
