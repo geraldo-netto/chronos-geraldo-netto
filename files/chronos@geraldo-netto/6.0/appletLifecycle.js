@@ -264,8 +264,7 @@ class AppletProviderLifecycle {
         this.weatherRepository = null;
         this.weatherProvider = null;
         this.cityWeatherProvider = null;
-        this._weatherConsumerRegistered = false;
-        this._worldclockConsumerRegistered = false;
+        this._moduleConsumerReleases = [];
         this.eventsManager = null;
         this.holidayProvider = null;
         this.holidayRegions = {};
@@ -283,27 +282,17 @@ class AppletProviderLifecycle {
     initProviders() {
         const context = this.context;
 
-        // The Nominatim request queue is module-global — one request-per-second
-        // budget for every instance on the panel — so, like the locale query,
-        // it is released by the last instance to leave rather than the first.
-        const weatherConsumerReady =
-            typeof Weather.registerWeatherConsumer === "function" &&
-            typeof Weather.cancelPendingWeatherRequests === "function";
-        // ...and the timezone-to-city memo behind the per-clock weather, for
-        // the same reason: one module-level table, every instance on the panel
-        const worldclockConsumerReady =
-            typeof WorldclockData.registerWorldclockConsumer === "function" &&
-            typeof WorldclockData.releaseWorldclockConsumer === "function";
+        // Two module-global resources are shared by every applet instance on
+        // the panel and so are released by the last instance to leave rather
+        // than the first: Nominatim's one-request-per-second queue, and the
+        // timezone-to-city memo behind the per-clock weather. Both count their
+        // consumers the same way, so both are claimed the same way here.
+        const weatherConsumerReady = this._claimModuleConsumer(
+            Weather, "registerWeatherConsumer", "releaseWeatherConsumer");
+        const worldclockConsumerReady = this._claimModuleConsumer(
+            WorldclockData, "registerWorldclockConsumer", "releaseWorldclockConsumer");
         if (!weatherConsumerReady || !worldclockConsumerReady) {
             context.onUpgradeRequired();
-        }
-        if (weatherConsumerReady) {
-            Weather.registerWeatherConsumer();
-            this._weatherConsumerRegistered = true;
-        }
-        if (worldclockConsumerReady) {
-            WorldclockData.registerWorldclockConsumer();
-            this._worldclockConsumerRegistered = true;
         }
         this.clock = this.factories.clock();
         this.networkState = this.factories.networkState();
@@ -571,18 +560,27 @@ class AppletProviderLifecycle {
         }
     }
 
-    _releaseWeatherConsumer() {
-        if (this._weatherConsumerRegistered) {
-            this._weatherConsumerRegistered = false;
-            Weather.cancelPendingWeatherRequests();
+    // A root module older than this one exports neither half, and half a
+    // consumer count is worse than none: register without a release leaks the
+    // resource, release without a register takes a surviving instance's state
+    // down with it. So both halves are probed, and nothing is claimed unless
+    // both are there. The release is recorded as a one-shot closure, so the
+    // applet releases exactly what it claimed, exactly once.
+    _claimModuleConsumer(module, registerName, releaseName) {
+        if (typeof module[registerName] !== "function" ||
+            typeof module[releaseName] !== "function") {
+            return false;
         }
-    }
-
-    _releaseWorldclockConsumer() {
-        if (this._worldclockConsumerRegistered) {
-            this._worldclockConsumerRegistered = false;
-            WorldclockData.releaseWorldclockConsumer();
-        }
+        module[registerName]();
+        let released = false;
+        this._moduleConsumerReleases.push(() => {
+            if (released) {
+                return;
+            }
+            released = true;
+            module[releaseName]();
+        });
+        return true;
     }
 
     // runTeardownSteps: every step runs even if an earlier one throws.
@@ -602,8 +600,8 @@ class AppletProviderLifecycle {
             () => this._releaseDesktopSettings(),
             () => this._releaseLogind(),
             () => this._releaseMonitorSignals(),
-            () => this._releaseWeatherConsumer(),
-            () => this._releaseWorldclockConsumer()
+            // each its own step, so a throw in one release still runs the other
+            ...this._moduleConsumerReleases
         ];
 
         runTeardownSteps(steps);

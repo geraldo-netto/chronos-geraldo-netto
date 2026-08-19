@@ -355,12 +355,12 @@ test("the composition root registers and releases its weather consumer", () => {
     // handle the tests read is a copy and patching it would reach nothing
     const WeatherModule = rootModules.weather;
     const originalRegister = WeatherModule.registerWeatherConsumer;
-    const originalCancel = WeatherModule.cancelPendingWeatherRequests;
+    const originalCancel = WeatherModule.releaseWeatherConsumer;
     const originalClockRegister = WorldclockData.registerWorldclockConsumer;
     const originalClockRelease = WorldclockData.releaseWorldclockConsumer;
     const calls = [];
     WeatherModule.registerWeatherConsumer = () => calls.push("register");
-    WeatherModule.cancelPendingWeatherRequests = () => calls.push("release");
+    WeatherModule.releaseWeatherConsumer = () => calls.push("release");
     // the timezone-to-city memo behind the per-clock weather is module state on
     // the same footing, and it is claimed and given back at the same two points
     WorldclockData.registerWorldclockConsumer = () => calls.push("register:clocks");
@@ -379,7 +379,7 @@ test("the composition root registers and releases its weather consumer", () => {
             "and the teardown gives both back");
     } finally {
         WeatherModule.registerWeatherConsumer = originalRegister;
-        WeatherModule.cancelPendingWeatherRequests = originalCancel;
+        WeatherModule.releaseWeatherConsumer = originalCancel;
         WorldclockData.registerWorldclockConsumer = originalClockRegister;
         WorldclockData.releaseWorldclockConsumer = originalClockRelease;
     }
@@ -388,7 +388,7 @@ test("the composition root registers and releases its weather consumer", () => {
 test("stale root consumer APIs request a restart without breaking the applet", () => {
     const modulesAndMethods = [
         [rootModules.weather, "registerWeatherConsumer"],
-        [rootModules.weather, "cancelPendingWeatherRequests"],
+        [rootModules.weather, "releaseWeatherConsumer"],
         [rootModules.worldclockData, "registerWorldclockConsumer"],
         [rootModules.worldclockData, "releaseWorldclockConsumer"]
     ];

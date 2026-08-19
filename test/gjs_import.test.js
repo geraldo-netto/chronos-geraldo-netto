@@ -163,6 +163,10 @@ function gjsImportsMock() {
                         },
                         providerUtils: {
                             backoffDelay() {},
+                            moduleConsumerCount: () => ({
+                                register() {},
+                                release() {}
+                            }),
                             orderProvidersByLastSuccess() {},
                             tryProvidersInOrder() {},
                             validSourceId() {},
@@ -336,7 +340,8 @@ const EXPORTS = {
         "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "monthWindowStartOffset", "dateFormatWithinLimit", "dateFormatOrDefault",
         "clampClockStamp", "formatDateWithFallback"],
-    providerUtils: ["backoffDelay", "ExpiringLruCache", "orderProvidersByLastSuccess", "validSourceId", "tryProvidersInOrder"],
+    providerUtils: ["backoffDelay", "ExpiringLruCache", "moduleConsumerCount",
+        "orderProvidersByLastSuccess", "validSourceId", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale",
         "MAX_WEATHER_LOCATION_LENGTH", "normalizeWeatherLocation",

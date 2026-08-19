@@ -38,6 +38,9 @@ const ClockLimits = IS_NODE ?
 const IoUtils = IS_NODE ?
     require("./ioUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].ioUtils;
+const ProviderUtils = IS_NODE ?
+    require("./providerUtils") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
 const _ = LocaleText.translate;
 
 var MAX_CLOCKS = ClockLimits.MAX_CLOCKS; // NOSONAR [S3504] -- GJS importer export
@@ -180,21 +183,16 @@ function timezoneWeatherCity(timezone) {
 // applet instance on the panel — and it is shared by all of them, like the
 // Nominatim spacing queue and the locale query handles. The last one to leave
 // releases it; the first to arrive claims it before anything can throw.
-let _worldclockConsumers = 0;
+const _worldclockConsumers = ProviderUtils.moduleConsumerCount({
+    onLastRelease: () => weatherCityMemo.clear()
+});
 
 function registerWorldclockConsumer() {
-    _worldclockConsumers++;
+    _worldclockConsumers.register();
 }
 
 function releaseWorldclockConsumer() {
-    if (_worldclockConsumers > 0) {
-        _worldclockConsumers--;
-    }
-    if (_worldclockConsumers > 0) {
-        return;
-    }
-
-    weatherCityMemo.clear();
+    _worldclockConsumers.release();
 }
 
 // The city the machine's own timezone names, for a weather location nobody has

@@ -270,9 +270,48 @@ function tryProvidersInOrder(providers, attempt, accept, onSuccess, onExhausted)
     step(0, null);
 }
 
+// Several root modules hold a table or a queue that is deliberately process-wide
+// — one per importer-loaded module, shared by every applet instance on the panel
+// — and must therefore be torn down by the *last* instance to leave, not the
+// first. That rule was written out by hand in each of them, which is how the two
+// copies came to disagree about what the release half is even called. One
+// definition: the count lives in the closure, `register` runs `onFirstRegister`
+// when the count leaves zero, and `release` runs `onRelease` unconditionally and
+// `onLastRelease` only when the count reaches zero. A release with no matching
+// register cannot drive the count negative, so a caller that releases twice
+// cannot tear down a surviving instance's state.
+function moduleConsumerCount(handlers = {}) {
+    const { onFirstRegister, onRelease, onLastRelease } = handlers;
+    let count = 0;
+
+    return {
+        get count() {
+            return count;
+        },
+        register() {
+            count++;
+            if (count === 1 && onFirstRegister) {
+                onFirstRegister();
+            }
+        },
+        release(...args) {
+            if (count > 0) {
+                count--;
+            }
+            if (onRelease) {
+                onRelease(...args);
+            }
+            if (count === 0 && onLastRelease) {
+                onLastRelease(...args);
+            }
+        }
+    };
+}
+
 if (typeof module !== "undefined") {
     module.exports = {
         backoffDelay,
+        moduleConsumerCount,
         ExpiringLruCache,
         notifyAll,
         providerName,

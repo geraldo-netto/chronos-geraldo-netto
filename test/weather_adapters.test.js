@@ -807,7 +807,8 @@ test("weather.js composes the panel provider from the parts it needs", () => {
     const module = require(modulePath);
     assert.deepEqual(Object.keys(module).sort(), [
         "WeatherDisplayState", "WeatherProvider", "WeatherReadingRepository",
-        "cancelPendingWeatherRequests", "registerWeatherConsumer"
+        "cancelPendingWeatherRequests", "registerWeatherConsumer",
+        "releaseWeatherConsumer"
     ], "and it exports its own bindings, which is what GJS can see");
 
     // the harness composes the parts when a test wants one handle for them

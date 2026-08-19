@@ -8,6 +8,7 @@ const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", 
 const dataModulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "worldclockData.js");
 const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "worldclockData.js");
 const ioUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
+const providerUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "providerUtils.js");
 const localeTextPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeText.js");
 const textUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "textUtils.js");
 const style52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "stylesheet.css");
@@ -1327,7 +1328,8 @@ test("worldclockData exposes the same API under the GJS importer and under Node"
                             textUtils: {
                                 clampText: (text, max) => String(text).slice(0, max)
                             },
-                            ioUtils: { readTextFileCapped: () => "" }
+                            ioUtils: { readTextFileCapped: () => "" },
+                            providerUtils: require(providerUtilsPath)
                         }
                     }
                 }
