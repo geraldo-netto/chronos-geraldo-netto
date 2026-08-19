@@ -3192,6 +3192,30 @@ test("the cache can be given a different freshness and a different window", () =
         "and a zero-year window keeps only this year");
 });
 
+// T987: the two policies were re-exported from the barrel under a comment
+// saying the composition root could hand the cache different ones without
+// reaching past it — and nothing forwarded them, so the only way in was to
+// build the whole cache by hand and inject it as `cache`.
+test("the composition root can hand the cache its staleness policy", () => {
+    const { createHolidayProvider, HolidayFreshness, HolidayPersistWindow } = loadHolidays();
+    const provider = createHolidayProvider({
+        freshness: new HolidayFreshness({ updatePeriod: 1, retryPeriod: 1 }),
+        persistWindow: new HolidayPersistWindow({ yearWindow: 0, maxRows: 3 }),
+        service: { fetch() {} }
+    });
+    const cache = provider._base._provider.cache;
+
+    cache.setPlace("fra", "global");
+    const now = Date.UTC(2026, 6, 14, 12);
+    cache.recordFetch(2026, "global", new Date(now).toUTCString(),
+        [{ year: 2026, month: 7, day: 14, region: "global", name: "Fête", flags: [] }]);
+
+    assert.equal(cache.stale(2026, "global", now + 10), true,
+        "the injected one-millisecond update period is the policy in force");
+    assert.equal(cache._persist_window._year_window, 0,
+        "and the persistence window is the injected one too");
+});
+
 // T986: each incoming row is capped at MAX_HOLIDAY_FLAGS on the way in, and the
 // merge of two same-day rows was not — so a union of disjoint flag sets could
 // mint a row the loader would reject, at which point _country saw a row count

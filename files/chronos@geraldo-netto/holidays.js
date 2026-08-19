@@ -100,8 +100,11 @@ var Provider = class Provider { // NOSONAR [S3504] -- GJS importer export
 
 var HolidayCacheRepository = HolidayCacheModule.HolidayCacheRepository; // NOSONAR [S3504] -- GJS importer export
 var HolidayCache = HolidayCacheModule.HolidayCache; // NOSONAR [S3504] -- GJS importer export
-// the two policies the cache is given, re-exported so the composition root and
-// the suite can hand it different ones without reaching past the barrel
+// The two policies the cache is given, re-exported so the composition root and
+// the suite can hand it different ones without reaching past the barrel:
+// `createHolidayProvider({ freshness, persistWindow })` threads them down to
+// HolidayCache. They used to be re-exported under this claim while nothing
+// forwarded them, so substituting one meant building the whole cache by hand.
 var HolidayFreshness = HolidayCacheModule.HolidayFreshness; // NOSONAR [S3504] -- GJS importer export
 var HolidayPersistWindow = HolidayCacheModule.HolidayPersistWindow; // NOSONAR [S3504] -- GJS importer export
 var UPDATE_PERIOD = HolidayCacheModule.UPDATE_PERIOD; // NOSONAR [S3504] -- GJS importer export
@@ -260,7 +263,10 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         // A repository was built here unconditionally — a real one, resolving a
         // real path — even when a cache was injected and it could never be used.
         // It is built only when it is the thing that backs the cache.
-        this.cache = cache || this._fileBackedCache(params.cacheRepository);
+        this.cache = cache || this._fileBackedCache(params.cacheRepository, {
+            freshness: params.freshness,
+            persistWindow: params.persistWindow
+        });
         this._inflight = params.inflight || new HolidayInflight();
         // per year+region: two months of the same grid can be fetched
         // concurrently, and a shared status field would report the loser's
@@ -275,14 +281,19 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         this._place_generation = 0;
     }
 
-    _fileBackedCache(repository) {
+    // `policies` is HolidayCache's own `{ freshness, persistWindow }` seam,
+    // threaded from the composition root. It was reachable only by building the
+    // whole cache and injecting it as `cache` — which is exactly what the two
+    // re-exports in this barrel say you need not do.
+    _fileBackedCache(repository, policies = {}) {
         this.cacheRepository = repository || new HolidayCacheRepository(HolidayService.fn);
 
         return new HolidayCache(
             (country, done) => this.cacheRepository.loadAsync(country, done),
             // persist() passes the cache's own country, so writing it back
             // through the setter would be a no-op
-            (country, data) => this.cacheRepository.save(country, data)
+            (country, data) => this.cacheRepository.save(country, data),
+            policies
         );
     }
 
@@ -730,6 +741,10 @@ function createHolidayProvider(params = {}) {
         httpSession: session,
         record,
         cacheRepository: params.cacheRepository,
+        // the staleness and persistence policies HolidayCache takes; the
+        // classes for them are re-exported from this module beside it
+        freshness: params.freshness,
+        persistWindow: params.persistWindow,
         status: params.status,
         inflight: params.inflight
     });
