@@ -856,7 +856,6 @@ class Calendar {
         this._gridView.reset();
         this._monthWindows.invalidate();
         this._holidayAnnotator.release();
-        this._gridHost.reportIssue("holidays", "");
     }
 
     _update_event_data_availability() {
