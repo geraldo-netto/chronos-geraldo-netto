@@ -795,6 +795,69 @@ test("stopping the scheduler drops a debounce that never fired", () => {
     assert.equal(scheduled.length, 1, "the queued refresh never ran");
 });
 
+// T1046: the same hazard NominatimRequestQueue._scheduleJob spells out. Nothing
+// in the timer port's contract says the debounce callback may not run before the
+// arming call returns, and `queue` used to write the returned id into the slot
+// afterwards regardless — parking a spent id that the next stop() handed to
+// GLib.source_remove. The removal of the previous debounce had the same shape:
+// the id stayed in the slot while the re-arm ran, so a throw out of the arming
+// call left a removed id behind for stop() to remove a second time.
+test("a debounce that fires while it is being armed leaves no spent id behind", () => {
+    const Weather = loadWeather();
+    const removed = [];
+    const scheduled = [];
+    let armings = 0;
+    const scheduler = new Weather.WeatherRefreshScheduler({
+        scheduleTimer() {
+            return 11;
+        },
+        scheduleDebounceTimer(milliseconds, callback) {
+            armings++;
+            scheduled.push({ milliseconds, callback });
+            // the port runs the callback synchronously, before it answers
+            callback();
+            return 900 + armings;
+        },
+        removeTimer(id) {
+            removed.push(id);
+        }
+    });
+
+    scheduler.queue({ showWeather: true, location: "Rome", units: "si" }, () => {});
+    assert.equal(scheduled.length, 1, "a debounce was armed");
+
+    // the callback already ran and released the slot, so there is nothing left
+    // to remove — and stop() must not remove a source that has fired
+    scheduler.stop();
+    assert.deepEqual(removed, [],
+        "a debounce that already fired is not removed again");
+
+    // and a re-arm never hands the old, already-removed id back to the port
+    const throwing = new Weather.WeatherRefreshScheduler({
+        scheduleTimer() {
+            return 11;
+        },
+        scheduleDebounceTimer(milliseconds, callback) {
+            armings++;
+            if (armings > 2) {
+                throw new Error("the debounce timer could not be armed");
+            }
+            scheduled.push({ milliseconds, callback });
+            return 500;
+        },
+        removeTimer(id) {
+            removed.push(id);
+        }
+    });
+    throwing.queue({ showWeather: true, location: "Oslo", units: "si" }, () => {});
+    assert.throws(() => throwing.queue(
+        { showWeather: true, location: "Oslo2", units: "si" }, () => {}));
+    assert.deepEqual(removed, [500], "the first debounce was removed once");
+    throwing.stop();
+    assert.deepEqual(removed, [500],
+        "the removed id is not offered to GLib a second time");
+});
+
 // REGRESSION: the periodic timer was armed only after the first refresh
 // returned, so a refresh that raised left no timer at all and weather stopped
 // updating for the rest of the session — until a resume, a network restore or a

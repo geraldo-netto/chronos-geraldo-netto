@@ -44,6 +44,11 @@ const REFRESH_SECONDS = WeatherFormat.REFRESH_SECONDS;
 const RETRY_SECONDS = WeatherFormat.RETRY_SECONDS;
 const WEATHER_DEBOUNCE_MS = WeatherFormat.WEATHER_DEBOUNCE_MS;
 const MAX_RETRY_ATTEMPTS = WeatherFormat.MAX_RETRY_ATTEMPTS;
+// Claims the debounce slot while the source is being armed, so a callback that
+// runs before the arming call returns can release it and be seen to have done
+// so. Negative, because every id GLib hands out is positive and `> 0` is what
+// the teardown tests.
+const ARMING_TIMER_ID = -1;
 
 var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
@@ -189,16 +194,37 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         }
     }
 
+    // The slot is released before the old source is removed and claimed with a
+    // sentinel before the new one is armed, for the reason
+    // NominatimRequestQueue._scheduleJob states at length: nothing in the timer
+    // port's contract says the callback may not run before the arming call
+    // returns. If it does, the callback clears the slot and reschedules, and
+    // writing the returned id back afterwards would park a spent id for the next
+    // stop() to hand to GLib.source_remove. Arming that throws is the same story
+    // read backwards: leaving the removed id in the slot would offer it to GLib
+    // a second time.
     queue(settings, schedule) {
-        if (this._debounce_id > 0) {
-            this._removeTimer(this._debounce_id);
+        const pending = this._debounce_id;
+        this._debounce_id = 0;
+        if (pending > 0) {
+            this._removeTimer(pending);
         }
 
-        this._debounce_id = this._scheduleDebounceTimer(this._debounce_ms, () => {
-            this._debounce_id = 0;
-            schedule(settings);
-            return GLib.SOURCE_REMOVE;
-        });
+        this._debounce_id = ARMING_TIMER_ID;
+        let timerId = 0;
+        try {
+            timerId = this._scheduleDebounceTimer(this._debounce_ms, () => {
+                this._debounce_id = 0;
+                schedule(settings);
+                return GLib.SOURCE_REMOVE;
+            });
+        } finally {
+            // Only if the slot is still ours: a callback that has already run
+            // released it, and nothing armed is the same answer as a spent id.
+            if (this._debounce_id === ARMING_TIMER_ID) {
+                this._debounce_id = timerId > 0 ? timerId : 0;
+            }
+        }
     }
 };
 
