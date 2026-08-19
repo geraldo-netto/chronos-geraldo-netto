@@ -77,8 +77,8 @@ function registerLocaleConsumer() {
     // the previous consumer stayed on the defaults for the process lifetime
     // no matter how many attempts were left. A fresh first consumer resumes
     // the ladder where it stopped.
-    Object.keys(degraded).forEach((env) => {
-        if (degraded[env] && !(attempts[env] >= LOCALE_MAX_ATTEMPTS)) { // NOSONAR [S1940] -- mirrors _shouldAsk's cap guard
+    Object.keys(_queries).forEach((env) => {
+        if (_queries[env].degraded && _attemptsLeft(env)) {
             _resumeLocaleQuery(env);
         }
     });
@@ -86,9 +86,9 @@ function registerLocaleConsumer() {
     // deliberate — so the loop above cannot see it, and every memo would stay
     // warm on the English defaults because `localeGeneration` never moved
     // either. It never failed; it was never finished. Ask again.
-    Object.keys(unanswered).forEach((env) => {
-        if (unanswered[env]) {
-            unanswered[env] = false;
+    Object.keys(_queries).forEach((env) => {
+        if (_queries[env].unanswered) {
+            _queries[env].unanswered = false;
             _resumeLocaleQuery(env);
         }
     });
@@ -99,7 +99,7 @@ function registerLocaleConsumer() {
 // retry, so a resume that forgets the flag is silently refused — which is
 // exactly how an env already on the ladder used to stop being asked at all.
 function _resumeLocaleQuery(env) {
-    _requestInfo(env, Boolean(degraded[env]));
+    _requestInfo(env, _query(env).degraded);
 }
 
 // A release with no matching register is not the last consumer leaving; it is
@@ -136,12 +136,13 @@ function _cancelPendingTimers() {
 // agree, with force_exit() on a reaped child as the cost of disagreeing. There
 // is one record now, and holding it is what being in flight means.
 function _releaseQuery(env) {
-    requested[env] = false;
-    delete _inflight[env];
+    const query = _query(env);
+    query.requested = false;
+    query.inflight = null;
 }
 
 function _cancelPendingRequest(env) {
-    const query = _inflight[env];
+    const query = _query(env).inflight;
     if (!query) {
         return;
     }
@@ -149,7 +150,7 @@ function _cancelPendingRequest(env) {
     // lands in fail(), which degrades the env and spends an attempt, so removing
     // and re-adding the applet three times would leave the next one on the
     // English defaults with the retry ladder used up
-    abandoned[env] = true;
+    _query(env).abandoned = true;
     // The armed deadline was the only other holder of the process handle, and
     // the teardown just removed it with the rest of the timers. Cancelling the
     // read only stops us waiting: a genuinely wedged `locale` has to be
@@ -169,7 +170,7 @@ function cancelPendingLocaleQueries() {
         return;
     }
     _cancelPendingTimers();
-    Object.keys(_inflight).forEach(_cancelPendingRequest);
+    Object.keys(_queries).forEach(_cancelPendingRequest);
 }
 
 const re = /^(\w+)=(.*)$/;
@@ -183,24 +184,62 @@ const DEFAULT_LOCALE_INFO = {
         first_workday: 2
     }
 };
-const localeInfoCache = {};
-// in flight right now
-const requested = {};
-// The query in flight for an env: its cancellable, so a teardown can stop the
-// read, and its subprocess, so a teardown can kill a wedged child rather than
-// merely stop reading from it. Present exactly while the query is unsettled.
-const _inflight = {};
-// holding defaults because the query failed, and how many times it has
-const degraded = {};
-const attempts = {};
-// cancelled deliberately by the last instance's teardown, rather than failed
-const abandoned = {};
-// Envs whose query we cancelled on the way out and which no consumer was left
-// to resume. The abandoned branch deliberately skips `_storeInfo` and leaves
-// `degraded` unset — the ladder stays clean for the next applet — but that is
-// also the set `registerLocaleConsumer` resumes from, so nothing remembered the
-// env had been left mid-flight and it was never asked again for the session.
-const unanswered = {};
+// Everything this module knows about one env's query, in one record.
+//
+// It was six module-global maps keyed by env — `requested`, `_inflight`,
+// `degraded`, `attempts`, `abandoned`, `unanswered` — with invariants between
+// them (`requested` ⟺ `_inflight`; `abandoned` ⟹ skip `_degrade`; `unanswered`
+// is the resume set for envs cancelled with no consumer) enforced by hand
+// across six functions. Most of the comments in this file narrate a bug where
+// two of those maps disagreed.
+//
+// The fields are deliberately not one `state` enum: they are not exclusive.
+// A degraded env with its retry in flight is `requested` *and* `degraded`, and
+// `_shouldAsk` reads both; an abandoned query is still `inflight` until Gio
+// delivers the cancellation.
+function _newQuery() {
+    return {
+        // asked, and not yet settled. Set before the subprocess exists, so it
+        // is not the same question as `inflight`.
+        // the answer, once there is one. A default is not stored here: this
+        // being null is what "never answered" means.
+        info: null,
+        requested: false,
+        // The query in flight for an env: its cancellable, so a teardown can
+        // stop the read, and its subprocess, so a teardown can kill a wedged
+        // child rather than merely stop reading from it. Present exactly while
+        // the query is unsettled.
+        inflight: null,
+        // holding defaults because the query failed, and how many times it has
+        degraded: false,
+        attempts: 0,
+        // cancelled deliberately by the last instance's teardown, rather than
+        // failed
+        abandoned: false,
+        // Cancelled on the way out with no consumer left to resume it. The
+        // abandoned branch deliberately skips `_storeInfo` and leaves
+        // `degraded` unset — the ladder stays clean for the next applet — but
+        // that is also the set `registerLocaleConsumer` resumes from, so
+        // without this nothing remembered the env had been left mid-flight and
+        // it was never asked again for the session.
+        unanswered: false
+    };
+}
+
+const _queries = {};
+
+function _query(env) {
+    if (!_queries[env]) {
+        _queries[env] = _newQuery();
+    }
+    return _queries[env];
+}
+
+// the retry ladder is finite, and two callers ask whether it has a rung left
+function _attemptsLeft(env) {
+    return _query(env).attempts < LOCALE_MAX_ATTEMPTS;
+}
+
 const listeners = [];
 
 function _defaultInfo(env) {
@@ -301,7 +340,7 @@ function _parseInfo(env, output) {
 }
 
 function _storeInfo(env, info) {
-    localeInfoCache[env] = info;
+    _query(env).info = info;
     localeGeneration++;
     const callbacks = listeners.slice()
         .filter((entry) => entry.env === env)
@@ -313,10 +352,11 @@ function _storeInfo(env, info) {
 // settled. Another attempt is armed, up to a small cap.
 function _degrade(env) {
     _releaseQuery(env);
-    degraded[env] = true;
-    attempts[env] = (attempts[env] || 0) + 1;
+    const query = _query(env);
+    query.degraded = true;
+    query.attempts++;
 
-    if (attempts[env] < LOCALE_MAX_ATTEMPTS) {
+    if (_attemptsLeft(env)) {
         _scheduleTimeout(LOCALE_RETRY_SECONDS, () => {
             _requestInfo(env, true);
             return false;
@@ -331,18 +371,19 @@ function _degrade(env) {
 // spawn `locale` afresh on the spot, fail again, and spin. Only the retry above
 // may re-ask.
 function _shouldAsk(env, force) {
-    if (requested[env]) {
+    const query = _query(env);
+    if (query.requested) {
         return false;
     }
     // a real answer is final
-    if (localeInfoCache[env] && !degraded[env]) {
+    if (query.info && !query.degraded) {
         return false;
     }
-    if (degraded[env] && !force) {
+    if (query.degraded && !force) {
         return false;
     }
 
-    return !(attempts[env] >= LOCALE_MAX_ATTEMPTS); // NOSONAR [S1940] -- accepted compatible form
+    return _attemptsLeft(env);
 }
 
 // An abandoned query is unfinished, not failed. The last consumer left, but
@@ -360,7 +401,7 @@ function _shouldAsk(env, force) {
 // value stayed on the English defaults, with attempts still unspent.
 function _resumeAbandonedQuery(env) {
     if (_consumers === 0) {
-        unanswered[env] = true;
+        _query(env).unanswered = true;
         return;
     }
 
@@ -379,7 +420,7 @@ function _settlers(env) {
             }
             settled = true;
             _releaseQuery(env);
-            degraded[env] = false;
+            _query(env).degraded = false;
             _storeInfo(env, info);
         },
         fail() {
@@ -391,8 +432,8 @@ function _settlers(env) {
             // we cancelled this ourselves on the way out: leave the attempt count
             // and the degraded flag alone, so the next applet to ask starts from a
             // clean ladder rather than one rung from permanent English
-            if (abandoned[env]) {
-                abandoned[env] = false;
+            if (_query(env).abandoned) {
+                _query(env).abandoned = false;
                 _releaseQuery(env);
                 _resumeAbandonedQuery(env);
                 return;
@@ -444,7 +485,7 @@ function _settleLocaleOutput(env, source, result, settlers) {
         // teardown. Gio still requires the completion to be finished, and that
         // finish raises cancellation: settle its ownership below, but do not
         // report the teardown we requested as a runtime failure.
-        if (!abandoned[env] && global.logError) {
+        if (!_query(env).abandoned && global.logError) {
             global.logError(e);
         }
         settlers.fail();
@@ -484,7 +525,7 @@ function _requestInfo(env, force = false) {
     if (!_shouldAsk(env, force)) {
         return;
     }
-    requested[env] = true;
+    _query(env).requested = true;
     let settlers = null;
 
     try {
@@ -496,7 +537,7 @@ function _requestInfo(env, force = false) {
         proc.init(null);
 
         const cancellable = new Gio.Cancellable();
-        _inflight[env] = { cancellable, proc };
+        _query(env).inflight = { cancellable, proc };
         settlers = _settlers(env);
 
         _readLocaleOutput(env, proc, cancellable, settlers);
@@ -511,7 +552,7 @@ function _requestInfo(env, force = false) {
 function getInfo (env) {
     _requestInfo(env);
 
-    return localeInfoCache[env] || _defaultInfo(env);
+    return _query(env).info || _defaultInfo(env);
 }
 
 // the locale query answers after the first paint, so a value picked from it
