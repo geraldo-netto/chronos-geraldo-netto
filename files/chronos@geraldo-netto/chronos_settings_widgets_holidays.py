@@ -57,6 +57,7 @@ class CountryComboBox(common.CommitOnEditEnd, SettingsWidget, JSONSettingsBacken
 
     def __init__(self, info, key, settings):
         self.backend = "json"
+        common.report_startup_diagnostics()
         self.key = key
         self.settings = settings
         self.default = info.get("default")

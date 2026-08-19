@@ -290,12 +290,17 @@ class GettextIsolationTest(unittest.TestCase):
             def gettext(self, message):
                 return "system: " + message
 
+        # T1017: collected at import, emitted from the first widget built. The
+        # import itself must stay silent — at import time cinnamon-settings has
+        # not configured logging yet.
+        with mock.patch.object(
+                gettext, "translation",
+                side_effect=[OSError("Bad magic number"), Translation()]):
+            module = load_module(
+                WORLDCLOCKS_PATH, "settings_widgets_common_corrupt_user_catalog_test")
+
         with self.assertLogs("chronos@geraldo-netto.settings", level="WARNING") as logs:
-            with mock.patch.object(
-                    gettext, "translation",
-                    side_effect=[OSError("Bad magic number"), Translation()]):
-                module = load_module(
-                    WORLDCLOCKS_PATH, "settings_widgets_common_corrupt_user_catalog_test")
+            self.assertEqual(module.common.report_pending_warnings(), 1)
 
         self.assertEqual(module._("Invalid timezone"), "system: Invalid timezone")
         self.assertEqual(len(logs.output), 1)
@@ -303,16 +308,35 @@ class GettextIsolationTest(unittest.TestCase):
         self.assertNotIn("Bad magic number", logs.output[0])
 
     def test_corrupt_catalogs_fall_back_to_source_text(self):
+        with mock.patch.object(
+                gettext, "translation", side_effect=OSError("Bad magic number")):
+            module = load_module(
+                WORLDCLOCKS_PATH, "settings_widgets_common_corrupt_catalogs_test")
+
         with self.assertLogs("chronos@geraldo-netto.settings", level="WARNING") as logs:
-            with mock.patch.object(
-                    gettext, "translation", side_effect=OSError("Bad magic number")):
-                module = load_module(
-                    WORLDCLOCKS_PATH, "settings_widgets_common_corrupt_catalogs_test")
+            self.assertEqual(module.common.report_pending_warnings(), 2)
 
         self.assertEqual(module._("Invalid timezone"), "Invalid timezone")
         self.assertEqual(len(logs.output), 2)
         self.assertIn(".local/share/locale", logs.output[0])
         self.assertIn("/usr/share/locale", logs.output[1])
+
+    def test_the_first_widget_built_reports_the_import_diagnostics(self):
+        with mock.patch.object(
+                gettext, "translation", side_effect=OSError("Bad magic number")):
+            module = load_module(
+                WORLDCLOCKS_PATH, "settings_widgets_common_first_widget_report_test")
+
+        # the first widget this page builds is where the line belongs: by then
+        # cinnamon-settings has configured logging
+        with self.assertLogs("chronos@geraldo-netto.settings", level="WARNING") as logs:
+            module.common.report_startup_diagnostics()
+        self.assertEqual(len(logs.output), 2)
+
+        # ...and only the first. A second page in the same process has nothing
+        # new to say.
+        with self.assertNoLogs("chronos@geraldo-netto.settings", level="WARNING"):
+            module.common.report_startup_diagnostics()
 
     def test_non_catalog_translation_failures_still_propagate(self):
         with mock.patch.object(

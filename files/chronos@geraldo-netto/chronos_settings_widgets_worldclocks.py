@@ -619,6 +619,7 @@ class ClocksList(JSONSettingsList):
         #
         # `resolver` is constructor injection for a caller that already has one;
         # production passes nothing and gets the shared lazy one.
+        common.report_startup_diagnostics()
         self._timezone_resolver = resolver
 
         normalized_info = normalize_clock_setting(info, key, settings)

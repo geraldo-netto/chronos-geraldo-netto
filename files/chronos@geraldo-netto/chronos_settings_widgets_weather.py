@@ -118,6 +118,7 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
     bind_dir = None
 
     def __init__(self, info, key, settings):
+        common.report_startup_diagnostics()
         self.backend = "json"
         self.key = key
         self.settings = settings

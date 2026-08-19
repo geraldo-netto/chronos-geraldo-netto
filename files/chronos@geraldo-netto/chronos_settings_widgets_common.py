@@ -29,6 +29,7 @@ from xapp.SettingsWidgets import ComboBox
 # modules (weather, holidays, world clocks) genuinely share: the folded
 # substring matcher, one process-wide timezone index, the completion wiring
 # and their small reusable accessibility/error affordances.
+from chronos_settings_i18n import report_pending_warnings
 from chronos_timezone_data import (
     completion_key,
     TimezoneResolver,
@@ -45,6 +46,26 @@ MAX_COMPLETION_INPUT_LENGTH = 64
 
 _LAST_COMPLETION_KEY: tuple[Optional[str], str] = (None, "")
 
+_DIAGNOSTICS_REPORTED = False
+
+
+def report_startup_diagnostics() -> None:
+    """Emit what loading this page's modules had to say, once.
+
+    Every widget class this settings page can build calls this first. The
+    diagnostics are collected at import and emitted here for the reason
+    chronos_timezone_data states beside its own warning: importing a module
+    should define things, not emit them, and at import time cinnamon-settings
+    has not configured logging yet, so the line landed on the whole process's
+    stderr or was dropped entirely, depending on import order.
+    """
+    global _DIAGNOSTICS_REPORTED
+    if _DIAGNOSTICS_REPORTED:
+        return
+
+    _DIAGNOSTICS_REPORTED = True
+    report_pending_warnings()
+
 
 class OptionLabelComboBox(ComboBox, JSONSettingsBackend):
     """A JSON combobox whose accessible name matches its visible option.
@@ -59,6 +80,7 @@ class OptionLabelComboBox(ComboBox, JSONSettingsBackend):
     bind_dir = None
 
     def __init__(self, info, key, settings):
+        report_startup_diagnostics()
         self.backend = "json"
         self.key = key
         self.settings = settings
