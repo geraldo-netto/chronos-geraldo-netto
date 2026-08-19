@@ -206,13 +206,35 @@ class EventListRenderer {
     }
 
     // The three values below are the column's, not each row's, and this runs
-    // for every row on every tick while the menu is open.
-    refreshTimeState() {
+    // for every row on every tick while the menu is open — so they are built
+    // once here and handed to every row, whichever refresh asked for them.
+    _updateVariations(rows, before) {
+        if (rows.length === 0) {
+            return;
+        }
         const now = GLib.DateTime.new_now_local();
         const today = date_only(now);
         const selectedDay = date_only(this.list.selectedDate);
-        this.list.rows.forEach((row) => {
+        for (const row of rows) {
+            if (before) {
+                before(row);
+            }
             row.update_variations(now, today, selectedDay);
+        }
+    }
+
+    refreshTimeState() {
+        this._updateVariations(this.list.rows, null);
+    }
+
+    // Row work is the renderer's; the list used to reimplement this over its
+    // own _rows with a second copy of the three column values.
+    refreshTimeFormat(use24h) {
+        // Each row used to fall back to update_variations()' defaults, so a
+        // format change built its own now, today and selected day per row.
+        const stale = this.list.rows.filter((row) => row.use_24h !== use24h);
+        this._updateVariations(stale, (row) => {
+            row.use_24h = use24h;
         });
     }
 
@@ -755,21 +777,7 @@ class EventList {
     }
 
     refresh_time_format() {
-        const use24h = Boolean(this.desktop_settings.use24h);
-        // Each row used to fall back to update_variations()' defaults, so a
-        // format change built its own now, today and selected day per row.
-        const stale = this._rows.filter((row) => row.use_24h !== use24h);
-        if (stale.length === 0) {
-            return;
-        }
-
-        const now = GLib.DateTime.new_now_local();
-        const today = date_only(now);
-        const selectedDay = date_only(this.selected_date);
-        for (const row of stale) {
-            row.use_24h = use24h;
-            row.update_variations(now, today, selectedDay);
-        }
+        this._renderer.refreshTimeFormat(Boolean(this.desktop_settings.use24h));
     }
 
     refresh_time_state() {
