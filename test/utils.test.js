@@ -2075,6 +2075,91 @@ test("backoffDelay doubles, caps, and spreads", () => {
     assert.equal(delay(-3, 0), 5);
 });
 
+// The geocode place cache and the weather reading cache were this LRU written
+// twice, and the geocode copy did not delete before testing the bound: at
+// capacity, re-storing a key it already held evicted an unrelated oldest place
+// and then overwrote in place, losing a good geocode for nothing.
+test("the expiring LRU re-stores a held key without evicting anything", () => {
+    const ProviderUtils = loadProviderUtils();
+    let now = 0;
+    const cache = new ProviderUtils.ExpiringLruCache({
+        now: () => now,
+        maxEntries: 3,
+        lifetimeMilliseconds: 100
+    });
+
+    cache.set("rome", 1);
+    cache.set("oslo", 2);
+    cache.set("paris", 3);
+    cache.set("oslo", 22);
+
+    assert.deepEqual([...cache.keys()], ["rome", "paris", "oslo"],
+        "the re-stored key moves to newest and every other entry survives");
+    assert.equal(cache.size, 3);
+    assert.equal(cache.get("oslo"), 22);
+    assert.equal(cache.get("rome"), 1);
+});
+
+test("the expiring LRU expires, reorders on a hit, and evicts the oldest", () => {
+    const ProviderUtils = loadProviderUtils();
+    let now = 0;
+    const cache = new ProviderUtils.ExpiringLruCache({
+        now: () => now,
+        maxEntries: 2,
+        lifetimeMilliseconds: 100
+    });
+
+    cache.set("rome", 1);
+    cache.set("oslo", 2);
+    // a hit is a use, so the bound drops the entry nothing has asked for
+    assert.equal(cache.get("rome"), 1);
+    cache.set("paris", 3);
+    assert.equal(cache.get("oslo"), null);
+    assert.equal(cache.get("rome"), 1);
+
+    // an entry past its lifetime is dropped on the way out, not served
+    now = 100;
+    assert.equal(cache.get("rome"), null);
+    assert.equal(cache.has("rome"), false);
+
+    // a clock that runs backwards is not a fresh entry either
+    now = 200;
+    cache.set("lisbon", 4);
+    now = 100;
+    assert.equal(cache.get("lisbon"), null);
+
+    // the store is injectable, the stamp is an argument, and delete/clear work
+    const store = new Map();
+    const stamped = new ProviderUtils.ExpiringLruCache({
+        store,
+        now: () => 500,
+        maxEntries: 2,
+        lifetimeMilliseconds: 100
+    });
+    stamped.set("oslo", 5, 450);
+    assert.equal(store.size, 1);
+    assert.equal(stamped.get("oslo"), 5);
+    stamped.set("rome", 6, 300);
+    assert.equal(stamped.get("rome"), null, "the stamp is when the value was read");
+    stamped.delete("oslo");
+    assert.equal(stamped.size, 0);
+    stamped.set("paris", 7);
+    stamped.clear();
+    assert.equal(store.size, 0);
+});
+
+// a defaulted cache still holds something and still expires: an unusable
+// maxEntries or lifetime must not turn into an unbounded or immortal map
+test("the expiring LRU defaults a bad bound rather than dropping it", () => {
+    const ProviderUtils = loadProviderUtils();
+    const cache = new ProviderUtils.ExpiringLruCache({ store: "not a map" });
+
+    cache.set("rome", 1);
+    cache.set("oslo", 2);
+    assert.deepEqual([...cache.keys()], ["oslo"]);
+    assert.equal(cache.get("oslo"), null, "a zero lifetime holds nothing");
+});
+
 // a nameless provider is logged by its URL, and a geocode URL carries the place
 // the user typed — which is what urlForLog exists to strip
 test("a provider with no name is logged by a stripped URL, or not at all", () => {

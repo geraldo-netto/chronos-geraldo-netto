@@ -329,7 +329,7 @@ const EXPORTS = {
         "DAY_FORMAT", "DATE_FORMAT_SHORT", "DATE_FORMAT_FULL",
         "monthWindowStartOffset", "dateFormatWithinLimit", "dateFormatOrDefault",
         "clampClockStamp", "formatDateWithFallback"],
-    providerUtils: ["backoffDelay", "orderProvidersByLastSuccess", "validSourceId", "tryProvidersInOrder"],
+    providerUtils: ["backoffDelay", "ExpiringLruCache", "orderProvidersByLastSuccess", "validSourceId", "tryProvidersInOrder"],
     weatherFormat: ["REFRESH_SECONDS", "RETRY_SECONDS", "STALE_PERIODS",
         "staleAfterSeconds", "readingIsStale",
         "MAX_WEATHER_LOCATION_LENGTH", "normalizeWeatherLocation",

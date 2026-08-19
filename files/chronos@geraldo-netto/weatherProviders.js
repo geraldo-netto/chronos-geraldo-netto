@@ -292,8 +292,6 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
     constructor(params = {}) {
         this._providers = params.providers || GEOCODE_PROVIDERS;
         this._language = params.language || "en";
-        this._geocode_cache = params.cache || new Map();
-        this._max_entries = params.maxCacheEntries || MAX_GEOCODE_CACHE_ENTRIES;
         this._httpGetJson = params.httpGetJson;
         // one substitute for whichever registry entries declare a queue: the
         // parameter used to be named for a vendor too
@@ -302,55 +300,31 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
             ElapsedTime.civilMilliseconds;
         this._entry_milliseconds = Number.isFinite(params.entrySeconds) ?
             Math.max(0, params.entrySeconds) * 1000 : GEOCODE_CACHE_MILLISECONDS;
+        // A day is ample: place coordinates are static, so the expiry is a
+        // correction window rather than a freshness window. `resolve()` used to
+        // short-circuit on any hit forever, and the only invalidation path in
+        // production is `_forgetIfLocationChanged`, which does nothing when the
+        // text is unchanged — so one glitched or ambiguous geocode round pinned
+        // the wrong coordinates, for the panel temperature and the astronomy
+        // sunrise/sunset alike, for the whole Cinnamon session.
+        this._geocode_cache = new ProviderUtils.ExpiringLruCache({
+            store: params.cache,
+            now: () => this._resolved_now(),
+            maxEntries: params.maxCacheEntries || MAX_GEOCODE_CACHE_ENTRIES,
+            lifetimeMilliseconds: this._entry_milliseconds
+        });
     }
 
     placeFor(location) {
         return this._freshPlace(locationCacheKey(location));
     }
 
-    // The sibling reading cache expires — `_freshReading` drops anything past
-    // `cacheSeconds` — so a stale *reading* self-corrects within the refresh
-    // period while a stale *place* never did: `resolve()` short-circuited on any
-    // hit forever, and the only invalidation path in production is
-    // `_forgetIfLocationChanged`, which does nothing when the text is unchanged.
-    // One glitched or ambiguous geocode round therefore pinned the wrong
-    // coordinates — for the panel temperature and the astronomy sunrise/sunset
-    // alike — for the whole Cinnamon session, with no timer and no retry.
-    //
-    // A day is ample: place coordinates are static, so this is a correction
-    // window rather than a freshness window.
     _freshPlace(cacheKey) {
-        const entry = this._geocode_cache.get(cacheKey);
-        if (!entry) {
-            return null;
-        }
-
-        const age = this._resolved_now() - entry.resolvedAt;
-        if (!Number.isFinite(age) || age < 0 || age >= this._entry_milliseconds) {
-            this._geocode_cache.delete(cacheKey);
-            return null;
-        }
-
-        // Map iteration order is what _remember evicts by, and a hit is a use:
-        // without this the bound drops the place the user asks for most and
-        // keeps the typo they made once. The sibling reading cache reorders on
-        // its own hits for exactly this reason.
-        this._geocode_cache.delete(cacheKey);
-        this._geocode_cache.set(cacheKey, entry);
-        return entry.place;
+        return this._geocode_cache.get(cacheKey);
     }
 
-    // every debounced keystroke in the location entry resolves a place, so
-    // without a bound the map grows with the typing
     _remember(cacheKey, place) {
-        if (this._geocode_cache.size >= this._max_entries) {
-            const oldest = this._geocode_cache.keys().next();
-            if (!oldest.done) {
-                this._geocode_cache.delete(oldest.value);
-            }
-        }
-
-        this._geocode_cache.set(cacheKey, { place, resolvedAt: this._resolved_now() });
+        this._geocode_cache.set(cacheKey, place);
     }
 
     // an ambiguous name that resolved to the wrong city would otherwise stay
@@ -582,10 +556,15 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         this._freshness_now = params.freshnessNow || params.now ||
             ElapsedTime.civilMilliseconds;
         this._cache_milliseconds = Math.max(0, Number(params.cacheSeconds) || 0) * 1000;
-        this._cache = params.readingCache || new Map();
         const requestedMax = Number(params.maxCacheEntries);
         this._max_cache_entries = Number.isInteger(requestedMax) && requestedMax > 0 ?
             requestedMax : MAX_WEATHER_READING_CACHE_ENTRIES;
+        this._cache = new ProviderUtils.ExpiringLruCache({
+            store: params.readingCache,
+            now: () => this._freshness_now(),
+            maxEntries: this._max_cache_entries,
+            lifetimeMilliseconds: this._cache_milliseconds
+        });
         this._inflight = new Map();
         this.session = new IoUtils.LazyHttpSession(
             params.httpSession ? () => params.httpSession : undefined);
@@ -627,33 +606,15 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
     }
 
     _freshReading(key) {
-        const cached = this._cache.get(key);
-        if (!cached || this._cache_milliseconds <= 0) {
-            this._cache.delete(key);
-            return null;
-        }
-        const age = this._freshness_now() - cached.startedAtFresh;
-        if (!Number.isFinite(age) || age < 0 || age >= this._cache_milliseconds) {
-            this._cache.delete(key);
-            return null;
-        }
-
-        // Map iteration order is the LRU order. A cache hit becomes newest.
-        this._cache.delete(key);
-        this._cache.set(key, cached);
-        return cached;
+        return this._cache.get(key);
     }
 
+    // The entry ages from when the reading was *fetched*, not from when it
+    // reached the cache: without that a hit on an almost-expired entry resets
+    // the reading's apparent age for the consumer that stamps receipt time.
     _rememberReading(key, reading, provider, startedAtFresh, place) {
-        this._cache.delete(key);
-        while (this._cache.size >= this._max_cache_entries) {
-            const oldest = this._cache.keys().next();
-            if (oldest.done) {
-                break;
-            }
-            this._cache.delete(oldest.value);
-        }
-        this._cache.set(key, { reading, provider, startedAtFresh, place });
+        this._cache.set(key, { reading, provider, startedAtFresh, place },
+            startedAtFresh);
     }
 
     // The fifth argument is when the reading was fetched, not when it was

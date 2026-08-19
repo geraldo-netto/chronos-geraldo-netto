@@ -149,6 +149,90 @@ function attemptOrFail(attempt, provider, onResult) {
     }
 }
 
+// The one expiring LRU — the geocode place cache and the weather reading cache
+// were the same twenty lines written twice, and the copies had diverged.
+//
+// Two rules are the whole point, and both were wrong in one copy:
+//
+//   * a hit is a use, so `get` reinserts, and the bound then drops the entry
+//     nothing has asked for rather than the one asked for most;
+//   * `set` deletes first, so re-storing a key that is already held cannot
+//     evict an unrelated oldest entry and then overwrite in place — the geocode
+//     copy did exactly that and lost a good place for nothing.
+//
+// Eviction loops rather than branching, so a cap lowered below the current size
+// is reached instead of merely approached. `now` is injected because both
+// owners already inject their clock, and `storedAt` is an argument because the
+// reading cache ages an entry from when the reading was *fetched*, not from
+// when it reached the cache.
+var ExpiringLruCache = class ExpiringLruCache { // NOSONAR [S3504] -- GJS importer export
+    constructor(params = {}) {
+        // The store is injectable so a caller can hand in a Map it also
+        // inspects; both owners accept one through their own constructors.
+        this._entries = params.store instanceof Map ? params.store : new Map();
+        this._now = params.now || (() => 0);
+        const maxEntries = Number(params.maxEntries);
+        this._maxEntries = Number.isInteger(maxEntries) && maxEntries > 0 ?
+            maxEntries : 1;
+        this._lifetimeMilliseconds =
+            Math.max(0, Number(params.lifetimeMilliseconds) || 0);
+    }
+
+    get size() {
+        return this._entries.size;
+    }
+
+    keys() {
+        return this._entries.keys();
+    }
+
+    has(key) {
+        return this._entries.has(key);
+    }
+
+    delete(key) {
+        return this._entries.delete(key);
+    }
+
+    clear() {
+        this._entries.clear();
+    }
+
+    // null, never undefined: "no entry" is one answer here, and an expired
+    // entry is dropped on the way out so the miss cannot be served later.
+    get(key) {
+        const entry = this._entries.get(key);
+        if (!entry) {
+            return null;
+        }
+
+        const age = this._now() - entry.storedAt;
+        if (!Number.isFinite(age) || age < 0 ||
+            age >= this._lifetimeMilliseconds) {
+            this._entries.delete(key);
+            return null;
+        }
+
+        this._entries.delete(key);
+        this._entries.set(key, entry);
+        return entry.value;
+    }
+
+    set(key, value, storedAt = this._now()) {
+        this._entries.delete(key);
+        while (this._entries.size >= this._maxEntries) {
+            const oldest = this._entries.keys().next();
+            if (oldest.done) {
+                break;
+            }
+            this._entries.delete(oldest.value);
+        }
+
+        this._entries.set(key, { value, storedAt });
+        return this;
+    }
+}
+
 // Calendar-server source ids. Shared by the fetch coordinator and the mutation
 // stream, which both reject anything a server handed them that is not one.
 function validSourceId(sourceId) {
@@ -189,6 +273,7 @@ function tryProvidersInOrder(providers, attempt, accept, onSuccess, onExhausted)
 if (typeof module !== "undefined") {
     module.exports = {
         backoffDelay,
+        ExpiringLruCache,
         notifyAll,
         providerName,
         orderProvidersByLastSuccess,
