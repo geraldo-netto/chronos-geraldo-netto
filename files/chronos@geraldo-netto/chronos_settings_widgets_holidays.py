@@ -59,6 +59,7 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         self.backend = "json"
         self.key = key
         self.settings = settings
+        self.default = info.get("default")
         self.value = None
         # the name the field last refused, so the mark can be taken off again
         # and a second refusal of the same name is not re-announced
@@ -110,7 +111,29 @@ class CountryComboBox(SettingsWidget, JSONSettingsBackend):
         return True
 
     def on_setting_changed(self, *args):
+        """Show the stored country, and never sit there showing nothing.
+
+        `set_active_iter(None)` blanks the entry, and `on_combo_changed` then
+        early-returns because no row is active — so a stored code this build
+        does not offer (a hand-edited instance file, a country dropped from the
+        schema) left the field empty with no mark on it while the applet kept
+        querying that code, and focus-out wrote "" over it. The sibling
+        `OptionLabelComboBox.on_setting_changed` heals the same case to the
+        schema default; do that, and when even the default is not on offer say
+        which code was refused rather than blanking silently.
+        """
         self.value = self.get_value()
+        if self.value not in self.option_map:
+            refused = str(self.value) if self.value else ""
+            if self.default in self.option_map:
+                # healed: a row goes active below, whose 'changed' clears any
+                # standing mark, and the field names the country now in use
+                self.value = self.default
+                self.set_value(self.default)
+            else:
+                # nothing to heal to. No row goes active, so on_combo_changed
+                # early-returns and this mark stays up.
+                self.mark_refused(refused)
         self.content_widget.set_active_iter(self.option_map.get(self.value))
 
     def mark_refused(self, typed):

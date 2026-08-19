@@ -428,6 +428,35 @@ class CountryComboBoxTest(unittest.TestCase):
         self.assertEqual(widget.entry.get_property("text"), "Portugal")
         self.assertEqual(settings.writes, [])
 
+    # T1018: set_active_iter(None) blanks the entry and on_combo_changed
+    # early-returns, so the dialog sat there showing no country at all while the
+    # applet kept querying the stored one — the state the class docstring says
+    # cannot happen.
+    def test_an_unknown_stored_country_heals_to_the_schema_default(self):
+        settings = FakeSettings({"country": "atl"})
+        widget = self.module.CountryComboBox(
+            {"description": "Country", "tooltip": "holidays",
+             "options": self.OPTIONS, "default": "none"},
+            "country", settings)
+
+        self.assertEqual(widget.value, "none")
+        self.assertEqual(settings.values["country"], "none")
+        self.assertEqual(widget.entry.get_property("text"), "None (disable holidays)")
+        self.assertNotIn("error", self.marks_of(widget)[0])
+
+    def test_an_unknown_stored_country_with_no_default_is_announced(self):
+        settings = FakeSettings({"country": "atl"})
+        widget = self.module.CountryComboBox(
+            {"description": "Country", "tooltip": "holidays", "options": self.OPTIONS},
+            "country", settings)
+
+        # nothing to heal to, so the blank field at least says what it holds
+        self.assertEqual(settings.writes, [])
+        classes, description = self.marks_of(widget)
+        self.assertIn("error", classes)
+        self.assertEqual(
+            description, "atl is not in the list, so the holiday country is unchanged")
+
     def test_an_empty_field_is_unfinished_and_not_wrong(self):
         widget, _settings = self.combo("prt")
         widget.content_widget.type_text("   ")
