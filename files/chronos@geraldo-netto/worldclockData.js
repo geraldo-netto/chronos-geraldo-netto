@@ -127,9 +127,7 @@ function timezoneCityName(timezone) {
     }
 
     const readLink = (filename) => GLib.file_read_link(filename);
-    const isAlias = readTimezoneLink(identifier, readLink) !== null;
-    const cityIdentifier = isAlias ?
-        canonicalTimezoneFromSymlinks(identifier, readLink) : identifier;
+    const cityIdentifier = canonicalTimezoneFromSymlinks(identifier, readLink);
     if (!cityIdentifier) {
         return "";
     }
@@ -351,10 +349,16 @@ function readTimezoneLink(current, readLink) {
     }
 }
 
+// Answers the canonical identifier for any zone, alias or not: a zone that is
+// not a link is already its own canonical name. It used to answer "" at hop
+// zero, which forced every caller that wanted a name to probe with a second
+// readlink first -- the syscall the weather-city memo above exists to avoid.
+// Callers that need "was this an alias?" compare the answer with what they
+// passed in.
 function followTimezoneSymlinks(current, readLink, seen, hop) {
     const target = readTimezoneLink(current, readLink);
     if (target === null) {
-        return hop ? current : "";
+        return current;
     }
     if (hop === MAX_TIMEZONE_ALIAS_HOPS) {
         return "";
@@ -458,9 +462,12 @@ function localCountryCode() {
         return exactCountry;
     }
 
+    // The exact key has already been tried, so only a *different* canonical
+    // name is worth a second pass over zone.tab.
     const canonical = canonicalTimezoneFromSymlinks(timezone,
         (filename) => GLib.file_read_link(filename));
-    return canonical ? countryCodeFromZoneTab(canonical, zoneTab) : "";
+    return canonical && canonical !== timezone ?
+        countryCodeFromZoneTab(canonical, zoneTab) : "";
 }
 
 // GLib answers get_identifier() with the string it was given — it does not

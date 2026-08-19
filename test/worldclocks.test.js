@@ -1403,6 +1403,32 @@ test("timezoneCityName reads the place out of the identifier, not the label", ()
     assert.equal(WorldclockData.timezoneCityName(42), "");
 });
 
+// T1001: the alias probe and the alias chase both started with a readlink on
+// the same identifier, so every uncached zone cost two syscalls on the
+// compositor thread where one would do.
+test("timezoneCityName reads each zoneinfo link once", () => {
+    loadWorldclocks();
+    const WorldclockData = require(dataModulePath);
+    const GLib = global.imports.gi.GLib;
+
+    const reads = [];
+    GLib.file_read_link = (filename) => {
+        reads.push(filename);
+        return filename.endsWith("US/Eastern") ? "../America/New_York" : undefined;
+    };
+
+    assert.equal(WorldclockData.timezoneCityName("Europe/Rome"), "Rome");
+    assert.deepEqual(reads, ["/usr/share/zoneinfo/Europe/Rome"],
+        "a plain zone costs exactly one readlink");
+
+    reads.length = 0;
+    assert.equal(WorldclockData.timezoneCityName("US/Eastern"), "New York");
+    assert.deepEqual(reads, [
+        "/usr/share/zoneinfo/US/Eastern",
+        "/usr/share/zoneinfo/America/New_York"
+    ], "an alias costs one readlink per hop and no probe");
+});
+
 // T654: the open menu asks for the same city on every tick, and each cold
 // resolution is a TimeZone construction plus a synchronous readlink alias
 // chase on the compositor thread
@@ -1614,8 +1640,9 @@ test("canonical timezone symlink resolution is bounded and cycle-safe", () => {
 
     assert.equal(canonicalTimezoneFromSymlinks("US/Eastern", readLink),
         "America/New_York");
-    assert.equal(canonicalTimezoneFromSymlinks("Europe/Rome", readLink), "",
-        "a non-alias has no canonical fallback");
+    assert.equal(canonicalTimezoneFromSymlinks("Europe/Rome", readLink),
+        "Europe/Rome",
+        "a zone that is not a link is already its own canonical name");
     assert.equal(canonicalTimezoneFromSymlinks("Europe/First", readLink), "",
         "cycles fail closed");
     assert.equal(canonicalTimezoneFromSymlinks("UTC", readLink), "");
