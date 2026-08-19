@@ -61,7 +61,8 @@ test("crossing helpers classify and refine each horizon transition", () => {
     assert.equal(Astronomy.crossingDirection(1, 1), "");
 
     const line = (timestamp) => timestamp - 500;
-    const crossing = Astronomy.refineCrossing(0, 1000, -500, line, 0, 0, 0);
+    const crossing = Astronomy.refineCrossing(0, 1000, -500, line,
+        { latitude: 0, longitude: 0, threshold: 0 });
     assert.ok(Math.abs(crossing - 500) <= 1);
 
     assert.equal(Astronomy.horizonState(1, null, -1, 1), "normal");

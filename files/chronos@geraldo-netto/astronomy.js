@@ -126,15 +126,14 @@ function altitudeOffset(timestamp, altitudeFunction, observer) {
         observer.threshold;
 }
 
-function refineCrossing(leftMs, rightMs, leftOffset, altitudeFunction,
-    latitude, longitude, threshold) {
+function refineCrossing(leftMs, rightMs, leftOffset, altitudeFunction, observer) {
     let lower = leftMs;
     let upper = rightMs;
     let lowerOffset = leftOffset;
 
     for (let attempt = 0; attempt < CROSSING_REFINEMENTS; attempt++) {
         const middle = (lower + upper) / 2;
-        const middleOffset = altitudeFunction(middle, latitude, longitude) - threshold;
+        const middleOffset = altitudeOffset(middle, altitudeFunction, observer);
         if ((lowerOffset < 0) === (middleOffset < 0)) {
             lower = middle;
             lowerOffset = middleOffset;
@@ -230,7 +229,7 @@ function altitudeEvents(startMs, endMs, latitude, longitude,
             if (direction) {
                 recordCrossing(events, direction, refineCrossing(
                     leftMs, sample.timestamp, leftOffset, altitudeFunction,
-                    latitude, longitude, threshold));
+                    observer));
             }
             minimum = Math.min(minimum, sample.offset);
             maximum = Math.max(maximum, sample.offset);
