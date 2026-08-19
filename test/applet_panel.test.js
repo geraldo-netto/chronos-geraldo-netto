@@ -1205,7 +1205,7 @@ test("the popup reflows against the monitor the applet actually sits on", () => 
         const stub = Object.assign(Object.create(Proto), {
             actor: {},
             desktop_settings: { textScale: 1.25 },
-            _menuBuilder: {
+            _menuLayout: {
                 reflow(environment) {
                     environments.push(environment);
                     return "stacked";
@@ -1248,7 +1248,7 @@ test("the popup reflows against the monitor the applet actually sits on", () => 
         assert.equal(environments.at(-1).workAreaWidth, 0);
 
         // and a menu that was never built has nothing to reflow
-        stub._menuBuilder = null;
+        stub._menuLayout = null;
         assert.equal(Proto._reflowMenu.call(stub), null);
         assert.equal(environments.length, 6, "no further reflow was attempted");
     } finally {

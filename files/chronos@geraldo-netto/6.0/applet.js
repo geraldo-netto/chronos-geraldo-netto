@@ -255,6 +255,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         });
 
         const ui = this._menuBuilder.build();
+        // the layout controller outlives the build: it is what re-decides the
+        // popup's shape on every open, orientation change and text-scale change
+        this._menuLayout = ui.layoutController;
         this.event_list = ui.eventList;
         this._calendar = ui.calendar;
         this._worldclocks = ui.worldclocks;
@@ -750,10 +753,10 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _reflowMenu() {
-        if (!this._menuBuilder) {
+        if (!this._menuLayout) {
             return null;
         }
-        return this._menuBuilder.reflow(this._menuLayoutEnvironment());
+        return this._menuLayout.reflow(this._menuLayoutEnvironment());
     }
 
     _initContextMenu () {

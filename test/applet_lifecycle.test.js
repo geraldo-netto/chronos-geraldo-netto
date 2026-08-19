@@ -1553,7 +1553,7 @@ test("provider initialization wires hover and event manager signals", () => {
     stub._providerLifecycle.context.onHolidayCountryUnresolved();
     // large text changes how much room the popup's columns need, and only the
     // applet holds the menu builder that can be told to reflow
-    stub._menuBuilder = { reflow: () => calls.push(["reflow"]) };
+    stub._menuLayout = { reflow: () => calls.push(["reflow"]) };
     stub._providerLifecycle.context.onTextScaleChanged();
     assert.ok(calls.some((row) => row[0] === "reflow"),
         "a desktop text scale change reaches the popup's layout");

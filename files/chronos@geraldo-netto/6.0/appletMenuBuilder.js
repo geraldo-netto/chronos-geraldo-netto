@@ -17,11 +17,11 @@ const St = imports.gi.St;
 const PopupMenu = imports.ui.popupMenu;
 const Tooltips = imports.ui.tooltips;
 const LocaleText = require("./localeText");
-const TextUtils = require("./textUtils");
 const Calendar = require("./calendar");
 const EventView = require("./eventView");
 const AgendaColumn = require("./agendaColumn");
-const MenuLayout = require("./menuLayout");
+const MenuLayoutController = require("./menuLayoutController").MenuLayoutController;
+const AppletIssueReporter = require("./appletIssueReporter").AppletIssueReporter;
 const UiVocabulary = require("./uiVocabulary");
 const Worldclocks = require("./worldclocks");
 const AstronomyView = require("./astronomyView");
@@ -30,80 +30,7 @@ const AppletTeardown = require("./appletTeardown");
 const _ = LocaleText.translate;
 const runTeardownSteps = AppletTeardown.runTeardownSteps;
 const HOME_KEY_SYMBOLS = UiVocabulary.ACTIVATION_KEY_SYMBOLS;
-const ISSUE_MARKER = TextUtils.WARNING_MARKER;
 const MAIN_BOX_STYLE_CLASS = "calendar-main-box";
-const STACKED_STYLE_CLASS = "calendar-main-box-stacked";
-
-// One footer owns every current user-facing problem. Sources update their own
-// key, so a recovered weather request cannot erase a simultaneous calendar
-// failure, and repeated ticks cannot duplicate the same sentence.
-class AppletIssueReporter {
-    constructor(label) {
-        this.label = label;
-        this._issues = new Map();
-        this._rendered = null;
-        this._render();
-    }
-
-    set(source, message) {
-        const key = String(source || "").trim();
-        if (!key) {
-            return;
-        }
-
-        const text = typeof message === "string" ? message.trim() : "";
-        if (text) {
-            if (this._issues.get(key) === text) {
-                return;
-            }
-            this._issues.set(key, text);
-        } else if (!this._issues.delete(key)) {
-            return;
-        }
-        this._render();
-    }
-
-    _messages() {
-        const seen = new Set();
-        const messages = [];
-        for (const issue of this._issues.values()) {
-            for (const line of issue.split(/\n+/)) {
-                const message = line.trim();
-                if (message && !seen.has(message)) {
-                    seen.add(message);
-                    messages.push(message);
-                }
-            }
-        }
-        return messages;
-    }
-
-    // Teardown steps that run after the menu is destroyed — provider aborts,
-    // settings finalize — can still report issues, and this label's actor dies
-    // with the menu. A detached reporter swallows them instead of writing into
-    // a disposed St.Label.
-    detach() {
-        this.label = null;
-    }
-
-    _render() {
-        if (!this.label) {
-            return;
-        }
-        const text = this._messages()
-            .map((message) => ISSUE_MARKER + " " + message)
-            .join("\n");
-        if (text === this._rendered) {
-            return;
-        }
-        this._rendered = text;
-        this.label.set_text(text);
-        this.label.visible = Boolean(text);
-        if (this.label.set_accessible_name) {
-            this.label.set_accessible_name(text);
-        }
-    }
-}
 
 // Builds the menu contents and hands them back; the applet is the only
 // writer of its own fields. The context carries the collaborators the UI
@@ -120,9 +47,7 @@ class AppletMenuBuilder {
         this._astronomy = null;
         this._menu_items = [];
         this._issueReporter = null;
-        this._mainBox = null;
-        this._calbox = null;
-        this._layout = MenuLayout.MENU_LAYOUT_HORIZONTAL;
+        this._layoutController = null;
     }
 
     build() {
@@ -140,7 +65,7 @@ class AppletMenuBuilder {
                 vertical: false
             }
         );
-        this._mainBox = box;
+
 
         // The body is one actor, not a stack of PopupBaseMenuItems — a 42-cell
         // grid and a scrolling event list are not things PopupMenuSection models.
@@ -163,7 +88,6 @@ class AppletMenuBuilder {
         const home = this._buildHomeButton(calbox);
         const calendar = this._buildCalendar(calbox, reportIssue);
 
-        this._calbox = calbox;
         box.add_actor(calbox);
 
         // the heading has no writer until a selection changes, so seed it from
@@ -180,7 +104,18 @@ class AppletMenuBuilder {
         this._astronomy = astronomy;
         this._addSettingsMenuItems(issueReporter.label);
 
+        // The popup's shape, once the actors it measures exist. It is a
+        // runtime controller, not a construction step: the applet re-decides on
+        // every menu open, orientation change, text-scale change and
+        // monitors-changed, and this class is finished the moment it returns.
+        this._layoutController = new MenuLayoutController({
+            mainBox: box,
+            calbox,
+            eventListActor: eventList && eventList.actor
+        });
+
         return {
+            layoutController: this._layoutController,
             eventList,
             calendar,
             worldclocks,
@@ -190,73 +125,6 @@ class AppletMenuBuilder {
             dayLabel: home.day,
             dateLabel: home.date
         };
-    }
-
-    // The popup's two columns, measured as St would lay them out with no width
-    // imposed on them. Cinnamon's own theme puts a 350 px floor under the event
-    // column, and the translated strings and the current font size are already
-    // in these numbers — which is why the layout rule reads a measurement and
-    // not a table of guessed widths.
-    _naturalSize(actor) {
-        if (!actor || typeof actor.get_preferred_width !== "function") {
-            return { width: 0, height: 0 };
-        }
-        const [, width] = actor.get_preferred_width(-1);
-        const [, height] = actor.get_preferred_height(-1);
-        return { width, height };
-    }
-
-    // The actors are measured at whatever text size is in effect, and the rule
-    // wants them at the default one, so the factor comes back out here. That is
-    // the seam: this method is the only thing that touches actors, everything
-    // downstream of it is arithmetic.
-    layoutMetrics(environment) {
-        const environmentMetrics = MenuLayout.menuLayoutMetrics(environment);
-        const textScale = environmentMetrics.textScale;
-        const calendar = this._naturalSize(this._calbox);
-        const events = this._naturalSize(this._eventList && this._eventList.actor);
-
-        return {
-            workAreaWidth: environmentMetrics.workAreaWidth,
-            workAreaHeight: environmentMetrics.workAreaHeight,
-            uiScale: environmentMetrics.uiScale,
-            textScale,
-            calendarWidth: calendar.width / textScale,
-            calendarHeight: calendar.height / textScale,
-            eventsWidth: events.width / textScale,
-            eventsHeight: events.height / textScale
-        };
-    }
-
-    get layout() {
-        return this._layout;
-    }
-
-    // One property changes, and nothing else. No actor is created, destroyed,
-    // reparented or reordered, so the agenda's scroll position survives, the
-    // children stay in the order the keyboard walks them in, and the calendar's
-    // focused day and the event list's selected date are not even consulted —
-    // a reflow cannot lose state it never touches.
-    applyLayout(layout) {
-        const stacked = MenuLayout.isStackedLayout(layout);
-        this._layout = stacked ?
-            MenuLayout.MENU_LAYOUT_STACKED : MenuLayout.MENU_LAYOUT_HORIZONTAL;
-
-        const box = this._mainBox;
-        if (!box || Boolean(box.vertical) === stacked) {
-            return this._layout;
-        }
-
-        box.vertical = stacked;
-        if (typeof box.set_style_class_name === "function") {
-            box.set_style_class_name(stacked ?
-                MAIN_BOX_STYLE_CLASS + " " + STACKED_STYLE_CLASS : MAIN_BOX_STYLE_CLASS);
-        }
-        return this._layout;
-    }
-
-    reflow(environment) {
-        return this.applyLayout(MenuLayout.menuLayoutFor(this.layoutMetrics(environment)));
     }
 
     _buildIssueReporter() {
@@ -500,5 +368,5 @@ class AppletMenuBuilder {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { AppletIssueReporter, AppletMenuBuilder };
+    module.exports = { AppletMenuBuilder };
 }

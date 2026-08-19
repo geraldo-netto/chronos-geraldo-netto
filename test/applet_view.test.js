@@ -7,6 +7,8 @@ const {
 
 const AgendaColumn = require(path.join(APPLET_DIR, "6.0", "agendaColumn.js"));
 const MenuLayoutModule = require(path.join(APPLET_DIR, "menuLayout.js"));
+const MenuLayoutControllerModule = require(
+    path.join(APPLET_DIR, "6.0", "menuLayoutController.js"));
 
 test("_styleTooltip marks the tooltip so the clock table stays left-aligned", () => {
     const classes = [];
@@ -1265,7 +1267,7 @@ test("a keyboard-opened popup shows weather status without world clocks", () => 
 
 test("the shared footer deduplicates issues and disappears after recovery", () => {
     const { AppletIssueReporter } = require(
-        path.join(APPLET_DIR, "6.0", "appletMenuBuilder.js"));
+        path.join(APPLET_DIR, "6.0", "appletIssueReporter.js"));
     const label = {
         text: "stale",
         visible: true,
@@ -1312,7 +1314,7 @@ test("the shared footer deduplicates issues and disappears after recovery", () =
 // St.Label — three Gjs-CRITICALs and Cinnamon's orphan-label warning per reload.
 test("a detached footer reporter swallows issues instead of writing the label", () => {
     const { AppletIssueReporter } = require(
-        path.join(APPLET_DIR, "6.0", "appletMenuBuilder.js"));
+        path.join(APPLET_DIR, "6.0", "appletIssueReporter.js"));
     const label = {
         text: "stale",
         visible: true,
@@ -1349,7 +1351,7 @@ test("destroying the menu builder detaches its issue reporter", () => {
         }
     };
     const { AppletIssueReporter } = require(
-        path.join(APPLET_DIR, "6.0", "appletMenuBuilder.js"));
+        path.join(APPLET_DIR, "6.0", "appletIssueReporter.js"));
     builder._issueReporter = new AppletIssueReporter(label);
     const writesBeforeDestroy = label.writes;
 
@@ -2161,22 +2163,23 @@ test("the clock tick drives the event column from the applet, not the presenter"
 // tests are about the seam: what the builder measures, and what it does with
 // the answer.
 function reflowBuilder(sizes) {
-    const builder = new AppletModule.AppletMenuBuilder({
-        eventsManager: { connect: () => 1, disconnect() {} }
-    });
     const measured = (width, height) => ({
         get_preferred_width: () => [0, width],
         get_preferred_height: () => [0, height]
     });
 
-    builder._mainBox = {
-        vertical: false,
-        style_class: "calendar-main-box",
-        set_style_class_name(name) { this.style_class = name; }
-    };
-    builder._calbox = measured(sizes.calendarWidth, sizes.calendarHeight);
-    builder._eventList = { actor: measured(sizes.eventsWidth, sizes.eventsHeight) };
-    return builder;
+    // T961: the reflow path is a controller of its own now, so it is
+    // constructed with the three actors it reads instead of needing a whole
+    // menu built around it
+    return new MenuLayoutControllerModule.MenuLayoutController({
+        mainBox: {
+            vertical: false,
+            style_class: "calendar-main-box",
+            set_style_class_name(name) { this.style_class = name; }
+        },
+        calbox: measured(sizes.calendarWidth, sizes.calendarHeight),
+        eventListActor: measured(sizes.eventsWidth, sizes.eventsHeight)
+    });
 }
 
 const ROOMY_COLUMNS = {
@@ -2256,9 +2259,7 @@ test("the measurement carries the text size back out of itself", () => {
 });
 
 test("a popup that was never built has nothing to reflow", () => {
-    const builder = new AppletModule.AppletMenuBuilder({
-        eventsManager: { connect: () => 1, disconnect() {} }
-    });
+    const builder = new MenuLayoutControllerModule.MenuLayoutController();
 
     assert.equal(builder.reflow({ workAreaWidth: 700, workAreaHeight: 1080 }),
         MenuLayoutModule.MENU_LAYOUT_HORIZONTAL);
