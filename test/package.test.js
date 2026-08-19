@@ -300,6 +300,20 @@ test("packaging rejects a tracked symlink that escapes the source tree", async (
         "a rejected input leaves the last good package intact");
 });
 
+// T1020 regression: the output guard rejected the source tree and its
+// ancestors, but a descendant such as `<source>/files` passed validation and
+// was then removed before its own contents had been read.
+test("packaging rejects an output directory that holds packaged sources", async (t) => {
+    const { source, applet } = await makeSpicesFixture(t);
+    const { buildSpicesPackage } = await importPackager();
+
+    await assert.rejects(
+        buildSpicesPackage({ sourceRoot: source, outputRoot: path.join(source, "files") }),
+        /would delete a packaged source file/);
+    assert.equal(await fs.readFile(path.join(applet, "applet.js"), "utf8"), "tracked applet",
+        "the tracked applet tree survives a denied output path");
+});
+
 // T532 regression: only the lexical escape guard was exercised — the realpath
 // guard is the one that catches a chain whose first hop stays in-tree, and it
 // could be deleted with the suite green.

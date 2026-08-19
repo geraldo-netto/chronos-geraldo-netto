@@ -224,6 +224,17 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
     const indexedModes = new Map(trackedEntries.map(({ relative, mode }) => [relative, mode]));
     const manifest = validateManifest(files);
 
+    // The output directory is removed wholesale below, so it must not contain
+    // any input either. `output === source` and the ancestor case are rejected
+    // above; a descendant such as `<repo>/files` would otherwise pass and take
+    // the tracked applet tree with it.
+    for (const relative of files) {
+        if (isInside(output, path.join(source, ...relative.split("/")))) {
+            throw new Error(
+                `package output would delete a packaged source file: ${relative}`);
+        }
+    }
+
     // Validate every input, including symlink confinement, before replacing an
     // existing package. A bad source must not destroy the last good artifact.
     const resolvedFiles = trackedFiles ?
