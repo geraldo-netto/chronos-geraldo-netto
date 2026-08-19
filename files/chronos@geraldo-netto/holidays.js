@@ -44,6 +44,7 @@ const LocaleText = sibling("localeText");
 const ProviderUtils = sibling("providerUtils");
 const HolidayConstants = sibling("holidayConstants");
 const HolidayCacheModule = sibling("holidayCache");
+const HolidayCacheRepositoryModule = sibling("holidayCacheRepository");
 const TextUtils = sibling("textUtils");
 const HolidayServiceAdapters = sibling("holidayServiceAdapters");
 const HolidayRecord = sibling("holidayRecord");
@@ -91,7 +92,7 @@ var Provider = class Provider { // NOSONAR [S3504] -- GJS importer export
     }
 };
 
-var HolidayCacheRepository = HolidayCacheModule.HolidayCacheRepository; // NOSONAR [S3504] -- GJS importer export
+var HolidayCacheRepository = HolidayCacheRepositoryModule.HolidayCacheRepository; // NOSONAR [S3504] -- GJS importer export
 var HolidayCache = HolidayCacheModule.HolidayCache; // NOSONAR [S3504] -- GJS importer export
 // The two policies the cache is given, re-exported so the composition root and
 // the suite can hand it different ones without reaching past the barrel:

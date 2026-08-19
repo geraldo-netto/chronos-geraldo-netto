@@ -4,6 +4,33 @@ const {
     loadCountry, loadJson, cachePath, loadHolidays, holiday, anyRecord
 } = require("./helpers/holidayFixture");
 
+// T988: the store and 320 lines of Gio file I/O shared a module, and the
+// coupling bit at *import* time — `GLib.build_filenamev(...)` ran while the
+// module loaded, so the pure data structure could not be required without a
+// GLib stub. That is what holidayFixture's build_filenamev, get_user_cache_dir
+// and mkdir_with_parents stubs are for, and the file half is where they belong.
+test("the holiday store loads with no toolkit at all", () => {
+    const originalImports = global.imports;
+    for (const modulePath of [holidayCachePath, holidayRecordPath]) {
+        delete require.cache[require.resolve(modulePath)];
+    }
+    delete global.imports;
+
+    try {
+        const store = require(holidayCachePath);
+
+        assert.equal(typeof store.HolidayCache, "function");
+        assert.equal(typeof store.HolidayFreshness, "function");
+        assert.equal(store.HolidayCacheRepository, undefined,
+            "the file lives in holidayCacheRepository.js now");
+    } finally {
+        global.imports = originalImports;
+        for (const modulePath of [holidayCachePath, holidayRecordPath]) {
+            delete require.cache[require.resolve(modulePath)];
+        }
+    }
+});
+
 test("retrieveForYear without a country reports instead of throwing", () => {
     const Holidays = loadHolidays();
     const enrico = new Holidays.HolidayService({ fetchYear() { throw new Error("no fetch expected"); } }, {

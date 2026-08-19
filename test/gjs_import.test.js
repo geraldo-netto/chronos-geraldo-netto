@@ -275,9 +275,16 @@ function gjsImportsMock() {
                             hebrewObservances() {}
                         },
                         holidayCache: {
-                            HolidayCacheRepository: class {},
                             HolidayCache: class {},
-                            GLOBAL_REGION: "global"
+                            GLOBAL_REGION: "global",
+                            MAX_CACHED_COUNTRIES: 4,
+                            MAX_MERGE_RETRIES: 3,
+                            MAX_EXPANDED_HOLIDAY_ROWS: 400,
+                            validCachedHoliday() {},
+                            validCachedYears() {}
+                        },
+                        holidayCacheRepository: {
+                            HolidayCacheRepository: class {}
                         },
                         holidayRecord: {
                             validDateParts() {},
@@ -386,7 +393,8 @@ const EXPORTS = {
         "religionIds", "enabledReligionIds", "holidaysForYear", "monthMap",
         "mergeMonthMaps"],
     holidayAdapters: ["HolidayFallbackChain"],
-    holidayCache: ["HolidayCacheRepository", "HolidayCache", "validCachedHoliday",
+    holidayCacheRepository: ["HolidayCacheRepository"],
+    holidayCache: ["HolidayCache", "validCachedHoliday",
         "validCachedStamp", "validCachedYears", "clampHolidayName", "MAX_HOLIDAY_NAME_LENGTH", "MAX_MEMOIZED_MONTHS",
         "UPDATE_PERIOD", "RETRY_PERIOD", "YEAR_WINDOW", "GLOBAL_REGION"],
     holidayRecord: ["validDateParts", "validHolidaySpan", "holidaySpanDays",

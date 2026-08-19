@@ -32,6 +32,8 @@ const OPENHOLIDAYS_STAMP = "Wed, 08 Jul 2026 08:00:00 GMT";
 const modulePath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidays.js");
 const ioUtilsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const holidayCachePath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayCache.js");
+const holidayCacheRepositoryPath = path.join(
+    __dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayCacheRepository.js");
 const holidayConstantsPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayConstants.js");
 const holidayRecordPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayRecord.js");
 const holidayServiceAdaptersPath = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto", "holidayServiceAdapters.js");
@@ -103,6 +105,7 @@ function loadHolidays(options = {}) {
     delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(ioUtilsPath)];
     delete require.cache[require.resolve(holidayCachePath)];
+    delete require.cache[require.resolve(holidayCacheRepositoryPath)];
     delete require.cache[require.resolve(holidayConstantsPath)];
     delete require.cache[require.resolve(holidayRecordPath)];
     delete require.cache[require.resolve(holidayServiceAdaptersPath)];
@@ -230,7 +233,8 @@ afterEach(() => {
 module.exports = {
     assert, test, vm, fs, os, path, makeRandom, makeSoup3, FIXED_YEAR,
     STAMP, NAGER_STAMP, OPENHOLIDAYS_STAMP,
-    modulePath, ioUtilsPath, holidayCachePath, holidayConstantsPath,
+    modulePath, ioUtilsPath, holidayCachePath, holidayCacheRepositoryPath,
+    holidayConstantsPath,
     holidayRecordPath, holidayServiceAdaptersPath, religiousCatalogPath, shimPath,
     loadCountry, loadJson, cachePath, loadHolidays, holiday, anyRecord
 };
