@@ -411,10 +411,13 @@ test("applets surface weather provider failures", () => {
     assert.match(panelStatus, /function markedWeatherError\(error\)/);
     assert.match(panelStatus, /return text \? WeatherFormat\.WEATHER_ERROR_MARKER \+ " " \+ text : "";/);
     assert.match(panelStatus, /_\("Set a weather location"\)/);
-    // the tooltip is a clock table and nothing else: the provider credit that
-    // used to sit under a blank line at its foot is gone from it, and lives in
-    // the world-clock popup's accessible name
-    assert.doesNotMatch(panelStatus, /_\("Source: %s"\)/);
+    // the tooltip is a clock table and nothing else, so the provider credit is
+    // not under a blank line at its foot — it is in the world-clock popup's
+    // accessible name. T966: except when the clocks are off, where there is no
+    // table and the popup that carries the credit is hidden, and the footer is
+    // the only surface left.
+    assert.match(panelStatus,
+        /!model\.rows\.length && model\.sources\.length[\s\S]*?_\("Source: %s"\)/);
     assert.match(coordinators, /this\.weatherProvider\.schedule\(this\._request\(\), this\.setStatus\.bind\(this\)\);/);
     assert.match(coordinators, /this\.weatherProvider\.queue\(this\._request\(\), this\.setStatus\.bind\(this\)\);/);
 });
