@@ -471,8 +471,10 @@ function makeHost(overrides = {}) {
         weekStart: 0,
         weekendLength: 2,
         eventDataAvailable: true,
-        eventsManager: null,
-        holidayProvider: null,
+        // the answers the renderers ask for, not the collaborators behind them
+        colorsForUnixKey: () => null,
+        holidaysActive: () => false,
+        requestHolidays() {},
         holidayGeneration: 0,
         selectDate() {},
         allocateDotBox() {},
@@ -635,7 +637,7 @@ test("the calendar rebuilds when the locale query answers", () => {
 test("a holiday failure is announced in words, not just a glyph", () => {
     const label = new MockActor();
     const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
-        holidayProvider: { active: true, getHolidays() {} }
+        holidaysActive: () => true
     }));
     annotator.attachLabel(label);
 
@@ -738,7 +740,7 @@ test("holiday failures reach the shared footer and recovery clears them", () => 
 test("a provider's own error sentence is never shown to the user", () => {
     const label = new MockActor();
     const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
-        holidayProvider: { active: true, getHolidays() {} }
+        holidaysActive: () => true
     }));
     annotator.attachLabel(label);
 
@@ -1114,16 +1116,23 @@ test("the grid host is the whole contract the collaborators get", () => {
     let holidayChanges = 0;
     let capacityChanges = 0;
     let selected = null;
-    const eventsManager = { get_colors_for_unix_key: () => null };
-    const holiday = { country: "ita" };
+    const colorRequests = [];
+    const holidayRequests = [];
     const selectedDate = new Date(2026, 6, 9);
     const port = {
         selectedDate: () => selectedDate,
         weekStart: () => 1,
         weekendLength: () => 1,
         eventDataAvailable: () => true,
-        eventsManager,
-        holidayProvider: () => holiday,
+        // T976: the answers, not the collaborators. Handing out the whole
+        // EventsManager and the whole holiday provider meant a test for either
+        // renderer still needed a full-shaped double of them.
+        colorsForUnixKey: (key) => {
+            colorRequests.push(key);
+            return null;
+        },
+        holidaysActive: () => true,
+        requestHolidays: (...args) => holidayRequests.push(args),
         holidayGeneration: () => 4,
         selectDate: (date) => { selected = date; },
         allocateDotBox: (...args) => {
@@ -1142,8 +1151,11 @@ test("the grid host is the whole contract the collaborators get", () => {
     assert.equal(host.weekStart, 1);
     assert.equal(host.weekendLength, 1);
     assert.equal(host.eventDataAvailable, true);
-    assert.equal(host.eventsManager, eventsManager);
-    assert.equal(host.holidayProvider, holiday);
+    assert.equal(host.colorsForUnixKey(20260714), null);
+    assert.deepEqual(colorRequests, [20260714]);
+    assert.equal(host.holidaysActive(), true);
+    host.requestHolidays(2026, 7, "cb");
+    assert.deepEqual(holidayRequests, [[2026, 7, "cb"]]);
     assert.equal(host.holidayGeneration, 4);
 
     const date = new Date(2026, 6, 14);
@@ -1265,7 +1277,7 @@ test("CalendarDayCellRenderer mutates cached state and delegates dots", () => {
 test("CalendarEventDotRenderer owns dot actor reuse and cleanup", () => {
     let colors = ["#101010", "color: red;"];
     const renderer = new CalendarModule.CalendarEventDotRenderer(makeHost({
-        eventsManager: { get_colors_for_unix_key: () => colors }
+        colorsForUnixKey: () => colors
     }));
     const cell = { dot_key: "", dot_box: new MockActor() };
 
@@ -1291,7 +1303,7 @@ test("CalendarEventDotRenderer bounds dense days without losing the accessible c
     const colors = Array.from({ length: 2000 }, (_unused, index) =>
         `rgb(${index % 255}, 0, 0)`);
     const renderer = new CalendarModule.CalendarEventDotRenderer(makeHost({
-        eventsManager: { get_colors_for_unix_key: () => colors }
+        colorsForUnixKey: () => colors
     }));
     const cell = {
         accessible_date: "Thursday, 9 July 2026",
@@ -1453,12 +1465,10 @@ test("a holiday fetch that has not answered yet shows a pending marker", () => {
     const label = new MockActor();
     const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         holidayGeneration: 3,
-        holidayProvider: {
-            active: true,
-            // a real network round-trip: the callback lands later
-            getHolidays(y, m, cb) {
-                pending = cb;
-            }
+        holidaysActive: () => true,
+        // a real network round-trip: the callback lands later
+        requestHolidays(y, m, cb) {
+            pending = cb;
         }
     }));
     annotator.attachLabel(label);
@@ -1485,11 +1495,9 @@ test("the pending marker survives until every in-flight month answers", () => {
     const label = new MockActor();
     const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         holidayGeneration: 3,
-        holidayProvider: {
-            active: true,
-            getHolidays(y, m, cb) {
-                pending.set(`${y}/${m}`, cb);
-            }
+        holidaysActive: () => true,
+        requestHolidays(y, m, cb) {
+            pending.set(`${y}/${m}`, cb);
         }
     }));
     annotator.attachLabel(label);
@@ -1518,11 +1526,9 @@ test("the grid credits every provider that answered, whatever the order", () => 
         const label = new MockActor();
         const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
             holidayGeneration: 3,
-            holidayProvider: {
-                active: true,
-                getHolidays(y, m, cb) {
-                    pending.set(`${y}/${m}`, cb);
-                }
+            holidaysActive: () => true,
+            requestHolidays(y, m, cb) {
+                pending.set(`${y}/${m}`, cb);
             }
         }));
         annotator.attachLabel(label);
@@ -1558,11 +1564,9 @@ test("a failed month keeps its own provider in the credit", () => {
     const label = new MockActor();
     const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
         holidayGeneration: 3,
-        holidayProvider: {
-            active: true,
-            getHolidays(y, m, cb) {
-                pending.set(`${y}/${m}`, cb);
-            }
+        holidaysActive: () => true,
+        requestHolidays(y, m, cb) {
+            pending.set(`${y}/${m}`, cb);
         }
     }));
     annotator.attachLabel(label);
@@ -1591,7 +1595,7 @@ test("a calendar with no month label can still be told holidays are off", () => 
         holiday_styled: true
     };
     const annotator = new AnnotationsModule.CalendarHolidayAnnotator(makeHost({
-        holidayProvider: { active: false, getHolidays() {} },
+        holidaysActive: () => false,
         reportIssue: (source, text) => reported.push([source, text])
     }));
 
@@ -1617,12 +1621,10 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
     const label = new MockActor();
     const host = makeHost({
         holidayGeneration: 7,
-        holidayProvider: {
-            active: true,
-            getHolidays(y, m, cb) {
-                assert.equal(`${y}/${m}`, "2026/7");
-                cb(new Map([["7/14", { name: "Bastille Day", flags: [] }]]), "", "stub-provider");
-            }
+        holidaysActive: () => true,
+        requestHolidays(y, m, cb) {
+            assert.equal(`${y}/${m}`, "2026/7");
+            cb(new Map([["7/14", { name: "Bastille Day", flags: [] }]]), "", "stub-provider");
         }
     });
     // the annotator renames the cell it just annotated through the host, rather

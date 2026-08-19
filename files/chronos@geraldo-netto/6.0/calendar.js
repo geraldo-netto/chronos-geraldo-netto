@@ -205,12 +205,22 @@ class CalendarGridHost {
         return this.port.eventDataAvailable();
     }
 
-    get eventsManager() {
-        return this.port.eventsManager;
+    // The dot colours for one day, and not the whole EventsManager. Handing the
+    // collaborator out defeated the port: a test for the dot renderer needed a
+    // full-shaped manager double, and the field was captured as a *value* at
+    // construction, so it went stale the moment the Calendar reassigned it.
+    colorsForUnixKey(dateUnixKey) {
+        return this.port.colorsForUnixKey(dateUnixKey);
     }
 
-    get holidayProvider() {
-        return this.port.holidayProvider();
+    // ...and the same for the holiday provider: whether it has anything to
+    // annotate, and one month's holidays. Nothing downstream needs the object.
+    holidaysActive() {
+        return this.port.holidaysActive();
+    }
+
+    requestHolidays(year, month, callback) {
+        this.port.requestHolidays(year, month, callback);
     }
 
     // a fetch that lands after the grid moved on belongs to a month that is no
@@ -467,7 +477,7 @@ class CalendarEventDotRenderer {
 
     update(cell, iter, dateUnixKey) {
         const color_set = this.host.eventDataAvailable ?
-            this.host.eventsManager.get_colors_for_unix_key(dateUnixKey) : null;
+            this.host.colorsForUnixKey(dateUnixKey) : null;
         const { eventCount, colors } = this._projectColors(color_set, cell.dot_capacity);
 
         // the dots are the only sign that a day has events, and they are 4px of
@@ -749,8 +759,14 @@ class Calendar {
             weekStart: () => this._weekStart,
             weekendLength: () => this.weekend_length,
             eventDataAvailable: () => this.event_data_available,
-            eventsManager: this.events_manager,
-            holidayProvider: () => this.holiday,
+            // thunks, both of them: `eventsManager` was the one port member
+            // captured as a value at construction, so it went stale if the
+            // field was ever reassigned
+            colorsForUnixKey: (dateUnixKey) =>
+                this.events_manager.get_colors_for_unix_key(dateUnixKey),
+            holidaysActive: () => Boolean(this.holiday && this.holiday.active), // NOSONAR [S6582] -- accepted compatible form
+            requestHolidays: (year, month, callback) =>
+                this.holiday.getHolidays(year, month, callback),
             holidayGeneration: () => this._holiday_update_generation,
             selectDate: (date) => this.setDate(date, false),
             allocateDotBox: (actor, box, flags) =>

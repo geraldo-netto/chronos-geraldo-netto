@@ -457,8 +457,7 @@ class CalendarHolidayAnnotator {
     }
 
     annotate(months, cells, holiday_generation) {
-        const holiday = this.host.holidayProvider;
-        if (!holiday || !holiday.active) { // NOSONAR [S6582] -- accepted compatible form
+        if (!this.host.holidaysActive()) {
             // holidays were switched off, or the country was cleared: the marks
             // on the grid belong to a country the user is no longer asking about
             this.clearAnnotations(cells);
@@ -482,7 +481,7 @@ class CalendarHolidayAnnotator {
         this._pass_providers = new Set();
         for (let month of monthList) {
             const [y, m] = month.split('/');
-            holiday.getHolidays(y, m, (dates, error, providerName) => {
+            this.host.requestHolidays(y, m, (dates, error, providerName) => {
                 this._receiveMonth(dates, error, providerName, pass);
             });
         }

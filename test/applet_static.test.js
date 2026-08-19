@@ -355,7 +355,7 @@ test("calendars surface holiday provider failures", () => {
     assert.match(code, /new Tooltips\.Tooltip\(this\.label\)/);
     assert.match(code, /Holiday data: %s/);
     assert.match(code,
-        /holiday\.getHolidays\(y, m, \(dates, error, providerName\) => \{[\s\S]*?this\._receiveMonth\(dates, error, providerName, pass\);/);
+        /this\.host\.requestHolidays\(y, m, \(dates, error, providerName\) => \{[\s\S]*?this\._receiveMonth\(dates, error, providerName, pass\);/);
     assert.match(code,
         /_receiveMonth\(dates, error, providerName, pass\) \{[\s\S]*?this\._reportProvider\(error, providerName\);/);
     assert.match(code, /_reportProvider\(error, providerName\) \{[\s\S]*?if \(error\) \{[\s\S]*?this\.setStatus\(error, providerName\);/);
