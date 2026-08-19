@@ -2169,3 +2169,36 @@ test("a text scale change is bound beside the clock keys and released with them"
     legacy.bindSystemSignals();
     assert.deepEqual(legacy._desktop_settings_signal_ids, [7]);
 });
+
+// T1047: the module exists so that "every step runs even if an earlier one
+// throws". Its own reporter was the one step with no guard: `global.logError`
+// is dereferenced straight out of the catch, so a host that does not carry it —
+// or one whose logger raises — ends the loop at the first failing step and
+// leaves every teardown behind it undone.
+test("a teardown finishes even when its own error reporter cannot", () => {
+    const AppletTeardown = require(path.join(APPLET_DIR, "6.0", "appletTeardown.js"));
+    const original = global.logError;
+    const ran = [];
+
+    try {
+        delete global.logError;
+        AppletTeardown.runTeardownSteps([
+            () => ran.push("first"),
+            () => { throw new Error("a signal could not be disconnected"); },
+            () => ran.push("third")
+        ]);
+        assert.deepEqual(ran, ["first", "third"],
+            "a host with no logError must not lose the steps behind the failure");
+
+        ran.length = 0;
+        global.logError = () => { throw new Error("the log itself is gone"); };
+        AppletTeardown.runTeardownSteps([
+            () => { throw new Error("a timer could not be removed"); },
+            () => ran.push("second")
+        ]);
+        assert.deepEqual(ran, ["second"],
+            "a logger that raises is not allowed to end the teardown either");
+    } finally {
+        global.logError = original;
+    }
+});
