@@ -349,8 +349,7 @@ test("every settings key the facade binds exists in the schema", () => {
     const bound = [
         ...facadeModule.PANEL_KEYS,
         ...facadeModule.WEATHER_KEYS,
-        ...facadeModule.WEATHER_PRESENTATION_KEYS,
-        ...facadeModule.CUSTOM_WEATHER_KEYS
+        ...facadeModule.MIRRORED_WEATHER_KEYS
     ].map(([key]) => key);
     assert.ok(bound.length >= 4, "the key/property tables were not found");
 

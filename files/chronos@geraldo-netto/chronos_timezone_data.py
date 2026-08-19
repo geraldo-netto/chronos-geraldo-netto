@@ -24,7 +24,7 @@ import os
 import re
 import unicodedata
 from pathlib import Path
-from typing import Any, Callable, Iterable, Optional
+from typing import Any, Callable, Iterable, Optional, Tuple
 
 LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 
@@ -384,40 +384,43 @@ class TimezoneResolver:
         used to validate it, preview it, save it, and let it disappear with
         nothing said.
         """
+        return self.classify(value)[0]
+
+    def classify(self, value: Any) -> Tuple[bool, Optional[str]]:
+        """Both answers about one string, from a single resolve.
+
+        is_reserved() followed by normalize() is two _resolve() calls for one
+        piece of text. A caller that needs the reserved flag *and* the
+        identifier - the clock dialog does, on every keystroke, for both of its
+        entries - asks here instead and gets them from one pass over the same
+        rule, in the same order.
+        """
         if not isinstance(value, str):
-            return False
+            return (False, None)
 
         text = value.strip()
         if not text:
-            return False
+            return (False, None)
         if text.lower() in RESERVED_TIMEZONES:
-            return True
+            return (True, None)
 
         self.refresh_builtin_timezones()
         resolved = self._resolve(text)
-        return bool(resolved) and resolved in self.builtin_timezones
+        if resolved and resolved in self.builtin_timezones:
+            return (True, None)
+        return (False, resolved)
 
-    def normalize(self, value: Any, reserved: Optional[bool] = None) -> Optional[str]:
+    def normalize(self, value: Any) -> Optional[str]:
         """Accept a full IANA identifier or a plain city name, case-insensitively.
 
-        `reserved` is is_reserved()'s answer when the caller has already asked.
-        It is not a micro-optimization: is_reserved re-reads the OS zone before
-        deciding, deliberately, so asking it twice for one value can get two
-        different answers - and the dialog's OK-button sensitivity and its
-        preview text were computed from separate calls.
+        Reserved text resolves to nothing here. This used to take the caller's
+        own is_reserved() answer so the OS zone was not read twice for one
+        value - two reads can disagree, and the dialog's OK-button sensitivity
+        and its preview text were computed from separate calls. classify() makes
+        that parameter unnecessary: one pass answers both questions, so a caller
+        that needs both asks it instead of asking here twice.
         """
-        if not value:
-            return None
-
-        value = value.strip()
-        if not value:
-            return None
-        if reserved is None:
-            reserved = self.is_reserved(value)
-        if reserved:
-            return None
-
-        return self._resolve(value)
+        return self.classify(value)[1]
 
     def _resolve(self, value: str) -> Optional[str]:
         """Text to IANA identifier. No built-in check: is_reserved needs this."""

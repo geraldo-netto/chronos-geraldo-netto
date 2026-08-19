@@ -649,10 +649,11 @@ class ClocksList(JSONSettingsList):
         else:
             self.add_button.set_tooltip_text(_("Add new entry"))
 
-    def normalize_timezone(self, value, reserved=None):
-        return self.timezone_resolver.normalize(value, reserved)
+    def normalize_timezone(self, value):
+        return self.timezone_resolver.normalize(value)
 
-    # One resolve per call, and the answer is passed on rather than recomputed.
+    # One resolve and one OS-zone read per call, through the resolver's
+    # classify(), and the answer is passed on rather than recomputed.
     #
     # is_reserved() re-reads the OS zone before deciding (d554f04), so it is the
     # expensive half: an os.readlink of /etc/localtime, on the GTK main thread.
@@ -677,7 +678,7 @@ class ClocksList(JSONSettingsList):
     def resolve_timezone_choice(self, values, original_timezone=None):
         timezone_text = values.get('timezone')
         has_timezone_text = bool(timezone_text and timezone_text.strip())
-        reserved = self.timezone_resolver.is_reserved(timezone_text)
+        reserved, timezone = self.timezone_resolver.classify(timezone_text)
         if reserved:
             return {
                 "timezone": None,
@@ -685,8 +686,6 @@ class ClocksList(JSONSettingsList):
                 "reserved": True,
                 "duplicate": False
             }
-
-        timezone = self.normalize_timezone(timezone_text, reserved)
 
         if timezone is not None:
             duplicate = self._timezone_is_duplicate(

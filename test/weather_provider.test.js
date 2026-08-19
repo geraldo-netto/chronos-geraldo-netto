@@ -2526,10 +2526,10 @@ test("applets bind only weather settings to debounced refresh", () => {
     // request and presentation settings are separate, so changing units cannot
     // drag a weather refetch along with it
     assert.match(facade, /var WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\["show-weather", "show_weather"\]/);
-    assert.match(facade, /var WEATHER_PRESENTATION_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\["weather-units", "weather_units"\]/);
-    // ...and the location travels with them, mirrored rather than bound: its
-    // widget makes its schema type "custom", which Cinnamon's bind() refuses
-    assert.match(facade, /var CUSTOM_WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\[WEATHER_LOCATION_KEY, "weather_location"\]/);
+    // units and location are both mirrored rather than bound: their widgets make
+    // their schema type "custom", which Cinnamon's bind() refuses. Only the
+    // callback differs, and units must not be a request key
+    assert.match(facade, /var MIRRORED_WEATHER_KEYS = \[(?: \/\/ NOSONAR[^\n]*)?\s*\["weather-units", "weather_units", "presentation"\],\s*\[WEATHER_LOCATION_KEY, "weather_location", "request"\]/);
     assert.match(lifecycle,
         /bindWeatherKeys\([\s\S]*?this\.handlers\.onWeatherSettingsChanged,[\s\S]*?this\.handlers\.onWeatherUnitsChanged\)/);
 

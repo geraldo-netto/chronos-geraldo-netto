@@ -69,16 +69,21 @@ var PANEL_KEYS = [ // NOSONAR [S3504] -- GJS importer export
 var WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
     ["show-weather", "show_weather"]
 ];
-var WEATHER_PRESENTATION_KEYS = [ // NOSONAR [S3504] -- GJS importer export
-    ["weather-units", "weather_units"]
-];
-
 // Keys the settings dialog draws with a widget of its own, which makes their
 // schema type "custom" — and Cinnamon binds only the types in its SETTINGS_TYPES
-// table, which "custom" is not in. changed::<key> is still emitted for them, so
-// every custom runtime value goes through the explicit mirror below.
-var CUSTOM_WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
-    [WEATHER_LOCATION_KEY, "weather_location"]
+// table, which "custom" is not in: bindWithObject returns false and logs
+// invalid_setting_type_error. changed::<key> is still emitted for them, so every
+// custom runtime value goes through the explicit mirror below instead.
+//
+// Both of these are "custom" in 6.0/settings-schema.json — units as much as
+// location. They were two tables, and the comment sat over only the second, so
+// folding weather-units into WEATHER_KEYS above read as safe and would have left
+// temperatures in the wrong unit for the rest of the session. One table, one
+// explanation; the third column is only which callback the change fires, because
+// a presentation key redraws the reading and a request key refetches it.
+var MIRRORED_WEATHER_KEYS = [ // NOSONAR [S3504] -- GJS importer export
+    ["weather-units", "weather_units", "presentation"],
+    [WEATHER_LOCATION_KEY, "weather_location", "request"]
 ];
 
 function mirrorSetting(settings, target, key, property, callback) {
@@ -357,12 +362,9 @@ var PanelSettings = class PanelSettings { // NOSONAR [S3504] -- GJS importer exp
             this._settings.bind(key, property, requestCallback);
         }
 
-        for (let [key, property] of WEATHER_PRESENTATION_KEYS) {
-            mirrorSetting(this._settings, target, key, property, presentationCallback);
-        }
-
-        for (let [key, property] of CUSTOM_WEATHER_KEYS) {
-            mirrorSetting(this._settings, target, key, property, requestCallback);
+        for (const [key, property, kind] of MIRRORED_WEATHER_KEYS) {
+            mirrorSetting(this._settings, target, key, property,
+                kind === "presentation" ? presentationCallback : requestCallback);
         }
     }
 
@@ -428,7 +430,6 @@ if (typeof module !== "undefined") {
         NO_HOLIDAYS,
         PANEL_KEYS,
         WEATHER_KEYS,
-        WEATHER_PRESENTATION_KEYS,
-        CUSTOM_WEATHER_KEYS
+        MIRRORED_WEATHER_KEYS
     };
 }

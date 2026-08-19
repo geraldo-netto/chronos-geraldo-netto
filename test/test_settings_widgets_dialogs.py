@@ -87,16 +87,23 @@ class BuildDialogContentTest(unittest.TestCase):
         presenter.update(widgets)
         self.assertEqual(len(reads), 1)
 
-    def test_normalize_still_asks_when_the_caller_did_not(self):
-        # the parameter is an answer the caller already has, not a way to skip
-        # the check: a direct caller gets the same reserved handling as before
+    def test_classify_answers_both_questions_from_one_resolve(self):
+        # normalize() no longer takes the caller's is_reserved() answer: one
+        # classify() pass gives the flag and the identifier together, so the two
+        # cannot be computed from separate readings of the OS zone
         clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
         resolver = clocks.timezone_resolver
 
+        self.assertEqual(resolver.classify(" europe/rome "), (False, "Europe/Rome"))
+        self.assertEqual(resolver.classify("local"), (True, None))
+        self.assertEqual(resolver.classify("UTC"), (True, None))
+        self.assertEqual(resolver.classify("Not A Timezone"), (False, None))
+        self.assertEqual(resolver.classify("   "), (False, None))
+        self.assertEqual(resolver.classify(None), (False, None))
+
         self.assertIsNone(resolver.normalize("local"))
         self.assertIsNone(resolver.normalize("UTC"))
-        # and an explicit answer is honoured over a fresh check
-        self.assertIsNone(resolver.normalize("Europe/Rome", True))
+        self.assertEqual(resolver.normalize("europe/rome"), "Europe/Rome")
 
     def test_an_untouched_dialog_is_not_marked_invalid(self):
         # T732: build_content ends by validating with both entries still empty,

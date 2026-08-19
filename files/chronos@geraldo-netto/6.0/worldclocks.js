@@ -19,7 +19,7 @@ const St = GjsImports.gi.St;
 // same-dir shim like every other 6.0 module: it hands back the single
 // importer-loaded root module instead of a second CJS copy of it
 const WorldclockData = require("./worldclockData");
-const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const AppletModules = GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
 const DateFormats = AppletModules.dateFormats;
 const ElapsedTime = AppletModules.elapsedTime;
@@ -77,8 +77,9 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
             // The display name is free text from the settings dialog, and this
             // label had no max-width, no ellipsize and no tooltip — so a long one
             // ("Mom's place in Buenos Aires") widened the whole popup and pushed
-            // the calendar grid across the screen. The 24-character clamp applies
-            // to the *panel* label, not to this one.
+            // the calendar grid across the screen. The clamp above is
+            // worldclockData's MAX_CLOCK_LABEL_CELLS, which exists for this
+            // label; see the note there for why it is counted in cells.
             let label = new St.Label({
                 text: visibleLabel,
                 x_expand: true,

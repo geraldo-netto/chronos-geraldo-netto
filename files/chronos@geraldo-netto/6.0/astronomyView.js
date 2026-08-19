@@ -9,11 +9,15 @@
 
 /* global imports */
 
-const Clutter = imports.gi.Clutter;
-const GLib = imports.gi.GLib;
-const St = imports.gi.St;
+// The guard is what keeps a host that exposes only globalThis.imports from
+// ReferenceError-ing at load; a file that used it on half its lines would have
+// the appearance of protection and none of it.
+const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
+const Clutter = GjsImports.gi.Clutter;
+const GLib = GjsImports.gi.GLib;
+const St = GjsImports.gi.St;
 const Astronomy = require("./astronomy");
-const AppletModules = imports.ui.appletManager.applets["chronos@geraldo-netto"];
+const AppletModules = GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
 const LocaleText = AppletModules.localeText;
 // through the 6.0 shim, as worldclocks.js, appletCoordinators.js and
 // appletPanelStatus.js do: the shims are the seam where a future version tree
