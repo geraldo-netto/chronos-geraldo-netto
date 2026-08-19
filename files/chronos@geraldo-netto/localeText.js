@@ -13,7 +13,12 @@
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const GLib = GjsImports.gi.GLib;
 const Gettext = GjsImports.gettext;
-const TextUtils = typeof require === "function" && typeof process !== "undefined" ?
+// Which host is loading this file — asked of the host, not of require(): Cinnamon
+// master sets globalThis.require, so a require() probe inverts there. See the
+// full rationale in worldclockData.js.
+const IS_NODE = typeof process !== "undefined" &&
+    Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
+const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
 const UUID = "chronos@geraldo-netto";
