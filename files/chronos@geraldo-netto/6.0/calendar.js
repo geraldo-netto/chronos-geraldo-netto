@@ -691,6 +691,7 @@ class Calendar {
         this._holiday_update_generation = 0;
 
         this._update_id = 0;
+        this._destroyed = false;
 
         this.settings.bindShowWeekNumbers(this, "show_week_numbers", this._onSettingsChange);
         this.settings.bindWeekendLength(this, "weekend_length", this._onSettingsChange);
@@ -804,6 +805,12 @@ class Calendar {
 
     _queue_update() {
         this._cancel_update();
+        // destroy() reset the grid view, so a later refresh would re-arm the
+        // idle and rebuild 42 cells and tooltips into a destroyed St.Table.
+        // Several applet call sites do not null-guard their calendar.
+        if (this._destroyed) {
+            return;
+        }
 
         this._update_id = Mainloop.idle_add(this._idle_do_update.bind(this));
     }
@@ -824,6 +831,7 @@ class Calendar {
     }
 
     destroy() {
+        this._destroyed = true;
         this._holiday_update_generation++;
         this._cancel_update();
         this._cancel_set_date_idle();
@@ -1093,6 +1101,10 @@ class Calendar {
     }
 
     _update() {
+        if (this._destroyed) {
+            return;
+        }
+
         this._holidayAnnotator.beginUpdate();
         // the month name beside it is memoised; the year was not, and it changes
         // once a year while _update() runs on every menu open, settings change and

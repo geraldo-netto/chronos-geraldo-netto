@@ -1909,6 +1909,38 @@ test("settings churn rebuilds the header only when week geometry changes", () =>
     assert.notEqual(cal._monthLabel, headerBefore, "geometry change rebuilds header");
 });
 
+// T978: destroy() cancelled the pending idle but set no flag, so any later
+// refresh re-armed it and _update() rebuilt 42 cells and tooltips into a
+// destroyed St.Table — _gridView.reset() having emptied dayCells.
+test("a refresh after Calendar.destroy neither queues nor renders", () => {
+    const callbacks = [];
+    const idleAdd = global.imports.mainloop.idle_add;
+    global.imports.mainloop.idle_add = (cb) => {
+        callbacks.push(cb);
+        return callbacks.length;
+    };
+    try {
+        const cal = makeCalendar();
+        cal.setDate(new Date(2026, 6, 9), true);
+        cal.destroy();
+        callbacks.length = 0;
+
+        cal.refreshToday();
+        cal.refreshHolidays();
+        cal.refreshTimezone();
+        cal.refreshEventDataAvailability();
+
+        assert.deepEqual(callbacks, [], "no idle is re-armed after destroy");
+        assert.equal(cal._update_id, 0);
+
+        cal._update();
+        assert.deepEqual(cal._gridView.dayCells, [],
+            "a direct update builds no cells into the destroyed table");
+    } finally {
+        global.imports.mainloop.idle_add = idleAdd;
+    }
+});
+
 test("Calendar.destroy disconnects its events-manager signals", () => {
     const manager = makeEventsManager();
     const cal = new CalendarModule.Calendar(makeSettings(), manager, null, makeDesktopSettings());
