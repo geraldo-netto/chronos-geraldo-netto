@@ -255,6 +255,7 @@ rootModules.holidayConstants = require(path.join(APPLET_DIR, "holidayConstants.j
 rootModules.holidayRecord = require(path.join(APPLET_DIR, "holidayRecord.js"));
 rootModules.worldclockData = require(path.join(APPLET_DIR, "worldclockData.js"));
 rootModules.astronomy = require(path.join(APPLET_DIR, "astronomy.js"));
+rootModules.astronomyDay = require(path.join(APPLET_DIR, "astronomyDay.js"));
 rootModules.worldclocks = require(path.join(APPLET_DIR, "6.0", "worldclocks.js"));
 rootModules.settingsFacade = require(path.join(APPLET_DIR, "settingsFacade.js"));
 rootModules.panelFont = require(path.join(APPLET_DIR, "panelFont.js"));

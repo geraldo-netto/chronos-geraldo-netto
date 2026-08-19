@@ -329,6 +329,8 @@ const EXPORTS = {
     astronomy: ["ASTRONOMY_DAY_MS", "ASTRONOMY_MAX_DAY_MS", "ASTRONOMY_SAMPLE_MS",
         "validCoordinates", "validDayBounds", "sunAltitude", "moonAltitude",
         "calculateAstronomyEvents"],
+    astronomyDay: ["MISSING_EVENT_TIME", "zonedDateTime", "civilDayBounds", "bodyRows",
+        "defaultFormatTime"],
     clockLimits: ["MAX_CLOCKS"],
     elapsedTime: ["civilMilliseconds", "monotonicMilliseconds", "monotonicSeconds"],
     dateMath: ["MSECS_IN_DAY", "monthWindowStartOffset", "dtEquals"],

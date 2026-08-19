@@ -14,7 +14,6 @@
 // the appearance of protection and none of it.
 const GjsImports = typeof imports === "undefined" ? globalThis.imports : imports;
 const Clutter = GjsImports.gi.Clutter;
-const GLib = GjsImports.gi.GLib;
 const St = GjsImports.gi.St;
 const Astronomy = require("./astronomy");
 const LocaleText = require("./localeText");
@@ -25,59 +24,19 @@ const LocaleText = require("./localeText");
 // nothing fails.
 const WorldclockData = require("./worldclockData");
 const _ = LocaleText.translate;
-const MISSING_EVENT_TIME = "—";
+// The civil-day and rise/set rules are a root module: they touch no St and no
+// Clutter, and a future version tree adapts the actors below without forking
+// them. Reached through the shim beside this file, like every other root module
+// a 6.0/ file uses.
+const AstronomyDay = require("./astronomyDay");
+const MISSING_EVENT_TIME = AstronomyDay.MISSING_EVENT_TIME;
+const zonedDateTime = AstronomyDay.zonedDateTime;
+const civilDayBounds = AstronomyDay.civilDayBounds;
+const bodyRows = AstronomyDay.bodyRows;
+const defaultFormatTime = AstronomyDay.defaultFormatTime;
 // Shown instead of nothing when the resolved place carries no timezone of
 // its own: the rows are then the viewer's clock, not the place's.
 const ZONE_FALLBACK_TEXT = _("Times shown in this computer's time zone");
-
-function zonedDateTime(timestamp, timezone) {
-    if (!Number.isFinite(timestamp) || !timezone) {
-        return null;
-    }
-    const utc = GLib.DateTime.new_from_unix_utc(Math.floor(timestamp / 1000));
-    return utc ? utc.to_timezone(timezone) : null;
-}
-
-function civilDayBounds(now, timezone) {
-    if (!now || typeof now.getTime !== "function" || !Number.isFinite(now.getTime())) {
-        return null;
-    }
-    const placeNow = zonedDateTime(now.getTime(), timezone);
-    if (!placeNow) {
-        return null;
-    }
-    const start = GLib.DateTime.new(timezone,
-        placeNow.get_year(), placeNow.get_month(), placeNow.get_day_of_month(), 0, 0, 0);
-    const end = start ? start.add_days(1) : null;
-    if (!start || !end) {
-        return null;
-    }
-    const bounds = { startMs: start.to_unix() * 1000, endMs: end.to_unix() * 1000 };
-    return Astronomy.validDayBounds(bounds.startMs, bounds.endMs) ? bounds : null;
-}
-
-function bodyRows(body, riseLabel, setLabel, alwaysUpText, alwaysDownText, formatTime) {
-    if (body.state === "alwaysUp") {
-        return [{ status: alwaysUpText }];
-    }
-    if (body.state === "alwaysDown") {
-        return [{ status: alwaysDownText }];
-    }
-    const rise = body.rise === null ? MISSING_EVENT_TIME : formatTime(body.rise);
-    const set = body.set === null ? MISSING_EVENT_TIME : formatTime(body.set);
-    return [
-        { label: riseLabel, value: rise || MISSING_EVENT_TIME },
-        { label: setLabel, value: set || MISSING_EVENT_TIME }
-    ];
-}
-
-function defaultFormatTime(timestamp, use24h, timezone) {
-    const placeTime = zonedDateTime(timestamp, timezone);
-    if (!placeTime) {
-        return "";
-    }
-    return placeTime.format(use24h ? "%H:%M" : "%-l:%M %p") || "";
-}
 
 class AstronomyView {
     constructor(box, params = {}) {

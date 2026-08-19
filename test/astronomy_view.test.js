@@ -5,7 +5,9 @@ const path = require("node:path");
 
 const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const astronomyPath = path.join(appletDir, "astronomy.js");
+const astronomyDayPath = path.join(appletDir, "astronomyDay.js");
 const shimPath = path.join(appletDir, "6.0", "astronomy.js");
+const dayShimPath = path.join(appletDir, "6.0", "astronomyDay.js");
 const viewPath = path.join(appletDir, "6.0", "astronomyView.js");
 const stylePath = path.join(appletDir, "6.0", "stylesheet.css");
 let unixDateTime = null;
@@ -83,7 +85,7 @@ class MockLabel {
 }
 
 function loadView() {
-    for (const file of [astronomyPath, shimPath, viewPath]) {
+    for (const file of [astronomyPath, astronomyDayPath, shimPath, dayShimPath, viewPath]) {
         delete require.cache[require.resolve(file)];
     }
     const astronomy = require(astronomyPath);
@@ -104,6 +106,11 @@ function loadView() {
         ui: {
             appletManager: { applets: { "chronos@geraldo-netto": {
                 astronomy,
+                // the civil-day and rise/set rules are a root module of their
+                // own now, and the view reaches them through its 6.0 shim
+                get astronomyDay() {
+                    return require(astronomyDayPath);
+                },
                 localeText: { translate: (text) => text },
                 textUtils: require(path.join(appletDir, "textUtils.js")),
                 worldclockData: {
@@ -175,6 +182,13 @@ test("event rows keep labels, values, missing times, and horizon states distinct
     assert.deepEqual(View.bodyRows({ rise: null, set: 2, state: "normal" },
         "Rise", "Set", "up", "down", () => ""), [
         { label: "Rise", value: "—" },
+        { label: "Set", value: "—" }
+    ]);
+    // ...and the other way round: a set the day does not contain, with a rise
+    // that renders
+    assert.deepEqual(View.bodyRows({ rise: 1, set: null, state: "normal" },
+        "Rise", "Set", "up", "down", (value) => "0" + value), [
+        { label: "Rise", value: "01" },
         { label: "Set", value: "—" }
     ]);
     assert.deepEqual(View.bodyRows({ rise: null, set: null, state: "alwaysUp" },
