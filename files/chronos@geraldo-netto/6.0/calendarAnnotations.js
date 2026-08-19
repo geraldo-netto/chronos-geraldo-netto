@@ -45,9 +45,10 @@ function calendarDateKey(date) {
     return "";
 }
 
-// A month's holiday flags: a short array, or nothing at all — mergeMonthMaps
-// leaves the field off a row that carries none, and _annotateCell already
-// treats a falsy value as "no flags".
+// A month's holiday flags: always an array, possibly empty. Every entry of the
+// matched-month map is built by holidayConstants.monthHolidayEntry, which
+// substitutes [] for a missing list, so the array test below is about the type
+// of a *changed* value, not about an absent field.
 function sameHolidayFlags(current, incoming) {
     if (current === incoming) {
         return true;
@@ -60,8 +61,8 @@ function sameHolidayFlags(current, incoming) {
     return current.every((flag, index) => flag === incoming[index]);
 }
 
-// One entry of the matched-month map, as holidayRecord.monthHolidayEntry builds
-// it: { name, flags }.
+// One entry of the matched-month map, as holidayConstants.monthHolidayEntry
+// builds it: { name, flags }, with flags an array.
 function sameHolidayAnnotation(current, incoming) {
     return Boolean(current) && current.name === incoming.name &&
         sameHolidayFlags(current.flags, incoming.flags);
@@ -527,8 +528,8 @@ class CalendarHolidayAnnotator {
         this.annotated = true;
         this.host.nameCell(cell);
 
-        const partDay = flags && flags.indexOf(PART_DAY_HOLIDAY) >= 0; // NOSONAR [S7765] -- accepted compatible form
-        const religiousOnly = flags &&
+        const partDay = flags.indexOf(PART_DAY_HOLIDAY) >= 0; // NOSONAR [S7765] -- accepted compatible form
+        const religiousOnly =
             flags.indexOf(RELIGIOUS_HOLIDAY_FLAG) >= 0 && // NOSONAR [S7765] -- accepted compatible form
             flags.indexOf(PUBLIC_HOLIDAY_FLAG) < 0; // NOSONAR [S7765] -- accepted compatible form
         if (religiousOnly) {

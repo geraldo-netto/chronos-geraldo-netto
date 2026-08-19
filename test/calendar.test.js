@@ -692,10 +692,11 @@ test("the holiday map is compared entry by entry, not by serialising it", () => 
     reconcile([["7/15", { name: "Fête nationale", flags: ["PUBLIC_HOLIDAY", "RELIGIOUS_HOLIDAY"] }]]);
     assert.equal(changes, 5, "the same annotation on another day is a change");
 
-    // rows without flags are legitimate: mergeMonthMaps leaves the field off
-    reconcile([["7/15", ["Some observance"]]]);
+    // a row can carry no flags, but never no `flags`: monthHolidayEntry
+    // substitutes the empty array, and every producer of the map goes through it
+    reconcile([["7/15", { name: "Some observance", flags: [] }]]);
     assert.equal(changes, 6);
-    reconcile([["7/15", ["Some observance"]]]);
+    reconcile([["7/15", { name: "Some observance", flags: [] }]]);
     assert.equal(changes, 6, "two flagless rows are still equal");
 
     reconcile([]);
