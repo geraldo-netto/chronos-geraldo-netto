@@ -169,28 +169,41 @@ function longitudeDelta(from, to) {
     return delta;
 }
 
-// Latitude has ends and longitude does not: a box drawn past a pole is not a
-// place, while one drawn past ±180 is the same box written in coordinates the
-// service does not accept. Clamp the first and hold the second inside range.
-function aviationWeatherBox(latitude, longitude) {
+// Latitude has ends and longitude does not: clamp a box at either pole, but
+// split a span crossing ±180 into the two in-range boxes that describe the same
+// area on each side of the seam.
+function aviationWeatherBoxes(latitude, longitude) {
     const clampLatitude = (value) => Math.min(90, Math.max(-90, value));
-    const clampLongitude = (value) => Math.min(180, Math.max(-180, value));
+    const south = clampLatitude(latitude - AVIATION_WEATHER_BBOX_DEGREES);
+    const north = clampLatitude(latitude + AVIATION_WEATHER_BBOX_DEGREES);
+    const west = longitude - AVIATION_WEATHER_BBOX_DEGREES;
+    const east = longitude + AVIATION_WEATHER_BBOX_DEGREES;
 
-    return [
-        clampLatitude(latitude - AVIATION_WEATHER_BBOX_DEGREES),
-        clampLongitude(longitude - AVIATION_WEATHER_BBOX_DEGREES),
-        clampLatitude(latitude + AVIATION_WEATHER_BBOX_DEGREES),
-        clampLongitude(longitude + AVIATION_WEATHER_BBOX_DEGREES)
-    ];
+    if (west < -180) {
+        return [[south, -180, north, east], [south, west + 360, north, 180]];
+    }
+    if (east > 180) {
+        return [[south, west, north, 180], [south, -180, north, east - 360]];
+    }
+    return [[south, west, north, east]];
 }
 
-function aviationWeatherUrl(place) {
+function aviationWeatherUrlForBox(box) {
+    const coordinates = box.map((value) => value.toFixed(3)).join(",");
+    return "https://aviationweather.gov/api/data/metar?format=json&bbox=" +
+        encodeURIComponent(coordinates);
+}
+
+function aviationWeatherUrls(place) {
     const latitude = Number(place.latitude);
     const longitude = Number(place.longitude);
-    const box = aviationWeatherBox(latitude, longitude)
-        .map((value) => value.toFixed(3)).join(",");
+    return aviationWeatherBoxes(latitude, longitude).map(aviationWeatherUrlForBox);
+}
 
-    return "https://aviationweather.gov/api/data/metar?format=json&bbox=" + encodeURIComponent(box);
+// Kept for callers using the old adapter directly. The provider registry uses
+// aviationWeatherUrls so seam-crossing places do not lose the second span.
+function aviationWeatherUrl(place) {
+    return aviationWeatherUrls(place)[0];
 }
 
 // A METAR carries the present weather in its own codes and the sky in an
@@ -621,7 +634,8 @@ if (typeof module !== "undefined") {
         MAX_GEOCODE_PLACE_NAME_LENGTH,
         WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES,
         weatherIcon, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, forecastUrl,
-        metNoForecastUrl, aviationWeatherUrl, aviationWeatherIcon, finiteNumber,
+        metNoForecastUrl, aviationWeatherUrl, aviationWeatherUrls,
+        aviationWeatherIcon, finiteNumber,
         aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon,
         metNoSummary, metNoWeatherReading, openMeteoReading, openMeteoTimezone,
         openMeteoGeocodePlace, nominatimGeocodePlace, foldPlaceName };

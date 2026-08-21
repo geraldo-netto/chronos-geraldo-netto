@@ -2210,13 +2210,14 @@ test("a forecast backend can be added without editing the resolver", () => {
             Weather.WEATHER_PROVIDER_NAMES.MET_NO],
         "the shipped chain, in the order it is tried");
 
-    // The shipped providers are data — a url, a normalize, and the request
+    // The shipped providers are data — one or more URLs, a normalize, and the request
     // options they need — so a third party's provider takes exactly the same
     // path the built-ins do. Each entry used to be a thunk into a private method
     // of this resolver, which meant adding a provider was an edit to the class
     // as well, and the built-ins did *not* use the plugin path.
     for (const provider of Weather.FORECAST_PROVIDERS) {
-        assert.equal(typeof provider.url, "function", `${provider.name} names its endpoint`);
+        assert.ok(typeof provider.url === "function" || typeof provider.urls === "function",
+            `${provider.name} names its endpoint or endpoints`);
         assert.equal(typeof provider.normalize, "function", `${provider.name} reads its own answer`);
     }
 
@@ -2257,6 +2258,122 @@ test("a forecast backend can be added without editing the resolver", () => {
     resolver.refresh({ latitude: 1, longitude: 2 }, () => true, () => {});
     assert.equal(asked[0].url, "https://local.example/now",
         "and the one that worked is tried first next time");
+});
+
+test("a multi-request forecast merges once and keeps provider semantics", () => {
+    const Weather = loadWeather();
+    const pending = [];
+    const asked = [];
+    let normalizeCalls = 0;
+    const split = {
+        name: "Split service",
+        urls: () => ["https://split.example/east", "https://split.example/west"],
+        merge: (payloads) => payloads.flatMap((payload) => payload || []),
+        normalize(data) {
+            normalizeCalls++;
+            return data.length ? { condition: "☀", temperatureC: data[0].degrees } : null;
+        },
+        options: { headers: { "User-Agent": "test" } }
+    };
+    const resolver = new Weather.WeatherForecastResolver({
+        providers: [
+            { name: "Before", url: () => "https://before.example", normalize: () => null },
+            split,
+            {
+                name: "After",
+                url: () => "https://after.example",
+                normalize: (data) => data &&
+                    { condition: "☀", temperatureC: data.degrees }
+            }
+        ],
+        httpGetJson(url, callback, options = {}) {
+            asked.push({ url, options });
+            if (url.includes("before")) {
+                callback(null);
+            } else if (url.includes("after")) {
+                callback({ degrees: 9 });
+            } else {
+                pending.push({ url, callback });
+            }
+        }
+    });
+    const answers = [];
+
+    resolver.refresh({ latitude: 0, longitude: 180 }, () => true,
+        (reading, error, provider) => answers.push({ reading, error, provider }));
+
+    assert.deepEqual(asked.map((request) => request.url), [
+        "https://before.example",
+        "https://split.example/east",
+        "https://split.example/west"
+    ]);
+    assert.deepEqual(asked.slice(1).map((request) => request.options),
+        [split.options, split.options], "every leg keeps the provider's request options");
+    pending[1].callback([{ degrees: 22 }]);
+    pending[1].callback([{ degrees: 99 }]);
+    assert.equal(answers.length, 0, "one leg cannot settle the provider");
+    pending[0].callback(null);
+
+    assert.equal(normalizeCalls, 1, "partial payloads are merged, then normalized once");
+    assert.equal(answers.length, 1, "duplicate and out-of-order callbacks settle once");
+    assert.deepEqual({
+        text: shown(answers[0].reading, "si"),
+        error: answers[0].error,
+        provider: answers[0].provider
+    }, { text: "☀ 22°C", error: "", provider: split.name });
+
+    asked.length = 0;
+    pending.length = 0;
+    resolver.refresh({ latitude: 0, longitude: 180 }, () => true,
+        (reading, error, provider) => answers.push({ reading, error, provider }));
+    assert.deepEqual(asked.map((request) => request.url), [
+        "https://split.example/east",
+        "https://split.example/west"
+    ], "last successful multi-request provider remains first");
+    pending[1].callback(null);
+    pending[0].callback(null);
+
+    assert.deepEqual(asked.slice(2).map((request) => request.url),
+        ["https://before.example", "https://after.example"],
+        "total failure advances once through the remaining provider order");
+    assert.equal(answers.length, 2);
+    assert.equal(answers[1].provider, "After");
+});
+
+test("stale multi-request forecast callbacks do not settle or fail over", () => {
+    const Weather = loadWeather();
+    const pending = [];
+    const asked = [];
+    const resolver = new Weather.WeatherForecastResolver({
+        providers: [
+            {
+                name: "Split",
+                urls: () => ["https://split.example/east", "https://split.example/west"],
+                merge: (payloads) => payloads.flatMap((payload) => payload || []),
+                normalize: () => ({ condition: "☀", temperatureC: 20 })
+            },
+            {
+                name: "Backup",
+                url: () => "https://backup.example",
+                normalize: () => ({ condition: "☀", temperatureC: 10 })
+            }
+        ],
+        httpGetJson(url, callback) {
+            asked.push(url);
+            pending.push(callback);
+        }
+    });
+    const answers = [];
+
+    resolver.refresh({ latitude: 0, longitude: 180 }, () => false,
+        (...args) => answers.push(args));
+    pending[1]([]);
+    pending[0]([]);
+
+    assert.deepEqual(answers, []);
+    assert.deepEqual(asked,
+        ["https://split.example/east", "https://split.example/west"],
+        "a stale provider neither reports nor starts its backup");
 });
 
 test("a forecast with no temperature fails over instead of reading NaN", () => {

@@ -64,7 +64,7 @@ const nominatimGeocodePlace = WeatherServiceAdapters.nominatimGeocodePlace;
 const forecastUrl = WeatherServiceAdapters.forecastUrl;
 const openMeteoReading = WeatherServiceAdapters.openMeteoReading;
 const openMeteoTimezone = WeatherServiceAdapters.openMeteoTimezone;
-const aviationWeatherUrl = WeatherServiceAdapters.aviationWeatherUrl;
+const aviationWeatherUrls = WeatherServiceAdapters.aviationWeatherUrls;
 const aviationWeatherReading = WeatherServiceAdapters.aviationWeatherReading;
 const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
 const metNoWeatherReading = WeatherServiceAdapters.metNoWeatherReading;
@@ -466,9 +466,10 @@ var USER_AGENT_OPTIONS = { // NOSONAR [S3504] -- GJS importer export
 };
 
 // The forecast backends, in the order they are tried — data, the way
-// GEOCODE_PROVIDERS is: a `url` for the place, a `normalize` that turns the
-// answer into a unit-free reading record `{ condition, temperatureC }`, and the
-// request options it needs. A provider says *what* the weather is; nothing on
+// GEOCODE_PROVIDERS is: `url` for one request or `urls` plus `merge` when one
+// logical answer spans several requests, a `normalize` that turns the answer
+// into a unit-free reading record `{ condition, temperatureC }`, and the request
+// options each request needs. A provider says *what* the weather is; nothing on
 // this side of the port knows how it will be shown, and the units live in the
 // presenter alone.
 //
@@ -489,7 +490,9 @@ var FORECAST_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
     },
     {
         name: WEATHER_PROVIDER_NAMES.AVIATION_WEATHER,
-        url: (place) => aviationWeatherUrl(place),
+        urls: (place) => aviationWeatherUrls(place),
+        merge: (payloads) => payloads.reduce((stations, payload) =>
+            Array.isArray(payload) ? stations.concat(payload) : stations, []),
         normalize: (stations, place) => aviationWeatherReading(stations, place),
         options: USER_AGENT_OPTIONS
     },
@@ -517,6 +520,71 @@ function placeWithTimezone(place, timezone) {
     return {...place, timezone};
 }
 
+function forecastProviderUrls(provider, place) {
+    const requested = provider.urls ? provider.urls(place) : [provider.url(place)];
+    return Array.isArray(requested) ? requested : [requested];
+}
+
+function forecastAttemptResult(attempt) {
+    const provider = attempt.provider;
+    const data = provider.merge ? provider.merge(attempt.payloads) : attempt.payloads[0];
+    const reading = provider.normalize(data, attempt.place);
+    return {
+        reading,
+        timezone: reading && provider.timezoneFor ? provider.timezoneFor(data) : ""
+    };
+}
+
+function completeForecastAttempt(attempt) {
+    if (attempt.finished || !attempt.isCurrent()) {
+        attempt.finished = true;
+        return;
+    }
+    attempt.finished = true;
+    attempt.onResult(forecastAttemptResult(attempt));
+}
+
+function receiveForecastPayload(attempt, index, data) {
+    if (attempt.finished || attempt.answered[index]) {
+        return;
+    }
+    attempt.answered[index] = true;
+    if (!attempt.isCurrent()) {
+        attempt.finished = true;
+        return;
+    }
+    attempt.payloads[index] = data;
+    attempt.remaining--;
+    if (attempt.remaining === 0) {
+        completeForecastAttempt(attempt);
+    }
+}
+
+function dispatchForecastAttempt(httpGetJson, provider, place, isCurrent, onResult) {
+    const urls = forecastProviderUrls(provider, place);
+    const attempt = {
+        provider, place, isCurrent, onResult,
+        payloads: new Array(urls.length),
+        answered: new Array(urls.length).fill(false),
+        remaining: urls.length,
+        finished: false
+    };
+
+    if (!urls.length) {
+        completeForecastAttempt(attempt);
+        return;
+    }
+
+    try {
+        urls.forEach((url, index) => httpGetJson(
+            url, (data) => receiveForecastPayload(attempt, index, data),
+            provider.options || {}));
+    } catch (error) {
+        attempt.finished = true;
+        throw error;
+    }
+}
+
 var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504] -- GJS importer export
     constructor(params = {}) {
         this._last_forecast_provider = ""; // NOSONAR [S7757] -- accepted compatible form
@@ -541,17 +609,8 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
     // that is being believed, so a provider that failed to describe the weather
     // does not get to name the place either.
     _forecastAttempt(provider, place, isCurrent, onResult) {
-        this._httpGetJson(provider.url(place), (data) => {
-            if (!isCurrent()) {
-                return;
-            }
-            const reading = provider.normalize(data, place);
-            onResult({
-                reading,
-                timezone: reading && provider.timezoneFor ?
-                    provider.timezoneFor(data) : ""
-            });
-        }, provider.options || {});
+        dispatchForecastAttempt((...args) => this._httpGetJson(...args),
+            provider, place, isCurrent, onResult);
     }
 
     _tryForecastProviders(providers, place, isCurrent, callback) {

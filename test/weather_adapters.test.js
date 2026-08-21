@@ -76,6 +76,46 @@ test("the METAR service answers between Open-Meteo and MET.no", () => {
     assert.equal(requests.length, 2);
 });
 
+test("seam METAR payloads are merged before nearest-station ranking", () => {
+    const Weather = loadWeather();
+    const pending = [];
+    const provider = Weather.FORECAST_PROVIDERS.find(
+        (candidate) => candidate.name === Weather.WEATHER_PROVIDER_NAMES.AVIATION_WEATHER);
+    const resolver = new Weather.WeatherForecastResolver({
+        providers: [provider],
+        httpGetJson(url, callback, options) {
+            pending.push({ url, callback, options });
+        }
+    });
+    const answers = [];
+
+    resolver.refresh({ latitude: 0.5, longitude: 179.8 }, () => true,
+        (reading, error, name) => answers.push({ reading, error, name }));
+
+    assert.equal(pending.length, 2);
+    assert.ok(pending[0].url.includes("178.800%2C"));
+    assert.ok(pending[1].url.includes("-180.000%2C"));
+    assert.deepEqual(pending.map((request) => request.options),
+        [provider.options, provider.options]);
+
+    // The across-seam reply arrives first. It must wait for the eastern half;
+    // only then can one ranking compare every returned station.
+    pending[1].callback([
+        { icaoId: "NEAR", lat: 0.5, lon: -179.7, temp: 21, cover: "CLR" }
+    ]);
+    assert.equal(answers.length, 0);
+    pending[0].callback([
+        { icaoId: "FAR", lat: 0.5, lon: 179.0, temp: 25, cover: "BKN" }
+    ]);
+
+    assert.equal(answers.length, 1);
+    assert.deepEqual({
+        text: shown(answers[0].reading, "si"),
+        error: answers[0].error,
+        name: answers[0].name
+    }, { text: "☀ 21°C", error: "", name: provider.name });
+});
+
 test("builds Open-Meteo geocode and forecast URLs", () => {
     const Weather = loadWeather();
 
@@ -1182,24 +1222,30 @@ test("the geocode cache key is not the display fold", () => {
     assert.equal(Weather.locationCacheKey("  LISBOA "), Weather.locationCacheKey("lisboa"));
 });
 
-test("the METAR box stays inside the coordinate ranges the service accepts", () => {
+test("the METAR boxes split at both sides of the antimeridian", () => {
     const Weather = loadWeather();
-    const boxOf = (place) => decodeURIComponent(
-        Weather.aviationWeatherUrl(place).split("bbox=")[1]
-    ).split(",").map(Number);
+    const boxesOf = (place) => Weather.aviationWeatherUrls(place).map((url) =>
+        decodeURIComponent(url.split("bbox=")[1]).split(",").map(Number));
 
-    // Eastern Fiji: the eastern edge runs past the antimeridian
-    assert.deepEqual(boxOf({ latitude: -18.05, longitude: 179.9 }),
-        [-19.05, 178.9, -17.05, 180]);
-    // and the western side of the seam is the same case mirrored
-    assert.deepEqual(boxOf({ latitude: -18.05, longitude: -179.9 }),
-        [-19.05, -180, -17.05, -178.9]);
+    // Eastern Fiji: one box reaches east to 180 and the remainder continues
+    // from -180. Mirroring the place mirrors the two spans.
+    assert.deepEqual(boxesOf({ latitude: -18.05, longitude: 179.9 }), [
+        [-19.05, 178.9, -17.05, 180],
+        [-19.05, -180, -17.05, -179.1]
+    ]);
+    assert.deepEqual(boxesOf({ latitude: -18.05, longitude: -179.9 }), [
+        [-19.05, -180, -17.05, -178.9],
+        [-19.05, 179.1, -17.05, 180]
+    ]);
     // Latitude has ends: a box drawn past a pole is not a place
-    assert.deepEqual(boxOf({ latitude: 89.5, longitude: 10 }), [88.5, 9, 90, 11]);
-    assert.deepEqual(boxOf({ latitude: -89.5, longitude: 10 }), [-90, 9, -88.5, 11]);
+    assert.deepEqual(boxesOf({ latitude: 89.5, longitude: 10 }), [[88.5, 9, 90, 11]]);
+    assert.deepEqual(boxesOf({ latitude: -89.5, longitude: 10 }), [[-90, 9, -88.5, 11]]);
     // Away from either edge nothing is clamped
-    assert.deepEqual(boxOf({ latitude: -23.55, longitude: -46.63 }),
-        [-24.55, -47.63, -22.55, -45.63]);
+    assert.deepEqual(boxesOf({ latitude: -23.55, longitude: -46.63 }),
+        [[-24.55, -47.63, -22.55, -45.63]]);
+    assert.equal(Weather.aviationWeatherUrl({ latitude: -23.55, longitude: -46.63 }),
+        Weather.aviationWeatherUrls({ latitude: -23.55, longitude: -46.63 })[0],
+        "the old one-URL adapter stays compatible away from the seam");
 });
 
 test("the nearest METAR station is measured the shorter way round the meridian", () => {

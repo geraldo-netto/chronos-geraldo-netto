@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
-| T940 | open | low | m | Change the weather-provider contract so the Aviation Weather METAR fallback can issue and merge two requests when a bounding box crosses ±180°. Longitude ranking already wraps correctly, but the one-URL provider contract cannot query both sides. |
 
 ## Blocked / Deferred
 
