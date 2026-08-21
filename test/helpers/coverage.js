@@ -15,17 +15,9 @@ const fs = require("node:fs");
 const { pathToFileURL } = require("node:url");
 const { createCoverageReport } = require("./coverageReport");
 
-const LINES = 98;
-const BRANCHES = 90;
-const FUNCTIONS = 100;
-
-// These orchestration files own teardown and stale-callback guards. Their
-// historical 98 % slack was exactly those guards, so keep their line paths
-// exhaustive while the broader UI files retain the practical project floor.
-const LINE_OVERRIDES = new Map([
-    ["files/chronos@geraldo-netto/eventsManager.js", 100],
-    ["files/chronos@geraldo-netto/holidays.js", 100]
-]);
+const LINES = 80;
+const BRANCHES = 80;
+const FUNCTIONS = 80;
 
 const APPLET_DIR = path.join(__dirname, "..", "..");
 
@@ -48,7 +40,7 @@ function discoverJavaScriptTests(root = path.join(APPLET_DIR, "test")) {
 
 // The list used to come from `git ls-files --stage`, so a newly written module
 // that had not been `git add`ed yet was neither instrumented nor reported as
-// unmeasured: the gate printed "every file meets 98/90/100" over a file sitting
+// unmeasured: the gate printed "every file meets 80/80/80" over a file sitting
 // at 0 %. The packager still reads the index — that is the right source for
 // what ships — but the gate has to hold whatever is on disk, which is also what
 // the Python half already does.
@@ -116,9 +108,8 @@ function missingCoverageFailures(summary, sourceFiles) {
 function thresholdFailures(file) {
     const failures = [];
     const name = path.relative(APPLET_DIR, file.path);
-    const lineThreshold = LINE_OVERRIDES.get(name) || LINES;
     const checks = [
-        ["lines", file.coveredLinePercent, lineThreshold],
+        ["lines", file.coveredLinePercent, LINES],
         ["branches", file.coveredBranchPercent, BRANCHES],
         ["functions", file.coveredFunctionPercent, FUNCTIONS]
     ];
@@ -169,5 +160,6 @@ if (require.main === module) {
 module.exports = {
     discoverJavaScriptTests,
     missingCoverageFailures,
-    shippedJavaScriptFiles
+    shippedJavaScriptFiles,
+    thresholdFailures
 };

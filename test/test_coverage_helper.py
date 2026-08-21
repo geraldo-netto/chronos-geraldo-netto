@@ -8,10 +8,34 @@ from types import SimpleNamespace
 from helpers.coverage import (
     branch_edges_for_code,
     discover_python_tests,
+    gate_failures,
     instruction_line_map,
     load_test_suite,
     measurable_code_objects,
 )
+
+
+class CoverageGateTests(unittest.TestCase):
+    def test_coverage_floors_accept_80_percent(self):
+        coverage = {
+            "shown": Path("sample.py"),
+            "line_percent": 80.0,
+            "branch_percent": 80.0,
+            "function_percent": 80.0,
+        }
+
+        self.assertEqual(gate_failures(coverage), [])
+        for metric, label in (
+            ("line", "lines"),
+            ("branch", "branches"),
+            ("function", "functions"),
+        ):
+            coverage[f"{metric}_percent"] = 79.99
+            self.assertEqual(
+                gate_failures(coverage),
+                [f"sample.py: 79.99 % {label} is under the 80.0 % gate"],
+            )
+            coverage[f"{metric}_percent"] = 80.0
 
 
 class CoverageInstructionLineTests(unittest.TestCase):

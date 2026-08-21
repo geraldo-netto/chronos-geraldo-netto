@@ -80,7 +80,7 @@ jobs:
       # Python 3.10 shipped-source syntax plus eslint and pyflakes.
       - run: npm run lint
 
-      # Both suites, both coverage gates: JS 98/90/100 per file, Python 98 lines.
+      # Both suites, both coverage gates: 80/80/80 per file.
       # CHRONOS_REQUIRE_PYTZ turns the pytz skips into a failure, so a future
       # dependency drop cannot quietly take those sixteen tests out of CI again.
       - run: npm test

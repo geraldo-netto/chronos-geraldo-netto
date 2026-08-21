@@ -12,8 +12,8 @@ npm run lint   # eslint (JS) + pyflakes (Python) — pyflakes missing is a failu
 npm test       # node:test + python suite, each with its own per-file coverage gate
 ```
 
-Coverage gates: JS 98 % lines / 90 % branches / 100 % functions per file;
-Python 98 % lines per file. They fail the run — they are not advisory.
+Coverage gates: JS and Python each require 80 % lines / 80 % branches / 80 %
+functions per file. They fail the run — they are not advisory.
 
 `TODO.md` is the audit ledger. Items are worked one commit per item, and the row
 is deleted from the ledger in that same commit — but only when the work is

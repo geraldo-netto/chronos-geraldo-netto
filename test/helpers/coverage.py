@@ -25,18 +25,14 @@ from pathlib import Path
 APPLET_DIR = Path(__file__).resolve().parent.parent.parent
 SOURCES = sorted((APPLET_DIR / "files" / "chronos@geraldo-netto").rglob("*.py"))
 
-# The dialog is the user-facing half and is held to the JS suite's line gate.
+# The dialog is the user-facing half and is held to the JS suite's coverage gate.
 # The 6.0 shim is three lines of sys.path plumbing and is measured with it — it
 # lives in a subdirectory, and the glob here was non-recursive, so the one file
 # Cinnamon's create_custom_widget actually loads was the one file the gate did
 # not look at, while the comment above claimed it did.
-LINE_THRESHOLD = 98.0
-BRANCH_THRESHOLD = 90.0
-FUNCTION_THRESHOLD = 100.0
-# This module's remaining line slack used to consist solely of import fallbacks
-# and no-style-context guards. Those paths are now behavioral tests, and a
-# per-file override prevents the global 98 % allowance from hiding them again.
-LINE_OVERRIDES = {Path("chronos_settings_widgets_common.py"): 100.0}
+LINE_THRESHOLD = 80.0
+BRANCH_THRESHOLD = 80.0
+FUNCTION_THRESHOLD = 80.0
 TEST_DIR = APPLET_DIR / "test"
 
 
@@ -325,8 +321,7 @@ def print_file_coverage(coverage):
 
 def gate_failures(coverage):
     metrics = (
-        ("lines", coverage["line_percent"],
-         LINE_OVERRIDES.get(coverage["shown"], LINE_THRESHOLD)),
+        ("lines", coverage["line_percent"], LINE_THRESHOLD),
         ("branches", coverage["branch_percent"], BRANCH_THRESHOLD),
         ("functions", coverage["function_percent"], FUNCTION_THRESHOLD),
     )

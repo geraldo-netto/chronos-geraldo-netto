@@ -9,7 +9,8 @@ const path = require("node:path");
 const {
     discoverJavaScriptTests,
     missingCoverageFailures,
-    shippedJavaScriptFiles
+    shippedJavaScriptFiles,
+    thresholdFailures
 } = require("./helpers/coverage");
 
 const HELPER = path.join(__dirname, "helpers", "coverageReport.js");
@@ -38,6 +39,26 @@ function runProbe() {
         });
     });
 }
+
+test("coverage floors accept 80 percent", () => {
+    const file = {
+        path: path.join(__dirname, "coverage_runner.test.js"),
+        coveredLinePercent: 80,
+        coveredBranchPercent: 80,
+        coveredFunctionPercent: 80
+    };
+
+    assert.deepEqual(thresholdFailures(file), []);
+    for (const [metric, property] of [
+        ["lines", "coveredLinePercent"],
+        ["branches", "coveredBranchPercent"],
+        ["functions", "coveredFunctionPercent"]
+    ]) {
+        const failures = thresholdFailures({ ...file, [property]: 79.99 });
+        assert.equal(failures.length, 1);
+        assert.match(failures[0], new RegExp(`${metric} 79\\.99 % is under the 80 % gate`));
+    }
+});
 
 test("concurrent coverage runs use private reports and clean them", async () => {
     const reports = await Promise.all(Array.from({ length: 8 }, runProbe));
