@@ -17,7 +17,7 @@ const SPICES_ROOT_ENTRIES = ["README.md", "files", "info.json", "screenshot.png"
 const REQUIRED_FILES = new Set(["README.md", "info.json", "screenshot.png"]);
 
 function isInside(root, target) {
-    return target === root || target.startsWith(root + path.sep);
+    return target === root || target.startsWith(path.join(root, path.sep));
 }
 
 function validateManifestPath(relative) {
@@ -231,11 +231,22 @@ function assertOutputExcludesSources(source, output, files) {
     }
 }
 
+async function resolveOutputPath(output) {
+    try {
+        return await realpath(output);
+    } catch (error) {
+        if (error.code !== "ENOENT") {
+            throw error;
+        }
+        return path.join(await resolveOutputPath(path.dirname(output)), path.basename(output));
+    }
+}
+
 export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles }) {
     const source = await realpath(path.resolve(sourceRoot));
-    const output = path.resolve(outputRoot);
+    const output = await resolveOutputPath(path.resolve(outputRoot));
 
-    if (output === source || source.startsWith(output + path.sep)) {
+    if (isInside(output, source)) {
         throw new Error("package output cannot replace the source tree or one of its parents");
     }
 

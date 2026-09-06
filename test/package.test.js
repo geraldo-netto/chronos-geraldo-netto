@@ -314,6 +314,54 @@ test("packaging rejects an output directory that holds packaged sources", async 
         "the tracked applet tree survives a denied output path");
 });
 
+test("packaging rejects output aliases that would remove source files", async (t) => {
+    const { buildSpicesPackage } = await importPackager();
+    for (const relative of ["", "files", path.join("files", UUID)]) {
+        const { temporary, source, applet } = await makeSpicesFixture(t);
+        const alias = path.join(temporary, "alias");
+        await fs.symlink(source, alias);
+        const outputRoot = path.join(alias, relative);
+
+        await assert.rejects(buildSpicesPackage({ sourceRoot: source, outputRoot }),
+            /cannot replace the source tree|would delete a packaged source file/);
+        assert.equal(await fs.readFile(path.join(applet, "applet.js"), "utf8"),
+            "tracked applet", `source survives output alias ${relative}`);
+    }
+});
+
+test("the default package destination rejects a symlinked dist parent", async (t) => {
+    const { source, applet } = await makeSpicesFixture(t);
+    const { runPackageCommand } = await importPackager();
+    await fs.symlink("files", path.join(source, "dist"));
+
+    await assert.rejects(runPackageCommand(source), /would delete a packaged source file/);
+    assert.equal(await fs.readFile(path.join(applet, "applet.js"), "utf8"), "tracked applet");
+});
+
+test("packaging resolves safe output ancestors before creating nested directories", async (t) => {
+    const { temporary, source, output } = await makeSpicesFixture(t);
+    const { buildSpicesPackage } = await importPackager();
+    await fs.mkdir(output);
+    const alias = path.join(temporary, "alias");
+    await fs.symlink(output, alias);
+    const outputRoot = path.join(alias, "new", "nested", UUID);
+
+    await buildSpicesPackage({ sourceRoot: source, outputRoot });
+    assert.equal(await fs.readFile(path.join(outputRoot, "README.md"), "utf8"), "readme");
+    assert.equal(await fs.readFile(path.join(source, "README.md"), "utf8"), "readme");
+});
+
+test("packaging preserves source files when an output ancestor is a symlink loop", async (t) => {
+    const { temporary, source } = await makeSpicesFixture(t);
+    const { buildSpicesPackage } = await importPackager();
+    const loop = path.join(temporary, "loop");
+    await fs.symlink("loop", loop);
+
+    await assert.rejects(buildSpicesPackage({ sourceRoot: source,
+        outputRoot: path.join(loop, "new", UUID) }), { code: "ELOOP" });
+    assert.equal(await fs.readFile(path.join(source, "README.md"), "utf8"), "readme");
+});
+
 // T532 regression: only the lexical escape guard was exercised — the realpath
 // guard is the one that catches a chain whose first hop stays in-tree, and it
 // could be deleted with the suite green.
