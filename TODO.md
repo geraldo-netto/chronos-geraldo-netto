@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
-| T1046 | open | medium | s | Refresh the event fetch window when the first weekday changes in `files/chronos@geraldo-netto/6.0/calendar.js:293`, and include the weekday/window bounds in `files/chronos@geraldo-netto/eventWindow.js:35` invalidation. The handler only rebuilds the grid, while unchanged-date/month checks suppress fetching: switching August 2026 from Sunday to Monday leaves the requested range July 26–September 5 although the grid now shows July 27–September 6, so newly exposed dates lack event dots until a forced fetch or month change. |
 
 ## Blocked / Deferred
 

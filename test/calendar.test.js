@@ -19,6 +19,13 @@ function makeFakeDateTimeFromDate(date) {
         get_year: () => date.getFullYear(),
         get_month: () => date.getMonth() + 1,
         get_day_of_month: () => date.getDate(),
+        get_day_of_week: () => date.getDay() || 7,
+        add_days(days) {
+            const next = new Date(date);
+            next.setDate(next.getDate() + days);
+            return makeFakeDateTimeFromDate(next);
+        },
+        add_seconds: (seconds) => makeFakeDateTimeFromDate(new Date(date.getTime() + seconds * 1000)),
         to_unix: () => Math.trunc(date.getTime() / 1000),
         format(fmt) {
             const months = ["January", "February", "March", "April", "May", "June",
@@ -509,6 +516,10 @@ function makeSettings() {
 function makeEventsManager(colors = null) {
     return {
         handlers: {},
+        selections: [],
+        select_date(date, force) {
+            this.selections.push({ date, force });
+        },
         disconnected: [],
         next_id: 1,
         connect(name, cb) {
@@ -1976,12 +1987,67 @@ test("the first-weekday handler recomputes the week start and rebuilds", () => {
     global.imports.gi.Cinnamon.util_get_week_start = () => 1;
     try {
         cal._onFirstWeekdayChanged();
+        cal._onFirstWeekdayChanged();
     } finally {
         global.imports.gi.Cinnamon.util_get_week_start = () => 0;
     }
 
     assert.equal(cal._weekStart, 1, "week start comes from the desktop");
     assert.notEqual(cal._monthLabel, headerBefore, "week geometry moved: header rebuilt");
+    assert.deepEqual(cal.events_manager.selections,
+        [{ date: new Date(2026, 6, 9), force: true }],
+        "refresh the selected date once per effective weekday change");
+});
+
+test("desktop weekday changes fetch the exact calendar grid without changing the selected date", (t) => {
+    const { EventWindowCoordinator } = require(path.join(APPLET_DIR, "eventWindow.js"));
+    const { EventIndex } = require(path.join(APPLET_DIR, "eventIndex.js"));
+    const coordinator = new EventWindowCoordinator(new EventIndex());
+    const requests = [];
+    const manager = makeEventsManager();
+    manager.select_date = (date, force) => coordinator.selectDate(date, force,
+        manager.is_active,
+        (month, forced) => coordinator.fetchMonthEvents(month, forced,
+            (start, end, force) => requests.push({ start, end, force }), () => 1),
+        () => {});
+    const settings = makeDesktopSettings();
+    let onWeekdayChanged;
+    settings.connectFirstDayOfWeekChanged = (callback) => {
+        onWeekdayChanged = callback;
+        return 1;
+    };
+    const getWeekStart = global.imports.gi.Cinnamon.util_get_week_start;
+    t.after(() => { global.imports.gi.Cinnamon.util_get_week_start = getWeekStart; });
+    const cal = new CalendarModule.Calendar(makeSettings(), manager, null, settings);
+    t.after(() => cal.destroy());
+    const selected = new Date(2026, 7, 15);
+    cal.setDate(selected, true);
+    manager.select_date(selected, false);
+    const unix = (year, month, day, hour = 0, minute = 0, second = 0) =>
+        new Date(year, month - 1, day, hour, minute, second).getTime() / 1000;
+    const dayUnix = (date) => unix(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    assert.deepEqual(requests, [{
+        start: unix(2026, 7, 26), end: unix(2026, 9, 5, 23, 59, 59), force: false
+    }]);
+
+    global.imports.gi.Cinnamon.util_get_week_start = () => 1;
+    onWeekdayChanged();
+    assert.equal(cal._selectedDate.getTime(), selected.getTime());
+    assert.equal(requests.length, 2);
+    assert.deepEqual(requests[1], {
+        start: unix(2026, 7, 27), end: unix(2026, 9, 6, 23, 59, 59), force: true
+    });
+    assert.equal(dayUnix(cal._gridView.dayCells[0].date), requests[1].start);
+    assert.equal(dayUnix(cal._gridView.dayCells.at(-1).date),
+        unix(2026, 9, 6));
+    onWeekdayChanged();
+    assert.equal(requests.length, 2, "duplicate settings notifications do not refetch");
+
+    manager.is_active = () => false;
+    global.imports.gi.Cinnamon.util_get_week_start = () => 0;
+    onWeekdayChanged();
+    assert.equal(requests.length, 2, "a disabled event provider is not fetched");
+    assert.equal(cal._weekStart, 0, "the calendar still adopts the weekday setting");
 });
 
 // T978: destroy() cancelled the pending idle but set no flag, so any later

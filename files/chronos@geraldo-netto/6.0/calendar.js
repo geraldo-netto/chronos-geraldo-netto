@@ -291,7 +291,12 @@ class Calendar {
     }
 
     _onFirstWeekdayChanged() {
-        this._weekStart = Cinnamon.util_get_week_start();
+        const weekStart = Cinnamon.util_get_week_start();
+        if (weekStart === this._weekStart) {
+            return;
+        }
+        this._weekStart = weekStart;
+        this.events_manager.select_date(this._selectedDate, true);
         this._applySettingsChange();
     }
 

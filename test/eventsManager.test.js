@@ -3150,6 +3150,40 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     assert.notEqual(coordinator.current_selected_signature, null);
 });
 
+test("EventWindowCoordinator refreshes shifted weekday bounds even within the same month", (t) => {
+    const cinnamon = global.imports.gi.Cinnamon;
+    const getWeekStart = cinnamon.util_get_week_start;
+    t.after(() => { cinnamon.util_get_week_start = getWeekStart; });
+    for (const force of [false, true]) {
+        cinnamon.util_get_week_start = () => 0;
+        const index = new EventIndex();
+        const coordinator = new EventWindowCoordinator(index);
+        const month = new FakeDateTime(40 * DAY_US);
+        const calls = [];
+        const fetch = (forced) => coordinator.fetchMonthEvents(month, forced,
+            (start, end) => calls.push({ start, end }), () => 1);
+        fetch(false);
+        const key = calls[0].start;
+        const cached = { marker: "previous window", length: 1 };
+        index.eventsByDate[key] = cached;
+        fetch(true);
+        assert.equal(index.eventsByDate[key], cached,
+            "forcing identical bounds retains indexed events during the fetch");
+
+        cinnamon.util_get_week_start = () => 1;
+        assert.equal(fetch(force), 1);
+        assert.equal(calls.length, 3);
+        assert.deepEqual(calls[2], {
+            start: calls[0].start + DAY_S, end: calls[0].end + DAY_S
+        });
+        assert.deepEqual(index.eventsByDate, {}, "changed bounds discard the stale window");
+        assert.equal(index._windowStart.to_unix(), calls[2].start);
+        assert.equal(index._windowEnd.to_unix(), calls[2].end - (DAY_S - 1));
+        assert.equal(fetch(false), null, "unchanged month and bounds skip the next fetch");
+        assert.equal(calls.length, 3);
+    }
+});
+
 test("day registration: single-day event touches exactly one bucket", () => {
     const manager = readyManager();
     const data = makeEventData({ startUnix: 10 * DAY_S + 3600, endUnix: 10 * DAY_S + 7200 });

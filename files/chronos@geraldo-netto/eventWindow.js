@@ -27,6 +27,7 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
     constructor(index) {
         this.index = index;
         this.current_month_year = null;
+        this.current_window_signature = null;
         this.current_selected_date = GLib.DateTime.new_from_unix_local(0);
         this.current_selected_signature = null;
     }
@@ -34,19 +35,21 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
     fetchMonthEvents(month_year, force, setTimeRange, timestampNow, cancellable = null) {
         const changed_month = this.current_month_year === null ||
             !dt_equals(month_year, this.current_month_year);
-        if (!changed_month && !force) {
-            return null;
-        }
-        this.current_month_year = month_year;
-
         const day_one = month_year_only(month_year);
         const start = day_one.add_days(-DateMath.monthWindowStartOffset(
             day_one.get_day_of_week(), Cinnamon.util_get_week_start()));
         const end = start.add_days(42).add_seconds(-1);
-        // a forced refetch of the month already on screen keeps what is indexed
-        // and re-states the window it was indexed under; a different month
-        // replaces both at once
-        if (changed_month) {
+        const window_signature = `${start.to_unix()}/${end.to_unix()}`;
+        const changed_window = window_signature !== this.current_window_signature;
+        if (!changed_month && !changed_window && !force) {
+            return null;
+        }
+        this.current_month_year = month_year;
+        this.current_window_signature = window_signature;
+
+        // A forced refetch with identical bounds keeps indexed events. A new
+        // month or first weekday replaces both the contents and bounds.
+        if (changed_month || changed_window) {
             this.index.reset(start, end);
         } else {
             this.index.setWindow(start, end);
