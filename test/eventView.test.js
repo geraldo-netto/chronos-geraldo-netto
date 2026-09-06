@@ -139,17 +139,19 @@ class MockActor {
         if (!this.vscroll) {
             this.vscroll = {
                 handlers: {},
+                adjustment: {
+                    page_size: 200,
+                    values: [],
+                    set_value(value) {
+                        this.values.push(value);
+                    }
+                },
                 connect(name, cb) {
                     this.handlers[name] = cb;
                     return Object.keys(this.handlers).length;
                 },
                 get_adjustment() {
-                    return {
-                        values: [],
-                        set_value(value) {
-                            this.values.push(value);
-                        }
-                    };
+                    return this.adjustment;
                 }
             };
         }
@@ -945,6 +947,29 @@ test("EventList set_events covers empty, delayed, reuse, and scroll paths", () =
         "the selected day's source model is released too");
     assert.ok(renderedActors.every((actor) => actor.destroyed),
         "rendered row and separator actors are disposed");
+});
+
+test("agenda scrolling centers the row in the visible viewport", (t) => {
+    const callbacks = [];
+    const idleAdd = global.imports.mainloop.idle_add;
+    global.imports.mainloop.idle_add = (callback) => callbacks.push(callback);
+    t.after(() => { global.imports.mainloop.idle_add = idleAdd; });
+    const list = new EventView.EventList(desktopSettings());
+    list.events_box.height = 1000;
+    const adjustment = list.events_scroll_box.get_vscroll_bar().get_adjustment();
+    const row = { actor: { y: 400, height: 40 } };
+
+    for (const [viewport, expected] of [[200, 320], [400, 220]]) {
+        adjustment.page_size = viewport;
+        list._renderer._queueScroll(row);
+        assert.equal(callbacks.pop()(), global.imports.gi.GLib.SOURCE_REMOVE);
+        assert.equal(adjustment.values.at(-1), expected);
+        assert.equal(list._renderer._scroll_to_idle_id, 0);
+    }
+    list._renderer._queueScroll(null);
+    callbacks.pop()();
+    assert.equal(adjustment.values.at(-1), 0);
+    list.destroy();
 });
 
 test("desktop clock-format changes repaint existing event rows", () => {

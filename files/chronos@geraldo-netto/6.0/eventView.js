@@ -273,13 +273,13 @@ class EventListRenderer {
 
     _queueScroll(scroll_to_row) {
         this._scroll_to_idle_id = Mainloop.idle_add(((row) => {
-            let vscroll = this.list.scrollBox.get_vscroll_bar();
+            const adjustment = this.list.scrollBox.get_vscroll_bar().get_adjustment();
 
             if (row != null) {
-                let mid_position = row.actor.y + (row.actor.height / 2) - (this.list.eventsBox.height / 2);
-                vscroll.get_adjustment().set_value(mid_position);
+                const mid_position = row.actor.y + (row.actor.height / 2) - (adjustment.page_size / 2);
+                adjustment.set_value(mid_position);
             } else {
-                vscroll.get_adjustment().set_value(0);
+                adjustment.set_value(0);
             }
 
             this._scroll_to_idle_id = 0;
