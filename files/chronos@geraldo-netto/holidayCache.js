@@ -516,6 +516,19 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._touchYear(year);
     }
 
+    _replaceSnapshot(year, region, holidays) {
+        const retained = this.data.filter((single) => single.year !== year || single.region !== region);
+        if (retained.length !== this.data.length) {
+            this.data = retained;
+            this._rebuildIndex();
+        }
+
+        // Each displayed year is fetched independently. Keep a spanning
+        // holiday's days only in the requested year, so a neighboring snapshot
+        // cannot overwrite corrections or resurrect dates removed here.
+        holidays.filter((single) => single.year === year).forEach((single) => this.addUnique(single));
+    }
+
     // `received` is injectable like recordAttempt's clock; a response
     // without a Date header must not leave the year forever stale (and
     // refetched every RETRY_PERIOD), so fall back to the receive time.
@@ -539,8 +552,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         // Falling back to the receive time is the same safe direction the
         // header-less case already takes.
         const stamp = validCachedStamp(retrieved) ? retrieved : received;
+        region = region || GLOBAL_REGION;
+        this._replaceSnapshot(year, region, holidays);
         this.recordYear(year, region, stamp);
-        holidays.forEach((single) => this.addUnique(single));
         // the year that just landed is the most recently used one, so the prune
         // can never drop it
         this._pruneYears();

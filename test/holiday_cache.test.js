@@ -1611,7 +1611,7 @@ test("a response filed under the wrong year is refused, not stored under it", ()
     const service = new HolidayService({ fetchYear() {} },
         new HolidayCache(() => {}, () => {}), { record });
     global.logError = () => {};
-    const rows = [holiday("New Year", 2026, 1, 1)];
+    const rows = [{ year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: [] }];
 
     service.addData(rows, { year: 2027, region: "global", providerName: "Drifty" },
         STAMP, { year: 2026, region: "global" });
@@ -2200,13 +2200,13 @@ test("the cache persists only the reachable window but keeps the session's data"
         [{ year: current, month: 7, day: 4, region: "global", name: "Fresh", flags: [] }]);
     cache.persist();
 
-    // the live data keeps everything the session read — the out-of-window year
+    // the live data keeps other years the session read — the out-of-window year
     // still renders and its freshness stamp still throttles it
-    assert.deepEqual(cache.data.map((single) => single.name), ["Ancient", "Current", "Fresh"]);
+    assert.deepEqual(cache.data.map((single) => single.name), ["Ancient", "Fresh"]);
     assert.deepEqual(cache.years[old], { global: "Thu, 01 Jan 2020 00:00:00 GMT" });
     assert.deepEqual(cache.attempts[old], { global: "Thu, 01 Jan 2020 00:00:00 GMT" });
     // but the file carries only the window the grid can reach
-    assert.deepEqual(saved[0][1].holidays.map((single) => single.name), ["Current", "Fresh"]);
+    assert.deepEqual(saved[0][1].holidays.map((single) => single.name), ["Fresh"]);
     assert.equal(saved[0][1].years[old], undefined);
 });
 
