@@ -47,6 +47,9 @@ const Diagnostics = IS_NODE ?
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
+const ClockLimits = IS_NODE ?
+    require("./clockLimits") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].clockLimits;
 const WeatherServiceAdapters = IS_NODE ?
     require("./weatherServiceAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherServiceAdapters;
@@ -277,7 +280,9 @@ function releaseWeatherConsumer(queue = NOMINATIM_REQUEST_QUEUE) {
     _weatherConsumers.release(queue);
 }
 
-var MAX_WEATHER_READING_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES; // NOSONAR [S3504] -- GJS importer export
+// One reading for each configured world clock and the independent panel location.
+// Resolved coordinates have a separate capacity and a much longer lifetime.
+var MAX_WEATHER_READING_CACHE_ENTRIES = ClockLimits.MAX_CLOCKS + 1; // NOSONAR [S3504] -- GJS importer export
 
 // The geocoders, in the order they are tried. Named, because a nameless provider
 // is logged by its URL when the chain moves on - and a geocode URL carries the

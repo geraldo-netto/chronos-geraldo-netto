@@ -2186,11 +2186,12 @@ test("a departing instance's queued geocodes leave with it", () => {
     Weather.releaseWeatherConsumer(queue);
 });
 
-test("shared reading cache ships with a small fixed bound", () => {
+test("shared reading cache fits every configured clock and the panel location", () => {
     const Weather = loadWeather();
     const repository = new Weather.WeatherReadingRepository({ cacheSeconds: 1 });
     assert.equal(repository._max_cache_entries, Weather.MAX_WEATHER_READING_CACHE_ENTRIES);
-    assert.equal(Weather.MAX_WEATHER_READING_CACHE_ENTRIES, 16);
+    const { MAX_CLOCKS } = require("../files/chronos@geraldo-netto/clockLimits");
+    assert.equal(Weather.MAX_WEATHER_READING_CACHE_ENTRIES, MAX_CLOCKS + 1);
     repository.destroy();
 });
 
