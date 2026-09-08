@@ -144,6 +144,13 @@ If restoration itself fails, the error's staging path retains `previous/` for
 manual recovery. The persistent `.lock` file is coordination state, not a stale
 lock to delete.
 
+`scripts/archive-spices.sh dist` takes the same lock, copies the package into a
+private snapshot, and hashes and archives that snapshot. Each completed output
+is published with an atomic rename while holding the lock. Consumers should use
+the archive after the command succeeds; its embedded checksum manifest belongs
+to that exact snapshot even if a later build replaces the package directory.
+Failed snapshot creation or archiving preserves the previous published outputs.
+
 `npm run i18n:check` validates every language catalog with `msgfmt`, rejects
 active fuzzy translations with `msgattrib`, and checks the catalog inventory.
 Missing or untranslated messages use English. Catalog merging, source-reference

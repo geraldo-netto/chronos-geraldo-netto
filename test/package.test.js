@@ -6,6 +6,7 @@ const os = require("node:os");
 const path = require("node:path");
 const { promisify } = require("node:util");
 const { pathToFileURL } = require("node:url");
+const { setTimeout: delay } = require("node:timers/promises");
 
 const ROOT = path.join(__dirname, "..");
 const UUID = "chronos@geraldo-netto";
@@ -298,6 +299,82 @@ test("equal staged trees produce byte-identical normalized archives", async (t) 
         UUID, "metadata.json"))).mode & 0o777, 0o644);
     assert.equal((await fs.stat(path.join(extracted, "chronos@geraldo-netto", "files",
         UUID, "6.0", "settings_widgets.py"))).mode & 0o777, 0o755);
+});
+
+async function waitForMarker(marker) {
+    for (let attempt = 0; attempt < 500; attempt++) {
+        try {
+            await fs.access(marker);
+            return;
+        } catch (error) {
+            if (error.code !== "ENOENT") {
+                throw error;
+            }
+            await delay(10);
+        }
+    }
+    assert.fail("archive did not reach the checksum barrier");
+}
+
+async function archiveBarrier(temporary) {
+    const bin = path.join(temporary, "bin");
+    const ready = path.join(temporary, "hash-ready");
+    const resume = path.join(temporary, "hash-resume");
+    await fs.mkdir(bin);
+    await fs.writeFile(path.join(bin, "sha256sum"),
+        '#!/bin/sh\nset -e\n/usr/bin/sha256sum "$@"\n' +
+        ': > "$CHRONOS_HASH_READY"\n' +
+        'while [ ! -e "$CHRONOS_HASH_RESUME" ]; do sleep 0.01; done\n', { mode: 0o755 });
+    return { ready, resume, env: { ...process.env,
+        PATH: `${bin}${path.delimiter}${process.env.PATH}`,
+        CHRONOS_HASH_READY: ready, CHRONOS_HASH_RESUME: resume } };
+}
+
+test("archiving excludes builders and hashes an immutable snapshot", async (t) => {
+    const { source, temporary } = await makeSpicesFixture(t);
+    const output = path.join(temporary, UUID);
+    const { buildSpicesPackage } = await importPackager();
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
+    const barrier = await archiveBarrier(temporary);
+    const pending = execFileAsync(path.join(ROOT, "scripts", "archive-spices.sh"),
+        [temporary], { env: barrier.env });
+    try {
+        await waitForMarker(barrier.ready);
+        await assert.rejects(buildSpicesPackage({ sourceRoot: source, outputRoot: output }),
+            /cannot acquire package lock/);
+        // Even a writer bypassing the advisory lock cannot change the private
+        // tree after hashing; the old script read this changed file during tar.
+        await fs.writeFile(path.join(output, "README.md"), "changed after hashing");
+    } finally {
+        await fs.writeFile(barrier.resume, "");
+        await pending;
+    }
+    const extracted = path.join(temporary, "extracted");
+    await fs.mkdir(extracted);
+    await execFileAsync("tar", ["-xf", path.join(temporary, "chronos-spices.tar"), "-C", extracted]);
+    await execFileAsync("sha256sum", ["-c", "chronos-spices.sha256"], { cwd: extracted });
+    assert.equal(await fs.readFile(path.join(extracted, UUID, "README.md"), "utf8"), "readme");
+    assert.ok(!(await fs.readdir(temporary)).some((name) => name.startsWith(".chronos-archive.")));
+});
+
+test("failed archive rebuilds preserve complete published outputs", async (t) => {
+    const { temporary } = await makeSpicesFixture(t);
+    await makeArchiveTree(temporary, new Date("2020-01-02T03:04:05Z"));
+    const archiver = path.join(ROOT, "scripts", "archive-spices.sh");
+    await execFileAsync(archiver, [temporary]);
+    const archivePath = path.join(temporary, "chronos-spices.tar");
+    const manifestPath = path.join(temporary, "chronos-spices.sha256");
+    const archive = await fs.readFile(archivePath);
+    const manifest = await fs.readFile(manifestPath);
+    const unreadable = path.join(temporary, UUID, "files", UUID, "6.0");
+    await fs.chmod(unreadable, 0);
+    try {
+        await assert.rejects(execFileAsync(archiver, [temporary]));
+    } finally {
+        await fs.chmod(unreadable, 0o755);
+    }
+    assert.deepEqual(await fs.readFile(archivePath), archive);
+    assert.deepEqual(await fs.readFile(manifestPath), manifest);
 });
 
 // T789: the script was #!/bin/sh, where `set -o pipefail` does not exist, so
