@@ -44,3 +44,24 @@ Country eviction accepts `savedAt` only as a finite numeric timestamp between
 zero and the current repository clock. Invalid or future values have the oldest
 priority, so correcting a clock that was years ahead cannot evict newly fetched
 countries indefinitely.
+
+## Concurrent snapshots
+
+A persisted update identifies each locally changed year and region and records
+the response's local receive time. A save replaces all rows and freshness for
+those snapshots only. Thus a 2027 fetch cannot restore stale 2026 rows after a
+different applet instance corrected them, and an explicitly empty response
+removes the old rows while retaining its freshness stamp.
+
+The repository retains the receive time beside each snapshot. An older response
+cannot overwrite a newer response merely because its disk write finishes later.
+Equal receive times use write order. Provider HTTP `Date` remains the freshness
+timestamp and does not order corrections. Queued saves combine independent
+snapshots; an etag retry merges them again into the current file. The resulting
+country remains inside the persisted year window and row limit.
+
+`HolidayCacheRepository.save(country, data)` requires `data.updates`, an array of
+`{year, region, received}` descriptors. `HolidayCache.persist` supplies it from
+recorded fetches and clears accepted descriptors; loading old rows does not mark
+them as locally changed. Consumers receive the existing `{years, holidays}`
+projection when reading the cache.

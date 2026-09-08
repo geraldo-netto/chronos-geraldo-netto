@@ -5,6 +5,16 @@ const {
 } = require("./helpers/holidayFixture");
 const { freezeClock } = require("./helpers/clock");
 
+function snapshotUpdate(data, region = "global") {
+    return { ...data, updates: [{ year: 2026, region, received: new Date().toISOString() }] };
+}
+
+function namedSnapshot(name, region = "global") {
+    return snapshotUpdate({ years: {}, holidays: [
+        { year: 2026, month: 1, day: 1, region, name, flags: [] }
+    ] }, region);
+}
+
 // T988: the store and 320 lines of Gio file I/O shared a module, and the
 // coupling bit at *import* time — `GLib.build_filenamev(...)` ran while the
 // module loaded, so the pure data structure could not be required without a
@@ -944,7 +954,7 @@ test("HolidayCacheRepository reads and writes the per-country cache file", () =>
 
     assert.deepEqual(loadCountry(repository, "usa").years, { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } });
 
-    repository.save("usa", { years: {}, holidays: [] });
+    repository.save("usa", snapshotUpdate({ years: {}, holidays: [] }));
 
     assert.equal(HolidayCacheRepository.path, cachePath());
     const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
@@ -1063,7 +1073,7 @@ test("the cache file keeps a handful of countries, not every one ever tried", ()
 
     const tried = ["usa", "ita", "fra", "deu", "jpn", "bra", "can"];
     for (const country of tried) {
-        repository.save(country, { years: {}, holidays: [] });
+        repository.save(country, { years: {}, holidays: [], updates: [] });
     }
 
     const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
@@ -1087,11 +1097,11 @@ test("a clock rollback cannot let future cache metadata evict newly fetched coun
     let clock = Date.parse("2036-09-08T12:00:00Z");
     const repository = new HolidayCacheRepository("/holidays.json", { now: () => clock++ });
     for (const country of ["usa", "ita", "fra", "deu"]) {
-        repository.save(country, { years: {}, holidays: [] });
+        repository.save(country, { years: {}, holidays: [], updates: [] });
     }
     clock = Date.parse("2026-09-08T12:00:00Z");
     for (const country of ["cze", "jpn", "bra", "can"]) {
-        repository.save(country, { years: {}, holidays: [] });
+        repository.save(country, { years: {}, holidays: [], updates: [] });
         const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
         assert.ok(Object.hasOwn(written, country), "the newly saved country survives eviction");
     }
@@ -1250,16 +1260,19 @@ test("a second write waits for the one in flight instead of racing it", () => {
     });
 
     const repository = new HolidayCacheRepository("/holidays.json");
-    repository.save("usa", { years: {}, holidays: [{ name: "first" }] });
-    repository.save("usa", { years: {}, holidays: [{ name: "second" }] });
-    repository.save("ita", { years: {}, holidays: [{ name: "third" }] });
+    repository.save("usa", namedSnapshot("first"));
+    repository.save("usa", namedSnapshot("second"));
+    repository.save("usa", namedSnapshot("regional", "ny"));
+    repository.save("ita", namedSnapshot("third"));
 
     assert.equal(writes.length, 1, "only one write is in flight at a time");
 
     settle.shift()();
     assert.equal(writes.length, 2, "the queued changes go out once the first settles");
-    assert.deepEqual(writes[1].usa.holidays, [{ name: "second" }], "and they are the newest ones");
-    assert.deepEqual(writes[1].ita.holidays, [{ name: "third" }]);
+    assert.deepEqual(writes[1].usa.holidays, [
+        ...namedSnapshot("second").holidays, ...namedSnapshot("regional", "ny").holidays
+    ], "queued independent snapshots survive together");
+    assert.deepEqual(writes[1].ita.holidays, namedSnapshot("third").holidays);
 
     settle.shift()();
     assert.equal(writes.length, 2, "nothing is left over to write");
@@ -1280,14 +1293,14 @@ test("repository release lets queued writes settle without retaining their snaps
     });
     const repository = new HolidayCacheRepository("/holidays.json");
 
-    repository.save("usa", { years: {}, holidays: [{ name: "first" }] });
-    repository.save("ita", { years: {}, holidays: [{ name: "queued" }] });
+    repository.save("usa", namedSnapshot("first"));
+    repository.save("ita", namedSnapshot("queued"));
     repository.release();
     assert.equal(repository._all, null);
 
     settle.shift()();
     assert.equal(writes.length, 2, "the write queued before release still persists");
-    assert.deepEqual(writes[1].ita.holidays, [{ name: "queued" }]);
+    assert.deepEqual(writes[1].ita.holidays, namedSnapshot("queued").holidays);
     assert.equal(repository._all, null, "the late merge is not retained");
 
     settle.shift()();
@@ -2535,8 +2548,9 @@ test("the cache file is read once for loading and written asynchronously", () =>
     assert.deepEqual(fromMemo, { years: {}, holidays: [] }, "a later read is answered from the memo");
     assert.equal(reads, 1, "and does not touch the file again");
 
-    repository.save("usa", { years: { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } }, holidays: [] });
-    repository.save("ita", { years: {}, holidays: [] });
+    repository.save("usa", snapshotUpdate({
+        years: { 2026: { global: "Mon, 05 Jan 2026 00:00:00 GMT" } }, holidays: [] }));
+    repository.save("ita", { years: {}, holidays: [], updates: [] });
 
     // the write goes through the async Gio path, so it never blocks the shell
     const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
@@ -2583,12 +2597,12 @@ test("concurrent country loads share the repository's first file read", () => {
 // every panel, so a second instance can land its write between our read and our
 // write. Gio's etag is what turns that into a failed write instead of a silent
 // overwrite.
-test("a write that lost a race is merged again, not lost", () => {
+test("an etag retry preserves a newer independent snapshot of the same country", () => {
     const { HolidayCacheRepository } = loadHolidays();
 
     // a file whose contents (and etag) another writer changes underneath us,
     // exactly once
-    let contents = JSON.stringify({ usa: { years: {}, holidays: [] } });
+    let contents = JSON.stringify({ usa: namedSnapshot("old date") });
     let etag = "v1";
     let interfered = false;
 
@@ -2608,10 +2622,10 @@ test("a write that lost a race is merged again, not lost", () => {
             return [true, Buffer.from(contents), etag];
         },
         replace_contents_async(bytes, givenEtag, _backup, _flags, _cancellable, callback) {
-            // the other applet instance writes Italy just before our write lands
+            // The other instance corrects the same country's 2026 snapshot.
             if (!interfered) {
                 interfered = true;
-                contents = JSON.stringify({ ita: { years: {}, holidays: [{ name: "Epifania" }] } });
+                contents = JSON.stringify({ usa: namedSnapshot("corrected date") });
                 etag = "v2";
             }
 
@@ -2633,13 +2647,14 @@ test("a write that lost a race is merged again, not lost", () => {
     });
 
     const repository = new HolidayCacheRepository("/holidays.json");
-    repository.save("usa", { years: {}, holidays: [{ name: "Independence Day" }] });
+    repository.save("usa", { years: {}, holidays: [
+        { year: 2027, month: 1, day: 1, region: "global", name: "new year", flags: [] }
+    ], updates: [{ year: 2027, region: "global", received: new Date().toISOString() }] });
 
     const written = JSON.parse(contents);
-    assert.deepEqual(Object.keys(written).sort(), ["ita", "usa"],
-        "the write that lost the race merged again instead of overwriting");
-    assert.equal(written.ita.holidays[0].name, "Epifania");
-    assert.equal(written.usa.holidays[0].name, "Independence Day");
+    assert.deepEqual(written.usa.holidays.map((row) => [row.year, row.name]),
+        [[2026, "corrected date"], [2027, "new year"]],
+        "the retry merges its changed snapshot into the corrected country");
 });
 
 test("a save merges with the file instead of overwriting another writer's country", () => {
@@ -2656,9 +2671,11 @@ test("a save merges with the file instead of overwriting another writer's countr
     // ...and a second applet instance, with its own repository, saves Italy
     // in the meantime
     const other = new HolidayCacheRepository("/holidays.json");
-    other.save("ita", { years: {}, holidays: [{ year: 2026, month: 1, day: 6, region: "global", name: "Epifania", flags: [] }] });
+    other.save("ita", snapshotUpdate({ years: {}, holidays: [
+        { year: 2026, month: 1, day: 6, region: "global", name: "Epifania", flags: [] }] }));
 
-    repository.save("usa", { years: {}, holidays: [{ year: 2026, month: 7, day: 4, region: "global", name: "Independence Day", flags: [] }] });
+    repository.save("usa", snapshotUpdate({ years: {}, holidays: [
+        { year: 2026, month: 7, day: 4, region: "global", name: "Independence Day", flags: [] }] }));
 
     const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
     assert.deepEqual(Object.keys(written).sort(), ["ita", "usa"],

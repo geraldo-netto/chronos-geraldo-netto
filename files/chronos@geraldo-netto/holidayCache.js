@@ -267,6 +267,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this.region = GLOBAL_REGION;
         this.years = {};
         this.attempts = {};
+        this._updates = new Map();
         this.data = [];
         this._holidayIndex = new Map();
         this._monthIndex = new Map();
@@ -327,6 +328,11 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._yearUse.delete(year);
         delete this.years[year];
         delete this.attempts[year];
+        for (const [key, update] of this._updates) {
+            if (update.year === year) {
+                this._updates.delete(key);
+            }
+        }
     }
 
     // Choosing the victims is per year; rebuilding the indexes is not. Each
@@ -387,6 +393,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
 
             this.years = data.years;
             this.attempts = {};
+            this._updates.clear();
             this.setData(data.holidays);
             this._flushReady(ready);
         });
@@ -529,12 +536,13 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this._touchYear(single.year);
     }
 
-    recordYear(year, region, retrieved) {
+    recordYear(year, region, retrieved, received = new Date().toISOString()) {
         if (!this._isActive() || !_storeStamp(this.years, year, region, retrieved)) {
             return;
         }
 
         this._touchYear(year);
+        this._updates.set(`${year}/${region}`, { year: Number(year), region, received });
     }
 
     _replaceSnapshot(year, region, holidays) {
@@ -568,7 +576,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         const stamp = validCachedStamp(retrieved, new Date(received).getTime()) ? retrieved : received;
         region = region || GLOBAL_REGION;
         this._replaceSnapshot(year, region, holidays);
-        this.recordYear(year, region, stamp);
+        this.recordYear(year, region, stamp, received);
         // the year that just landed is the most recently used one, so the prune
         // can never drop it
         this._pruneYears();
@@ -590,6 +598,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         this.data = [];
         this.years = {};
         this.attempts = {};
+        this._updates.clear();
         this._yearUse.clear();
         this._holidayIndex.clear();
         this._monthIndex.clear();
@@ -689,8 +698,18 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
             return;
         }
 
-        this._save(this.country,
-            this._persist_window.snapshot(this.years, this.data, now));
+        const snapshot = this._persist_window.snapshot(this.years, this.data, now);
+        const keptYears = new Set([...Object.keys(snapshot.years).map(Number),
+            ...snapshot.holidays.map((single) => single.year)]);
+        const changed = Array.from(this._updates.values());
+        snapshot.updates = changed.filter((update) => keptYears.has(update.year));
+        this._save(this.country, snapshot);
+        for (const update of changed) {
+            const key = `${update.year}/${update.region}`;
+            if (this._updates.get(key) === update) {
+                this._updates.delete(key);
+            }
+        }
     }
 };
 

@@ -46,6 +46,26 @@ const MAX_MERGE_RETRIES = HolidayCacheModule.MAX_MERGE_RETRIES;
 const validCachedHoliday = HolidayCacheModule.validCachedHoliday;
 const validCachedYears = HolidayCacheModule.validCachedYears;
 
+function snapshotKey(update) {
+    return `${update.year}/${update.region}`;
+}
+
+function snapshotMatches(row, update) {
+    return row.year === update.year &&
+        (row.region || HolidayCacheModule.GLOBAL_REGION) === update.region;
+}
+
+function validSnapshotUpdates(data, now) {
+    if (!data || !Array.isArray(data.updates)) {
+        return [];
+    }
+    return data.updates.filter((update) => update &&
+        HolidayRecord.validDateParts({ year: update.year, month: 1, day: 1 }) &&
+        typeof update.region === "string" &&
+        !["__proto__", "constructor", "prototype"].includes(update.region) &&
+        HolidayCacheModule.validCachedStamp(update.received, now));
+}
+
 var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -- GJS importer export
     constructor(fn, params = {}) {
         this.fn = fn;
@@ -237,13 +257,51 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
 
     _mergePending(data, flushing) {
         Object.keys(flushing).forEach((country) => {
-            data[country] = flushing[country];
+            data[country] = this._mergeCountry(data[country], flushing[country]);
         });
         const allData = this._pruneCountries(data);
         if (!this._released) {
             this._all = allData;
         }
         return allData;
+    }
+
+    _mergeSnapshot(base, incoming, update, versions) {
+        const key = snapshotKey(update);
+        const prior = versions.get(key);
+        if (prior && Date.parse(prior.received) > Date.parse(update.received)) {
+            return;
+        }
+        base.holidays = base.holidays.filter((row) => !snapshotMatches(row, update))
+            .concat(incoming.holidays.filter((row) => snapshotMatches(row, update)));
+        const regions = { ...base.years[update.year] };
+        const stamps = incoming.years[update.year] || {};
+        delete regions[update.region];
+        if (Object.hasOwn(stamps, update.region)) {
+            regions[update.region] = stamps[update.region];
+        }
+        delete base.years[update.year];
+        if (Object.keys(regions).length > 0) {
+            base.years[update.year] = regions;
+        }
+        versions.set(key, update);
+    }
+
+    _mergeCountry(previous, changed) {
+        const now = this._now();
+        const base = this._country({ value: previous }, "value");
+        const incoming = this._country({ value: changed }, "value");
+        const versions = new Map(validSnapshotUpdates(previous, now)
+            .map((update) => [snapshotKey(update), update]));
+        for (const update of validSnapshotUpdates(changed, now)) {
+            this._mergeSnapshot(base, incoming, update, versions);
+        }
+        const bounded = new HolidayCacheModule.HolidayPersistWindow()
+            .snapshot(base.years, base.holidays, new Date(now));
+        const years = new Set([...Object.keys(bounded.years).map(Number),
+            ...bounded.holidays.map((row) => row.year)]);
+        return { ...bounded, savedAt: changed.savedAt,
+            updates: Array.from(versions.values()).filter((update) => years.has(update.year)) };
     }
 
     _settleFlush(file, flushing, merges, stale) {
@@ -307,10 +365,16 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             return;
         }
 
+        if (!Array.isArray(data.updates)) {
+            throw new TypeError("Holiday cache saves require explicit snapshot updates");
+        }
+
         // stamped when it was saved, not when it happens to be flushed: the
         // eviction sorts on this, and a pending entry that waits out a write in
         // flight must not look newer than one saved after it
-        this._pending[country] = Object.assign({}, data, { savedAt: this._now() }); // NOSONAR [S6661] -- accepted compatible form
+        const changed = { ...data, savedAt: this._now() };
+        this._pending[country] = Object.hasOwn(this._pending, country) ?
+            this._mergeCountry(this._pending[country], changed) : changed;
         this._scheduleFlush(file);
     }
 };
