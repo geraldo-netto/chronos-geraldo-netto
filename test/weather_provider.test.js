@@ -1372,8 +1372,10 @@ test("asynchronous geocode normalizer exceptions fall back without swallowing co
     const place = { name: "Rome", latitude: 1, longitude: 2 };
     const resolver = new Weather.WeatherLocationResolver({
         providers: [
-            { name: "broken", url: () => "https://broken.test", normalize: () => { throw failure; } },
-            { name: "healthy", url: () => "https://healthy.test", normalize: () => place }
+            { name: "broken", url: () => "https://broken.test", isValidResponse: () => true,
+                normalize: () => { throw failure; } },
+            { name: "healthy", url: () => "https://healthy.test", isValidResponse: () => true,
+                normalize: () => place }
         ],
         httpGetJson: (_url, callback) => requests.push(callback)
     });
@@ -1503,6 +1505,7 @@ test("a delayed Nominatim dispatch failure completes its provider chain", () => 
         providers: [{
             name: "Nominatim",
             url: () => "https://nominatim.example/search",
+            isValidResponse: Array.isArray,
             normalize: () => null,
             requestQueue: queue
         }],
@@ -3082,7 +3085,7 @@ test("applets refresh weather when the system resumes", () => {
     assert.match(onResume[1], /this\._scheduleWeatherRefresh\(\{ force: true \}\);/);
 });
 
-// T830: GEOCODE_PROVIDERS is a data registry - name, url, normalize, options -
+// T830: GEOCODE_PROVIDERS declares validation, normalization, and transport -
 // and the resolver reached back out and branched on the vendor to decide
 // throttling. A geocoder appended to the registry could not declare a rate
 // limit; it got requestQueue: null and unthrottled dispatch, so the built-in
@@ -3108,11 +3111,13 @@ test("a geocoder declares its own rate limit in the registry", () => {
             {
                 name: "Fast",
                 url: () => "https://fast.example/geocode",
+                isValidResponse: (data) => data !== null,
                 normalize: () => null
             },
             {
                 name: "Slow",
                 url: () => "https://slow.example/geocode",
+                isValidResponse: (data) => data !== null,
                 normalize: (data) => (data ?
                     { latitude: Number(data.lat), longitude: Number(data.lon),
                         name: data.display_name } : null),
@@ -3145,6 +3150,7 @@ test("a substitute request queue replaces every declared one", () => {
         providers: [{
             name: "Throttled",
             url: () => "https://throttled.example/geocode",
+            isValidResponse: (data) => data !== null,
             normalize: (data) => ({ latitude: Number(data.lat),
                 longitude: Number(data.lon), name: data.display_name }),
             requestQueue: declared

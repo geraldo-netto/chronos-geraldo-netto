@@ -291,11 +291,13 @@ var GEOCODE_PROVIDERS = [ // NOSONAR [S3504] -- GJS importer export
     {
         name: WEATHER_PROVIDER_NAMES.OPEN_METEO,
         url: geocodeUrl,
+        isValidResponse: WeatherServiceAdapters.isOpenMeteoGeocodeResponse,
         normalize: openMeteoGeocodePlace
     },
     {
         name: WEATHER_PROVIDER_NAMES.NOMINATIM,
         url: nominatimGeocodeUrl,
+        isValidResponse: WeatherServiceAdapters.isNominatimGeocodeResponse,
         normalize: nominatimGeocodePlace,
         options: {
             headers: {
@@ -391,6 +393,7 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         const providers = this._providers.map((provider) => ({
             name: provider.name,
             url: provider.url(location, language),
+            isValidResponse: (data) => provider.isValidResponse(data),
             normalize: (data) => provider.normalize(data, location),
             options: provider.options,
             requestQueue: this._requestQueueFor(provider)
@@ -408,14 +411,14 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
     }
 
     _tryGeocodeProviders(providers, isCurrent, callback) {
-        const state = { anyResponse: false };
+        const state = { anyValidResponse: false };
         ProviderUtils.tryProvidersInOrder(
             providers,
             (provider, onResult) => this._requestGeocodeProvider(
                 provider, isCurrent, onResult, state),
             (place) => Boolean(place), // NOSONAR [S7770] -- accepted compatible form
             (provider, place) => callback(place, ""),
-            () => this._reportGeocodeFailure(state.anyResponse, callback)
+            () => this._reportGeocodeFailure(state.anyValidResponse, callback)
         );
     }
 
@@ -441,11 +444,12 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         if (!isCurrent()) {
             return;
         }
-        state.anyResponse = state.anyResponse ||
-            (data !== null && data !== undefined);
-        let place;
+        let place = null;
         try {
-            place = provider.normalize(data);
+            if (provider.isValidResponse(data) === true) {
+                place = provider.normalize(data);
+                state.anyValidResponse = true;
+            }
         } catch (error) {
             this._reportGeocodeAttemptFailure(error, isCurrent, onResult);
             return;
@@ -460,9 +464,9 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         }
     }
 
-    _reportGeocodeFailure(anyResponse, callback) {
+    _reportGeocodeFailure(anyValidResponse, callback) {
         Diagnostics.logSafely("log", "all weather geocode providers failed");
-        callback(null, anyResponse ?
+        callback(null, anyValidResponse ?
             WEATHER_ERRORS.LOCATION_NOT_FOUND :
             WEATHER_ERRORS.SERVICE_UNAVAILABLE);
     }

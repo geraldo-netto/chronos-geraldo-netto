@@ -112,12 +112,17 @@ function checkGeocode(audit, random, round) {
             { name: "Genoa", latitude: 44.4, longitude: 8.9, timezone: "" });
         assert.equal(JSON.stringify(results), before);
         assert.equal(Adapters.openMeteoGeocodePlace({ results: [bad] }, "Genoa"), null);
+        assert.equal(Adapters.isOpenMeteoGeocodeResponse({ results }), true);
+        assert.equal(Adapters.isOpenMeteoGeocodeResponse({ results: [bad] }), false);
     });
     const osm = results.map((row) => ({ display_name: row.name,
         lat: row.latitude, lon: row.longitude, importance: row.population }));
     audit.check("weather.nominatim.invalid-neighbor", round, osm, () => {
         assert.deepEqual(Adapters.nominatimGeocodePlace(osm, "Genoa"),
             { name: "Genoa", latitude: 44.4, longitude: 8.9 });
+        assert.equal(Adapters.isNominatimGeocodeResponse(osm), true);
+        const invalid = osm[round % 2 ? 1 : 0];
+        assert.equal(Adapters.isNominatimGeocodeResponse([invalid]), false);
     });
 }
 

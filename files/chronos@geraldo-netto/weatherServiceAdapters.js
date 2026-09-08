@@ -547,6 +547,40 @@ function betterPlace(candidate, best, query) {
     return candidatePopulation > bestPopulation ? candidate : best;
 }
 
+function openMeteoGeocodeEnvelope(data) {
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+        return false;
+    }
+    if (!Object.keys(data).every((key) => ["results", "generationtime_ms"].includes(key))) {
+        return false;
+    }
+    return !Object.hasOwn(data, "generationtime_ms") ||
+        (typeof data.generationtime_ms === "number" &&
+            Number.isFinite(data.generationtime_ms) && data.generationtime_ms >= 0);
+}
+
+function openMeteoResponseCandidate(place) {
+    if (!place || typeof place !== "object" || Array.isArray(place)) {
+        return false;
+    }
+    // Omitted protobuf population means zero: valid, but still untrusted by
+    // the existing place-ranking policy. Validation must not imply selection.
+    const population = place.population === undefined ? 0 : place.population;
+    return placeCandidate({ ...place, population }) !== null;
+}
+
+function isOpenMeteoGeocodeResponse(data) {
+    if (!openMeteoGeocodeEnvelope(data)) {
+        return false;
+    }
+    // The provider's protobuf JSON omits empty results and zero-valued timing.
+    if (!Object.hasOwn(data, "results")) {
+        return true;
+    }
+    return Array.isArray(data.results) &&
+        (data.results.length === 0 || data.results.some(openMeteoResponseCandidate));
+}
+
 function openMeteoGeocodePlace(data, query) {
     if (!data || !Array.isArray(data.results) || !data.results.length) {
         return null;
@@ -597,6 +631,11 @@ function nominatimCandidate(place) {
     };
 }
 
+function isNominatimGeocodeResponse(data) {
+    return Array.isArray(data) &&
+        (data.length === 0 || data.some((place) => nominatimCandidate(place) !== null));
+}
+
 // Open-Meteo refuses a candidate below MIN_TRUSTED_GEOCODE_POPULATION so that
 // "the next geocoder in the queue arbitrates it" — but the next geocoder could
 // not arbitrate anything: it asked for one hit, took data[0] with no population
@@ -638,5 +677,6 @@ if (typeof module !== "undefined") {
         aviationWeatherIcon, finiteNumber,
         aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon,
         metNoSummary, metNoWeatherReading, openMeteoReading, openMeteoTimezone,
-        openMeteoGeocodePlace, nominatimGeocodePlace, foldPlaceName };
+        openMeteoGeocodePlace, nominatimGeocodePlace,
+        isOpenMeteoGeocodeResponse, isNominatimGeocodeResponse, foldPlaceName };
 }
