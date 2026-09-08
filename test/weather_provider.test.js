@@ -1202,6 +1202,73 @@ test("weather location resolver owns geocode fallback and cache", () => {
     }]);
 });
 
+test("malformed asynchronous geocode ranking falls back and frees shared weather requests", (t) => {
+    const Weather = loadWeather();
+    const requests = [];
+    const repository = new Weather.WeatherReadingRepository({
+        requestQueue: immediateNominatimQueue(),
+        httpGetJson: (url, callback) => requests.push({ url, callback })
+    });
+    t.after(() => repository.destroy());
+    const replies = [];
+    const receive = (reading, error) => replies.push({ reading, error });
+    const answer = (urlPattern, body) => {
+        const request = requests.shift();
+        assert.match(request.url, urlPattern);
+        request.callback(body);
+    };
+    repository.refresh("Rome", () => true, receive);
+    repository.refresh("Rome", () => true, receive);
+    assert.equal(requests.length, 1);
+
+    answer(/geocoding-api/, { results: [{
+        name: "Rome", latitude: 1, longitude: 2,
+        population: JSON.parse('{"valueOf":null,"toString":null}')
+    }] });
+    answer(/nominatim/, [{ display_name: "Rome", lat: "3", lon: "4", importance: 0.5 }]);
+    answer(/api.open-meteo.com/, { current_weather: { temperature: 12, weathercode: 0 } });
+    assert.equal(replies.length, 2);
+    assert.ok(replies.every((reply) => reply.reading.temperatureC === 12 && reply.error === ""));
+    assert.equal(repository._inflight.size, 0);
+
+    repository.forget("Rome");
+    repository.refresh("Rome", () => true, receive);
+    answer(/geocoding-api/, { results: [{
+        name: "Rome", latitude: 3, longitude: 4, population: 1000
+    }] });
+    answer(/api.open-meteo.com/, { current_weather: { temperature: 13, weathercode: 0 } });
+    assert.equal(replies.at(-1).reading.temperatureC, 13);
+    assert.equal(repository._inflight.size, 0);
+});
+
+test("asynchronous geocode normalizer exceptions fall back without swallowing consumer errors", (t) => {
+    const Weather = loadWeather();
+    const requests = [];
+    const failure = new Error("invalid provider response");
+    const reported = t.mock.method(global, "logError");
+    const place = { name: "Rome", latitude: 1, longitude: 2 };
+    const resolver = new Weather.WeatherLocationResolver({
+        providers: [
+            { name: "broken", url: () => "https://broken.test", normalize: () => { throw failure; } },
+            { name: "healthy", url: () => "https://healthy.test", normalize: () => place }
+        ],
+        httpGetJson: (_url, callback) => requests.push(callback)
+    });
+    const results = [];
+    resolver.resolve("Rome", () => true, (...args) => results.push(args));
+    requests.shift()({});
+    requests.shift()({});
+    assert.deepEqual(results, [[place, ""]]);
+    assert.equal(reported.mock.calls[0].arguments[0], failure);
+
+    const consumerFailure = new Error("consumer failed");
+    resolver.forget("Rome");
+    resolver.resolve("Rome", () => true, () => { throw consumerFailure; });
+    requests.shift()({});
+    assert.throws(() => requests.shift()({}), (error) => error === consumerFailure);
+    assert.equal(reported.mock.callCount(), 2, "only normalizer errors are diagnosed");
+});
+
 test("Nominatim requests are single-flight and use bounded elapsed delays", () => {
     const Weather = loadWeather();
     let now = 0;

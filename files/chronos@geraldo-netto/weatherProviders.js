@@ -420,25 +420,36 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
             provider.url,
             (data) => {
                 release();
-                if (!isCurrent()) {
-                    return;
-                }
-                state.anyResponse = state.anyResponse ||
-                    (data !== null && data !== undefined);
-                onResult(provider.normalize(data));
+                this._geocodeReceived(provider, data, isCurrent, onResult, state);
             },
             provider.options || {}
         );
 
         if (provider.requestQueue) {
             provider.requestQueue.enqueue(request, isCurrent, (error) =>
-                this._reportGeocodeDispatchFailure(error, isCurrent, onResult));
+                this._reportGeocodeAttemptFailure(error, isCurrent, onResult));
         } else {
             request();
         }
     }
 
-    _reportGeocodeDispatchFailure(error, isCurrent, onResult) {
+    _geocodeReceived(provider, data, isCurrent, onResult, state) {
+        if (!isCurrent()) {
+            return;
+        }
+        state.anyResponse = state.anyResponse ||
+            (data !== null && data !== undefined);
+        let place;
+        try {
+            place = provider.normalize(data);
+        } catch (error) {
+            this._reportGeocodeAttemptFailure(error, isCurrent, onResult);
+            return;
+        }
+        onResult(place);
+    }
+
+    _reportGeocodeAttemptFailure(error, isCurrent, onResult) {
         if (global.logError) {
             global.logError(error);
         }

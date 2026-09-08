@@ -494,8 +494,9 @@ function placeCandidate(place) {
 
     const latitude = finiteNumber(place.latitude, -90, 90);
     const longitude = finiteNumber(place.longitude, -180, 180);
+    const population = finiteNumber(place.population, 0);
 
-    if (latitude === null || longitude === null) {
+    if (latitude === null || longitude === null || population === null) {
         return null;
     }
 
@@ -505,8 +506,8 @@ function placeCandidate(place) {
         // is already bare, but a Nominatim hit carries its whole administrative
         // chain and only its leading component is the place
         matchName: geocodePlaceName(place.name),
-        population: place.population,
-        rankWeight: place.population,
+        population,
+        rankWeight: population,
         latitude,
         longitude,
         timezone: geocodeTimezone(place.timezone)
@@ -525,11 +526,10 @@ function placeRank(place, query) {
     // relevance score. Both answer "how likely is this the one they meant" on
     // their own scale, and a weight is only ever compared against another hit
     // from the same provider, so one field carries both.
-    const weight = Number(place.rankWeight);
     const exact = name.toLowerCase() === typed.toLowerCase() ? 2 : 0;
     const folded = foldPlaceName(name) === foldPlaceName(typed) ? 1 : 0;
 
-    return [exact || folded, Number.isFinite(weight) ? weight : 0];
+    return [exact || folded, place.rankWeight];
 }
 
 function betterPlace(candidate, best, query) {
@@ -557,8 +557,7 @@ function openMeteoGeocodePlace(data, query) {
         return candidate ? betterPlace(candidate, currentBest, query) : currentBest;
     }, null);
 
-    const population = best ? Number(best.population) : NaN; // NOSONAR [S7773] -- accepted compatible form
-    if (!Number.isFinite(population) || population < MIN_TRUSTED_GEOCODE_POPULATION) {
+    if (!best || best.population < MIN_TRUSTED_GEOCODE_POPULATION) {
         return null;
     }
     return {
@@ -576,8 +575,9 @@ function nominatimCandidate(place) {
 
     const latitude = finiteNumber(place.lat, -90, 90);
     const longitude = finiteNumber(place.lon, -180, 180);
+    const rankWeight = place.importance === undefined ? 0 : finiteNumber(place.importance, 0);
 
-    if (latitude === null || longitude === null) {
+    if (latitude === null || longitude === null || rankWeight === null) {
         return null;
     }
 
@@ -591,7 +591,7 @@ function nominatimCandidate(place) {
         // ("Genoa, Liguria, Italy"); only the leading component is the name the
         // user could have typed
         matchName: geocodePlaceName(displayName.split(",")[0].trim()),
-        rankWeight: place.importance,
+        rankWeight,
         latitude,
         longitude
     };

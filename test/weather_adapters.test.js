@@ -202,6 +202,25 @@ test("builds Open-Meteo geocode and forecast URLs", () => {
     );
 });
 
+test("geocode ranking refuses malformed population and importance fields without coercion", () => {
+    const Weather = loadWeather();
+    const malformed = [null, true, [], [1000], {},
+        { valueOf: null, toString: null }, "many", NaN, Infinity, -1];
+    for (const value of malformed) {
+        const badPrimary = { name: "Rome", latitude: 1, longitude: 2, population: value };
+        const goodPrimary = { name: "Rome", latitude: 3, longitude: 4, population: 1000 };
+        assert.equal(Weather.openMeteoGeocodePlace({ results: [badPrimary] }, "Rome"), null);
+        assert.equal(Weather.openMeteoGeocodePlace({
+            results: [badPrimary, goodPrimary]
+        }, "Rome").latitude, 3);
+
+        const badFallback = { display_name: "Rome", lat: "1", lon: "2", importance: value };
+        const goodFallback = { display_name: "Rome", lat: "3", lon: "4", importance: 0.5 };
+        assert.equal(Weather.nominatimGeocodePlace([badFallback], "Rome"), null);
+        assert.equal(Weather.nominatimGeocodePlace([badFallback, goodFallback], "Rome").latitude, 3);
+    }
+});
+
 test("normalizes primary and fallback geocode responses", () => {
     const Weather = loadWeather();
 
