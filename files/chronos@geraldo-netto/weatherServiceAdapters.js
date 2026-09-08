@@ -113,28 +113,30 @@ function geocodeLanguage(locale) {
 // Guatemalan temperature and nothing said so. Asked in Italian, the Italian city
 // is the first hit. A user types a city in the language their session runs in,
 // so that is the language to ask in.
-function geocodeUrl(location, locale) {
+function geocodeUrl(location, locale, hint = null) {
     const normalized = WeatherFormat.normalizeWeatherLocation(location);
-    if (!normalized) {
+    if (!WeatherFormat.locationCacheKey(normalized, hint)) {
         return "";
     }
     return "https://geocoding-api.open-meteo.com/v1/search?name=" +
         encodeURIComponent(normalized) + "&count=" + GEOCODE_CANDIDATE_COUNT +
-        "&language=" + geocodeLanguage(locale) + "&format=json";
+        "&language=" + geocodeLanguage(locale) + "&format=json" +
+        (hint?.countryCode ? "&countryCode=" + hint.countryCode : "");
 }
 
 // Nominatim ranks and names results by `accept-language` the same way Open-Meteo
 // ranks by `language`, and it is the provider that answers exactly when
 // Open-Meteo is down or refuses on the population floor — so asking it in
 // English would reintroduce the Genova/Génova mismatch on the fallback path.
-function nominatimGeocodeUrl(location, locale) {
+function nominatimGeocodeUrl(location, locale, hint = null) {
     const normalized = WeatherFormat.normalizeWeatherLocation(location);
-    if (!normalized) {
+    if (!WeatherFormat.locationCacheKey(normalized, hint) || (hint && !hint.countryCode)) {
         return "";
     }
     return "https://nominatim.openstreetmap.org/search?q=" +
         encodeURIComponent(normalized) + "&format=json&limit=" + GEOCODE_CANDIDATE_COUNT +
-        "&accept-language=" + geocodeLanguage(locale);
+        "&accept-language=" + geocodeLanguage(locale) +
+        (hint ? "&countrycodes=" + hint.countryCode.toLowerCase() + "&addressdetails=1" : "");
 }
 
 function forecastUrl(place) {
@@ -585,13 +587,25 @@ function isOpenMeteoGeocodeResponse(data) {
         (data.results.length === 0 || data.results.some(openMeteoResponseCandidate));
 }
 
-function openMeteoGeocodePlace(data, query) {
+function openMeteoMatchesHint(place, hint, canonicalTimezone) {
+    if (hint === null) {
+        return true;
+    }
+    const normalized = WeatherFormat.normalizeLocationHint(hint);
+    if (!normalized || !place || (normalized.countryCode && place.country_code !== normalized.countryCode)) {
+        return false;
+    }
+    const timezone = geocodeTimezone(place.timezone);
+    return Boolean(timezone && canonicalTimezone(timezone) === normalized.timezone);
+}
+
+function openMeteoGeocodePlace(data, query, hint = null, canonicalTimezone = (timezone) => timezone) {
     if (!data || !Array.isArray(data.results) || !data.results.length) {
         return null;
     }
 
     const best = data.results.reduce((currentBest, result) => {
-        const candidate = placeCandidate(result);
+        const candidate = openMeteoMatchesHint(result, hint, canonicalTimezone) ? placeCandidate(result) : null;
         return candidate ? betterPlace(candidate, currentBest, query) : currentBest;
     }, null);
 
@@ -651,13 +665,22 @@ function isNominatimGeocodeResponse(data) {
 // Ask for the same handful of candidates and run the same ranking. Nominatim
 // publishes no population, so `importance` — its own relevance score — is the
 // tiebreaker, and the typed name decides first, exactly as it does upstream.
-function nominatimGeocodePlace(data, query) {
+function nominatimMatchesHint(place, hint) {
+    if (hint === null) {
+        return true;
+    }
+    const normalized = WeatherFormat.normalizeLocationHint(hint);
+    return Boolean(normalized?.countryCode &&
+        place?.address?.country_code === normalized.countryCode.toLowerCase());
+}
+
+function nominatimGeocodePlace(data, query, hint = null) {
     if (!Array.isArray(data) || !data.length) {
         return null;
     }
 
     const best = data.reduce((currentBest, result) => {
-        const candidate = nominatimCandidate(result);
+        const candidate = nominatimMatchesHint(result, hint) ? nominatimCandidate(result) : null;
         return candidate ? betterPlace(candidate, currentBest, query) : currentBest;
     }, null);
 

@@ -70,7 +70,7 @@ class AppletWeatherCoordinator {
         const clocks = settings.showWorldclocks === false ? [] :
             WorldclockData.selectUserClocks(this.worldclocks()).map((clock) => ({
                 label: WorldclockData.clockDisplayLabel(clock.label),
-                query: WorldclockData.timezoneWeatherCity(clock.timezone)
+                ...WorldclockData.timezoneWeatherRequest(clock.timezone)
             }));
         this.cityWeatherProvider.schedule({
             showWeather: settings.showWeather,
@@ -97,20 +97,28 @@ class AppletWeatherCoordinator {
         return this.weatherProvider.placeFor(settings.location);
     }
 
-    cityReading(city) {
-        return this.cityWeatherProvider ? this.cityWeatherProvider.recordFor(city) : null;
+    cityReading(timezone) {
+        const request = WorldclockData.timezoneWeatherRequest(timezone);
+        return request && this.cityWeatherProvider ?
+            this.cityWeatherProvider.recordFor(request.query, request.hint) : null;
     }
 
-    cityStale(city) {
-        return this.cityWeatherProvider ? this.cityWeatherProvider.staleFor(city) : false;
+    cityStale(timezone) {
+        const request = WorldclockData.timezoneWeatherRequest(timezone);
+        return request && this.cityWeatherProvider ?
+            this.cityWeatherProvider.staleFor(request.query, request.hint) : false;
     }
 
-    cityError(city) {
-        return this.cityWeatherProvider ? this.cityWeatherProvider.errorFor(city) : "";
+    cityError(timezone) {
+        const request = WorldclockData.timezoneWeatherRequest(timezone);
+        return request && this.cityWeatherProvider ?
+            this.cityWeatherProvider.errorFor(request.query, request.hint) : "";
     }
 
-    cityProviderName(city) {
-        return this.cityWeatherProvider ? this.cityWeatherProvider.providerFor(city) : "";
+    cityProviderName(timezone) {
+        const request = WorldclockData.timezoneWeatherRequest(timezone);
+        return request && this.cityWeatherProvider ?
+            this.cityWeatherProvider.providerFor(request.query, request.hint) : "";
     }
 }
 

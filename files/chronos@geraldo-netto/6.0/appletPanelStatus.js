@@ -461,22 +461,22 @@ class AppletPanelStatusPresenter {
         // the reading is of the city the timezone names, which is also what was
         // geocoded; the label is the user's name for the row and two rows may
         // share one
-        const city = WorldclockData.timezoneWeatherCity(entry.timezone);
+        const request = WorldclockData.timezoneWeatherRequest(entry.timezone);
 
         // An offset-only zone (Etc/GMT+3) names no city, so there is nothing to
         // forecast and there never will be. Blank cells said exactly what a fetch
         // still in flight and a fetch that failed said, so the row looked broken
         // rather than inapplicable.
-        if (!city) {
+        if (!request) {
             return { cells: ["", _("No weather for this timezone")], issue: "", source: "" };
         }
 
-        const record = port.cityWeatherReading(city);
-        const currentError = port.cityWeatherError(city);
+        const record = port.cityWeatherReading(entry.timezone);
+        const currentError = port.cityWeatherError(entry.timezone);
         let rowError = currentError ? markedWeatherError(currentError) : "";
         let issue = currentError ?
             joinPhrases(entry.label, translateWeatherError(currentError)) : "";
-        if (!rowError && port.cityWeatherStale(city)) {
+        if (!rowError && port.cityWeatherStale(entry.timezone)) {
             // one msgid: the marker is a glyph the phrase is built around, and a
             // translator has to be able to put it where it belongs
             rowError = fillTemplate(_("%s Last known reading"),
@@ -488,7 +488,7 @@ class AppletPanelStatusPresenter {
         return {
             cells: record ? this._readingCells(record, rowError) : ["", rowError],
             issue,
-            source: record ? port.cityWeatherProviderName(city) : ""
+            source: record ? port.cityWeatherProviderName(entry.timezone) : ""
         };
     }
 

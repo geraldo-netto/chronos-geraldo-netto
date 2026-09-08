@@ -91,8 +91,29 @@ function normalizeWeatherLocation(location) {
 // is the Soup and GLib layer, and the domain modules that key by it - the
 // reading store, the per-city error map, the city dedup - would have had to
 // reach downstream through the transport to ask what a place is called.
-function locationCacheKey(location) {
-    return normalizeWeatherLocation(location).toLowerCase();
+function normalizeLocationHint(hint) {
+    if (!hint || typeof hint !== "object" || Array.isArray(hint)) {
+        return null;
+    }
+    const timezone = TextUtils.validNativeText(hint.timezone) ? hint.timezone.trim() : "";
+    const countryCode = hint.countryCode;
+    if (!timezone || timezone.length > 255 ||
+        !/^[A-Za-z0-9_+-]+(?:\/[A-Za-z0-9_+-]+)+$/.test(timezone) ||
+        typeof countryCode !== "string" || !/^(?:[A-Z]{2})?$/.test(countryCode)) {
+        return null;
+    }
+    return { timezone, countryCode };
+}
+
+function locationCacheKey(location, hint = null) {
+    const query = normalizeWeatherLocation(location).toLowerCase();
+    if (!query || hint === null) {
+        return query;
+    }
+    const normalized = normalizeLocationHint(hint);
+    // Queries cannot contain NUL, so hinted keys cannot collide with any
+    // unhinted free text, including text that happens to look like JSON.
+    return normalized ? query + "\0" + JSON.stringify([normalized.timezone, normalized.countryCode]) : "";
 }
 
 function fahrenheitTemperature(celsius) {
@@ -208,6 +229,6 @@ if (typeof module !== "undefined") {
         WEATHER_DEBOUNCE_MS, WEATHER_UNITS,
         WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS,
         WEATHER_CONDITIONS, WEATHER_UNKNOWN_CONDITION,
-        normalizeUnits, normalizeWeatherLocation, locationCacheKey,
+        normalizeUnits, normalizeWeatherLocation, normalizeLocationHint, locationCacheKey,
         validTemperature, formatTemperature };
 }

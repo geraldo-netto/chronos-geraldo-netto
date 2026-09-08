@@ -253,6 +253,10 @@ test("the zoned-time double refuses strftime fields it cannot render", () => {
     assert.equal(timeIn("Etc/UTC", "%% %H:%M"), "% 11:45");
 });
 
+function weatherCity(data, timezone) {
+    return data.timezoneWeatherRequest(timezone)?.query || "";
+}
+
 function loadWorldclocks(options = {}) {
     clearWorldclockCaches();
     require.cache[require.resolve(localeTextPath)] = {
@@ -640,19 +644,18 @@ test("the first saved clock for a timezone wins without consuming another slot",
     ]);
 });
 
-// worldclockData.timezoneCityName and chronos_timezone_data.local_city_name
-// both derive the weather-location city from a timezone id and both write the
-// same settings key, so they must agree. The cases live in a fixture that the
-// Python suite asserts against too; a divergence fails one side.
-test("timezoneCityName matches the Python local_city_name on the shared cases", () => {
+// The runtime request and Python placeholder share named-zone extraction cases.
+// Runtime admission also resolves the symbolic local zone through GLib; the
+// Python text helper receives an already-resolved identifier instead.
+test("timezone requests share named-zone extraction with Python and resolve local through GLib", () => {
     loadWorldclocks();
     const WorldclockData =
         global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
     const fixture = require("./fixtures/timezone_city_cases.json");
 
-    for (const { timezone, city } of fixture.cases) {
-        assert.equal(WorldclockData.timezoneCityName(timezone), city,
-            `timezoneCityName(${JSON.stringify(timezone)}) must be ${JSON.stringify(city)}`);
+    for (const { timezone, city, runtimeCity = city } of fixture.cases) {
+        assert.equal(weatherCity(WorldclockData, timezone), runtimeCity,
+            `timezoneWeatherRequest(${JSON.stringify(timezone)}) must be ${JSON.stringify(city)}`);
     }
 });
 
@@ -1486,16 +1489,16 @@ test("timezoneIdentity asks the zone for its identifier, and answers null for no
     assert.equal(WorldclockData.timezoneIdentity(fakeTimeZone("Etc/UTC")), "Etc/UTC");
 });
 
-test("timezoneCityName reads the place out of the identifier, not the label", () => {
+test("timezoneWeatherRequest reads the place out of the identifier, not the label", () => {
     loadWorldclocks();
     const WorldclockData = require(dataModulePath);
 
-    assert.equal(WorldclockData.timezoneCityName("America/New_York"), "New York");
-    assert.equal(WorldclockData.timezoneCityName("America/Argentina/Buenos_Aires"), "Buenos Aires");
-    assert.equal(WorldclockData.timezoneCityName("Europe/Rome"), "Rome");
-    assert.equal(WorldclockData.timezoneCityName("US/Eastern"), "New York");
-    assert.equal(WorldclockData.timezoneCityName("Canada/Eastern"), "Toronto");
-    assert.equal(WorldclockData.timezoneCityName("Brazil/East"), "Sao Paulo");
+    assert.equal(weatherCity(WorldclockData, "America/New_York"), "New York");
+    assert.equal(weatherCity(WorldclockData, "America/Argentina/Buenos_Aires"), "Buenos Aires");
+    assert.equal(weatherCity(WorldclockData, "Europe/Rome"), "Rome");
+    assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
+    assert.equal(weatherCity(WorldclockData, "Canada/Eastern"), "Toronto");
+    assert.equal(weatherCity(WorldclockData, "Brazil/East"), "Sao Paulo");
 
     const aliasClock = WorldclockData.selectUserClocks([
         { label: "Legacy", timezone: "US/Eastern" }
@@ -1505,25 +1508,25 @@ test("timezoneCityName reads the place out of the identifier, not the label", ()
 
     const GLib = global.imports.gi.GLib;
     GLib.file_read_link = (filename) => filename.endsWith("/First") ? "Second" : "First";
-    assert.equal(WorldclockData.timezoneCityName("Europe/First"), "",
+    assert.equal(weatherCity(WorldclockData, "Europe/First"), "",
         "an alias cycle exposes no false city to the weather providers");
 
-    // UTC is a scale and the local row is the panel location's job; neither is
-    // a place to ask a geocoder about
-    assert.equal(WorldclockData.timezoneCityName(WorldclockData.UTC_TIMEZONE), "");
-    assert.equal(WorldclockData.timezoneCityName(WorldclockData.LOCAL_TIMEZONE), "");
+    // UTC names no place. The forced alias cycle also prevents resolving the
+    // current local timezone to a geographic request.
+    assert.equal(weatherCity(WorldclockData, WorldclockData.UTC_TIMEZONE), "");
+    assert.equal(weatherCity(WorldclockData, WorldclockData.LOCAL_TIMEZONE), "");
 
     // and neither is junk, or a bare word that is not an IANA path
-    assert.equal(WorldclockData.timezoneCityName("tokyo"), "");
-    assert.equal(WorldclockData.timezoneCityName(""), "");
-    assert.equal(WorldclockData.timezoneCityName(null), "");
-    assert.equal(WorldclockData.timezoneCityName(42), "");
+    assert.equal(weatherCity(WorldclockData, "tokyo"), "");
+    assert.equal(weatherCity(WorldclockData, ""), "");
+    assert.equal(weatherCity(WorldclockData, null), "");
+    assert.equal(weatherCity(WorldclockData, 42), "");
 });
 
 // T1001: the alias probe and the alias chase both started with a readlink on
 // the same identifier, so every uncached zone cost two syscalls on the
 // compositor thread where one would do.
-test("timezoneCityName reads each zoneinfo link once", () => {
+test("timezoneWeatherRequest reads each zoneinfo link once", () => {
     loadWorldclocks();
     const WorldclockData = require(dataModulePath);
     const GLib = global.imports.gi.GLib;
@@ -1534,12 +1537,12 @@ test("timezoneCityName reads each zoneinfo link once", () => {
         return filename.endsWith("US/Eastern") ? "../America/New_York" : undefined;
     };
 
-    assert.equal(WorldclockData.timezoneCityName("Europe/Rome"), "Rome");
+    assert.equal(weatherCity(WorldclockData, "Europe/Rome"), "Rome");
     assert.deepEqual(reads, ["/usr/share/zoneinfo/Europe/Rome"],
         "a plain zone costs exactly one readlink");
 
     reads.length = 0;
-    assert.equal(WorldclockData.timezoneCityName("US/Eastern"), "New York");
+    assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
     assert.deepEqual(reads, [
         "/usr/share/zoneinfo/US/Eastern",
         "/usr/share/zoneinfo/America/New_York"
@@ -1549,7 +1552,7 @@ test("timezoneCityName reads each zoneinfo link once", () => {
 // T654: the open menu asks for the same city on every tick, and each cold
 // resolution is a TimeZone construction plus a synchronous readlink alias
 // chase on the compositor thread
-test("timezoneWeatherCity memoizes per identifier and leaves local alone", () => {
+test("timezoneWeatherRequest memoizes per identifier and leaves local alone", () => {
     loadWorldclocks();
     const WorldclockData = require(dataModulePath);
     const GLib = global.imports.gi.GLib;
@@ -1562,42 +1565,42 @@ test("timezoneWeatherCity memoizes per identifier and leaves local alone", () =>
     };
 
     try {
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         const resolved = readlinks;
         assert.ok(resolved > 0, "the first resolution walks the alias chain");
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         assert.equal(readlinks, resolved, "the second answer comes from the memo");
 
         // "local" names whatever the OS timezone is right now: never memoized
         GLib.TimeZone.new_local = () => fakeTimeZone("America/New_York");
-        assert.equal(WorldclockData.timezoneWeatherCity(WorldclockData.LOCAL_TIMEZONE),
+        assert.equal(weatherCity(WorldclockData, WorldclockData.LOCAL_TIMEZONE),
             "New York");
         GLib.TimeZone.new_local = () => fakeTimeZone("Europe/Rome");
-        assert.equal(WorldclockData.timezoneWeatherCity(WorldclockData.LOCAL_TIMEZONE),
+        assert.equal(weatherCity(WorldclockData, WorldclockData.LOCAL_TIMEZONE),
             "Rome");
 
         // The memo is bounded, and it gives up its least recently used entry
         // rather than all of them. US/Eastern went in first, so a plain
         // insertion order would evict it first however often it is asked for;
         // reading it once during the fill is what moves it out of the way.
-        assert.equal(WorldclockData.timezoneWeatherCity("Europe/Rome"), "Rome");
+        assert.equal(weatherCity(WorldclockData, "Europe/Rome"), "Rome");
 
         const cap = WorldclockData.MAX_MEMOIZED_WEATHER_CITIES;
         for (let i = 0; i < cap; i++) {
-            assert.equal(WorldclockData.timezoneWeatherCity(`Fill/Zone${i}`), "");
+            assert.equal(weatherCity(WorldclockData, `Fill/Zone${i}`), "");
             if (i === 0) {
-                assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+                assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
             }
         }
 
         const afterFill = readlinks;
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         assert.equal(readlinks, afterFill,
             "the zone that was read during the fill is still remembered");
 
         // ...and the one that was not is the one that went, on its own: a
         // wholesale clear would have taken US/Eastern with it
-        assert.equal(WorldclockData.timezoneWeatherCity("Europe/Rome"), "Rome");
+        assert.equal(weatherCity(WorldclockData, "Europe/Rome"), "Rome");
         assert.ok(readlinks > afterFill, "the evicted entry is resolved again");
     } finally {
         GLib.file_read_link = originalReadLink;
@@ -1678,21 +1681,21 @@ test("the local world clock uses the current timezone city for its weather", () 
     const GLib = global.imports.gi.GLib;
 
     GLib.TimeZone.new_local = () => fakeTimeZone("Europe/Rome");
-    assert.equal(WorldclockData.timezoneWeatherCity("local"), "Rome");
+    assert.equal(weatherCity(WorldclockData, "local"), "Rome");
 
     GLib.TimeZone.new_local = () => fakeTimeZone("America/Argentina/Buenos_Aires");
-    assert.equal(WorldclockData.timezoneWeatherCity("local"), "Buenos Aires");
+    assert.equal(weatherCity(WorldclockData, "local"), "Buenos Aires");
 
     // a zone that names no place: an offset-only zone, a UTC machine, and a
     // /etc/localtime that is not a zoneinfo symlink at all
     GLib.TimeZone.new_local = () => fakeTimeZone("+02");
-    assert.equal(WorldclockData.timezoneWeatherCity("local"), "");
+    assert.equal(weatherCity(WorldclockData, "local"), "");
 
     GLib.TimeZone.new_local = () => fakeTimeZone("UTC");
-    assert.equal(WorldclockData.timezoneWeatherCity("local"), "");
+    assert.equal(weatherCity(WorldclockData, "local"), "");
 
     GLib.TimeZone.new_local = () => null;
-    assert.equal(WorldclockData.timezoneWeatherCity("local"), "",
+    assert.equal(weatherCity(WorldclockData, "local"), "",
         "no zone at all is not a place either");
 });
 
@@ -2282,17 +2285,17 @@ test("the timezone-to-city memo is released by the last consumer, not the first"
         WorldclockData.registerWorldclockConsumer();
         WorldclockData.registerWorldclockConsumer();
 
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         const resolved = readlinks;
         assert.ok(resolved > 0);
 
         WorldclockData.releaseWorldclockConsumer();
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         assert.equal(readlinks, resolved,
             "one of two leaving takes nothing from the one still running");
 
         WorldclockData.releaseWorldclockConsumer();
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         assert.ok(readlinks > resolved, "the last one out empties the table");
 
         // A teardown with nobody registered must not drive the count below
@@ -2302,16 +2305,16 @@ test("the timezone-to-city memo is released by the last consumer, not the first"
         WorldclockData.registerWorldclockConsumer();
         WorldclockData.registerWorldclockConsumer();
 
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         const held = readlinks;
 
         WorldclockData.releaseWorldclockConsumer();
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         assert.equal(readlinks, held,
             "one of two leaving still takes nothing from the other");
 
         WorldclockData.releaseWorldclockConsumer();
-        assert.equal(WorldclockData.timezoneWeatherCity("US/Eastern"), "New York");
+        assert.equal(weatherCity(WorldclockData, "US/Eastern"), "New York");
         assert.ok(readlinks > held, "and the second one does");
     } finally {
         GLib.file_read_link = originalReadLink;

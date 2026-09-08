@@ -183,32 +183,32 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
         this._errors.clear();
     }
 
-    // `city` is the geocoded city — what the reading is *of* — and not the clock's
-    // label, which is the user's own name for the row and is not unique.
+    // The query and geographic hint identify the reading. A clock's label is
+    // local presentation and is neither unique nor a geographic identity.
     //
     // the readings outlive a refresh: a city that failed this round keeps the
     // temperature it last had rather than blinking out of the tooltip. The
     // reading is the unit-free record { condition, temperatureC }; the tooltip
     // renders it in the user's unit.
-    recordFor(city) {
-        const key = this._readingKey(city);
+    recordFor(city, hint = null) {
+        const key = this._readingKey(city, hint);
         return key ? this._reading_store.recordFor(key) : null;
     }
 
-    providerFor(city) {
-        const key = this._readingKey(city);
+    providerFor(city, hint = null) {
+        const key = this._readingKey(city, hint);
         return key ? this._reading_store.providerFor(key) : "";
     }
 
-    errorFor(city) {
+    errorFor(city, hint = null) {
         if (typeof city !== "string" || !city.trim()) {
             return "";
         }
-        return this._errors.get(locationCacheKey(city)) || "";
+        return this._errors.get(locationCacheKey(city, hint)) || "";
     }
 
-    _setError(city, error) {
-        const key = locationCacheKey(city);
+    _setError(city, error, hint = null) {
+        const key = locationCacheKey(city, hint);
         const next = error || "";
         const previous = this._errors.get(key) || "";
         if (next === previous) {
@@ -225,17 +225,17 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
     // ...but a reading nobody has managed to refresh for two whole periods is
     // not the weather any more, and saying so is the difference between a
     // temperature and a temperature from this morning
-    staleFor(city, now = this._freshness_now()) {
-        const key = this._readingKey(city);
+    staleFor(city, hint = null, now = this._freshness_now()) {
+        const key = this._readingKey(city, hint);
         return key ? this._reading_store.isStale(key, now) : false;
     }
 
-    _readingKey(city) {
+    _readingKey(city, hint) {
         if (typeof city !== "string" || !city.trim()) {
             return "";
         }
 
-        return locationCacheKey(city);
+        return locationCacheKey(city, hint);
     }
 
     // The panel reading retries a failed refresh instead of waiting out the
@@ -255,12 +255,12 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
     // already held instead of geocoding and refetching every city again.
     _signature(settings) {
         const queries = this._cities(settings)
-            .map((city) => locationCacheKey(city.query))
+            .map((city) => locationCacheKey(city.query, city.hint))
             .sort(compareCodeUnits);
 
         // Labels are local presentation and clock order does not change the
-        // readings. JSON keeps arbitrary query text structurally distinct:
-        // delimiter concatenation let one label/query pair impersonate two.
+        // readings. Each key includes its geographic hint; JSON keeps the
+        // resulting list structurally distinct regardless of query text.
         return JSON.stringify([this._active(settings), queries]);
     }
 
@@ -316,7 +316,7 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
         }
 
         this._forgetRemovedCities(
-            new Set(cities.map((city) => locationCacheKey(city.query))));
+            new Set(cities.map((city) => locationCacheKey(city.query, city.hint))));
 
         if (!this._isOnline()) {
             this._offlineRound(cities, callback);
@@ -354,7 +354,7 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
         let changed = false;
         for (const city of cities) {
             changed = this._setError(
-                city.query, WeatherFormat.WEATHER_ERRORS.OFFLINE) || changed;
+                city.query, WeatherFormat.WEATHER_ERRORS.OFFLINE, city.hint) || changed;
         }
         this._scheduler.succeeded();
         if (changed) {
@@ -413,18 +413,13 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
         return Boolean(settings && settings.showWeather); // NOSONAR [S6582] -- accepted compatible form
     }
 
-    // A city is what the tooltip calls it (the clock's label, which is where
-    // the reading is looked up) and what the geocoder is asked about (the city
-    // its timezone names). Those are not the same string, and only the second
-    // one leaves the machine. A plain string means both, which is what a bare
-    // provider in a test hands us.
-    // A settings entry is either a bare string (label and query both) or an
-    // object with its own label and query. Coerce and validate one; a built-in
-    // clock or a timezone that names no city has no query and drops out here,
-    // its row still showing the time.
+    // Object entries carry a local label, query, and optional geographic hint;
+    // strings are unhinted place requests. A missing query or malformed hint
+    // must never turn a clock into an unrestricted global place search.
     _normalizeCityEntry(entry) {
-        const label = typeof entry === "string" ? entry : (entry && entry.label); // NOSONAR [S6582] -- accepted compatible form
-        const query = typeof entry === "string" ? entry : (entry && entry.query); // NOSONAR [S6582] -- accepted compatible form
+        const row = typeof entry === "string" ? { label: entry, query: entry } : entry;
+        const label = row?.label;
+        const query = row?.query;
 
         if (typeof label !== "string" || !label.trim()) {
             return null;
@@ -433,7 +428,11 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
             return null;
         }
 
-        return { label: label.trim(), query: query.trim() };
+        const hint = row.hint ?? null;
+        if (!locationCacheKey(query, hint)) {
+            return null;
+        }
+        return { label: label.trim(), query: query.trim(), hint: WeatherFormat.normalizeLocationHint(hint) };
     }
 
     _cities(settings) {
@@ -447,12 +446,8 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
                 continue;
             }
 
-            // keyed on the city, not on the label: the label is the user's own
-            // name for the clock and nothing makes it unique. Two clocks both
-            // called "Home" — Lisbon and Tokyo — collapsed into one entry here,
-            // so Tokyo was never geocoded, never fetched, and its row showed
-            // Lisbon's temperature with nothing to say it was the wrong city.
-            const key = locationCacheKey(city.query);
+            // Distinct hints remain distinct even when the city names match.
+            const key = locationCacheKey(city.query, city.hint);
             if (seen.has(key)) {
                 continue;
             }
@@ -468,12 +463,12 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
     }
 
     _refreshCity(city, generation, callback, round) {
-        // the query is the timezone's city; the label is only ever a local key
+        // Only the geographic query and hint cross the repository boundary.
         this._reading_repository.refresh(city.query,
             () => this._isCurrent(generation),
             (reading, forecastError, provider, place, readingAt) =>
                 this._cityForecastResolved(city, generation, callback, round,
-                    { reading, forecastError, provider, readingAt }));
+                    { reading, forecastError, provider, readingAt }), city.hint);
     }
 
     _cityForecastResolved(city, generation, callback, round, answer) {
@@ -486,7 +481,7 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
             // says so once it is two periods old. An unknown place will not
             // improve on retry; a service failure may.
             const cityError = forecastError || WeatherFormat.WEATHER_ERRORS.SERVICE_UNAVAILABLE;
-            round.changed = this._setError(city.query, cityError) || round.changed;
+            round.changed = this._setError(city.query, cityError, city.hint) || round.changed;
             // "not worth retrying", which is the shared decision. It used to be
             // written here as "unresolvable", which made an offline city arm a
             // retry the panel deliberately does not arm — and offline already
@@ -496,9 +491,9 @@ var CityWeatherProvider = class CityWeatherProvider extends WeatherConsumer.Weat
             return;
         }
 
-        this._setError(city.query, "");
+        this._setError(city.query, "", city.hint);
         this._reading_store.record(
-            locationCacheKey(city.query), reading, provider, readingAt);
+            locationCacheKey(city.query, city.hint), reading, provider, readingAt);
         // the panel is repainted once, when the round finishes
         round.changed = true;
         this._cityDone(generation, round, round.settings, callback, true);

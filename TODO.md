@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
-| T1152 | open | medium | m | Preserve the world clock's known timezone/location hint through city-weather resolution and cache identity. 6.0/appletCoordinators.js:70–74 and worldclockData.js:116–155 reduce America/Argentina/San_Juan to the unqualified query San Juan; a real GLib/coordinator reproduction with the official Open-Meteo geocoder response selects the larger Puerto Rico result at 18.46633,-66.10572, displaying another location's weather beside the Argentina clock. Use the clock's timezone/country or coordinates to disambiguate requests, prevent incompatible hinted and free-text queries from sharing a cache entry, and cover ambiguous names without changing the accepted free-text ranking decision R25. |
 
 ## Blocked / Deferred
 

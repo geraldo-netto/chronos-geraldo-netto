@@ -1,7 +1,11 @@
 # Geocoder response contract
 
 Each entry in `GEOCODE_PROVIDERS` supplies `isValidResponse(data)` as well as
-`normalize(data, query)`. Validation returns exactly `true` only for a recognized
+`normalize(data, query, hint, canonicalTimezone)` and `url(query, language, hint)`.
+The optional hint is either null for a free-text request or
+`{timezone, countryCode}` with a canonical named timezone and an uppercase ISO
+country code (empty when unavailable). Invalid non-null hints are refused.
+Validation returns exactly `true` only for a recognized
 successful response. The resolver counts that answer only after normalization
 also completes. A missing or throwing hook, malformed response, provider error,
 or normalization exception leaves the attempt failed and allows the next provider.
@@ -37,3 +41,26 @@ fails transport, validation, or normalization, the result is
 `SERVICE_UNAVAILABLE` and transient retry remains enabled. Injected providers
 use this same required hook; HTTP success or a non-null body alone proves
 nothing about response validity.
+
+World-clock requests retain the timezone's city and geographic hint from
+`WorldclockData.timezoneWeatherRequest`. GLib validates the identifier, and
+`zone.tab` supplies its country before symlink resolution can erase a distinct
+location such as Bratislava or Vatican City. Alias rule identities are canonical;
+memoized request objects and their hints are frozen. Repeated presenter lookups
+use this bounded memo instead of repeating native timezone and file operations.
+
+Open-Meteo's documented [countryCode filter](https://open-meteo.com/en/docs/geocoding-api)
+narrows the search. The adapter also verifies the returned country and canonical
+timezone, using the resolver-supplied `canonicalTimezone` function to recognize
+equivalent aliases. Nominatim's documented
+[countrycodes and addressdetails parameters](https://nominatim.org/release-docs/latest/api/Search/)
+allow the fallback to verify `address.country_code`. That fallback establishes
+country agreement, not timezone agreement. Without a known country, it is
+refused because its ordinary search response supplies no timezone.
+
+The query plus hint identifies geocode and reading caches, shared in-flight
+requests, per-clock readings and errors, and refresh signatures. A clock's
+nickname never enters a request or cache identity. Presenter lookups pass the
+clock's timezone so same-name places retain separate readings. Panel free-text
+requests stay unhinted and retain the existing name/population ranking and
+Nominatim fallback behavior.

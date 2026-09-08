@@ -689,10 +689,10 @@ class WeatherLocationSuggestionTest(unittest.TestCase):
         # no argument at all reads the machine's own zone, which is the whole point
         self.assertEqual(city(), "Rome")
 
-    def test_local_city_name_matches_the_js_timezone_city_name(self):
-        # the shared parity fixture the JS worldclocks suite also asserts against:
-        # local_city_name and worldclockData.timezoneCityName write the same
-        # weather-location key, so they must agree on every case
+    def test_local_city_name_uses_the_shared_timezone_extraction_cases(self):
+        # Named identifiers share extraction cases with runtime weather queries.
+        # The runtime additionally resolves symbolic local through native GLib;
+        # this Python helper receives an already-resolved identifier instead.
         fixture = json.loads(
             (Path(__file__).parent / "fixtures" / "timezone_city_cases.json").read_text())
         city = self.module.local_city_name

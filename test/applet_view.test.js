@@ -66,8 +66,9 @@ test("city weather is asked about the timezone's city, not the clock's name", ()
         showWeather: true,
         units: "si",
         cities: [
-            { label: "New York", query: "New York" },
-            { label: "Mom's place", query: "Buenos Aires" }
+            { label: "New York", query: "New York", hint: { timezone: "America/New_York", countryCode: "" } },
+            { label: "Mom's place", query: "Buenos Aires",
+                hint: { timezone: "America/Argentina/Buenos_Aires", countryCode: "" } }
         ]
     }]);
     // the reading lands long after the call returns, so the repaint is the
@@ -116,7 +117,7 @@ test("an invalid runtime timezone never reaches a weather geocoder", () => {
         Proto._scheduleCityWeatherRefresh.call(stub);
         assert.deepEqual(requests, [], "neither configured geocoder receives the invalid text");
         assert.deepEqual(provider._cities({
-            cities: [{ label: "Private", query: rootModules.worldclockData.timezoneWeatherCity(
+            cities: [{ label: "Private", ...rootModules.worldclockData.timezoneWeatherRequest(
                 "Company/Secret_Project") }]
         }), []);
     } finally {
@@ -139,12 +140,12 @@ test("city weather readings and provider name come from the city provider", () =
         onChanged: () => {},
         guard: (source, fn) => fn()
     });
-    assert.deepEqual(coordinator.cityReading("Tokyo"), { condition: "☀", temperatureC: 30 });
+    assert.deepEqual(coordinator.cityReading("Asia/Tokyo"), { condition: "☀", temperatureC: 30 });
     assert.equal(coordinator.cityReading("Nowhere"), null);
-    assert.equal(coordinator.cityStale("Tokyo"), true);
-    assert.equal(coordinator.cityError("Tokyo"), "service-unavailable");
+    assert.equal(coordinator.cityStale("Asia/Tokyo"), true);
+    assert.equal(coordinator.cityError("Asia/Tokyo"), "service-unavailable");
     assert.equal(coordinator.cityError("Nowhere"), "");
-    assert.equal(coordinator.cityProviderName("Tokyo"), "Open-Meteo");
+    assert.equal(coordinator.cityProviderName("Asia/Tokyo"), "Open-Meteo");
     assert.equal(coordinator.cityProviderName("Nowhere"), "");
 
     const withoutCityProvider = new CoordinatorModule.AppletWeatherCoordinator({
@@ -155,20 +156,20 @@ test("city weather readings and provider name come from the city provider", () =
         onChanged: () => {},
         guard: (source, fn) => fn()
     });
-    assert.equal(withoutCityProvider.cityReading("Tokyo"), null);
-    assert.equal(withoutCityProvider.cityStale("Tokyo"), false);
-    assert.equal(withoutCityProvider.cityError("Tokyo"), "");
-    assert.equal(withoutCityProvider.cityProviderName("Tokyo"), "");
+    assert.equal(withoutCityProvider.cityReading("Asia/Tokyo"), null);
+    assert.equal(withoutCityProvider.cityStale("Asia/Tokyo"), false);
+    assert.equal(withoutCityProvider.cityError("Asia/Tokyo"), "");
+    assert.equal(withoutCityProvider.cityProviderName("Asia/Tokyo"), "");
 });
 
 test("city weather contracts fail loudly when a double is incomplete", () => {
     const port = AppletModule.createPanelPort({
-        _weatherCoordinator: { cityError: (city) => city === "Tokyo" ? "offline" : "" }
+        _weatherCoordinator: { cityError: (timezone) => timezone === "Asia/Tokyo" ? "offline" : "" }
     });
-    assert.equal(port.cityWeatherError("Tokyo"), "offline");
+    assert.equal(port.cityWeatherError("Asia/Tokyo"), "offline");
 
     const incompletePort = AppletModule.createPanelPort({ _weatherCoordinator: {} });
-    assert.throws(() => incompletePort.cityWeatherError("Tokyo"), /cityError/);
+    assert.throws(() => incompletePort.cityWeatherError("Asia/Tokyo"), /cityError/);
 
     const coordinator = new CoordinatorModule.AppletWeatherCoordinator({
         weatherProvider: {},
@@ -178,7 +179,7 @@ test("city weather contracts fail loudly when a double is incomplete", () => {
         onChanged: () => {},
         guard: (source, fn) => fn()
     });
-    assert.throws(() => coordinator.cityError("Tokyo"), /errorFor/);
+    assert.throws(() => coordinator.cityError("Asia/Tokyo"), /errorFor/);
 });
 
 test("the weather being fetched is said in words, not as an ellipsis", () => {
@@ -213,7 +214,7 @@ test("the tooltip says when a city's temperature is no longer current", () => {
         weatherError: "",
         worldclocks: [{ label: "Tokyo" }],
         cityWeatherReading: () => ({ condition: "☀", temperatureC: 30 }),
-        cityWeatherStale: (city) => city === "Tokyo"
+        cityWeatherStale: (timezone) => timezone === "Asia/Tokyo"
     });
 
     const cells = panelStatus(stub)._clockRenderModel([
@@ -589,7 +590,7 @@ test("the tooltip is exactly the UTC/local/city table", () => {
         weatherError: "",
         weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }, { label: "Tokyo" }],
-        cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : { condition: "🌨", temperatureC: -1 }),
+        cityWeatherReading: (timezone) => (timezone === "America/New_York" ? { condition: "🌧", temperatureC: 12 } : { condition: "🌨", temperatureC: -1 }),
         cityWeatherProviderName: () => "Aviation Weather"
     });
     const entries = [
@@ -674,7 +675,7 @@ test("the tooltip columns are as wide as the longest cell in them", () => {
         { label: "Sault Ste. Marie, Ontario", timezone: "America/Toronto",
             city: "Toronto", reading: "🌨 -12°C" }
     ];
-    const readings = Object.fromEntries(rows.map((row) => [row.city, row.reading]));
+    const readings = Object.fromEntries(rows.map((row) => [row.timezone, row.reading]));
     const stub = Object.assign(Object.create(Proto), {
         show_weather: true,
         weather_units: "si",
@@ -1373,9 +1374,9 @@ test("the footer aggregates weather, clocks, city readings, and format errors", 
         showWeather: true,
         weatherError: Weather.WEATHER_ERRORS.SERVICE_UNAVAILABLE,
         cityWeatherReading: () => null,
-        cityWeatherError: (city) => city === "Tokyo" ?
+        cityWeatherError: (timezone) => timezone === "Asia/Tokyo" ?
             Weather.WEATHER_ERRORS.LOCATION_NOT_FOUND : "",
-        cityWeatherStale: (city) => city === "Lisbon",
+        cityWeatherStale: (timezone) => timezone === "Europe/Lisbon",
         customFormat: "%H:%M",
         desktopSettings: { use24h: true },
         setClockFormatString: () => false,

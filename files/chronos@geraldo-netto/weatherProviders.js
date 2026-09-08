@@ -53,6 +53,9 @@ const ClockLimits = IS_NODE ?
 const WeatherServiceAdapters = IS_NODE ?
     require("./weatherServiceAdapters") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherServiceAdapters;
+const WorldclockData = IS_NODE ?
+    require("./worldclockData") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
 
 const WEATHER_ERRORS = WeatherFormat.WEATHER_ERRORS;
 const MAX_GEOCODE_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES;
@@ -75,9 +78,8 @@ const aviationWeatherReading = WeatherServiceAdapters.aviationWeatherReading;
 const metNoForecastUrl = WeatherServiceAdapters.metNoForecastUrl;
 const metNoWeatherReading = WeatherServiceAdapters.metNoWeatherReading;
 
-// The rule itself is weatherFormat's - it is place identity, not transport.
-// Re-exported under the old name because every consumer in this tree, and any
-// outside it, reached it through this module.
+// Place identity is shared with consumers: query and geographic hint partition
+// geocode caches, reading caches, and in-flight subscriptions in the same way.
 const locationCacheKey = WeatherFormat.locationCacheKey;
 
 var NOMINATIM_MIN_INTERVAL_MS = 1000; // NOSONAR [S3504] -- GJS importer export
@@ -341,8 +343,8 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
         });
     }
 
-    placeFor(location) {
-        return this._freshPlace(locationCacheKey(location));
+    placeFor(location, hint = null) {
+        return this._freshPlace(locationCacheKey(location, hint));
     }
 
     _freshPlace(cacheKey) {
@@ -355,18 +357,18 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
 
     // an ambiguous name that resolved to the wrong city would otherwise stay
     // pinned for the life of the applet
-    forget(location) {
-        this._geocode_cache.delete(locationCacheKey(location));
+    forget(location, hint = null) {
+        this._geocode_cache.delete(locationCacheKey(location, hint));
     }
 
-    resolve(location, isCurrent, callback) {
+    resolve(location, isCurrent, callback, hint = null) {
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
-        if (!normalized) {
+        const cacheKey = locationCacheKey(normalized, hint);
+        if (!cacheKey) {
             callback(null, WEATHER_ERRORS.LOCATION_NOT_FOUND);
             return;
         }
 
-        const cacheKey = locationCacheKey(normalized);
         const cachedPlace = this._freshPlace(cacheKey);
         if (cachedPlace) {
             callback(cachedPlace, "");
@@ -381,10 +383,10 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
 
             this._remember(cacheKey, place);
             callback(place, "");
-        });
+        }, WeatherFormat.normalizeLocationHint(hint));
     }
 
-    _geocodeLocation(location, isCurrent, callback) {
+    _geocodeLocation(location, isCurrent, callback, hint) {
         // `url` is built per lookup; the rest of the provider is fixed. The
         // normalizer is bound to the same lookup, because choosing between the
         // hits a geocoder returns needs the name they were asked about.
@@ -392,12 +394,13 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
             this._language() : this._language;
         const providers = this._providers.map((provider) => ({
             name: provider.name,
-            url: provider.url(location, language),
+            url: provider.url(location, language, hint),
             isValidResponse: (data) => provider.isValidResponse(data),
-            normalize: (data) => provider.normalize(data, location),
+            normalize: (data) => provider.normalize(data, location, hint,
+                (timezone) => WorldclockData.timezoneWeatherRequest(timezone)?.hint.timezone || ""),
             options: provider.options,
             requestQueue: this._requestQueueFor(provider)
-        }));
+        })).filter((provider) => provider.url);
 
         this._tryGeocodeProviders(providers, isCurrent, callback);
     }
@@ -703,23 +706,24 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         return this.session.get();
     }
 
-    forget(location) {
-        const key = locationCacheKey(location);
+    forget(location, hint = null) {
+        const key = locationCacheKey(location, hint);
         this._cache.delete(key);
-        this.locationResolver.forget(location);
+        this.locationResolver.forget(location, hint);
     }
 
-    placeFor(location) {
+    placeFor(location, hint = null) {
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
-        if (!normalized) {
+        const key = locationCacheKey(normalized, hint);
+        if (!key) {
             return null;
         }
 
-        const cached = this._freshReading(locationCacheKey(normalized));
+        const cached = this._freshReading(key);
         if (cached?.place) {
             return cached.place;
         }
-        return this.locationResolver.placeFor(normalized);
+        return this.locationResolver.placeFor(normalized, hint);
     }
 
     _freshReading(key) {
@@ -739,16 +743,16 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
     // cache hit on an almost-expired entry then resets the reading's apparent
     // age: with cacheSeconds 1800 and a staleness policy of 3600, a hit at 1799
     // seconds withheld the marker until 5399 seconds of real age.
-    refresh(location, isCurrent, callback) {
+    refresh(location, isCurrent, callback, hint = null) {
         const normalized = WeatherFormat.normalizeWeatherLocation(location);
-        if (this._destroyed || !normalized) {
+        const key = locationCacheKey(normalized, hint);
+        if (this._destroyed || !key) {
             if (!this._destroyed && isCurrent()) {
                 callback(null, WEATHER_ERRORS.LOCATION_NOT_FOUND, "");
             }
             return;
         }
 
-        const key = locationCacheKey(normalized);
         const cached = this._freshReading(key);
         if (cached) {
             if (isCurrent()) {
@@ -779,7 +783,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
         try {
             this.locationResolver.resolve(normalized, requestIsCurrent,
                 (place, error) => this._placeResolved(
-                    key, request, requestIsCurrent, place, error));
+                    key, request, requestIsCurrent, place, error), WeatherFormat.normalizeLocationHint(hint));
         } catch (e) {
             this._abandonRequest(key, request, requestIsCurrent, e);
         }

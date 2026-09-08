@@ -504,6 +504,10 @@ the last known one rather than shown as current.
 The city a world clock's weather is looked up for comes from its **timezone**,
 not from the name you gave the clock: a clock called "Mom's place" is looked up
 as the city its timezone names, and the name you typed never leaves the machine.
+The clock's timezone and country constrain that lookup, so Argentina's San Juan
+does not receive Puerto Rico's weather. Its cache stays separate from unqualified
+panel searches. [Geocoder behavior](https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/docs/weather-geocoding.md) documents the
+country-only limit of the fallback provider.
 
 Public-holiday data are obtained from the web service [Enrico](https://kayaposoft.com/enrico/)
 by Kayaposoft.com, with [OpenHolidays](https://www.openholidaysapi.org/) and

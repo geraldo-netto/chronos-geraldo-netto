@@ -111,54 +111,43 @@ function timezoneIdentity(tz) {
     return tz ? tz.get_identifier() : null;
 }
 
-// The place to ask the weather about is the one the timezone names, not the
-// name the user typed. A clock called "Mom's place" or "Work" is a nickname,
-// and geocoding it sends that nickname to two third-party services every half
-// hour — while answering the wrong question anyway. The IANA identifier
-// already carries the city: America/Argentina/Buenos_Aires is Buenos Aires.
-function timezoneCityName(timezone) {
-    if (typeof timezone !== "string" || !timezone.trim()) {
-        return "";
-    }
-
-    const identifier = timezone.trim();
-    // Must be an IANA Area/City path, and not the Etc/ block. UTC and "local"
-    // have no "/" and are rejected by that; Etc/UTC and Etc/GMT+3 do have one,
-    // but they are offsets, not places — and the Python local_city_name filters
-    // the identical set. Without the Etc/ guard the last path segment gave the
-    // bare "UTC"/"GMT+3", which JS then geocoded while Python wrote "", so the
-    // two sides disagreed on the same weather-location key.
-    if (identifier.indexOf("/") === -1 || identifier.indexOf(TZ_NO_REGION + "/") === 0) { // NOSONAR [S6557,S7765] -- accepted compatible form
-        return "";
-    }
-
-    const readLink = (filename) => GLib.file_read_link(filename);
-    const cityIdentifier = canonicalTimezoneFromSymlinks(identifier, readLink);
-    if (!cityIdentifier) {
-        return "";
-    }
-    return cityIdentifier.split("/").pop().split("_").join(" ").trim(); // NOSONAR [S7781] -- accepted compatible form
-}
-
 // Weather egress must use the runtime's resolved timezone, not the configured
 // text. The settings fallback can validate only an Area/City shape when no
 // timezone database is available; GLib is authoritative in the applet.
 //
 // The open menu resolves every configured clock on every tick, and each
-// resolution is a GLib.TimeZone construction plus a synchronous readlink
-// alias chase on the compositor thread. A zoneinfo alias chain does not
-// change under a running session, so the answer is memoized per identifier.
+// resolution includes GLib validation, alias readlinks, and zone.tab country
+// lookup. The complete immutable request is memoized per identifier so those
+// native operations are not repeated on the compositor's presentation path.
 // "local" stays out of the memo: it names whatever the OS timezone is now.
 var MAX_MEMOIZED_WEATHER_CITIES = 64; // NOSONAR [S3504] -- GJS importer export
 const weatherCityMemo = new Map();
 
-function resolveTimezoneWeatherCity(timezone) {
-    return timezoneCityName(timezoneIdentity(timezoneFromIdentifier(timezone)));
+function resolveTimezoneWeatherRequest(timezone) {
+    const identifier = regionalTimezoneIdentifier(
+        zoneinfoIdentifier(timezoneIdentity(timezoneFromIdentifier(timezone))));
+    if (!identifier) {
+        return null;
+    }
+    const canonical = canonicalTimezoneFromSymlinks(identifier, (filename) => GLib.file_read_link(filename));
+    if (!canonical) {
+        return null;
+    }
+    const zoneTab = readTextFile(ZONE_TAB_FILE, MAX_ZONE_TAB_BYTES);
+    const exactCountry = countryCodeFromZoneTab(identifier, zoneTab);
+    const countryCode = exactCountry || countryCodeFromZoneTab(canonical, zoneTab);
+    // zone.tab names real locations even when their rules share a symlink.
+    // Bratislava is in Slovakia; following its rules to Prague loses that fact.
+    const location = exactCountry ? identifier : canonical;
+    return Object.freeze({
+        query: location.split("/").pop().split("_").join(" "),
+        hint: Object.freeze({ timezone: canonical, countryCode })
+    });
 }
 
-function timezoneWeatherCity(timezone) {
+function timezoneWeatherRequest(timezone) {
     if (timezone === LOCAL_TIMEZONE) {
-        return resolveTimezoneWeatherCity(timezone);
+        return resolveTimezoneWeatherRequest(timezone);
     }
     if (weatherCityMemo.has(timezone)) {
         // A Map iterates in insertion order, so re-inserting on a hit is what
@@ -171,7 +160,7 @@ function timezoneWeatherCity(timezone) {
         return remembered;
     }
 
-    const city = resolveTimezoneWeatherCity(timezone);
+    const city = resolveTimezoneWeatherRequest(timezone);
     if (weatherCityMemo.size >= MAX_MEMOIZED_WEATHER_CITIES) {
         // the oldest one, not all of them: clearing the memo wholesale sent
         // every configured clock back through a GLib.TimeZone construction and
@@ -613,8 +602,7 @@ if (typeof module !== "undefined") {
         builtinClocks,
         timezoneIdentity,
         zoneinfoIdentifier,
-        timezoneCityName,
-        timezoneWeatherCity,
+        timezoneWeatherRequest,
         registerWorldclockConsumer,
         releaseWorldclockConsumer,
         regionalTimezoneIdentifier,

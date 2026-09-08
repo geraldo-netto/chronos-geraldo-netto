@@ -172,10 +172,10 @@ test("the popup clock rows carry the weather, not just the tooltip", () => {
     Object.assign(stub._weatherCoordinator, {
         reading: { condition: "\u2600", temperatureC: 20 },
         providerName: "Open-Meteo",
-        cityReading: (city) => (city === "Tokyo" ?
+        cityReading: (timezone) => (timezone === "Asia/Tokyo" ?
             { condition: "\ud83c\udf27", temperatureC: 12 } : null),
         cityStale: () => false,
-        cityProviderName: (city) => city === "Tokyo" ? "Aviation Weather" : ""
+        cityProviderName: (timezone) => timezone === "Asia/Tokyo" ? "Aviation Weather" : ""
     });
 
     Proto._updateClockAndDate.call(stub);
@@ -195,12 +195,12 @@ test("world-clock attribution aggregates the providers of displayed readings", (
         weatherReading: { condition: "☀", temperatureC: 20 },
         weatherProvider: "Open-Meteo",
         cityWeatherReading: (city) => ({
-            "New York": { condition: "🌧", temperatureC: 12 },
-            Tokyo: { condition: "☁", temperatureC: 18 }
+            "America/New_York": { condition: "🌧", temperatureC: 12 },
+            "Asia/Tokyo": { condition: "☁", temperatureC: 18 }
         })[city] || null,
         cityWeatherProviderName: (city) => ({
-            "New York": "Aviation Weather",
-            Tokyo: "MET Norway"
+            "America/New_York": "Aviation Weather",
+            "Asia/Tokyo": "MET Norway"
         })[city] || ""
     });
     const entries = [
@@ -216,10 +216,10 @@ test("world-clock attribution aggregates the providers of displayed readings", (
 
 test("one render model serves tooltip and popup weather", () => {
     const derived = [];
-    const original = rootModules.worldclockData.timezoneWeatherCity;
-    rootModules.worldclockData.timezoneWeatherCity = (timezone) => {
+    const original = rootModules.worldclockData.timezoneWeatherRequest;
+    rootModules.worldclockData.timezoneWeatherRequest = (timezone) => {
         derived.push(timezone);
-        return timezone.split("/").pop().replace("_", " ");
+        return { query: timezone.split("/").pop().replace("_", " "), hint: { timezone, countryCode: "" } };
     };
     const { stub, calls } = updateStub({ menuOpen: true });
     Object.assign(stub, {
@@ -234,7 +234,7 @@ test("one render model serves tooltip and popup weather", () => {
     try {
         Proto._updateClockAndDate.call(stub);
     } finally {
-        rootModules.worldclockData.timezoneWeatherCity = original;
+        rootModules.worldclockData.timezoneWeatherRequest = original;
     }
 
     assert.deepEqual(derived,
@@ -258,8 +258,8 @@ test("one render model serves tooltip and popup weather", () => {
 // an offset-only zone — which names no city, and never will — drew the whole
 // "No weather for this timezone" sentence into a column one reading wide.
 test("a clock row with no reading carries its error without a temperature", () => {
-    const original = rootModules.worldclockData.timezoneWeatherCity;
-    rootModules.worldclockData.timezoneWeatherCity = () => "";
+    const original = rootModules.worldclockData.timezoneWeatherRequest;
+    rootModules.worldclockData.timezoneWeatherRequest = () => null;
     const { stub, calls } = updateStub({ menuOpen: true });
     Object.assign(stub, {
         show_weather: true,
@@ -269,7 +269,7 @@ test("a clock row with no reading carries its error without a temperature", () =
     try {
         Proto._updateClockAndDate.call(stub);
     } finally {
-        rootModules.worldclockData.timezoneWeatherCity = original;
+        rootModules.worldclockData.timezoneWeatherRequest = original;
     }
 
     const row = calls.lastEntries.find((entry) => entry.weather);
@@ -833,7 +833,7 @@ test("buildTooltipText tabulates every clock with its own weather", () => {
         weatherError: "",
         weatherProvider: "Open-Meteo",
         worldclocks: [{ label: "New York" }],
-        cityWeatherReading: (city) => (city === "New York" ? { condition: "🌧", temperatureC: 12 } : null),
+        cityWeatherReading: (timezone) => (timezone === "America/New_York" ? { condition: "🌧", temperatureC: 12 } : null),
         cityWeatherProviderName: () => "Aviation Weather"
     });
     const entries = [
@@ -1071,7 +1071,7 @@ test("world-clock setting changes repaint retained weather through the presenter
             setWeatherSource() {}
         }
     });
-    stub._weatherCoordinator.cityReading = (city) => city === "Tokyo" ?
+    stub._weatherCoordinator.cityReading = (timezone) => timezone === "Asia/Tokyo" ?
         { condition: "🌧", temperatureC: 12 } : null;
     stub._weatherCoordinator.cityStale = () => false;
     stub._weatherCoordinator.scheduleCities = () => ops.push(["schedule"]);
