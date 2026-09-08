@@ -15,6 +15,10 @@ pages while retaining their handler will need a supported teardown contract.
 Chronos-owned work has its own teardown: pending window-centering idles cancel
 when their widget is destroyed.
 
+Country-calendar Add/Edit dialogs reuse module-level widget classes. Reopening
+them does not register additional native widget types; the native settings
+checker verifies type counts and field values over repeated dialog cycles.
+
 If an external reset or import updates country calendars or world clocks while
 Add or Edit is open, saving closes that stale dialog and asks the user to reopen it. The
 external choices stay intact, including when the original edited row was

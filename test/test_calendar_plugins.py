@@ -335,7 +335,15 @@ process.stdout.write(JSON.stringify(validateCalendarManifest(JSON.parse(fs.readF
         self.assertFalse(DATA.builtin_available("missing"))
 
 
+REGISTERED_WIDGET_TYPES = set()
+
+
 class WidgetNode:
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # PyGObject registers each subclass permanently, even after instances die.
+        REGISTERED_WIDGET_TYPES.add(cls)
+
     def __init__(self, **properties):
         self.properties = properties
         self.children = []
@@ -533,6 +541,51 @@ class FakeCountryField(WidgetNode):
         return self.value
 
 
+def native_country_field_factory(_column):
+    # Match TreeListWidgets.list_edit_factory's resource allocation, not just
+    # its returned values: each call declares another native Widget subclass.
+    return type("NativeCountryField", (FakeCountryField,), {})()
+
+
+class CountryControl:
+    def __init__(self):
+        self.properties = {"active": False, "text": ""}
+        self.selected = None
+
+    def set_property(self, name, value):
+        self.properties[name] = value
+
+    def get_property(self, name):
+        return self.properties[name]
+
+    def set_active_iter(self, selected):
+        self.selected = selected
+
+    def get_active_iter(self):
+        return self.selected
+
+
+class CountryPropertyWidget(WidgetNode):
+    def __init__(self, **properties):
+        super().__init__(**properties)
+        self.content_widget = CountryControl()
+
+
+class CountryEntryWidget(CountryPropertyWidget):
+    bind_prop = "text"
+
+
+class CountrySwitchWidget(CountryPropertyWidget):
+    bind_prop = "active"
+
+
+class CountryComboWidget(CountryPropertyWidget):
+    def __init__(self, options, **properties):
+        super().__init__(**properties)
+        self.model = options
+        self.option_map = {value: index for index, (value, _label) in enumerate(options)}
+
+
 class FakeCountryDialog(FakeChooser):
     responses = []
     on_run = None
@@ -565,7 +618,7 @@ def widget_modules(data):
     )
     return {
         "chronos_calendar_plugin_data": data,
-        "TreeListWidgets": types.SimpleNamespace(list_edit_factory=lambda _column: FakeCountryField()),
+        "TreeListWidgets": types.SimpleNamespace(list_edit_factory=native_country_field_factory),
         "JsonSettingsWidgets": types.SimpleNamespace(
             JSONSettingsBackend=FakeBackend,
             JSONSettingsList=FakeCountryList,
@@ -575,7 +628,9 @@ def widget_modules(data):
         "gi.repository": types.SimpleNamespace(
             Gtk=gtk, Pango=types.SimpleNamespace(EllipsizeMode=types.SimpleNamespace(END=3))),
         "xapp": types.ModuleType("xapp"),
-        "xapp.SettingsWidgets": types.SimpleNamespace(SettingsWidget=WidgetNode),
+        "xapp.SettingsWidgets": types.SimpleNamespace(
+            SettingsWidget=WidgetNode, Entry=CountryEntryWidget,
+            Switch=CountrySwitchWidget, ComboBox=CountryComboWidget),
     }
 
 
@@ -622,6 +677,23 @@ class AdditionalCountrySettingsTests(unittest.TestCase):
     def create_widget(self, rows):
         self.settings.values["extra-country-calendars"] = rows
         return self.module.AdditionalCountryList(self.INFO, "extra-country-calendars", self.settings)
+
+    def country_dialog_cycle(self, widget, values):
+        dialog = FakeCountryDialog()
+        fields = widget._dialog_fields(dialog, values)
+        self.assertEqual([field.get_widget_value() for field in fields], values)
+        for field in fields:
+            field.destroy()
+        dialog.destroy()
+
+    def test_T1156_repeated_dialogs_reuse_registered_widget_types(self):
+        widget = self.create_widget([])
+        self.country_dialog_cycle(widget, [True, "ita", "global"])
+        warmed_types = REGISTERED_WIDGET_TYPES.copy()
+        for _index in range(20):
+            self.country_dialog_cycle(widget, [False, "usa", "ma"])
+        self.assertEqual(REGISTERED_WIDGET_TYPES, warmed_types,
+                         "T1156: dialog destruction cannot release new native widget types")
 
     def runtime_selections(self, rows):
         script = """

@@ -30,6 +30,8 @@ class NativeSettingsHarnessTests(unittest.TestCase):
         self.assertEqual(settings.writes, [("clocks", [])])
         self.assertTrue(settings.has_property("clocks", "columns"))
         self.assertFalse(settings.has_property("clocks", "unknown"))
+        self.assertTrue(settings.has_key("clocks"))
+        self.assertFalse(settings.has_key("unknown"))
         self.assertEqual(settings.get_property("clocks", "columns"), [])
 
     def test_child_verifies_isolation_before_importing_native_widgets(self):
@@ -46,6 +48,7 @@ class NativeSettingsHarnessTests(unittest.TestCase):
                 mock.patch.object(CHECK, "check_country") as country, \
                 mock.patch.object(CHECK, "check_teardown") as teardown, \
                 mock.patch.object(CHECK, "check_plugin_filenames", return_value=6) as filenames, \
+                mock.patch.object(CHECK, "check_country_dialog_types", return_value=21) as country_types, \
                 mock.patch.object(CHECK, "check_clocks") as clocks, redirect_stdout(io.StringIO()):
             self.assertEqual(CHECK.run_isolated(Path("/private")), 0)
         self.assertEqual(weather.call_count, 22)
@@ -56,6 +59,7 @@ class NativeSettingsHarnessTests(unittest.TestCase):
         self.assertEqual(len(clocks.call_args.args[2]["selectedClocks"]), 5)
         self.assertEqual(teardown.call_count, 17)
         filenames.assert_called_once()
+        country_types.assert_called_once()
 
     def test_missing_native_tools_fail_instead_of_skipping(self):
         with mock.patch.object(CHECK.shutil, "which", return_value=None), \

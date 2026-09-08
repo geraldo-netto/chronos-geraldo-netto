@@ -51,6 +51,9 @@ class MemorySettings:
     def has_property(self, key, name):
         return name in self.schema[key]
 
+    def has_key(self, key):
+        return key in self.schema
+
     def get_property(self, key, name):
         return self.schema[key][name]
 
@@ -233,6 +236,52 @@ def check_plugin_filenames(directory, schema):
     return len(cases)
 
 
+def widget_type_names(parent):
+    from gi.repository import GObject
+    names = set()
+    for child in GObject.type_children(parent):
+        names.add(child.name)
+        names.update(widget_type_names(child))
+    return names
+
+
+def country_dialog_cycle(widget):
+    from gi.repository import Gtk
+    dialog = Gtk.Dialog()
+    try:
+        fields = widget._dialog_fields(dialog, None)
+        assert [field.get_widget_value() for field in fields] == [True, None, "global"]
+        enabled, country, region = fields
+        enabled.content_widget.set_active(False)
+        country.content_widget.set_active_iter(country.option_map["usa"])
+        region.content_widget.set_text(" MA ")
+        assert widget._dialog_candidate(fields, None) == (
+            {"enabled": False, "country": "usa", "region": "ma"}, "")
+    finally:
+        dialog.destroy()
+        drain_events()
+
+
+def check_country_dialog_types(schema):
+    # T1156: GTypes survive destruction; repeat actual native field construction
+    # after lazy GTK initialization has completed, with no real settings writes.
+    from xapp.SettingsWidgets import SettingsWidget
+    from chronos_settings_widgets_calendars import AdditionalCountryList
+    key = "extra-country-calendars"
+    settings = MemorySettings(schema, key, [])
+    widget = AdditionalCountryList(schema[key], key, settings)
+    try:
+        country_dialog_cycle(widget)
+        baseline = widget_type_names(SettingsWidget.__gtype__)
+        for _index in range(20):
+            country_dialog_cycle(widget)
+        assert widget_type_names(SettingsWidget.__gtype__) == baseline, "T1156: native widget types grew"
+        assert settings.get_value(key) == [] and settings.writes == []
+    finally:
+        widget.destroy()
+    return 21
+
+
 def run_isolated(directory):
     verify_isolation(directory)
     weather, country, clocks = load_widgets()
@@ -256,6 +305,7 @@ def run_isolated(directory):
             check_teardown(widget, schema, key, case)
             checks += 1
     checks += check_plugin_filenames(directory, schema)
+    checks += check_country_dialog_types(schema)
     print(json.dumps({"checks": checks + 2, "failures": []}), flush=True)
     return 0
 

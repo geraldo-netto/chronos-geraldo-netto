@@ -207,6 +207,13 @@ class Entry(BaseWidget):
     pass
 
 
+class Switch(BaseWidget):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.bind_prop = "active"
+        self.content_widget.set_property("active", False)
+
+
 class GtkListStore:
     def __init__(self, *column_types):
         self.column_types = column_types
@@ -821,6 +828,7 @@ def install_stubs():
     settings_widgets = types.ModuleType("xapp.SettingsWidgets")
     settings_widgets.ComboBox = ComboBox
     settings_widgets.Entry = Entry
+    settings_widgets.Switch = Switch
     settings_widgets.SettingsLabel = SettingsLabel
     settings_widgets.SettingsPage = SettingsPage
     settings_widgets.SettingsWidget = SettingsWidget

@@ -15,9 +15,8 @@ import logging
 
 import JsonSettingsWidgets
 from JsonSettingsWidgets import JSONSettingsBackend, JSONSettingsList
-from TreeListWidgets import list_edit_factory
 from gi.repository import Gtk, Pango
-from xapp.SettingsWidgets import SettingsWidget
+from xapp.SettingsWidgets import ComboBox, Entry, SettingsWidget, Switch
 
 import chronos_calendar_plugin_data as plugin_data
 from chronos_text import filename_display_text, trim_text
@@ -42,6 +41,43 @@ def normalize_country_rows(raw):
     if not isinstance(raw, list):
         return []
     return [row for row in map(_country_row, raw[:64]) if row is not None]
+
+
+class CountryDialogProperty:
+    """Dialog fields read their controls directly; no settings binding is needed."""
+
+    def set_widget_value(self, value):
+        self.content_widget.set_property(self.bind_prop, value)
+
+    def get_widget_value(self):
+        return self.content_widget.get_property(self.bind_prop)
+
+
+class CountryDialogEntry(CountryDialogProperty, Entry):
+    pass
+
+
+class CountryDialogSwitch(CountryDialogProperty, Switch):
+    pass
+
+
+class CountryDialogCountry(ComboBox):
+    def set_widget_value(self, value):
+        self.content_widget.set_active_iter(self.option_map.get(value))
+
+    def get_widget_value(self):
+        selected = self.content_widget.get_active_iter()
+        return self.model[selected][0] if selected is not None else None
+
+
+def country_dialog_field(column):
+    # Native list_edit_factory declares a permanent GType on every call. These
+    # module-level field classes keep repeated Add/Edit dialogs resource-stable.
+    if column["id"] == "country":
+        options = [(value, label) for label, value in column["options"].items()]
+        return CountryDialogCountry(label=column["title"], options=options, valtype=str)
+    widget_type = {"enabled": CountryDialogSwitch, "region": CountryDialogEntry}[column["id"]]
+    return widget_type(label=column["title"])
 
 
 class AdditionalCountryList(JSONSettingsList):
@@ -126,7 +162,7 @@ class AdditionalCountryList(JSONSettingsList):
     def _dialog_fields(self, dialog, info):
         fields = []
         for index, column in enumerate(self.columns):
-            field = list_edit_factory(column)
+            field = country_dialog_field(column)
             value = info[index] if info is not None else column.get("default")
             if value is not None:
                 field.set_widget_value(value)
