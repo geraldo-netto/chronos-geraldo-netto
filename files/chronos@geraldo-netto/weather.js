@@ -196,6 +196,8 @@ var WeatherProvider = class WeatherProvider extends WeatherConsumer.WeatherConsu
             callback(null, "", "", true);
         }
 
+        // Retire the previous answer now, even if the scheduler delays or fails
+        // to start its first refresh. That refresh owns a new generation itself.
         this._startRequest();
         this._scheduler.schedule(settings, () => this.refresh(settings, callback));
     }

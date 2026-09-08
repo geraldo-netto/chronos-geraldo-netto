@@ -48,6 +48,12 @@ Direct calls to schedule an immediate refresh still propagate exceptions to
 their caller after securing the periodic timer. Ordinary provider failures
 continue to use the existing bounded retry schedule.
 
+Rescheduling invalidates the previous weather request immediately, before the
+scheduler starts the replacement refresh. The refresh then claims its own
+request generation. These two steps deliberately protect the gap when a
+scheduler delays or cannot start the replacement; an old location's answer
+cannot become current during that gap.
+
 ## Holiday country inferred from system timezone data
 
 For an initially unset holiday country, Chronos looks for an exact timezone

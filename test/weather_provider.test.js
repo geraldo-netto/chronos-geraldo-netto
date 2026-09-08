@@ -1103,6 +1103,47 @@ test("replaced or successful retry callbacks cannot release a later retry", () =
     assert.ok(removed.includes(nextId));
 });
 
+test("rescheduling invalidates an answer before a delayed scheduler refreshes", () => {
+    const Weather = loadWeather();
+    const scheduled = [];
+    const pending = [];
+    const forecasts = [];
+    const reports = [];
+    const provider = new Weather.WeatherProvider({
+        scheduler: {
+            schedule(_settings, refresh) { scheduled.push(refresh); },
+            stop() {},
+            succeeded() {}
+        },
+        locationResolver: {
+            forget() {},
+            resolve(location, isCurrent, callback) {
+                pending.push({ location, isCurrent, callback });
+            }
+        },
+        forecastResolver: {
+            refresh(place, _isCurrent, callback) {
+                forecasts.push(place.name);
+                callback({ condition: "☀", temperatureC: 20 }, "", "test");
+            }
+        }
+    });
+    const report = (reading) => reports.push(reading);
+    provider.refresh({ showWeather: true, location: "Rome" }, report);
+    provider.schedule({ showWeather: true, location: "Paris" }, report);
+    assert.equal(pending[0].isCurrent(), false);
+    pending[0].callback({ name: "Rome", latitude: 41, longitude: 12 }, "");
+    assert.deepEqual(forecasts, []);
+    assert.deepEqual(reports, [null], "only the replacement's pending state is reported");
+
+    scheduled[0]();
+    assert.equal(pending[1].isCurrent(), true);
+    pending[1].callback({ name: "Paris", latitude: 48, longitude: 2 }, "");
+    assert.deepEqual(forecasts, ["Paris"]);
+    assert.equal(reports.at(-1).temperatureC, 20);
+    provider.destroy();
+});
+
 test("a geocode answered after a newer refresh or a destroy is dropped", () => {
     const Weather = loadWeather();
     const pending = [];
