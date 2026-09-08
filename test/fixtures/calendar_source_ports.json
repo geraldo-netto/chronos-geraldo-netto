@@ -1,0 +1,14 @@
+[
+  {"url": "https://example.org/calendar", "valid": true},
+  {"url": "https://example.org:0/calendar", "valid": true},
+  {"url": "https://example.org:65535/calendar", "valid": true},
+  {"url": "https://example.org:65536/calendar", "valid": false},
+  {"url": "https://example.org:99999/calendar", "valid": false},
+  {"url": "https://example.org:00000/calendar", "valid": true},
+  {"url": "https://example.org:00080/calendar", "valid": true},
+  {"url": "https://example.org:655350/calendar", "valid": false},
+  {"url": "https://example.org:-1/calendar", "valid": false},
+  {"url": "https://example.org:+1/calendar", "valid": false},
+  {"url": "https://example.org:1.5/calendar", "valid": false},
+  {"url": "https://example.org/calendar:99999", "valid": true}
+]

@@ -18,6 +18,14 @@ function manifest(changes = {}) {
     }, changes);
 }
 
+test("calendar source ports obey shared Python and JavaScript boundaries", () => {
+    for (const { url, valid } of require("./fixtures/calendar_source_ports.json")) {
+        const raw = manifest({ source: { name: "Calendar", url } });
+        if (valid) assert.equal(validateCalendarManifest(raw).source.url, url);
+        else assert.throws(() => validateCalendarManifest(raw), /source.url/);
+    }
+});
+
 function adapter(id, changes = {}) {
     return Object.assign({
         id, name: id, category: "custom", enabled: true,

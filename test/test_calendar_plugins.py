@@ -108,6 +108,17 @@ class ManifestValidationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     DATA.validate_manifest(replace_field(manifest(), field, replacement))
 
+    def test_source_ports_match_shared_javascript_boundaries(self):
+        cases = json.loads((Path(__file__).parent / "fixtures/calendar_source_ports.json").read_text())
+        for case in cases:
+            with self.subTest(url=case["url"]):
+                raw = replace_field(manifest(), "source.url", case["url"])
+                if case["valid"]:
+                    self.assertEqual(DATA.validate_manifest(raw)["source"]["url"], case["url"])
+                else:
+                    with self.assertRaisesRegex(ValueError, "source.url"):
+                        DATA.validate_manifest(raw)
+
     def test_real_gregorian_dates_and_integral_json_numbers(self):
         value = manifest()
         value["apiVersion"] = 1.0

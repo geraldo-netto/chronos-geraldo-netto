@@ -100,8 +100,9 @@ function normalizeSource(raw) {
     }
     if (ownsProperty(raw, "url")) {
         source.url = boundedText(raw.url, "source.url", 2048);
-        assertValue(/^https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::[0-9]{1,5})?(?:[/?#][^\s\\]*)?$/i
-            .test(source.url), "source.url", "expected an HTTPS source URL without credentials");
+        const match = /^https:\/\/[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?(?::([0-9]{1,5}))?(?:[/?#][^\s\\]*)?$/i.exec(source.url);
+        assertValue(match !== null, "source.url", "expected an HTTPS source URL without credentials");
+        assertValue(!match[1] || Number(match[1]) <= 65535, "source.url", "expected a port from 0 through 65535");
     }
     return Object.freeze(source);
 }

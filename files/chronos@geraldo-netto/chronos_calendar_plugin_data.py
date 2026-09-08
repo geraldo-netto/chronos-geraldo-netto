@@ -33,7 +33,7 @@ EVENT_FIELDS = {"name", "month", "day", "year", "nonWorking"}
 CONTROL_TEXT = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028-\u202e\u2066-\u2069]")
 CALENDAR_ID = re.compile(r"[a-z][a-z0-9]*(?:[.:-][a-z0-9]+(?:-[a-z0-9]+)*)+")
 SOURCE_URL = re.compile(
-    r"(?ai:https://[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)(?::[0-9]{1,5})?(?:[/?#][^\s\ufeff\\]*)?",
+    r"(?ai:https://[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)(?::([0-9]{1,5}))?(?:[/?#][^\s\ufeff\\]*)?",
 )
 
 
@@ -92,7 +92,10 @@ def _source(raw):
             source[key] = _text(raw[key], f"source.{key}", 160)
     if "url" in raw:
         source["url"] = _text(raw["url"], "source.url", 2048)
-        _require(SOURCE_URL.fullmatch(source["url"]) is not None, "source.url", "expected an HTTPS source URL without credentials")
+        match = SOURCE_URL.fullmatch(source["url"])
+        _require(match is not None, "source.url", "expected an HTTPS source URL without credentials")
+        _require(match.group(1) is None or int(match.group(1)) <= 65535,
+                 "source.url", "expected a port from 0 through 65535")
     return source
 
 
