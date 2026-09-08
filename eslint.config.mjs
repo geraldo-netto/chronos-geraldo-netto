@@ -61,7 +61,7 @@ function nodeModuleConfig(files) {
 export default [
     IGNORED,
     {
-        files: ["files/**/*.js"],
+        files: ["files/**/*.js", "scripts/**/*.js"],
         // The config used to list three rules and extend nothing, so unreachable
         // code, a duplicate object key and `if (o = 3)` all linted clean: the one
         // static gate in the project caught almost no correctness bug. The
@@ -71,7 +71,7 @@ export default [
         languageOptions: {
             ecmaVersion: 2022,
             sourceType: "script",
-            globals: gjsGlobals
+            globals: { ...gjsGlobals, print: "readonly", printerr: "readonly" }
         },
         rules: {
             ...js.configs.recommended.rules,

@@ -56,6 +56,14 @@ test("the lint gate lints the root-level config file it is defined in", async ()
     assert.ok(rules.includes("no-unused-vars"), `got ${JSON.stringify(rules)}`);
 });
 
+test("CJS tooling receives correctness rules and runtime globals", async () => {
+    const tooling = path.join(root, "scripts", "check_cjs_syntax.js");
+    const rules = await rulesAt(tooling, "definitelyUndefined();\n");
+    assert.ok(rules.includes("no-undef"), `got ${JSON.stringify(rules)}`);
+    assert.deepEqual(await rulesAt(tooling,
+        "print(imports.system.version);\nprinterr(new TextDecoder().decode());\n"), []);
+});
+
 // `eslint .` walks the packager's output, which ESLint cannot know is ignored:
 // it reads `.gitignore` for nothing. Without an explicit ignore the run
 // enumerates every shipped module a second time and reports the copy clean
