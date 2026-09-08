@@ -340,6 +340,8 @@ class AppletProviderLifecycle {
             }
         });
         holidaySettings.connectReligionsChanged(this.onReligionsChanged.bind(this));
+        holidaySettings.connectCalendarPluginsChanged(this.onCalendarPluginsChanged.bind(this));
+        holidaySettings.connectExtraCountriesChanged(this.onExtraCountriesChanged.bind(this));
 
         // A missing legacy value still means disabled. New settings have
         // already had their one-time timezone default resolved by the binder.
@@ -358,6 +360,8 @@ class AppletProviderLifecycle {
         }
 
         this.onHolidayPlaceChanged();
+        this.onCalendarPluginsChanged();
+        this.onExtraCountriesChanged();
     }
 
     // Resolve the configured country and region and apply them to the provider.
@@ -370,6 +374,18 @@ class AppletProviderLifecycle {
     // every checkbox toggle.
     onReligionsChanged() {
         this.holidayProvider.setEnabledIds(this.context.holidaySettings.religiousIds);
+        this.context.onHolidayDataChanged();
+    }
+
+    onCalendarPluginsChanged() {
+        this.holidayProvider.setPluginIds(this.context.holidaySettings.calendarPlugins,
+            () => this.context.onHolidayDataChanged());
+        this.context.onHolidayDataChanged();
+    }
+
+    onExtraCountriesChanged() {
+        this.holidayProvider.setCountries(this.context.holidaySettings.extraCountryCalendars,
+            () => this.context.onHolidayDataChanged());
         this.context.onHolidayDataChanged();
     }
 

@@ -279,6 +279,48 @@ test("religious selections are master-gated and every key is watched", () => {
     assert.ok(connected.every(([, listener]) => listener === callback));
 });
 
+test("plugin and extra-country selections read current values independently of religion", () => {
+    const SettingsFacade = require(modulePath);
+    const values = { "show-religious-observances": false };
+    const facade = new SettingsFacade.HolidaySettings({ getValue: (key) => values[key] });
+
+    assert.deepEqual(facade.calendarPlugins, []);
+    assert.deepEqual(facade.extraCountryCalendars, []);
+
+    values["calendar-plugins"] = ["sample-calendar"];
+    values["extra-country-calendars"] = [{ country: "fra", region: "global" }];
+    assert.deepEqual(facade.calendarPlugins, ["sample-calendar"]);
+    assert.deepEqual(facade.extraCountryCalendars, [{ country: "fra", region: "global" }]);
+    assert.deepEqual(facade.religiousIds, []);
+
+    values["calendar-plugins"] = [];
+    values["extra-country-calendars"] = null;
+    assert.deepEqual(facade.calendarPlugins, []);
+    assert.deepEqual(facade.extraCountryCalendars, []);
+});
+
+test("plugin selections, plugin reloads, and extra countries have independent listeners", () => {
+    const SettingsFacade = require(modulePath);
+    const connected = [];
+    const settings = {
+        connect(signal, callback) {
+            connected.push([signal, callback]);
+            return connected.length;
+        }
+    };
+    const facade = new SettingsFacade.HolidaySettings(settings);
+    const pluginChanged = () => {};
+    const countriesChanged = () => {};
+
+    assert.deepEqual(facade.connectCalendarPluginsChanged(pluginChanged), [1, 2]);
+    assert.deepEqual(facade.connectExtraCountriesChanged(countriesChanged), [3]);
+    assert.deepEqual(connected, [
+        ["changed::calendar-plugins", pluginChanged],
+        ["changed::calendar-plugins-revision", pluginChanged],
+        ["changed::extra-country-calendars", countriesChanged]
+    ]);
+});
+
 test("the operating-system timezone fills only the initial holiday country", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);

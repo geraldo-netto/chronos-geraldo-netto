@@ -307,6 +307,10 @@ function gjsImportsMock() {
                             }
                         },
                         religiousHolidays: {},
+                        calendarPluginData: require(path.join(APPLET_DIR, "calendarPluginData")),
+                        calendarRegistry: require(path.join(APPLET_DIR, "calendarRegistry")),
+                        calendarSourceAdapters: require(path.join(APPLET_DIR, "calendarSourceAdapters")),
+                        calendarPluginLoader: require(path.join(APPLET_DIR, "calendarPluginLoader")),
                         holidayStatusLedger: { HolidayStatusLedger: class {} },
                         holidayInflight: { HolidayInflight: class {} },
                         holidayProviderFacade: {
@@ -387,6 +391,11 @@ const EXPORTS = {
     holidayStatusLedger: ["HolidayStatusLedger"],
     holidayInflight: ["HolidayInflight"],
     holidayProviderFacade: ["HolidayProviderFacade", "ReligiousHolidayProvider"],
+    calendarPluginData: ["validateCalendarManifest", "manifestAvailable", "manifestMonthMap"],
+    calendarRegistry: ["CalendarRegistry"],
+    calendarPluginLoader: ["CalendarPluginLoader", "selectedPluginIds", "readInstalledPlugin"],
+    calendarSourceAdapters: ["countrySelections", "publicCalendar", "religiousCalendar",
+        "manifestCalendar", "countryCalendarName"],
     religiousCatalog: ["RELIGIONS", "RELIGION_IDS"],
     hebrewCalendar: ["hebrewLeapYear", "gregorianFromHebrew", "hebrewObservances"],
     religiousHolidays: ["RELIGIOUS_HOLIDAY_FLAG", "RELIGIONS", "gregorianEaster",

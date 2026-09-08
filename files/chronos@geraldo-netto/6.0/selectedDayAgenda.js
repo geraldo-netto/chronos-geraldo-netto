@@ -36,6 +36,9 @@ function holidayAgendaType(flags = []) {
     if (religiousHoliday) {
         return _("Religious observance");
     }
+    if (flags.includes("calendar_observance")) {
+        return "Calendar observance";
+    }
     return _("Holiday");
 }
 

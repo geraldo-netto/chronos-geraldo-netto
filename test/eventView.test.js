@@ -327,6 +327,7 @@ test("selected-day agenda composes each holiday kind without another data source
     const cases = [
         [{ name: "Republic Day", flags: ["public_holiday"] }, "Public holiday"],
         [{ name: "Shavuot", flags: ["religious_holiday", "judaism"] }, "Religious observance"],
+        [{ name: "Team anniversary", flags: ["calendar_observance"] }, "Calendar observance"],
         [{ name: "Republic Day\nShavuot", flags: ["public_holiday", "religious_holiday", "judaism"] },
             "Public holiday and religious observance"]
     ];

@@ -231,7 +231,8 @@ test("religious settings and the runtime catalogue have exact parity", () => {
 
     for (const [index, key] of selectorKeys.entries()) {
         assert.ok(data[key], `${ids[index]} has no selector`);
-        assert.equal(data[key].type, "switch");
+        assert.equal(data[key].type, "custom");
+        assert.equal(data[key].widget, "AvailableReligionSwitch");
         assert.equal(data[key].default, false);
         assert.equal(data[key].dependency, facade.SHOW_RELIGIOUS_OBSERVANCES_KEY);
         assert.equal(data[key].indent, true);

@@ -1578,6 +1578,105 @@ test("the pending marker survives until every in-flight month answers", () => {
         "the final answer renders the provider credit");
 });
 
+function updatingCalendarFixture(months = ["2026/12", "2027/1"]) {
+    const { CalendarRegistry } = require(path.join(APPLET_DIR, "calendarRegistry"));
+    const registry = new CalendarRegistry();
+    const pending = new Map();
+    registry.register({
+        id: "review:standing", name: "Standing dates", category: "custom", enabled: true,
+        available: () => true,
+        getHolidays(year, month, done) {
+            done(new Map([[`${month}/25`, { name: "Standing observance", flags: ["calendar_observance"] }]]),
+                "", "Standing provider");
+        }
+    });
+    registry.register({
+        id: "review:updating", name: "Updating dates", category: "custom", enabled: true,
+        available: () => true,
+        getHolidays(year, month, done) { pending.set(`${year}/${month}`, done); }
+    });
+    const cells = new Map([25, 26].map((day) => [`12/${day}`, {
+        date: new Date(2026, 11, day),
+        button: new MockActor({ style_class: "calendar-day-base calendar-work-day" }),
+        rendered_style: "calendar-day-base calendar-work-day", holiday_styled: false,
+        holidayTooltip: null, holiday_tooltip_set: false
+    }]));
+    const label = new MockActor();
+    const host = makeHost({
+        holidayGeneration: 3, holidaysActive: () => true,
+        requestHolidays(year, month, done) { registry.getHolidays(Number(year), Number(month), done); }
+    });
+    const annotator = new AnnotationsModule.CalendarHolidayAnnotator(host);
+    annotator.attachLabel(label);
+    annotator.annotate(new Set(months), cells, 3);
+    return { registry, pending, cells, label, annotator, host };
+}
+
+test("registry updates never settle a sibling month that has not answered", () => {
+    const { pending, label, cells, registry } = updatingCalendarFixture();
+    pending.get("2026/12")(new Map(), "", "Updating provider");
+    pending.get("2026/12")(new Map(), "", "Updating provider");
+    assert.match(label.text, /…$/, "January remains pending after two December answers");
+    assert.equal(cells.get("12/25").holiday_tooltip_set, false,
+        "partial data is not reconciled before January answers");
+    pending.get("2027/1")(new Map(), "", "January provider");
+    assert.doesNotMatch(label.text, /…/);
+    assert.equal(cells.get("12/25").holiday_name, "Standing observance");
+    registry.destroy();
+});
+
+test("updated month snapshots retain overlapping sources and remove withdrawn dates and styling", () => {
+    const { pending, cells, annotator, registry } = updatingCalendarFixture(["2026/12"]);
+    const reply = pending.get("2026/12");
+    reply(new Map([
+        ["12/25", { name: "Temporary day off", flags: ["public_holiday"] }],
+        ["12/26", { name: "Withdrawn date", flags: ["public_holiday"] }]
+    ]), "", "Old provider");
+    assert.equal(cells.get("12/25").holiday_name, "Standing observance\nTemporary day off");
+    assert.match(cells.get("12/25").button.style_class, /calendar-nonwork-day/);
+    reply(new Map(), "", "New provider");
+    assert.equal(cells.get("12/25").holiday_name, "Standing observance");
+    assert.match(cells.get("12/25").button.style_class, /calendar-work-day/);
+    assert.doesNotMatch(cells.get("12/25").button.style_class, /calendar-nonwork-day/);
+    assert.equal(cells.get("12/26").holiday_name, "");
+    assert.equal(cells.get("12/26").holiday_tooltip_set, false);
+    assert.equal(cells.get("12/26").button.style_class, cells.get("12/26").rendered_style);
+    assert.equal(annotator.holidayForDate(new Date(2026, 11, 26)), null);
+    assert.equal(annotator.provider, "Standing provider, New provider");
+    registry.destroy();
+});
+
+test("month updates replace recovered errors and old credits while keeping other failures", () => {
+    const { pending, label, annotator, registry } = updatingCalendarFixture();
+    const december = pending.get("2026/12");
+    const january = pending.get("2027/1");
+    december(new Map(), "Holiday service unavailable", "December failed");
+    january(new Map(), "Holiday data unavailable", "January failed");
+    december(new Map(), "", "December recovered");
+    assert.equal(annotator.error, "Holiday data unavailable");
+    assert.equal(annotator.provider, "Standing provider, January failed");
+    january(new Map(), "", "January recovered");
+    assert.equal(annotator.error, "");
+    assert.doesNotMatch(label.text, /⚠/);
+    assert.doesNotMatch(annotator.provider, /failed/);
+    assert.match(annotator.provider, /December recovered/);
+    assert.match(annotator.provider, /January recovered/);
+    registry.destroy();
+});
+
+test("recovering an early month resumes loading until the remaining month answers", () => {
+    const { pending, label, annotator, registry, host } = updatingCalendarFixture();
+    pending.get("2026/12")(new Map(), "Holiday service unavailable", "Offline");
+    assert.match(label.text, /⚠/);
+    pending.get("2026/12")(new Map(), "", "Recovered");
+    assert.equal(annotator.error, "");
+    assert.match(label.text, /…$/);
+    host.holidayGeneration++;
+    pending.get("2027/1")(new Map(), "Holiday service unavailable", "Stale failure");
+    assert.equal(annotator.error, "", "an obsolete pass cannot restore an old error");
+    registry.destroy();
+});
+
 // T702: a 42-day grid spans two calendar years, each with its own cached
 // status, so adjacent months are legitimately served by different fallback
 // providers. Holidays from both were shown, but the annotator kept one
@@ -1754,6 +1853,22 @@ test("holiday annotation: merged public and religious dates are non-working", ()
     assert.ok(!day14.style_class.includes("calendar-work-day"));
     assert.ok(day14.style_class.includes("calendar-nonwork-day"));
     assert.ok(day14.style_class.includes("calendar-holiday-day"));
+});
+
+test("custom calendar observances preserve working days and merge with days off", () => {
+    const holiday = makeHolidayStub({ "2026/7": {
+        "7/14": { name: "Team anniversary", flags: ["calendar_observance"] },
+        "7/15": { name: "Team anniversary\nPublic holiday", flags: ["calendar_observance", "public_holiday"] }
+    } });
+    const cal = makeCalendar({ holiday });
+    cal.setDate(new Date(2026, 6, 9), true);
+    const day14 = dayButtons(cal).find((button) => button.label === "14");
+    const day15 = dayButtons(cal).find((button) => button.label === "15");
+    assert.ok(day14.style_class.includes("calendar-work-day"));
+    assert.ok(day14.style_class.includes("calendar-holiday-day"));
+    assert.ok(!day14.style_class.includes("calendar-nonwork-day"));
+    assert.ok(day15.style_class.includes("calendar-nonwork-day"));
+    assert.ok(!day15.style_class.includes("calendar-work-day"));
 });
 
 test("holiday annotation: errors surface in the month label marker", () => {

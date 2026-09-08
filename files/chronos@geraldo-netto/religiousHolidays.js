@@ -18,8 +18,9 @@
 // of published dates, because those calendars are observational or
 // astronomical: the observed date depends on a sighting, a locality, or an
 // ephemeris, and an arithmetic approximation drifts a day either way — exactly
-// the day the user looks at. Outside the table window a table-backed observance
-// is simply absent; the fixed and computed ones still render for any year.
+// the day the user looks at. If any table-backed observance lacks a date for
+// the requested year, its entire religion calendar is hidden. Calendars with
+// only fixed or computed dates remain available for the supported year range.
 
 /* global imports */
 /* eslint camelcase: "off" */
@@ -91,14 +92,15 @@ function gregorianEaster(year) {
 // Before 2015 the Western convention fixed the year's start to the Gregorian
 // calendar at 21 March. From 2015 the definition became astronomical, and the
 // Bahá'í World Centre published the results for BE 172-221 as a table; those
-// are the only authoritative dates, and they put Naw-Rúz on 21 March in exactly
+// put Naw-Rúz on 21 March in exactly
 // the years listed here and on 20 March in every other year of that window.
-// Nothing authoritative exists past 2065, so the row stops rather than guess —
-// and 2092 and 2096 are 19 March on the best available reckoning, which is
-// enough to show that extrapolating the 20/21 pattern would be wrong.
+// Its last Naw-Rúz is in March 2064; the February 2065 dates on that final row
+// describe Ayyám-i-Há. They do not authorize another Naw-Rúz in March 2065.
+// https://bahai-library.com/pdf/uhj/uhj_bahai_dates_172-221.pdf
+// https://guidelines.bahai.org.nz/wp-content/uploads/2022/07/GLSA-08-Holy-Days.pdf
 const BAHAI_ERA_START = 1844;
 const NAW_RUZ_ASTRONOMICAL_FROM = 2015;
-const NAW_RUZ_TABLE_END = 2065;
+const NAW_RUZ_TABLE_END = 2064;
 const NAW_RUZ_ON_21_MARCH = new Set([2015, 2018, 2019, 2022, 2023, 2026, 2027,
     2031, 2035, 2039, 2043, 2047, 2051, 2055]);
 
@@ -150,11 +152,8 @@ const TABLES = {
     "ghost-festival": { 2025: [9, 6], 2026: [8, 27], 2027: [8, 16] }
 };
 
-// The last year every table key can answer for. Below this the tables are
-// exhausted and a table-backed religion silently renders nothing, which is
-// indistinguishable from "no observances this month" — so the horizon is
-// asserted by the suite and reported to the user rather than left to expire
-// quietly. Computed rather than written down: an added row moves it by itself.
+// The last year every table key can answer for. Individual calendar coverage
+// controls visibility; this shared minimum remains available for diagnostics.
 function _tableCoverageEnd() {
     return Math.min(...Object.values(TABLES).map(
         (dates) => Math.max(...Object.keys(dates).map(Number))));
@@ -344,10 +343,9 @@ function _omerDates(year) {
         [_dateAtOffset(year, passover, index + 1), index + 1]);
 }
 
-// Kinds that can run out of published years. The omer counts because it hangs
-// off Passover, and a derived entry because its anchor is a table row.
+// A derived entry shares its table anchor's published range. Omer is computed.
 function _tableBacked(entry) {
-    return Boolean(entry.table || entry.fromTable || entry.series);
+    return Boolean(entry.table || entry.fromTable);
 }
 
 function _datesOf(entry, year) {
@@ -396,21 +394,21 @@ function releaseMemos() {
     _expansion = null;
 }
 
-// Appends the religion's dated observances and answers whether any of its
-// table-backed entries ran out of published years.
+// Roll back only this religion's rows if a required published date is absent.
 function _expandReligion(id, year, dated) {
-    let exhausted = false;
+    const firstRow = dated.length;
     for (const entry of OBSERVANCES[id] || []) {
         const dates = _datesOf(entry, year);
         if (dates.length === 0 && _tableBacked(entry)) {
-            exhausted = true;
+            dated.length = firstRow;
+            return true;
         }
         for (const [date, count] of dates) {
             dated.push({ id, entry, date, count });
         }
     }
 
-    return exhausted;
+    return false;
 }
 
 function _expandYear(year, ids) {
@@ -455,12 +453,8 @@ function holidaysForYear(year, enabledIds = religionIds(), translateName = _) {
         }));
 }
 
-// Which of the enabled religions lose observances in this year because their
-// tables do not reach it. A religion whose entries are all fixed, computus-
-// derived or Hebrew-computed (Christianity, Judaism) is never affected; one
-// whose entries are entirely table-backed (Islam, Sikhism, Bahá'í, Jainism,
-// Taoism) renders an empty year, which the grid cannot distinguish from a month
-// with nothing in it. Reported rather than rendered blank.
+// Hidden calendars retain a diagnostic even when their fixed rows are hidden
+// too. Calendars containing only fixed or computed observances remain covered.
 function uncoveredReligions(year, enabledIds = religionIds()) {
     if (!_validYear(year)) {
         return [];
@@ -469,6 +463,16 @@ function uncoveredReligions(year, enabledIds = religionIds()) {
     // Same walk as the rows: the memo answers both, so the coverage report no
     // longer re-expands the year (and the omer series) on its own.
     return _expandYear(year, enabledReligionIds(enabledIds)).uncovered.slice();
+}
+
+function availableReligionIds(year, enabledIds = religionIds()) {
+    if (!_validYear(year)) {
+        return [];
+    }
+
+    const ids = enabledReligionIds(enabledIds);
+    const { uncovered } = _expandYear(year, ids);
+    return ids.filter((id) => !uncovered.includes(id));
 }
 
 // the month map the calendar grid consumes: "month/day" -> {name, flags},
@@ -518,6 +522,7 @@ if (typeof module !== "undefined") {
         gregorianEaster,
         religionIds,
         enabledReligionIds,
+        availableReligionIds,
         holidaysForYear,
         monthMap,
         mergeMonthMaps,

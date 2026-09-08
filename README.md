@@ -225,6 +225,8 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Date formats | `%d %b %H:%M` | The always-visible **Date format** and **Date format for tooltip** fields control the panel label and each tooltip row; the **Show information on date format syntax** button opens the reference. |
 | Panel text size | 1.0 | Multiplies the theme's panel font size for this applet's label only, from 0.8 to 1.6 — the panel itself and its other applets are untouched. At 1.0 the applet sets no size of its own, so the theme and your font scaling stay in charge, exactly as before the setting existed. |
 | Country / Region | country from the operating-system timezone, or None | Marks that country's nationwide public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; any country you select overrides the inferred default. |
+| Additional country calendars | empty | Enables more countries and regions simultaneously, with separate caches. |
+| Installed calendars | empty | Imports and selects personal JSON calendar plugins. Calendars outside their valid coverage are hidden. |
 | Religious observances / religions | off / none selected | Shows locally calculated observances for the religions you select. They are underlined but remain working days; see the date limits below. |
 | Show calendar (under **Keyboard shortcuts**) | `<Super>c` | Opens the calendar menu. |
 
@@ -383,10 +385,18 @@ catalogue and every religion selection stay on this computer: enabling them
 makes no network request and writes no religious preference outside Cinnamon's
 local applet settings.
 
-Fixed-date observances and Gregorian Easter-relative Christian dates can be
-calculated for any supported calendar year. Dates tied to observational,
-astronomical, lunar, or lunisolar calendars are bundled only for **2025–2027**;
-outside that window those entries are omitted. Such dates can differ by
+Additional country calendars can be enabled together, each with its own region.
+Personal country, religious, municipal, and other calendars can also be imported
+as JSON plugins in **Installed calendars**. They remain user-local and are
+independently selectable. See [Calendar plugins](docs/calendar-plugins.md) for
+installation, supported rules, provenance, and the extension contract.
+
+Christian, Hebrew, and Shinto calendars are computed from rules. Other religious
+calendars use bounded published dates: **2025–2027** for the current Islamic,
+Hindu, Buddhist, Sikh, Jain, and Taoist selections, and **1844–2064** for the
+implemented Baha'i observances. A calendar without complete coverage is hidden
+from settings for the current year and contributes no entries outside its
+range, while the main calendar and other sources keep working. Such dates can differ by
 community, location, and moon sighting. Sunset-starting and multi-day
 observances are represented by their first listed civil day. Treat the display
 as a calendar aid, not an authority for leave, worship, or travel planning.

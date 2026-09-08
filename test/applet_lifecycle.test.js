@@ -133,7 +133,9 @@ test("an unsupported configured country falls back to none", () => {
     // handing it one, not by reaching into the module it comes from
     const holidayProvider = {
         clearPlace() { places.push(["clear"]); },
-        setPlace(...args) { places.push(["place", ...args]); }
+        setPlace(...args) { places.push(["place", ...args]); },
+        setPluginIds() {},
+        setCountries() {}
     };
 
     const settings = {
@@ -320,9 +322,10 @@ function consumerLifecycle(onUpgradeRequired) {
         actor: { connect: () => 1, disconnect: () => {} },
         desktopSettings: { connectClockFormatChanged: () => [], disconnect: () => {} },
         holidaySettings: {
-            country: "none", religiousIds: [],
+            country: "none", religiousIds: [], calendarPlugins: [], extraCountryCalendars: [],
             connectCountryChanged: () => {}, bindRegions: () => {},
-            connectReligionsChanged: () => {}
+            connectReligionsChanged: () => {}, connectCalendarPluginsChanged: () => {},
+            connectExtraCountriesChanged: () => {}
         },
         eventsSettings: {},
         onEventsManagerReady: () => {},
@@ -338,7 +341,7 @@ function consumerLifecycle(onUpgradeRequired) {
         eventsManager: () => ({ connect: () => 1, disconnect: () => {}, destroy: () => {} }),
         holidayProvider: () => ({
             clearPlace: () => {}, setPlace: () => {}, destroy: () => {},
-            setEnabledIds: () => {}
+            setEnabledIds: () => {}, setPluginIds: () => {}, setCountries: () => {}
         })
     });
 }
@@ -1139,6 +1142,8 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         clearPlace: () => calls.push(["clear"]),
         setPlace: (...args) => calls.push(["place", ...args]),
         setEnabledIds: (ids) => calls.push(["religions", ids]),
+        setPluginIds() {},
+        setCountries() {},
         destroy() {}
     };
     const settings = {
@@ -1194,7 +1199,10 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         ...rootModules.holidayConstants.REGION_COUNTRIES.map(
             (country) => `changed::region_${country}`),
         "changed::show-religious-observances",
-        ...rootModules.settingsFacade.RELIGION_IDS.map((id) => `changed::religion-${id}`)
+        ...rootModules.settingsFacade.RELIGION_IDS.map((id) => `changed::religion-${id}`),
+        "changed::calendar-plugins",
+        "changed::calendar-plugins-revision",
+        "changed::extra-country-calendars"
     ]);
     assert.equal(calls.some((row) => row[0] === "bind" && row[1] === "country"), false);
     // A direct lifecycle with a missing legacy value still resolves to none.
@@ -1239,6 +1247,123 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         "changing a religion repaints without restarting the applet");
 });
 
+function calendarSelectionLifecycle() {
+    const calls = [];
+    const listeners = new Map();
+    const updates = {};
+    const settings = {
+        values: {
+            country: "none",
+            "show-religious-observances": false,
+            "calendar-plugins": ["sample-calendar"],
+            "extra-country-calendars": [{ country: "fra", region: "global" }]
+        },
+        getValue(key) { return this.values[key]; },
+        connect(signal, callback) {
+            listeners.set(signal, callback);
+            return listeners.size;
+        },
+        finalize() {
+            listeners.clear();
+            calls.push(["finalize"]);
+        }
+    };
+    const provider = {
+        clearPlace() { calls.push(["clear"]); },
+        setPluginIds(ids, onUpdated) {
+            calls.push(["plugins", ids]);
+            updates.plugins = onUpdated;
+        },
+        setCountries(rows, onUpdated) {
+            calls.push(["countries", rows]);
+            updates.countries = onUpdated;
+        },
+        destroy() { calls.push(["destroy", listeners.size]); }
+    };
+    const lifecycle = new AppletModule.AppletProviderLifecycle({
+        holidaySettings: new rootModules.settingsFacade.HolidaySettings(settings),
+        onHolidayDataChanged: () => calls.push(["refresh"])
+    }, { holidayProvider: () => provider });
+    lifecycle.initHolidayProvider();
+    return { calls, listeners, updates, settings, lifecycle };
+}
+
+test("initial plugin and additional-country selections reach the holiday provider", () => {
+    const { calls } = calendarSelectionLifecycle();
+    assert.deepEqual(calls, [
+        ["clear"], ["refresh"],
+        ["plugins", ["sample-calendar"]], ["refresh"],
+        ["countries", [{ country: "fra", region: "global" }]], ["refresh"]
+    ], "optional calendars remain active when the primary country and religions are off");
+});
+
+test("plugin selections and reload signals repaint immediately and when data arrives", () => {
+    const { calls, listeners, updates, settings } = calendarSelectionLifecycle();
+    calls.length = 0;
+    settings.values["calendar-plugins"] = ["another-calendar"];
+
+    listeners.get("changed::calendar-plugins")();
+    assert.deepEqual(calls, [["plugins", ["another-calendar"]], ["refresh"]]);
+    updates.plugins();
+    assert.deepEqual(calls.at(-1), ["refresh"]);
+    assert.equal(calls.length, 3);
+
+    calls.length = 0;
+    listeners.get("changed::calendar-plugins-revision")();
+    assert.deepEqual(calls, [["plugins", ["another-calendar"]], ["refresh"]],
+        "reloading a changed manifest reapplies the existing selection");
+    updates.plugins();
+    assert.deepEqual(calls, [["plugins", ["another-calendar"]], ["refresh"], ["refresh"]]);
+
+    calls.length = 0;
+    settings.values["calendar-plugins"] = [];
+    listeners.get("changed::calendar-plugins")();
+    assert.deepEqual(calls, [["plugins", []], ["refresh"]]);
+});
+
+test("additional-country changes reach the provider with a data-arrival repaint", () => {
+    const { calls, listeners, updates, settings } = calendarSelectionLifecycle();
+    calls.length = 0;
+    settings.values["extra-country-calendars"] = [
+        { country: "fra", region: "global" }, { country: "deu", region: "be" }
+    ];
+
+    listeners.get("changed::extra-country-calendars")();
+    assert.deepEqual(calls, [["countries", [
+        { country: "fra", region: "global" }, { country: "deu", region: "be" }
+    ]], ["refresh"]]);
+    updates.countries();
+    assert.deepEqual(calls.at(-1), ["refresh"]);
+    assert.equal(calls.length, 3);
+
+    calls.length = 0;
+    settings.values["extra-country-calendars"] = [];
+    listeners.get("changed::extra-country-calendars")();
+    assert.deepEqual(calls, [["countries", []], ["refresh"]]);
+});
+
+test("applet teardown disconnects calendar selection signals before releasing their provider", () => {
+    const { calls, listeners, settings, lifecycle } = calendarSelectionLifecycle();
+    const applet = Object.assign(Object.create(Proto), {
+        instance_id: 42, settings, _providerLifecycle: lifecycle
+    });
+    const signals = [
+        "changed::calendar-plugins", "changed::calendar-plugins-revision",
+        "changed::extra-country-calendars"
+    ];
+    assert.ok(signals.every((signal) => listeners.has(signal)));
+    calls.length = 0;
+
+    Proto.on_applet_removed_from_panel.call(applet);
+    assert.deepEqual(calls, [["finalize"], ["destroy", 0]]);
+    for (const signal of signals) {
+        listeners.get(signal)?.();
+    }
+    Proto.on_applet_removed_from_panel.call(applet);
+    assert.deepEqual(calls, [["finalize"], ["destroy", 0]],
+        "late settings signals and repeated removal cannot repaint or reconfigure the provider");
+});
+
 // A "Reset to defaults" writes the schema's empty value back on a running
 // applet, and the one-time timezone inference only ran at add-to-panel. The key
 // stayed empty for the rest of the session — holidays off with no reason given,
@@ -1259,7 +1384,8 @@ test("a country reset to the schema default is inferred again, not left blank", 
         onHolidayCountryUnresolved: () => unresolved.push(true)
     }, {
         holidayProvider: () => ({
-            setPlace() {}, clearPlace() {}, setEnabledIds() {}
+            setPlace() {}, clearPlace() {}, setEnabledIds() {},
+            setPluginIds() {}, setCountries() {}
         })
     });
     lifecycle.initHolidayProvider();
@@ -1537,7 +1663,9 @@ test("provider initialization wires hover and event manager signals", () => {
     const originalCreateHolidayProvider = rootModules.holidays.createHolidayProvider;
     rootModules.holidays.createHolidayProvider = () => ({
         setPlace() {},
-        clearPlace() {}
+        clearPlace() {},
+        setPluginIds() {},
+        setCountries() {}
     });
     rootModules.weather.WeatherProvider = class {
         constructor() { calls.push(["weather"]); }
@@ -1564,8 +1692,12 @@ test("provider initialization wires hover and event manager signals", () => {
             country: "usa",
             regionCountries: [],
             religiousIds: [],
+            calendarPlugins: [],
+            extraCountryCalendars: [],
             connectCountryChanged() { calls.push(["holiday-init"]); return 1; },
             connectReligionsChanged() { return []; },
+            connectCalendarPluginsChanged() { return []; },
+            connectExtraCountriesChanged() { return []; },
             bindRegions() {}
         },
         _calendar: null,

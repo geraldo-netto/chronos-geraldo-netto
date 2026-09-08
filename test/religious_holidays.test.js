@@ -6,6 +6,7 @@ const { makeRandom } = require("./helpers/prng");
 const modulePath = path.join(__dirname, "..", "files", "chronos@geraldo-netto",
     "religiousHolidays.js");
 const ReligiousHolidays = require(modulePath);
+const coverage = require("../files/chronos@geraldo-netto/religious-coverage.json");
 
 test("catalogue exposes ten stable religion ids in adherent order", () => {
     assert.deepEqual(ReligiousHolidays.religionIds(), [
@@ -115,17 +116,36 @@ test("Sefirat HaOmer is exactly 49 consecutive days before Shavuot", () => {
     }
 });
 
-test("table dates stay absent outside their documented window", () => {
-    // Past the end of every table. Islam is table-backed and goes quiet, which
-    // is the behaviour the window is for. Christianity is the computus and
-    // Judaism is Hebrew arithmetic, so both still answer: the horizon belongs
-    // to the tables, not to the year.
+test("expired calendars stay absent while complete calendars still render", () => {
     const rows = ReligiousHolidays.holidaysForYear(
         2031, ["islam", "judaism", "christianity"]);
 
     assert.equal(rows.some((row) => row.name.endsWith("(Islam)")), false);
     assert.equal(rows.some((row) => row.name.startsWith("Sefirat HaOmer")), true);
     assert.equal(rows.some((row) => row.name === "Easter Sunday (Christianity)"), true);
+});
+
+test("incomplete religions hide fixed dates together with unavailable table dates", () => {
+    for (const year of [2024, 2028]) {
+        for (const id of ["hinduism", "buddhism"]) {
+            assert.deepEqual(ReligiousHolidays.holidaysForYear(year, [id]), [],
+                `${id} ${year} must not display an incomplete calendar`);
+            assert.deepEqual(ReligiousHolidays.uncoveredReligions(year, [id]), [id]);
+            for (let month = 1; month <= 12; month++) {
+                assert.equal(ReligiousHolidays.monthMap(year, month, [id]).size, 0);
+            }
+        }
+    }
+});
+
+test("hiding an incomplete religion preserves preceding and following calendars", () => {
+    const complete = ["christianity", "judaism", "shinto"];
+    assert.deepEqual(ReligiousHolidays.holidaysForYear(2028,
+        ["christianity", "hinduism", "judaism", "buddhism", "shinto"]),
+    ReligiousHolidays.holidaysForYear(2028, complete));
+    assert.deepEqual(ReligiousHolidays.monthMap(2028, 12,
+        ["christianity", "hinduism", "judaism", "buddhism", "shinto"]),
+    ReligiousHolidays.monthMap(2028, 12, complete));
 });
 
 // REGRESSION: the table put Naw-Rúz on 20 March in every year and Ridván on
@@ -140,7 +160,7 @@ const NAW_RUZ = {
     1844: [3, 21], 1900: [3, 21], 2014: [3, 21],
     // and from 2015 the Bahá'í World Centre's published astronomical dates
     2015: [3, 21], 2025: [3, 20], 2026: [3, 21], 2027: [3, 21],
-    2030: [3, 20], 2031: [3, 21], 2055: [3, 21], 2065: [3, 20]
+    2030: [3, 20], 2031: [3, 21], 2055: [3, 21], 2064: [3, 20]
 };
 const RIDVAN_OFFSET_DAYS = 31;
 
@@ -163,17 +183,16 @@ test("Bahá'í dates match the published Naw-Rúz and derive Ridván from it", (
     }
 });
 
-// The era begins in 1844 and the authoritative table stops at 2065. Guessing
-// past either end is what the bounded window exists to prevent — and 2092 is
-// 19 March on the best available reckoning, so the 20/21 pattern does not
-// simply continue.
+// The final World Centre row is Naw-Rúz 221 BE in March 2064. Its February
+// 2065 dates describe Ayyám-i-Há, not the following Naw-Rúz.
 test("Bahá'í observances stop at both ends of what is published", () => {
     assert.equal(bahaiRow(1843, "Naw-Rúz"), undefined, "before the Bahá'í era");
     assert.ok(bahaiRow(1844, "Naw-Rúz"), "the first year of the era");
-    assert.ok(bahaiRow(2065, "Naw-Rúz"), "the last published year");
-    assert.equal(bahaiRow(2066, "Naw-Rúz"), undefined, "past the published table");
-    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2066, ["bahai"]), ["bahai"],
-        "and the gap is reported rather than rendered blank");
+    assert.ok(bahaiRow(2064, "Naw-Rúz"), "the last published year");
+    assert.equal(bahaiRow(2065, "Naw-Rúz"), undefined, "past the published table");
+    assert.equal(bahaiRow(2065, "Ridván"), undefined, "its anchor is unavailable");
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(2065, ["bahai"]), ["bahai"],
+        "the hidden calendar remains diagnosable");
 });
 
 // One flag order for every producer: 6.0/calendarAnnotations.js diffs a cell's
@@ -241,6 +260,23 @@ test("unknown and duplicate ids are filtered in request order", () => {
     assert.deepEqual(ReligiousHolidays.enabledReligionIds("christianity"), []);
 });
 
+test("calendar availability validates inputs and preserves enabled selection order", () => {
+    for (const year of [0, -1, 1.5, NaN, Infinity, "2026", null, undefined, 10000]) {
+        assert.deepEqual(ReligiousHolidays.availableReligionIds(year), []);
+    }
+    const requested = ["shinto", "hinduism", "unknown", "christianity", "shinto"];
+    assert.deepEqual(ReligiousHolidays.availableReligionIds(2028, requested),
+        ["shinto", "christianity"]);
+    assert.deepEqual(ReligiousHolidays.availableReligionIds(2026, requested),
+        ["shinto", "hinduism", "christianity"]);
+    assert.deepEqual(requested, ["shinto", "hinduism", "unknown", "christianity", "shinto"]);
+    assert.deepEqual(ReligiousHolidays.availableReligionIds(2026, null), []);
+    assert.deepEqual(ReligiousHolidays.availableReligionIds(2026, []), []);
+    const available = ReligiousHolidays.availableReligionIds(2028);
+    available.push("islam");
+    assert.equal(ReligiousHolidays.availableReligionIds(2028).includes("islam"), false);
+});
+
 // the values a hostile or corrupted settings store could hand the module:
 // wrong types, out-of-range numbers, and lookup keys that walk the prototype
 const HOSTILE_VALUES = [0, -1, 1.5, NaN, Infinity, -Infinity, "2026", "abc", "",
@@ -301,6 +337,18 @@ test("fuzz: id sanitizing is idempotent and only ever admits catalogue ids", () 
         assert.deepEqual(ReligiousHolidays.enabledReligionIds(ids), ids);
         ids.forEach((id) => assert.ok(known.includes(id), `admitted ${id}`));
         assert.equal(new Set(ids).size, ids.length, "no duplicates survive");
+    }
+});
+
+test("fuzz: calendar availability rejects hostile inputs and matches published coverage", () => {
+    const rand = makeRandom(0xc0be);
+    for (let i = 0; i < 300; i++) {
+        const year = pickYear(rand);
+        const requested = randomIds(rand);
+        const enabled = ReligiousHolidays.enabledReligionIds(requested);
+        const expected = validYear(year) ? enabled.filter((id) =>
+            year >= coverage[id].from && year <= coverage[id].through) : [];
+        assert.deepEqual(ReligiousHolidays.availableReligionIds(year, requested), expected);
     }
 });
 
@@ -399,88 +447,38 @@ test("fuzz: merging keeps base names first and mutates neither input", () => {
     }
 });
 
-// T724: the observance tables cover a bounded window, and past its end a
-// table-backed religion rendered zero rows for the whole year — no marker, no
-// tooltip, no status line, indistinguishable from a month that simply has none.
-// Nothing in the build failed when the window expired either, so the applet
-// would have started answering "no observances" some time in 2028 with no
-// warning to anyone.
-// The horizon used to be a single hard floor one year ahead of the wall clock.
-// That could not be satisfied: the multi-faith calendars the rows come from
-// publish about one academic year ahead, so the gate was guaranteed to go red
-// on 2027-01-01 months before the data that would clear it existed. A red suite
-// nobody can fix is one people learn to ignore, which is worse than the silent
-// expiry it was added to prevent.
-//
-// Two levels instead, because there are two different situations:
-//
-//   hard floor — the tables no longer answer for the current year. The applet
-//                is rendering nothing for months a user is looking at right
-//                now. That is real breakage and fails the build.
-//   horizon    — coverage is inside the warning window. Nothing is broken yet;
-//                the refresh is being asked for while there is still a release
-//                cycle to do it in, so it is a diagnostic, not a failure.
-const HORIZON_YEARS = 1;
-const RELIGIOUS_DATE_SOURCES = [
-    "https://case.edu/studentlife/dean/interreligious-council-irc/religious-holidays-observances-calendar",
-    "https://www.xavier.edu/jesuitresource/online-resources/calendar-religious-holidays-and-observances/multi-faith-calendar---next-year"
-];
-
-function coverageVerdict(thisYear, coverageEnd) {
-    if (coverageEnd < thisYear) {
-        return "broken";
+function assertCoverageParity(year) {
+    const available = Object.entries(coverage)
+        .filter(([, { from, through }]) => year >= from && year <= through)
+        .map(([id]) => id);
+    const hidden = ReligiousHolidays.religionIds().filter((id) => !available.includes(id));
+    assert.deepEqual(ReligiousHolidays.availableReligionIds(year), available,
+        `settings coverage matches engine availability in ${year}`);
+    assert.deepEqual(ReligiousHolidays.uncoveredReligions(year), hidden);
+    assert.deepEqual(ReligiousHolidays.holidaysForYear(year, hidden), []);
+    for (const id of available) {
+        assert.ok(ReligiousHolidays.holidaysForYear(year, [id]).length > 0,
+            `${id} has dates in ${year}`);
     }
-
-    return coverageEnd < thisYear + HORIZON_YEARS ? "warn" : "ok";
 }
 
-// Named per religion rather than as one number: Judaism is computed and has no
-// horizon at all, and the Bahá'í rows reach 2065, so the shared minimum no
-// longer says which tradition is the one about to lapse.
-function refreshInstructions(year) {
-    const losing = ReligiousHolidays.uncoveredReligions(year);
-    return `religions losing their dates in ${year}: ` +
-        `${losing.join(", ") || "none"}\nextend TABLES in religiousHolidays.js from:\n  ` +
-        RELIGIOUS_DATE_SOURCES.join("\n  ");
-}
-
-test("the observance tables still answer for the current year", (t) => {
-    const thisYear = new Date().getFullYear();
-    const coverageEnd = ReligiousHolidays.TABLE_COVERAGE_END;
-    const verdict = coverageVerdict(thisYear, coverageEnd);
-
-    assert.notEqual(verdict, "broken",
-        `the religious date tables ran out in ${coverageEnd}, so the ` +
-        `table-backed religions render nothing for ${thisYear}.\n` +
-        refreshInstructions(thisYear));
-
-    if (verdict === "warn") {
-        t.diagnostic(`religious date tables end in ${coverageEnd}; ` +
-            refreshInstructions(coverageEnd + 1));
+test("shared settings coverage agrees with actual observances throughout the supported domain", () => {
+    assert.deepEqual(Object.keys(coverage), ReligiousHolidays.religionIds());
+    for (let year = 1; year <= 9999; year++) {
+        assertCoverageParity(year);
     }
 });
 
-// The policy itself, at synthetic years, so both levels are exercised on every
-// run rather than only in the year the wall clock happens to reach them.
-test("the horizon warns a year before it fails, and fails only on real breakage", () => {
-    assert.equal(coverageVerdict(2030, 2029), "broken",
-        "the current year has no dates: the applet is already showing blanks");
-    assert.equal(coverageVerdict(2030, 2030), "warn",
-        "this year is covered and the next is not: ask, do not fail");
-    assert.equal(coverageVerdict(2030, 2031), "ok", "a year of headroom");
-    assert.equal(coverageVerdict(2030, 2065), "ok", "and plenty of it");
-
-    // the message has to name what to do, not just when: the old failure said
-    // only which year the tables ran out in
-    const message = refreshInstructions(2031);
-    assert.match(message, /religions losing their dates in 2031/);
-    assert.match(message, /extend TABLES in religiousHolidays\.js/);
-    for (const source of RELIGIOUS_DATE_SOURCES) {
-        assert.ok(message.includes(source), `names ${source}`);
+test("published tables expiring hides affected calendars and retains a diagnostic", (t) => {
+    for (const year of [2027, 2028, 2064, 2065, 9999]) {
+        assertCoverageParity(year);
+        t.diagnostic(`Calendars hidden in ${year}: ` +
+            ReligiousHolidays.uncoveredReligions(year).join(", "));
     }
+    assert.equal(ReligiousHolidays.TABLE_COVERAGE_END, 2027);
 });
 
-test("a year past the tables reports the gap instead of rendering nothing", () => {
+test("a year past the tables hides expired calendars and reports the gap", () => {
     const beyond = ReligiousHolidays.TABLE_COVERAGE_END + 1;
     const covered = ReligiousHolidays.TABLE_COVERAGE_END;
 

@@ -51,6 +51,7 @@ const HolidayRecord = sibling("holidayRecord");
 const HolidayStatusLedgerModule = sibling("holidayStatusLedger");
 const HolidayInflightModule = sibling("holidayInflight");
 const HolidayProviderFacadeModule = sibling("holidayProviderFacade");
+const CalendarPluginLoaderModule = sibling("calendarPluginLoader");
 
 const _lcLang = LocaleQuery.messageLanguage;
 
@@ -624,6 +625,16 @@ HolidayService.fn = "/holidays.json";
 //
 // Every node is a parameter with a default, so a caller replaces exactly the one
 // it cares about and the rest of the graph is still the shipped one.
+function createCountryCalendar(country, region, lang, load) {
+    const session = new IoUtils.LazyHttpSession();
+    const record = new HolidayRecordContract(lang);
+    const service = httpBackedService(() => session.get(), { lang, record, load });
+    const repository = new HolidayCacheRepository(`/calendar-${country}-${region}.json`);
+    return new HolidayProviderFacade(new HolidayService(service, undefined, {
+        httpSession: session, record, cacheRepository: repository
+    }));
+}
+
 function createHolidayProvider(params = {}) {
     // Like httpBackedService, an unspecified language stays a live resolver.
     const lang = params.lang || _lcLang;
@@ -647,7 +658,11 @@ function createHolidayProvider(params = {}) {
 
     return new ReligiousHolidayProvider(
         new HolidayProviderFacade(provider), params.religiousIds,
-        params.translateName || LocaleText.translate);
+        params.translateName || LocaleText.translate, {
+            pluginLoader: params.pluginLoader || new CalendarPluginLoaderModule.CalendarPluginLoader(),
+            createCountry: params.createCountry || ((country, region) =>
+                createCountryCalendar(country, region, lang, params.load))
+        });
 }
 
 if (typeof module !== "undefined") {

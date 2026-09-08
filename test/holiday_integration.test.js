@@ -49,9 +49,9 @@ function religiousBase(country = "") {
                 onUpdated();
             }
         },
-        getHolidays(_year, _month, callback) {
-            callback(new Map([["12/25", { name: "Public Christmas", flags: ["public_holiday"] }]]),
-                "provider warning", "Public Provider");
+        getHolidays(_year, month, callback) {
+            callback(new Map([[`${month}/25`, { name: "Public Christmas", flags: ["public_holiday"] }]]),
+                "Holiday service unavailable", "Public Provider");
         }
     };
 }
@@ -94,13 +94,13 @@ test("religious provider merges public results and preserves provider status", (
     provider.getHolidays(2026, 12, (...args) => { answer = args; });
 
     assert.deepEqual(answer[0].get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday"] });
-    assert.deepEqual(answer.slice(1), ["provider warning", "Public Provider"]);
+    assert.deepEqual(answer.slice(1), ["Holiday service unavailable", "Public Provider"]);
 });
 
 // T724: past the end of the observance tables a table-backed religion rendered
 // zero rows for the whole year, with no marker, no tooltip and no status line —
 // indistinguishable from a month that simply has no observances.
-test("a year past the observance tables is reported, not silently empty", () => {
+test("an expired religious calendar is hidden without disrupting public calendars", () => {
     const { ReligiousHolidayProvider, HOLIDAY_ERRORS } = loadHolidays();
     const { TABLE_COVERAGE_END } =
         require("../files/chronos@geraldo-netto/religiousHolidays.js");
@@ -114,7 +114,7 @@ test("a year past the observance tables is reported, not silently empty", () => 
 
     const local = new ReligiousHolidayProvider(religiousBase(), ["islam"]);
     assert.deepEqual(answer(local, beyond)[0].size, 0, "nothing to draw");
-    assert.equal(answer(local, beyond)[1], HOLIDAY_ERRORS.RELIGIOUS_DATES_UNAVAILABLE);
+    assert.equal(answer(local, beyond)[1], "", "the hidden calendar raises no panel warning");
     assert.equal(answer(local, covered)[1], "", "a covered year reports nothing");
 
     // a religion that never runs out must not raise it
@@ -125,7 +125,7 @@ test("a year past the observance tables is reported, not silently empty", () => 
     // one status label they share
     const merged = new ReligiousHolidayProvider(religiousBase("ita"), ["islam"]);
     assert.deepEqual(answer(merged, beyond).slice(1),
-        ["provider warning", "Public Provider"]);
+        [HOLIDAY_ERRORS.SERVICE_UNAVAILABLE, "Public Provider"]);
 });
 
 test("religious provider forwards lifecycle and accepts changed selections", () => {

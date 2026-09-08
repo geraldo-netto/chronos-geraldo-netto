@@ -39,6 +39,9 @@ var COUNTRY_KEY = "country"; // NOSONAR [S3504] -- GJS importer export
 var REGION_KEY_PREFIX = "region_"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_RELIGIOUS_OBSERVANCES_KEY = "show-religious-observances"; // NOSONAR [S3504] -- GJS importer export
 var RELIGION_KEY_PREFIX = "religion-"; // NOSONAR [S3504] -- GJS importer export
+var CALENDAR_PLUGINS_KEY = "calendar-plugins";
+var CALENDAR_PLUGINS_REVISION_KEY = "calendar-plugins-revision";
+var EXTRA_COUNTRY_CALENDARS_KEY = "extra-country-calendars";
 // The schema is a static Cinnamon artifact; this shared runtime catalogue is
 // authoritative, and a parity test holds the artifact to it.
 var RELIGION_IDS = ReligiousCatalog.RELIGION_IDS; // NOSONAR [S3504] -- GJS importer export
@@ -306,6 +309,23 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
             .map((key) => this._settings.connect("changed::" + key, callback));
     }
 
+    get calendarPlugins() {
+        return this._settings.getValue(CALENDAR_PLUGINS_KEY) || [];
+    }
+
+    get extraCountryCalendars() {
+        return this._settings.getValue(EXTRA_COUNTRY_CALENDARS_KEY) || [];
+    }
+
+    connectCalendarPluginsChanged(callback) {
+        return [CALENDAR_PLUGINS_KEY, CALENDAR_PLUGINS_REVISION_KEY]
+            .map((key) => this._settings.connect("changed::" + key, callback));
+    }
+
+    connectExtraCountriesChanged(callback) {
+        return [this._settings.connect("changed::" + EXTRA_COUNTRY_CALENDARS_KEY, callback)];
+    }
+
     bindRegions(target, callback) {
         for (let country of this.regionCountries) {
             mirrorSetting(
@@ -404,6 +424,9 @@ if (typeof module !== "undefined") {
         REGION_KEY_PREFIX,
         SHOW_RELIGIOUS_OBSERVANCES_KEY,
         RELIGION_KEY_PREFIX,
+        CALENDAR_PLUGINS_KEY,
+        CALENDAR_PLUGINS_REVISION_KEY,
+        EXTRA_COUNTRY_CALENDARS_KEY,
         RELIGION_IDS,
         WORLDCLOCKS_KEY,
         SHOW_WORLDCLOCKS_KEY,

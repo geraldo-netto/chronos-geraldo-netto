@@ -41,7 +41,7 @@ test("no vendor payload can mint an app-minted holiday flag", () => {
         OpenHolidaysServiceAdapter } = loadHolidays();
     const { RELIGIOUS_HOLIDAY_FLAG, PUBLIC_HOLIDAY_FLAG } = require(holidayConstantsPath);
     const { RELIGION_IDS } = require(religiousCatalogPath);
-    const sentinels = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG].concat(RELIGION_IDS);
+    const sentinels = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, "calendar_observance"].concat(RELIGION_IDS);
 
     for (const sentinel of sentinels) {
         const enrico = new EnricoServiceAdapter();

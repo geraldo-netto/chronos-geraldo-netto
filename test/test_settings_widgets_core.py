@@ -1085,6 +1085,8 @@ class SettingsWidgetsTest(unittest.TestCase):
         # feature widgets stay in their feature modules; the option-label combo
         # is shared by weather and holiday-region settings
         homes = {
+            "AvailableReligionSwitch": "chronos_settings_widgets_calendars",
+            "CalendarPluginChoices": "chronos_settings_widgets_calendars",
             "ClocksList": "chronos_settings_widgets_worldclocks",
             "CountryComboBox": "chronos_settings_widgets_holidays",
             "OptionLabelComboBox": "chronos_settings_widgets_common",
@@ -1143,8 +1145,8 @@ class SettingsWidgetsTest(unittest.TestCase):
             # would shadow the standard library for everything else in it
             self.assertEqual(sys.path[-1], applet_dir)
             self.assertEqual(sorted(module.__all__),
-                             ["ClocksList", "CountryComboBox",
-                              "OptionLabelComboBox", "WeatherLocationEntry"])
+                             ["AvailableReligionSwitch", "CalendarPluginChoices", "ClocksList",
+                              "CountryComboBox", "OptionLabelComboBox", "WeatherLocationEntry"])
         finally:
             sys.path = saved_path
             for name in set(sys.modules) - set(saved_modules):

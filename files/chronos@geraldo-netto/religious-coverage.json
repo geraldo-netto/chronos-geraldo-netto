@@ -1,0 +1,12 @@
+{
+    "christianity": { "from": 1, "through": 9999 },
+    "islam": { "from": 2025, "through": 2027 },
+    "hinduism": { "from": 2025, "through": 2027 },
+    "buddhism": { "from": 2025, "through": 2027 },
+    "sikhism": { "from": 2025, "through": 2027 },
+    "judaism": { "from": 1, "through": 9999 },
+    "bahai": { "from": 1844, "through": 2064 },
+    "jainism": { "from": 2025, "through": 2027 },
+    "shinto": { "from": 1, "through": 9999 },
+    "taoism": { "from": 2025, "through": 2027 }
+}

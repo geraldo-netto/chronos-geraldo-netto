@@ -1847,3 +1847,23 @@ msgstr ""
 msgid ""
 "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
 msgstr ""
+
+#. calendar-plugins->description
+#: 6.0/settings-schema.json
+msgid "Installed calendars"
+msgstr ""
+
+#. calendar-plugins->tooltip
+#: 6.0/settings-schema.json
+msgid "Import local calendar JSON files, then enable the calendars to show. Only calendars covering this year are offered. Your selections stay on this computer."
+msgstr ""
+
+#. extra-country-calendars->description
+#: 6.0/settings-schema.json
+msgid "Additional country calendars"
+msgstr ""
+
+#. extra-country-calendars->tooltip
+#: 6.0/settings-schema.json
+msgid "Show public holidays from additional countries alongside the primary country. Leave the region code as global for nationwide holidays. For regional holidays, use the code from the matching country region setting (for example by for Bavaria or ma for Massachusetts). Each enabled country may be sent to the holiday services."
+msgstr ""

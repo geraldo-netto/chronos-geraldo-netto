@@ -28,6 +28,7 @@ from chronos_settings_widgets_holidays import CountryComboBox
 from chronos_settings_widgets_common import OptionLabelComboBox
 from chronos_settings_widgets_weather import WeatherLocationEntry
 from chronos_settings_widgets_worldclocks import ClocksList
+from chronos_settings_widgets_calendars import AvailableReligionSwitch, CalendarPluginChoices
 
-__all__ = ["ClocksList", "CountryComboBox", "OptionLabelComboBox",
-           "WeatherLocationEntry"]
+__all__ = ["AvailableReligionSwitch", "CalendarPluginChoices", "ClocksList",
+           "CountryComboBox", "OptionLabelComboBox", "WeatherLocationEntry"]

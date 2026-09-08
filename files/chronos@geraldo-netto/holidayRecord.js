@@ -29,7 +29,10 @@ const TextUtils = IS_NODE ?
 const MSECS_IN_DAY = DateMath.MSECS_IN_DAY;
 const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
 const RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG;
+const CALENDAR_OBSERVANCE_FLAG = "calendar_observance";
 const PART_DAY_HOLIDAY = HolidayConstants.PART_DAY_HOLIDAY;
+const DAY_CLASSIFICATION_FLAGS = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG,
+    CALENDAR_OBSERVANCE_FLAG, PART_DAY_HOLIDAY];
 const monthHolidayEntry = HolidayConstants.monthHolidayEntry;
 
 var MAX_HOLIDAY_SPAN_DAYS = 366; // NOSONAR [S3504] -- GJS importer export
@@ -63,9 +66,11 @@ function clampHolidayName(name) {
 // 6.0/calendarAnnotations.js diffs a cell's flags positionally, so two
 // producers with different orders repaint a tooltip that has not changed.
 function _sortedBoundedFlags(flags) {
-    return Array.from(new Set(flags))
-        .sort(compareCodeUnits)
-        .slice(0, MAX_HOLIDAY_FLAGS);
+    const unique = Array.from(new Set(flags)).sort(compareCodeUnits);
+    const classification = unique.filter((flag) => DAY_CLASSIFICATION_FLAGS.includes(flag));
+    const auxiliary = unique.filter((flag) => !DAY_CLASSIFICATION_FLAGS.includes(flag))
+        .slice(0, MAX_HOLIDAY_FLAGS - classification.length);
+    return classification.concat(auxiliary).sort(compareCodeUnits);
 }
 
 // The union has to respect the same bound each side was admitted under.
@@ -76,14 +81,18 @@ function _sortedBoundedFlags(flags) {
 // freshness stamp for the country. The country was then refetched over the
 // network at every login for as long as the merge recurred.
 //
-// PART_DAY_HOLIDAY is a per-provider claim about one date, so it survives only
-// when both rows agree the day is partial: a full public holiday landing on the
-// same date makes the whole day non-working.
+// Ordinary observances make no non-working-day claim. Public rows still must
+// agree the day is partial; a full public holiday takes precedence.
+function permitsPartialDay(flags) {
+    return flags.includes(PART_DAY_HOLIDAY) ||
+        (!flags.includes(PUBLIC_HOLIDAY_FLAG) &&
+            (flags.includes(RELIGIOUS_HOLIDAY_FLAG) || flags.includes(CALENDAR_OBSERVANCE_FLAG)));
+}
+
 function mergeHolidayFlags(current, incoming) {
-    const bothPartDay = current.includes(PART_DAY_HOLIDAY) &&
-        incoming.includes(PART_DAY_HOLIDAY);
+    const keepPartial = permitsPartialDay(current) && permitsPartialDay(incoming);
     return _sortedBoundedFlags(current.concat(incoming)
-        .filter((flag) => bothPartDay || flag !== PART_DAY_HOLIDAY));
+        .filter((flag) => keepPartial || flag !== PART_DAY_HOLIDAY));
 }
 
 // Tagging one row with a flag it is entitled to — not a merge of two claims, so
@@ -142,7 +151,7 @@ function publicHolidayFlags(flags) {
 // style an observance, so a provider answering `holidayType: "public_holiday"`
 // or a `types: ["Religious_Holiday"]` row used to mint the applet's own
 // sentinels straight out of the wire.
-const APP_MINTED_FLAGS = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG]
+const APP_MINTED_FLAGS = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, CALENDAR_OBSERVANCE_FLAG]
     .concat(ReligiousCatalog.RELIGION_IDS);
 
 // A vendor's flags, with anything the applet mints for itself removed, and the

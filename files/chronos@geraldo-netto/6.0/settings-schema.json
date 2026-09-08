@@ -14,6 +14,7 @@
                 "section5",
                 "section2",
                 "section6",
+                "section-calendar-plugins",
                 "section3"
             ]
         },
@@ -57,7 +58,8 @@
                 "region_svk",
                 "region_che",
                 "region_gbr",
-                "region_usa"
+                "region_usa",
+                "extra-country-calendars"
             ]
         },
         "section3": {
@@ -101,6 +103,13 @@
                 "weather-location",
                 "openstreetmap-attribution",
                 "weather-units"
+            ]
+        },
+        "section-calendar-plugins": {
+            "type": "section",
+            "title": "Additional Calendars",
+            "keys": [
+                "calendar-plugins"
             ]
         }
     },
@@ -197,74 +206,94 @@
         "tooltip": "Enable this, then select the religions to mark in the calendar. Observance dates come only from data bundled with the applet, and the selections never leave this computer. Observances are not marked as non-working days."
     },
     "religion-christianity": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Christianity",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-islam": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Islam",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-hinduism": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Hinduism",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-buddhism": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Buddhism",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-sikhism": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Sikhism",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-judaism": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Judaism",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-bahai": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Bah\u00e1'\u00ed Faith",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-jainism": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Jainism",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-shinto": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Shinto",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "religion-taoism": {
-        "type": "switch",
+        "type": "custom",
         "default": false,
         "description": "Taoism",
         "dependency": "show-religious-observances",
-        "indent": true
+        "indent": true,
+        "file": "settings_widgets.py",
+        "widget": "AvailableReligionSwitch"
     },
     "country": {
         "type": "custom",
@@ -664,5 +693,105 @@
         "step": 0.05,
         "description": "Panel text size",
         "tooltip": "Multiplies the theme's panel font size. 1.0 keeps the theme's own size."
+    },
+    "calendar-plugins": {
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "CalendarPluginChoices",
+        "default": [],
+        "description": "Installed calendars",
+        "tooltip": "Import local calendar JSON files, then enable the calendars to show. Only calendars covering this year are offered. Your selections stay on this computer."
+    },
+    "calendar-plugins-revision": {
+        "type": "generic",
+        "default": 0
+    },
+    "extra-country-calendars": {
+        "type": "list",
+        "default": [],
+        "description": "Additional country calendars",
+        "height": 160,
+        "tooltip": "Show public holidays from additional countries alongside the primary country. Leave the region code as global for nationwide holidays. For regional holidays, use the code from the matching country region setting (for example by for Bavaria or ma for Massachusetts). Each enabled country may be sent to the holiday services.",
+        "columns": [
+            {
+                "id": "enabled",
+                "title": "Enabled",
+                "type": "boolean",
+                "default": true
+            },
+            {
+                "id": "country",
+                "title": "Country",
+                "type": "string",
+                "options": {
+                    "Angola": "ago",
+                    "Argentina": "arg",
+                    "Australia": "aus",
+                    "Austria": "aut",
+                    "Belgium": "bel",
+                    "Bosnia and Herzegovina": "bih",
+                    "Belarus": "blr",
+                    "Brazil": "bra",
+                    "Bulgaria": "bgr",
+                    "Canada": "can",
+                    "Chile": "chl",
+                    "China": "chn",
+                    "Colombia": "col",
+                    "Croatia": "hrv",
+                    "Cyprus": "cyp",
+                    "Czech Republic": "cze",
+                    "Denmark": "dnk",
+                    "El Salvador": "slv",
+                    "Estonia": "est",
+                    "Spain": "esp",
+                    "Finland": "fin",
+                    "France": "fra",
+                    "Germany": "deu",
+                    "Greece": "grc",
+                    "Hong Kong": "hkg",
+                    "Hungary": "hun",
+                    "Iceland": "isl",
+                    "Ireland": "irl",
+                    "Isle of Man": "imn",
+                    "Israel": "isr",
+                    "Italy": "ita",
+                    "Japan": "jpn",
+                    "Korea (South)": "kor",
+                    "Kosovo": "xkx",
+                    "Latvia": "lva",
+                    "Lithuania": "ltu",
+                    "Luxembourg": "lux",
+                    "Macedonia": "mkd",
+                    "Montenegro": "mne",
+                    "Mexico": "mex",
+                    "Netherlands": "nld",
+                    "New Zealand": "nzl",
+                    "Norway": "nor",
+                    "Peru": "per",
+                    "Philippines": "phl",
+                    "Poland": "pol",
+                    "Portugal": "prt",
+                    "Romania": "rou",
+                    "Russian Federation": "rus",
+                    "Serbia": "srb",
+                    "Singapore": "sgp",
+                    "Slovakia": "svk",
+                    "Slovenia": "svn",
+                    "South Africa": "zaf",
+                    "Sweden": "swe",
+                    "Switzerland": "che",
+                    "Turkey": "tur",
+                    "Ukraine": "ukr",
+                    "United Kingdom": "gbr",
+                    "United States of America": "usa"
+                }
+            },
+            {
+                "id": "region",
+                "title": "Region code (optional)",
+                "type": "string",
+                "default": "global"
+            }
+        ]
     }
 }

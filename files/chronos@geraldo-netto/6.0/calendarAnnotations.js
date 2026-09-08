@@ -350,22 +350,21 @@ class CalendarHolidayAnnotator {
         return holiday_generation === this.host.holidayGeneration;
     }
 
-    _reportProvider(error, providerName) {
-        if (error) {
-            // the retained error names the service that produced it, which is
-            // more use than a list of everyone who answered
-            this.setStatus(error, providerName);
+    _reportMonths(months) {
+        const results = Array.from(months.values()).filter(Boolean);
+        const failed = results.find((result) => result.error);
+        if (failed) {
+            this.setStatus(failed.error, failed.provider);
             return;
         }
 
-        if (providerName) {
-            this._pass_providers.add(providerName);
-        }
+        this._pass_providers = new Set(results.map((result) => result.provider).filter(Boolean));
 
-        // an error already reported this pass stays — a sibling month's success
-        // must not soften it — and while other months are still in flight the
-        // pending marker is still the truth, so this answer renders nothing
-        if (this.error || this._awaited > 0) {
+        if (this._awaited > 0) {
+            const recovering = Boolean(this.error);
+            this.error = "";
+            this.provider = "";
+            if (recovering) this.setPending();
             return;
         }
 
@@ -385,6 +384,7 @@ class CalendarHolidayAnnotator {
         const selectedDates = new Map();
 
         for (const [date, cell] of cells.entries()) {
+            this._resetHolidayStyle(cell);
             const holiday = dates.get(date);
             if (holiday) {
                 this._annotateCell(cell, holiday.name, holiday.flags);
@@ -394,6 +394,13 @@ class CalendarHolidayAnnotator {
             }
         }
         this._setDates(selectedDates);
+    }
+
+    _resetHolidayStyle(cell) {
+        if (cell.holiday_styled && typeof cell.rendered_style === "string") {
+            cell.button.style_class = cell.rendered_style;
+            cell.holiday_styled = false;
+        }
     }
 
     // The map this holds is already the previous pass's answer, so it is the
@@ -441,19 +448,29 @@ class CalendarHolidayAnnotator {
         this.annotated = false;
     }
 
-    _receiveMonth(dates, error, providerName, pass) {
+    _receiveMonth(dates, error, providerName, pass, month) {
         if (!this._isCurrent(pass.generation)) {
             return;
         }
 
-        for (const [date, annotation] of dates.entries()) {
-            pass.dates.set(date, annotation);
+        if (pass.months.get(month) === null) {
+            this._awaited--;
         }
-        this._awaited = Math.max(0, this._awaited - 1);
-        this._reportProvider(error, providerName);
+        pass.months.set(month, { dates: new Map(dates), error, provider: providerName });
+        this._reportMonths(pass.months);
         if (this._awaited === 0) {
-            this._reconcileCells(pass.dates, pass.cells);
+            this._reconcileMonths(pass);
         }
+    }
+
+    _reconcileMonths(pass) {
+        const dates = new Map();
+        for (const result of pass.months.values()) {
+            for (const [date, annotation] of result.dates) {
+                dates.set(date, annotation);
+            }
+        }
+        this._reconcileCells(dates, pass.cells);
     }
 
     annotate(months, cells, holiday_generation) {
@@ -469,10 +486,10 @@ class CalendarHolidayAnnotator {
         // Count every sibling before dispatch: cached months answer inline, and
         // the first one must not reconcile before the later months have even
         // been requested. Only the complete pass owns the visible annotations.
-        const monthList = Array.from(months);
+        const monthList = Array.from(new Set(months));
         const pass = {
             generation: holiday_generation,
-            dates: new Map(),
+            months: new Map(monthList.map((month) => [month, null])),
             cells
         };
         this._awaited = monthList.length;
@@ -482,7 +499,7 @@ class CalendarHolidayAnnotator {
         for (let month of monthList) {
             const [y, m] = month.split('/');
             this.host.requestHolidays(y, m, (dates, error, providerName) => {
-                this._receiveMonth(dates, error, providerName, pass);
+                this._receiveMonth(dates, error, providerName, pass, month);
             });
         }
 
@@ -527,13 +544,13 @@ class CalendarHolidayAnnotator {
         this.host.nameCell(cell);
 
         const partDay = flags.indexOf(PART_DAY_HOLIDAY) >= 0; // NOSONAR [S7765] -- accepted compatible form
-        const religiousOnly =
-            flags.indexOf(RELIGIOUS_HOLIDAY_FLAG) >= 0 && // NOSONAR [S7765] -- accepted compatible form
+        const observanceOnly =
+            (flags.indexOf(RELIGIOUS_HOLIDAY_FLAG) >= 0 || flags.includes("calendar_observance")) && // NOSONAR [S7765] -- accepted compatible form
             flags.indexOf(PUBLIC_HOLIDAY_FLAG) < 0; // NOSONAR [S7765] -- accepted compatible form
-        if (religiousOnly) {
+        if (observanceOnly) {
             // An observance is visible and named, but is not automatically a
             // day off. A same-date public holiday carries the explicit public
-            // flag added by mergeMonthMaps and follows the non-work path below.
+            // flag added by its calendar adapter and follows the non-work path below.
             cell.button.add_style_class_name("calendar-holiday-day");
             cell.holiday_styled = true;
             return;
