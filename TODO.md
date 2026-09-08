@@ -4,13 +4,13 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
+| T1111 | open | low | xs | Remove orphan scripts/__pycache__/check_python_compat.cpython-312.pyc and test/__pycache__/test_python_compat.cpython-312.pyc left by retiring the old runtime gate. Their source modules no longer exist; keep bytecode belonging to current modules. |
 | T1074 | open | low | s | Clean up stale local dist/ deliverables and regenerate the intended Spices package from the committed index. dist/chronos@geraldo-netto and dist/working-tree/chronos@geraldo-netto omit 25 already tracked shipped files and differ in 66 others; the accompanying chronos-spices.tar and checksum also belong to the old output. |
 
 ## Blocked / Deferred
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
-| T937 | blocked | medium | s | Exercise shipped JavaScript under Cinnamon 6.0's actual CJS runtime and import the versioned loaders. Current checks compile under installed CJS 115 and reproduce imports in a VM; real imports need Cinnamon GI/UI modules plus a pinned 6.0 runtime or live session. |
 
 ## Rejected / Won't fix
 

@@ -338,6 +338,10 @@ request and on pushes to `develop` and `v*` tags. Maintainers can run the same
 pipeline manually from GitHub Actions or with `gh workflow run CI --ref develop`
 when a push event does not create a run.
 
+The [native import check](https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/docs/native-imports.md)
+constructs the applet and loads every JavaScript module in a disposable
+Cinnamon desktop. Run it separately when changing module boundaries or loaders.
+
 An [optional manual mutation runner](https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/docs/mutation-testing.md) provides bounded
 scopes and configuration previews. Mutation campaigns and report interpretation
 remain maintainer tasks; the regular test and CI commands do not run them.
