@@ -603,8 +603,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             numericYear, numericMonth, callback, generation));
     }
 };
-// the on-disk cache. Renamed off the primary provider's name; the repository
-// migrates a pre-rename enrico.json in on first load so no user loses their cache
+// The primary public calendar's on-disk cache.
 HolidayService.fn = "/holidays.json";
 
 // The composition root for the holiday half: the graph, written out once.

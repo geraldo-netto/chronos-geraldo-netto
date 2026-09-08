@@ -32,3 +32,10 @@ zeros or whitespace). Invalid year keys, arrays, and `__proto__`, `constructor`,
 or `prototype` region keys are discarded. Metadata reads and writes use own
 properties, so malformed cache keys cannot install inherited freshness or stop
 the next successful fetch from repairing the cache.
+
+## Cache file selection
+
+The primary public calendar reads `holidays.json`. Additional country calendars
+read their own `calendar-<country>-<region>.json` files. Missing or empty files
+start with no snapshots and fetch current data. The obsolete `enrico.json` file
+is never imported into either cache.

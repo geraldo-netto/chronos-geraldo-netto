@@ -10,8 +10,8 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
-// The holiday cache's file: an async Gio read and write, the legacy-file
-// migration, the etag-style merge retry and the per-country LRU eviction.
+// The holiday cache's file: an async Gio read and write, the etag-style merge
+// retry and the per-country LRU eviction.
 //
 // holidayCache.js is the store this fills — rows, two indexes, a month memo and
 // a year LRU — and it is a data structure with no I/O in it. The two shared a
@@ -159,30 +159,12 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             () => callback(this._country(this._all, country))));
     }
 
-    _acceptLegacyLoad(file, legacy) {
+    _acceptLoad(all) {
         if (this._released) {
             return;
         }
-        this._all = legacy || {};
-        this._migrate(file);
+        this._all = all;
         this._releaseLoadWaiters();
-    }
-
-    _acceptCurrentLoad(file, all) {
-        if (this._released) {
-            return;
-        }
-        if (all && Object.keys(all).length > 0) {
-            this._all = all;
-            this._releaseLoadWaiters();
-            return;
-        }
-
-        // The new cache file is absent or empty: one-shot fallback to the
-        // pre-rename enrico.json so upgrading does not throw a user's cached
-        // holidays away. Once anything is saved the new file is no longer
-        // empty and this never runs again.
-        this._loadLegacy((legacy) => this._acceptLegacyLoad(file, legacy));
     }
 
     // The read happens while the applet is being constructed, so a synchronous
@@ -209,41 +191,7 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         }
         this._load_waiters = [{ country, callback }];
 
-        IoUtils.readJsonFileAsync(file, (all) => this._acceptCurrentLoad(file, all));
-    }
-
-    // Copy what the old file held into the new one, through the same pending/
-    // flush path a save takes. It cannot just be left in `this._all`: _flush
-    // merges the pending countries into what is *on disk*, and on disk the new
-    // file is still empty — so the next save would write its own country and
-    // drop every migrated one, which is the loss the migration exists to avoid.
-    _migrate(file) {
-        const countries = Object.keys(this._all);
-        if (countries.length === 0) {
-            return;
-        }
-
-        countries.forEach((country) => {
-            this._pending[country] = this._all[country];
-        });
-        this._scheduleFlush(file);
-    }
-
-    // reads the old cache path when the new one has nothing; a repository pointed
-    // straight at the legacy file has nothing older to fall back to
-    _loadLegacy(callback) {
-        if (this.fn === HolidayCacheRepository.LEGACY_FN) {
-            callback(null);
-            return;
-        }
-
-        const legacyFile = HolidayCacheRepository.loadFile(HolidayCacheRepository.LEGACY_FN);
-        if (!legacyFile) {
-            callback(null);
-            return;
-        }
-
-        IoUtils.readJsonFileAsync(legacyFile, (all) => callback(all));
+        IoUtils.readJsonFileAsync(file, (all) => this._acceptLoad(all));
     }
 
     static loadFile (fn) {
@@ -366,9 +314,6 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
     }
 };
 HolidayCacheRepository.path = GLib.build_filenamev([GLib.get_user_cache_dir(), "chronos@geraldo-netto"]);
-// the cache filename before it was renamed off the primary provider; loadAsync
-// reads it once when the current file has nothing, so an upgrade keeps its cache
-HolidayCacheRepository.LEGACY_FN = "/enrico.json";
 
 if (typeof module !== "undefined") {
     module.exports = { HolidayCacheRepository };
