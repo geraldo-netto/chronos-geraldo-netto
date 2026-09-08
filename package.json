@@ -31,6 +31,7 @@
     "test": "npm run test:js && npm run test:py",
     "test:js": "node test/helpers/coverage.js",
     "test:py": "python3 test/helpers/coverage.py",
+    "test:fuzz:inputs": "node test/fuzz/runner.js",
     "mutation:manual": "node scripts/mutation.mjs"
   },
   "engines": {

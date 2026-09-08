@@ -320,6 +320,29 @@ npm run test:js   # JS only
 npm run test:py   # Python settings widgets only
 ```
 
+Run the input fuzz audit separately:
+
+```sh
+npm run test:fuzz:inputs
+FUZZ_SEED=42 FUZZ_CASES=2000 npm run test:fuzz:inputs
+```
+
+The audit exercises production calendar/plugin validators, Gregorian dates,
+settings text, weather payloads and geocoding with malformed types, invalid
+Unicode, empty and oversized values, and values outside allowed bounds. Valid
+controls and neighboring records check that rejection preserves usable data.
+It uses deterministic seeds, defaults to 512 generated rounds per suite, and
+accepts 1–10,000 rounds with a seed from 0 through 4,294,967,295. Each isolated
+worker has a 30-second timeout; no requests or desktop changes are made.
+
+The JSON report counts all failed checks and retains the first witness per
+target, including its seed, case and input. Re-run the same seed and round count
+to reproduce it. Exit 0 means all checks passed; exit 1 means an invariant,
+worker or timeout failed; exit 2 means invalid invocation. This review audit runs
+separately from `npm test`; passing the regression suite does not imply the fuzz
+audit passed. Record actionable failures in `TODO.md` and keep their assertions
+strict until the corresponding behavior is fixed.
+
 The linters do need the two tools listed under
 [Requirements](#to-work-on-the-applet). Neither is optional: `lint:py` fails when
 pyflakes is missing rather than skipping itself, because a lint step that passes
