@@ -853,7 +853,7 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         Rejecting every zone there would leave the dialog unable to add a clock
         at all, so the shape rule stays its only answer."""
         module = self.load_gi_free()
-        module.ZONEINFO_DIRECTORY = Path(tempfile.mkdtemp()) / "absent"
+        module.ZONEINFO_DIRECTORY = self.zone_directory() / "absent"
         resolver = module.TimezoneResolver(None, None,
                                            local_timezone=FIXED_LOCAL_TIMEZONE)
 
