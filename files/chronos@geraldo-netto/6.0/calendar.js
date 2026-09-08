@@ -518,7 +518,7 @@ class Calendar {
     }
 
     _onScroll(actor, event) {
-        this._navigation.onScroll(event);
+        return this._navigation.onScroll(event);
     }
 
     _applyDateBrowseAction(yearChange, monthChange) {

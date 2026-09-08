@@ -3391,3 +3391,33 @@ test("the year label is not reformatted on every update", () => {
     cal.setDate(new Date(2027, 6, 9), false);
     assert.deepEqual(writes, ["2027"], "and a new one is");
 });
+
+
+test("calendar scroll signals consume month browsing and propagate ignored input", () => {
+    const cal = makeCalendar();
+    const { ScrollDirection, EVENT_STOP, EVENT_PROPAGATE } = global.imports.gi.Clutter;
+    const actions = [];
+    cal._navigation.applyBrowse = (...args) => actions.push(args);
+    const dispatch = (direction, delta = [0, 0]) => cal.actor.handlers["scroll-event"][0](cal.actor, {
+        get_scroll_direction: () => direction,
+        get_scroll_delta: () => delta
+    });
+
+    for (const direction of [ScrollDirection.UP, ScrollDirection.DOWN,
+        ScrollDirection.LEFT, ScrollDirection.RIGHT]) {
+        assert.equal(dispatch(direction), EVENT_STOP);
+    }
+    assert.deepEqual(actions, [[0, -1], [0, 1], [0, -1], [0, 1]]);
+    actions.length = 0;
+    for (let i = 0; i < 4; i++) {
+        assert.equal(dispatch(ScrollDirection.SMOOTH, [0, 0.25]), EVENT_STOP,
+            "fractions are consumed even before they form a month notch");
+    }
+    assert.deepEqual(actions, [[0, 1]]);
+
+    for (const delta of [[0, 0], [NaN, 1], [1, NaN], [Infinity, 0], [0, -Infinity]]) {
+        assert.equal(dispatch(ScrollDirection.SMOOTH, delta), EVENT_PROPAGATE);
+    }
+    assert.equal(dispatch(-1), EVENT_PROPAGATE);
+    assert.deepEqual(actions, [[0, 1]], "ignored input never queues navigation");
+});
