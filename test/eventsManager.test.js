@@ -2574,6 +2574,27 @@ test("get_colors_for_unix_key returns null without data and colors with", () => 
     assert.deepEqual(manager.get_colors_for_unix_key(10 * DAY_S), ["#abc"]);
 });
 
+test("T1159 agenda and dots use occupied dates while timed endpoints remain exact", () => {
+    const midnight = 11 * DAY_S;
+    for (const [allDay, startUnix, endUnix, days, displayedEnd] of [
+        [false, midnight - 1800, midnight, [10], midnight],
+        [false, midnight - 1800, midnight + 3600, [10, 11], midnight + 3600],
+        [true, 10 * DAY_S, midnight, [10], midnight - 1],
+        [false, midnight, midnight, [11], midnight],
+        [true, midnight, midnight, [11], midnight]
+    ]) {
+        const index = new EventIndex();
+        const event = makeEventData({ id: "boundary", color: "#abc", allDay, startUnix, endUnix });
+        const selected = new FakeDateTime(midnight * 1000000);
+        index.register(event, 1, selected);
+        assert.deepEqual(Object.keys(index.eventsByDate).map(Number), days.map(day => day * DAY_S));
+        assert.equal(event.end.to_unix(), displayedEnd);
+        assert.deepEqual(index.getColorsByUnixKey(midnight), days.includes(11) ? ["#abc"] : null);
+        assert.deepEqual(index.get(selected)?.get_event_list().map(row => row.id) || [],
+            days.includes(11) ? ["boundary"] : []);
+    }
+});
+
 test("a multi-day recolor reports a selected later day as changed", () => {
     const index = new EventIndex();
     const selected = new FakeDateTime(11 * DAY_US);

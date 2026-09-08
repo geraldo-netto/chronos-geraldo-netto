@@ -121,8 +121,8 @@ function validEventUid(id) {
         id.length <= MAX_EVENT_UID_LENGTH;
 }
 
-function inclusiveEventEnd(end, allDay) {
-    if (!allDay) {
+function inclusiveEventEnd(end, exclusive) {
+    if (!exclusive) {
         return end;
     }
 
@@ -171,7 +171,11 @@ var EventData = class EventData { // NOSONAR [S3504] -- GJS importer export
             this.end = this.start;
         }
         this.start_date = date_only(this.start);
-        this.end_date = date_only(this.end);
+        // Occupancy excludes the end instant; timed labels retain the actual
+        // endpoint. Subtract in instant time across repeated/skipped midnights.
+        const occupiedEnd = inclusiveEventEnd(this.end,
+            !this.all_day && this.end.compare(this.start) > 0);
+        this.end_date = date_only(occupiedEnd);
         this.multi_day = !dt_equals(this.start_date, this.end_date);
 
         // both go straight into St actors; the summary is a label and the

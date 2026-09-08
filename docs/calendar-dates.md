@@ -20,6 +20,13 @@ Event-fetch bounds derive from the same 42-date window. Each endpoint is
 projected independently: an omitted first date cannot shift the exclusive end
 forward.
 
+Agenda rows and event dots include dates occupied before the event's exclusive
+end instant. A timed event ending at midnight does not appear on the following
+day, while its displayed end time remains midnight. Ordinary overnight events
+still occupy both dates, and zero-duration events remain on their start date.
+The occupied end is calculated in instant time so repeated and skipped
+midnights follow the actual event interval.
+
 Selection and queued navigation use plain `{year, month, day}` records, with
 months numbered 1–12. A timezone change retains these civil values and any
 pending keyboard focus intent. The applet refreshes the local event projection

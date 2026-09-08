@@ -179,7 +179,7 @@ test("EventData rejects UTC endpoints the local zone cannot represent", () => {
     }
 });
 
-test("EventData rejects an all-day end whose inclusive second underflows", () => {
+test("T1159 EventData rejects unusable occupied endpoints and keeps zero-duration events", () => {
     const addSeconds = FakeDateTime.prototype.add_seconds;
     FakeDateTime.prototype.add_seconds = () => null;
 
@@ -189,10 +189,13 @@ test("EventData rejects an all-day end whose inclusive second underflows", () =>
             startUnix: -62135596800,
             endUnix: -62135596800
         }), 0), /no usable start or end time/);
-        assert.doesNotThrow(() => new EventData(makeVariant({
+        assert.throws(() => new EventData(makeVariant({
             startUnix: 10 * DAY_S,
             endUnix: 10 * DAY_S + 60
-        }), 0), "timed events perform no inclusive-end adjustment");
+        }), 0), /no usable start or end time/);
+        assert.doesNotThrow(() => new EventData(makeVariant({
+            startUnix: 10 * DAY_S, endUnix: 10 * DAY_S
+        }), 0), "a zero-duration timed event needs no subtraction");
     } finally {
         FakeDateTime.prototype.add_seconds = addSeconds;
     }
