@@ -733,7 +733,7 @@ class GtkComboBoxWithEntry:
                 callback(self)
 
 
-STUBBED_MODULES = ("JsonSettingsWidgets", "xapp", "xapp.SettingsWidgets", "gi", "gi.repository") # NOSONAR [S1192] -- deliberate test seam
+STUBBED_MODULES = ("JsonSettingsWidgets", "TreeListWidgets", "xapp", "xapp.SettingsWidgets", "gi", "gi.repository") # NOSONAR [S1192] -- deliberate test seam
 _original_modules = {}
 
 
@@ -746,6 +746,9 @@ def install_stubs():
 
     json_settings = types.ModuleType("JsonSettingsWidgets")
     json_settings.JSONSettingsList = JSONSettingsList
+    tree_list = types.ModuleType("TreeListWidgets")
+    tree_list.list_edit_factory = lambda _column: GtkStub()
+    sys.modules["TreeListWidgets"] = tree_list
     json_settings.JSONSettingsBackend = JSONSettingsBackend
     json_settings.JSONSettingsEntry = JSONSettingsEntry
     sys.modules["JsonSettingsWidgets"] = json_settings

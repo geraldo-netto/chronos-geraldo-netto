@@ -15,6 +15,7 @@ import logging
 
 import JsonSettingsWidgets
 from JsonSettingsWidgets import JSONSettingsBackend, JSONSettingsList
+from TreeListWidgets import list_edit_factory
 from gi.repository import Gtk
 from xapp.SettingsWidgets import SettingsWidget
 
@@ -46,18 +47,117 @@ class AdditionalCountryList(JSONSettingsList):
     def __init__(self, info, key, settings):
         self.key = key
         self.settings = settings
+        self.columns = info["columns"]
+        countries = next(column["options"].values() for column in self.columns
+                         if column["id"] == "country")
+        self.regions = {country: self._regions_for(country) for country in countries}
         self._normalize_setting()
         super().__init__(key, settings, info)
+        self.status = Gtk.Label(label="Enable at most 16 country/region pairs. Use global for nationwide holidays.",
+                                xalign=0)
+        self.status.set_line_wrap(True)
+        self.pack_start(self.status, False, False, 0)
+
+    def _regions_for(self, country):
+        key = "region_" + country
+        if self.settings.has_property(key, "options"):
+            return set(self.settings.get_property(key, "options").values()) | {"global"}
+        return {"global"}
+
+    def _canonical_row(self, raw):
+        row = _country_row(raw)
+        if row is None or row["country"] not in self.regions:
+            return None
+        row["region"] = row["region"].strip(plugin_data.TEXT_SPACE).lower() or "global"
+        return row if row["region"] in self.regions[row["country"]] else None
+
+    def _normalized_rows(self, raw):
+        result, seen, active = [], set(), 0
+        for item in normalize_country_rows(raw):
+            row = self._canonical_row(item)
+            if row is None:
+                continue
+            pair = (row["country"], row["region"])
+            if pair in seen:
+                continue
+            seen.add(pair)
+            row["enabled"] = row["enabled"] and active < 16
+            active += row["enabled"]
+            result.append(row)
+        return result
 
     def _normalize_setting(self):
         raw = self.settings.get_value(self.key)
-        normalized = normalize_country_rows(raw)
+        normalized = self._normalized_rows(raw)
         if normalized != raw:
             self.set_value(normalized)
 
     def on_setting_changed(self, *args):
         self._normalize_setting()
         super().on_setting_changed(*args)
+
+    def _row_values(self, values):
+        return {column["id"]: value for column, value in zip(self.columns, values)}
+
+    def _selection_error(self, rows):
+        if len(rows) > 64:
+            return "At most 64 country/region pairs can be stored. Remove a pair first."
+        if any(self._canonical_row(row) is None for row in rows):
+            return "Choose a supported country and region code; use global for nationwide holidays."
+        pairs = {(row["country"], row["region"]) for row in rows}
+        if len(pairs) != len(rows):
+            return "This country/region pair is already listed. Edit the existing pair."
+        if sum(row["enabled"] for row in rows) > 16:
+            return "At most 16 country/region pairs can be enabled. Disable another pair first."
+        return ""
+
+    def list_changed(self, *args):
+        error = self._selection_error([self._row_values(row) for row in self.model])
+        if error:
+            self.on_setting_changed()
+            self.status.set_text(error)
+            return
+        self.status.set_text("")
+        super().list_changed(*args)
+
+    def _dialog_fields(self, dialog, info):
+        fields = []
+        for index, column in enumerate(self.columns):
+            field = list_edit_factory(column)
+            value = info[index] if info is not None else column.get("default")
+            if value is not None:
+                field.set_widget_value(value)
+            dialog.get_content_area().pack_start(field, False, False, 0)
+            fields.append(field)
+        return fields
+
+    def _dialog_candidate(self, fields, info):
+        row = self._canonical_row(self._row_values([field.get_widget_value() for field in fields]))
+        if row is None:
+            return None, "Choose a supported country and region code; use global for nationwide holidays."
+        existing = [self._row_values(value) for value in self.model]
+        if info is not None:
+            existing.remove(self._row_values(info))
+        return row, self._selection_error(existing + [row])
+
+    def open_add_edit_dialog(self, info=None):
+        dialog = Gtk.Dialog(title="Add country calendar" if info is None else "Edit country calendar",
+                            transient_for=self.get_toplevel(), modal=True)
+        dialog.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Save", Gtk.ResponseType.OK)
+        fields = self._dialog_fields(dialog, info)
+        status = Gtk.Label(xalign=0)
+        status.set_line_wrap(True)
+        dialog.get_content_area().pack_start(status, False, False, 0)
+        dialog.show_all()
+        try:
+            while dialog.run() == Gtk.ResponseType.OK:
+                row, error = self._dialog_candidate(fields, info)
+                if not error:
+                    return [row[column["id"]] for column in self.columns]
+                status.set_text(error)
+            return None
+        finally:
+            dialog.destroy()
 
 
 def AvailableReligionSwitch(info, key, settings):

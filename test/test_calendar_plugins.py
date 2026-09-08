@@ -375,6 +375,13 @@ class FakeSettings:
     def __init__(self, selected=None):
         self.values = {"calendar-plugins": selected or [], "calendar-plugins-revision": 0}
         self.listeners = {}
+        self.schema = json.loads((APPLET_DIR / "6.0/settings-schema.json").read_text())
+
+    def has_property(self, key, prop):
+        return prop in self.schema.get(key, {})
+
+    def get_property(self, key, prop):
+        return self.schema[key][prop]
 
     def get_value(self, key):
         return self.values[key]
@@ -446,6 +453,40 @@ class FakeCountryList(WidgetNode, FakeBackend):
                 if type(value) is not types_by_column[column["type"]]:
                     raise TypeError("Native list received an invalid column value")
             self.rows.append(values)
+        self.model = self.rows
+
+    def list_changed(self, *_args):
+        self.set_value([{column["id"]: value for column, value in zip(self.columns, row)}
+                        for row in self.model])
+
+    def add_item(self):
+        row = self.open_add_edit_dialog()
+        if row is not None:
+            self.model.append(row)
+            self.list_changed()
+
+
+class FakeCountryField(WidgetNode):
+    value = None
+
+    def set_widget_value(self, value):
+        self.value = value
+
+    def get_widget_value(self):
+        return self.value
+
+
+class FakeCountryDialog(FakeChooser):
+    responses = []
+
+    def get_content_area(self):
+        return self
+
+    def run(self):
+        response, values = self.responses.pop(0)
+        for field, value in zip(self.children, values):
+            field.set_widget_value(value)
+        return response
 
 
 def widget_modules(data):
@@ -453,16 +494,18 @@ def widget_modules(data):
         ListBox=WidgetNode, ListBoxRow=WidgetNode, Box=WidgetNode,
         ScrolledWindow=WidgetNode, Label=WidgetNode, Button=WidgetNode,
         CheckButton=WidgetNode, FileChooserDialog=FakeChooser,
+        Dialog=FakeCountryDialog,
         FileFilter=lambda: types.SimpleNamespace(set_name=lambda *_args: None,
                                                 add_pattern=lambda *_args: None),
         Orientation=types.SimpleNamespace(VERTICAL=1, HORIZONTAL=0),
         SelectionMode=types.SimpleNamespace(SINGLE=1),
         PolicyType=types.SimpleNamespace(NEVER=0, AUTOMATIC=1),
         FileChooserAction=types.SimpleNamespace(OPEN=0),
-        ResponseType=types.SimpleNamespace(CANCEL=0, ACCEPT=1),
+        ResponseType=types.SimpleNamespace(CANCEL=0, ACCEPT=1, OK=1),
     )
     return {
         "chronos_calendar_plugin_data": data,
+        "TreeListWidgets": types.SimpleNamespace(list_edit_factory=lambda _column: FakeCountryField()),
         "JsonSettingsWidgets": types.SimpleNamespace(
             JSONSettingsBackend=FakeBackend,
             JSONSettingsList=FakeCountryList,
@@ -476,11 +519,7 @@ def widget_modules(data):
 
 
 class AdditionalCountrySettingsTests(unittest.TestCase):
-    INFO = {"columns": [
-        {"id": "enabled", "type": "boolean", "default": True},
-        {"id": "country", "type": "string"},
-        {"id": "region", "type": "string", "default": "global"},
-    ]}
+    INFO = json.loads((APPLET_DIR / "6.0/settings-schema.json").read_text())["extra-country-calendars"]
 
     def setUp(self):
         self.module = load_python(WIDGET_PATH, "country_widgets_test", widget_modules(DATA))
@@ -518,6 +557,101 @@ class AdditionalCountrySettingsTests(unittest.TestCase):
             self.assertLessEqual(len(normalized), 64)
             self.assertEqual(self.module.normalize_country_rows(normalized), normalized)
         self.assertEqual(len(self.module.normalize_country_rows([{"country": "ita"}] * 65)), 64)
+
+    def create_widget(self, rows):
+        self.settings.values["extra-country-calendars"] = rows
+        return self.module.AdditionalCountryList(self.INFO, "extra-country-calendars", self.settings)
+
+    def runtime_selections(self, rows):
+        script = """
+const fs = require('node:fs');
+const {countrySelections} = require(process.argv[1]);
+process.stdout.write(JSON.stringify(countrySelections(JSON.parse(fs.readFileSync(0, 'utf8')))));
+"""
+        result = subprocess.run(["node", "-e", script, str(APPLET_DIR / "calendarSourceAdapters.js")],
+                                input=json.dumps(rows), capture_output=True, text=True, check=True)
+        return json.loads(result.stdout)
+
+    def test_schema_countries_and_regions_match_runtime_constants(self):
+        widget = self.create_widget([])
+        script = """
+const {SUPPORTED_COUNTRIES, REGION_TO_SUBDIVISION} = require(process.argv[1]);
+process.stdout.write(JSON.stringify(Object.fromEntries(SUPPORTED_COUNTRIES.map(country =>
+    [country, [...new Set(['global', ...Object.keys(REGION_TO_SUBDIVISION[country] || {})])].sort()]))));
+"""
+        result = subprocess.run(["node", "-e", script, str(APPLET_DIR / "holidayConstants.js")],
+                                capture_output=True, text=True, check=True)
+        self.assertEqual({key: sorted(values) for key, values in widget.regions.items()}, json.loads(result.stdout))
+
+    def test_imported_selections_are_valid_unique_and_visibly_bounded(self):
+        countries = list(self.create_widget([]).regions)
+        rows = [{"country": country} for country in countries[:17]]
+        rows += [{"country": "ita"}, {"country": "ita", "region": "genoa"},
+                 {"country": "zzz"}, {"country": "usa", "region": "\ufeff MA \n"}]
+        widget = self.create_widget(rows)
+        stored = self.settings.get_value(widget.key)
+        active = [{"country": row["country"], "region": row["region"]}
+                  for row in stored if row["enabled"]]
+        self.assertEqual(len(active), 16)
+        self.assertEqual(active, self.runtime_selections(stored))
+        self.assertEqual(stored[-1], {"enabled": False, "country": "usa", "region": "ma"})
+        self.assertNotIn("genoa", str(stored))
+        self.assertEqual(widget._normalized_rows(stored), stored)
+
+    def test_add_dialog_keeps_invalid_and_duplicate_selections_open(self):
+        widget = self.create_widget([{"country": "ita"}])
+        FakeCountryDialog.responses = [(1, [True, None, "global"]),
+                                       (1, [True, "ita", "genoa"]),
+                                       (1, [True, "ita", "global"]),
+                                       (1, [True, "usa", " MA "])]
+        widget.add_item()
+        self.assertEqual(widget.model[-1], [True, "usa", "ma"])
+        self.assertTrue(FakeChooser.latest.destroyed)
+        self.assertIn("already listed", FakeChooser.latest.children[-1].text)
+        self.assertEqual(len(self.runtime_selections(self.settings.get_value(widget.key))), 2)
+
+    def test_edit_existing_pair_and_cancel_invalid_region(self):
+        widget = self.create_widget([{"country": "usa", "region": "ma"}])
+        FakeCountryDialog.responses = [(1, [False, "usa", "ma"])]
+        edited = widget.open_add_edit_dialog(widget.model[0])
+        self.assertEqual(edited, [False, "usa", "ma"])
+        widget.model[0] = edited
+        widget.list_changed()
+        self.assertEqual(self.runtime_selections(self.settings.get_value(widget.key)), [])
+        FakeCountryDialog.responses = [(1, [True, "usa", "invalid"]), (0, [])]
+        self.assertIsNone(widget.open_add_edit_dialog(widget.model[0]))
+        self.assertIn("supported", FakeChooser.latest.children[-1].text)
+        self.assertTrue(FakeChooser.latest.destroyed)
+
+    def test_enable_limit_applies_to_dialog_and_inline_toggle(self):
+        countries = list(self.create_widget([]).regions)
+        widget = self.create_widget([{"country": country} for country in countries[:16]])
+        FakeCountryDialog.responses = [(1, [True, countries[16], "global"]),
+                                       (1, [False, countries[16], "global"])]
+        widget.add_item()
+        self.assertIn("At most 16", FakeChooser.latest.children[-1].text)
+        stored = self.settings.get_value(widget.key)
+        widget.model[-1][0] = True
+        widget.list_changed()
+        self.assertFalse(widget.model[-1][0])
+        self.assertEqual(self.settings.get_value(widget.key), stored)
+        self.assertIn("At most 16", widget.status.text)
+        widget.model[0][0] = False
+        widget.list_changed()
+        widget.model[-1][0] = True
+        widget.list_changed()
+        self.assertEqual(len(self.runtime_selections(self.settings.get_value(widget.key))), 16)
+
+    def test_total_row_limit_rejects_addition_without_discarding_rows(self):
+        widget = self.create_widget([])
+        rows = [{"enabled": False, "country": country, "region": region}
+                for country, regions in widget.regions.items() for region in sorted(regions)]
+        widget = self.create_widget(rows[:64])
+        candidate = rows[64]
+        FakeCountryDialog.responses = [(1, [candidate[column["id"]] for column in widget.columns]), (0, [])]
+        widget.add_item()
+        self.assertEqual(len(widget.model), 64)
+        self.assertIn("At most 64", FakeChooser.latest.children[-1].text)
 
 
 class CalendarChoicesTests(unittest.TestCase):
