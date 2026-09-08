@@ -69,6 +69,10 @@ function decodeUtf8(data) {
 // two disagreed on failure: this one says an oversized file was ignored, that
 // one answered "" without a word. The bound is the caller's, because these two
 // files are nothing like a holiday cache in size.
+// These system paths are trusted to be administrator-controlled. The check
+// deliberately follows the read: it rejects oversized input but does not cap
+// memory allocated by GLib. See docs/settings-behavior.md before using this
+// helper for any path or contents an untrusted party can influence.
 function readTextFileCapped(filename, maximumBytes, what = filename) {
     try {
         const [success, contents] = GLib.file_get_contents(filename);

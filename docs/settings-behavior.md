@@ -36,3 +36,27 @@ limited to 200 characters and escaped before logging. Missing or oversized
 tables, or a timezone without a valid match, still yield no inferred country.
 Manual country choices remain available. Improvements to source compatibility
 and conflicting duplicate handling remain a separate investigation.
+
+## Trusted system files and size checks
+
+`ioUtils.readTextFileCapped` intentionally reads `/etc/timezone` and
+`/usr/share/zoneinfo/zone.tab` before checking their size. These paths are
+assumed to be controlled by the administrator and supplied by the operating
+system. The accepted limits are 1 KiB for `/etc/timezone` and 256 KiB for
+`zone.tab`; oversized contents are rejected after the read.
+
+This is an explicit exception for these trusted system inputs: **the size
+check does not bound memory allocated by the read**. An unexpectedly large
+file is already in the Cinnamon process's memory before it is rejected. The
+current behavior does not perform a size preflight.
+
+If future packaging, permissions, path selection, symlink handling, containers,
+or another feature makes these paths or their contents influenceable by an
+untrusted party, that party could use a large file to cause memory exhaustion
+or disrupt the desktop session. Revisit this assumption before extending the
+helper to such inputs. A size check before reading can reject an already-large
+file; enforcing a strict allocation limit also requires bounded reads because
+a file can grow between the check and the read.
+
+This exception does not apply to imported calendar manifests or holiday cache
+files. Their own input validation and size limits remain separate.
