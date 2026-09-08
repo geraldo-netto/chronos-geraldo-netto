@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const { makeRandom } = require("../helpers/prng");
 const Adapters = require("../../files/chronos@geraldo-netto/weatherServiceAdapters");
 const Format = require("../../files/chronos@geraldo-netto/weatherFormat");
+const ZERO_COORDINATE_CASES = require("../fixtures/open_meteo_zero_coordinate_cases.json");
 
 function pick(random, values) {
     return values[Math.floor(random() * values.length)];
@@ -148,6 +149,17 @@ function checkReadings(audit, random, round) {
     });
 }
 
+function checkOmittedCoordinates(audit, round) {
+    const { input, place } = ZERO_COORDINATE_CASES[round % ZERO_COORDINATE_CASES.length];
+    audit.check("weather.geocode.omitted-zero", round, input, () => {
+        const before = JSON.stringify(input);
+        const data = { results: [input] };
+        assert.equal(Adapters.isOpenMeteoGeocodeResponse(data), true);
+        assert.deepEqual(Adapters.openMeteoGeocodePlace(data, "Point"), place);
+        assert.equal(JSON.stringify(input), before);
+    });
+}
+
 function runWeatherInputs({ seed, cases }) {
     const audit = recorder(seed);
     const random = makeRandom(seed);
@@ -155,6 +167,7 @@ function runWeatherInputs({ seed, cases }) {
         checkLocation(audit, random, round);
         checkStation(audit, random, round);
         checkGeocode(audit, random, round);
+        checkOmittedCoordinates(audit, round);
         checkReadings(audit, random, round);
     }
     return audit.report;

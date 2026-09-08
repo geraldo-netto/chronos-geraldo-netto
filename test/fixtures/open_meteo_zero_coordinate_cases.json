@@ -1,0 +1,22 @@
+[
+  {
+    "input": {"name":"Point","longitude":12.5,"population":1000},
+    "place": {"name":"Point","latitude":0,"longitude":12.5,"timezone":""}
+  },
+  {
+    "input": {"name":"Point","latitude":41.9,"population":1000},
+    "place": {"name":"Point","latitude":41.9,"longitude":0,"timezone":""}
+  },
+  {
+    "input": {"name":"Point","population":1000},
+    "place": {"name":"Point","latitude":0,"longitude":0,"timezone":""}
+  },
+  {
+    "input": {"name":"Point","latitude":0,"longitude":0,"population":1000},
+    "place": {"name":"Point","latitude":0,"longitude":0,"timezone":""}
+  },
+  {
+    "input": {"id":12345,"population":1000},
+    "place": {"name":"","latitude":0,"longitude":0,"timezone":""}
+  }
+]

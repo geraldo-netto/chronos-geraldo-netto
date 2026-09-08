@@ -23,6 +23,14 @@ Open-Meteo population is a valid zero-default protobuf field, but remains
 untrusted for selection. Validation does not change name ranking or the primary
 provider's population refusal: a valid answer can still yield no selected place.
 
+Open-Meteo also [omits zero latitude and longitude](https://github.com/open-meteo/geocoding-api/blob/main/Sources/App/api.pb.swift#L300-L313).
+Its candidate decoder therefore supplies zero only when the corresponding field
+is absent. Explicit null, undefined, malformed, or out-of-range values remain
+invalid. When both coordinates are absent, a nonblank name or positive int32
+location ID is required, so empty and unrelated objects cannot become points at
+the origin. Validation and selection use the same coordinate decoder; Nominatim
+does not inherit these protobuf defaults.
+
 If no provider resolves the location, any valid unresolved answer produces
 `LOCATION_NOT_FOUND` and the normal refresh interval applies. If every attempt
 fails transport, validation, or normalization, the result is

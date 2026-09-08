@@ -487,13 +487,25 @@ function geocodeTimezone(value) {
         TextUtils.clampText(value.trim(), MAX_GEOCODE_TIMEZONE_LENGTH) : "";
 }
 
+function openMeteoHasLocationData(place) {
+    return Object.hasOwn(place, "latitude") || Object.hasOwn(place, "longitude") ||
+        geocodePlaceName(place.name).trim() !== "" ||
+        (Number.isInteger(place.id) && place.id > 0 && place.id <= 2147483647);
+}
+
+function openMeteoCoordinate(place, field, maximum) {
+    // Protobuf JSON omits zero scalars. A present malformed value is never zero.
+    return Object.hasOwn(place, field) ? finiteNumber(place[field], -maximum, maximum) : 0;
+}
+
 function placeCandidate(place) {
-    if (!place || typeof place !== "object") {
+    if (!place || typeof place !== "object" || Array.isArray(place) ||
+        !openMeteoHasLocationData(place)) {
         return null;
     }
 
-    const latitude = finiteNumber(place.latitude, -90, 90);
-    const longitude = finiteNumber(place.longitude, -180, 180);
+    const latitude = openMeteoCoordinate(place, "latitude", 90);
+    const longitude = openMeteoCoordinate(place, "longitude", 180);
     const population = finiteNumber(place.population, 0);
 
     if (latitude === null || longitude === null || population === null) {
