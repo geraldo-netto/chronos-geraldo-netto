@@ -51,7 +51,8 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         this.actor = new St.Widget({
             layout_manager: this.layout,
             style_class: "calendar calendar-world-list",
-            reactive: false,
+            reactive: true,
+            can_focus: false,
             x_expand: true });
         box.add_actor(this.actor);
     }
@@ -92,6 +93,8 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
             // label; see the note there for why it is counted in cells.
             let label = new St.Label({
                 text: visibleLabel,
+                reactive: true,
+                can_focus: false,
                 x_expand: true,
                 x_align: Clutter.ActorAlign.START,
                 style_class: "calendar-world-label"

@@ -34,6 +34,7 @@ class MockGridLayout {
     }
 
     attach(child, column, row, width, height) {
+        child.parent = this.owner;
         this.children.push({ child, column, row, width, height });
     }
 }
@@ -41,6 +42,7 @@ class MockGridLayout {
 class MockWidget {
     constructor(options) {
         this.options = options;
+        this.options.layout_manager.owner = this;
         this.children = [];
         this.visible = true;
     }
@@ -72,6 +74,17 @@ class MockLabel {
         this.texts = [];
         // every St.Label has one; the clock name ellipsizes through it
         this.clutter_text = { ellipsize: 0, line_wrap: false };
+        this.handlers = new Map();
+    }
+
+    connect(signal, callback) {
+        this.handlers.set(signal, callback);
+    }
+
+    pointerEnter() {
+        if (this.options.reactive && this.parent?.options.reactive) {
+            this.handlers.get("enter-event")?.();
+        }
     }
 
     get_clutter_text() {
@@ -258,6 +271,7 @@ function loadWorldclocks(options = {}) {
                         this.actor = actor;
                         this.text = text;
                         actor.tooltip_text = text;
+                        actor.connect("enter-event", () => { actor.visible_tooltip = this.text; });
                     }
                     set_text(text) { this.text = text; }
                 }
@@ -1609,6 +1623,23 @@ test("a long clock name ellipsizes instead of widening the popup", () => {
         path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "stylesheet.css"),
         "utf8");
     assert.match(css, /\.calendar-world-label\s*\{[^}]*max-width/);
+});
+
+test("a truncated clock label accepts hover through its parent without becoming an action", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const worldclocks = new Worldclocks({ add_actor() {} });
+    const fullLabel = "A deliberately long Tokyo world clock label beyond the display limit";
+    worldclocks.buildClocks([{ label: fullLabel, timezone: "Asia/Tokyo" }]);
+    const label = worldclocks.layout.children.find((cell) =>
+        cell.column === 0 && cell.row === BUILTIN_ROWS).child;
+    assert.notEqual(label.text, fullLabel);
+    assert.equal(label.parent, worldclocks.actor);
+    label.pointerEnter();
+    assert.equal(label.visible_tooltip, fullLabel, "both label and parent must participate in picking");
+    assert.equal(worldclocks.actor.options.can_focus, false);
+    assert.equal(label.options.can_focus, false);
+    assert.ok(label instanceof MockLabel, "the hover target remains a label, not a button");
+    assert.equal(label.handlers.has("clicked"), false);
 });
 
 test("the local world clock uses the current timezone city for its weather", () => {

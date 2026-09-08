@@ -21,6 +21,8 @@ external choices stay intact, including when the original edited row was
 removed or the list was rebuilt with identical values.
 
 World-clock Add also rechecks the eight-clock limit when Save is accepted.
+In the applet popup, hovering over a shortened world-clock label reveals its
+full saved name. Labels do not activate an action or enter keyboard navigation.
 
 ## Named settings handlers
 
