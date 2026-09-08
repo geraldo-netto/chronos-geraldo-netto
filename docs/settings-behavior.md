@@ -80,7 +80,9 @@ lookup for that location.
 
 To save a location, type a city and press Enter or leave the field, or select a
 city from the completion list. Closing the dialog also saves text the user has
-entered. Opening and closing the dialog, focusing the untouched field, or
+entered. The settings widget commits before GTK clears its child entry during
+teardown; an untouched value causes no write, and a pending edit saves once.
+Opening and closing the dialog, focusing the untouched field, or
 pressing Enter while it is still empty does not accept the placeholder.
 Clearing an existing location saves an empty value, which stays empty on the
 next opening or applet reload.

@@ -356,11 +356,11 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         # the user types a name and closes the settings window with the cursor
         # still in the field: focus-out never fires, and the edit would be lost
         widget.content_widget.set_text("Genoa")
-        handlers = dict(widget.content_widget.handlers)
-        self.assertIn("destroy", handlers, "the field commits when it is torn down")
-        handlers["destroy"](widget.content_widget)
+        widget.destroy()
 
         self.assertEqual(settings.values["weather-location"], "Genoa")
+        self.assertEqual(settings.writes, [("weather-location", "Genoa")])
+        self.assertEqual(widget.content_widget.get_text(), "")
 
     def test_a_location_changed_elsewhere_shows_up_in_the_field(self):
         widget, settings = self.entry({"weather-location": "Lisbon"})
@@ -581,19 +581,14 @@ class CountryComboBoxTest(unittest.TestCase):
         self.assertNotIn("error", self.marks_of(widget)[0])
 
     def test_closing_the_window_mid_edit_still_saves_the_country(self):
-        # T779: the sibling weather field connects 'destroy' for exactly this
-        # case and says why. Only half of T728's fix landed here: the commit
-        # path existed but focus-out was its only trigger, so typing a country
-        # and clicking the window close button dropped the edit, and holidays
-        # kept coming from the previous country with no error anywhere.
         widget, settings = self.combo("prt")
         widget.content_widget.type_text("Brazil")
 
-        handlers = dict(widget.entry.handlers)
-        self.assertIn("destroy", handlers, "the field commits when it is torn down")
-        handlers["destroy"](widget.entry)
+        widget.destroy()
 
         self.assertEqual(settings.values["country"], "bra")
+        self.assertEqual(settings.writes, [("country", "bra")])
+        self.assertEqual(widget.entry.get_text(), "")
 
     def test_pressing_enter_saves_the_country_without_leaving_the_field(self):
         widget, settings = self.combo("prt")
@@ -716,9 +711,11 @@ class WeatherLocationSuggestionTest(unittest.TestCase):
     def test_open_focus_and_close_do_not_commit_an_untouched_suggestion(self):
         for signal in ("activate", "focus-out-event", "destroy"):
             widget, settings = self.entry(saved="")
-            callback = next(callback for name, callback in widget.content_widget.handlers
-                            if name == signal)
-            callback(widget.content_widget)
+            if signal == "destroy":
+                widget.destroy()
+            else:
+                callback = dict(widget.content_widget.handlers)[signal]
+                callback(widget.content_widget)
             self.assertEqual(settings.values["weather-location"], "", signal)
             self.assertEqual(settings.writes, [], signal)
 

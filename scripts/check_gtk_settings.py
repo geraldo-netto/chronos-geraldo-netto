@@ -122,6 +122,43 @@ def check_clocks(widget_type, schema, fixture):
         widget.destroy()
 
 
+def drain_events():
+    from gi.repository import Gtk
+    while Gtk.events_pending():
+        Gtk.main_iteration_do(False)
+
+
+def check_teardown(widget_type, schema, key, case):
+    from gi.repository import Gtk
+    settings = MemorySettings(schema, key, case["stored"])
+    widget = widget_type(schema[key], key, settings)
+    entry = getattr(widget, "entry", widget.content_widget)
+    window = Gtk.Window()
+    window.add(widget)
+    try:
+        window.show_all()
+        entry.grab_focus()
+        drain_events()
+        assert window.get_focus() == entry
+        for action in case["actions"]:
+            if "external" in action:
+                settings.set_value(key, action["external"])
+            else:
+                entry.set_text(action["edit"])
+        before = len(settings.writes)
+        observed = []
+        entry.connect("destroy", lambda child: observed.append(child.get_text()))
+        window.destroy()
+        drain_events()
+        window.destroy()
+        assert observed == [""], (key, case["name"], observed)
+        assert settings.get_value(key) == case["expected"], (key, case["name"], settings.values)
+        assert settings.writes[before:] == [(key, value) for value in case["writes"]], (
+            key, case["name"], settings.writes[before:])
+    finally:
+        window.destroy()
+
+
 def run_isolated(directory):
     verify_isolation(directory)
     weather, country, clocks = load_widgets()
@@ -138,6 +175,11 @@ def run_isolated(directory):
     for case in fixture["weatherNul"]:
         check_weather(weather, schema, case)
         checks += 1
+    teardown = json.loads((ROOT / "test/fixtures/settings_teardown_cases.json").read_text())
+    for key, widget in (("weather-location", weather), ("country", country)):
+        for case in teardown[key]:
+            check_teardown(widget, schema, key, case)
+            checks += 1
     print(json.dumps({"checks": checks + 1, "failures": []}), flush=True)
     return 0
 

@@ -1,0 +1,23 @@
+{
+  "weather-location": [
+    {"name": "untouched", "stored": "Genova", "actions": [], "expected": "Genova", "writes": []},
+    {"name": "pending edit", "stored": "Genova", "actions": [{"edit": "Boston"}], "expected": "Boston", "writes": ["Boston"]},
+    {"name": "intentional clear", "stored": "Genova", "actions": [{"edit": ""}], "expected": "", "writes": [""]},
+    {"name": "untouched empty", "stored": "", "actions": [], "expected": "", "writes": []},
+    {"name": "external update supersedes edit", "stored": "Genova", "actions": [{"edit": "Boston"}, {"external": "Plzeň"}], "expected": "Plzeň", "writes": []},
+    {"name": "edit after external update", "stored": "Genova", "actions": [{"external": "Boston"}, {"edit": "Plzeň"}], "expected": "Plzeň", "writes": ["Plzeň"]},
+    {"name": "refused NUL", "stored": "Gen\u0000ova", "actions": [], "expected": "Gen\u0000ova", "writes": []},
+    {"name": "refused Unicode", "stored": "Gen\ud800ova", "actions": [], "expected": "Gen\ud800ova", "writes": []},
+    {"name": "external refusal", "stored": "Genova", "actions": [{"external": "Gen\u0000ova"}], "expected": "Gen\u0000ova", "writes": []},
+    {"name": "replace refusal", "stored": "Gen\u0000ova", "actions": [{"edit": "Genoa 🏙"}], "expected": "Genoa 🏙", "writes": ["Genoa 🏙"]},
+    {"name": "trim pending edit", "stored": "Genova", "actions": [{"edit": "  Boston  "}], "expected": "Boston", "writes": ["Boston"]}
+  ],
+  "country": [
+    {"name": "untouched", "stored": "ita", "actions": [], "expected": "ita", "writes": []},
+    {"name": "pending edit", "stored": "ita", "actions": [{"edit": "Brazil"}], "expected": "bra", "writes": ["bra"]},
+    {"name": "empty unfinished edit", "stored": "ita", "actions": [{"edit": ""}], "expected": "ita", "writes": []},
+    {"name": "invalid pending edit", "stored": "ita", "actions": [{"edit": "Atlantis"}], "expected": "ita", "writes": []},
+    {"name": "external update supersedes edit", "stored": "ita", "actions": [{"edit": "Brazil"}, {"external": "prt"}], "expected": "prt", "writes": []},
+    {"name": "refused stored country", "stored": "Atlantis", "actions": [], "expected": "Atlantis", "writes": []}
+  ]
+}

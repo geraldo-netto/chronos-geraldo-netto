@@ -255,8 +255,8 @@ def attach_suggestions(entry, rows, row_columns, text_column=0,
 class CommitOnEditEnd:
     """The edit-end lifecycle the two free-text settings fields share.
 
-    An edit in a Gtk.Entry ends in four ways, and both the weather location and
-    the holiday country have to answer all four: Enter (`activate`), leaving the
+    An edit in a Gtk.Entry ends in three ways, and both the weather location and
+    the holiday country have to answer all three: Enter (`activate`), leaving the
     field (`focus-out-event`), and the settings window closing with the cursor
     still in the field - which fires no focus-out at all, so what the user typed
     would go with it - which is `destroy`. `changed` is not one of them: it is
@@ -276,7 +276,9 @@ class CommitOnEditEnd:
         entry.connect("changed", self.on_entry_edited)
         entry.connect("activate", self.on_edit_end)
         entry.connect("focus-out-event", self.on_edit_end)
-        entry.connect("destroy", self.on_edit_end)
+        # Gtk.Entry clears its text before its destroy signal. The enclosing
+        # settings widget still owns the live entry during its own destruction.
+        self.connect("destroy", self.on_edit_end)
 
     def on_edit_end(self, *args) -> bool:
         self.commit_edit()

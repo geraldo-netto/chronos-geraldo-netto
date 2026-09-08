@@ -114,17 +114,46 @@ class BindObject:
             if signal == "changed":
                 callback(self)
 
+    def destroy(self):
+        # Native Gtk.Entry clears text before its own destroy handlers run.
+        self.set_text("")
+        for signal, callback in self.handlers:
+            if signal == "destroy":
+                callback(self)
 
-class BaseWidget:
+
+class WidgetOwner:
+    def __init__(self):
+        self.handlers = []
+        self.destroyed = False
+
+    def connect(self, signal, callback):
+        self.handlers.append((signal, callback))
+
+    def destroy(self):
+        if self.destroyed:
+            return
+        self.destroyed = True
+        for signal, callback in self.handlers:
+            if signal == "destroy":
+                callback(self)
+        self.destroy_content()
+
+
+class BaseWidget(WidgetOwner):
     instances = []
 
     def __init__(self, **kwargs):
+        super().__init__()
         self.kwargs = kwargs
         self.content_widget = BindObject()
         self.bind_prop = "text"
         self.handlers_connected = False
         self.changed = False
         BaseWidget.instances.append(self)
+
+    def destroy_content(self):
+        self.content_widget.destroy()
 
     def connect_widget_handlers(self):
         self.handlers_connected = True
@@ -672,13 +701,20 @@ class SettingsLabel:
         self.text = text
 
 
-class SettingsWidget:
+class SettingsWidget(WidgetOwner):
     """xapp's base: a Gtk.Box the widget packs its label and content into."""
 
     def __init__(self, dep_key=None):
+        super().__init__()
         self.dep_key = dep_key
         self.children = []
         self.tooltip = None
+
+    def destroy_content(self):
+        for child in self.children:
+            destroy = getattr(child, "destroy", None)
+            if destroy:
+                destroy()
 
     def pack_start(self, child, *args):
         self.children.append(child)
@@ -756,6 +792,9 @@ class GtkComboBoxWithEntry:
         for signal, callback in self.handlers:
             if signal == "changed":
                 callback(self)
+
+    def destroy(self):
+        self.entry.destroy()
 
 
 STUBBED_MODULES = ("JsonSettingsWidgets", "TreeListWidgets", "xapp", "xapp.SettingsWidgets", "gi", "gi.repository") # NOSONAR [S1192] -- deliberate test seam
