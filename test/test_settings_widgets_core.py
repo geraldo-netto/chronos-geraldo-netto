@@ -177,13 +177,6 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertIsNot(common.completion_model(["Rome"], columns),
                          common.completion_model(["Tokyo"], columns))
 
-    def test_widget_module_tolerates_missing_stdlib_zoneinfo(self):
-        module = load_module(
-            WORLDCLOCKS_PATH, "settings_widgets_common_no_zoneinfo_test",
-            missing_zoneinfo=True)
-
-        self.assertIsNone(module.common.available_timezones)
-
     def test_the_suggestion_store_is_built_once_not_per_dialog(self):
         # ~440 rows with pytz, rebuilt on the GTK main thread every time the
         # dialog opened; the list does not change while the process runs

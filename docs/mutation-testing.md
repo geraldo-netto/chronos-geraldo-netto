@@ -7,7 +7,7 @@ including its dry-run mode. The optional command is outside lint, ordinary
 tests, coverage gates, CI, and release checks.
 
 From the repository root, install the normal development dependencies and the
-separately locked optional tool. Both require Node.js 22.13 or newer:
+separately locked optional tool. Both use the Node.js 24 development runtime:
 
 ```sh
 npm ci
@@ -17,8 +17,8 @@ npm ci --prefix tools/mutation --ignore-scripts
 Stryker is pinned in `tools/mutation/package.json` and its own lockfile. Normal
 `npm ci` does not install it. Review dependency updates and, when installed,
 check its advisories separately with `npm audit --prefix tools/mutation`.
-The pinned 9.6.1 release preserves the project's Node.js floor; Stryker 10's
-Babel dependencies require a newer Node.js. A scoped override supplies
+The exact 9.6.1 lock keeps maintainer campaigns reproducible; it is not an
+older-runtime compatibility requirement. A scoped override supplies
 `typed-rest-client` with `qs` 6.16.0, which fixes its pinned version's
 [denial-of-service advisories](https://github.com/advisories/GHSA-4mjr-xmp4-gh2g).
 Remove the override when the parent dependency accepts a patched release.

@@ -490,11 +490,8 @@ test("CI runs the gates the README promises", () => {
     assert.match(workflow, /run: npm ci/);
     assert.match(workflow, /run: npm run lint\b/, "eslint and pyflakes");
     assert.match(workflow, /run: npm test\b/, "both suites, both coverage gates");
-    assert.equal(pkg.engines.node, ">=22.13.0");
-    assert.equal(pkg.scripts["check:python-runtime"],
-        "python3 scripts/check_python_compat.py");
-    assert.match(pkg.scripts.lint, /npm run check:python-runtime/,
-        "the ordinary local and CI lint gate enforces shipped Python syntax");
+    assert.equal(pkg.engines.node, "24.x");
+    assert.equal(pkg.scripts.lint, "npm run lint:js && npm run lint:py");
     // T937: eslint and the Node suite parse this tree with espree and with
     // Node. The applet runs on SpiderMonkey behind Cinnamon's cjs, and a form
     // both Node parsers accept and that runtime rejects would ship green. The
@@ -502,19 +499,13 @@ test("CI runs the gates the README promises", () => {
     assert.equal(pkg.scripts["check:cjs-syntax"], "cjs scripts/check_cjs_syntax.js");
     assert.match(workflow, /install --no-install-recommends cinnamon gettext[\s\S]*?run: npm run check:cjs-syntax/,
         "the shipped tree is compiled by the runtime that runs it");
-    // Read the floor out of the README rather than repeating it, so the two
-    // cannot drift: this assertion pinned '3.8' as a literal, which made it a
-    // third place to edit and a silent way for the matrix and the requirements
-    // table to disagree about what is supported.
-    const pythonFloor = /^\| Python 3 \| ≥ (\d+\.\d+) \|/m.exec(readme);
-    assert.ok(pythonFloor, "the README requirements table states a Python floor");
-    assert.match(workflow,
-        new RegExp(`node: '22\\.13\\.0'\\n {12}python: '${pythonFloor[1].replace(".", "\\.")}'`),
-        "the supported Node and Python floors are exercised together");
-    assert.match(workflow, /node: 26\n {12}python: '3\.14'/,
-        "the current development runtimes are exercised together");
-    assert.doesNotMatch(workflow, /node-version: 22\b/,
-        "release jobs must not resolve an unsupported early Node 22 runtime");
+    const pythonRuntime = /^\| Python 3 \| (\d+\.\d+) /m.exec(readme);
+    const nodeRuntime = /^\| Node.js \| \*\*(\d+\.\d+\.\d+)\*\*/m.exec(readme);
+    assert.ok(pythonRuntime);
+    assert.ok(nodeRuntime);
+    assert.ok(workflow.includes(`python-version: '${pythonRuntime[1]}'`));
+    assert.deepEqual([...new Set([...workflow.matchAll(/node-version: '([^']+)'/g)]
+        .map((match) => match[1]))], [nodeRuntime[1]], "every job uses the documented Node runtime");
     assert.match(workflow, /packaging:[\s\S]*needs: gates/,
         "packaging runs only after the Node gate job passes");
     // T817: npm audit queries registry.npmjs.org at run time. Inside `gates` it
@@ -780,19 +771,8 @@ test("what ships carries its licence", () => {
     sources.forEach(assertSourceLicence);
 });
 
-// Cinnamon treats each entry as a minimum compatible version, not as a literal
-// allow-list. The multiversion loader separately picks the newest versioned
-// source tree at or below the running series, so the 6.0 floor serves later
-// Cinnamon releases until the applet needs to declare a newer compatibility
-// boundary.
-//
-// The floor is 6.0 because the HTTP layer speaks libsoup 3 only — the
-// four-argument send_async and get_status() — and 6.0.0 is the first Cinnamon
-// that pins `imports.gi.versions.Soup = '3.0'`. An xlet cannot choose the
-// version itself: the host has already imported Soup by the time the applet
-// loads. 5.4.11 through 5.8.5 pin 2.4, and 5.4.10 and earlier pin nothing at
-// all, so on any of them the applet would load and then fail every request.
-test("the manifest declares the Cinnamon compatibility floor", () => {
+// Metadata admission and multiversion-directory selection are independent.
+test("the manifest admits the verified desktop and retains its loader tree", () => {
     const metadata = JSON.parse(fs.readFileSync(path.join(appletDir, "metadata.json"), "utf8"));
     const readme = fs.readFileSync(path.join(__dirname, "..", "README.md"), "utf8");
     const supported = metadata["cinnamon-version"];
@@ -805,26 +785,24 @@ test("the manifest declares the Cinnamon compatibility floor", () => {
         });
     };
 
-    assert.match(readme, /Cinnamon \*\*6\.0 or newer\*\*/);
-    assert.match(readme, /Python \*\*3\.10 or newer\*\*/,
-        "the settings runtime floor must be explicit and distinct from the suite floor");
-    assert.deepEqual(supported, ["6.0"], "declare the compatibility floor once");
+    assert.match(readme, /\*\*Cinnamon 6\.6\.9\*\*/);
+    assert.match(readme, /\*\*Python 3\.12\.3\*\*/);
+    assert.deepEqual(supported, ["6.6"]);
     assert.ok(supported.every((series) => /^\d+\.\d+$/.test(series)));
     assert.equal(supports("5.2"), false);
     // the last libsoup-2.4 series: loading there is what the floor prevents
     assert.equal(supports("5.8"), false);
-    assert.equal(supports("6.0"), true);
-    assert.equal(supports("6.6"), true,
-        "later Cinnamon series satisfy the 6.0 minimum");
+    assert.equal(supports("6.0"), false);
+    assert.equal(supports("6.6"), true);
     assert.equal(supports("7.0"), true,
         "a minimum version is not a finite allow-list");
 
-    // Every version directory that ships still needs its own manifest entry.
+    // Cinnamon 6.6 still chooses the 6.0 directory independently of metadata.
     const versionDirs = fs.readdirSync(appletDir, { withFileTypes: true })
         .filter((entry) => entry.isDirectory() && /^\d+\.\d+$/.test(entry.name))
         .map((entry) => entry.name);
-    versionDirs.forEach((dir) => assert.ok(supported.includes(dir),
-        `the ${dir}/ tree ships but the manifest does not claim ${dir}`));
+    assert.deepEqual(versionDirs, ["6.0"]);
+    assert.ok(fs.existsSync(path.join(appletDir, "6.0", "applet.js")));
 });
 
 test("the Spices manifest credits the applets this one was merged from", () => {

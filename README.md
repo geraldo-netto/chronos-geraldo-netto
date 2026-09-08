@@ -9,14 +9,14 @@ calendar fork.
 
 ### To run the applet
 
-- Cinnamon **6.0 or newer**, with its `cjs` JavaScript engine and the
-  **libsoup 3** typelib (`gir1.2-soup-3.0`). Cinnamon ships both; libsoup 3 is
-  what the 6.0 floor is really about, and it also covers the calendar server the
-  event view talks to over DBus.
-- Python **3.10 or newer** with GTK bindings (`python3-gi`) — the settings
-  dialog runs in its own Python process, not inside Cinnamon. Linux Mint 21.3,
-  the oldest desktop release covered by the Cinnamon 6.0 floor, ships Python
-  3.10.
+- The verified desktop is **Cinnamon 6.6.9**, with **CJS 115.1** and the
+  **libsoup 3** typelib (`gir1.2-soup-3.0`). The event view uses Cinnamon's
+  calendar server over DBus. Metadata admits the Cinnamon 6.6 series onward;
+  the `6.0/` directory remains the loader tree selected by this desktop.
+- The verified settings runtime is **Python 3.12.3** with GTK bindings
+  (`python3-gi`). The settings dialog runs in its own Python process.
+  Previous runtimes and implementations are not compatibility targets;
+  changes are validated on the deployed desktop and development runtimes.
 - An internet connection, only for public-holiday and weather data. Religious
   observances use bundled local data and need no connection. Weather is off by
   default. Public-holiday lookup starts automatically only when the
@@ -51,22 +51,22 @@ with the applet:
 
 | Tool | Version | Needed for | Install |
 | --- | --- | --- | --- |
-| Node.js | **≥ 22.13.0** | the JS suite and its coverage gate | install with `nvm` as described below |
-| Python 3 | ≥ 3.12 | the development gates and settings-widget suite | use your distribution or `pyenv` |
+| Node.js | **24.18.0** (24.x tooling line) | the JS suite and its coverage gate | install with `nvm` as described below |
+| Python 3 | 3.12 (verified 3.12.3) | the development gates and settings-widget suite | use your distribution or `pyenv` |
 | eslint | `^10` range in `package.json` (exact version in `package-lock.json`) | `npm run lint:js` | `npm install` |
 | pyflakes | any | `npm run lint:py` — a gate: the step fails when it is missing | `python3 -m pip install pyflakes` |
 | cinnamon-xlet-makepot | ships with Cinnamon | regenerating the template and merging `po/*.po` via `po/makepot` | part of the `cinnamon` package |
 | gettext | any | compiling catalogs (`msgfmt`) and rejecting active fuzzy entries (`msgattrib`) | `sudo apt install gettext` |
 
-Linux Mint's package repository can provide a Node.js release older than this
-project supports. Install the maintained [Node Version Manager
+Linux Mint's package repository can provide a different Node.js release.
+Install [Node Version Manager
 (`nvm`)](https://github.com/nvm-sh/nvm#installing-and-updating), then install and
-verify the supported floor before installing project dependencies:
+verify the development runtime before installing project dependencies:
 
 ```sh
-nvm install 22.13.0
-nvm use 22.13.0
-node --version                 # must print v22.13.0 or newer
+nvm install 24.18.0
+nvm use 24.18.0
+node --version                 # v24.18.0
 npm ci
 ```
 
@@ -156,11 +156,9 @@ active fuzzy translations with `msgattrib`, and checks the catalog inventory.
 Missing or untranslated messages use English. Catalog merging, source-reference
 updates, and template regeneration are optional translation maintenance through
 `po/makepot`; they do not block packaging. CI runs every check
-and builds the Spices tree after the lint and test gates pass on the supported
-Node 22.13.0 and development Python 3.12 floors, and on the current Node 26 /
-Python 3.14 pair. The lint gate separately parses every shipped Python module
-with Python 3.10's grammar, so raising the development-tool floor does not
-silently raise the applet's runtime floor.
+and builds the Spices tree after the lint and test gates pass on Node 24.18.0
+and Python 3.12. Pyflakes checks Python syntax using that interpreter; no
+separate gate restricts source to an older runtime's grammar or library APIs.
 
 ### Releasing
 
@@ -217,7 +215,7 @@ git tag -a v0.0.2 -m "Cinnamon Chronos 0.0.2"
 git push origin v0.0.2
 ```
 
-Tag CI reruns both gate matrix pairs, packages on the supported Node floor, then
+Tag CI reruns the gates, packages with the verified Node runtime, then
 rejects any tag that disagrees with `metadata.json`, `package.json`, either
 version owner in `package-lock.json`, or the translation template's
 `Project-Id-Version`. The packaging job puts the exact gated tree and its
@@ -309,8 +307,7 @@ PageUp/PageDown by month, Home returns to today.
 
 ### Running the tests and linters (development)
 
-From the repository root, after `npm ci`. The suites require Node ≥ 22.13.0 for
-the JavaScript tests and Python ≥ 3.12 for the settings tests:
+From the repository root, after `npm ci`, using Node 24.18.0 and Python 3.12:
 
 ```sh
 npm test          # both suites, behind the coverage gate
@@ -327,8 +324,7 @@ by not running is worse than no lint step at all.
 npm ci                           # installs the locked JavaScript tooling
 python3 -m pip install pyflakes   # required: the Python lint step is a gate
 
-npm run lint                  # Python 3.10 syntax, eslint, and pyflakes
-npm run check:python-runtime  # shipped settings code against Python 3.10 grammar
+npm run lint                  # eslint and pyflakes on the current runtime
 npm run lint:js               # eslint only
 npm run lint:py               # pyflakes over shipped code, scripts, and tests
 ```

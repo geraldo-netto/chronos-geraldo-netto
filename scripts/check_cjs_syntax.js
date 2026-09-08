@@ -17,9 +17,8 @@
 // exist in a bare cjs process; `new Function(source)` runs the same parser over
 // the same bytes without executing a line of it.
 //
-// What this does NOT check, and what a real one would: the *declared floor*.
-// This exercises whichever cjs is installed, so it says the tree parses on that
-// release and nothing about Cinnamon 6.0's.
+// This exercises the installed cjs parser. Real module loading and UI behavior
+// are verified separately inside Cinnamon.
 
 const GLib = imports.gi.GLib;
 const Gio = imports.gi.Gio;

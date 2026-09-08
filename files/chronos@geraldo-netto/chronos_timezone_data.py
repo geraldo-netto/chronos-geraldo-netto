@@ -156,8 +156,8 @@ def looks_like_iana(value: Any) -> bool:
 def zoneinfo_spelling_exists(value: str) -> bool:
     """Is there a zone file spelled exactly this way?
 
-    The zoneinfo directory ships with tzdata, not with Python, so it is there
-    on hosts where neither pytz nor zoneinfo is importable. This asks it the
+    The zoneinfo directory ships with tzdata, not with Python. If neither
+    Python timezone index supplies data, this asks the directory the
     same question the runtime will: GLib.TimeZone.new_identifier looks a zone
     up in that directory case-sensitively, so "america/sao_paulo" is not a zone
     to the applet however plausible its shape.

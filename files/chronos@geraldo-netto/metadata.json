@@ -7,5 +7,5 @@
     "license": "GPL-2.0-or-later",
     "contributors": "Geraldo Netto, Claus Colloseus (ccprog), Simon Wiles (simonwiles)",
     "multiversion": true,
-    "cinnamon-version": ["6.0"]
+    "cinnamon-version": ["6.6"]
 }

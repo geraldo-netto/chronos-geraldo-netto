@@ -859,7 +859,7 @@ def _purge_applet_modules(preloaded, preload):
         sys.modules.pop(preload_name, None)
 
 
-def load_module(path, name, missing_pytz=False, missing_zoneinfo=False, preload=None):
+def load_module(path, name, missing_pytz=False, preload=None):
     install_stubs()
     sys.path.insert(0, str(APPLET_DIR))
     # a sibling already loaded by a previous call, handed in so this module
@@ -878,8 +878,6 @@ def load_module(path, name, missing_pytz=False, missing_zoneinfo=False, preload=
     def guarded_import(import_name, *args, **kwargs):
         if missing_pytz and import_name == "pytz":
             raise ImportError("pytz unavailable")
-        if missing_zoneinfo and import_name == "zoneinfo":
-            raise ImportError("zoneinfo unavailable")
         return original_import(import_name, *args, **kwargs)
 
     builtins.__import__ = guarded_import

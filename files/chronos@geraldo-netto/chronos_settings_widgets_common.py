@@ -12,14 +12,11 @@
 from __future__ import annotations
 
 from typing import Any, Optional
+from zoneinfo import available_timezones
 try:
     import pytz
 except ImportError:
     pytz = None
-try:
-    from zoneinfo import available_timezones
-except ImportError:
-    available_timezones = None
 from gi.repository import Atk, Gtk
 from JsonSettingsWidgets import JSONSettingsBackend
 from xapp.SettingsWidgets import ComboBox
@@ -399,4 +396,3 @@ def shared_timezone_resolver() -> TimezoneResolver:
         _TIMEZONE_RESOLVER = TimezoneResolver(pytz, available_timezones)
 
     return _TIMEZONE_RESOLVER
-

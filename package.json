@@ -20,8 +20,7 @@
   "scripts": {
     "audit:deps": "npm audit --audit-level=high --include=dev",
     "check:cjs-syntax": "cjs scripts/check_cjs_syntax.js",
-    "check:python-runtime": "python3 scripts/check_python_compat.py",
-    "lint": "npm run check:python-runtime && npm run lint:js && npm run lint:py",
+    "lint": "npm run lint:js && npm run lint:py",
     "lint:js": "eslint .",
     "lint:py": "python3 -m pyflakes files/chronos@geraldo-netto scripts test || { status=$?; if python3 -c 'import pyflakes' 2>/dev/null; then exit $status; fi; echo 'pyflakes is not installed: pip install pyflakes (the Python lint is a gate, not an optional extra)'; exit 1; }",
     "i18n:check": "node scripts/check-i18n.mjs",
@@ -35,7 +34,7 @@
     "mutation:manual": "node scripts/mutation.mjs"
   },
   "engines": {
-    "node": ">=22.13.0"
+    "node": "24.x"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
