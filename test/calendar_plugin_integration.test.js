@@ -348,7 +348,7 @@ test("country selection validates regions, normalizes omissions, deduplicates an
         { country: "ita", region: "unknown" }, { country: "xx" },
         { country: "fra", enabled: false }];
     assert.deepEqual(countrySelections(rows), [
-        { country: "ita", region: "global" }, { country: "cze", region: "global" },
+        { country: "ita", region: "global" },
         { country: "usa", region: "ca" }
     ]);
     assert.deepEqual(countrySelections(null), []);
@@ -356,6 +356,14 @@ test("country selection validates regions, normalizes omissions, deduplicates an
     assert.deepEqual(countrySelections(Array(64).fill(null).concat({ country: "ita" })), []);
     assert.equal(countryCalendarName("ita", "global"), "Italy");
     assert.equal(countryCalendarName("usa", "ca"), "United States / CA");
+});
+
+test("country selections follow the shared strict settings fixtures", () => {
+    const cases = require("./fixtures/country_selection_cases.json");
+    for (const item of cases) {
+        assert.deepEqual(countrySelections(item.input), item.enabled, item.name);
+        assert.deepEqual(countrySelections(item.normalized), item.enabled, item.name);
+    }
 });
 
 test("source adapters preserve their provider identity, recurrence coverage and publicness", () => {

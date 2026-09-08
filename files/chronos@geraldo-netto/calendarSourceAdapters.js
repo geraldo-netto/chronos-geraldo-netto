@@ -21,12 +21,15 @@ const Religious = sibling("religiousHolidays");
 const PluginData = sibling("calendarPluginData");
 
 function validCountrySelection(row) {
-    if (!row || row.enabled === false || !Constants.SUPPORTED_COUNTRIES.includes(row.country)) return null;
-    let region = typeof row.region === "string" ? row.region.trim().toLowerCase() : "global";
-    if (!region) region = "global";
+    if (!row || typeof row !== "object" || Array.isArray(row)) return null;
+    const enabled = Object.hasOwn(row, "enabled") ? row.enabled : true;
+    const rawRegion = Object.hasOwn(row, "region") ? row.region : "global";
+    if (typeof enabled !== "boolean" || typeof rawRegion !== "string" ||
+        !Constants.SUPPORTED_COUNTRIES.includes(row.country)) return null;
+    const region = rawRegion.trim().toLowerCase() || "global";
     if (region !== "global" && !Object.getOwnPropertyDescriptor(
         Constants.REGION_TO_SUBDIVISION[row.country] || {}, region)) return null;
-    return { country: row.country, region };
+    return { country: row.country, region, enabled };
 }
 
 function countrySelections(rows) {
@@ -34,9 +37,12 @@ function countrySelections(rows) {
     const selected = new Map();
     for (const row of rows.slice(0, 64)) {
         const value = validCountrySelection(row);
-        if (value) selected.set(`${value.country}:${value.region}`, value);
+        if (!value) continue;
+        const key = `${value.country}:${value.region}`;
+        if (!selected.has(key)) selected.set(key, value);
     }
-    return [...selected.values()].slice(0, 16);
+    return [...selected.values()].filter((value) => value.enabled).slice(0, 16)
+        .map(({ country, region }) => ({ country, region }));
 }
 
 function publicMonthMap(map, label) {

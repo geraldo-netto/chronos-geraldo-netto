@@ -1,0 +1,12 @@
+[
+  {"name":"null list","input":null,"normalized":[],"enabled":[]},
+  {"name":"object list","input":{},"normalized":[],"enabled":[]},
+  {"name":"defaults and regional whitespace","input":[{"country":"ita"},{"country":"cze","region":""},{"country":"usa","region":"\ufeff MA \n","extra":42}],"normalized":[{"enabled":true,"country":"ita","region":"global"},{"enabled":true,"country":"cze","region":"global"},{"enabled":true,"country":"usa","region":"ma"}],"enabled":[{"country":"ita","region":"global"},{"country":"cze","region":"global"},{"country":"usa","region":"ma"}]},
+  {"name":"strict enabled types","input":[{"country":"ita","enabled":null},{"country":"ita","enabled":0},{"country":"ita","enabled":1},{"country":"ita","enabled":"false"},{"country":"ita","enabled":""}],"normalized":[],"enabled":[]},
+  {"name":"strict region types","input":[{"country":"ita","region":null},{"country":"ita","region":42},{"country":"ita","region":false},{"country":"ita","region":[]}],"normalized":[],"enabled":[]},
+  {"name":"unsupported selections","input":[null,[],"ita",{"country":"ITA"},{"country":" ita "},{"country":"zzz"},{"country":"ita","region":"genoa"},{"country":["ita"]}],"normalized":[],"enabled":[]},
+  {"name":"first disabled duplicate wins","input":[{"country":"ita","enabled":false},{"country":"ita","enabled":true}],"normalized":[{"enabled":false,"country":"ita","region":"global"}],"enabled":[]},
+  {"name":"first enabled duplicate wins","input":[{"country":"ita","enabled":true},{"country":"ita","enabled":false}],"normalized":[{"enabled":true,"country":"ita","region":"global"}],"enabled":[{"country":"ita","region":"global"}]},
+  {"name":"invalid rows do not reserve a pair","input":[{"country":"ita","enabled":0},{"country":"ita"}],"normalized":[{"enabled":true,"country":"ita","region":"global"}],"enabled":[{"country":"ita","region":"global"}]},
+  {"name":"canonical regional duplicates","input":[{"country":"usa","region":" MA ","enabled":false},{"country":"usa","region":"ma"},{"country":"usa","region":"\ufeff \n"}],"normalized":[{"enabled":false,"country":"usa","region":"ma"},{"enabled":true,"country":"usa","region":"global"}],"enabled":[{"country":"usa","region":"global"}]}
+]

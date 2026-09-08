@@ -29,7 +29,7 @@ function setting(profile, key) {
 }
 
 function selectionName(row) {
-    const [selected] = Calendars.countrySelections([{ country: row?.country, region: row?.region }]);
+    const [selected] = Calendars.countrySelections([{ ...row, enabled: true }]);
     if (!selected) throw new Error("Invalid configured country or region; cleanup stopped");
     return `calendar-${selected.country}-${selected.region}.json`;
 }
@@ -42,7 +42,8 @@ function profileSelections(profile) {
     const inferCountry = country === undefined || country === "";
     const names = [];
     if (!inferCountry && country !== "none") {
-        names.push(selectionName({ country, region: setting(profile, `region_${country}`) }));
+        const region = setting(profile, `region_${country}`);
+        names.push(selectionName(region === undefined ? { country } : { country, region }));
     }
     const extras = setting(profile, "extra-country-calendars") ?? [];
     if (!Array.isArray(extras)) throw new Error("Invalid additional calendar list; cleanup stopped");

@@ -24,6 +24,15 @@ country/region pair has its own provider and cache. Up to 16 additional pairs ar
 accepted; duplicates are ignored. Holiday services receive each enabled country
 and, where supported, its region.
 
+Imported rows use the same strict rules in the applet and settings. `enabled`
+must be a boolean and defaults to true only when omitted; `region` must be text
+and defaults to `global` only when omitted or blank. Regions are trimmed and
+lowercased; country codes must match a supported code exactly. Invalid rows are
+discarded. The first valid country/region pair wins, including a disabled row.
+Only the first 64 stored rows are inspected; settings retain disabled rows and
+disable enabled rows beyond the 16-active limit. Opening settings preserves the
+same effective calendar selection.
+
 **Installed calendars** lists personal JSON plugins. **Import JSON** validates
 and copies a file into the user's calendar directory. Importing does not enable
 it: tick the calendar to show its entries. **Refresh** reloads file changes

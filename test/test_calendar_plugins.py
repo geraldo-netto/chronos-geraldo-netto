@@ -589,6 +589,29 @@ process.stdout.write(JSON.stringify(Object.fromEntries(SUPPORTED_COUNTRIES.map(c
                                 capture_output=True, text=True, check=True)
         self.assertEqual({key: sorted(values) for key, values in widget.regions.items()}, json.loads(result.stdout))
 
+    def test_shared_country_fixtures_preserve_effective_selections(self):
+        fixtures = Path(__file__).parent / "fixtures/country_selection_cases.json"
+        for case in json.loads(fixtures.read_text()):
+            with self.subTest(case=case["name"]):
+                widget = self.create_widget(case["input"])
+                self.assertEqual(self.settings.get_value(widget.key), case["normalized"])
+                self.assertEqual(widget._normalized_rows(case["input"]), case["normalized"])
+                self.assertEqual(self.runtime_selections(case["input"]), case["enabled"])
+                self.assertEqual(self.runtime_selections(case["normalized"]), case["enabled"])
+                self.settings.set_value(widget.key, case["input"])
+                self.assertEqual(self.settings.get_value(widget.key), case["normalized"])
+
+    def test_scan_limit_includes_invalid_rows_and_preserves_disabled_slots(self):
+        widget = self.create_widget([])
+        rows = [{"enabled": False, "country": country, "region": region}
+                for country, regions in widget.regions.items() for region in sorted(regions)]
+        normalized = widget._normalized_rows(rows[:65])
+        self.assertEqual(normalized, rows[:64])
+        self.assertEqual(self.runtime_selections(rows[:65]), [])
+        invalid_prefix = [None] * 64 + [{"country": "ita"}]
+        self.assertEqual(widget._normalized_rows(invalid_prefix), [])
+        self.assertEqual(self.runtime_selections(invalid_prefix), [])
+
     def test_nationwide_country_never_queries_a_missing_region_key(self):
         self.assertFalse(self.settings.has_key("region_ita"))
         with self.assertRaises(KeyError):
@@ -607,6 +630,7 @@ process.stdout.write(JSON.stringify(Object.fromEntries(SUPPORTED_COUNTRIES.map(c
         active = [{"country": row["country"], "region": row["region"]}
                   for row in stored if row["enabled"]]
         self.assertEqual(len(active), 16)
+        self.assertEqual(active, self.runtime_selections(rows))
         self.assertEqual(active, self.runtime_selections(stored))
         self.assertEqual(stored[-1], {"enabled": False, "country": "usa", "region": "ma"})
         self.assertNotIn("genoa", str(stored))
