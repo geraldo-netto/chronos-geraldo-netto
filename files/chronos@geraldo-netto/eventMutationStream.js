@@ -29,6 +29,9 @@ const EventDataModule = IS_NODE ?
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     APPLET_MODULES.providerUtils;
+const Diagnostics = IS_NODE ?
+    require("./diagnostics") :
+    APPLET_MODULES.diagnostics;
 
 const boundedEventVariants = CalendarServerModule.boundedEventVariants;
 const decodeRemovedUids = CalendarServerModule.decodeRemovedUids;
@@ -240,7 +243,13 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
             this._clearQueue();
             this.cancelPendingEmit();
         } else {
-            this.applyNext();
+            try {
+                this.applyNext();
+            } catch (error) {
+                // applyNext has secured recovery; the spent idle still needs an
+                // explicit terminal result, independent of GJS exception rules.
+                Diagnostics.logSafely("logError", error);
+            }
         }
         return GLib.SOURCE_REMOVE;
     }

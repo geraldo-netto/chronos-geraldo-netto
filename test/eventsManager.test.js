@@ -1565,7 +1565,14 @@ test("a synchronous mutation failure recovers through one resync", () => {
     assert.ok(manager._fetch_coordinator._reloadSelectedId > 0);
 });
 
-test("an idle mutation failure drops its uncertain tail and keeps draining", () => {
+test("an idle mutation failure drops its uncertain tail and keeps draining", (t) => {
+    const originalLogError = global.logError;
+    t.after(() => { global.logError = originalLogError; });
+    const logged = [];
+    global.logError = (error) => {
+        logged.push(error.message);
+        throw new Error("logging failed");
+    };
     const manager = readyManager();
     const events = Array.from({ length: 30 }, (_unused, index) => eventVariant({
         id: `queued-${index}`,
@@ -1579,7 +1586,9 @@ test("an idle mutation failure drops its uncertain tail and keeps draining", () 
         throw new Error("idle index failed");
     };
 
-    assert.throws(() => fireTimer(manager._mutation_stream._eventBatchIds[0]), /idle index failed/);
+    assert.equal(fireTimer(manager._mutation_stream._eventBatchIds[0]), false,
+        "the failed idle explicitly removes itself even when logging fails");
+    assert.deepEqual(logged, ["idle index failed"]);
     assert.deepEqual(manager._mutation_stream._eventMutations.map((mutation) => mutation.type),
         ["resync"], "the failed head and now-uncertain tail are released");
     assert.equal(manager._mutation_stream._queuedEventRecords, 0);
