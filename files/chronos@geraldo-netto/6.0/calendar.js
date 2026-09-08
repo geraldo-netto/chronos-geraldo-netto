@@ -100,6 +100,8 @@ class Calendar {
 
         this._update_id = 0;
         this._destroyed = false;
+        this._headerButtons = [];
+        this._gridFocus = null;
 
         this.settings.bindShowWeekNumbers(this, "show_week_numbers", this._onGridGeometryChanged);
         this.settings.bindWeekendLength(this, "weekend_length", this._onGridGeometryChanged);
@@ -191,6 +193,7 @@ class Calendar {
                            this._onScroll.bind(this));
         this.actor.connect('key-press-event',
                            this._onKeyPress.bind(this));
+        this.actor.connect('key-focus-out', () => { this._gridFocus = null; });
 
         this._buildHeader ();
     }
@@ -235,6 +238,8 @@ class Calendar {
 
     destroy() {
         this._destroyed = true;
+        this._gridFocus = null;
+        this._headerButtons = [];
         this._holiday_update_generation++;
         this._cancel_update();
         this._cancel_set_date_idle();
@@ -355,6 +360,7 @@ class Calendar {
             button.set_accessible_name(accessibleName);
         }
         button.accessible_name = accessibleName;
+        this._headerButtons.push(button);
         return button;
     }
 
@@ -383,9 +389,41 @@ class Calendar {
     // must too, or the async holiday answer writes tooltips onto disposed
     // buttons.
     _resetGridForRebuild() {
+        this._parkGridFocus();
         this.actor.destroy_all_children();
+        this._headerButtons = [];
         this._holiday_update_generation++;
         this._gridView.reset();
+    }
+
+    _parkGridFocus() {
+        const focused = global.stage?.get_key_focus();
+        const cell = this._gridView.dayCells.find(item => item.button === focused);
+        const header = this._headerButtons.indexOf(focused);
+        if (cell) {
+            this._gridFocus = { date: { ...cell.date } };
+        } else if (header >= 0) {
+            this._gridFocus = { header };
+        } else {
+            return;
+        }
+        // This actor survives header and day-cell destruction, including the
+        // gap before an asynchronous locale refresh renders the new grid.
+        this.actor.grab_key_focus();
+    }
+
+    _restoreGridFocus() {
+        const bookmark = this._gridFocus;
+        this._gridFocus = null;
+        if (!bookmark || global.stage?.get_key_focus() !== this.actor) {
+            return;
+        }
+        const target = bookmark.date
+            ? this._gridView.dayCells.find(cell => _sameDay(cell.date, bookmark.date))?.button
+            : this._headerButtons[bookmark.header];
+        if (target) {
+            target.grab_key_focus();
+        }
     }
 
     // Top line of the calendar '<| September |> <| 2009 |>', in the order the
@@ -573,6 +611,7 @@ class Calendar {
         const monthWindow = this._monthWindows.get(this._selectedDate, this._weekStart);
         const cells = this._gridView.render(monthWindow, annotating);
         this._holidayAnnotator.annotate(monthWindow.months, cells, holiday_generation);
+        this._restoreGridFocus();
     }
 
     _dayHeadingStyleClass(iter) {

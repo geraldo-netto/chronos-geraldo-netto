@@ -3443,3 +3443,147 @@ test("selection observers can focus today after returning from a distant month",
     assert.equal(cal.setDate(today, true), false);
     assert.equal(notifications, 1, "unchanged and forced same-day renders do not notify selection");
 });
+
+function installRebuildFocusStage(t) {
+    const previous = global.stage;
+    const stage = { focus: null, menuOpen: true, get_key_focus() { return this.focus; } };
+    global.stage = stage;
+    t.after(() => { global.stage = previous; });
+    t.mock.method(MockActor.prototype, "grab_key_focus", function() {
+        const old = stage.focus;
+        stage.focus = this;
+        old?.fire("key-focus-out");
+        this.fire("key-focus-in");
+    });
+    // Cinnamon's popup manager closes the menu when destruction clears focus.
+    // The usual lightweight actor fixture does not model recursive destruction.
+    t.mock.method(MockActor.prototype, "destroy_all_children", function() {
+        this.children.forEach(child => child.destroy());
+        this.children = [];
+        this.placements = [];
+    });
+    t.mock.method(MockActor.prototype, "destroy", function() {
+        this.destroy_all_children();
+        this.destroyed = true;
+        if (stage.focus === this) {
+            stage.focus = null;
+            stage.menuOpen = false;
+            this.fire("key-focus-out");
+        }
+    });
+    return stage;
+}
+
+function makeRebuildFocusHarness(t) {
+    const stage = installRebuildFocusStage(t);
+    const pending = new Map();
+    let nextId = 1;
+    t.mock.method(global.imports.mainloop, "idle_add", callback => {
+        const id = nextId++;
+        pending.set(id, callback);
+        return id;
+    });
+    t.mock.method(global.imports.mainloop, "source_remove", id => pending.delete(id));
+    const changes = {};
+    const settings = makeSettings();
+    settings.bindShowWeekNumbers = (object, property, callback) => {
+        object[property] = false;
+        changes.weekNumbers = () => {
+            object[property] = !object[property];
+            callback.call(object);
+        };
+    };
+    let weekStart = 0;
+    t.mock.method(global.imports.gi.Cinnamon, "util_get_week_start", () => weekStart);
+    const desktop = makeDesktopSettings();
+    desktop.connectFirstDayOfWeekChanged = callback => {
+        changes.firstWeekday = () => { weekStart = (weekStart + 1) % 7; callback(); };
+        return [1];
+    };
+    const locale = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].localeQuery;
+    t.mock.method(locale, "onLocaleInfoChanged", (category, callback) => {
+        assert.equal(category, "LC_TIME");
+        changes.locale = callback;
+        return () => {};
+    });
+    const cal = new CalendarModule.Calendar(settings, makeEventsManager(), null, desktop);
+    cal.setDate(civilDate(2026, 6, 9), false);
+    t.after(() => cal.destroy());
+    return {
+        cal, stage, changes, pending,
+        flush() {
+            const callbacks = [...pending.values()];
+            pending.clear();
+            callbacks.forEach(callback => callback());
+            assert.equal(pending.size, 0, "a completed rebuild does not reschedule itself");
+        }
+    };
+}
+
+function rebuildFocusTarget(cal, target) {
+    if (target === "day") {
+        return cal._gridView.dayCells.find(cell => cell.selected).button;
+    }
+    return [...cal._topBoxMonth.children, ...cal._topBoxYear.children]
+        .find(actor => actor.accessible_name === target);
+}
+
+function assertRebuildRetainsFocus(t, source, target) {
+    const h = makeRebuildFocusHarness(t);
+    const external = new MockActor();
+    const original = target === "external" ? external : rebuildFocusTarget(h.cal, target);
+    original.grab_key_focus();
+    h.changes[source]();
+    assert.equal(h.stage.menuOpen, true, "destroying grid actors must not close the popup");
+    h.flush();
+    const expected = target === "external" ? external : rebuildFocusTarget(h.cal, target);
+    assert.equal(h.stage.focus, expected, "restore the same logical focus target");
+    assert.deepEqual(h.cal.getSelectedDate(), civilDate(2026, 6, 9));
+    assert.equal(expected.destroyed, false);
+}
+
+test("T1151: settings and locale grid rebuilds retain day/header focus and external focus", async t => {
+    for (const source of ["weekNumbers", "firstWeekday", "locale"]) {
+        for (const target of ["day", "Previous month", "Next month", "Previous year", "Next year", "external"]) {
+            await t.test(`${source}: ${target}`, inner => assertRebuildRetainsFocus(inner, source, target));
+        }
+    }
+});
+
+test("T1151: repeated locale rebuilds preserve focus until the final render", t => {
+    const h = makeRebuildFocusHarness(t);
+    rebuildFocusTarget(h.cal, "day").grab_key_focus();
+    h.changes.locale();
+    h.changes.locale();
+    h.changes.weekNumbers();
+    h.flush();
+    assert.equal(h.stage.menuOpen, true);
+    assert.equal(h.stage.focus, rebuildFocusTarget(h.cal, "day"));
+});
+
+test("T1151: delayed locale completion respects subsequent user focus and teardown", t => {
+    const h = makeRebuildFocusHarness(t);
+    const external = new MockActor();
+    rebuildFocusTarget(h.cal, "day").grab_key_focus();
+    h.changes.locale();
+    external.grab_key_focus();
+    h.flush();
+    assert.equal(h.stage.focus, external, "Tab out of the parked grid cancels restoration");
+    rebuildFocusTarget(h.cal, "day").grab_key_focus();
+    h.changes.locale();
+    h.cal.destroy();
+    external.grab_key_focus();
+    h.flush();
+    assert.equal(h.stage.focus, external);
+    assert.equal(h.pending.size, 0);
+});
+
+test("T1151: leaving and revisiting the parking actor cancels old focus intent", t => {
+    const h = makeRebuildFocusHarness(t);
+    rebuildFocusTarget(h.cal, "Next year").grab_key_focus();
+    h.changes.locale();
+    new MockActor().grab_key_focus();
+    h.cal.actor.grab_key_focus();
+    h.flush();
+    assert.equal(h.stage.focus, h.cal.actor, "do not resurrect focus intent after the user leaves");
+});
