@@ -34,8 +34,8 @@ duplicates are logged and skipped. A malformed earlier row does not reserve the
 timezone: a later valid row may supply its mapping. Diagnostic row text is
 limited to 200 characters and escaped before logging. Missing or oversized
 tables, or a timezone without a valid match, still yield no inferred country.
-Manual country choices remain available. Improvements to source compatibility
-and conflicting duplicate handling remain a separate investigation.
+Manual country choices remain available. The [source investigation](timezone-country-inference.md)
+explains why the current exact lookup and skip-and-log behavior are retained.
 
 ## Trusted system files and size checks
 
