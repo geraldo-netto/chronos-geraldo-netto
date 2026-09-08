@@ -230,19 +230,15 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         this.cache.region = value;
     }
 
-    // validResponse bounds how many holidays a payload may carry; this bounds
-    // what they expand to, which is what actually reaches the grid and the cache
-    // file. Both are needed: a hundred holidays each spanning a year is a valid
-    // payload and 36,600 rows.
+    // Validation budgets inclusive spans before expansion. Keep this backstop
+    // for injected record contracts; an incomplete prefix is never a snapshot.
     expandData(data, region = this.region) {
         const expanded = [];
         for (const holiday of data) {
             for (const single of this.record.expandHoliday(holiday, region)) {
                 if (expanded.length >= MAX_EXPANDED_HOLIDAY_ROWS) {
-                    Diagnostics.logSafely("logError", "holiday payload expands past " +
-                        MAX_EXPANDED_HOLIDAY_ROWS + " rows; keeping the first " +
-                        MAX_EXPANDED_HOLIDAY_ROWS);
-                    return expanded;
+                    throw new RangeError("holiday payload expands past " +
+                        MAX_EXPANDED_HOLIDAY_ROWS + " rows");
                 }
                 expanded.push(single);
             }

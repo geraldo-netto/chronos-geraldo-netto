@@ -45,6 +45,14 @@ zero and the current repository clock. Invalid or future values have the oldest
 priority, so correcting a clock that was years ahead cannot evict newly fetched
 countries indefinitely.
 
+## Response completeness
+
+Provider responses must fit the 4,000-row expansion budget, counting both ends
+of every holiday span. Over-budget responses are rejected before expansion so
+the provider chain can try another source. If every source fails, prior rows and
+their fetch timestamps remain intact; no truncated response is marked fresh or
+persisted.
+
 ## Concurrent snapshots
 
 A persisted update identifies each locally changed year and region and records

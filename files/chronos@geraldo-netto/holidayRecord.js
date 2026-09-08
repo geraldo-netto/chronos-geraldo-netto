@@ -204,6 +204,16 @@ function nonBlankText(value) {
     return typeof value === "string" && value.trim().length > 0;
 }
 
+function withinExpansionBudget(data) {
+    let rows = 0;
+    for (const holiday of data) {
+        if (!holiday) return false;
+        rows += 1 + (holiday.dateTo ? holidaySpanDays(holiday.date, holiday.dateTo) : 0);
+        if (rows > MAX_EXPANDED_HOLIDAY_ROWS) return false;
+    }
+    return true;
+}
+
 var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- GJS importer export
     constructor(lang = "en") {
         this._lang = lang;
@@ -233,6 +243,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
         return Array.isArray(data) &&
             data.length <= MAX_HOLIDAYS_PER_YEAR &&
             data.every((holiday) => this.validHoliday(holiday)) &&
+            withinExpansionBudget(data) &&
             (requestedYear === undefined ||
                 (Number.isInteger(requestedYear) &&
                     data.every((holiday) => holidayOverlapsYear(holiday, requestedYear))));

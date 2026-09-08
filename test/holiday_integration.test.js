@@ -987,24 +987,108 @@ test("a payload with an absurd number of holidays is refused, not expanded", () 
 
 test("the rows a payload expands to are bounded too", () => {
     const { HolidayService, MAX_EXPANDED_HOLIDAY_ROWS } = loadHolidays();
-    const logged = [];
-    global.logError = (message) => logged.push(String(message));
 
     const enrico = new HolidayService({ fetchYear() {} }, makeMemoryCache(), {
         record: anyRecord({
-            // a hundred holidays, each spanning a year: a valid payload, and
-            // 36,600 rows on the compositor thread
+            // An injected contract bypasses preflight validation.
             expandHoliday: () => Array.from({ length: 366 }, (_u, day) => ({
                 year: 2026, month: 1, day: (day % 28) + 1, name: "H", flags: [], region: "global"
             }))
         })
     });
 
-    const expanded = enrico.expandData(Array.from({ length: 100 }, () => ({})), "global");
+    assert.throws(() => enrico.expandData(Array.from({ length: 100 }, () => ({})), "global"),
+        new RegExp(`expands past ${MAX_EXPANDED_HOLIDAY_ROWS}`));
+});
 
-    assert.equal(expanded.length, MAX_EXPANDED_HOLIDAY_ROWS,
-        "the expansion stops at the cap instead of building 36,600 rows");
-    assert.ok(logged.some((line) => /expands past/.test(line)), "and it says so");
+function expansionPayload() {
+    return Array.from({ length: 1000 }, () => ({
+        ...holiday("Observance", 2026, 1, 1),
+        holidayType: "public_holiday",
+        dateTo: { year: 2026, month: 1, day: 4 }
+    }));
+}
+
+test("response validation budgets inclusive spans before allocating rows", () => {
+    const { HolidayRecordContract } = loadHolidays();
+    const record = new HolidayRecordContract("en");
+    const data = expansionPayload();
+    assert.equal(record.validResponse(data, 2026), true, "exactly 4000 expanded rows fit");
+    data[0].dateTo.day = 5;
+    assert.equal(record.validResponse(data, 2026), false, "4001 rows require provider fallback");
+    assert.equal(record.validResponse([], 2026), true);
+    assert.equal(record.validResponse(Array(1), 2026), false, "array holes are not holidays");
+});
+
+function expansionPipeline(fallback, initial = { years: {}, holidays: [] }) {
+    const modules = loadHolidays();
+    const data = expansionPayload();
+    data[0].dateTo.day = 5;
+    const calls = [];
+    const adapter = (Type, payload) => new Type((_url, params, done) => {
+        calls.push(params.providerName || "Enrico");
+        done(payload, params, STAMP);
+    });
+    const record = new modules.HolidayRecordContract("en");
+    const chain = modules.createHolidayServiceChain(
+        adapter(modules.EnricoServiceAdapter, data),
+        [adapter(modules.NagerDateServiceAdapter, fallback)], record);
+    const saves = [];
+    const cache = new modules.HolidayCache((_country, done) => done(initial),
+        (_country, saved) => saves.push(saved));
+    cache.setPlace("usa", "global");
+    const service = new modules.HolidayService(chain, cache, { record });
+    return { service, cache, saves, calls, modules };
+}
+
+test("oversized primary responses fall through to a complete public-holiday snapshot", () => {
+    const { service, cache, saves, calls } = expansionPipeline([{
+        date: "2026-12-25", localName: "Christmas", name: "Christmas",
+        global: true, counties: null, types: ["Public"]
+    }]);
+    let settled = 0;
+    service.retrieveForYear(2026, () => settled++);
+    assert.equal(settled, 1);
+    assert.equal(calls.length, 2);
+    assert.equal(service.last_error, "");
+    assert.equal(service.last_provider, "Nager.Date");
+    assert.deepEqual(cache.matchMonth(2026, 12).get("12/25"),
+        { name: "Christmas", flags: ["public_holiday"] });
+    assert.equal(saves.length, 1);
+    assert.equal(saves[0].holidays.length, 1, "no primary prefix was persisted");
+});
+
+test("failed over-budget refresh keeps prior rows and fetch stamps intact", () => {
+    const initial = { years: { 2026: { global: "Thu, 01 Jan 2026 00:00:00 GMT" } },
+        holidays: [{ year: 2026, month: 1, day: 1, region: "global", name: "New Year", flags: [] }] };
+    const { service, cache, saves, modules } = expansionPipeline(null, initial);
+    const years = JSON.parse(JSON.stringify(cache.years));
+    let settled = 0;
+    service.retrieveForYear(2026, () => settled++);
+    assert.equal(settled, 1);
+    assert.equal(service.fetching(2026), false);
+    assert.equal(service.last_error, modules.HOLIDAY_ERRORS.INVALID_RESPONSE);
+    assert.deepEqual(cache.years, years);
+    assert.equal(cache.matchMonth(2026, 1).get("1/1").name, "New Year");
+    assert.deepEqual(saves, []);
+});
+
+test("an injected expansion overrun settles without stamping or persisting a prefix", () => {
+    const { HolidayService, HolidayCache, HOLIDAY_ERRORS } = loadHolidays();
+    const saves = [];
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }),
+        (_country, data) => saves.push(data));
+    cache.setPlace("usa", "global");
+    const service = new HolidayService({
+        fetchYear: (_country, region, year, done) => done([{}], { year, region }, STAMP)
+    }, cache, { record: anyRecord({ expandHoliday: () => Array(4001).fill({}) }) });
+    let settled = 0;
+    service.retrieveForYear(2026, () => settled++);
+    assert.equal(settled, 1);
+    assert.equal(service.fetching(2026), false);
+    assert.equal(service.last_error, HOLIDAY_ERRORS.INVALID_RESPONSE);
+    assert.deepEqual(cache.years, {});
+    assert.deepEqual(saves, []);
 });
 
 // T806: the merge rule for PART_DAY_HOLIDAY and the calendar cell style keyed on
