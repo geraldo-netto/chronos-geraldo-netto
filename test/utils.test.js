@@ -461,6 +461,7 @@ test("a cache payload past the read cap is refused at write time", () => {
 
 function deferredCacheFile(pending) {
     return {
+        get_path: () => "/cache/holidays.json",
         query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
             pending.push(() => callback(this, {}));
         },
@@ -1694,7 +1695,8 @@ test("an oversized cache file is refused before it is read", () => {
         },
         load_contents_finish() {
             throw new Error("the file must never be read");
-        }
+        },
+        get_path: () => "/cache/holidays.json"
     };
 
     let received = "unset";
@@ -1715,6 +1717,7 @@ test("a cache file that grows past the cap after the stat is still refused", () 
 
     const oversized = JSON.stringify({ padding: "x".repeat(utils.MAX_CACHE_FILE_BYTES) });
     const file = {
+        get_path: () => "/cache/holidays.json",
         query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
             callback(this, {});
         },
@@ -1758,7 +1761,8 @@ test("a cache file whose size cannot be read is refused rather than guessed", ()
         },
         load_contents_finish() {
             return [true, Buffer.from("{}", "utf8"), null];
-        }
+        },
+        get_path: () => "/cache/holidays.json"
     };
 
     let received = "unset";
@@ -1776,7 +1780,7 @@ test("a cache file with no async stat at all is refused, not read", () => {
     global.logError = () => {};
     let received = "unset";
 
-    utils.readJsonFileAsync({}, (data) => {
+    utils.readJsonFileAsync({ get_path: () => "/cache/holidays.json" }, (data) => {
         received = data;
     });
 
@@ -1797,6 +1801,7 @@ test("the cache read never stats the file synchronously", () => {
     let loads = 0;
     let received = "unset";
     utils.readJsonFileAsync({
+        get_path: () => "/cache/holidays.json",
         query_exists() {
             throw new Error("readJsonFileAsync must not block the compositor on a stat");
         },
@@ -1829,6 +1834,7 @@ test("a cache file whose stat fails for another reason is still reported", () =>
     global.logError = (message) => logged.push(String(message));
 
     utils.readJsonFileAsync({
+        get_path: () => "/cache/holidays.json",
         query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
             callback(this, {});
         },
@@ -1871,6 +1877,7 @@ test("fuzz: the log sanitizer never lets a query or fragment through", () => {
 test("readJsonFileAsync reads off the main loop and never throws at the caller", () => {
     const utils = loadIoUtils();
     const asyncFile = (contents, options = {}) => ({
+        get_path: () => "/cache/holidays.json",
         query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
             callback(this, {});
         },

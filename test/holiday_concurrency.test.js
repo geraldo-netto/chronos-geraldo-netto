@@ -87,6 +87,44 @@ test("cache transactions on different files proceed independently", () => {
     while (publications.length) publications.shift()();
 });
 
+test("first creation hides partial bytes from readers and preserves both creators", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const { publications, reads } = delayedPublications();
+    const first = new HolidayCacheRepository("/holidays.json", { now: () => NOW });
+    const reader = new HolidayCacheRepository("/holidays.json", { now: () => NOW });
+    const second = new HolidayCacheRepository("/holidays.json", { now: () => NOW });
+    first.save("usa", snapshot());
+    fs.writeFileSync(cachePath("holidays.json"), '{"usa":', "utf8");
+    let loaded;
+    reader.loadAsync("usa", (data) => { loaded = data; });
+    second.save("ita", snapshot());
+    assert.equal(loaded, undefined, "a reader waits while the initial target is incomplete");
+    assert.equal(reads.length, 0, "neither a reader nor a later writer loads partial bytes");
+    publications.shift()();
+    assert.deepEqual(loaded.holidays, snapshot().holidays);
+    publications.shift()();
+    const disk = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
+    assert.deepEqual(Object.keys(disk).sort(), ["ita", "usa"]);
+    assert.deepEqual(first._pending, {});
+    assert.deepEqual(second._pending, {});
+});
+
+test("a throwing cache reader cannot strand the next queued update", () => {
+    loadHolidays();
+    const io = require(ioUtilsPath);
+    const { publications } = delayedPublications();
+    fs.mkdirSync(cachePath(), { recursive: true });
+    const file = global.imports.gi.Gio.file_new_for_path(cachePath("holidays.json"));
+    io.updateJsonFileAsync(file, () => ({ first: true }), () => {});
+    let reads = 0;
+    io.readJsonFileAsync(file, () => { reads++; throw new Error("reader"); });
+    io.updateJsonFileAsync(file, (data) => ({ ...data, second: true }), () => {});
+    publications.shift()();
+    publications.shift()();
+    assert.equal(reads, 1, "a throwing callback is never redelivered");
+    assert.deepEqual(JSON.parse(fs.readFileSync(file.get_path(), "utf8")), { first: true, second: true });
+});
+
 test("a failed transform releases its transaction for the next update", () => {
     loadHolidays();
     const io = require(ioUtilsPath);

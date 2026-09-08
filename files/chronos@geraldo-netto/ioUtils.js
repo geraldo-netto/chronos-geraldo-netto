@@ -43,38 +43,45 @@ var MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer exp
 // was built from was capped. A real cache file is tens of kilobytes.
 var MAX_CACHE_FILE_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 
-const JSON_UPDATE_QUEUES = new Map();
+const JSON_FILE_QUEUES = new Map();
 
 // Root modules are shared by applets in one Cinnamon process. Gio checks an
 // etag before opening a replacement stream, so it cannot serialize overlapping
 // publications. Keep the entire read/transform/write inside one per-file turn.
 function updateJsonFileAsync(file, transform, onDone) {
+    _queueJsonFile(file, transform, onDone);
+}
+
+function _queueJsonFile(file, transform, onDone) {
     const key = file.get_path();
-    const queued = JSON_UPDATE_QUEUES.has(key);
-    const queue = JSON_UPDATE_QUEUES.get(key) || [];
+    const queued = JSON_FILE_QUEUES.has(key);
+    const queue = JSON_FILE_QUEUES.get(key) || [];
     queue.push({ file, transform, onDone });
-    JSON_UPDATE_QUEUES.set(key, queue);
+    JSON_FILE_QUEUES.set(key, queue);
     if (!queued) {
-        _runJsonUpdate(key, queue);
+        _runJsonFile(key, queue);
     }
 }
 
-function _runJsonUpdate(key, queue) {
+function _runJsonFile(key, queue) {
     const job = queue[0];
     let settled = false;
-    const finish = (stale = false) => {
+    const finish = (...values) => {
         if (settled) return;
         settled = true;
         queue.shift();
         try {
-            job.onDone(stale);
+            job.onDone(...values);
         } finally {
-            if (queue.length > 0) _runJsonUpdate(key, queue);
-            else JSON_UPDATE_QUEUES.delete(key);
+            _advanceJsonFileQueue(key, queue);
         }
     };
-    readJsonFileAsync(job.file, (data, etag) => {
+    _readJsonFileAsync(job.file, (data, etag) => {
         if (settled) return;
+        if (job.transform === null) {
+            finish(data, etag);
+            return;
+        }
         try {
             writeJsonFileAsync(job.file, job.transform(data), finish, etag);
         } catch (error) {
@@ -82,6 +89,11 @@ function _runJsonUpdate(key, queue) {
             finish();
         }
     });
+}
+
+function _advanceJsonFileQueue(key, queue) {
+    if (queue.length > 0) _runJsonFile(key, queue);
+    else JSON_FILE_QUEUES.delete(key);
 }
 
 function tooBig(size, limit, what) {
@@ -198,6 +210,12 @@ function _whenCacheFileIsSane(file, callback, proceed) {
 }
 
 function readJsonFileAsync (file, callback) {
+    // Gio can expose the destination before its first write finishes. Readers
+    // join the same queue as updates, so they only see settled snapshots.
+    _queueJsonFile(file, null, callback);
+}
+
+function _readJsonFileAsync(file, callback) {
     try {
         _whenCacheFileIsSane(file, callback, () => _loadCacheFile(file, callback));
     } catch (e) {

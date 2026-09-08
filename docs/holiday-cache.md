@@ -62,6 +62,11 @@ read/merge/publication transaction across applet instances in one Cinnamon
 process. The resulting country remains inside the persisted year window and
 row limit.
 
+Cache readers join that queue as well. On first creation, Gio may expose an
+empty or partially written destination before completing the write; another
+applet waits for publication before loading it. A second creator then reads and
+merges the completed first snapshot, even though the original read had no etag.
+
 Etags detect external changes made before Gio opens a replacement stream and
 trigger a fresh merge. They do not provide an atomic compare-and-swap at
 publication: separate processes writing the same cache concurrently are outside
