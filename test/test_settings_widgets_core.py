@@ -888,6 +888,65 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(seeded, {"timezone": "Asia/Tokyo"})
         self.assertEqual(result, ["Tokyo", "Asia/Tokyo"])
 
+    def test_dialog_rechecks_local_timezone_and_accepts_a_corrected_choice(self):
+        local = ["Antarctica/Troll"]
+        zones = types.SimpleNamespace(all_timezones=["Europe/Rome", "Asia/Tokyo"],
+                                      common_timezones=["Europe/Rome", "Asia/Tokyo"])
+        resolver = self.module.common.TimezoneResolver(
+            zones, None, local_timezone_provider=lambda: local[0])
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings(), resolver)
+        runs = []
+
+        def script(dialog):
+            runs.append(dialog)
+            widgets = {widget.kwargs["label"]: widget for widget in BaseWidget.instances}
+            timezone = widgets["Timezone"]
+            if len(runs) == 1:
+                self.assertEqual(dialog.sensitivity[-1], (1, True))
+                local[0] = "Europe/Rome"
+                return 1
+            self.assertEqual(len(runs), 2)
+            self.assertFalse(dialog.destroyed)
+            self.assertEqual(dialog.sensitivity[-1], (1, False))
+            self.assertEqual(timezone.bind_object.get_accessible().description,
+                             self.module.TIMEZONE_RESERVED_PREVIEW)
+            timezone.set_widget_value("Asia/Tokyo")
+            timezone.bind_object.emit_changed()
+            return 1
+
+        GtkDialog.on_run = script
+        self.assertEqual(clocks.open_add_edit_dialog(["Home", "Europe/Rome"]), ["Home", "Asia/Tokyo"])
+        self.assertEqual(len(runs), 2)
+        self.assertTrue(runs[-1].destroyed)
+
+    def test_dialog_rechecks_external_duplicates_and_allows_cancellation(self):
+        zones = types.SimpleNamespace(all_timezones=["Europe/Rome"], common_timezones=["Europe/Rome"])
+        resolver = self.module.common.TimezoneResolver(zones, None, local_timezone="Antarctica/Troll")
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings(), resolver)
+        runs = []
+
+        def script(dialog):
+            runs.append(dialog)
+            widgets = {widget.kwargs["label"]: widget for widget in BaseWidget.instances}
+            if len(runs) == 1:
+                widgets["Display name"].set_widget_value("Home")
+                widgets["Timezone"].set_widget_value("Europe/Rome")
+                widgets["Timezone"].bind_object.emit_changed()
+                self.assertEqual(dialog.sensitivity[-1], (1, True))
+                clocks.model.rows = [{"label": "Other", "timezone": "Europe/Rome"}]
+                return 1
+            self.assertEqual(len(runs), 2)
+            self.assertFalse(dialog.destroyed)
+            self.assertEqual(dialog.sensitivity[-1], (1, False))
+            self.assertEqual(widgets["Timezone"].bind_object.get_accessible().description,
+                             self.module.TIMEZONE_DUPLICATE_PREVIEW)
+            return 0
+
+        GtkDialog.on_run = script
+        self.assertIsNone(clocks.open_add_edit_dialog())
+        self.assertEqual(len(runs), 2)
+        self.assertTrue(runs[-1].destroyed)
+
     @requires_pytz
     def test_timezone_entry_completes_a_typed_city_name(self):
         clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())

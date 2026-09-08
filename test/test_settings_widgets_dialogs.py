@@ -168,7 +168,7 @@ class BuildDialogContentTest(unittest.TestCase):
         dialog = GtkDialog()
         data = {"label": "Home", "timezone": "Europe/Rome"}
 
-        widgets = clocks._build_dialog_content(dialog, data)
+        widgets, _presenter = clocks._build_dialog_content(dialog, data)
 
         self.assertIn("label", widgets)
         self.assertIn("timezone", widgets)
@@ -187,7 +187,7 @@ class BuildDialogContentTest(unittest.TestCase):
             {"value": []}, "worldclocks", DialogSettings(),
             self.module.common.TimezoneResolver(fake_pytz, None))
         dialog = GtkDialog()
-        widgets = clocks._build_dialog_content(
+        widgets, _presenter = clocks._build_dialog_content(
             dialog, {"label": " Home ", "timezone": "europe/rome"})
 
         label, timezone = clocks._collect_dialog_values(widgets)
@@ -919,7 +919,7 @@ class DialogValidationFeedbackTest(unittest.TestCase):
             self.module.common.TimezoneResolver(fake_pytz, None))
 
         dialog = GtkDialog()
-        widgets = clocks._build_dialog_content(dialog, data)
+        widgets, _presenter = clocks._build_dialog_content(dialog, data)
         return dialog, widgets
 
     def test_an_invalid_timezone_is_announced_and_shown(self):

@@ -455,7 +455,7 @@ class ClockDialogBuilder:
 
         on_widget_changed(None)
 
-        return widgets
+        return widgets, presenter
 
     def _build_frame(self, dialog):
         """Dialog chrome only: margins, the framed view, and the box inside it."""
@@ -773,6 +773,14 @@ class ClocksList(JSONSettingsList):
     def _initial_dialog_data(self, info):
         return self.dialog_builder.initial_data(info)
 
+    def _run_dialog(self, dialog, widgets, presenter, original_timezone):
+        while dialog.run() == Gtk.ResponseType.OK:
+            result = self._collect_dialog_values(widgets, original_timezone)
+            if all(result):
+                return result
+            presenter.update(widgets)
+        return None
+
     def open_add_edit_dialog(self, info=None):
         if info is None and self.model.iter_n_children(None) >= MAX_CLOCKS:
             message = Gtk.MessageDialog(self.get_toplevel(), Gtk.DialogFlags.MODAL,
@@ -793,15 +801,9 @@ class ClocksList(JSONSettingsList):
         # reading them back raises, a dialog that is never destroyed leaves the
         # settings window unusable
         try:
-            widgets = self._build_dialog_content(dialog, data)
+            widgets, presenter = self._build_dialog_content(dialog, data)
 
             dialog.get_content_area().show_all()
-            response = dialog.run()
-
-            result = None
-            if response == Gtk.ResponseType.OK:
-                result = self._collect_dialog_values(widgets, original_timezone)
+            return self._run_dialog(dialog, widgets, presenter, original_timezone)
         finally:
             dialog.destroy()
-
-        return result
