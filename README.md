@@ -201,11 +201,10 @@ the GJS importer's cached `imports.ui.appletManager.applets[uuid]` subtree. The
 `6.0/` code calls something that exists only in the *new* copy of a root module
 runs against the old one and throws — the applet lands broken on an ordinary
 update, and stays broken until the user restarts Cinnamon, which nothing in the
-update prompts them to do. Within a release, prefer additive changes that keep
-new cross-module APIs out of already-shipped root modules: put the new code in
-the `6.0/` tree, which is re-read on reload. When a root-module export genuinely
-has to change, treat it as needing a Cinnamon restart and say so in the release
-notes.
+update prompts them to do. Releases that change root modules require a full
+Cinnamon restart; state that requirement in the release notes. Place code
+according to its responsibility and update callers to the current API. The
+project does not require compatibility with previously cached implementations.
 
 After that commit is pushed to `develop` and its branch CI is green, create and
 push an annotated matching tag:

@@ -621,10 +621,10 @@ test("CI runs the gates the README promises", () => {
     // A Spices update reloads the applet, and the reload does not clear the GJS
     // importer cache — so a release that adds an export to an already-shipped
     // root module can land broken on users until they restart Cinnamon. Release
-    // work has to see that before it picks where new cross-module code goes.
+    // instructions must state that restart requirement.
     assert.match(readme,
         /new export on an already-shipped root module can break the update/);
-    assert.match(readme, /put the new code in\s+the `6\.0\/` tree, which is re-read on reload/);
+    assert.match(readme, /Releases that change root modules require a full\s+Cinnamon restart/);
 
     // sixteen timezone tests skipped themselves in CI because pytz was never
     // installed there, and neither the suite count nor a coverage number moved
