@@ -18,8 +18,15 @@ the selection unchanged.
 
 Event-fetch bounds derive from the same 42-date window. Each endpoint is
 projected independently: an omitted first date cannot shift the exclusive end
-forward. Calendar selection is passed to the surrounding applet as a local
-JavaScript `Date`.
+forward.
+
+Selection and queued navigation use plain `{year, month, day}` records, with
+months numbered 1–12. A timezone change retains these civil values and any
+pending keyboard focus intent. The applet refreshes the local event projection
+before refreshing the clocks and agenda. If an already selected date disappears
+in the new timezone, its heading and holidays remain selected; events, dots,
+and calendar launching are unavailable for that date. Returning to a timezone
+where the date exists restores its local projection.
 
 Mouse-wheel and touchpad scrolling over the month grid is consumed by calendar
 navigation, so it cannot also scroll the surrounding menu viewport. Fractional

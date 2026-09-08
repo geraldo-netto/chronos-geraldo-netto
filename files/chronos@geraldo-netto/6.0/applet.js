@@ -20,6 +20,7 @@ const AppletCoordinators = require("./appletCoordinators");
 const SettingsFacade = require("./settingsFacade");
 const LocaleQuery = require("./localeQuery");
 const LocaleText = require("./localeText");
+const DateMath = require("./dateMath");
 const AppletPanelStatus = require("./appletPanelStatus");
 const PanelFont = require("./panelFont");
 const AppletMenu = require("./appletMenuBuilder");
@@ -357,8 +358,8 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
     _onTimezoneChanged() {
         this._guarded("timezone", () => {
-            this._reconcileWorldclocks();
             this._reconcileCalendarTimezone();
+            this._reconcileWorldclocks();
             this._reconcileAstronomyTimezone();
         });
     }
@@ -815,7 +816,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     }
 
     _resetCalendar () {
-        return this._calendar.setDate(new Date(), true);
+        return this._calendar.setDate(DateMath.localDateParts(new Date()), true);
     }
 
     on_orientation_changed (orientation) {

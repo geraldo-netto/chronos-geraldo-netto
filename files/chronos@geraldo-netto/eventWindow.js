@@ -19,9 +19,6 @@ const APPLET_MODULES = IS_NODE ?
 const DateMath = APPLET_MODULES ? APPLET_MODULES.dateMath : require("./dateMath");
 const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
 const CivilTime = APPLET_MODULES ? APPLET_MODULES.civilTime : require("./civilTime");
-const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
-const date_only = EventDataModule.date_only;
-const month_year_only = EventDataModule.month_year_only;
 const dt_equals = EventDataModule.dt_equals;
 
 var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -- GJS importer export
@@ -30,6 +27,7 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         this.current_month_year = null;
         this.current_window_signature = null;
         this.current_selected_date = GLib.DateTime.new_from_unix_local(0);
+        this.current_selected_civil = null;
         this.current_selected_signature = null;
     }
 
@@ -76,47 +74,38 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
             return;
         }
 
-        const selectedSignature = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        const selectedSignature = DateMath.civilDateKey(date);
         if (!force && selectedSignature === this.current_selected_signature) {
             return;
         }
 
-        const gdate_only = date_only(js_date_to_gdatetime(date));
-        if (!force && dt_equals(gdate_only, this.current_selected_date)) {
-            this.current_selected_signature = selectedSignature;
-            return;
-        }
-
-        const month_year = month_year_only(gdate_only);
+        const timezone = GLib.TimeZone.new_local();
+        const gdate_only = CivilTime.projectCivilDate(date, timezone);
+        const month_year = CivilTime.civilDayStart(date.year, date.month, 1, timezone);
         fetchMonthEvents(month_year, force);
-        emit("selected-date-changed", gdate_only);
-        const delay_no_events_box = !dt_equals(month_year_only(this.current_selected_date),
-                                               month_year_only(gdate_only));
+        const previous = this.current_selected_civil;
+        const delay_no_events_box = Boolean(gdate_only) && (!previous ||
+            previous.year !== date.year || previous.month !== date.month);
 
+        this.current_selected_civil = { ...date };
         this.current_selected_date = gdate_only;
         this.current_selected_signature = selectedSignature;
+        emit("selected-date-changed", { ...date }, gdate_only);
         emit("selected-date-events-changed",
             this.index.get(gdate_only),
             delay_no_events_box,
-            Boolean(this.index.overflowed));
+            Boolean(gdate_only && this.index.overflowed));
     }
 
-    // `current_selected_date` is itself a GLib.DateTime built in the zone that
-    // was current when the day was picked, so re-keying the index without it
-    // leaves `index.get()` asking for a key nothing registers under any more:
-    // the grid keeps painting dots, because calendar.js derives its own keys,
-    // while the event column stays empty until a forced re-selection.
-    //
-    // The calendar day the user chose does not change with the zone — only the
-    // absolute second it starts at does. `date_only` reads the components back
-    // out and hands them to `new_local`, which resolves them in the zone that
-    // is current now. `current_selected_signature` is that same calendar day
-    // spelled out, so it survives the change and still means what it says.
+    // Re-project the retained civil date without borrowing the next day when
+    // the new timezone omits it. The civil selection survives a null projection
+    // and can become representable again after a later timezone change.
     renormalizeSelectedDate() {
         if (this.current_selected_signature === null) {
             return;
         }
-        this.current_selected_date = date_only(this.current_selected_date);
+        this.current_selected_date = CivilTime.projectCivilDate(
+            this.current_selected_civil, GLib.TimeZone.new_local());
     }
 
     reloadSelected(isActive, fetchMonthEvents, emit) {
@@ -128,10 +117,12 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         }
 
         const selected = this.current_selected_date;
-        fetchMonthEvents(month_year_only(selected), true);
-        emit("selected-date-changed", selected);
+        const civil = this.current_selected_civil;
+        fetchMonthEvents(CivilTime.civilDayStart(civil.year, civil.month, 1,
+            GLib.TimeZone.new_local()), true);
+        emit("selected-date-changed", { ...civil }, selected);
         emit("selected-date-events-changed",
-            this.index.get(selected), false, Boolean(this.index.overflowed));
+            this.index.get(selected), false, Boolean(selected && this.index.overflowed));
     }
 };
 

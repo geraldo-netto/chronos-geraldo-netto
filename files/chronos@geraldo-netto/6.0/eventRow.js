@@ -358,7 +358,7 @@ class EventRow {
     }
 
     update_variations(now = GLib.DateTime.new_now_local(), today = date_only(now),
-        selectedDay = date_only(this.selected_date)) {
+        selectedDay = this.selected_date ? date_only(this.selected_date) : null) {
         this._presenter.update(now, today, selectedDay);
     }
 }

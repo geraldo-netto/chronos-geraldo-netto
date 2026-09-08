@@ -40,7 +40,7 @@ class CalendarMonthWindowCache {
 
     get(selectedDate, weekStart) {
         const bounded = clampCalendarDate(selectedDate);
-        const key = `${bounded.getFullYear()}/${bounded.getMonth()}/${weekStart}`;
+        const key = `${bounded.year}/${bounded.month}/${weekStart}`;
         if (this._key !== key || !this._window) {
             this._key = key;
             this._window = new CalendarMonthWindow(bounded, weekStart);
@@ -62,7 +62,7 @@ class CalendarMonthWindow {
         this.selectedDate = clampCalendarDate(selectedDate);
         this.weekStart = weekStart;
         this.beginDate = DateMath.monthWindowStart(
-            this.selectedDate.getFullYear(), this.selectedDate.getMonth() + 1, weekStart);
+            this.selectedDate.year, this.selectedDate.month, weekStart);
         this.days = this._buildDays();
         this.dateUnixKeys = this.days.map(CalendarDate.localUnixForCivilDate);
         // one GLib.DateTime plus a format per cell, and _update() runs on every

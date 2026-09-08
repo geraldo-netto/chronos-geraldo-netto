@@ -22,7 +22,7 @@ const LocaleText = require("./localeText");
 const CalendarNavigation = require("./calendarNavigation");
 const CalendarDate = require("./calendarDate");
 const CalendarNavigationController = CalendarNavigation.CalendarNavigationController;
-const _formatJsDate = CalendarDate.formatJsDate;
+const formatCivilDate = CalendarDate.formatCivilDate;
 const _sameDay = CalendarDate.sameDay;
 const _today = CalendarDate.isToday;
 const CalendarMonthWindowModule = require("./calendarMonthWindow");
@@ -321,9 +321,16 @@ class Calendar {
 
     // The OS zone moved under us. Unlike midnight, this does invalidate the
     // cached window: its day keys are the unix seconds the grid matches event
-    // buckets on, and its accessible day names were formatted in the old zone.
+    // buckets on. Civil day names and selections remain unchanged.
     refreshTimezone() {
+        if (this._destroyed) {
+            return;
+        }
         this._monthWindows.invalidate();
+        // The civil selection and queued navigation are unchanged. Republish
+        // the selection so the agenda replaces its local event projection now,
+        // before any clock tick can read the old zone's heading or events.
+        this.emit("selected-date-changed", { ...this._selectedDate });
         this._queue_update();
     }
 
@@ -333,7 +340,7 @@ class Calendar {
     }
 
     getSelectedDate() {
-        return this._selectedDate;
+        return { ...this._selectedDate };
     }
 
     todaySelected() {
@@ -550,10 +557,10 @@ class Calendar {
         // the month name beside it is memoised; the year was not, and it changes
         // once a year while _update() runs on every menu open, settings change and
         // event delivery — each one a fresh GLib.DateTime plus a strftime
-        const year = String(this._selectedDate.getFullYear());
+        const year = String(this._selectedDate.year);
         if (this._rendered_year !== year) {
             this._rendered_year = year;
-            this._yearLabel.text = _formatJsDate(this._selectedDate, '%Y');
+            this._yearLabel.text = formatCivilDate(this._selectedDate, '%Y');
         }
 
         const holiday_generation = ++this._holiday_update_generation;

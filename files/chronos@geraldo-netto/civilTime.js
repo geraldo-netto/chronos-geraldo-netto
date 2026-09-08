@@ -33,6 +33,17 @@ function civilDayStart(year, month, day, timezone) {
     return earliest === timestamp ? midnight : midnight.add_seconds(earliest - timestamp);
 }
 
+// A selected Gregorian date may have no instant in this timezone. A boundary
+// may normalize forward across that gap; a selection must keep its own date.
+function projectCivilDate(date, timezone) {
+    const projected = civilDayStart(date.year, date.month, date.day, timezone);
+    if (!projected || projected.get_year() !== date.year || projected.get_month() !== date.month ||
+            projected.get_day_of_month() !== date.day) {
+        return null;
+    }
+    return projected;
+}
+
 if (typeof module !== "undefined") {
-    module.exports = { civilDayStart };
+    module.exports = { civilDayStart, projectCivilDate };
 }

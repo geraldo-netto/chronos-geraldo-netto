@@ -13,10 +13,8 @@
 const GLib = imports.gi.GLib;
 const Mainloop = imports.mainloop;
 const EventView = require("./eventView");
-const EventDataModule = require("./eventData");
-
-const date_only = EventDataModule.date_only;
-const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
+const CivilTime = require("./civilTime");
+const DateMath = require("./dateMath");
 
 // The agenda column's runtime state, and the only writer of it.
 //
@@ -37,7 +35,8 @@ var AgendaColumnCoordinator = class AgendaColumnCoordinator { // NOSONAR [S3504]
         this._event_list = eventList;
         this._calendar = null;
         this._signal_ids = [];
-        this._selected_date = eventList ? eventList.selectedDate : null;
+        this._selected_date = eventList ? eventList.selectedCivilDate : null;
+        this._selected_local_date = eventList ? eventList.selectedDate : null;
         this._event_data_list = null;
         this._delay_no_events_box = false;
         this._events_overflowed = false;
@@ -59,11 +58,12 @@ var AgendaColumnCoordinator = class AgendaColumnCoordinator { // NOSONAR [S3504]
     _connect() {
         const manager = this._events_manager;
         this._signal_ids.push(
-            manager.connect("selected-date-changed", (em, gdate) => {
-                this._event_list.set_date(gdate);
-                this._selected_date = gdate;
+            manager.connect("selected-date-changed", (em, date, gdate) => {
+                this._event_list.set_date(date, gdate);
+                this._selected_date = { ...date };
+                this._selected_local_date = gdate;
                 this._event_data_list = null;
-                this._delay_no_events_box = true;
+                this._delay_no_events_box = Boolean(gdate);
                 this._events_overflowed = false;
                 this._queueRender();
             }),
@@ -94,23 +94,28 @@ var AgendaColumnCoordinator = class AgendaColumnCoordinator { // NOSONAR [S3504]
     // fires first, so the events-manager handler still owns the rendering
     // whenever it is going to run at all — this only fills the gap it leaves.
     //
-    // Both callers hand over the calendar's own selection, which is a JS `Date`
-    // — the grid navigates in one. The column is GLib all the way down:
-    // `set_date` formats the heading through `GLib.DateTime.format` and
-    // compares through `dt_equals`, which calls `to_unix()`. So the conversion
-    // belongs here, at the one seam between the two, exactly as
-    // `EventWindowCoordinator.selectDate` does it for the other producer. It
-    // also keeps the selected date one type whoever wrote it last.
+    // Both producers use civil dates. Only timed events need a local instant;
+    // the heading and holiday remain the same when that projection is absent.
     selectDate(date) {
         if (!this._event_list || !date) {
             return;
         }
 
-        const gdate = date_only(js_date_to_gdatetime(date));
-        this._event_list.set_date(gdate);
-        this._selected_date = gdate;
-        if (!this._events_manager.is_active()) {
+        const gdate = CivilTime.projectCivilDate(date, GLib.TimeZone.new_local());
+        const changed = !DateMath.sameCivilDate(date, this._selected_date) ||
+            gdate?.to_unix() !== this._selected_local_date?.to_unix();
+        this._event_list.set_date(date, gdate);
+        this._selected_date = { ...date };
+        this._selected_local_date = gdate;
+        if (changed) {
+            this._event_data_list = null;
+            this._delay_no_events_box = false;
+            this._events_overflowed = false;
+        }
+        if (!this._events_manager.is_active() || !gdate) {
             this.render();
+        } else if (changed) {
+            this._queueRender();
         }
     }
 
@@ -153,8 +158,9 @@ var AgendaColumnCoordinator = class AgendaColumnCoordinator { // NOSONAR [S3504]
         const holiday = this._calendar && this._selected_date ?
             this._calendar.holidayForDate(this._selected_date) : null;
         this._event_list.set_events(
-            EventView.composeSelectedDayAgenda(this._event_data_list, holiday),
-            this._delay_no_events_box, this._events_overflowed);
+            EventView.composeSelectedDayAgenda(this._selected_local_date ? this._event_data_list : null, holiday),
+            Boolean(this._selected_local_date && this._delay_no_events_box),
+            Boolean(this._selected_local_date && this._events_overflowed));
     }
 
     // The column may be waiting on an idle to draw itself, and the actors it

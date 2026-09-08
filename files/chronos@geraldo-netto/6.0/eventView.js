@@ -20,6 +20,8 @@ const Separator = imports.ui.separator;
 const Tooltips = imports.ui.tooltips;
 const Mainloop = imports.mainloop;
 const DateFormats = require("./dateFormats");
+const DateMath = require("./dateMath");
+const CalendarDate = require("./calendarDate");
 const LocaleText = require("./localeText");
 const UiVocabulary = require("./uiVocabulary");
 const ACTIVATION_KEY_SYMBOLS = UiVocabulary.ACTIVATION_KEY_SYMBOLS;
@@ -55,7 +57,6 @@ const EVENTS_REFRESH_FAILED_TEXT =
     _("Calendar events could not be refreshed.");
 const EventDataModule = require("./eventData");
 const date_only = EventDataModule.date_only;
-const dt_equals = EventDataModule.dt_equals;
 const CalendarLauncherModule = require("./calendarLauncher");
 const CalendarLauncher = CalendarLauncherModule.CalendarLauncher;
 
@@ -126,7 +127,7 @@ class EventListRenderer {
         }
         const now = GLib.DateTime.new_now_local();
         const today = date_only(now);
-        const selectedDay = date_only(this.list.selectedDate);
+        const selectedDay = this.list.selectedDate ? date_only(this.list.selectedDate) : null;
         for (const row of rows) {
             if (before) {
                 before(row);
@@ -336,6 +337,8 @@ class EventList {
     constructor(desktop_settings, launcher = new CalendarLauncher(),
         reportIssue = () => {}) {
         this.selected_date = GLib.DateTime.new_now_local();
+        this.selected_civil_date = { year: this.selected_date.get_year(),
+            month: this.selected_date.get_month(), day: this.selected_date.get_day_of_month() };
         this.desktop_settings = desktop_settings;
         this._calendar_launcher = launcher;
         this._rows = [];
@@ -400,7 +403,7 @@ class EventList {
     }
 
     _canLaunchCalendar() {
-        return this._calendar_launcher.isAvailable() && !this._unavailable;
+        return Boolean(this.selected_date) && this._calendar_launcher.isAvailable() && !this._unavailable;
     }
 
     _syncSelectedDateAccessibility(canLaunch) {
@@ -415,7 +418,7 @@ class EventList {
         }
     }
 
-    _syncSelectedDateLauncher() {
+    _syncCalendarLaunchers() {
         const canLaunch = this._canLaunchCalendar();
         this.selected_date_label.reactive = canLaunch;
         this.selected_date_label.can_focus = canLaunch;
@@ -424,6 +427,11 @@ class EventList {
         if (this._selected_date_tooltip) {
             this._selected_date_tooltip.set_text(canLaunch ? _("Open the calendar app") : "");
         }
+        this.no_events_button.reactive = canLaunch;
+        this.no_events_button.can_focus = canLaunch;
+        this.no_events_button.set_style_class_name(
+            canLaunch ? "calendar-events-no-events-button" : "");
+        this.set_no_events_text(this.no_events_label.text);
     }
 
     _buildOverflowView() {
@@ -558,7 +566,7 @@ class EventList {
         // the column is showing "no calendar service is running": there is
         // nothing to launch, and the button that would have said so is not a
         // button any more
-        if (this._unavailable) {
+        if (this._unavailable || !gdate) {
             return;
         }
 
@@ -586,19 +594,25 @@ class EventList {
             this._canLaunchCalendar() ? joinPhrases(text, _("Add an event")) : text);
     }
 
-    set_date(gdate) {
-        if (this.selected_date && dt_equals(this.selected_date, gdate)) {
+    set_date(date, gdate) {
+        const changedDay = !DateMath.sameCivilDate(this.selected_civil_date, date);
+        if (!changedDay && this.selected_date?.to_unix() === gdate?.to_unix()) {
             return;
         }
+        if (changedDay) {
+            // The old rows still belong to the previous civil day until its
+            // replacement arrives. Capture that identity before changing it.
+            this.parkRowFocus();
+        }
 
-        const dateText = locale_cap(DateFormats.formatDateWithFallback(
-            (format) => gdate.format(format), DATE_FORMAT_FULL, DATE_FORMAT_FULL_FALLBACK));
+        const dateText = locale_cap(CalendarDate.formatCivilDate(
+            date, DATE_FORMAT_FULL, DATE_FORMAT_FULL_FALLBACK));
         this.selected_date_label.set_text(dateText);
+        this.selected_date = gdate;
+        this.selected_civil_date = { ...date };
         // the date first, because that is what this heading is for; what
         // clicking it does comes after, only while that action is live
-        this._syncSelectedDateLauncher();
-
-        this.selected_date = gdate;
+        this._syncCalendarLaunchers();
     }
 
     // The renderer used to read and write the list's private fields directly —
@@ -632,6 +646,10 @@ class EventList {
 
     get selectedDate() {
         return this.selected_date;
+    }
+
+    get selectedCivilDate() {
+        return this.selected_civil_date;
     }
 
     get desktopSettings() {
@@ -684,7 +702,7 @@ class EventList {
         this._rowFocus = {
             id: row.event.id, index,
             occurrence: this._rows.slice(0, index).filter(other => other.event.id === row.event.id).length,
-            day: date_only(row.selected_date).to_unix()
+            day: DateMath.civilDateKey(this.selected_civil_date)
         };
         this.selected_date_label.grab_key_focus();
         return true;
@@ -698,7 +716,7 @@ class EventList {
         const saved = this._rowFocus;
         this.cancelFocusRestore();
         if (!saved || global.stage.get_key_focus() !== this.selected_date_label ||
-            saved.day !== date_only(this.selected_date).to_unix()) {
+            saved.day !== DateMath.civilDateKey(this.selected_civil_date)) {
             return;
         }
         const matching = this._rows.filter(row => row.event.id === saved.id)[saved.occurrence];
@@ -802,19 +820,8 @@ class EventList {
             return;
         }
         this._unavailable = unavailable;
-        this._syncSelectedDateLauncher();
+        this._syncCalendarLaunchers();
         this._syncIssues();
-
-        // In the unavailable state the button announced only the error sentence —
-        // while staying focusable, hoverable, themed as a button and still wired
-        // to launch_calendar(). So it read as "no calendar service is running",
-        // and pressing Enter on it opened gnome-calendar. A control's name has to
-        // say what activating it does; this one is not a control at all here.
-        const canLaunch = this._canLaunchCalendar();
-        this.no_events_button.reactive = canLaunch;
-        this.no_events_button.can_focus = canLaunch;
-        this.no_events_button.set_style_class_name(
-            canLaunch ? "calendar-events-no-events-button" : "");
 
         // the unavailable state's own text is written by _syncIssues above;
         // coming back from it restores the ordinary one. The re-render is

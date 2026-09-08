@@ -8,7 +8,7 @@ global.imports = { gi: { GLib: {
     TimeType: { STANDARD: 0, DAYLIGHT: 1 },
     DateTime: { new: (...args) => construct(...args) }
 } } };
-const { civilDayStart } = require("../files/chronos@geraldo-netto/civilTime");
+const { civilDayStart, projectCivilDate } = require("../files/chronos@geraldo-netto/civilTime");
 
 function dateTime(timestamp, offset) {
     return {
@@ -48,6 +48,22 @@ test("civil boundaries choose the earliest local interval without losing their t
     construct = () => dateTime(-800, 23400);
     assert.equal(civilDayStart(1996, 10, 26, zone).to_unix(), -800,
         "an already-earliest constructor result stays unchanged");
+});
+
+test("a civil projection rejects normalized neighboring dates and missing dates", () => {
+    const selected = { year: 2011, month: 12, day: 30 };
+    const zone = { find_interval: () => -1 };
+    const projection = parts => ({ ...dateTime(1000, 0), get_year: () => parts.year,
+        get_month: () => parts.month, get_day_of_month: () => parts.day });
+    const valid = projection(selected);
+    construct = () => valid;
+    assert.equal(projectCivilDate(selected, zone), valid);
+    for (const changed of [{ year: 2012 }, { month: 11 }, { day: 31 }]) {
+        construct = () => projection({ ...selected, ...changed });
+        assert.equal(projectCivilDate(selected, zone), null);
+    }
+    construct = () => null;
+    assert.equal(projectCivilDate(selected, zone), null);
 });
 
 test("native civil boundaries include seasonal and political midnight folds", (context) => {

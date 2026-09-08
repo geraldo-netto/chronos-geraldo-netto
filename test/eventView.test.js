@@ -65,15 +65,19 @@ class FakeDateTime {
     }
 
     get_year() {
-        return 2000;
+        return this.civil_date().getUTCFullYear();
     }
 
     get_month() {
-        return 1;
+        return this.civil_date().getUTCMonth() + 1;
     }
 
     get_day_of_month() {
-        return Math.floor(this.usec / DAY_US);
+        return this.civil_date().getUTCDate();
+    }
+
+    civil_date() {
+        return new Date(Date.UTC(1999, 11, 31) + this.usec / 1000);
     }
 
     format(fmt) {
@@ -91,6 +95,11 @@ class FakeDateTime {
 }
 
 const NOW = new FakeDateTime(50 * DAY_US + 12 * 3600 * 1000000);
+
+function selectDate(list, date) {
+    list.set_date({ year: date.get_year(), month: date.get_month(),
+        day: date.get_day_of_month() }, date);
+}
 
 class MockActor {
     constructor(options = {}) {
@@ -252,7 +261,9 @@ global.imports = {
             DateTime: {
                 new(timezone, ...args) { return this.new_local(...args); },
                 new_from_unix_local: (unix) => new FakeDateTime(unix * 1000000),
-                new_local: (y, m, day) => new FakeDateTime(day * DAY_US),
+                new_local: (y, m, day) => new FakeDateTime(
+                    (Date.UTC(y, m - 1, day) - Date.UTC(1999, 11, 31)) * 1000),
+                new_utc(y, m, day) { return this.new_local(y, m, day); },
                 new_now_local: () => NOW
             }
         },
@@ -301,6 +312,8 @@ global.imports = {
 // the root modules read global.imports at require time, so load them after
 // the mock exists and then expose them through the native-importer path
 const rootModules = global.imports.ui.appletManager.applets["chronos@geraldo-netto"];
+rootModules.dateMath = require(path.join(APPLET_DIR, "dateMath.js"));
+rootModules.civilTime = require(path.join(APPLET_DIR, "civilTime.js"));
 rootModules.dateFormats = require(path.join(APPLET_DIR, "dateFormats.js"));
 rootModules.localeText = require(path.join(APPLET_DIR, "localeText.js"));
 rootModules.styleUtils = require(path.join(APPLET_DIR, "styleUtils.js"));
@@ -687,7 +700,7 @@ test("the selected-date label is reachable from the keyboard and explains itself
     // "Open the calendar app" made the selected date - which this heading is
     // the only place to read - unsayable. The date leads; what clicking it does
     // comes after.
-    list.set_date(new FakeDateTime(10 * DAY_US));
+    selectDate(list, new FakeDateTime(10 * DAY_US));
     const dateText = list.selected_date_label.text;
     assert.ok(dateText, "the heading shows the selected date");
     assert.equal(list.selected_date_label.accessible_name, `${dateText} — Open the calendar app`);
@@ -703,7 +716,7 @@ test("the selected-date label is reachable from the keyboard and explains itself
         }
         return originalFormat.call(this, format);
     };
-    list.set_date(new FakeDateTime(11 * DAY_US));
+    selectDate(list, new FakeDateTime(11 * DAY_US));
     assert.match(list.selected_date_label.text,
         new RegExp(rootModules.dateFormats.DATE_FORMAT_FULL_FALLBACK.replace(
             /[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -893,13 +906,13 @@ test("EventList constructor wires clickable labels, buttons, and scroll pass-thr
 
 test("EventList set_date skips unchanged dates and updates changed dates", () => {
     const list = new EventView.EventList(desktopSettings());
-    list.set_date(TODAY);
+    selectDate(list, TODAY);
     const first = list.selected_date_label.text;
-    list.set_date(TODAY);
+    selectDate(list, TODAY);
     assert.equal(list.selected_date_label.text, first);
 
     const tomorrow = TODAY.add_days(1);
-    list.set_date(tomorrow);
+    selectDate(list, tomorrow);
     assert.notEqual(list.selected_date_label.text, first);
     assert.equal(list.selected_date, tomorrow);
 });
@@ -1090,7 +1103,7 @@ test("the selected day is derived once per refresh and shared by every row", () 
     // an event that starts on the selected day renders as a plain time range,
     // and the same event judged against today does not.
     const browsed = new EventView.EventList(desktopSettings(true));
-    browsed.set_date(new FakeDateTime(52 * DAY_US));
+    selectDate(browsed, new FakeDateTime(52 * DAY_US));
     browsed.set_events({
         timestamp: 93,
         get_event_list: () => [makeRowEvent({
@@ -1148,7 +1161,7 @@ test("minute ticks and reopening reorder all-day rows without replacing actors",
     const agenda = agendaAcrossMeetingEnd();
     const list = new EventView.EventList(desktopSettings());
     t.after(() => list.destroy());
-    list.set_date(TODAY);
+    selectDate(list, TODAY);
     list.set_events(agenda, false);
     const rows = list.rows.slice();
     const children = list.events_box.get_children();
@@ -1217,7 +1230,7 @@ function finishRowBuild(list, pending) {
 
 function focusFixture(t) {
     const list = new EventView.EventList(desktopSettings(), { isAvailable: () => true });
-    list.set_date(TODAY);
+    selectDate(list, TODAY);
     const menu = new MockActor();
     menu.add_actor(list.actor);
     const footer = new MockActor();
@@ -1322,7 +1335,7 @@ test("user movement and day changes cancel pending focus restoration", (t) => {
 
     list.rows[40].actor.grab_key_focus();
     list.set_events(focusAgenda(ids, 3), false);
-    list.set_date(TODAY.add_days(1));
+    selectDate(list, TODAY.add_days(1));
     list.set_events(focusAgenda(ids, 4), false);
     finishRowBuild(list, pending);
     assert.equal(stage.focus, list.selected_date_label, "a new day cannot inherit the old row bookmark");
@@ -1331,6 +1344,64 @@ test("user movement and day changes cancel pending focus restoration", (t) => {
     list.set_events(focusAgenda(["single"], 5), false);
     assert.equal(stage.focus, footer, "background updates do not acquire focus");
     assert.equal(stage.menuOpen, true);
+});
+
+test("date-before-events signals retain old row focus identity across a day change", (t) => {
+    const { list, stage } = focusFixture(t);
+    list.set_events(focusAgenda(["old"], 1), false);
+    list.rows[0].actor.grab_key_focus();
+    selectDate(list, TODAY.add_days(1));
+    assert.equal(stage.focus, list.selected_date_label,
+        "focus parks before the selected day can be assigned to old rows");
+    list.set_events(focusAgenda(["unrelated"], 2), false);
+    assert.equal(stage.focus, list.selected_date_label,
+        "the next day must not inherit an unrelated event focus");
+    assert.equal(stage.menuOpen, true);
+
+    list.rows[0].actor.grab_key_focus();
+    const civil = { ...list.selectedCivilDate };
+    list.set_date(civil, list.selectedDate.add_seconds(3600));
+    list.set_events(focusAgenda(["unrelated"], 3), false);
+    assert.equal(stage.focus, list.rows[0].actor,
+        "a timezone re-projection of the same civil date retains focus");
+});
+
+test("an omitted date disables and restores both calendar launch controls", (t) => {
+    const launched = [];
+    const list = new EventView.EventList(desktopSettings(), {
+        isAvailable: () => true, launchDate: date => launched.push(date)
+    });
+    t.after(() => list.destroy());
+    const civil = { year: 2011, month: 12, day: 30 };
+    const projection = new FakeDateTime(10 * DAY_US);
+    list.set_date(civil, projection);
+    list.set_events(null, false);
+    list.set_date(civil, null);
+    list.set_unavailable(false);
+    for (const actor of [list.selected_date_label, list.no_events_button]) {
+        assert.equal(actor.can_focus, false);
+        assert.equal(actor.reactive, false);
+    }
+    assert.equal(list.no_events_button.style_class, "");
+    assert.equal(list.no_events_button.accessible_name, list.no_events_label.text);
+    list.launch_calendar(null);
+    assert.deepEqual(launched, []);
+    list.set_events(EventView.composeSelectedDayAgenda(null,
+        { name: "Retained civil holiday", flags: [] }), false);
+    list.refresh_time_state();
+    assert.equal(list.rows[0].event.summary, "Retained civil holiday");
+    list.set_unavailable(true);
+    list.set_unavailable(false);
+    assert.equal(list.no_events_button.can_focus, false,
+        "service transitions cannot restore a missing projection");
+    list.set_date(civil, projection);
+    for (const actor of [list.selected_date_label, list.no_events_button]) {
+        assert.equal(actor.can_focus, true);
+        assert.equal(actor.reactive, true);
+    }
+    assert.match(list.no_events_button.accessible_name, /Add an event/);
+    list.launch_calendar(projection);
+    assert.equal(launched.length, 1);
 });
 
 test("a row outside the rendered prefix falls back within it and teardown cancels handover", (t) => {
@@ -1360,7 +1431,7 @@ test("an event boundary crossed during row chunking is reconciled when the build
     const pending = captureRowIdles(t);
     const list = new EventView.EventList(desktopSettings());
     t.after(() => list.destroy());
-    list.set_date(TODAY);
+    selectDate(list, TODAY);
     list.set_events(orderedAgendaWithTimedRows(40), false);
     const allDayRow = list.rows[0];
     assert.ok(list._renderer._build_rows_idle_id > 0);
@@ -1381,7 +1452,7 @@ test("time-based ordering replaces a changed visible prefix through the bounded 
     const pending = captureRowIdles(t);
     const list = new EventView.EventList(desktopSettings());
     t.after(() => list.destroy());
-    list.set_date(TODAY);
+    selectDate(list, TODAY);
     list.set_events(orderedAgendaWithTimedRows(EventView.MAX_RENDERED_EVENT_ROWS), false);
     finishRowBuild(list, pending);
     const previousRows = list.rows.slice();
@@ -1717,7 +1788,7 @@ test("EventRow activation covers mouse, keyboard, and current all-day branches",
 test("the empty-state button stops being a button when there is nothing to launch", () => {
     global.imports.gi.GLib.find_program_in_path = () => "/usr/bin/gnome-calendar";
     const list = new EventView.EventList(desktopSettings());
-    list.set_date(new FakeDateTime(10 * DAY_US));
+    selectDate(list, new FakeDateTime(10 * DAY_US));
     const heading = list.selected_date_label.text;
 
     assert.equal(list.no_events_button.options.can_focus, true);

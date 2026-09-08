@@ -34,20 +34,29 @@ class FakeDateTime {
     }
 
     get_year() {
-        return 2000;
+        return this.civil_date().getUTCFullYear();
     }
 
     get_month() {
-        return 1;
+        return this.civil_date().getUTCMonth() + 1;
     }
 
     get_day_of_month() {
-        return Math.floor(this.usec / DAY_US);
+        return this.civil_date().getUTCDate();
     }
 
     get_day_of_week() {
-        return (Math.floor(this.usec / DAY_US) % 7) + 1;
+        return this.civil_date().getUTCDay() || 7;
     }
+
+    civil_date() {
+        return new Date(Date.UTC(1999, 11, 31) + this.usec / 1000);
+    }
+}
+
+function civilAt(milliseconds) {
+    const date = new FakeDateTime(milliseconds * 1000);
+    return { year: date.get_year(), month: date.get_month(), day: date.get_day_of_month() };
 }
 
 // controllable Mainloop: timers fire only when the test says so
@@ -176,14 +185,11 @@ global.imports = {
             TimeZone: { new_local: () => ({ find_interval: () => -1 }) },
             DateTime: {
                 new(timezone, year, month, day) {
-                    // This fixture encodes days linearly from 2000-01-01 as 1.
-                    // Civil fetch endpoints can now explicitly name a sibling
-                    // month/year, so normalize them into that same encoding.
-                    const serial = (Date.UTC(year, month - 1, day) - Date.UTC(1999, 11, 31)) / 86400000;
-                    return this.new_local(2000, 1, serial);
+                    return this.new_local(year, month, day);
                 },
                 new_from_unix_local: (unix) => new FakeDateTime(unix * 1000000),
-                new_local: (y, m, day) => new FakeDateTime(day * DAY_US),
+                new_local: (y, m, day) => new FakeDateTime(
+                    (Date.UTC(y, m - 1, day) - Date.UTC(1999, 11, 31)) * 1000),
                 new_now_local: () => new FakeDateTime(50 * DAY_US + DAY_US / 2)
             }
         },
@@ -459,7 +465,7 @@ test("calendar-server idle sleep preserves state and reuses its proxy", () => {
     const manager = readyManager();
     const server = proxy.instance;
     const conn = manager._server_connection;
-    const selected = new Date(10 * DAY_S * 1000);
+    const selected = civilAt(10 * DAY_S * 1000);
     manager.select_date(selected, true);
     registerDays(manager, makeEventData({
         id: "kept-through-sleep",
@@ -548,7 +554,7 @@ test("a proxy built before the activatable server has an owner is published", ()
         "nothing to retry: the first call activates the server");
 
     // ...and the call that activates the service actually goes out
-    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    manager.select_date(civilAt(50 * DAY_S * 1000), true);
     assert.equal(proxy.instance.set_time_range_calls.length, 1);
 
     // Later idle exit is also normal. The proxy stays valid and the next call
@@ -684,7 +690,7 @@ test("a month fetch in flight is cancelled when the applet goes away", () => {
     const manager = readyManager();
     proxy.instance.defer_time_ranges = true;
 
-    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    manager.select_date(civilAt(50 * DAY_S * 1000), true);
     const call = proxy.instance.set_time_range_calls.at(-1);
     assert.ok(call.cancellable, "the call carries a cancellable, not null");
 
@@ -705,14 +711,14 @@ test("disabling events quiesces the pipeline and re-enables from an empty index"
     const manager = readyManager();
     const server = proxy.instance;
     server.defer_time_ranges = true;
-    const selected = new Date(50 * DAY_S * 1000);
+    const selected = civilAt(50 * DAY_S * 1000);
 
     manager.select_date(selected, true);
     const abandonedFetch = server.set_time_range_calls[0];
     const events = Array.from({ length: 60 }, (_unused, index) => eventVariant({
         id: `abandoned-${index}`,
-        startUnix: 10 * DAY_S + index * 60,
-        endUnix: 10 * DAY_S + index * 60 + 30
+        startUnix: 50 * DAY_S + index * 60,
+        endUnix: 50 * DAY_S + index * 60 + 30
     }));
     server.signal("events-added-or-updated", eventArrayVariant(events));
     assert.ok(manager._mutation_stream._eventBatchIds.length > 0,
@@ -778,8 +784,8 @@ test("disabling events quiesces the pipeline and re-enables from an empty index"
 
     const replacements = Array.from({ length: 60 }, (_unused, index) => eventVariant({
         id: `replacement-${index}`, summary: "fresh",
-        startUnix: 10 * DAY_S + index * 60,
-        endUnix: 10 * DAY_S + index * 60 + 30
+        startUnix: 50 * DAY_S + index * 60,
+        endUnix: 50 * DAY_S + index * 60 + 30
     }));
     server.signal("events-added-or-updated", eventArrayVariant(replacements));
     const liveBatchIds = manager._mutation_stream._eventBatchIds.slice();
@@ -970,17 +976,18 @@ test("queued event chunks retain the delivery watermark across a newer fetch", (
         "successful replacement completion culls once the stream settles");
 });
 
-function deliverWindowEvents(prefix, count) {
+function deliverWindowEvents(prefix, count, startUnix) {
     const events = Array.from({ length: count }, (_unused, index) => eventVariant({
         id: `${prefix}-${index}`,
-        startUnix: 10 * DAY_S + 3600,
-        endUnix: 10 * DAY_S + 3660
+        startUnix,
+        endUnix: startUnix + 60
     }));
     proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
 }
 
 function checkReplacementWindow(manager, replaceWindow, count) {
-    deliverWindowEvents("abandoned", MAX_QUEUED_EVENT_RECORDS);
+    deliverWindowEvents("abandoned", MAX_QUEUED_EVENT_RECORDS,
+        manager._event_index._windowStart.to_unix() + 10 * DAY_S + 3600);
     const stream = manager._mutation_stream;
     assert.equal(stream._queuedEventRecords, MAX_QUEUED_EVENT_RECORDS - 25);
     const idleId = stream._eventBatchIds[0];
@@ -991,7 +998,8 @@ function checkReplacementWindow(manager, replaceWindow, count) {
     assert.equal(stream._queuedEventRecords, 0, "the old window releases its record budget");
     assert.equal(stream._queuedEventBytes, 0, "the old window releases its byte budget");
     assert.equal(timers.pending.has(idleId), false, "the old delivery idle is cancelled");
-    deliverWindowEvents("replacement", count);
+    deliverWindowEvents("replacement", count,
+        manager._event_index._windowStart.to_unix() + 10 * DAY_S + 3600);
     assert.equal(staleIdle(), false, "an already-dispatched old idle stays retired");
     drainEventMutations(manager);
     assert.equal(manager._event_index._eventIds.size, count);
@@ -1003,7 +1011,7 @@ function checkReplacementWindow(manager, replaceWindow, count) {
 test("changed event windows retire chunked deliveries before admitting replacements", async (t) => {
     const changes = {
         month: (manager, state) => manager.fetch_month_events(
-            new FakeDateTime(++state.month * DAY_US), false),
+            global.imports.gi.GLib.DateTime.new_local(2000, ++state.month, 1), false),
         weekday: (manager, state) => {
             state.weekStart++;
             manager.fetch_month_events(manager._window_coordinator.current_month_year, false);
@@ -1021,10 +1029,11 @@ test("changed event windows retire chunked deliveries before admitting replaceme
             const state = { month: 1, weekStart: 0, offset: 0 };
             child.mock.method(global.imports.gi.Cinnamon, "util_get_week_start", () => state.weekStart);
             child.mock.method(global.imports.gi.GLib.DateTime, "new_local", (year, month, day) =>
-                new FakeDateTime(day * DAY_US + state.offset * 1000000));
+                new FakeDateTime((Date.UTC(year, month - 1, day) - Date.UTC(1999, 11, 31)) * 1000 +
+                    state.offset * 1000000));
             const manager = readyManager();
             child.after(() => manager.destroy());
-            manager.select_date(new Date(10 * DAY_S * 1000), true);
+            manager.select_date(civilAt(10 * DAY_S * 1000), true);
             const replaceWindow = () => change(manager, state);
             checkReplacementWindow(manager, replaceWindow, MAX_QUEUED_EVENT_RECORDS);
             checkReplacementWindow(manager, replaceWindow, 100);
@@ -1266,6 +1275,7 @@ test("a mutation flood collapses to one bounded authoritative resync", () => {
     const manager = readyManager();
     const browsed = new FakeDateTime(20 * DAY_US);
     manager._window_coordinator.current_selected_date = browsed;
+    manager._window_coordinator.current_selected_civil = civilAt(browsed.to_unix() * 1000);
     manager._window_coordinator.current_selected_signature = "2000-1-20";
     const events = Array.from({ length: 60 }, (_unused, index) => eventVariant({
         id: `before-resync-${index}`,
@@ -1654,7 +1664,7 @@ test("a failed mutation idle registration resyncs without a phantom source", () 
 
 test("the synchronous reload fallback contains a throwing consumer", () => {
     const manager = readyManager();
-    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    manager.select_date(civilAt(10 * DAY_S * 1000), true);
     manager.connect("selected-date-changed", () => {
         throw new Error("selected-date listener failed");
     });
@@ -1688,7 +1698,7 @@ test("the synchronous reload fallback contains a throwing consumer", () => {
 
 test("an empty synchronous resync fetch still schedules reconciliation", (t) => {
     const manager = readyManager();
-    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    manager.select_date(civilAt(10 * DAY_S * 1000), true);
     const originalIdleAdd = global.imports.mainloop.idle_add;
     const originalLogError = global.logError;
     t.after(() => {
@@ -1805,6 +1815,7 @@ test("ambiguous removed-event IDs clear and force-refetch the window", () => {
     const manager = readyManager();
     const browsed = new FakeDateTime(20 * DAY_US);
     manager._window_coordinator.current_selected_date = browsed;
+    manager._window_coordinator.current_selected_civil = civilAt(browsed.to_unix() * 1000);
     manager._window_coordinator.current_selected_signature = "2000-1-20";
     const ambiguousUid = "calendar-source:meeting::2026";
     manager._window_coordinator.current_month_year = new FakeDateTime(10 * DAY_US);
@@ -1842,6 +1853,7 @@ test("client disappearance rebuilds the event map via a forced reload", () => {
     const manager = readyManager();
     const browsed = new FakeDateTime(20 * DAY_US);
     manager._window_coordinator.current_selected_date = browsed;
+    manager._window_coordinator.current_selected_civil = civilAt(browsed.to_unix() * 1000);
     manager._window_coordinator.current_selected_signature = "2000-1-20";
     manager._event_index.eventsByDate[123] = {};
     const gridUpdates = emitted(manager, "events-updated").length;
@@ -1893,19 +1905,19 @@ test("fetch_month_events requests the 42-cell window and resets on month change"
 
 test("select_date is gated on is_active and skips unchanged dates", () => {
     const inactive = makeManager(false);
-    inactive.select_date(new Date(0), false);
+    inactive.select_date(civilAt(0), false);
     assert.equal(emitted(inactive, "selected-date-changed").length, 0);
 
     const manager = readyManager();
-    manager.select_date(new Date(50 * DAY_S * 1000), false);
+    manager.select_date(civilAt(50 * DAY_S * 1000), false);
     assert.equal(emitted(manager, "selected-date-changed").length, 1);
-    manager.select_date(new Date(50 * DAY_S * 1000 + 3600 * 1000), false);
+    manager.select_date(civilAt(50 * DAY_S * 1000 + 3600 * 1000), false);
     assert.equal(emitted(manager, "selected-date-changed").length, 1, "same day skipped");
 });
 
 test("select_date skips unchanged dates before GLib conversion", () => {
     const manager = readyManager();
-    manager.select_date(new Date(50 * DAY_S * 1000), false);
+    manager.select_date(civilAt(50 * DAY_S * 1000), false);
 
     const originalNewLocal = global.imports.gi.GLib.DateTime.new_local;
     let conversions = 0;
@@ -1915,8 +1927,8 @@ test("select_date skips unchanged dates before GLib conversion", () => {
     };
 
     try {
-        manager.select_date(new Date(50 * DAY_S * 1000 + 3600 * 1000), false);
-        manager.select_date(new Date(50 * DAY_S * 1000 + 7200 * 1000), false);
+        manager.select_date(civilAt(50 * DAY_S * 1000 + 3600 * 1000), false);
+        manager.select_date(civilAt(50 * DAY_S * 1000 + 7200 * 1000), false);
     } finally {
         global.imports.gi.GLib.DateTime.new_local = originalNewLocal;
     }
@@ -2005,7 +2017,7 @@ test("a failed month fetch is retried with backoff", () => {
         }
     };
 
-    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    manager.select_date(civilAt(50 * DAY_S * 1000), true);
     const initialCalls = server.set_time_range_calls.length;
     assert.ok(initialCalls > 0);
     assert.ok(manager._fetch_coordinator._fetchRetryId > 0, "a failed fetch schedules a retry");
@@ -2037,7 +2049,7 @@ test("a synchronous month dispatch failure enters the retry state", () => {
     manager._fetch_coordinator._resyncOverflowPending = true;
 
     assert.doesNotThrow(() =>
-        manager.select_date(new Date(50 * DAY_S * 1000), true));
+        manager.select_date(civilAt(50 * DAY_S * 1000), true));
     assert.equal(manager._fetch_coordinator._refreshFailed, true);
     assert.ok(manager._fetch_coordinator._fetchRetryId > 0);
     assert.equal(manager._fetch_coordinator._resyncOverflowPending, true,
@@ -2059,7 +2071,7 @@ test("an exception after the range callback is not a dispatch failure", () => {
         throw new Error("after callback");
     };
 
-    assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
+    assert.throws(() => manager.select_date(civilAt(50 * DAY_S * 1000), true),
         /after callback/);
     assert.equal(manager._fetch_coordinator._refreshFailed, false);
     assert.equal(manager._fetch_coordinator._fetchRetryId, 0,
@@ -2077,7 +2089,7 @@ test("a failing refresh-error listener cannot suppress fetch retry", () => {
         throw new Error("refresh listener failed");
     });
 
-    assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
+    assert.throws(() => manager.select_date(civilAt(50 * DAY_S * 1000), true),
         /refresh listener failed/);
     assert.equal(manager._fetch_coordinator._refreshFailed, true);
     assert.ok(manager._fetch_coordinator._fetchRetryId > 0);
@@ -2099,7 +2111,7 @@ test("a failing refresh-error listener cannot suppress fetch reconciliation", ()
         throw new Error("refresh listener failed");
     });
 
-    assert.throws(() => manager.select_date(new Date(50 * DAY_S * 1000), true),
+    assert.throws(() => manager.select_date(civilAt(50 * DAY_S * 1000), true),
         /refresh listener failed/);
     assert.equal(manager._fetch_coordinator._refreshFailed, false);
     assert.equal(queued.at(-1).type, "fetch-complete");
@@ -2217,7 +2229,7 @@ test("destroy cancels one queued fetch retry and duplicate queues are ignored", 
 
 test("a dispatched fetch retry becomes a no-op after teardown", () => {
     const manager = readyManager();
-    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    manager.select_date(civilAt(50 * DAY_S * 1000), true);
     const callsBefore = proxy.instance.set_time_range_calls.length;
 
     manager._fetch_coordinator.queueFetchRetry();
@@ -2247,7 +2259,7 @@ test("a retry that fires after the calendar server died stands down with a full 
         throw new Error("dbus went away");
     };
 
-    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    manager.select_date(civilAt(50 * DAY_S * 1000), true);
     assert.ok(manager._fetch_coordinator._fetchRetryId > 0, "a failed fetch schedules a retry");
     assert.equal(manager._fetch_coordinator._fetchRetryAttempts, 1);
 
@@ -2275,7 +2287,7 @@ test("a fetch that keeps failing gives up out loud", () => {
         throw new Error("dbus is broken");
     };
 
-    manager.select_date(new Date(50 * DAY_S * 1000), true);
+    manager.select_date(civilAt(50 * DAY_S * 1000), true);
     // each retry fires, fails, and queues the next one until the budget is out
     for (let attempt = 0; attempt < 10 && manager._fetch_coordinator._fetchRetryId > 0; attempt++) {
         fireTimer(manager._fetch_coordinator._fetchRetryId);
@@ -2441,7 +2453,7 @@ test("a removal settles the deliveries queued behind it first", () => {
 // mutation settles the accumulator on the way past.
 test("a reselect settles a delivery still waiting on its idle", () => {
     const manager = readyManager();
-    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    manager.select_date(civilAt(10 * DAY_S * 1000), true);
 
     proxy.instance.signal("events-added-or-updated", {
         unpack: () => [eventVariant({
@@ -2454,7 +2466,7 @@ test("a reselect settles a delivery still waiting on its idle", () => {
     manager.connect("selected-date-events-changed", () => order.push("column"));
     manager.connect("selected-date-changed", () => order.push("day"));
 
-    manager.select_date(new Date(Date.UTC(1970, 0, 12)), true);
+    manager.select_date(civilAt(Date.UTC(1970, 0, 12)), true);
 
     assert.equal(manager._mutation_stream._emitIdleId, 0, "the delivery has had its say");
     assert.equal(order[0], "column",
@@ -2821,7 +2833,7 @@ test("an OS timezone change discards the indexed buckets and refetches", () => {
     const manager = readyManager();
     const month = new FakeDateTime(10 * DAY_US);
     manager._window_coordinator.current_selected_date = month;
-    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    manager.select_date(civilAt(10 * DAY_S * 1000), true);
     proxy.instance.signal("events-added-or-updated", eventArrayVariant([eventVariant({
         id: "before-the-change",
         startUnix: 10 * DAY_S,
@@ -2921,7 +2933,7 @@ test("re-stating the window of the month on screen keeps what is indexed", () =>
 // it, because the dispatcher cannot tell a stale flag from a live one.
 test("a resync whose reload declines does not leave the overflow warning behind", () => {
     const manager = readyManager();
-    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    manager.select_date(civilAt(10 * DAY_S * 1000), true);
 
     // the calendar server goes away between the resync and the idle
     manager._mutation_stream.applyResync();
@@ -2941,7 +2953,7 @@ test("a resync whose reload declines does not leave the overflow warning behind"
     // a genuine overflow after that is its own warning, and survives
     manager._mutation_stream.applyOverflow();
     assert.equal(manager._event_index.overflowed, true);
-    manager.select_date(new Date(40 * DAY_S * 1000), true);
+    manager.select_date(civilAt(10 * DAY_S * 1000), true);
     assert.equal(manager._event_index.overflowed, true,
         "a real overflow is not retired by the next range call");
 });
@@ -2956,7 +2968,7 @@ test("an OS timezone change re-keys the selection along with the buckets", () =>
     const SELECTED_DAY = 10;
     manager._window_coordinator.current_selected_date =
         new FakeDateTime(SELECTED_DAY * DAY_US);
-    manager.select_date(new Date(SELECTED_DAY * DAY_S * 1000), true);
+    manager.select_date(civilAt(SELECTED_DAY * DAY_S * 1000), true);
 
     // the OS moves one hour east: the same calendar day now starts at a
     // different absolute second, which is what re-keys every bucket
@@ -2964,7 +2976,7 @@ test("an OS timezone change re-keys the selection along with the buckets", () =>
     const originalNewLocal = clock.new_local;
     const SHIFT_S = 3600;
     clock.new_local = (year, month, day) =>
-        new FakeDateTime(day * DAY_US + SHIFT_S * 1000000);
+        originalNewLocal(year, month, day).add_seconds(SHIFT_S);
 
     try {
         manager.refresh_for_timezone_change();
@@ -3000,6 +3012,37 @@ test("a timezone change before any selection renormalizes nothing", () => {
 
     assert.equal(manager._window_coordinator.current_selected_date, untouched,
         "there is no chosen day to re-key, and epoch zero is not one");
+});
+
+test("omitted selected dates survive reload without neighboring events or overflow", (t) => {
+    const manager = readyManager();
+    t.after(() => manager.destroy());
+    const civil = { year: 2000, month: 1, day: 20 };
+    manager.select_date(civil, true);
+    const clock = global.imports.gi.GLib.DateTime;
+    const construct = clock.new_local;
+    t.mock.method(clock, "new_local", (year, month, day) =>
+        construct(year, month, day === 20 ? 21 : day));
+    manager.refresh_for_timezone_change();
+    assert.equal(manager.current_selected_date, null);
+    fireTimer(manager._fetch_coordinator._reloadSelectedId);
+    const result = registerDays(manager, makeEventData({ id: "neighbor",
+        startUnix: 21 * DAY_S + 3600, endUnix: 21 * DAY_S + 3660 }));
+    assert.equal(result.selected_changed, false);
+    assert.equal(manager._event_index.get(null), null);
+    manager._event_index.markOverflow();
+    manager.select_date(civil, true);
+    assert.deepEqual(emitted(manager, "selected-date-changed").at(-1).args, [civil, null]);
+    assert.deepEqual(emitted(manager, "selected-date-events-changed").at(-1).args,
+        [null, false, false]);
+    manager.queue_reload_selected();
+    fireTimer(manager._fetch_coordinator._reloadSelectedId);
+    assert.deepEqual(emitted(manager, "selected-date-events-changed").at(-1).args,
+        [null, false, false]);
+    clock.new_local = construct;
+    manager.refresh_for_timezone_change();
+    fireTimer(manager._fetch_coordinator._reloadSelectedId);
+    assert.equal(manager.current_selected_date.to_unix(), 20 * DAY_S);
 });
 
 // Removing an admitted event cannot recover a different event refused at the
@@ -3173,14 +3216,14 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     const selected = new FakeDateTime(50 * DAY_US);
     index.eventsByDate[selected.to_unix()] = { marker: "cached", length: 1 };
     coordinator.selectDate(
-        new Date(50 * DAY_S * 1000),
+        civilAt(50 * DAY_S * 1000),
         false,
         () => false,
         () => { throw new Error("inactive selection should not fetch"); },
         () => { throw new Error("inactive selection should not emit"); }
     );
     coordinator.selectDate(
-        new Date(50 * DAY_S * 1000),
+        civilAt(50 * DAY_S * 1000),
         false,
         () => true,
         (monthYear, force) => emittedEvents.push(["fetch", force, monthYear.to_unix()]),
@@ -3192,13 +3235,12 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     assert.equal(emittedEvents.at(-1)[0], "selected-date-events-changed");
     assert.equal(emittedEvents.at(-1)[1], index.eventsByDate[selected.to_unix()]);
 
-    coordinator.current_selected_signature = null;
     coordinator.selectDate(
-        new Date(50 * DAY_S * 1000),
+        civilAt(50 * DAY_S * 1000),
         false,
         () => true,
-        () => { throw new Error("an unchanged GDate must not fetch"); },
-        () => { throw new Error("an unchanged GDate must not emit"); }
+        () => { throw new Error("an unchanged civil date must not fetch"); },
+        () => { throw new Error("an unchanged civil date must not emit"); }
     );
     assert.notEqual(coordinator.current_selected_signature, null);
 });
@@ -3418,6 +3460,7 @@ test("idle background reload refetches the selected date without navigating", ()
     const manager = readyManager();
     const selected = new FakeDateTime(20 * DAY_US);
     manager._window_coordinator.current_selected_date = selected;
+    manager._window_coordinator.current_selected_civil = civilAt(selected.to_unix() * 1000);
     manager._window_coordinator.current_selected_signature = "2000-1-20";
     manager._fetch_coordinator._reloadSelectedId = 9;
 
@@ -3425,7 +3468,8 @@ test("idle background reload refetches the selected date without navigating", ()
     assert.equal(manager._fetch_coordinator._reloadSelectedId, 0);
     assert.equal(manager.current_selected_date, selected);
     assert.equal(proxy.instance.set_time_range_calls.at(-1).force, true);
-    assert.equal(emitted(manager, "selected-date-changed").at(-1).args[0], selected);
+    assert.deepEqual(emitted(manager, "selected-date-changed").at(-1).args,
+        [civilAt(selected.to_unix() * 1000), selected]);
 });
 
 // T700: cinnamon-calendar-server can overlap views during a rapid range

@@ -20,7 +20,7 @@ const Holidays = require("./holidayConstants");
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
-const formatJsDate = CalendarDate.formatJsDate;
+const formatCivilDate = CalendarDate.formatCivilDate;
 
 const PART_DAY_HOLIDAY = Holidays.PART_DAY_HOLIDAY;
 const PUBLIC_HOLIDAY_FLAG = Holidays.PUBLIC_HOLIDAY_FLAG;
@@ -35,13 +35,7 @@ function compareCodeUnits(left, right) {
 }
 
 function calendarDateKey(date) {
-    if (date && typeof date.get_month === "function") {
-        return `${date.get_year()}/${date.get_month()}/${date.get_day_of_month()}`;
-    }
-    if (date instanceof Date) {
-        return `${date.getFullYear()}/${date.getMonth() + 1}/${date.getDate()}`;
-    }
-    return "";
+    return date ? DateMath.civilDateKey(date) : "";
 }
 
 // A month's holiday flags: always an array, possibly empty. Every entry of the
@@ -236,11 +230,11 @@ class CalendarHolidayAnnotator {
     // and a format to get it, on every update; it changes once a month
     _monthName() {
         const date = this.host.selectedDate;
-        const key = `${date.getFullYear()}/${date.getMonth()}`;
+        const key = `${date.year}/${date.month}`;
 
         if (this._month_name_key !== key) {
             this._month_name_key = key;
-            this._month_name = formatJsDate(date, '%OB').capitalize();
+            this._month_name = formatCivilDate(date, '%OB').capitalize();
         }
 
         return this._month_name;

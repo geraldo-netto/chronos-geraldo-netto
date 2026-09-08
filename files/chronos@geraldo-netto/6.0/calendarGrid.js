@@ -33,7 +33,7 @@ const ngettext = LocaleText.translatePlural;
 const _sameDay = DateMath.sameCivilDate;
 const civilWeekday = DateMath.civilWeekday;
 function _today(date, today) {
-    return _sameDay(date, DateMath.localDateParts(today));
+    return _sameDay(date, today);
 }
 // Geometry remains the primary limit, but a broken or unusually permissive
 // theme must not turn one dense day into an arbitrary number of actors.
@@ -195,7 +195,7 @@ class CalendarDayCellRenderer {
     }
 
     _updateSelection(cell, iter) {
-        const selected = _sameDay(DateMath.localDateParts(this.host.selectedDate), iter);
+        const selected = _sameDay(this.host.selectedDate, iter);
         if (selected !== cell.selected) {
             if (selected) {
                 cell.button.add_style_pseudo_class('selected');
@@ -309,7 +309,7 @@ class CalendarDayCellRenderer {
             if (!cell.date || cell.dateUnixKey === null) {
                 return;
             }
-            this.host.selectDate(new Date(cell.dateUnixKey * 1000));
+            this.host.selectDate({ ...cell.date });
         });
 
         return cell;
@@ -333,7 +333,7 @@ class CalendarDayCellRenderer {
 
         if (_today(iter, today)) {
             styleClass.push('calendar-today');
-        } else if (iter.month !== this.host.selectedDate.getMonth() + 1) {
+        } else if (iter.month !== this.host.selectedDate.month) {
             styleClass.push('calendar-other-month-day');
         } else {
             styleClass.push('calendar-not-today');
@@ -427,7 +427,7 @@ class CalendarGridView {
         this.dotMetrics = null;
     }
 
-    render(monthWindow, annotating, today = new Date()) {
+    render(monthWindow, annotating, today = DateMath.localDateParts(new Date())) {
         this.ensureGrid();
         this.updateDayHeadings();
         const cells = new Map();

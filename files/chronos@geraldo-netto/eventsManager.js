@@ -164,7 +164,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
         this.emit("selected-date-events-changed",
             this._event_index.get(this.current_selected_date),
             delayNoEventsBox,
-            Boolean(this._event_index.overflowed));
+            Boolean(this.current_selected_date && this._event_index.overflowed));
     }
 
     _emit_event_index_changed() {

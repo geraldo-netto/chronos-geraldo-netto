@@ -30,27 +30,24 @@ const MIRRORED_KEYS = new Set([Clutter.KEY_Left, Clutter.KEY_Right]);
 const sameDay = CalendarDate.sameDay;
 
 function clampCalendarDate(date) {
-    const ordinal = date.getFullYear() * 12 + date.getMonth();
+    const ordinal = date.year * 12 + date.month - 1;
     if (ordinal >= MIN_BROWSABLE_MONTH_ORDINAL &&
             ordinal <= MAX_BROWSABLE_MONTH_ORDINAL) {
-        return date;
+        return { ...date };
     }
 
-    const bounded = new Date(date);
     if (ordinal < MIN_BROWSABLE_MONTH_ORDINAL) {
-        bounded.setFullYear(1, 1, 1);
-    } else {
-        bounded.setFullYear(9999, 10, 30);
+        return { year: 1, month: 2, day: 1 };
     }
-    return bounded;
+    return { year: 9999, month: 11, day: 30 };
 }
 
 function browsedDate(oldDate, yearChange, monthChange) {
-    const monthIndex = oldDate.getMonth() + monthChange;
+    const monthIndex = oldDate.month - 1 + monthChange;
     const monthYearChange = Math.floor(monthIndex / 12);
     const newMonth = ((monthIndex % 12) + 12) % 12;
 
-    const newYear = oldDate.getFullYear() + yearChange + monthYearChange;
+    const newYear = oldDate.year + yearChange + monthYearChange;
     const ordinal = newYear * 12 + newMonth;
     if (ordinal < MIN_BROWSABLE_MONTH_ORDINAL ||
             ordinal > MAX_BROWSABLE_MONTH_ORDINAL) {
@@ -58,7 +55,7 @@ function browsedDate(oldDate, yearChange, monthChange) {
     }
 
     const monthEnd = DateMath.addCivilDays({ year: newYear, month: newMonth + 2, day: 1 }, -1);
-    const day = Math.min(oldDate.getDate(), monthEnd.day);
+    const day = Math.min(oldDate.day, monthEnd.day);
     return localDateNear({ year: newYear, month: newMonth + 1, day },
         day === monthEnd.day ? -1 : 1) || oldDate;
 }
@@ -68,15 +65,17 @@ function browsedDate(oldDate, yearChange, monthChange) {
 // Two projections bound the work; no event or settings input can cause a scan.
 function localDateNear(date, direction) {
     const unix = CalendarDate.localUnixForCivilDate(date);
-    const projected = unix === null ? CalendarDate.localUnixForCivilDate(
-        DateMath.addCivilDays(date, direction)) : unix;
-    return projected === null ? null : new Date(projected * 1000);
+    if (unix !== null) {
+        return date;
+    }
+    const neighbor = DateMath.addCivilDays(date, direction);
+    return CalendarDate.localUnixForCivilDate(neighbor) === null ? null : neighbor;
 }
 
 // Owns selected-date state, input interpretation, focus and coalesced browsing.
 // Its port is the small part of the grid/lifecycle it needs to notify.
 class CalendarNavigationController {
-    constructor(port, selectedDate = new Date()) {
+    constructor(port, selectedDate = DateMath.localDateParts(new Date())) {
         this.port = port;
         this.selectedDate = clampCalendarDate(selectedDate);
         this.queuedDate = null;
@@ -138,7 +137,7 @@ class CalendarNavigationController {
     }
 
     focusSelectedDay() {
-        const selected = DateMath.localDateParts(this.selectedDate);
+        const selected = this.selectedDate;
         for (const cell of this.port.dayCells()) {
             if (DateMath.sameCivilDate(cell.date, selected) && cell.button.grab_key_focus) {
                 cell.button.can_focus = true;
@@ -192,7 +191,7 @@ class CalendarNavigationController {
         }
         const delta = this.rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
         const target = localDateNear(DateMath.addCivilDays(
-            DateMath.localDateParts(this.queuedDate || this.selectedDate), delta), Math.sign(delta));
+            this.queuedDate || this.selectedDate, delta), Math.sign(delta));
         if (!target) {
             return Clutter.EVENT_STOP;
         }
@@ -209,7 +208,7 @@ class CalendarNavigationController {
             return Clutter.EVENT_STOP;
         }
         if (symbol === Clutter.KEY_Home) {
-            this.setDate(new Date(), false);
+            this.setDate(DateMath.localDateParts(new Date()), false);
             this.focusSelectedDay();
             return Clutter.EVENT_STOP;
         }

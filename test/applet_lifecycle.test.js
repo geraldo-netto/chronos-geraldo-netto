@@ -1660,7 +1660,7 @@ test("settings and weather changes update dependent views", () => {
             disableIfOff: (enabled) => calls.push(["events-enabled", enabled]),
             select_date: (date, force) => calls.push(["select", force])
         },
-        _calendar: { getSelectedDate: () => new Date(2026, 6, 9) }
+        _calendar: { getSelectedDate: () => ({ year: 2026, month: 7, day: 9 }) }
     });
     stub._eventListCoordinator = new CoordinatorModule.AppletEventListCoordinator({
         manager: stub.events_manager,
@@ -1887,11 +1887,11 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
             return 1;
         }
         setDate(date, force) {
-            calls.push(["calendar-set-date", date instanceof Date, force]);
+            calls.push(["calendar-set-date", Number.isInteger(date.year), force]);
         }
         holidayForDate(date) {
             calls.push(["holiday-for-date", date]);
-            return date === "gdate" ? { name: "Republic Day", flags: ["public_holiday"] } : null;
+            return date.day === 2 ? { name: "Republic Day", flags: ["public_holiday"] } : null;
         }
         getSelectedDate() { return null; }
         refreshHolidays() {}
@@ -1966,7 +1966,7 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
     stub._worldclocks.timezoneChanged();
     assert.ok(calls.some(([name]) => name === "timezone"));
     stub._calendar.handlers["selected-date-changed"]();
-    stub.events_manager.handlers["selected-date-changed"](null, "gdate");
+    stub.events_manager.handlers["selected-date-changed"](null, { year: 2026, month: 6, day: 2 }, "gdate");
     const calendarEvents = {
         timestamp: 1,
         length: 1,
@@ -2174,7 +2174,7 @@ test("context menu, add-to-panel, reset, and main entrypoint are covered", () =>
     const reset = Object.assign(Object.create(Proto), {
         _calendar: {
             setDate: (date, force) => {
-                calls.push(["set-date", date instanceof Date, force]);
+                calls.push(["set-date", Number.isInteger(date.year), force]);
                 return true;
             }
         }
@@ -2288,7 +2288,7 @@ test("constructor registers desktop and lifecycle callbacks", () => {
     Calendar52.Calendar = class {
         constructor() { this.actor = {}; }
         connect() { return 1; }
-        getSelectedDate() { return new Date(); }
+        getSelectedDate() { return rootModules.dateMath.localDateParts(new Date()); }
         holidayForDate() { return null; }
         todaySelected() { return true; }
         refreshHolidays() {}

@@ -4,12 +4,33 @@ const {
     clockStub, readingFrom, suffixStub, updateStub, tooltipEntry, panelPort
 } = require("./helpers/appletFixture");
 
+test("timezone selection reconciliation precedes world-clock and agenda ticks", () => {
+    const calls = [];
+    const applet = Object.assign(Object.create(Proto), {
+        _guarded: (name, callback) => callback(),
+        events_manager: { refresh_for_timezone_change: () => calls.push("event-projection") },
+        _calendar: { refreshTimezone: () => calls.push("civil-selection") },
+        _worldclocks: { buildClocks: () => calls.push("worldclocks") },
+        worldclock_settings: { clocks: [] },
+        _updateClockAndDate() {
+            assert.deepEqual(calls, ["event-projection", "civil-selection", "worldclocks"]);
+            calls.push("agenda-tick");
+        },
+        _scheduleCityWeatherRefresh: () => calls.push("city-weather"),
+        _reconcileAstronomyTimezone: () => calls.push("astronomy")
+    });
+    applet._onTimezoneChanged();
+    assert.deepEqual(calls, ["event-projection", "civil-selection", "worldclocks",
+        "agenda-tick", "city-weather", "astronomy"]);
+});
+
 test("switching world clocks off stops the work they cost", () => {
     const { stub, calls } = updateStub({ menuOpen: true });
     Object.assign(stub, {
         show_worldclocks: false,
         worldclocks: [{ label: "Tokyo", timezone: "Asia/Tokyo" }],
-        _calendar: { todaySelected: () => false, getSelectedDate: () => new Date() }
+        _calendar: { todaySelected: () => false,
+            getSelectedDate: () => rootModules.dateMath.localDateParts(new Date()) }
     });
 
     Proto._updateClockAndDate.call(stub);

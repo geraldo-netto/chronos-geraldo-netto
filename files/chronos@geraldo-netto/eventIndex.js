@@ -135,7 +135,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
     }
 
     get(date) {
-        return this.getByUnixKey(date.to_unix());
+        return date ? this.getByUnixKey(date.to_unix()) : null;
     }
 
     getByUnixKey(dateUnixKey) {
@@ -227,7 +227,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this._noteDay(data.id, hash);
         return {
             changed,
-            selected_changed: changed && dt_equals(date, currentSelectedDate)
+            selected_changed: changed && Boolean(currentSelectedDate) && dt_equals(date, currentSelectedDate)
         };
     }
 

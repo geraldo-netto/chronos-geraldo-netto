@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
-| T1135 | open | medium | s | Preserve the selected civil date when the local timezone changes. CalendarNavigation stores an absolute JS Date, while 6.0/calendar.js:327–330 refreshTimezone only invalidates the month window. Native private-process reproduction: select June 15, 2026 at noon in Pacific/Kiritimati, switch process TZ to Pacific/Honolulu, clear JS date caches and call the real applet._onTimezoneChanged; getSelectedDate becomes June 14. Retain civil year/month/day and rebase selected and queued navigation dates before applet.js:358–361 refreshes world clocks and ticks the agenda. Keep grid and event-window selection aligned with eventWindow.js's existing civil-date-preservation contract. |
 
 ## Blocked / Deferred
 

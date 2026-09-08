@@ -10,16 +10,9 @@ const DateFormats = require("./dateFormats");
 const DateMath = require("./dateMath");
 const CivilTime = require("./civilTime");
 
-function sameDay(dateA, dateB) {
-    if (!dateA || !dateB) {
-        return false;
-    }
-    return dateA.getDate() === dateB.getDate() &&
-        dateA.getMonth() === dateB.getMonth() &&
-        dateA.getFullYear() === dateB.getFullYear();
-}
+const sameDay = DateMath.sameCivilDate;
 
-function isToday(date, today = new Date()) {
+function isToday(date, today = DateMath.localDateParts(new Date())) {
     return sameDay(date, today);
 }
 
@@ -30,21 +23,13 @@ function formatCivilDate(date, format, fallback = format) {
         (candidate) => dt.format(candidate), format, fallback) : "";
 }
 
-function formatJsDate(jsDate, format, fallback = format) {
-    return formatCivilDate(DateMath.localDateParts(jsDate), format, fallback);
-}
-
 // A whole skipped date has no local event bucket or selectable instant. GLib
 // normalizes it into the following date; reject that projection explicitly.
 function localUnixForCivilDate(date) {
-    const dt = CivilTime.civilDayStart(date.year, date.month, date.day, GLib.TimeZone.new_local());
-    if (!dt || dt.get_year() !== date.year || dt.get_month() !== date.month ||
-            dt.get_day_of_month() !== date.day) {
-        return null;
-    }
-    return dt.to_unix();
+    const dt = CivilTime.projectCivilDate(date, GLib.TimeZone.new_local());
+    return dt ? dt.to_unix() : null;
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { sameDay, isToday, formatJsDate, formatCivilDate, localUnixForCivilDate };
+    module.exports = { sameDay, isToday, formatCivilDate, localUnixForCivilDate };
 }

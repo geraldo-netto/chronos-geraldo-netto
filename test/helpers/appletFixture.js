@@ -488,7 +488,7 @@ function updateStub({ menuOpen = false } = {}) {
                 calls.weatherSource = source;
             }
         },
-        _calendar: { todaySelected: () => true, getSelectedDate: () => new Date() },
+        _calendar: { todaySelected: () => true, getSelectedDate: () => rootModules.dateMath.localDateParts(new Date()) },
         go_home_button: { reactive: true, set_style_class_name: () => {} },
         _day: { set_text: (text) => calls.dayText.push(text) },
         _date: { set_text: () => {} },
