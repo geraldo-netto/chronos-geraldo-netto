@@ -43,8 +43,22 @@ function zonedDateTime(timestamp, timezone) {
 }
 
 function _civilMidnight(date, timezone) {
-    return GLib.DateTime.new(timezone,
+    const midnight = GLib.DateTime.new(timezone,
         date.get_year(), date.get_month(), date.get_day_of_month(), 0, 0, 0);
+    if (!midnight) {
+        return null;
+    }
+    let earliest = midnight.to_unix();
+    const localTime = earliest + midnight.get_utc_offset() / 1000000;
+    // GLib can choose the second copy of an ambiguous midnight. Compare both
+    // local intervals so the day includes its first hour after a backward jump.
+    for (const type of [GLib.TimeType.STANDARD, GLib.TimeType.DAYLIGHT]) {
+        const interval = timezone.find_interval(type, localTime);
+        if (interval >= 0) {
+            earliest = Math.min(earliest, localTime - timezone.get_offset(interval));
+        }
+    }
+    return earliest;
 }
 
 function civilDayBounds(now, timezone) {
@@ -60,10 +74,10 @@ function civilDayBounds(now, timezone) {
     // A midnight DST jump may normalize start to 01:00. Tomorrow's boundary
     // must be constructed independently rather than carrying that hour forward.
     const end = tomorrow ? _civilMidnight(tomorrow, timezone) : null;
-    if (!start || !end) {
+    if (start === null || end === null) {
         return null;
     }
-    const bounds = { startMs: start.to_unix() * 1000, endMs: end.to_unix() * 1000 };
+    const bounds = { startMs: start * 1000, endMs: end * 1000 };
     return Astronomy.validDayBounds(bounds.startMs, bounds.endMs) ? bounds : null;
 }
 

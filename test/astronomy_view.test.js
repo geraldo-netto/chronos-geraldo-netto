@@ -17,7 +17,8 @@ let dateTimeFactory = () => null;
 let localTimezone = timezone("Europe/Rome");
 
 function timezone(identifier) {
-    return { get_identifier: () => identifier };
+    return { get_identifier: () => identifier,
+        find_interval: () => 0, get_offset: () => 0 };
 }
 
 let localTimezoneLookups = 0;
@@ -92,7 +93,7 @@ function loadView() {
     global.imports = {
         gi: {
             Clutter: { ActorAlign: { START: 1 } },
-            GLib: { DateTime: {
+            GLib: { TimeType: { STANDARD: 0, DAYLIGHT: 1 }, DateTime: {
                 new_from_unix_utc: (timestamp) => utcDateTimeFactory(timestamp),
                 new: (...args) => dateTimeFactory(...args)
             } },
@@ -153,6 +154,7 @@ test("place civil-day bounds reject bad clocks and preserve DST-sized days", () 
     dateTimeFactory = (...args) => {
         constructed.push(args);
         return {
+            get_utc_offset: () => 0,
             to_unix: () => args[3] === 29 ? 1000 : 1000 + 23 * 60 * 60
         };
     };
@@ -163,12 +165,22 @@ test("place civil-day bounds reject bad clocks and preserve DST-sized days", () 
     ]);
     assert.deepEqual(bounds, { startMs: 1000000, endMs: (1000 + 23 * 60 * 60) * 1000 });
 
+    seoul.find_interval = (type) => type;
+    seoul.get_offset = (interval) => [0, 3600][interval];
+    assert.deepEqual(View.civilDayBounds(new Date(), seoul), {
+        startMs: -2600000, endMs: (1000 + 22 * 60 * 60) * 1000
+    }, "the first copy of an ambiguous midnight starts the day");
+    seoul.find_interval = () => -1;
+    assert.deepEqual(View.civilDayBounds(new Date(), seoul), bounds,
+        "unavailable intervals retain GLib's normalized midnight");
+
     dateTimeFactory = () => null;
     assert.equal(View.civilDayBounds(new Date(), seoul), null);
     current.add_days = () => null;
     assert.equal(View.civilDayBounds(new Date(), seoul), null);
     current.add_days = () => dayFor(30);
     dateTimeFactory = (...args) => ({
+        get_utc_offset: () => 0,
         to_unix: () => args[3] === 29 ? 0 : 27 * 60 * 60
     });
     assert.equal(View.civilDayBounds(new Date(), seoul), null, "oversized civil days fail closed");
@@ -479,6 +491,7 @@ test("the shipped view uses its local clock, solver, and formatter defaults", ()
     };
     utcDateTimeFactory = () => ({ to_timezone: () => unixDateTime || placeDay });
     dateTimeFactory = (zone, year, month, day) => ({
+        get_utc_offset: () => 0,
         to_unix: () => Date.UTC(year, month - 1, day, -1) / 1000
     });
 
