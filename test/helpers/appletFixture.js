@@ -6,6 +6,24 @@ const { makeRandom } = require("./prng");
 
 const APPLET_DIR = path.join(__dirname, "..", "..", "files", "chronos@geraldo-netto");
 
+class FixtureSignalActor {
+    constructor() { this.signals = new Map(); this.nextSignal = 1; }
+    connect(name, callback) {
+        const id = this.nextSignal++;
+        this.signals.set(id, { name, callback });
+        return id;
+    }
+    disconnect(id) { this.signals.delete(id); }
+    fire(name) {
+        for (const signal of this.signals.values()) {
+            if (signal.name === name) signal.callback();
+        }
+    }
+}
+
+global.stage = Object.assign(new FixtureSignalActor(), { get_key_focus: () => null });
+global.workspace_manager = { get_active_workspace: () => null };
+
 if (!String.prototype.capitalize) {
     Object.defineProperty(String.prototype, "capitalize", { // NOSONAR [S6643] -- deliberate test seam
         value: function() {
@@ -113,8 +131,21 @@ global.imports = {
                 throw new Error("regular zoneinfo file");
             }
         },
-        Pango: { EllipsizeMode: { NONE: 0, END: 3 } },
+        Pango: { EllipsizeMode: { NONE: 0, END: 3 }, WrapMode: { WORD_CHAR: 2 } },
         St: {
+            PolicyType: { AUTOMATIC: 1, NEVER: 2 },
+            ScrollView: class extends FixtureSignalActor {
+                constructor(options = {}) {
+                    super();
+                    Object.assign(this, options);
+                    this.bars = [new FixtureSignalActor(), new FixtureSignalActor()];
+                }
+                add_actor(actor) { this.content = actor; }
+                get_child() { return this.content; }
+                get_hscroll_bar() { return this.bars[0]; }
+                get_vscroll_bar() { return this.bars[1]; }
+                set_style(style) { this.style = style; }
+            },
             Align: { START: 0, END: 1 },
             Side: { LEFT: 0, RIGHT: 1, TOP: 2, BOTTOM: 3 },
             BoxLayout: class {
@@ -203,8 +234,12 @@ global.imports = {
         popupMenu: {
             PopupMenuManager: class {}, // NOSONAR [S2094] -- deliberate test seam
             PopupMenuItem: class {
+                constructor() {
+                    this.label = new global.imports.gi.St.Label();
+                    this.extraActors = [];
+                }
                 connect() {} // NOSONAR [S1186] -- deliberate test seam
-                addActor() {} // NOSONAR [S1186] -- deliberate test seam
+                addActor(actor) { this.extraActors.push(actor); }
             },
             PopupSeparatorMenuItem: class {}, // NOSONAR [S2094] -- deliberate test seam
             // Cinnamon's PopupMenuSection is a PopupMenuBase whose actor *is* its

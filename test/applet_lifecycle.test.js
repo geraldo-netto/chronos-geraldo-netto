@@ -1853,7 +1853,11 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
         constructor(box) { calls.push(["worldclocks", !!box]); }
     };
     global.imports.ui.popupMenu.PopupMenuItem = class {
-        constructor(label) { calls.push(["item", label]); this.handlers = {}; }
+        constructor(label) {
+            calls.push(["item", label]);
+            this.handlers = {};
+            this.label = new global.imports.gi.St.Label();
+        }
         connect(name, cb) {
             calls.push(["item-connect", name]);
             this.handlers[name] = cb;
@@ -1923,8 +1927,9 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
     assert.equal(mainMenuItems[0].children.length, 1);
     assert.ok(mainMenuItems[1] instanceof PopupSeparatorMenuItem);
     const footerActors = calls.filter(([name]) => name === "item-actor");
-    assert.equal(footerActors.length, 1, "only the popup menu owns the footer label");
-    assert.equal(footerActors[0][1], stub._issueReporter.label);
+    assert.equal(footerActors.length, 0, "warning text never widens the settings item's columns");
+    assert.equal(mainMenuItems[0].children[0].content.children[1], stub._issueReporter.label,
+        "the popup's scrollable body owns the separate status row");
     assert.equal(stub._issueReporter._issues.get("update"),
         "Restart Cinnamon to finish the update");
 

@@ -5,7 +5,6 @@
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
 | T1110 | open | low | xs | Correct holidayConstants.js provider-row comments to match preserved Public, Optional, Bank, and flagless source flags; they still claim all public-provider rows are forced non-working. |
-| T1109 | open | medium | m | Keep the popup usable when its natural size exceeds the real work area. Actual Cinnamon 6.6.9 at 1366×768, 2× display scale and 1.5× text scale allocates the horizontal menu at (-225,-598), size 1591×1286; headers and controls are offscreen. Constrain the popup/body to available space with accessible overflow/reflow, retain usable agenda height and keyboard access, and verify native allocations at both panel orientations. |
 | T1074 | open | low | s | Clean up stale local dist/ deliverables and regenerate the intended Spices package from the committed index. dist/chronos@geraldo-netto and dist/working-tree/chronos@geraldo-netto omit 25 already tracked shipped files and differ in 66 others; the accompanying chronos-spices.tar and checksum also belong to the old output. |
 | T1080 | open | low | m | Define bounded retention or explicit cleanup for inactive calendar-<country>-<region>.json cache files. holidays.js creates a persistent file per visited pair, but removing a selection only releases memory; the four-country cap applies inside each file and does not bound the cache directory. Preserve active selections and files used by other applet instances when expiring unused caches. |
 

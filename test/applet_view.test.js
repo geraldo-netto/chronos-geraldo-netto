@@ -1767,6 +1767,10 @@ test("the menu builder owns and tears down the world clocks and the sky view", (
         assert.equal(builder._worldclocks, ui.worldclocks,
             "recorded as owned, not only handed back");
         assert.equal(builder._astronomy, ui.astronomy);
+        assert.equal(builder._viewport.actor.content.children[1], ui.issueReporter.label,
+            "issues are a separate scrollable row, not a PopupMenuItem width column");
+        assert.deepEqual(builder._viewport._footer.extraActors, [],
+            "the settings action keeps only its own standard label and ornament");
 
         builder.destroy();
 

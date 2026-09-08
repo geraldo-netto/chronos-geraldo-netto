@@ -12,6 +12,7 @@
 
 const Applet = imports.ui.applet;
 const Gio = imports.gi.Gio;
+const St = imports.gi.St;
 const Util = imports.misc.util;
 const PopupMenu = imports.ui.popupMenu;
 const AppletLifecycle = require("./appletLifecycle");
@@ -715,16 +716,32 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
     // The one place that reads the desktop's own geometry. Everything the
     // layout rule needs and nothing it does not: the work area of the monitor
     // this applet sits on, the theme's scale factor, and the accessibility text
-    // factor. Each is optional, because a monitor can be mid-hotplug and an
-    // older Cinnamon need not carry every accessor.
+    // factor. Missing geometry during startup keeps the existing layout.
     _menuLayoutEnvironment() {
         const area = this._menuWorkArea(Main.layoutManager);
         return {
-            workAreaWidth: area ? area.width : 0,
+            workAreaWidth: this._menuAvailableWidth(area),
             workAreaHeight: area ? area.height : 0,
             uiScale: global.ui_scale,
             textScale: this.desktop_settings ? this.desktop_settings.textScale : 1
         };
+    }
+
+    _menuAvailableWidth(area) {
+        if (!area) {
+            return 0;
+        }
+        if (![St.Side.LEFT, St.Side.RIGHT].includes(this.orientation) || !this.actor) {
+            return area.width;
+        }
+        const [x] = this.actor.get_transformed_position();
+        const [width] = this.actor.get_transformed_size();
+        // A text applet can protrude beyond a narrow side panel. Cinnamon
+        // anchors beside that source rectangle and otherwise flips offscreen.
+        if (this.orientation === St.Side.LEFT) {
+            return Math.max(0, area.x + area.width - Math.max(area.x, x + width));
+        }
+        return Math.max(0, Math.min(area.x + area.width, x) - area.x);
     }
 
     // The work area, not the monitor: this applet's own panel is subtracted
@@ -738,9 +755,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         if (!monitor) {
             return null;
         }
-        if (typeof layoutManager.getWorkAreaForMonitor === "function" &&
-            Number.isInteger(monitor.index)) {
-            return layoutManager.getWorkAreaForMonitor(monitor.index) || monitor;
+        const workspace = global.workspace_manager.get_active_workspace();
+        if (workspace && Number.isInteger(monitor.index)) {
+            return workspace.get_work_area_for_monitor(monitor.index) || monitor;
         }
         return monitor;
     }

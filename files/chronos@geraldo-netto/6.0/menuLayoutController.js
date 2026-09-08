@@ -11,7 +11,7 @@
 //
 // menuLayout.js is the rule — a pure function of the work area, the scales and
 // the two columns' natural sizes. This is the half that touches actors: it
-// measures them, and it applies the answer by flipping one property.
+// measures them, applies the column direction, and bounds the body viewport.
 //
 // It lived in AppletMenuBuilder, whose own doc says it "builds the menu
 // contents and hands them back" — while this runs on every menu open,
@@ -29,6 +29,7 @@ class MenuLayoutController {
         this._mainBox = actors.mainBox || null;
         this._calbox = actors.calbox || null;
         this._eventListActor = actors.eventListActor || null;
+        this._viewport = actors.viewport || null;
         this._layout = MenuLayout.MENU_LAYOUT_HORIZONTAL;
     }
 
@@ -72,7 +73,7 @@ class MenuLayoutController {
         return this._layout;
     }
 
-    // One property changes, and nothing else. No actor is created, destroyed,
+    // No actor is created, destroyed,
     // reparented or reordered, so the agenda's scroll position survives, the
     // children stay in the order the keyboard walks them in, and the calendar's
     // focused day and the event list's selected date are not even consulted —
@@ -96,7 +97,14 @@ class MenuLayoutController {
     }
 
     reflow(environment) {
-        return this.applyLayout(MenuLayout.menuLayoutFor(this.layoutMetrics(environment)));
+        const metrics = this.layoutMetrics(environment);
+        const layout = this.applyLayout(MenuLayout.menuLayoutFor(metrics));
+        if (this._viewport) {
+            const minimum = MenuLayout.MENU_STACKED_AGENDA_MIN_HEIGHT * metrics.textScale;
+            this._eventListActor.set_style(`min-height: ${minimum}px;`);
+            this._viewport.constrain(metrics);
+        }
+        return layout;
     }
 }
 

@@ -21,6 +21,7 @@ const Calendar = require("./calendar");
 const EventView = require("./eventView");
 const AgendaColumn = require("./agendaColumn");
 const MenuLayoutController = require("./menuLayoutController").MenuLayoutController;
+const MenuViewport = require("./menuViewport").MenuViewport;
 const AppletIssueReporter = require("./appletIssueReporter").AppletIssueReporter;
 const UiVocabulary = require("./uiVocabulary");
 const Worldclocks = require("./worldclocks");
@@ -48,6 +49,7 @@ class AppletMenuBuilder {
         this._menu_items = [];
         this._issueReporter = null;
         this._layoutController = null;
+        this._viewport = null;
     }
 
     build() {
@@ -74,7 +76,11 @@ class AppletMenuBuilder {
         // below it the way every other Cinnamon menu separates its groups. A
         // section is the seam: the menu sees one item, the item is the whole body.
         const body = new PopupMenu.PopupMenuSection();
-        body.addActor(box);
+        const content = new St.BoxLayout({ vertical: true });
+        content.add_actor(box);
+        content.add_actor(issueReporter.label);
+        this._viewport = new MenuViewport(context.menu, content, body.actor);
+        body.addActor(this._viewport.actor);
         context.menu.addMenuItem(body);
 
         const eventList = this._buildEventList(box, reportIssue);
@@ -111,6 +117,7 @@ class AppletMenuBuilder {
         this._layoutController = new MenuLayoutController({
             mainBox: box,
             calbox,
+            viewport: this._viewport,
             eventListActor: eventList && eventList.actor
         });
 
@@ -200,6 +207,7 @@ class AppletMenuBuilder {
 
     destroy() {
         const steps = [
+            () => this._destroyOwned("_viewport"),
             // the column may be waiting on an idle to draw itself, and it holds
             // the events-manager handlers; the actors both would touch are
             // destroyed further down
@@ -351,11 +359,7 @@ class AppletMenuBuilder {
             let item = new PopupMenu.PopupMenuItem(_("Date and Time Settings"));
             item.connect("activate", () => context.onLaunchSettings());
             if (menu === context.menu) {
-                item.addActor(issueLabel, {
-                    expand: true,
-                    span: -1,
-                    align: St.Align.END
-                });
+                this._viewport.setFooter(item, issueLabel);
             }
             menu.addMenuItem(item);
             // Cinnamon's AppletContextMenu is not the applet's to destroy, and it

@@ -1178,6 +1178,23 @@ test("the panel text size setting reaches the label, and 1.0 hands it back", () 
     assert.equal(styles.length, 4);
 });
 
+test("side panels budget the free span beside a protruding applet label", () => {
+    const St = global.imports.gi.St;
+    const applet = Object.assign(Object.create(Proto), {
+        orientation: St.Side.LEFT,
+        actor: {
+            get_transformed_position: () => [0, 702],
+            get_transformed_size: () => [236, 66]
+        }
+    });
+    assert.equal(applet._menuAvailableWidth({ x: 80, width: 1286 }), 1130);
+    applet.orientation = St.Side.RIGHT;
+    applet.actor.get_transformed_position = () => [1130, 702];
+    assert.equal(applet._menuAvailableWidth({ x: 0, width: 1286 }), 1130);
+    applet.actor = null;
+    assert.equal(applet._menuAvailableWidth({ x: 0, width: 1286 }), 1286);
+});
+
 test("a timezone change before the popup exists reconciles nothing", () => {
     const stub = Object.assign(Object.create(Proto), {
         _astronomy: null,
@@ -1190,24 +1207,22 @@ test("a timezone change before the popup exists reconciles nothing", () => {
 });
 
 // T935: the popup's shape is decided from the desktop's own geometry, and this
-// is the only place in the applet that reads it. Every source is optional — a
-// monitor can be mid-hotplug, and an older Cinnamon need not carry every
-// accessor — and a missing one must not stop the menu from opening.
+// is the only place in the applet that reads it. Workspace work areas subtract
+// actual panel allocations; monitor rectangles are only startup fallbacks.
 test("the popup reflows against the monitor the applet actually sits on", () => {
     const Main = global.imports.ui.main;
     const originalLayoutManager = Main.layoutManager;
+    const originalWorkspaceManager = global.workspace_manager;
     const environments = [];
 
     try {
         Main.layoutManager = {
             primaryMonitor: { width: 1920, height: 1080 },
-            findMonitorForActor: () => ({ index: 1, width: 1024, height: 600 }),
-            // the panel this applet sits in comes out of the monitor, and so
-            // does the side panel a vertical layout puts against the edge the
-            // popup has to clear
-            getWorkAreaForMonitor: (index) => (
-                index === 1 ? { width: 1024, height: 560 } : null)
+            findMonitorForActor: () => ({ index: 1, width: 1024, height: 600 })
         };
+        const workspace = { get_work_area_for_monitor: (index) => (
+            index === 1 ? { width: 1024, height: 560 } : null) };
+        global.workspace_manager = { get_active_workspace: () => workspace };
         global.ui_scale = 2;
 
         const stub = Object.assign(Object.create(Proto), {
@@ -1228,7 +1243,10 @@ test("the popup reflows against the monitor the applet actually sits on", () => 
 
         // a monitor index the compositor has no work area for falls back to the
         // monitor's own rectangle rather than to nothing
-        Main.layoutManager.getWorkAreaForMonitor = () => null;
+        workspace.get_work_area_for_monitor = () => null;
+        Proto._reflowMenu.call(stub);
+        assert.equal(environments.at(-1).workAreaHeight, 600);
+        global.workspace_manager.get_active_workspace = () => null;
         Proto._reflowMenu.call(stub);
         assert.equal(environments.at(-1).workAreaHeight, 600);
 
@@ -1258,9 +1276,10 @@ test("the popup reflows against the monitor the applet actually sits on", () => 
         // and a menu that was never built has nothing to reflow
         stub._menuLayout = null;
         assert.equal(Proto._reflowMenu.call(stub), null);
-        assert.equal(environments.length, 6, "no further reflow was attempted");
+        assert.equal(environments.length, 7, "no further reflow was attempted");
     } finally {
         Main.layoutManager = originalLayoutManager;
+        global.workspace_manager = originalWorkspaceManager;
         delete global.ui_scale;
     }
 });

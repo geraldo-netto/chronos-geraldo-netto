@@ -70,14 +70,13 @@ function menuLayoutMetrics(input) { // NOSONAR [S3504] -- GJS importer export
     };
 }
 
-// The work area is reported in device pixels and the actors are laid out in
-// logical ones, so the scale factor divides rather than multiplies: raising it
-// makes the same monitor hold less, which is the whole point of the setting.
+// St's measured actor sizes and monitor work areas are both device pixels.
+// UI scaling is already reflected in the actor measurements. Only CSS length
+// assignments need conversion back to logical pixels.
 function menuLayoutBudget(metrics) { // NOSONAR [S3504] -- GJS importer export
-    const scale = metrics.uiScale;
     return {
-        width: metrics.workAreaWidth / scale * MENU_WORK_AREA_WIDTH_FRACTION,
-        height: metrics.workAreaHeight / scale * MENU_WORK_AREA_HEIGHT_FRACTION
+        width: metrics.workAreaWidth * MENU_WORK_AREA_WIDTH_FRACTION,
+        height: metrics.workAreaHeight * MENU_WORK_AREA_HEIGHT_FRACTION
     };
 }
 
@@ -89,18 +88,8 @@ function menuLayoutMeasured(metrics) { // NOSONAR [S3504] -- GJS importer export
         (metrics.calendarWidth > 0 || metrics.eventsWidth > 0);
 }
 
-function stackedFitsWorkArea(metrics, budget) {
-    const floor = (metrics.calendarHeight + MENU_STACKED_AGENDA_MIN_HEIGHT) *
-        metrics.textScale;
-    return floor <= budget.height;
-}
-
-// Horizontal whenever both columns fit side by side, and that is the answer for
-// almost every desktop. Otherwise stacked, which needs only the wider of the
-// two columns — but only when the stack still leaves the agenda under the grid
-// something to show. When it does not, side by side is the better of two bad
-// shapes: the agenda's own scrollbox absorbs its overflow there, and stacking
-// would trade a clipped width for a grid pushed off the bottom of the screen.
+// Stacking reduces horizontal travel. The body viewport absorbs excess height
+// while the agenda keeps its minimum usable size, even on short monitors.
 function menuLayoutFor(input) { // NOSONAR [S3504] -- GJS importer export
     const metrics = menuLayoutMetrics(input);
     if (!menuLayoutMeasured(metrics)) {
@@ -110,9 +99,6 @@ function menuLayoutFor(input) { // NOSONAR [S3504] -- GJS importer export
     const budget = menuLayoutBudget(metrics);
     const sideBySide = (metrics.calendarWidth + metrics.eventsWidth) * metrics.textScale;
     if (sideBySide <= budget.width) {
-        return MENU_LAYOUT_HORIZONTAL;
-    }
-    if (!stackedFitsWorkArea(metrics, budget)) {
         return MENU_LAYOUT_HORIZONTAL;
     }
     return MENU_LAYOUT_STACKED;

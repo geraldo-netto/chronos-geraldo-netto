@@ -44,18 +44,18 @@ test("a work area too narrow for both columns stacks them", () => {
         metrics({ workAreaWidth: exact - 1 })), STACKED);
 });
 
-test("UI scale divides the work area, because that is what raising it does", () => {
+test("UI scaling is already included in native actor sizes", () => {
     // the same monitor, portrait: room for both columns at 1x, and at 2x the
     // popup is drawn twice as large into the same glass
     const portrait = { workAreaWidth: 1400, workAreaHeight: 2000 };
     assert.equal(MenuLayout.menuLayoutFor(metrics(portrait)), HORIZONTAL);
     assert.equal(MenuLayout.menuLayoutFor(
-        metrics(Object.assign({ uiScale: 2 }, portrait))), STACKED); // NOSONAR [S6661] -- deliberate test seam
+        metrics({ ...portrait, uiScale: 2, calendarWidth: 600, eventsWidth: 700 })), STACKED);
 
     const scaled = MenuLayout.menuLayoutBudget(
         MenuLayout.menuLayoutMetrics(metrics({ uiScale: 2 })));
-    assert.equal(scaled.width, 1920 / 2 * MenuLayout.MENU_WORK_AREA_WIDTH_FRACTION);
-    assert.equal(scaled.height, 1080 / 2 * MenuLayout.MENU_WORK_AREA_HEIGHT_FRACTION);
+    assert.equal(scaled.width, 1920 * MenuLayout.MENU_WORK_AREA_WIDTH_FRACTION);
+    assert.equal(scaled.height, 1080 * MenuLayout.MENU_WORK_AREA_HEIGHT_FRACTION);
 });
 
 test("large text and long translations reach the same decision", () => {
@@ -71,12 +71,9 @@ test("large text and long translations reach the same decision", () => {
         metrics({ workAreaWidth: 1024, eventsWidth: 700 })), STACKED);
 });
 
-test("stacking is refused when it would leave the agenda no height", () => {
-    // a short work area — a 1024x600 netbook, or a tall panel eating the rest.
-    // Side by side the agenda's own scrollbox absorbs the overflow; stacked,
-    // the grid alone would push it off the bottom.
+test("short monitors stack within a scrolling viewport instead of clipping both axes", () => {
     const short = metrics({ workAreaWidth: 700, workAreaHeight: 560 });
-    assert.equal(MenuLayout.menuLayoutFor(short), HORIZONTAL);
+    assert.equal(MenuLayout.menuLayoutFor(short), STACKED);
     // the same monitor with a shorter grid has room for both, one over the other
     assert.equal(MenuLayout.menuLayoutFor(
         Object.assign({}, short, { calendarHeight: 300 })), STACKED); // NOSONAR [S6661] -- deliberate test seam
@@ -85,7 +82,7 @@ test("stacking is refused when it would leave the agenda no height", () => {
     const tall = metrics({ workAreaWidth: 700, workAreaHeight: 800, calendarHeight: 420 });
     assert.equal(MenuLayout.menuLayoutFor(tall), STACKED);
     assert.equal(MenuLayout.menuLayoutFor(
-        Object.assign({}, tall, { textScale: 1.5 })), HORIZONTAL); // NOSONAR [S6661] -- deliberate test seam
+        Object.assign({}, tall, { textScale: 1.5 })), STACKED); // NOSONAR [S6661] -- deliberate test seam
 });
 
 test("a monitor nobody has measured yet does not reflow the popup", () => {
