@@ -523,8 +523,8 @@ class CenterSettingsWindowTest(unittest.TestCase):
         GLibStub.idles.clear()
 
     def test_the_constructor_schedules_the_centering_on_an_idle(self):
-        # the World Clocks page lives in a stack and is not mapped until the
-        # user opens it, so "map" is no use; an idle runs whichever page shows
+        # Show World Times lives on Calendar and can be hidden when the window
+        # opens on another tab; an idle runs whichever tab is showing.
         clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
 
         self.assertEqual(
@@ -884,7 +884,7 @@ class LazySettingsPageTest(unittest.TestCase):
             # of them. Constructing it used to build a 594-entry timezone map, a
             # city map and a 439-entry completions list — and casefold-sort the
             # last of them — on the GTK main thread, whether or not the user ever
-            # looked at the World Clocks page.
+            # used the clock list.
             self.assertEqual(built, [], "nothing is built until something asks")
 
             # ...and the first thing that asks gets it, once

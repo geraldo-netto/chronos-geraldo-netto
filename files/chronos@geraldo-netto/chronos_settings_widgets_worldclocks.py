@@ -522,13 +522,13 @@ class SettingsWindowCenterer:
     This used to live inside ClocksList, which made the clock list quietly
     load-bearing: renaming or removing the widget would have taken window
     centering with it, and the idle loop ran for every settings session whether
-    or not the user ever opened the World Clocks page. It is not a property of a
+    or not the user ever used the clock list. It is not a property of a
     clock list. It is here, on its own, and ClocksList merely hosts it — because
     a widget is the only foothold an xlet has in that window.
 
-    A widget's own "map" is no use: the World Clocks page lives in a stack and is
-    not mapped until the user opens that page. An idle runs once the window is
-    built and sized, whichever page is showing.
+    A widget's own "map" cannot handle every opening: Show World Times lives on
+    the Calendar tab, so the clock list is hidden when another tab is selected.
+    An idle runs once the window is built and sized, whichever tab is showing.
     """
 
     def __init__(self, widget) -> None:
@@ -585,7 +585,7 @@ class ClocksList(JSONSettingsList):
         # Opening the applet's settings — any page of them — used to build a
         # 594-entry timezone map, a city map and a 439-entry completions list,
         # and casefold-sort the last of them, on the GTK main thread, for a user
-        # who may never open the World Clocks page at all.
+        # who may never use the clock list at all.
         #
         # `resolver` is constructor injection for a caller that already has one;
         # production passes nothing and gets the shared lazy one.
