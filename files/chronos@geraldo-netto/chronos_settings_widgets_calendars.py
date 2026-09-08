@@ -14,7 +14,7 @@ from datetime import date
 import logging
 
 import JsonSettingsWidgets
-from JsonSettingsWidgets import JSONSettingsBackend
+from JsonSettingsWidgets import JSONSettingsBackend, JSONSettingsList
 from gi.repository import Gtk
 from xapp.SettingsWidgets import SettingsWidget
 
@@ -23,6 +23,41 @@ import chronos_calendar_plugin_data as plugin_data
 
 LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
 REVISION_KEY = "calendar-plugins-revision"
+
+
+def _country_row(raw):
+    if not isinstance(raw, dict):
+        return None
+    country = raw.get("country")
+    region = raw.get("region", "global")
+    enabled = raw.get("enabled", True)
+    if not isinstance(country, str) or not isinstance(region, str) or type(enabled) is not bool:
+        return None
+    return {"enabled": enabled, "country": country, "region": region}
+
+
+def normalize_country_rows(raw):
+    if not isinstance(raw, list):
+        return []
+    return [row for row in map(_country_row, raw[:64]) if row is not None]
+
+
+class AdditionalCountryList(JSONSettingsList):
+    def __init__(self, info, key, settings):
+        self.key = key
+        self.settings = settings
+        self._normalize_setting()
+        super().__init__(key, settings, info)
+
+    def _normalize_setting(self):
+        raw = self.settings.get_value(self.key)
+        normalized = normalize_country_rows(raw)
+        if normalized != raw:
+            self.set_value(normalized)
+
+    def on_setting_changed(self, *args):
+        self._normalize_setting()
+        super().on_setting_changed(*args)
 
 
 def AvailableReligionSwitch(info, key, settings):

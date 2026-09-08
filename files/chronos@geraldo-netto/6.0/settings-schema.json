@@ -707,7 +707,9 @@
         "default": 0
     },
     "extra-country-calendars": {
-        "type": "list",
+        "type": "custom",
+        "file": "settings_widgets.py",
+        "widget": "AdditionalCountryList",
         "default": [],
         "description": "Additional country calendars",
         "height": 160,

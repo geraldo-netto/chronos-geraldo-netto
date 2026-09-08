@@ -426,6 +426,28 @@ class FakeChooser(WidgetNode):
         return self.filename
 
 
+class FakeCountryList(WidgetNode, FakeBackend):
+    def __init__(self, key, settings, info):
+        WidgetNode.__init__(self)
+        self.key = key
+        self.settings = settings
+        self.columns = info["columns"]
+        self.attach()
+
+    def connect_widget_handlers(self):
+        pass
+
+    def on_setting_changed(self, *_args):
+        types_by_column = {"boolean": bool, "string": str}
+        self.rows = []
+        for row in self.get_value():
+            values = [row[column["id"]] for column in self.columns]
+            for value, column in zip(values, self.columns):
+                if type(value) is not types_by_column[column["type"]]:
+                    raise TypeError("Native list received an invalid column value")
+            self.rows.append(values)
+
+
 def widget_modules(data):
     gtk = types.SimpleNamespace(
         ListBox=WidgetNode, ListBoxRow=WidgetNode, Box=WidgetNode,
@@ -443,6 +465,7 @@ def widget_modules(data):
         "chronos_calendar_plugin_data": data,
         "JsonSettingsWidgets": types.SimpleNamespace(
             JSONSettingsBackend=FakeBackend,
+            JSONSettingsList=FakeCountryList,
             JSONSettingsSwitch=lambda *args: args,
         ),
         "gi": types.ModuleType("gi"),
@@ -450,6 +473,51 @@ def widget_modules(data):
         "xapp": types.ModuleType("xapp"),
         "xapp.SettingsWidgets": types.SimpleNamespace(SettingsWidget=WidgetNode),
     }
+
+
+class AdditionalCountrySettingsTests(unittest.TestCase):
+    INFO = {"columns": [
+        {"id": "enabled", "type": "boolean", "default": True},
+        {"id": "country", "type": "string"},
+        {"id": "region", "type": "string", "default": "global"},
+    ]}
+
+    def setUp(self):
+        self.module = load_python(WIDGET_PATH, "country_widgets_test", widget_modules(DATA))
+        self.settings = FakeSettings()
+
+    def test_malformed_profiles_cannot_reach_the_native_list(self):
+        for value in (None, [None], "Italy", {}, 42, [["ita"]]):
+            with self.subTest(value=value):
+                self.settings.values["extra-country-calendars"] = value
+                widget = self.module.AdditionalCountryList(
+                    self.INFO, "extra-country-calendars", self.settings)
+                self.assertEqual(widget.rows, [])
+                self.assertEqual(self.settings.get_value("extra-country-calendars"), [])
+                self.settings.set_value("extra-country-calendars", value)
+                self.assertEqual(widget.rows, [])
+                self.assertEqual(self.settings.get_value("extra-country-calendars"), [])
+
+    def test_valid_neighbors_survive_malformed_rows_and_missing_optional_fields(self):
+        value = [None, {"country": "ita"}, {"country": ["cze"]},
+                 {"country": "usa", "enabled": False, "region": "ma", "extra": "discard"},
+                 {"country": "cze", "region": None}, {"country": "deu", "enabled": "yes"}]
+        self.settings.values["extra-country-calendars"] = value
+        widget = self.module.AdditionalCountryList(self.INFO, "extra-country-calendars", self.settings)
+        self.assertEqual(widget.rows, [[True, "ita", "global"], [False, "usa", "ma"]])
+        self.settings.set_value("extra-country-calendars", [{"country": "cze"}, None])
+        self.assertEqual(widget.rows, [[True, "cze", "global"]])
+
+    def test_country_row_normalization_is_bounded_and_idempotent(self):
+        rng = random.Random(20260908)
+        choices = [None, [], {}, "bad", {"country": "ita"},
+                   {"country": "usa", "region": "ma", "enabled": False}]
+        for _unused in range(100):
+            rows = [rng.choice(choices) for _index in range(rng.randrange(150))]
+            normalized = self.module.normalize_country_rows(rows)
+            self.assertLessEqual(len(normalized), 64)
+            self.assertEqual(self.module.normalize_country_rows(normalized), normalized)
+        self.assertEqual(len(self.module.normalize_country_rows([{"country": "ita"}] * 65)), 64)
 
 
 class CalendarChoicesTests(unittest.TestCase):
