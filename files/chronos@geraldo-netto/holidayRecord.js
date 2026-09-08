@@ -167,7 +167,10 @@ function normalizeProviderFlags(flags, isPublicHoliday) {
 }
 
 function _noonUtc(parts) {
-    return Date.UTC(parts.year, parts.month - 1, parts.day, 12);
+    const date = new Date(0);
+    date.setUTCHours(12, 0, 0, 0);
+    date.setUTCFullYear(parts.year, parts.month - 1, parts.day);
+    return date.getTime();
 }
 
 function holidaySpanDays(date, dateTo) {
@@ -182,15 +185,16 @@ function validHolidaySpan(date, dateTo) {
 function validDateParts(parts) {
     if (!parts ||
         !Number.isInteger(parts.year) ||
+        parts.year < 1 || parts.year > 9999 ||
         !Number.isInteger(parts.month) ||
         !Number.isInteger(parts.day)) {
         return false;
     }
 
-    const date = new Date(parts.year, parts.month - 1, parts.day, 12);
-    return date.getFullYear() === parts.year &&
-        date.getMonth() === parts.month - 1 &&
-        date.getDate() === parts.day;
+    const date = new Date(_noonUtc(parts));
+    return date.getUTCFullYear() === parts.year &&
+        date.getUTCMonth() === parts.month - 1 &&
+        date.getUTCDate() === parts.day;
 }
 
 function holidayOverlapsYear(holiday, year) {

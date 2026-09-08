@@ -19,3 +19,10 @@ header does not discard otherwise valid holiday data.
 The local clock supplies receive time; tests can inject it explicitly. This
 rule validates cache freshness timestamps and does not authenticate the
 provider or guarantee the correctness of the computer's clock.
+
+## Gregorian date validation
+
+Provider and cached holiday dates use Gregorian years 1–9999. Validation and
+date-range expansion use UTC civil arithmetic, so a date skipped by the host
+timezone remains valid for another country's calendar. Years 1–99 retain their
+actual century, including spans crossing from year 99 into year 100.
