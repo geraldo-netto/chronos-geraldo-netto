@@ -256,8 +256,7 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
     // The returned country is not a convenience — it is the only notification
     // there is. See connectCountryChanged below: this write emits nothing, so a
     // caller that discards the return value leaves the provider on whatever
-    // place it already had. `fillEmptyWeatherLocation` compensates for the same
-    // silence by assigning `target.weather_location` by hand.
+    // place it already had. The caller must apply the inferred country itself.
     fillInitialCountryFromTimezone(resolveCountry) {
         const current = this.country;
         if (current !== "" && current != null) {
@@ -373,25 +372,6 @@ var PanelSettings = class PanelSettings { // NOSONAR [S3504] -- GJS importer exp
             mirrorSetting(this._settings, target, key, property,
                 kind === "presentation" ? presentationCallback : requestCallback);
         }
-    }
-
-    // An empty weather location is the one setting the applet can answer for
-    // itself: the machine's timezone already names a city. It is written into
-    // the settings key, not just used, so the user opens the dialog and reads
-    // the place the weather is being fetched for — and can correct it, because
-    // the timezone names its region's reference city and not their town.
-    //
-    // Only when it is empty: a location the user chose is never overwritten. The
-    // settings dialog does the same on open, for the same reason; whichever runs
-    // first fills it, and the other one finds it filled.
-    fillEmptyWeatherLocation(target, city) {
-        if (!city || this._settings.getValue(WEATHER_LOCATION_KEY)) {
-            return "";
-        }
-
-        this._settings.setValue(WEATHER_LOCATION_KEY, city);
-        target.weather_location = city;
-        return city;
     }
 
     bindKeybinding(callback) {

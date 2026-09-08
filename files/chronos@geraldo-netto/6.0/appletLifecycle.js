@@ -157,9 +157,6 @@ class AppletSettingsBinder {
             applet,
             this.handlers.onWeatherSettingsChanged,
             this.handlers.onWeatherUnitsChanged);
-        // a user who never opens the settings dialog still gets a weather
-        // location: the one their own timezone names
-        panel.fillEmptyWeatherLocation(applet, WorldclockData.localCityName());
         panel.bindKeybinding(this.handlers.onKeybindingChanged);
 
         return {

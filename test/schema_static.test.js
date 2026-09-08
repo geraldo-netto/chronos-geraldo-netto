@@ -451,8 +451,8 @@ test("the weather location says what an empty one does", () => {
 
     assert.equal(data["weather-location"].default, "");
     assert.match(data["weather-location"].tooltip, /empty/i);
-    assert.match(readme, /Clearing the field saves an empty location/);
-    assert.match(readme, /Reopening the settings dialog or reloading the applet restores/);
+    assert.match(readme, /Clearing the field saves\s+an empty location/);
+    assert.match(readme, /Reopening the settings dialog or reloading the applet keeps\s+it empty/);
     // and it shows what a good answer looks like
     assert.match(data["weather-location"].tooltip, /Lisbon/);
 });

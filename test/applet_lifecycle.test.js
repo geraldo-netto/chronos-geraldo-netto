@@ -792,6 +792,38 @@ test("settings binding wires schema keys and creates settings facades", () => {
     assert.equal(stub.weather_units, "si");
 });
 
+test("settings binding and reload preserve an empty weather location", () => {
+    const originalSettings = global.imports.ui.settings.AppletSettings;
+    const values = {
+        "date-format-defaults-migrated": true,
+        "weather-location": "",
+        "weather-units": "si",
+        country: "none"
+    };
+    const writes = [];
+    global.imports.ui.settings.AppletSettings = class {
+        bind() {}
+        connect() { return 1; }
+        getValue(key) { return values[key]; }
+        setValue(key, value) { writes.push([key, value]); }
+    };
+    try {
+        for (let load = 0; load < 2; load++) {
+            const stub = Object.assign(Object.create(Proto), {
+                instance_id: 42,
+                _setKeybinding() {}
+            });
+            Proto._bindSettings.call(stub);
+            assert.equal(stub.weather_location, "");
+            assert.equal(values["weather-location"], "");
+            stub._settingsBinder.destroy();
+        }
+        assert.deepEqual(writes, [], "opening and reloading never chooses a weather city");
+    } finally {
+        global.imports.ui.settings.AppletSettings = originalSettings;
+    }
+});
+
 test("holiday-country inference yields startup and preserves later choices", () => {
     const originalSettings = global.imports.ui.settings.AppletSettings;
     const originalCountryCode = rootModules.worldclockData.localCountryCode;

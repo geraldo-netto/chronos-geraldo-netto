@@ -181,7 +181,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         self.assertTrue(completion.inline_completion)
         self.assertIs(widget.content_widget.completion, completion)
         self.assertEqual(widget.content_widget.placeholder,
-                         self.module.WEATHER_LOCATION_HINT)
+                         self.module.local_city_name())
         self.assertFalse(widget.ensure_completion(), "a second focus does no work")
 
     def test_a_typed_fragment_matches_a_city_anywhere_in_the_name(self):
@@ -633,27 +633,19 @@ class CountryComboBoxTest(unittest.TestCase):
         self.assertEqual(widget.completion.minimum_key_length, 1)
 
 
-class WeatherLocationPrefillTest(unittest.TestCase):
-    """An empty weather location fills itself from the machine's own timezone.
-
-    The location is the one setting the applet can answer for itself: /etc/localtime
-    already names a city. Nothing is asked of the network to find out where the
-    user is — no IP reaches a geolocation service — and the answer is written into
-    the field rather than resolved behind the user's back, because a timezone names
-    its region's reference city: a user in Genoa is told "Rome", and has to be able
-    to see that and correct it.
-    """
+class WeatherLocationSuggestionTest(unittest.TestCase):
+    """A timezone city is only a suggestion until the user commits a location."""
 
     @classmethod
     def setUpClass(cls):
-        cls.module = load_module(WEATHER_PATH, "settings_widgets_weather_prefill")
+        cls.module = load_module(WEATHER_PATH, "settings_widgets_weather_suggestion")
 
     def entry(self, saved="", local_zone="Europe/Rome"):
         def fixed_zone():
             return local_zone
         # local_city_name and TimezoneResolver live in the gi-free sibling and
         # read its copy of local_timezone_name; reach it through the imported
-        # function's globals so the prefill sees this zone, not the machine's own
+        # function's globals so the suggestion sees this zone, not the machine's own
         self.module.local_city_name.__globals__["local_timezone_name"] = fixed_zone
         settings = FakeSettings({"weather-location": saved})
         widget = self.module.WeatherLocationEntry(
@@ -684,19 +676,46 @@ class WeatherLocationPrefillTest(unittest.TestCase):
             self.assertEqual(city(case["timezone"]), case["city"],
                              "%r must be %r" % (case["timezone"], case["city"]))
 
-    def test_an_empty_field_is_filled_from_the_timezone(self):
+    def test_an_empty_field_keeps_the_timezone_city_as_a_placeholder(self):
         widget, settings = self.entry(saved="")
 
+        self.assertEqual(settings.values["weather-location"], "")
+        self.assertEqual(settings.writes, [])
+        self.assertEqual(widget.content_widget.get_text(), "")
+        self.assertEqual(widget.content_widget.placeholder, "Rome")
+
+    def test_open_focus_and_close_do_not_commit_an_untouched_suggestion(self):
+        for signal in ("activate", "focus-out-event", "destroy"):
+            widget, settings = self.entry(saved="")
+            callback = next(callback for name, callback in widget.content_widget.handlers
+                            if name == signal)
+            callback(widget.content_widget)
+            self.assertEqual(settings.values["weather-location"], "", signal)
+            self.assertEqual(settings.writes, [], signal)
+
+    def test_an_explicit_edit_commits_the_suggested_city(self):
+        widget, settings = self.entry(saved="")
+        widget.content_widget.set_text("Rome")
+        widget.on_edit_end()
         self.assertEqual(settings.values["weather-location"], "Rome")
-        self.assertEqual(widget.content_widget.get_property("text"), "Rome",
-                         "the user reads the place the weather will be fetched for")
+        self.assertEqual(settings.writes, [("weather-location", "Rome")])
+
+    def test_clearing_and_reopening_preserves_an_empty_location(self):
+        widget, settings = self.entry(saved="Genoa")
+        widget.content_widget.set_text("")
+        widget.on_edit_end()
+        reopened = self.module.WeatherLocationEntry(
+            {"description": "Weather location"}, "weather-location", settings)
+        self.assertEqual(settings.values["weather-location"], "")
+        self.assertEqual(settings.writes, [("weather-location", "")])
+        self.assertEqual(reopened.content_widget.placeholder, "Rome")
 
     def test_a_location_the_user_chose_is_never_overwritten(self):
         widget, settings = self.entry(saved="Genoa")
 
         self.assertEqual(settings.values["weather-location"], "Genoa")
         self.assertEqual(settings.writes, [], "nothing was written over it")
-        self.assertEqual(widget.prefill_from_timezone(), "")
+        self.assertEqual(widget.suggest_from_timezone(), "")
 
     def test_a_machine_whose_timezone_names_no_city_is_left_alone(self):
         _widget, settings = self.entry(saved="", local_zone="UTC")

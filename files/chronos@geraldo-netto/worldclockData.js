@@ -195,16 +195,6 @@ function releaseWorldclockConsumer() {
     _worldclockConsumers.release();
 }
 
-// The city the machine's own timezone names, for a weather location nobody has
-// filled in. Nothing is asked of the network to find out where the user is: the
-// zone is already on disk, and it is the same answer the local clock row uses.
-// It names the zone's reference city, so a user in Genoa gets Rome — which is
-// why this is written into the settings field rather than resolved invisibly.
-// An offset-only zone (+02) and a stub /etc/localtime name no city and answer "".
-function localCityName() {
-    return timezoneCityName(timezoneIdentity(GLib.TimeZone.new_local()));
-}
-
 // A country can only be inferred from a named region. UTC, POSIX offsets and
 // Etc/GMT offsets say nothing about where their user lives. Keep valid aliases
 // untouched: zone.tab deliberately contains links such as Europe/Vatican, and
@@ -621,7 +611,6 @@ if (typeof module !== "undefined") {
         INVALID_TIMEZONE_TEXT,
         LOCAL_TIME_TEXT,
         timezoneFromIdentifier,
-        localCityName,
         builtinClocks,
         timezoneIdentity,
         zoneinfoIdentifier,

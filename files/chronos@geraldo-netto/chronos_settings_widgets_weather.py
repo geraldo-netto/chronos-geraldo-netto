@@ -96,11 +96,9 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
     after a network round trip — that nothing matched. Suggesting the names the
     machine already knows turns the common case into a pick.
 
-    An empty field is filled with the city of the machine's own timezone, so the
-    weather has somewhere to look before the user has typed anything. It is put
-    *in the field*, not resolved behind the user's back: the timezone names its
-    region's reference city, which for a user in Genoa is Rome, and a wrong
-    location the user can see and correct beats a wrong one they cannot.
+    The timezone's city is a placeholder in an empty field. It stays unsaved:
+    the timezone may name Rome while the user lives in Genoa. The user chooses
+    the actual location by typing a city or selecting a completion.
 
     The field saves when the edit is *finished* — a suggestion picked, Enter
     pressed, focus left — and not on every keystroke, which is what Cinnamon's
@@ -136,7 +134,7 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
         self._completion_loaded = False
 
         self.attach()
-        self.prefill_from_timezone()
+        self.suggest_from_timezone()
 
     def mark_refused(self, refused):
         """Mark the field, and say why, when a location will not be saved.
@@ -151,8 +149,7 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
                            WEATHER_LOCATION_TOO_LONG if refused else "")
 
     def on_setting_changed(self, *args):
-        # the key changed under the dialog — another instance of the applet, or
-        # the applet's own timezone prefill
+        # The key changed under the dialog, for example in another settings window.
         stored = self.get_value()
         text = normalize_weather_location(stored)
         if self.content_widget.get_text() != text:
@@ -225,10 +222,7 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
         self.set_value(location)
         return location
 
-    def prefill_from_timezone(self) -> str:
-        # only an empty field: a location the user chose is never overwritten,
-        # and clearing the field on purpose refills it — which is the point,
-        # since an empty location is what the panel warns about
+    def suggest_from_timezone(self) -> str:
         if self.get_value():
             return ""
 
@@ -236,6 +230,5 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
         if not city:
             return ""
 
-        self.set_value(city)
-        self.content_widget.set_text(city)
+        self.content_widget.set_placeholder_text(city)
         return city

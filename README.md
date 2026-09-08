@@ -246,17 +246,16 @@ label.
 |---|---|---|
 | Show weather on the panel | off | A small weather readout in the applet label (see below), next to the local time on every panel orientation. |
 | Show sun and moon times | on when weather is enabled | Shows sunrise, sunset, moonrise, and moonset in the popup. The switch is available only while weather is enabled because it reuses weather's resolved location. |
-| Weather location / units | your timezone's city / SI | The place to forecast and the temperature scale. The location field suggests city names as you type. The suggestions come from the timezone database already on the machine (the few hundred cities it names, the same list the world clocks complete against), so nothing is sent anywhere while you type — and because that is not a full gazetteer, a smaller town will not be suggested. The field stays free text: any name you type is still saved and sent to the geocoder when the applet next refreshes. |
+| Weather location / units | empty / SI | The place to forecast and the temperature scale. The location field suggests city names as you type. The suggestions come from the timezone database already on the machine (the few hundred cities it names, the same list the world clocks complete against), so nothing is sent anywhere while you type — and because that is not a full gazetteer, a smaller town will not be suggested. The field stays free text: any name you type is still saved and sent to the geocoder when the applet next refreshes. |
 
-**The location fills itself in.** An empty location is filled with the city your
-own timezone names — `Europe/Rome` becomes `Rome` — so the weather works before
-you have typed anything. This is read off the machine: no IP address is sent to a
-geolocation service to work out where you are. A timezone names its region's
-reference city and not necessarily your town, so the city is written *into the
-field* rather than used invisibly: if you are in Genoa it will say Rome, and you
-can correct it. Clearing the field saves an empty location and the panel shows
-its setup warning. Reopening the settings dialog or reloading the applet restores
-the timezone-derived city when one is available; typing another city replaces it.
+**The location stays empty until you choose it.** A timezone-derived city is
+shown only as a suggestion: `Europe/Rome` can suggest Rome, which may differ
+from your town. Nothing is saved or looked up from that suggestion. Type a city
+or choose a completion and finish editing to save it. Clearing the field saves
+an empty location. Reopening the settings dialog or reloading the applet keeps
+it empty, and the panel retains its setup warning. Suggestions use local data;
+no IP geolocation service is queried. See [settings behavior](docs/settings-behavior.md)
+for commit semantics and system-file validation.
 
 When weather and **Show sun and moon times** are enabled, the popup also shows
 today's sunrise, sunset, moonrise, and moonset. It reuses the geocoder's retained

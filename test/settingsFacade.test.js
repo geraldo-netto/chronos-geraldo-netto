@@ -500,34 +500,31 @@ test("custom holiday regions are mirrored before their callback runs", () => {
     assert.deepEqual(callbacks, ["ca"], "the observer sees the newly mirrored value");
 });
 
-test("an empty weather location is filled with the city the timezone names", () => {
+test("binding weather settings preserves empty and explicitly selected locations", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);
 
-    const values = { "weather-location": "" };
+    const values = { "weather-location": "", "weather-units": "si" };
+    const writes = [];
     const settings = {
         bind: () => {},
         connect: () => {},
         getValue: (key) => values[key],
-        setValue: (key, value) => { values[key] = value; }
+        setValue: (key, value) => { writes.push([key, value]); }
     };
     const applet = {};
     const panel = new SettingsFacade.PanelSettings(settings);
 
-    assert.equal(panel.fillEmptyWeatherLocation(applet, "Rome"), "Rome");
-    assert.equal(values["weather-location"], "Rome",
-        "it is written into the field, not just used: the user has to be able to correct it");
-    assert.equal(applet.weather_location, "Rome");
-
-    // a location the user chose is never overwritten
-    assert.equal(panel.fillEmptyWeatherLocation(applet, "Lisbon"), "");
-    assert.equal(values["weather-location"], "Rome");
-
-    // ...and a machine whose timezone names no city (UTC, an offset-only zone)
-    // is left alone: the panel already says "Set a weather location"
-    values["weather-location"] = "";
-    assert.equal(panel.fillEmptyWeatherLocation(applet, ""), "");
+    panel.bindWeatherKeys(applet, () => {}, () => {});
     assert.equal(values["weather-location"], "");
+    assert.equal(applet.weather_location, "");
+    assert.deepEqual(writes, []);
+
+    values["weather-location"] = "Genoa";
+    panel.bindWeatherKeys(applet, () => {}, () => {});
+    assert.equal(values["weather-location"], "Genoa");
+    assert.equal(applet.weather_location, "Genoa");
+    assert.deepEqual(writes, []);
 });
 
 // T935: the popup's layout depends on how big the desktop's text is, and the
