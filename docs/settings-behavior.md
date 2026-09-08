@@ -36,6 +36,18 @@ weather setup warning. The local suggestion uses timezone data and does not
 query an IP geolocation service. Weather beside enabled world clocks continues
 to use those clocks' own timezone cities independently of this setting.
 
+## Scheduled weather failures
+
+Unexpected exceptions during scheduled weather retries are logged and end
+that one retry. The normal periodic refresh remains active, so the next
+period can recover without a settings change. An exception during a periodic
+refresh is also logged and keeps that periodic source active. Logging failures
+do not interrupt either timer's cleanup or continuation.
+
+Direct calls to schedule an immediate refresh still propagate exceptions to
+their caller after securing the periodic timer. Ordinary provider failures
+continue to use the existing bounded retry schedule.
+
 ## Holiday country inferred from system timezone data
 
 For an initially unset holiday country, Chronos looks for an exact timezone

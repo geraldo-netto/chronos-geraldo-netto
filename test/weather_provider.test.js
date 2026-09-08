@@ -998,6 +998,44 @@ test("a first refresh that raises still leaves the periodic timer armed", () => 
     ]);
 });
 
+test("retry exceptions end that attempt while periodic recovery remains available", () => {
+    const Weather = loadWeather();
+    const timers = [];
+    const logged = [];
+    let loggingBroken = false;
+    global.logError = (error) => {
+        logged.push(error);
+        if (loggingBroken) throw new Error("logger failed");
+    };
+    const scheduler = new Weather.WeatherRefreshScheduler({
+        scheduleTimer: (_seconds, callback) => timers.push(callback),
+        removeTimer() {}
+    });
+    const failure = new Error("refresh failed");
+    let failing = false;
+    let refreshed = 0;
+    const refresh = () => {
+        refreshed++;
+        if (failing) throw failure;
+    };
+    scheduler.schedule({ showWeather: true, location: "Rome" }, refresh);
+    failing = true;
+    scheduler.retry(refresh);
+    assert.equal(timers.at(-1)(), false);
+    assert.equal(scheduler._retry_id, 0, "the one-shot source is retired");
+    assert.equal(timers[0](), true, "the normal period still offers recovery");
+    assert.deepEqual(logged, [failure, failure]);
+
+    loggingBroken = true;
+    scheduler.retry(refresh);
+    assert.equal(timers.at(-1)(), false);
+    assert.equal(timers[0](), true);
+    failing = false;
+    assert.equal(timers[0](), true);
+    assert.equal(refreshed, 6);
+    scheduler.stop();
+});
+
 test("stopped periodic and retry callbacks cannot revive an old schedule", () => {
     const Weather = loadWeather();
     const timers = [];

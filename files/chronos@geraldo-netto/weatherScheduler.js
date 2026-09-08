@@ -36,6 +36,9 @@ const GLib = GjsImports.gi.GLib;
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
+const Diagnostics = IS_NODE ?
+    require("./diagnostics") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].diagnostics;
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
@@ -129,15 +132,17 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
             if (!this._active || generation !== this._generation) {
                 return GLib.SOURCE_REMOVE;
             }
-            try {
-                refresh();
-            } catch (error) {
-                // An exception must not remove the recurring GLib source. The
-                // next period is an independent chance to recover.
-                global.logError(error);
-            }
+            this._refreshSafely(refresh);
             return GLib.SOURCE_CONTINUE;
         });
+    }
+
+    _refreshSafely(refresh) {
+        try {
+            refresh();
+        } catch (error) {
+            Diagnostics.logSafely("logError", error);
+        }
     }
 
     // A failed refresh used to wait out the full 30-minute period, so 20
@@ -174,7 +179,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
             if (!this._active || generation !== this._generation) {
                 return GLib.SOURCE_REMOVE;
             }
-            refresh();
+            this._refreshSafely(refresh);
             return GLib.SOURCE_REMOVE;
         });
         return true;
