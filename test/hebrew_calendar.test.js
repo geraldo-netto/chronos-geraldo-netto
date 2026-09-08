@@ -6,6 +6,7 @@ const path = require("node:path");
 
 const HebrewCalendar = require(path.join(__dirname, "..", "files",
     "chronos@geraldo-netto", "hebrewCalendar.js"));
+const { judaism: coverage } = require("../files/chronos@geraldo-netto/religious-coverage.json");
 
 const FIRST_YEAR = 1800;
 const LAST_YEAR = 2100;
@@ -17,7 +18,7 @@ const MSECS_IN_DAY = 24 * 60 * 60 * 1000;
 const KEYS = ["purim", "passover-start", "shavuot", "rosh-hashanah",
     "yom-kippur", "hanukkah-start"];
 
-function civilDay(year, [month, day]) {
+function civilDay([year, month, day]) {
     return Date.UTC(year, month - 1, day) / MSECS_IN_DAY;
 }
 
@@ -44,7 +45,7 @@ test("the arithmetic reproduces every date the tables used to publish", () => {
     for (const key of KEYS) {
         for (const [year, expected] of Object.entries(PUBLISHED[key])) {
             assert.deepEqual(HebrewCalendar.hebrewObservances(Number(year))[key],
-                expected, `${key} ${year}`);
+                [[Number(year), ...expected]], `${key} ${year}`);
         }
     }
 });
@@ -64,7 +65,7 @@ test("dates agree with Hebcal from 1800 to 2100", () => {
     ];
 
     for (const [key, year, expected] of cases) {
-        assert.deepEqual(HebrewCalendar.hebrewObservances(year)[key], expected,
+        assert.deepEqual(HebrewCalendar.hebrewObservances(year)[key], [[year, ...expected]],
             `${key} ${year}`);
     }
 });
@@ -76,7 +77,7 @@ test("dates agree with Hebcal from 1800 to 2100", () => {
 test("Shavuot is always the fiftieth day of the omer", () => {
     eachYear((year, dates) => {
         assert.equal(
-            civilDay(year, dates.shavuot) - civilDay(year, dates["passover-start"]),
+            civilDay(dates.shavuot[0]) - civilDay(dates["passover-start"][0]),
             OMER_TO_SHAVUOT, `omer count in ${year}`);
     });
 });
@@ -84,45 +85,63 @@ test("Shavuot is always the fiftieth day of the omer", () => {
 test("Yom Kippur is always nine days after Rosh Hashanah", () => {
     eachYear((year, dates) => {
         assert.equal(
-            civilDay(year, dates["yom-kippur"]) - civilDay(year, dates["rosh-hashanah"]),
+            civilDay(dates["yom-kippur"][0]) - civilDay(dates["rosh-hashanah"][0]),
             ROSH_HASHANAH_TO_YOM_KIPPUR, `ten days of repentance in ${year}`);
     });
 });
 
-// hebrewObservances answers [month, day] and the caller supplies the year, so
-// every observance has to land in the civil year that was asked for. Hanukkah
-// is the one that could plausibly slip — 25 Kislev reaches back to 27 November
-// and forward to 27 December — and Purim is the other, at 24 February.
-// hebrewObservances answers [month, day] and lets the caller supply the year,
-// so every observance must land in the civil year that was asked for. Hanukkah
-// is the one that could plausibly slip — 25 Kislev reaches back to 27 November
-// and forward to 27 December — with Purim next, at 24 February.
 const HEBREW_DATES = {
-    "purim": [3760, null, 14],
-    "passover-start": [3760, 1, 15],
-    "shavuot": [3760, 3, 6],
-    "rosh-hashanah": [3761, 7, 1],
-    "yom-kippur": [3761, 7, 10],
-    "hanukkah-start": [3761, 9, 25]
+    "purim": [null, 14],
+    "passover-start": [1, 15],
+    "shavuot": [3, 6],
+    "rosh-hashanah": [7, 1],
+    "yom-kippur": [7, 10],
+    "hanukkah-start": [9, 25]
 };
 
-test("every observance falls in the civil year it is reported under", () => {
-    eachYear((year) => {
-        for (const key of KEYS) {
-            const [offset, month, day] = HEBREW_DATES[key];
-            const hebrewYear = year + offset;
-            const resolved = month === null ?
-                HebrewCalendar.hebrewLeapYear(hebrewYear) ? 13 : 12 : month;
-            assert.equal(
-                HebrewCalendar.gregorianFromHebrew(hebrewYear, resolved, day)[0],
-                year, `${key} drifted out of ${year}`);
+function expectedCivilDate(hebrewYear, month, day) {
+    const adar = HebrewCalendar.hebrewLeapYear(hebrewYear) ? 13 : 12;
+    return HebrewCalendar.gregorianFromHebrew(hebrewYear, month ?? adar, day);
+}
+
+// Walk Hebrew years from the epoch, independent of the implementation's
+// Gregorian-to-Hebrew year search, and bucket complete dates by their actual year.
+function expectedObservances() {
+    const expected = new Map();
+    for (let year = coverage.from; year <= coverage.through; year++) {
+        expected.set(year, Object.fromEntries(KEYS.map((key) => [key, []])));
+    }
+    for (let year = 1; HebrewCalendar.gregorianFromHebrew(year, 7, 1)[0] <= coverage.through; year++) {
+        for (const [key, [month, day]] of Object.entries(HEBREW_DATES)) {
+            const civil = expectedCivilDate(year, month, day);
+            expected.get(civil[0])?.[key].push(civil);
         }
-    });
+    }
+    return expected;
+}
+
+test("every advertised civil year contains all and only its computed observances", () => {
+    for (const [year, expected] of expectedObservances()) {
+        assert.deepEqual(HebrewCalendar.hebrewObservances(year), expected, `civil year ${year}`);
+    }
+});
+
+test("Hanukkah preserves the first civil-year rollover and the upper coverage boundary", () => {
+    assert.deepEqual(HebrewCalendar.hebrewObservances(3031)["hanukkah-start"], []);
+    assert.deepEqual(HebrewCalendar.hebrewObservances(3032)["hanukkah-start"],
+        [[3032, 1, 1], [3032, 12, 19]]);
+    assert.deepEqual(HebrewCalendar.hebrewObservances(9999)["hanukkah-start"], [[9999, 1, 7]]);
+});
+
+test("civil-year observance requests reject values outside the declared numeric range", () => {
+    for (const year of [null, undefined, true, "2026", NaN, Infinity, 0, -1, 1.5, 10000]) {
+        assert.deepEqual(HebrewCalendar.hebrewObservances(year), {});
+    }
 });
 
 test("the six observances keep their order within every civil year", () => {
     eachYear((year, dates) => {
-        const days = KEYS.map((key) => civilDay(year, dates[key]));
+        const days = KEYS.map((key) => civilDay(dates[key][0]));
         for (let i = 1; i < days.length; i++) {
             assert.ok(days[i] > days[i - 1],
                 `${KEYS[i]} does not follow ${KEYS[i - 1]} in ${year}`);

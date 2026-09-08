@@ -56,6 +56,25 @@ test("fixed, Easter-relative and table-backed observances expand", () => {
         "the religion is carried by the display name, not by a second flag");
 });
 
+test("Hanukkah keeps zero or multiple occurrences in their actual civil year", () => {
+    const cases = new Map([
+        [3031, []],
+        [3032, [[3032, 1, 1], [3032, 12, 19]]],
+        [9999, [[9999, 1, 7]]]
+    ]);
+    for (const [year, expected] of cases) {
+        const rows = ReligiousHolidays.holidaysForYear(year, ["judaism"])
+            .filter((row) => row.name === "Hanukkah begins (Judaism)");
+        assert.deepEqual(rows.map((row) => [row.year, row.month, row.day]), expected);
+        assert.deepEqual(ReligiousHolidays.uncoveredReligions(year, ["judaism"]), [],
+            "a year with no occurrence still has complete computed coverage");
+        for (const [, month, day] of expected) {
+            assert.equal(ReligiousHolidays.monthMap(year, month, ["judaism"])
+                .get(`${month}/${day}`).name, "Hanukkah begins (Judaism)");
+        }
+    }
+});
+
 test("religion and observance names pass through the applet translator", () => {
     const rows = ReligiousHolidays.holidaysForYear(
         2026, ["christianity"], (text) => `translated:${text}`);

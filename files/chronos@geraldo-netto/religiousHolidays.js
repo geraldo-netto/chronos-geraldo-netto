@@ -299,9 +299,6 @@ function _dateOf(entry, year) {
     if (entry.fixed) {
         return entry.fixed;
     }
-    if (entry.hebrew) {
-        return _hebrewObservances(year)[entry.hebrew];
-    }
     if (entry.table) {
         const dates = TABLES[entry.table];
         return dates?.[year] || null;
@@ -329,18 +326,12 @@ function _dateAtOffset(year, [month, day], offset) {
     return [date.getUTCMonth() + 1, date.getUTCDate()];
 }
 
-// The two anchors used to be hand-typed rows, so this guarded them against an
-// editing mistake by re-deriving Shavuot from Passover and refusing the series
-// when they disagreed. They are computed now, and 15 Nisan + 50 = 6 Sivan is a
-// consequence of the fixed month lengths rather than a coincidence of two
-// tables — Nisan is always 30 days and Iyyar always 29. The check moved to
-// hebrewCalendar's suite, which asserts it across 1800-2100 where a real
-// calendar bug would show, instead of on a path no test can now reach.
 function _omerDates(year) {
-    const passover = _hebrewObservances(year)["passover-start"];
+    const passovers = _hebrewObservances(year)["passover-start"];
 
-    return Array.from({ length: OMER_DAY_COUNT }, (unused, index) =>
-        [_dateAtOffset(year, passover, index + 1), index + 1]);
+    return passovers.flatMap((date) =>
+        Array.from({ length: OMER_DAY_COUNT }, (unused, index) =>
+            [_dateAtOffset(date[0], date.slice(1), index + 1), index + 1]));
 }
 
 // A derived entry shares its table anchor's published range. Omer is computed.
@@ -351,6 +342,9 @@ function _tableBacked(entry) {
 function _datesOf(entry, year) {
     if (entry.series === "omer") {
         return _omerDates(year);
+    }
+    if (entry.hebrew) {
+        return _hebrewObservances(year)[entry.hebrew].map((date) => [date.slice(1), null]);
     }
 
     const date = _dateOf(entry, year);

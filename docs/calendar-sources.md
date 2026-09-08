@@ -29,6 +29,12 @@ by their broad labels. Expiration is handled by hiding the affected calendar;
 the test suite verifies this behavior instead of failing merely because the
 wall clock has passed a publication's last year.
 
+Computed Hebrew observances retain their complete Gregorian dates and all
+occurrences in the requested year. For example, Hanukkah has no start in 3031
+and starts on both 1 January and 19 December 3032. A year with no occurrence of
+an observance still has complete coverage. Tests check the civil-year mapping
+for every year in the declared range, including the 9999 boundary.
+
 ## Shipped sources
 
 The 2025–2027 tables were assembled from the

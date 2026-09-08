@@ -25,15 +25,8 @@
 // the proleptic Julian calendar.
 const HEBREW_EPOCH = -1373427;
 
-// 1 Tishri of Hebrew year H opens civil year H - 3761. Rosh Hashanah, Yom
-// Kippur and Hanukkah fall in that civil year; Purim, Passover and Shavuot come
-// after the turn and so fall in the next one.
-const YEAR_OFFSET_AUTUMN = 3761;
-const YEAR_OFFSET_SPRING = 3760;
-
-// Nisan is month 1 and Tishri month 7, so the month numbers run through the
-// year twice over: Tishri opens the civil-year mapping above, and Adar II (13)
-// exists only in a leap year.
+// Tishri (month 7) opens the Hebrew year, whose month numbers wrap to Nisan
+// (month 1) in spring. Adar II (month 13) exists only in a leap year.
 const NISAN = 1;
 const SIVAN = 3;
 const TISHRI = 7;
@@ -41,6 +34,14 @@ const KISLEV = 9;
 const MARHESHVAN = 8;
 const ADAR = 12;
 const ALWAYS_SHORT_MONTHS = new Set([2, 4, 6, 10, 13]);
+const OBSERVANCE_DATES = {
+    "purim": [ADAR, 14],
+    "passover-start": [NISAN, 15],
+    "shavuot": [SIVAN, 6],
+    "rosh-hashanah": [TISHRI, 1],
+    "yom-kippur": [TISHRI, 10],
+    "hanukkah-start": [KISLEV, 25]
+};
 
 function _mod(value, modulus) {
     return ((value % modulus) + modulus) % modulus;
@@ -199,30 +200,47 @@ function gregorianFromHebrew(year, month, day) {
     return _gregorianFromFixed(_fixedFromHebrew(year, month, day));
 }
 
-function _civilMonthDay(hebrewYear, month, day) {
-    const civil = gregorianFromHebrew(hebrewYear, month, day);
-    return [civil[1], civil[2]];
+function _hebrewYearContaining(fixed) {
+    let lower = 1;
+    // Every Hebrew year has at least 353 days, so this is strictly after fixed.
+    let upper = Math.floor((fixed - HEBREW_EPOCH) / 353) + 2;
+    while (lower + 1 < upper) {
+        const middle = Math.floor((lower + upper) / 2);
+        if (_newYear(middle) <= fixed) {
+            lower = middle;
+        } else {
+            upper = middle;
+        }
+    }
+    return lower;
 }
 
-// The six observances the applet draws, keyed as the catalogue names them.
-//
-// Purim is 14 Adar, and in a leap year that is Adar II — the later of the two —
-// which is what keeps it one month before Passover instead of two. Hanukkah is
-// 25 Kislev, the first daytime civil day, not the evening the first candle is
-// lit. Each of the six falls exactly once in any civil year: none of their
-// civil-date ranges is wide enough to skip a year or land twice in one.
-function hebrewObservances(gregorianYear) {
-    const autumn = gregorianYear + YEAR_OFFSET_AUTUMN;
-    const spring = gregorianYear + YEAR_OFFSET_SPRING;
+function _civilObservance(hebrewYear, month, day) {
+    // Purim uses the final Adar: Adar II in a leap year.
+    const resolvedMonth = month === ADAR ? _lastMonthOfYear(hebrewYear) : month;
+    return gregorianFromHebrew(hebrewYear, resolvedMonth, day);
+}
 
-    return {
-        "purim": _civilMonthDay(spring, _lastMonthOfYear(spring), 14),
-        "passover-start": _civilMonthDay(spring, NISAN, 15),
-        "shavuot": _civilMonthDay(spring, SIVAN, 6),
-        "rosh-hashanah": _civilMonthDay(autumn, TISHRI, 1),
-        "yom-kippur": _civilMonthDay(autumn, TISHRI, 10),
-        "hanukkah-start": _civilMonthDay(autumn, KISLEV, 25)
-    };
+// Each key holds all [year, month, day] occurrences in chronological order.
+// Hebrew dates drift through Gregorian seasons: Hanukkah first crosses into
+// January in 3032, leaving 3031 with none and 3032 with two starts. Enumerating
+// the Hebrew years that intersect the requested civil year preserves both.
+function hebrewObservances(gregorianYear) {
+    if (!Number.isInteger(gregorianYear) || gregorianYear < 1 || gregorianYear > 9999) {
+        return {};
+    }
+    const observances = Object.fromEntries(Object.keys(OBSERVANCE_DATES).map((key) => [key, []]));
+    const firstYear = _hebrewYearContaining(_fixedFromGregorian(gregorianYear, 1, 1));
+    const finalDay = _fixedFromGregorian(gregorianYear, 12, 31);
+    for (let year = firstYear; _newYear(year) <= finalDay; year++) {
+        for (const [key, [month, day]] of Object.entries(OBSERVANCE_DATES)) {
+            const civil = _civilObservance(year, month, day);
+            if (civil[0] === gregorianYear) {
+                observances[key].push(civil);
+            }
+        }
+    }
+    return observances;
 }
 
 if (typeof module !== "undefined") {
