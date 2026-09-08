@@ -15,10 +15,12 @@ pages while retaining their handler will need a supported teardown contract.
 Chronos-owned work has its own teardown: pending window-centering idles cancel
 when their widget is destroyed.
 
-If an external reset or import updates country calendars while Add or Edit is
-open, saving closes that stale dialog and asks the user to reopen it. The
+If an external reset or import updates country calendars or world clocks while
+Add or Edit is open, saving closes that stale dialog and asks the user to reopen it. The
 external choices stay intact, including when the original edited row was
 removed or the list was rebuilt with identical values.
+
+World-clock Add also rechecks the eight-clock limit when Save is accepted.
 
 ## Named settings handlers
 

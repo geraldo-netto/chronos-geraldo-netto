@@ -925,6 +925,56 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(len(runs), 2)
         self.assertTrue(runs[-1].destroyed)
 
+    def test_external_worldclock_updates_cancel_stale_edits(self):
+        saved = [{"label": "Paris", "timezone": "Europe/Paris"}]
+        for incoming in ([], saved, [{"label": "Tokyo", "timezone": "Asia/Tokyo"}]):
+            with self.subTest(incoming=incoming):
+                settings = FakeSettings({"worldclocks": saved})
+                settings.get_property = DialogSettings().get_property
+                clocks = self.module.ClocksList({"value": saved}, "worldclocks", settings)
+                dialogs = []
+
+                def script(dialog):
+                    dialogs.append(dialog)
+                    settings.set_value("worldclocks", incoming)
+                    clocks.on_setting_changed()
+                    return 1
+
+                GtkDialog.on_run = script
+                self.assertIsNone(clocks.open_add_edit_dialog(["Paris", "Europe/Paris"]))
+                self.assertEqual(settings.get_value("worldclocks"), incoming)
+                self.assertIn("changed while", clocks.status.text)
+                self.assertTrue(dialogs[-1].destroyed)
+
+    def test_add_dialog_rechecks_capacity_before_native_insertion(self):
+        zones = ["Europe/Paris", "Europe/Rome", "Europe/London", "Asia/Tokyo",
+                 "Asia/Singapore", "America/Chicago", "America/Denver", "Pacific/Auckland"]
+        incoming = [{"label": zone, "timezone": zone} for zone in zones]
+        for notify in (False, True):
+            with self.subTest(notify=notify):
+                settings = FakeSettings({"worldclocks": []})
+                settings.get_property = DialogSettings().get_property
+                clocks = self.module.ClocksList({"value": []}, "worldclocks", settings)
+                dialogs = []
+
+                def script(dialog):
+                    dialogs.append(dialog)
+                    widgets = {widget.kwargs["label"]: widget for widget in BaseWidget.instances}
+                    widgets["Display name"].set_widget_value("New York")
+                    widgets["Timezone"].set_widget_value("America/New_York")
+                    settings.set_value("worldclocks", incoming)
+                    clocks.model.rows = incoming
+                    clocks.model.count = 8
+                    if notify:
+                        clocks.on_setting_changed()
+                    return 1
+
+                GtkDialog.on_run = script
+                self.assertIsNone(clocks.open_add_edit_dialog())
+                self.assertEqual(settings.get_value("worldclocks"), incoming)
+                self.assertTrue(clocks.status.text)
+                self.assertTrue(dialogs[-1].destroyed)
+
     def test_dialog_rechecks_external_duplicates_and_allows_cancellation(self):
         zones = types.SimpleNamespace(all_timezones=["Europe/Rome"], common_timezones=["Europe/Rome"])
         resolver = self.module.common.TimezoneResolver(zones, None, local_timezone="Antarctica/Troll")

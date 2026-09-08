@@ -533,6 +533,7 @@ class JSONSettingsList:
         self.info = info
         self.show_buttons = True
         self.handlers = []
+        self.children = []
         self.columns = info.get("columns", DialogSettings().get_property(key, "columns"))
         # The real widget loads the saved JSON through typed schema columns.
         # Do that here too: malformed rows must be repaired before this point,
@@ -552,6 +553,9 @@ class JSONSettingsList:
         self.model.rows = value
         self.model.column_ids = [column["id"] for column in self.columns]
         self.add_button = AddButton()
+
+    def pack_start(self, child, *args):
+        self.children.append(child)
 
     def connect(self, signal, callback):
         self.handlers.append((signal, callback))

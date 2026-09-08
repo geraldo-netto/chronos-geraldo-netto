@@ -626,12 +626,16 @@ class ClocksList(JSONSettingsList):
         # production passes nothing and gets the shared lazy one.
         common.report_startup_diagnostics()
         self._timezone_resolver = resolver
+        self._settings_revision = 0
 
         normalized_info = normalize_clock_setting(info, key, settings)
         JSONSettingsList.__init__(self, key, settings, normalized_info)
 
         self.entry_serializer = ClockEntrySerializer(self.columns)
         self.dialog_builder = ClockDialogBuilder(self)
+        self.status = Gtk.Label(xalign=0)
+        self.status.set_line_wrap(True)
+        self.pack_start(self.status, False, False, 0)
 
         self.update_button_sensitivity()
 
@@ -668,6 +672,7 @@ class ClocksList(JSONSettingsList):
         drew rows the applet drops at runtime, and the Add button and the
         dialog's duplicate check then judged a list that does not exist.
         """
+        self._settings_revision += 1
         normalize_stored_clocks(self.key, self.settings)
         super().on_setting_changed(*args)
         self.update_button_sensitivity()
@@ -779,8 +784,19 @@ class ClocksList(JSONSettingsList):
     def _initial_dialog_data(self, info):
         return self.dialog_builder.initial_data(info)
 
-    def _run_dialog(self, dialog, widgets, presenter, original_timezone):
+    def _dialog_state_error(self, revision, adding):
+        if revision != self._settings_revision:
+            return "World clocks changed while this dialog was open. Reopen Add or Edit to continue."
+        if adding and self.model.iter_n_children(None) >= MAX_CLOCKS:
+            return CLOCK_LIMIT_MESSAGE
+        return ""
+
+    def _run_dialog(self, dialog, widgets, presenter, original_timezone, revision, adding):
         while dialog.run() == Gtk.ResponseType.OK:
+            error = self._dialog_state_error(revision, adding)
+            if error:
+                self.status.set_text(error)
+                return None
             result = self._collect_dialog_values(widgets, original_timezone)
             if all(result):
                 return result
@@ -788,6 +804,9 @@ class ClocksList(JSONSettingsList):
         return None
 
     def open_add_edit_dialog(self, info=None):
+        revision = self._settings_revision
+        info = list(info) if info is not None else None
+        self.status.set_text("")
         if info is None and self.model.iter_n_children(None) >= MAX_CLOCKS:
             message = Gtk.MessageDialog(self.get_toplevel(), Gtk.DialogFlags.MODAL,
                                         Gtk.MessageType.INFO, Gtk.ButtonsType.OK,
@@ -810,6 +829,6 @@ class ClocksList(JSONSettingsList):
             widgets, presenter = self._build_dialog_content(dialog, data)
 
             dialog.get_content_area().show_all()
-            return self._run_dialog(dialog, widgets, presenter, original_timezone)
+            return self._run_dialog(dialog, widgets, presenter, original_timezone, revision, info is None)
         finally:
             dialog.destroy()
