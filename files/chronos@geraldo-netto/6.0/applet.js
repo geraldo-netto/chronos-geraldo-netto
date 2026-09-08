@@ -36,8 +36,6 @@ const AppletEventListCoordinator = AppletCoordinators.AppletEventListCoordinator
 const _ = LocaleText.translate;
 const RUNTIME_ERROR_TEXT =
     _("Calendar applet encountered an error. Check the system log.");
-const UPDATE_RESTART_TEXT =
-    _("Chronos was updated. Restart Cinnamon to finish the update.");
 
 function destroyIfPresent(collaborator) {
     if (collaborator) {
@@ -193,9 +191,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
                 }
             }),
             onHolidayCountryUnresolved: () => this._inferHolidayCountry(),
-            onUpgradeRequired: () => {
-                this._pendingProviderIssue = UPDATE_RESTART_TEXT;
-            },
             onSettingsChanged: () => this._onSettingsChanged(),
             onResume: () => this._onResume(),
             onNetworkRestored: () => this._onNetworkRestored(),
@@ -267,9 +262,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         this._worldclocks = ui.worldclocks;
         this._astronomy = ui.astronomy;
         this._issueReporter = ui.issueReporter;
-        if (this._pendingProviderIssue) {
-            this._issueReporter.set("update", this._pendingProviderIssue);
-        }
         this.go_home_button = ui.goHomeButton;
         this._day = ui.dayLabel;
         this._date = ui.dateLabel;

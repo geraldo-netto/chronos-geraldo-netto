@@ -317,7 +317,7 @@ test("one failing teardown step does not strand the rest", () => {
     assert.equal(errors.length, 1, "and the failure is reported, not swallowed");
 });
 
-function consumerLifecycle(onUpgradeRequired) {
+function consumerLifecycle() {
     return new AppletModule.AppletProviderLifecycle({
         actor: { connect: () => 1, disconnect: () => {} },
         desktopSettings: { connectClockFormatChanged: () => [], disconnect: () => {} },
@@ -330,8 +330,7 @@ function consumerLifecycle(onUpgradeRequired) {
         eventsSettings: {},
         onEventsManagerReady: () => {},
         onHasCalendarsChanged: () => {},
-        onHolidayDataChanged: () => {},
-        onUpgradeRequired
+        onHolidayDataChanged: () => {}
     }, {
         clock: () => ({}),
         networkState: () => ({ isOnline: () => true, destroy: () => {} }),
@@ -351,7 +350,7 @@ function consumerLifecycle(onUpgradeRequired) {
 // release it — the same hazard cancelPendingLocaleQueries() is a teardown step
 // for. The composition root is where both ends of the count belong: it builds
 // the provider graph and it tears it down.
-test("the composition root registers and releases its weather consumer", () => {
+test("T1155: each composition root registers and releases its consumers once", () => {
     const WorldclockData = rootModules.worldclockData;
     // the module the composition root actually reaches, not the fixture's
     // composed handle: weather.js exports only its own bindings now, so the
@@ -370,7 +369,7 @@ test("the composition root registers and releases its weather consumer", () => {
     WorldclockData.releaseWorldclockConsumer = () => calls.push("release:clocks");
 
     try {
-        const lifecycle = consumerLifecycle(() => {});
+        const lifecycle = consumerLifecycle();
 
         lifecycle.initProviders();
         assert.deepEqual(calls, ["register", "register:clocks"],
@@ -380,44 +379,16 @@ test("the composition root registers and releases its weather consumer", () => {
         assert.deepEqual(calls,
             ["register", "register:clocks", "release", "release:clocks"],
             "and the teardown gives both back");
+        lifecycle.destroy();
+        assert.deepEqual(calls,
+            ["register", "register:clocks", "release", "release:clocks"],
+            "repeated teardown cannot release another instance's consumers");
     } finally {
         WeatherModule.registerWeatherConsumer = originalRegister;
         WeatherModule.releaseWeatherConsumer = originalCancel;
         WorldclockData.registerWorldclockConsumer = originalClockRegister;
         WorldclockData.releaseWorldclockConsumer = originalClockRelease;
     }
-});
-
-test("stale root consumer APIs request a restart without breaking the applet", () => {
-    const modulesAndMethods = [
-        [rootModules.weather, "registerWeatherConsumer"],
-        [rootModules.weather, "releaseWeatherConsumer"],
-        [rootModules.worldclockData, "registerWorldclockConsumer"],
-        [rootModules.worldclockData, "releaseWorldclockConsumer"]
-    ];
-    const originals = modulesAndMethods.map(([module, method]) => module[method]);
-    const notices = [];
-    const errors = [];
-    const originalLogError = global.logError;
-    global.logError = (error) => errors.push(error);
-
-    try {
-        modulesAndMethods.forEach(([module, method], index) => {
-            module[method] = undefined;
-            const lifecycle = consumerLifecycle(() => notices.push(method));
-            assert.doesNotThrow(() => lifecycle.initProviders(), method);
-            assert.doesNotThrow(() => lifecycle.destroy(), method);
-            module[method] = originals[index];
-        });
-    } finally {
-        modulesAndMethods.forEach(([module, method], index) => {
-            module[method] = originals[index];
-        });
-        global.logError = originalLogError;
-    }
-
-    assert.deepEqual(notices, modulesAndMethods.map(([, method]) => method));
-    assert.deepEqual(errors, [], "missing cached APIs must not produce teardown TypeErrors");
 });
 
 // Three id→text tables live across the pure/UI boundary, and every lookup is
@@ -1766,9 +1737,6 @@ test("provider initialization wires hover and event manager signals", (t) => {
         }
     });
     Proto._initProviders.call(stub);
-    stub._providerLifecycle.context.onUpgradeRequired();
-    assert.match(stub._pendingProviderIssue, /Restart Cinnamon/,
-        "a stale module report is held until the footer exists");
     stub._providerLifecycle.context.onTimezoneChanged();
     // the lifecycle fires this when the country key holds the schema's empty
     // sentinel; only the applet knows the binder that owns the inference
@@ -1953,7 +1921,6 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
         calendar_settings: {},
         events_settings: {},
         holiday_provider: {},
-        _pendingProviderIssue: "Restart Cinnamon to finish the update",
         _initHolidayProvider: () => calls.push(["holiday-init"]),
         _updateClockAndDate: () => {}
     });
@@ -1999,8 +1966,6 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
     assert.equal(footerActors.length, 0, "warning text never widens the settings item's columns");
     assert.equal(mainMenuItems[0].children[0].content.children[1], stub._issueReporter.label,
         "the popup's scrollable body owns the separate status row");
-    assert.equal(stub._issueReporter._issues.get("update"),
-        "Restart Cinnamon to finish the update");
 
     // both menus get their own settings item, and activating one launches the settings
     const settingsItems = menuItems

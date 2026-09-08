@@ -285,13 +285,10 @@ class AppletProviderLifecycle {
         // than the first: Nominatim's one-request-per-second queue, and the
         // timezone-to-city memo behind the per-clock weather. Both count their
         // consumers the same way, so both are claimed the same way here.
-        const weatherConsumerReady = this._claimModuleConsumer(
+        this._claimModuleConsumer(
             Weather, "registerWeatherConsumer", "releaseWeatherConsumer");
-        const worldclockConsumerReady = this._claimModuleConsumer(
+        this._claimModuleConsumer(
             WorldclockData, "registerWorldclockConsumer", "releaseWorldclockConsumer");
-        if (!weatherConsumerReady || !worldclockConsumerReady) {
-            context.onUpgradeRequired();
-        }
         this.clock = this.factories.clock();
         this.networkState = this.factories.networkState();
         this.weatherRepository = this.factories.weatherRepository();
@@ -614,17 +611,9 @@ class AppletProviderLifecycle {
         }
     }
 
-    // A root module older than this one exports neither half, and half a
-    // consumer count is worse than none: register without a release leaks the
-    // resource, release without a register takes a surviving instance's state
-    // down with it. So both halves are probed, and nothing is claimed unless
-    // both are there. The release is recorded as a one-shot closure, so the
-    // applet releases exactly what it claimed, exactly once.
+    // Teardown may run again after a failed constructor or removal callback;
+    // each successful registration must release exactly once.
     _claimModuleConsumer(module, registerName, releaseName) {
-        if (typeof module[registerName] !== "function" ||
-            typeof module[releaseName] !== "function") {
-            return false;
-        }
         module[registerName]();
         let released = false;
         this._moduleConsumerReleases.push(() => {
@@ -634,7 +623,6 @@ class AppletProviderLifecycle {
             released = true;
             module[releaseName]();
         });
-        return true;
     }
 
     // runTeardownSteps: every step runs even if an earlier one throws.
