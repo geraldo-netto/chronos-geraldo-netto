@@ -5,6 +5,7 @@ const { makeRandom } = require("../helpers/prng");
 const Adapters = require("../../files/chronos@geraldo-netto/weatherServiceAdapters");
 const Format = require("../../files/chronos@geraldo-netto/weatherFormat");
 const ZERO_COORDINATE_CASES = require("../fixtures/open_meteo_zero_coordinate_cases.json");
+const TEMPERATURE_CASES = require("../fixtures/temperature_conversion_cases.json");
 
 function pick(random, values) {
     return values[Math.floor(random() * values.length)];
@@ -174,6 +175,32 @@ function checkOmittedCoordinates(audit, round) {
     });
 }
 
+function temperatureBoundary(random, round) {
+    const limit = Number.MAX_VALUE / 1.8;
+    const fixed = [2e307, -2e307, limit, -limit, limit * (1 + Number.EPSILON),
+        -limit * (1 + Number.EPSILON), Number.MAX_VALUE, -Number.MAX_VALUE, 0, 20, -40];
+    return round < fixed.length ? fixed[round] :
+        limit * (0.25 + random() * 1.5) * pick(random, [-1, 1]);
+}
+
+function checkTemperatureBoundary(audit, random, round) {
+    const value = temperatureBoundary(random, round);
+    audit.check("weather.temperature.conversion-boundary", round, value, () => {
+        const expectedValid = Math.abs(value) <= Number.MAX_VALUE / 1.8;
+        assert.equal(Format.validTemperature(value), expectedValid);
+        const reading = Adapters.weatherReading({ temperature: value, weathercode: 0 });
+        assert.equal(Boolean(reading), expectedValid);
+        for (const units of ["si", "imperial"]) {
+            const text = Format.formatTemperature(value, units);
+            assert.equal(Boolean(text), expectedValid);
+            assert.doesNotMatch(text, /NaN|Infinity/);
+        }
+        const fixture = TEMPERATURE_CASES[round % TEMPERATURE_CASES.length];
+        assert.equal(Format.formatTemperature(fixture.celsius, "si"), fixture.si);
+        assert.equal(Format.formatTemperature(fixture.celsius, "imperial"), fixture.imperial);
+    });
+}
+
 function runWeatherInputs({ seed, cases }) {
     const audit = recorder(seed);
     const random = makeRandom(seed);
@@ -183,6 +210,7 @@ function runWeatherInputs({ seed, cases }) {
         checkStation(audit, random, round);
         checkGeocode(audit, random, round);
         checkOmittedCoordinates(audit, round);
+        checkTemperatureBoundary(audit, random, round);
         checkReadings(audit, random, round);
     }
     return audit.report;

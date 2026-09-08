@@ -1029,7 +1029,8 @@ test("a METAR station with no temperature never wins the nearest-station race", 
 // null, "" and [] belong in here: Number() coerces all three to 0, and a station
 // with "temp": null used to be read as a real 0 °C reading at Null Island, where
 // it could win the nearest-station race.
-const JUNK_TEMPS = [undefined, null, "", [], false, "warm", "12abc", NaN, {}, true];
+const JUNK_TEMPS = [undefined, null, "", [], false, "warm", "12abc", NaN, {}, true,
+    Number.MAX_VALUE, -Number.MAX_VALUE, String(Number.MAX_VALUE)];
 const JUNK_COORDS = [undefined, null, "", [], "north", NaN, Infinity, {},
     90.001, -90.001, 180.001, -180.001, 370, "370"];
 const FUZZ_PLACE = { latitude: 48.85, longitude: 2.35 };
@@ -1067,10 +1068,15 @@ function usableCoordinate(value, bound) {
     return coordinate !== null && Math.abs(coordinate) <= bound;
 }
 
+function usableTemperature(value) {
+    const temperature = usableNumber(value);
+    return temperature !== null && Math.abs(temperature) <= Number.MAX_VALUE / 1.8;
+}
+
 // A station needs a temperature and coordinates inside the geographic limits.
 function stationIsUsable(candidate) {
     return Boolean(candidate) && typeof candidate === "object" &&
-        usableNumber(candidate.temp) !== null &&
+        usableTemperature(candidate.temp) &&
         usableCoordinate(candidate.lat, 90) &&
         usableCoordinate(candidate.lon, 180);
 }

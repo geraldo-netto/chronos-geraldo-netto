@@ -256,9 +256,9 @@ function aviationWeatherIcon(station) {
 // non-blank numeric string is a reading.
 //
 // The bounds are optional because they are not the same question: a coordinate
-// outside [-90, 90] / [-180, 180] is not a coordinate, while a METAR temperature has
-// no range this file is entitled to impose. Unbounded is the temperature reading, and
-// it is what the defaults give.
+// outside [-90, 90] / [-180, 180] is not a coordinate. Temperature callers
+// separately check that both display units remain finite, without imposing
+// physical temperature limits on this numeric reader.
 function finiteNumber(value, minimum = -Infinity, maximum = Infinity) {
     if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) {
         return null;
@@ -280,7 +280,8 @@ function aviationWeatherStation(stations, place) {
     let nearestDistance = Infinity;
 
     for (const station of stations) {
-        if (!station || typeof station !== "object" || finiteNumber(station.temp) === null) {
+        if (!station || typeof station !== "object" ||
+            !WeatherFormat.validTemperature(finiteNumber(station.temp))) {
             continue;
         }
 
@@ -328,7 +329,7 @@ function weatherReading(weather) {
     // which the provider chain reads as success: no failover to the two
     // providers that would have answered, and NaN kept as the last good
     // reading. The other two parsers check; this one has to as well.
-    if (!weather || !Number.isFinite(weather.temperature)) {
+    if (!weather || !WeatherFormat.validTemperature(weather.temperature)) {
         return null;
     }
 
@@ -408,7 +409,7 @@ function metNoWeatherReading(forecast) {
 
     const data = point.data;
     if (!data || !data.instant || !data.instant.details || // NOSONAR [S6582] -- accepted compatible form
-        !Number.isFinite(data.instant.details.air_temperature)) {
+        !WeatherFormat.validTemperature(data.instant.details.air_temperature)) {
         return null;
     }
 

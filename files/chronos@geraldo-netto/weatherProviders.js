@@ -633,7 +633,8 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
             providers,
             (provider, onResult) => this._forecastAttempt(
                 provider, place, isCurrent, onResult),
-            (result) => Boolean(result && result.reading), // NOSONAR [S7770] -- accepted compatible form
+            (result) => Boolean(result && result.reading && // NOSONAR [S7770] -- accepted compatible form
+                WeatherFormat.validTemperature(result.reading.temperatureC)),
             (provider, result) => {
                 this._last_forecast_provider = provider.name;
                 // the port ends here: a reading record, who answered, and any

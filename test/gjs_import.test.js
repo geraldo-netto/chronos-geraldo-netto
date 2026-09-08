@@ -208,6 +208,7 @@ function gjsImportsMock() {
                             normalizeWeatherLocation(location) {
                                 return String(location || "").trim();
                             },
+                            validTemperature() {},
                             formatTemperature() {}
                         },
                         weatherServiceAdapters: {
@@ -372,7 +373,7 @@ const EXPORTS = {
         "staleAfterSeconds", "readingIsStale",
         "MAX_WEATHER_LOCATION_LENGTH", "normalizeWeatherLocation",
         "WEATHER_ERROR_MARKER", "WEATHER_PENDING_TEXT", "WEATHER_ERRORS",
-        "WEATHER_CONDITIONS", "normalizeUnits", "formatTemperature"],
+        "WEATHER_CONDITIONS", "normalizeUnits", "validTemperature", "formatTemperature"],
     weatherServiceAdapters: ["GEOCODE_CANDIDATE_COUNT",
         "WEATHER_USER_AGENT", "WEATHER_PROVIDER_NAMES", "AVIATION_WEATHER_BBOX_DEGREES",
         "weatherIcon", "geocodeUrl", "geocodeLanguage", "nominatimGeocodeUrl",

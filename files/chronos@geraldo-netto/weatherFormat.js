@@ -95,9 +95,27 @@ function locationCacheKey(location) {
     return normalizeWeatherLocation(location).toLowerCase();
 }
 
+function fahrenheitTemperature(celsius) {
+    if (!Number.isFinite(celsius)) {
+        return null;
+    }
+    // Multiplying by nine first can overflow a representable final result.
+    const fahrenheit = celsius * 1.8 + 32;
+    return Number.isFinite(fahrenheit) ? fahrenheit : null;
+}
+
+function validTemperature(celsius) {
+    // The cached Celsius reading must remain valid after a display-unit change.
+    return fahrenheitTemperature(celsius) !== null;
+}
+
 function formatTemperature(celsius, units) {
+    const fahrenheit = fahrenheitTemperature(celsius);
+    if (fahrenheit === null) {
+        return "";
+    }
     const imperial = normalizeUnits(units) === WEATHER_UNITS.IMPERIAL;
-    const value = imperial ? celsius * 9 / 5 + 32 : celsius;
+    const value = imperial ? fahrenheit : celsius;
     return Math.round(value) + (imperial ? "°F" : "°C");
 }
 
@@ -191,5 +209,5 @@ if (typeof module !== "undefined") {
         WEATHER_ERROR_MARKER, WEATHER_PENDING_TEXT, WEATHER_ERRORS,
         WEATHER_CONDITIONS, WEATHER_UNKNOWN_CONDITION,
         normalizeUnits, normalizeWeatherLocation, locationCacheKey,
-        formatTemperature };
+        validTemperature, formatTemperature };
 }

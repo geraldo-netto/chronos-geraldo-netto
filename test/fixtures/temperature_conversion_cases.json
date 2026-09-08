@@ -1,0 +1,10 @@
+[
+  {"celsius":0,"si":"0°C","imperial":"32°F"},
+  {"celsius":20,"si":"20°C","imperial":"68°F"},
+  {"celsius":-40,"si":"-40°C","imperial":"-40°F"},
+  {"celsius":21.7,"si":"22°C","imperial":"71°F"},
+  {"celsius":-273.15,"si":"-273°C","imperial":"-460°F"},
+  {"celsius":2e307,"si":"2e+307°C","imperial":"3.6e+307°F"},
+  {"celsius":-2e307,"si":"-2e+307°C","imperial":"-3.6e+307°F"},
+  {"celsius":9.98718408256842e307,"si":"9.98718408256842e+307°C","imperial":"1.7976931348623157e+308°F"}
+]
