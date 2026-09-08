@@ -80,13 +80,13 @@ var Provider = class Provider { // NOSONAR [S3504] -- GJS importer export
     // one is removed
     static loaderFor(getSession) {
         return (url, params, callback) => {
-            IoUtils.httpGetJson(getSession(), url, (data, message) => {
+            IoUtils.httpGetJson(getSession(), url, (data, message, received = new Date().toISOString()) => {
                 // a request Soup refused to construct arrives with no message;
                 // it must settle through the same path as a failed fetch
                 const headers = message ? message.get_response_headers() : null;
                 const retrieved = headers ? headers.get_one("date") : null;
 
-                callback(data, params, retrieved);
+                callback(data, params, retrieved, received);
             });
         };
     }
@@ -288,7 +288,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     // envelope, and a fourth provider filing rows under one year while stamping
     // another would leave the requested year rendering empty and suppressed for
     // RETRY_PERIOD with last_error "".
-    addData (data, params, retrieved, requested) {
+    addData (data, params, retrieved, requested, received = new Date().toISOString()) {
         this.last_provider = params && params.providerName ? params.providerName : ""; // NOSONAR [S6582] -- accepted compatible form
 
         if (!data) {
@@ -321,7 +321,8 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
 
         this.last_error = "";
         const regionId = requested.region || GLOBAL_REGION;
-        this.cache.recordFetch(requested.year, regionId, retrieved, this.expandData(data, regionId));
+        this.cache.recordFetch(requested.year, regionId, retrieved,
+            this.expandData(data, regionId), received);
         // a fetch that landed is written; persist() writes only the reachable
         // window but keeps the whole of the session's data in memory, so a year
         // the user browsed to still renders and is not refetched every update.
@@ -387,12 +388,12 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     // is still selected. The attempt is recorded on completion, not on dispatch:
     // an attempt recorded up front makes the year look fresh to every other month
     // in the grid, which then renders no holidays at all.
-    _acceptYear(year, region, inflightKey, generation, data, params, date) {
+    _acceptYear(year, region, inflightKey, generation, data, params, date, received) {
         this.cache.recordAttempt(year, region);
 
         let callbacks;
         try {
-            this.addData(data, params, date, { year, region });
+            this.addData(data, params, date, { year, region }, received);
         } catch (e) {
             // a payload that survives validation can still throw while being
             // expanded or persisted; leaving the key behind would block every
@@ -430,7 +431,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
 
         const region = this.region;
         try {
-            this.service.fetchYear(this.country, region, year, (data, params, date) => {
+            this.service.fetchYear(this.country, region, year, (data, params, date, received = new Date().toISOString()) => {
                 // The fetch may finish after the applet was removed from the panel —
                 // running callbacks then would touch destroyed actors — or after the
                 // user picked another country, in which case this.cache now holds that
@@ -444,7 +445,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
                     return;
                 }
 
-                this._acceptYear(year, region, inflightKey, generation, data, params, date);
+                this._acceptYear(year, region, inflightKey, generation, data, params, date, received);
             });
         } catch (e) {
             this._abandonYear(year, region, inflightKey, generation, e);

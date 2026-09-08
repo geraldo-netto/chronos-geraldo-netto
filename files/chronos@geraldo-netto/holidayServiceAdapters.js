@@ -13,10 +13,10 @@
 // The holiday provider port and its built-in adapters.
 //
 //     fetchYear(country, region, year, callback)
-//         callback(data, params, retrieved) — data is the provider response,
+//         callback(data, params, retrieved, received) — data is the provider response,
 //         normalized into the app-owned record shape when it is a holiday list;
 //         params carries at least providerName and year, retrieved is the Date
-//         response header or null.
+//         response header or null; received is the local receipt timestamp.
 //
 // That is the whole port. What normalized data has to look like, how a holiday is
 // localized and what it expands to is the record contract (HolidayRecordContract),
@@ -74,7 +74,7 @@ function ownsProperty(object, property) {
     return Object.getOwnPropertyDescriptor(object, property) !== undefined;
 }
 
-function deliverTranslated(adapter, data, params, retrieved, callback) {
+function deliverTranslated(adapter, data, params, retrieved, callback, received = new Date().toISOString()) {
     let translated;
     try {
         translated = adapter.translateResponse(data, params);
@@ -82,11 +82,11 @@ function deliverTranslated(adapter, data, params, retrieved, callback) {
         if (global.logError) {
             global.logError(e);
         }
-        callback(null, params, retrieved);
+        callback(null, params, retrieved, received);
         return;
     }
 
-    callback(translated, params, retrieved);
+    callback(translated, params, retrieved, received);
 }
 
 // An adapter is a fetchYear and nothing else: it builds the request and translates
@@ -169,8 +169,8 @@ var EnricoServiceAdapter = class EnricoServiceAdapter { // NOSONAR [S3504] -- GJ
         // params contract, not a wire parameter: build the URL first
         const url = this.url(params);
         params.providerName = this.name;
-        this._loadJsonAsync(url, params, (data, requestParams, retrieved) => {
-            deliverTranslated(this, data, requestParams, retrieved, callback);
+        this._loadJsonAsync(url, params, (data, requestParams, retrieved, received) => {
+            deliverTranslated(this, data, requestParams, retrieved, callback, received);
         });
     }
 };
@@ -319,8 +319,8 @@ var IsoHolidayServiceAdapter = class IsoHolidayServiceAdapter { // NOSONAR [S350
             return;
         }
 
-        this._loadJsonAsync(this.url(params), params, (data, requestParams, retrieved) => {
-            deliverTranslated(this, data, requestParams, retrieved, callback);
+        this._loadJsonAsync(this.url(params), params, (data, requestParams, retrieved, received) => {
+            deliverTranslated(this, data, requestParams, retrieved, callback, received);
         });
     }
 };

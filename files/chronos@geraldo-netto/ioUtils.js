@@ -594,6 +594,8 @@ function httpGetJson(session, url, callback, options = {}) {
     };
 
     const deliver = (body) => {
+        // Preserve completed-body receipt before decoding or validating JSON.
+        const received = new Date().toISOString();
         settled = true;
         disarmDeadline();
         let data = null;
@@ -604,7 +606,7 @@ function httpGetJson(session, url, callback, options = {}) {
                 global.logError(e);
             }
         }
-        callback(data, message);
+        callback(data, message, received);
     };
 
     _dispatchOrFail(

@@ -445,6 +445,10 @@ Religious-observance data are bundled with the applet and computed locally.
 Neither the enabled religions nor their dates are sent to Enrico, OpenHolidays,
 Nager.Date, or any other service.
 
+Holiday cache timestamps use strict receive-time validation: missing, invalid,
+or future provider dates fall back to receipt time. See
+[holiday cache timestamps](docs/holiday-cache.md) for examples.
+
 ### Third-party data
 
 Weather and public-holiday readouts fetch from third-party services over HTTPS;

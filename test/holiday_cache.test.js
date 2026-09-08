@@ -3,6 +3,7 @@ const {
     holidayCachePath, holidayRecordPath, holidayServiceAdaptersPath,
     loadCountry, loadJson, cachePath, loadHolidays, holiday, anyRecord
 } = require("./helpers/holidayFixture");
+const { freezeClock } = require("./helpers/clock");
 
 // T988: the store and 320 lines of Gio file I/O shared a module, and the
 // coupling bit at *import* time — `GLib.build_filenamev(...)` ran while the
@@ -109,8 +110,8 @@ test("HolidayCache falls back to receive time when the Date header is missing", 
     assert.equal(cache.stale(2026, "global", receivedMs + UPDATE_PERIOD + 1000), true,
         "still expires on the normal schedule");
 
-    // an explicit header keeps winning over the fallback
-    const header = "Fri, 10 Jul 2026 10:00:00 GMT";
+    // A usable header at or before receipt keeps its original timestamp.
+    const header = "Wed, 08 Jul 2026 10:00:00 GMT";
     cache.recordFetch(2026, "global", header, [], received);
     assert.equal(cache.years[2026].global, header);
 
@@ -119,11 +120,121 @@ test("HolidayCache falls back to receive time when the Date header is missing", 
     // UPDATE_PERIOD, so a provider answering "Date: … 2050" would pin the year
     // as fresh for the rest of the session — and it rejects an unparseable one.
     // Both fall back to the receive time, which is the safe direction.
-    for (const hostile of ["Sat, 01 Jan 2050 00:00:00 GMT", "not a date", 42, null]) {
+    for (const hostile of ["Fri, 10 Jul 2026 10:00:00 GMT",
+        "Sat, 01 Jan 2050 00:00:00 GMT", "not a date", 42, null]) {
         cache.recordFetch(2026, "global", hostile, [], received);
         assert.equal(cache.years[2026].global, received, String(hostile));
     }
 });
+
+test("provider Date validation uses receipt time with no future-skew allowance", () => {
+    const { HolidayCache, UPDATE_PERIOD } = loadHolidays();
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    cache.setPlace("ita", "global");
+    const received = "Thu, 09 Jul 2026 10:00:00 GMT";
+    const receivedMs = new Date(received).getTime();
+
+    for (const offset of [-1000, -1, 0, 1, 1000, 86400000]) {
+        const header = new Date(receivedMs + offset).toISOString();
+        cache.recordFetch(2026, "global", header, [], received);
+        const expected = offset <= 0 ? header : received;
+        assert.equal(cache.years[2026].global, expected, `provider offset ${offset} ms`);
+        assert.equal(cache.stale(2026, "global", receivedMs + UPDATE_PERIOD), true,
+            "a future header cannot extend freshness beyond the receive-time deadline");
+    }
+});
+
+test("the provider response captures receipt before validation and expansion advance the clock", () => {
+    const { HolidayCache, HolidayService, UPDATE_PERIOD } = loadHolidays();
+    const arrival = Date.parse("2026-07-09T10:00:00.750Z");
+    const restoreArrival = freezeClock(arrival);
+    let restoreProcessing = () => {};
+    const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+    cache.setPlace("ita", "global");
+    const record = anyRecord({
+        validResponse: () => {
+            restoreProcessing = freezeClock(arrival + 180000);
+            return true;
+        },
+        expandHoliday: (_row, region) => [{
+            year: 2026, month: 1, day: 1, name: "New Year", flags: [], region
+        }]
+    });
+    const provider = new HolidayService({
+        fetchYear: (_country, region, year, callback) => callback([{}],
+            { year, region }, new Date(arrival + 120000).toISOString())
+    }, cache, { record });
+
+    try {
+        provider.retrieveForYear(2026, () => {});
+        assert.equal(cache.years[2026].global, new Date(arrival).toISOString(),
+            "the header was future at receipt even though it is past by the time rows are expanded");
+        assert.equal(cache.stale(2026, "global", arrival + UPDATE_PERIOD), true);
+        assert.equal(cache.matchMonth(2026, 1).get("1/1").name, "New Year");
+    } finally {
+        provider.destroy();
+        restoreProcessing();
+        restoreArrival();
+    }
+});
+
+for (const delayedStage of ["decoding", "translation", "validation"]) {
+    test(`HTTP receipt stays fixed through provider ${delayedStage}`, () => {
+        const arrival = Date.parse("2026-07-09T10:00:00.750Z");
+        const restoreArrival = freezeClock(arrival);
+        let restoreProcessing;
+        const advanceProcessing = () => {
+            if (!restoreProcessing) {
+                restoreProcessing = freezeClock(arrival + 180000);
+            }
+        };
+        let statusReads = 0;
+        const soup = makeSoup3({
+            data: JSON.stringify([holiday("New Year", 2026, 1, 1)]),
+            date: new Date(arrival + 120000).toISOString(),
+            messageMethods: {
+                get_status() {
+                    if (++statusReads === 2 && delayedStage === "decoding") {
+                        advanceProcessing();
+                    }
+                    return 200;
+                }
+            }
+        });
+        const { HolidayCache, HolidayRecordContract, HolidayService, httpBackedService } = loadHolidays({ soup });
+        const cache = new HolidayCache((_country, done) => done({ years: {}, holidays: [] }), () => {});
+        cache.setPlace("ita", "global");
+        const record = new HolidayRecordContract("en");
+        const validate = record.validResponse.bind(record);
+        record.validResponse = (...args) => {
+            if (delayedStage === "validation") {
+                advanceProcessing();
+            }
+            return validate(...args);
+        };
+        const chain = httpBackedService(() => new soup.Session(), { record });
+        const translate = chain.primary.translateResponse.bind(chain.primary);
+        chain.primary.translateResponse = (...args) => {
+            if (delayedStage === "translation") {
+                advanceProcessing();
+            }
+            return translate(...args);
+        };
+        const provider = new HolidayService(chain, cache, { record });
+        try {
+            provider.retrieveForYear(2026, () => {});
+            assert.ok(restoreProcessing, "the composed pipeline exercised the processing delay");
+            assert.equal(cache.years[2026].global, new Date(arrival).toISOString());
+            assert.equal(cache.matchMonth(2026, 1).get("1/1").name, "New Year");
+        } finally {
+            provider.destroy();
+            if (restoreProcessing) {
+                restoreProcessing();
+            }
+            restoreArrival();
+        }
+    });
+}
 
 // T77 regression: a fetch that lands after clearPlace() must not write
 // the payload under a "null" country key in the cache file
@@ -1084,8 +1195,8 @@ test("the shared same-day join bounds, deduplicates and orders", () => {
     }
     assert.ok(Array.from(cell.name).length <= MAX_HOLIDAY_NAME_LENGTH);
 
-    // PART_DAY is a claim about the day: it survives a merge only when both
-    // rows agree, but tagging one row public leaves it alone
+    // Public rows must agree the day is partial; tagging one row public
+    // leaves its partial-day claim alone.
     assert.deepEqual(
         joinHolidayEntry({ name: "Eve", flags: ["PART_DAY_HOLIDAY"] }, "Public Eve", ["public_holiday"]).flags,
         ["public_holiday"]);

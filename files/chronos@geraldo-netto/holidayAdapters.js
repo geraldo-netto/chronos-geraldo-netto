@@ -31,7 +31,7 @@ const ProviderUtils = IS_NODE ?
 
 // What the chain reports when every provider raised rather than answering:
 // attemptOrFail answers null for a raise, so there is no first failure to pass
-// on and no empty result either. The callback's contract is three values, and
+// on and no empty result either. The callback forwards an optional receipt time, and
 // HolidayService.addData reads a missing payload as SERVICE_UNAVAILABLE, which
 // is what this is.
 const NO_PROVIDER_OUTCOME = { data: null, params: null, retrieved: null };
@@ -75,20 +75,21 @@ var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJ
     }
 
     _fetchProviderYear(provider, country, region, year, state, onResult) {
-        provider.fetchYear(country, region, year, (data, params, retrieved) => {
+        provider.fetchYear(country, region, year, (data, params, retrieved, received = new Date().toISOString()) => {
             this._handleProviderResult(
-                provider, year, data, params, retrieved, state, onResult);
+                provider, year, data, params, retrieved, state, onResult, received);
         });
     }
 
-    _handleProviderResult(provider, year, data, params, retrieved, state, onResult) {
+    _handleProviderResult(provider, year, data, params, retrieved, state, onResult, received) {
         if (!this._isAlive()) {
             return;
         }
         const result = {
             data,
             params: this._sourceParams(provider, params),
-            retrieved
+            retrieved,
+            received
         };
         const classification = this._classify(result, year);
         if (classification === "empty") {
@@ -104,7 +105,7 @@ var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJ
 
     _acceptProviderResult(provider, result, callback) {
         this._last_provider = provider.name;
-        callback(result.data, result.params, result.retrieved);
+        callback(result.data, result.params, result.retrieved, result.received);
     }
 
     _reportProviderFailure(country, region, year, failure, emptyResult, callback) {
@@ -112,7 +113,7 @@ var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJ
             global.log(`all holiday providers failed for ${country}/${region}/${year}`);
         }
         const outcome = failure || emptyResult || NO_PROVIDER_OUTCOME;
-        callback(outcome.data, outcome.params, outcome.retrieved);
+        callback(outcome.data, outcome.params, outcome.retrieved, outcome.received);
     }
 
     _orderedProviders() {

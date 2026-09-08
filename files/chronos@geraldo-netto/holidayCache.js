@@ -542,16 +542,9 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
         if (!this._isActive()) {
             return;
         }
-        // The stamp is the provider's raw Date response header. validCachedStamp
-        // exists precisely because a stamp in the future keeps its year fresh
-        // forever — stale() only asks whether now - retrieved is inside
-        // UPDATE_PERIOD — but it was only ever applied on the way *out* of the
-        // cache file, never to the value coming off the network. A provider
-        // with a skewed clock (or a hostile one) answering "Date: … 2050" got
-        // that year pinned as fresh for the rest of the session, and persisted.
-        // Falling back to the receive time is the same safe direction the
-        // header-less case already takes.
-        const stamp = validCachedStamp(retrieved) ? retrieved : received;
+        // Compare with receipt, not a later wall-clock read: even a slightly
+        // future provider timestamp must not extend the freshness deadline.
+        const stamp = validCachedStamp(retrieved, new Date(received).getTime()) ? retrieved : received;
         region = region || GLOBAL_REGION;
         this._replaceSnapshot(year, region, holidays);
         this.recordYear(year, region, stamp);
