@@ -11,6 +11,7 @@ import sys
 import types
 import unittest
 from pathlib import Path
+from unittest import mock
 
 # the suite imports the widget module straight out of the applet tree. Letting
 # python drop .pyc files in there leaves bytecode behind that a later run can
@@ -25,13 +26,21 @@ WEATHER_PATH = APPLET_DIR / "chronos_settings_widgets_weather.py"
 HOLIDAYS_PATH = APPLET_DIR / "chronos_settings_widgets_holidays.py"
 WORLDCLOCKS_PATH = APPLET_DIR / "chronos_settings_widgets_worldclocks.py"
 
+
+def load_gi_free_module(path, name):
+    with mock.patch.object(sys, "path", [str(APPLET_DIR), *sys.path]), \
+            mock.patch.dict(sys.modules):
+        spec = importlib.util.spec_from_file_location(name, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+
 # The reserved built-ins live in the gi-free sibling, and the widget module no
 # longer re-exports them: it never read them, and naming them there existed only
 # so the tests could reach them through it.
-_tzdata_spec = importlib.util.spec_from_file_location(
-    "chronos_timezone_data_for_tests", APPLET_DIR / "chronos_timezone_data.py")
-_tzdata = importlib.util.module_from_spec(_tzdata_spec)
-_tzdata_spec.loader.exec_module(_tzdata)
+_tzdata = load_gi_free_module(
+    APPLET_DIR / "chronos_timezone_data.py", "chronos_timezone_data_for_tests")
 RESERVED_TIMEZONES = _tzdata.RESERVED_TIMEZONES
 
 try:

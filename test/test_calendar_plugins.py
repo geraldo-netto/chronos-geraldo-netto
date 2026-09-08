@@ -21,7 +21,8 @@ WIDGET_PATH = APPLET_DIR / "chronos_settings_widgets_calendars.py"
 
 
 def load_python(path, name, modules=None):
-    with mock.patch.dict(sys.modules, modules or {}):
+    with mock.patch.dict(sys.modules, modules or {}), \
+            mock.patch.object(sys, "path", [str(APPLET_DIR), *sys.path]):
         spec = importlib.util.spec_from_file_location(name, path)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

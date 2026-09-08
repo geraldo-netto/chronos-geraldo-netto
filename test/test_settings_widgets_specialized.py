@@ -1,9 +1,10 @@
 import shutil
 import tempfile
+from unittest import mock
 
 from helpers.settings_widgets_fixture import (
     APPLET_DIR, WEATHER_PATH, HOLIDAYS_PATH, WORLDCLOCKS_PATH, FIXED_LOCAL_TIMEZONE, BindObject, FakeSettings,
-    Path, importlib, json, load_module,
+    Path, json, load_gi_free_module, load_module,
     tearDownModule as teardown_fixture, unittest,
 )
 
@@ -764,11 +765,33 @@ class TimezoneDataStandsAloneTest(unittest.TestCase):
         # deliberately no install_stubs(): chronos_timezone_data reaches for nothing in
         # gi.repository, so it execs against the bare standard library. A future
         # edit that imports gi here would make this raise instead.
-        spec = importlib.util.spec_from_file_location(
-            "chronos_timezone_data_standalone", APPLET_DIR / "chronos_timezone_data.py")
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+        return load_gi_free_module(
+            APPLET_DIR / "chronos_timezone_data.py", "chronos_timezone_data_standalone")
+
+    def test_timezone_whitespace_matches_shared_runtime_identities(self):
+        module = self.load_gi_free()
+        fixture = json.loads(
+            (Path(__file__).parent / "fixtures" / "timezone_whitespace_cases.json").read_text())
+
+        for case in fixture["identifiers"]:
+            with self.subTest(value=case["input"]):
+                self.assertEqual(module.zoneinfo_identifier(case["input"]), case["normalized"])
+                self.assertEqual(module.is_runtime_builtin_timezone(
+                    case["input"], fixture["local_timezone"]), case["builtin"])
+
+    def test_timezone_editor_trims_bom_and_retains_invalid_c0_and_c1(self):
+        module = self.load_gi_free()
+        module.ZONEINFO_DIRECTORY = self.zone_directory("Europe/Paris")
+        resolver = module.TimezoneResolver(None, None, local_timezone=FIXED_LOCAL_TIMEZONE)
+
+        self.assertEqual(resolver.classify("\ufeffEurope/Paris\ufeff"), (False, "Europe/Paris"))
+        self.assertEqual(resolver.classify("\ufeffUTC\ufeff"), (True, None))
+        self.assertEqual(resolver.classify("\ufefflocal\ufeff"), (True, None))
+        self.assertEqual(resolver.classify("\ufeff \t"), (False, None))
+        for value in ("\u001cEurope/Paris\u001f", "\u0085Europe/Paris\u0085"):
+            self.assertFalse(module.looks_like_iana(value))
+            self.assertFalse(module.accepts_undatabased_timezone(value))
+            self.assertEqual(resolver.classify(value), (False, None))
 
     def test_the_source_reaches_for_no_gtk_atk_or_glib(self):
         source = (APPLET_DIR / "chronos_timezone_data.py").read_text()
@@ -948,6 +971,35 @@ class WorldClockSavedNormalizationTest(unittest.TestCase):
     def setUpClass(cls):
         cls.module = load_module(
             WORLDCLOCKS_PATH, "settings_widgets_saved_clock_normalization")
+
+    def test_timezone_whitespace_matches_runtime_selection_and_stored_rows(self):
+        fixture = json.loads(
+            (Path(__file__).parent / "fixtures" / "timezone_whitespace_cases.json").read_text())
+        settings = FakeSettings({"worldclocks": fixture["saved"]})
+
+        with mock.patch.object(self.module, "runtime_local_timezone",
+                               return_value=fixture["local_timezone"]):
+            clocks = self.module.ClocksList(
+                {"value": fixture["saved"]}, "worldclocks", settings)
+            self.assertEqual(self.module.normalize_saved_clocks(fixture["selected"]),
+                             fixture["selected"])
+
+        self.assertEqual(settings.values["worldclocks"], fixture["selected"])
+        self.assertEqual(settings.writes, [("worldclocks", fixture["selected"])])
+        self.assertEqual(clocks.model.rows, fixture["selected"])
+        self.assertEqual(fixture["saved"][3]["timezone"], "\ufeffEurope/Paris\ufeff")
+
+    def test_timezone_editor_checks_normalized_duplicates_and_empty_text(self):
+        saved = [{"label": "Paris", "timezone": "Europe/Paris"}]
+        settings = FakeSettings({"worldclocks": saved})
+        clocks = self.module.ClocksList({"value": saved}, "worldclocks", settings)
+        choice = {"timezone": "\ufeffEurope/Paris\ufeff"}
+
+        self.assertTrue(clocks.resolve_timezone_choice(choice)["duplicate"])
+        self.assertEqual(clocks.resolve_timezone_choice(
+            choice, original_timezone="Europe/Paris")["timezone"], "Europe/Paris")
+        self.assertTrue(clocks.resolve_timezone_choice({"timezone": "\ufeffUTC\ufeff"})["reserved"])
+        self.assertFalse(clocks.resolve_timezone_choice({"timezone": " \ufeff\t"})["typed_invalid"])
 
     def test_saved_rows_match_the_runtime_filter_and_cap(self):
         ordinary = [

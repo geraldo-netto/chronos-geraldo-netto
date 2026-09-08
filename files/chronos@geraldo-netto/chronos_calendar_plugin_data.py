@@ -21,6 +21,8 @@ import re
 import stat
 import tempfile
 
+from chronos_text import trim_text
+
 
 MAX_FILE_BYTES = 1024 * 1024
 MAX_PLUGINS = 32
@@ -29,7 +31,6 @@ MANIFEST_FIELDS = {"apiVersion", "id", "name", "category", "coverage", "source",
 SOURCE_FIELDS = {"name", "url", "tradition", "location"}
 EVENT_FIELDS = {"name", "month", "day", "year", "nonWorking"}
 CONTROL_TEXT = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028-\u202e\u2066-\u2069]")
-TEXT_SPACE = " \t\n\r\v\f\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 CALENDAR_ID = re.compile(r"[a-z][a-z0-9]*(?:[.:-][a-z0-9]+(?:-[a-z0-9]+)*)+")
 SOURCE_URL = re.compile(
     r"(?ai:https://[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?)(?::[0-9]{1,5})?(?:[/?#][^\s\ufeff\\]*)?",
@@ -53,9 +54,9 @@ def _text(value, field, maximum):
         size = len(value.encode("utf-16-le")) // 2
     except UnicodeEncodeError as error:
         raise ValueError(f"Calendar plugin {field}: invalid Unicode") from error
-    _require(size <= maximum and bool(value.strip(TEXT_SPACE)), field, "invalid text length")
+    _require(size <= maximum and bool(trim_text(value)), field, "invalid text length")
     _require(CONTROL_TEXT.search(value) is None, field, "control characters are not allowed")
-    return value.strip(TEXT_SPACE)
+    return trim_text(value)
 
 
 def calendar_id(value):

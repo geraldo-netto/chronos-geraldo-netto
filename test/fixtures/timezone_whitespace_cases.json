@@ -1,0 +1,28 @@
+{
+  "local_timezone": "America/Sao_Paulo",
+  "identifiers": [
+    {"input": "\ufeffEurope/Paris\ufeff", "normalized": "Europe/Paris", "builtin": false},
+    {"input": " \ufeffUTC\ufeff ", "normalized": "UTC", "builtin": true},
+    {"input": "\ufefflocal\ufeff", "normalized": "local", "builtin": true},
+    {"input": "\ufeff:/usr/share/zoneinfo/America/Sao_Paulo\ufeff", "normalized": "America/Sao_Paulo", "builtin": true},
+    {"input": "\u001cEurope/Paris\u001f", "normalized": "\u001cEurope/Paris\u001f", "builtin": false},
+    {"input": "\u0085UTC\u0085", "normalized": "\u0085UTC\u0085", "builtin": false},
+    {"input": " \ufeff\t", "normalized": "", "builtin": false}
+  ],
+  "saved": [
+    {"label": "BOM UTC", "timezone": "\ufeffUTC\ufeff"},
+    {"label": "BOM local", "timezone": "\ufeffAmerica/Sao_Paulo\ufeff"},
+    {"label": "BOM blank", "timezone": " \ufeff\t"},
+    {"label": "Paris", "timezone": "\ufeffEurope/Paris\ufeff"},
+    {"label": "Duplicate Paris", "timezone": "Europe/Paris"},
+    {"label": "C0 Paris", "timezone": "\u001cEurope/Paris\u001f"},
+    {"label": "C1 UTC", "timezone": "\u0085UTC\u0085"},
+    {"label": "Rome", "timezone": "Europe/Rome"}
+  ],
+  "selected": [
+    {"label": "Paris", "timezone": "Europe/Paris"},
+    {"label": "C0 Paris", "timezone": "\u001cEurope/Paris\u001f"},
+    {"label": "C1 UTC", "timezone": "\u0085UTC\u0085"},
+    {"label": "Rome", "timezone": "Europe/Rome"}
+  ]
+}

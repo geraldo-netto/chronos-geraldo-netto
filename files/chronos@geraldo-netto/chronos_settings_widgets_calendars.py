@@ -20,6 +20,7 @@ from gi.repository import Gtk
 from xapp.SettingsWidgets import SettingsWidget
 
 import chronos_calendar_plugin_data as plugin_data
+from chronos_text import trim_text
 
 
 LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
@@ -69,7 +70,7 @@ class AdditionalCountryList(JSONSettingsList):
         row = _country_row(raw)
         if row is None or row["country"] not in self.regions:
             return None
-        row["region"] = row["region"].strip(plugin_data.TEXT_SPACE).lower() or "global"
+        row["region"] = trim_text(row["region"]).lower() or "global"
         return row if row["region"] in self.regions[row["country"]] else None
 
     def _normalized_rows(self, raw):

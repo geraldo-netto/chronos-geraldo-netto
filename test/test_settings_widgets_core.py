@@ -5,7 +5,7 @@ from unittest import mock
 from helpers.settings_widgets_fixture import (
     APPLET_DIR, COMMON_PATH, WORLDCLOCKS_PATH, BaseWidget, DialogSettings, Entry, FakeSettings,
     FUZZ_SEED, GtkDialog, GtkLabel, GtkMessageDialog, Model,
-    importlib, install_stubs, json, load_module, random, requires_pytz, sys,
+    importlib, install_stubs, json, load_gi_free_module, load_module, random, requires_pytz, sys,
     tearDownModule as teardown_fixture, types, unittest,
 )
 
@@ -496,12 +496,9 @@ class SettingsWidgetsTest(unittest.TestCase):
         # where it runs; the real one is exercised here, against a real
         # /etc/localtime and against the shapes it has to survive. It lives in
         # the gi-free chronos_timezone_data sibling, so a fresh exec of that source —
-        # no stubs, no sys.path — is the unpatched function.
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "tzdata_localtime_real", APPLET_DIR / "chronos_timezone_data.py")
-        fresh = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(fresh)
+        # no toolkit stubs — is the unpatched function.
+        fresh = load_gi_free_module(
+            APPLET_DIR / "chronos_timezone_data.py", "tzdata_localtime_real")
 
         with mock.patch.dict(os.environ, {}, clear=True):
             with mock.patch.object(
@@ -522,11 +519,8 @@ class SettingsWidgetsTest(unittest.TestCase):
                 self.assertIsNone(fresh.local_timezone_name())
 
     def test_tz_override_beats_the_localtime_link_for_reserved_clocks(self):
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "tzdata_environment_identity", APPLET_DIR / "chronos_timezone_data.py")
-        fresh = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(fresh)
+        fresh = load_gi_free_module(
+            APPLET_DIR / "chronos_timezone_data.py", "tzdata_environment_identity")
         fake_pytz = types.SimpleNamespace(
             all_timezones=["Asia/Calcutta", "Asia/Kolkata"],
             common_timezones=["Asia/Calcutta", "Asia/Kolkata"])

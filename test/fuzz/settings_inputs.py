@@ -18,7 +18,6 @@ settings, plugin directories, network services, or timezone database are used.
 
 from copy import deepcopy
 from datetime import date
-import importlib.util
 import json
 from pathlib import Path
 import random
@@ -73,9 +72,7 @@ def load_targets():
     from helpers import settings_widgets_fixture as fixture
 
     path = fixture.APPLET_DIR / "chronos_calendar_plugin_data.py"
-    spec = importlib.util.spec_from_file_location("fuzz_calendar_data", path)
-    manifests = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(manifests)
+    manifests = fixture.load_gi_free_module(path, "fuzz_calendar_data")
     clocks = fixture.load_module(fixture.WORLDCLOCKS_PATH, "fuzz_clocks", missing_pytz=True)
     weather = fixture.load_module(fixture.WEATHER_PATH, "fuzz_weather", missing_pytz=True)
     countries = fixture.load_module(fixture.HOLIDAYS_PATH, "fuzz_countries", missing_pytz=True)

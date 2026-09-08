@@ -19,6 +19,8 @@ the whole feature through one import.
 
 from __future__ import annotations
 
+from chronos_text import trim_text
+
 import logging
 import os
 import re
@@ -63,7 +65,7 @@ def zoneinfo_identifier(value: str) -> str:
     string it was given — so the runtime needs the same reduction, and
     worldclockData.zoneinfoIdentifier is this rule in JavaScript.
     """
-    identifier = value.strip()
+    identifier = trim_text(value)
     if identifier.startswith(":"):
         identifier = identifier[1:]
     if identifier.startswith("/"):
@@ -122,7 +124,7 @@ def is_runtime_builtin_timezone(
     if not isinstance(value, str):
         return False
 
-    identifier = value.strip()
+    identifier = trim_text(value)
     if not identifier:
         return False
     if identifier == "local":
@@ -146,7 +148,7 @@ def looks_like_iana(value: Any) -> bool:
     if not isinstance(value, str):
         return False
 
-    parts = value.strip().split("/")
+    parts = trim_text(value).split("/")
     if len(parts) < 2 or len(parts) > 3:
         return False
 
@@ -187,7 +189,7 @@ def accepts_undatabased_timezone(value: Any) -> bool:
         return False
     if not ZONEINFO_DIRECTORY.is_dir():
         return True
-    return zoneinfo_spelling_exists(value.strip())
+    return zoneinfo_spelling_exists(trim_text(value))
 
 
 # The port of weatherServiceAdapters.foldPlaceName, kept level with it by
@@ -398,7 +400,7 @@ class TimezoneResolver:
         if not isinstance(value, str):
             return (False, None)
 
-        text = value.strip()
+        text = trim_text(value)
         if not text:
             return (False, None)
         if text.lower() in RESERVED_TIMEZONES:

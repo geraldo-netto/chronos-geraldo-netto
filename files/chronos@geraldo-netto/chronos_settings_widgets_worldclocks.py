@@ -26,6 +26,7 @@ from typing import Optional
 from gi.repository import GLib, Gtk
 
 import chronos_settings_widgets_common as common
+from chronos_text import TEXT_WHITESPACE, trim_text
 from chronos_timezone_data import (
     completion_key,
     is_runtime_builtin_timezone,
@@ -227,10 +228,10 @@ def sanitize_control_characters(value):
 def normalize_clock_label(value):
     if not isinstance(value, str):
         return ""
-    normalized = sanitize_control_characters(value).strip(common.TEXT_WHITESPACE)
+    normalized = trim_text(sanitize_control_characters(value))
     if len(normalized) <= MAX_CLOCK_INPUT_LABEL_LENGTH:
         return normalized
-    return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip(common.TEXT_WHITESPACE) + "…"
+    return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip(TEXT_WHITESPACE) + "…"
 
 
 def normalize_saved_clock(row, local_timezone=None) -> Optional[dict[str, str]]:
@@ -240,7 +241,7 @@ def normalize_saved_clock(row, local_timezone=None) -> Optional[dict[str, str]]:
     timezone = row.get("timezone")
     if not label or not isinstance(timezone, str):
         return None
-    timezone = timezone.strip()
+    timezone = trim_text(timezone)
     if (not timezone or len(timezone) > MAX_CLOCK_TIMEZONE_LENGTH or
             is_runtime_builtin_timezone(timezone, local_timezone)):
         return None
@@ -725,7 +726,7 @@ class ClocksList(JSONSettingsList):
 
     def resolve_timezone_choice(self, values, original_timezone=None):
         timezone_text = values.get('timezone')
-        has_timezone_text = bool(timezone_text and timezone_text.strip())
+        has_timezone_text = bool(timezone_text and trim_text(timezone_text))
         reserved, timezone = self.timezone_resolver.classify(timezone_text)
         if reserved:
             return {

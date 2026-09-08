@@ -683,6 +683,21 @@ test("built-in timezone rules match the Python settings resolver", () => {
         "every spelling of the local zone collides with the built-in local row");
 });
 
+test("timezone whitespace preserves Python and runtime clock selection parity", () => {
+    loadWorldclocks();
+    const WorldclockData =
+        global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const fixture = require("./fixtures/timezone_whitespace_cases.json");
+    const saved = JSON.parse(JSON.stringify(fixture.saved));
+
+    assert.equal(LOCAL_TIMEZONE, fixture.local_timezone);
+    for (const { input, normalized } of fixture.identifiers)
+        assert.equal(WorldclockData.zoneinfoIdentifier(input), normalized);
+    assert.deepEqual(WorldclockData.selectUserClocks(saved), fixture.selected);
+    assert.deepEqual(WorldclockData.selectUserClocks(fixture.selected), fixture.selected);
+    assert.deepEqual(saved, fixture.saved);
+});
+
 // the label is the user's own name for the clock and the dialog puts no limit on
 // it; it is rendered in the popup grid and padded to the widest cell in the
 // monospace tooltip, so one 60-character name stretches both

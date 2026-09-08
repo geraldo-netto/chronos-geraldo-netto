@@ -24,6 +24,7 @@ from typing import Optional
 # the shared halves: one folded-substring matcher and one process-wide
 # timezone index, both also used by the world-clock and country widgets
 import chronos_settings_widgets_common as common
+from chronos_text import trim_text
 from chronos_timezone_data import completion_key, local_city_name
 from chronos_settings_i18n import _
 
@@ -47,7 +48,7 @@ def normalize_weather_location(text) -> str:
     source = text if isinstance(text, str) else ""
     if refuses_weather_location(source):
         return ""
-    return source.strip(common.TEXT_WHITESPACE)
+    return trim_text(source)
 
 
 def _city_completion_columns(city):
