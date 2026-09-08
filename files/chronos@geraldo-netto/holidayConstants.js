@@ -32,10 +32,9 @@ var HOLIDAY_PROVIDER_NAMES = { // NOSONAR [S3504] -- GJS importer export
     NAGER_DATE: "Nager.Date"
 };
 var GLOBAL_REGION = "global"; // NOSONAR [S3504] -- GJS importer export
-// Every public row receives an explicit flag before it is merged with local
-// religious observances. Vendor rows are allowed to carry an empty flag list,
-// so absence of the religious flag alone cannot distinguish a public-only row
-// from a merged public+religious row.
+// A country's provider can return optional, bank, or unclassified observances.
+// Source category does not add PUBLIC_HOLIDAY_FLAG; only explicit provider
+// classification marks a public holiday in the shared month map.
 // One day of the matched-month map the calendar grid and the event column both
 // read. It used to be an anonymous [name, flags] tuple, flattened by two
 // producers and recovered by index in three places across two modules, with no
