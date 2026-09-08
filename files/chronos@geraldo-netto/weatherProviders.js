@@ -556,7 +556,13 @@ function completeForecastAttempt(attempt) {
         return;
     }
     attempt.finished = true;
-    attempt.onResult(forecastAttemptResult(attempt));
+    let result = null;
+    try {
+        result = forecastAttemptResult(attempt);
+    } catch (error) {
+        Diagnostics.logSafely("logError", error);
+    }
+    attempt.onResult(result);
 }
 
 function receiveForecastPayload(attempt, index, data) {
