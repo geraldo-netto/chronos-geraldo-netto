@@ -6,6 +6,7 @@ const Adapters = require("../../files/chronos@geraldo-netto/weatherServiceAdapte
 const Format = require("../../files/chronos@geraldo-netto/weatherFormat");
 const ZERO_COORDINATE_CASES = require("../fixtures/open_meteo_zero_coordinate_cases.json");
 const TEMPERATURE_CASES = require("../fixtures/temperature_conversion_cases.json");
+const TIMEZONE_CASES = require("../fixtures/timezone_nul_cases.json");
 
 function pick(random, values) {
     return values[Math.floor(random() * values.length)];
@@ -77,6 +78,22 @@ function checkNulLocation(audit, random, round) {
         assert.equal(Adapters.geocodeUrl(input, "en"), "");
         assert.equal(Adapters.nominatimGeocodeUrl(input, "en"), "");
         assert.equal(Format.normalizeWeatherLocation(name), name);
+    });
+}
+
+function checkNulTimezone(audit, random, round) {
+    const clean = pick(random, TIMEZONE_CASES.valid);
+    const offset = Math.floor(random() * (clean.length + 1));
+    const generated = clean.slice(0, offset) + "\0" + clean.slice(offset);
+    const input = round < TIMEZONE_CASES.invalid.length ? TIMEZONE_CASES.invalid[round] : generated;
+    audit.check("weather.timezone.nul", round, input, () => {
+        const candidate = { name: "Rome", latitude: 41.9, longitude: 12.5, population: 10000, timezone: input };
+        const place = Adapters.openMeteoGeocodePlace({ results: [candidate] }, "Rome");
+        assert.equal(place.timezone, "");
+        assert.equal(Adapters.openMeteoTimezone({ timezone: input }), "");
+        assert.equal(Adapters.openMeteoTimezone({ timezone: clean }), clean);
+        const length = [63, 64, 65, 254, 255, 256][round % 6];
+        assert.equal(Adapters.openMeteoTimezone({ timezone: "a".repeat(length) + "\0UTC" }), "");
     });
 }
 
@@ -207,6 +224,7 @@ function runWeatherInputs({ seed, cases }) {
     for (let round = 0; round < cases; round++) {
         checkLocation(audit, random, round);
         checkNulLocation(audit, random, round);
+        checkNulTimezone(audit, random, round);
         checkStation(audit, random, round);
         checkGeocode(audit, random, round);
         checkOmittedCoordinates(audit, round);

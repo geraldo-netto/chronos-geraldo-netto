@@ -22,6 +22,18 @@ class FilenameDisplayTests(unittest.TestCase):
     def setUpClass(cls):
         cls.text = load_gi_free_module(APPLET_DIR / "chronos_text.py", "filename_text")
 
+    def test_T1150_native_text_refusal_preserves_unicode_scalar_validity(self):
+        fixture = json.loads((Path(__file__).parent / "fixtures/timezone_nul_cases.json").read_text())
+        for value in fixture["invalid"]:
+            self.assertTrue(self.text.valid_unicode(value))
+            self.assertFalse(self.text.valid_native_text(value))
+        for value in fixture["valid"]:
+            self.assertTrue(self.text.valid_native_text(value))
+        for value in (None, False, 1, [], {}, "\ud800", "\udfff"):
+            self.assertFalse(self.text.valid_native_text(value))
+        for value in ("", "🏙", "a\nb", "\ufeffa\ufeff"):
+            self.assertTrue(self.text.valid_native_text(value))
+
     def test_shared_filename_projection_is_bounded_and_utf8_encodable(self):
         cases = json.loads((Path(__file__).parent / "fixtures/calendar_filename_cases.json").read_text())
         for case in cases:
@@ -159,6 +171,31 @@ class SettingsUnicodeTests(unittest.TestCase):
         self.assertEqual(settings.get_value("worldclocks"), FIXTURE["selectedClocks"])
         self.assertEqual(widget.model.rows, FIXTURE["selectedClocks"])
         self.assertEqual(raw, FIXTURE["savedClocks"])
+
+    def test_T1150_saved_timezone_nul_never_reaches_the_clock_model(self):
+        fixture = json.loads((Path(__file__).parent / "fixtures/timezone_nul_cases.json").read_text())
+        valid = [{"label": zone, "timezone": zone} for zone in fixture["valid"]]
+        invalid = [{"label": "Refused", "timezone": zone} for zone in fixture["invalid"]]
+        raw = [valid[0], *invalid, *valid[1:]]
+        original = deepcopy(raw)
+        settings = FakeSettings({"worldclocks": raw})
+        widget = self.clocks.ClocksList({"value": raw}, "worldclocks", settings)
+        self.assertEqual(settings.get_value("worldclocks"), valid)
+        self.assertEqual(widget.model.rows, valid)
+        settings.set_value("worldclocks", deepcopy(raw))
+        widget.on_setting_changed()
+        self.assertEqual(settings.get_value("worldclocks"), valid)
+        self.assertEqual(widget.model.rows, valid)
+        self.assertEqual(raw, original)
+
+    def test_T1150_timezone_nul_is_refused_at_saved_length_boundaries(self):
+        for length in (1, 12, 63, 64, 65, 254, 255, 256):
+            prefix = "a" * length
+            row = {"label": "Boundary", "timezone": prefix}
+            expected = row if length <= 64 else None
+            self.assertEqual(self.clocks.normalize_saved_clock(row), expected)
+            row["timezone"] += "\0UTC"
+            self.assertIsNone(self.clocks.normalize_saved_clock(row))
 
     def test_country_diagnostics_are_encodable_without_rewriting_the_refused_key(self):
         info = {"default": "", "options": {"None": "none", "Italy": "ita"}}

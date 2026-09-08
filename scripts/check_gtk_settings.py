@@ -119,8 +119,23 @@ def check_clocks(widget_type, schema, fixture):
         settings.set_value(key, deepcopy(fixture["savedClocks"]))
         widget.on_setting_changed()
         assert settings.get_value(key) == fixture["selectedClocks"]
+        rows = [dict(zip(widget.entry_serializer.column_ids, row)) for row in widget.model]
+        assert rows == fixture["selectedClocks"], rows
+        widget.list_changed()
+        assert settings.get_value(key) == fixture["selectedClocks"]
     finally:
         widget.destroy()
+
+
+def check_clock_timezones(widget_type, schema):
+    # T1150: native model conversion and a subsequent list save preserve every
+    # admitted identifier; a refused suffix must never become a different zone.
+    fixture = json.loads((ROOT / "test/fixtures/timezone_nul_cases.json").read_text())
+    valid = [{"label": zone, "timezone": zone} for zone in fixture["valid"]]
+    invalid = [{"label": "Refused", "timezone": zone} for zone in fixture["invalid"]]
+    check_clocks(widget_type, schema, {
+        "savedClocks": [valid[0], *invalid, *valid[1:]], "selectedClocks": valid,
+    })
 
 
 def drain_events():
@@ -231,6 +246,7 @@ def run_isolated(directory):
             check_country(country, schema, case)
             checks += 1
     check_clocks(clocks, schema, fixture)
+    check_clock_timezones(clocks, schema)
     for case in fixture["weatherNul"]:
         check_weather(weather, schema, case)
         checks += 1
@@ -240,7 +256,7 @@ def run_isolated(directory):
             check_teardown(widget, schema, key, case)
             checks += 1
     checks += check_plugin_filenames(directory, schema)
-    print(json.dumps({"checks": checks + 1, "failures": []}), flush=True)
+    print(json.dumps({"checks": checks + 2, "failures": []}), flush=True)
     return 0
 
 

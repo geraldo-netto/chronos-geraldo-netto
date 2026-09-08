@@ -51,7 +51,9 @@ class NativeSettingsHarnessTests(unittest.TestCase):
         self.assertEqual(weather.call_count, 22)
         self.assertEqual(country.call_count, 8)
         self.assertTrue(all(not call.args[2]["valid"] for call in country.call_args_list))
-        clocks.assert_called_once()
+        self.assertEqual(clocks.call_count, 2)
+        self.assertIn("\0", clocks.call_args.args[2]["savedClocks"][1]["timezone"])
+        self.assertEqual(len(clocks.call_args.args[2]["selectedClocks"]), 5)
         self.assertEqual(teardown.call_count, 17)
         filenames.assert_called_once()
 

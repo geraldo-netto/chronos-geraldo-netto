@@ -724,6 +724,36 @@ test("invalid Unicode clock rows do not discard valid neighboring clocks", () =>
     assert.deepEqual(saved, fixture.savedClocks);
 });
 
+test("T1150 saved timezone NUL rows never consume valid clock slots", () => {
+    loadWorldclocks();
+    const data = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const fixture = require("./fixtures/timezone_nul_cases.json");
+    const valid = fixture.valid.map((timezone) => ({ label: timezone, timezone }));
+    const invalid = fixture.invalid.map((timezone) => ({ label: "Refused", timezone }));
+    const saved = [valid[0], ...invalid, ...valid.slice(1)];
+    const before = JSON.parse(JSON.stringify(saved));
+    assert.deepEqual(data.selectUserClocks(saved), valid);
+    assert.deepEqual(data.selectUserClocks(valid), valid);
+    assert.deepEqual(saved, before);
+});
+
+test("T1150 shared native timezone admission refuses NUL before GLib", () => {
+    loadWorldclocks();
+    const data = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const fixture = require("./fixtures/timezone_nul_cases.json");
+    const calls = [];
+    global.imports.gi.GLib.TimeZone.new_identifier = (timezone) => {
+        calls.push(timezone);
+        return { get_identifier: () => timezone.split("\0")[0] };
+    };
+    for (const timezone of fixture.invalid)
+        assert.equal(data.timezoneFromIdentifier(timezone), null, JSON.stringify(timezone));
+    assert.deepEqual(calls, [], "no refused timezone crosses the NUL-terminated boundary");
+    for (const timezone of fixture.valid)
+        assert.equal(data.timezoneFromIdentifier(timezone).get_identifier(), timezone);
+    assert.deepEqual(calls, fixture.valid);
+});
+
 // the label is the user's own name for the clock and the dialog puts no limit on
 // it; it is rendered in the popup grid and padded to the widest cell in the
 // monospace tooltip, so one 60-character name stretches both

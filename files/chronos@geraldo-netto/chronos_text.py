@@ -23,6 +23,11 @@ def valid_unicode(value: str) -> bool:
     return _INVALID_UNICODE.search(value) is None
 
 
+def valid_native_text(value) -> bool:
+    """Whether a Unicode string crosses NUL-terminated native APIs unchanged."""
+    return isinstance(value, str) and valid_unicode(value) and "\0" not in value
+
+
 def diagnostic_text(value: str) -> str:
     """Keep a refused value readable without passing invalid Unicode to ATK."""
     return _INVALID_UNICODE.sub("\ufffd", value)

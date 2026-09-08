@@ -36,6 +36,7 @@ TEXT_BOUNDARIES = (
 REMOVED_CONTROLS = re.compile(r"[\x00-\x1f\x7f-\x9f\u2028-\u202e\u2066-\u2069]")
 LEFT_CLOCK = {"label": "Auckland", "timezone": "Pacific/Auckland"}
 RIGHT_CLOCK = {"label": "São Paulo", "timezone": "America/Sao_Paulo"}
+TIMEZONE_CASES = json.loads((ROOT / "test/fixtures/timezone_nul_cases.json").read_text())
 
 
 def require(condition, message):
@@ -256,6 +257,25 @@ def check_clock_rows(module, rows):
     for row in normalized:
         ui_text(row["label"], 128)
         ui_text(row["timezone"], 64)
+        require("\0" not in row["timezone"], "clock timezone retains a NUL that GTK truncates")
+
+
+def nul_timezone(rng, case):
+    if case < len(TIMEZONE_CASES["invalid"]):
+        return TIMEZONE_CASES["invalid"][case]
+    zone = rng.choice(TIMEZONE_CASES["valid"])
+    offset = rng.randrange(len(zone) + 1)
+    return zone[:offset] + "\0" + zone[offset:]
+
+
+def check_nul_timezone(module, timezone):
+    candidate = {"label": "Refused", "timezone": timezone}
+    rows = [deepcopy(LEFT_CLOCK), candidate, deepcopy(RIGHT_CLOCK)]
+    require(module.normalize_saved_clocks(rows) == [LEFT_CLOCK, RIGHT_CLOCK],
+            "NUL timezone reached the clock model or displaced a valid neighbor")
+    check_clock_rows(module, rows)
+    controls = [{"label": zone, "timezone": zone} for zone in TIMEZONE_CASES["valid"]]
+    require(module.normalize_saved_clocks(controls) == controls, "valid named or POSIX timezone refused")
 
 
 def check_clock_neighbors(module, candidate):
@@ -304,6 +324,7 @@ def run_case(audit, modules, rng, case, corpus):
         ("calendar.filename", value, lambda raw: check_filename(text, raw)),
         ("clock.rows", [candidate], lambda raw: check_clock_rows(clocks, raw)),
         ("clock.neighbors", candidate, lambda raw: check_clock_neighbors(clocks, raw)),
+        ("clock.nul-timezone", nul_timezone(rng, case), lambda raw: check_nul_timezone(clocks, raw)),
         ("clock.bounds", (0, 1, 7, 8, 9, 63, 64, 65)[case % 8], lambda raw: check_clock_bounds(clocks, raw)),
         ("country.initial", value, lambda raw: check_country(fixture, countries, raw)),
         ("country.external", value, lambda raw: check_country(fixture, countries, raw, external=True)),

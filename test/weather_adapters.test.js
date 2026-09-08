@@ -599,6 +599,34 @@ test("supports selectable SI and imperial weather units", () => {
     assert.deepEqual(Object.values(schema["weather-units"].options).sort(), ["imperial", "si"]);
 });
 
+test("T1150 provider timezone NUL cannot survive geocode or forecast admission", () => {
+    const Weather = loadWeather();
+    const fixture = require("./fixtures/timezone_nul_cases.json");
+    const candidate = { name: "Rome", latitude: 41.9, longitude: 12.5, population: 10000 };
+    for (const timezone of fixture.invalid) {
+        const place = Weather.openMeteoGeocodePlace({ results: [{ ...candidate, timezone }] }, "Rome");
+        assert.deepEqual(place, { name: "Rome", latitude: 41.9, longitude: 12.5, timezone: "" });
+        const forecast = { timezone, current_weather: { temperature: 21, weathercode: 0 } };
+        assert.equal(Weather.openMeteoTimezone(forecast), "");
+        assert.deepEqual(Weather.openMeteoReading(forecast), { condition: "☀", temperatureC: 21 });
+    }
+    for (const timezone of fixture.valid) {
+        assert.equal(Weather.openMeteoTimezone({ timezone }), timezone);
+        assert.equal(Weather.openMeteoGeocodePlace({ results: [{ ...candidate, timezone }] }, "Rome").timezone,
+            timezone);
+    }
+});
+
+test("T1150 provider timezone refusal precedes the length clamp", () => {
+    const Weather = loadWeather();
+    for (const length of [63, 64, 65, 254, 255, 256]) {
+        const prefix = "a".repeat(length);
+        assert.equal(Weather.openMeteoTimezone({ timezone: prefix + "\0UTC" }), "");
+        const expected = length <= 255 ? prefix : prefix.slice(0, 254) + "…";
+        assert.equal(Weather.openMeteoTimezone({ timezone: prefix }), expected);
+    }
+});
+
 test("the forecast normalizers return a unit-free reading record", () => {
     const Weather = loadWeather();
 

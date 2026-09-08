@@ -38,6 +38,11 @@ function validUnicode(text) {
     return typeof text === "string" && !INVALID_UNICODE.test(text);
 }
 
+// NUL is a Unicode scalar, but native string APIs silently discard its suffix.
+function validNativeText(text) {
+    return validUnicode(text) && !text.includes("\0");
+}
+
 // The Unicode explicit directional formatting characters: the embeddings and
 // overrides U+202A..U+202E and the isolates U+2066..U+2069. They are category
 // Cf, so a control-block test lets them through as well.
@@ -321,6 +326,7 @@ if (typeof module !== "undefined") {
         displayWidth,
         sanitizeControlCharacters,
         validUnicode,
+        validNativeText,
         textWithinLimit,
         normalizeBoundedText,
         numericInput,

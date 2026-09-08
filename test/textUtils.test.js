@@ -5,7 +5,7 @@ const path = require("node:path");
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 
 
-const { clampText, displayWidth, textWithinLimit, normalizeBoundedText, validUnicode,
+const { clampText, displayWidth, textWithinLimit, normalizeBoundedText, validUnicode, validNativeText,
     sanitizeControlCharacters, TEXT_ELLIPSIS } =
     require(path.join(APPLET_DIR, "textUtils.js"));
 
@@ -16,6 +16,19 @@ test("Unicode validity preserves complete scalar values and rejects isolated sur
         assert.equal(normalizeBoundedText(input, 256), valid ? input : "");
     }
     for (const input of [null, false, 1, [], {}]) assert.equal(validUnicode(input), false);
+});
+
+test("T1150 native text refuses NUL without changing Unicode scalar validity", () => {
+    const fixture = require("./fixtures/timezone_nul_cases.json");
+    for (const input of fixture.invalid) {
+        assert.equal(validUnicode(input), true);
+        assert.equal(validNativeText(input), false);
+    }
+    for (const input of fixture.valid) assert.equal(validNativeText(input), true);
+    for (const input of [null, false, 1, [], {}, "\ud800", "\udfff"])
+        assert.equal(validNativeText(input), false);
+    for (const input of ["", "🏙", "a\nb", "\ufeffa\ufeff"])
+        assert.equal(validNativeText(input), true);
 });
 
 // T783: the test was a code-block one — C0 plus C1 — and U+2028 LINE SEPARATOR

@@ -85,6 +85,9 @@ var LOCAL_TIME_TEXT = _("Local time"); // NOSONAR [S3504] -- GJS importer export
 // TimeZone.new() path (which silently answers UTC for an unknown zone, and had
 // to be caught by comparing the resolved identifier) was unreachable.
 function timezoneFromIdentifier(timezone) {
+    if (!TextUtils.validNativeText(timezone)) {
+        return null;
+    }
     if (timezone === LOCAL_TIMEZONE) {
         return GLib.TimeZone.new_local();
     }
@@ -545,7 +548,7 @@ function normalizedClockEntry(clock) {
     }
 
     const label = clockInputLabel(clock.label);
-    const timezone = TextUtils.validUnicode(clock.timezone) ? clock.timezone.trim() : "";
+    const timezone = TextUtils.validNativeText(clock.timezone) ? clock.timezone.trim() : "";
     return label && timezone && timezone.length <= MAX_CLOCK_TIMEZONE_LENGTH ?
         { label, timezone } : null;
 }

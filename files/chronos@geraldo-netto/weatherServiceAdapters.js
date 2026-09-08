@@ -475,7 +475,7 @@ function geocodePlaceName(name) {
 }
 
 function geocodeTimezone(value) {
-    return typeof value === "string" ?
+    return TextUtils.validNativeText(value) ?
         TextUtils.clampText(value.trim(), MAX_GEOCODE_TIMEZONE_LENGTH) : "";
 }
 

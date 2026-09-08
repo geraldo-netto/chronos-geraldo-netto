@@ -1,0 +1,19 @@
+{
+  "invalid": [
+    "\u0000",
+    "\u0000Europe/Rome",
+    "Europe/Rome\u0000",
+    "Europe/Rome\u0000UTC",
+    "America/New_York\u0000suffix",
+    "Europe/\u0000Rome",
+    " \ufeffEurope/Rome\u0000UTC\ufeff ",
+    "EST5EDT,M3.2.0/2,M11.1.0/2\u0000UTC"
+  ],
+  "valid": [
+    "Europe/Rome",
+    "Pacific/Auckland",
+    "America/Argentina/San_Juan",
+    "EST5EDT,M3.2.0/2,M11.1.0/2",
+    "+05:30"
+  ]
+}

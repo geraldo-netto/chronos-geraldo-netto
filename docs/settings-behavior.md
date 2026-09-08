@@ -65,7 +65,13 @@ blank projection and an explanatory error while retaining the saved value until
 a valid replacement is entered. Embedded null characters are refused in the
 same way, so GTK cannot truncate the location and save a different place.
 Invalid Unicode in a saved clock label or timezone removes only that row;
-valid neighboring clocks remain. Refused country codes retain their stored
+saved timezone identifiers containing NUL are refused before GTK receives them.
+Valid neighboring clocks remain, including supported named and POSIX zones.
+Provider timezone strings follow the same refusal before trimming or clamping;
+an invalid optional timezone does not discard usable coordinates or weather.
+The shared GLib timezone boundary also refuses NUL, so native conversion cannot
+reinterpret a prefix as a different identifier.
+Refused country codes retain their stored
 value and use replacement characters in diagnostics.
 
 Run `/usr/bin/python3 scripts/check_gtk_settings.py` to check these boundaries
