@@ -186,16 +186,10 @@ test("date format controls are always visible", () => {
 
     assert.equal(data["use-custom-format"], undefined);
     assert.equal(data.layout.section1.keys.includes("use-custom-format"), false);
-    // the facade owns the value: the migration writes it over the legacy
-    // format, and the panel's runtime fallback imports it, so a schema default
-    // typed independently would leave legacy users migrated to a stale format
+    // New settings and the panel's runtime fallback share the same format.
     const facade = require(path.join(appletDir, "settingsFacade.js"));
     assert.equal(data["custom-format"].default, facade.DEFAULT_DATE_TIME_FORMAT);
     assert.equal(data["custom-tooltip-format"].default, facade.DEFAULT_DATE_TIME_FORMAT);
-    assert.deepEqual(data["date-format-defaults-migrated"], {
-        type: "generic",
-        default: false
-    });
     for (const key of ["custom-format", "custom-tooltip-format", "format-button"]) {
         assert.ok(data.layout.section1.keys.includes(key), `${key} is missing from the Calendar page`);
         assert.equal(data[key].dependency, undefined, `${key} is still hidden behind a dependency`);

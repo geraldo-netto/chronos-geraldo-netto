@@ -153,10 +153,6 @@
         "callback": "on_custom_format_button_pressed",
         "tooltip": "Click this button to know more about the syntax for date formats."
     },
-    "date-format-defaults-migrated": {
-        "type": "generic",
-        "default": false
-    },
     "show-weather": {
         "type": "switch",
         "default": false,

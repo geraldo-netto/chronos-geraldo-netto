@@ -179,51 +179,6 @@ test("settings tables reuse the facade's canonical key and sentinel values", () 
         Object.values(schema["weekend-length"].options));
 });
 
-test("legacy shipped date formats migrate to the fixed-order defaults once", () => {
-    delete require.cache[require.resolve(modulePath)];
-    const SettingsFacade = require(modulePath);
-    const values = {
-        "custom-format": "%A, %B %e, %H:%M",
-        "custom-tooltip-format": "%A, %B %e, %H:%M",
-        "date-format-defaults-migrated": false
-    };
-    const settings = {
-        getValue: (key) => values[key],
-        setValue: (key, value) => { values[key] = value; }
-    };
-    const panel = new SettingsFacade.PanelSettings(settings);
-
-    panel.migrateDateFormatDefaults();
-
-    assert.equal(values["custom-format"], "%d %b %H:%M");
-    assert.equal(values["custom-tooltip-format"], "%d %b %H:%M");
-    assert.equal(values["date-format-defaults-migrated"], true);
-
-    values["custom-format"] = "%A, %B %e, %H:%M";
-    panel.migrateDateFormatDefaults();
-    assert.equal(values["custom-format"], "%A, %B %e, %H:%M",
-        "after migration, the same text is a deliberate user choice");
-});
-
-test("date-format migration preserves values that were already customized", () => {
-    delete require.cache[require.resolve(modulePath)];
-    const SettingsFacade = require(modulePath);
-    const values = {
-        "custom-format": "%Y-%m-%d %H:%M",
-        "custom-tooltip-format": "%A, %B %e, %H:%M",
-        "date-format-defaults-migrated": false
-    };
-    const panel = new SettingsFacade.PanelSettings({
-        getValue: (key) => values[key],
-        setValue: (key, value) => { values[key] = value; }
-    });
-
-    panel.migrateDateFormatDefaults();
-
-    assert.equal(values["custom-format"], "%Y-%m-%d %H:%M");
-    assert.equal(values["custom-tooltip-format"], "%d %b %H:%M");
-});
-
 // The country used to be bound onto the applet as a property, which nothing read
 // — every read goes through the accessor. The bind was there for its change
 // callback alone, and a bind that defines an unread property is a second source

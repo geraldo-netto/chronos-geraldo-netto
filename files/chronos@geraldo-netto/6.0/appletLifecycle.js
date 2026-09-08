@@ -151,7 +151,6 @@ class AppletSettingsBinder {
         const holiday = new SettingsFacade.HolidaySettings(settings);
         this.holidaySettings = holiday;
 
-        panel.migrateDateFormatDefaults();
         panel.bindPanelKeys(this.handlers);
         panel.bindWeatherKeys(
             applet,

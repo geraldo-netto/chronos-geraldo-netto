@@ -795,10 +795,11 @@ test("settings binding wires schema keys and creates settings facades", () => {
     assert.equal(stub.weather_units, "si");
 });
 
-test("settings binding and reload preserve an empty weather location", () => {
+test("settings binding preserves empty weather and explicit date formats across reloads", () => {
     const originalSettings = global.imports.ui.settings.AppletSettings;
     const values = {
-        "date-format-defaults-migrated": true,
+        "custom-format": "%A, %B %e, %H:%M",
+        "custom-tooltip-format": "%Y-%m-%d %H:%M",
         "weather-location": "",
         "weather-units": "si",
         country: "none"
@@ -821,7 +822,7 @@ test("settings binding and reload preserve an empty weather location", () => {
             assert.equal(values["weather-location"], "");
             stub._settingsBinder.destroy();
         }
-        assert.deepEqual(writes, [], "opening and reloading never chooses a weather city");
+        assert.deepEqual(writes, [], "opening and reloading preserve the saved location and formats");
     } finally {
         global.imports.ui.settings.AppletSettings = originalSettings;
     }
@@ -835,7 +836,6 @@ test("holiday-country inference yields startup and preserves later choices", () 
     const idles = [];
     const removed = [];
     const values = {
-        "date-format-defaults-migrated": true,
         "weather-location": "Rome",
         country: ""
     };
@@ -912,7 +912,6 @@ test("holiday-country inference applies nothing when the timezone maps nowhere",
     const idles = [];
     const applied = [];
     const values = {
-        "date-format-defaults-migrated": true,
         "weather-location": "Rome",
         country: ""
     };
@@ -1015,7 +1014,6 @@ test("settings binding preserves a pre-existing holiday opt-out on upgrade", () 
     const originalSettings = global.imports.ui.settings.AppletSettings;
     const originalCountryCode = rootModules.worldclockData.localCountryCode;
     const values = {
-        "date-format-defaults-migrated": true,
         "weather-location": "Rome",
         country: "none"
     };
@@ -1051,7 +1049,6 @@ test("regression: an unsupported OS timezone country leaves holidays disabled", 
     const originalIdleAdd = global.imports.mainloop.idle_add;
     let infer = null;
     const values = {
-        "date-format-defaults-migrated": true,
         "weather-location": "San Marino",
         country: ""
     };
