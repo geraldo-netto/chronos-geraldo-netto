@@ -429,15 +429,15 @@ marked day names every matching holiday or observance. World clocks show
 additional time zones, and the event view works like the stock Cinnamon
 calendar.
 
-Choose the Country and region for which to show the public holidays in the applet
-"Calendar" settings page. For a new settings profile, the country defaults from the machine's
+Choose the country and region under **Public Holidays → Get Public Holidays for**
+in Configure. For a new settings profile, the country defaults from the machine's
 IANA timezone when that timezone maps to a supported country; otherwise it stays
 **None (disable holidays)**. This is a one-time default, so later user choices are
 never overwritten. The world-clock list in the calendar menu always
 shows UTC, your local time, and the digital readouts for any configured
 timezones; uncheck **Show world clocks in the calendar menu** to hide the whole
-block. Add more timezones in the applet "World Clocks" settings page: up
-to 8 extra clocks can be configured. Type the city into the timezone field and
+block. Add up to 8 extra timezones under **Calendar → Show World Times** in
+Configure. Type the city into the timezone field and
 pick it from the suggestions ("Buenos Aires (America / Argentina)"), or type an
 IANA timezone identifier (e.g. `America/Sao_Paulo`) or a bare city name (e.g.
 `tokyo`) yourself.
