@@ -36,9 +36,9 @@ test("aviationweather METARs are read from the nearest station that has a temper
     const Weather = loadWeather();
     const place = { latitude: -23.55, longitude: -46.63 };
 
-    assert.equal(
-        Weather.aviationWeatherUrl(place),
-        "https://aviationweather.gov/api/data/metar?format=json&bbox=-24.550%2C-47.630%2C-22.550%2C-45.630"
+    assert.deepEqual(
+        Weather.aviationWeatherUrls(place),
+        ["https://aviationweather.gov/api/data/metar?format=json&bbox=-24.550%2C-47.630%2C-22.550%2C-45.630"]
     );
 
     const stations = [
@@ -1336,9 +1336,6 @@ test("the METAR boxes split at both sides of the antimeridian", () => {
     // Away from either edge nothing is clamped
     assert.deepEqual(boxesOf({ latitude: -23.55, longitude: -46.63 }),
         [[-24.55, -47.63, -22.55, -45.63]]);
-    assert.equal(Weather.aviationWeatherUrl({ latitude: -23.55, longitude: -46.63 }),
-        Weather.aviationWeatherUrls({ latitude: -23.55, longitude: -46.63 })[0],
-        "the old one-URL adapter stays compatible away from the seam");
 });
 
 test("the nearest METAR station is measured the shorter way round the meridian", () => {

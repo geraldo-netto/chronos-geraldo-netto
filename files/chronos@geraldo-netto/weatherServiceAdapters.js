@@ -197,12 +197,6 @@ function aviationWeatherUrls(place) {
     return aviationWeatherBoxes(latitude, longitude).map(aviationWeatherUrlForBox);
 }
 
-// Kept for callers using the old adapter directly. The provider registry uses
-// aviationWeatherUrls so seam-crossing places do not lose the second span.
-function aviationWeatherUrl(place) {
-    return aviationWeatherUrls(place)[0];
-}
-
 // A METAR carries the present weather in its own codes and the sky in an
 // oktas-based cover. These are two lookup tables written as data: the present
 // codes are tried in order (the precipitation code wins, as a rain shower under
@@ -683,7 +677,7 @@ if (typeof module !== "undefined") {
         MAX_GEOCODE_PLACE_NAME_LENGTH,
         WEATHER_USER_AGENT, WEATHER_PROVIDER_NAMES, AVIATION_WEATHER_BBOX_DEGREES,
         weatherIcon, geocodeUrl, geocodeLanguage, nominatimGeocodeUrl, forecastUrl,
-        metNoForecastUrl, aviationWeatherUrl, aviationWeatherUrls,
+        metNoForecastUrl, aviationWeatherUrls,
         aviationWeatherIcon, finiteNumber,
         aviationWeatherStation, aviationWeatherReading, weatherReading, metNoIcon,
         metNoSummary, metNoWeatherReading, openMeteoReading, openMeteoTimezone,
