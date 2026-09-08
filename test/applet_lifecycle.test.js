@@ -1850,7 +1850,10 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
         set_refresh_failed(failed) { calls.push(["event-list-refresh-failed", failed]); }
     };
     rootModules.worldclocks.Worldclocks = class {
-        constructor(box) { calls.push(["worldclocks", !!box]); }
+        constructor(box, params) {
+            calls.push(["worldclocks", !!box]);
+            this.timezoneChanged = params.onTimezoneChanged;
+        }
     };
     global.imports.ui.popupMenu.PopupMenuItem = class {
         constructor(label) {
@@ -1894,8 +1897,11 @@ test("UI build wires calendar, event list, menu items, and world clocks", () => 
 
     stub._resetCalendar = () => calls.push(["reset"]);
     stub._onLaunchSettings = () => calls.push(["launch-settings"]);
+    stub._onTimezoneChanged = () => calls.push(["timezone"]);
 
     Proto._buildUi.call(stub);
+    stub._worldclocks.timezoneChanged();
+    assert.ok(calls.some(([name]) => name === "timezone"));
     stub._calendar.handlers["selected-date-changed"]();
     stub.events_manager.handlers["selected-date-changed"](null, "gdate");
     const calendarEvents = {

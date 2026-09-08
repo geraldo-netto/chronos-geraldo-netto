@@ -252,6 +252,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
                 "go-home", () => this._resetCalendar()),
             onSelectedDateChanged: () => this._guarded(
                 "selected-date", () => this._updateClockAndDate(true)),
+            onTimezoneChanged: () => this._onTimezoneChanged(),
             onLaunchSettings: () => this._onLaunchSettings()
         });
 

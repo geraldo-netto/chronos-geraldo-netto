@@ -104,7 +104,9 @@ class AppletMenuBuilder {
         // recorded as owned for the same reason the reporter above is, and in
         // the same place: _addSettingsMenuItems can throw, and a component this
         // class constructed but never handed back has no other owner
-        const worldclocks = new Worldclocks.Worldclocks(calbox);
+        const worldclocks = new Worldclocks.Worldclocks(calbox, {
+            onTimezoneChanged: this.context.onTimezoneChanged
+        });
         this._worldclocks = worldclocks;
         const astronomy = new AstronomyView.AstronomyView(calbox);
         this._astronomy = astronomy;

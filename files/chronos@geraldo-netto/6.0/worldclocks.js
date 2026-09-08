@@ -45,6 +45,7 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         this._destroyed = false;
         this.format = "%H:%M";
         this._elapsed_now = params.elapsedNow || ElapsedTime.monotonicSeconds;
+        this._onTimezoneChanged = params.onTimezoneChanged || null;
 
         this.layout = new Clutter.GridLayout();
         this.actor = new St.Widget({
@@ -148,6 +149,7 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
         // through buildClocks, which would attach fresh actors to an actor the
         // menu is disposing
         this._configured_clocks = null;
+        this._onTimezoneChanged = null;
     }
 
     // The format decides how a time is *rendered*; the clock list decides what
@@ -222,6 +224,9 @@ var Worldclocks = class Worldclocks { // NOSONAR [S3504] -- GJS importer export
             return;
         }
         this.refreshTimezone();
+        // The checked time and rebuilt identity are current before notifying
+        // the owner, whose reconciliation may synchronously repaint this view.
+        if (this._onTimezoneChanged) this._onTimezoneChanged();
     }
 
     // The one way the local zone is re-read: the timedate1 subscriber and the

@@ -49,6 +49,10 @@ When `TZ` is explicitly empty, both the applet and settings treat local time as
 UTC. A separate Rome clock remains selectable even if `/etc/localtime` names
 `Europe/Rome`.
 
+System timezone changes refresh the clock rows, their weather selections, and
+the calendar and astronomy timezone state. If the desktop's timezone signal is
+unavailable, the minute poll triggers the same reconciliation.
+
 ## Weather location
 
 An empty saved weather location stays empty when the applet starts, reloads,

@@ -480,6 +480,40 @@ test("a zone change re-selects the configured rows, not just the local one", () 
     assert.equal(worldclocks.clocks[2].display.text, timeIn("Europe/Rome"));
 });
 
+test("fallback timezone polling keeps city weather in step without reentrant notifications", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const { AppletWeatherCoordinator } = require("../files/chronos@geraldo-netto/6.0/appletCoordinators");
+    let systemZone = "Europe/Rome";
+    let elapsedNow = 1000;
+    global.imports.gi.GLib.TimeZone.new_local = () => fakeTimeZone(systemZone);
+    const saved = [{ label: "Rome", timezone: "Europe/Rome" }];
+    const requests = [];
+    const coordinator = new AppletWeatherCoordinator({
+        cityWeatherProvider: { schedule: (settings) => requests.push(settings.cities) },
+        settings: () => ({ showWorldclocks: true, showWeather: true, units: "si" }),
+        worldclocks: () => saved
+    });
+    const view = new Worldclocks({ add_actor() {} }, {
+        elapsedNow: () => elapsedNow,
+        onTimezoneChanged() {
+            view.updateClocks();
+            coordinator.scheduleCities();
+        }
+    });
+    view.buildClocks(saved);
+    coordinator.scheduleCities();
+    for (const zone of ["Asia/Tokyo", "Europe/Rome"]) {
+        systemZone = zone;
+        elapsedNow += 60;
+        view.updateClocks();
+        view.getClockEntries();
+    }
+    assert.deepEqual(requests.map((cities) => cities.map((city) => city.query)),
+        [[], ["Rome"], []]);
+    view.destroy();
+    assert.equal(view._onTimezoneChanged, null);
+});
+
 // a tick can still arrive after the menu is torn down, and the recheck now
 // rebuilds actors — it must not do that into a destroyed view
 test("a timezone recheck after destroy rebuilds nothing", () => {
