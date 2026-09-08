@@ -3,6 +3,19 @@
 Cinnamon applet (`files/chronos@geraldo-netto/`), GJS/cjs on the JS side and
 GTK/Python on the settings side. `6.0/` is the multiversion tree Cinnamon loads.
 
+## Compatibility policy
+
+The maintainer does not require compatibility with previous implementations,
+versions, runtimes, APIs, settings, cache/data formats, or calendar plugins.
+Breaking changes are acceptable unless compatibility is explicitly requested
+for a specific task. Do not add or retain shims, legacy aliases, fallback
+branches, dual formats, migrations, or old-runtime workarounds solely to
+preserve compatibility. When changing a component, remove compatibility-only
+paths it replaces and update the affected tests and documentation to describe
+the current behavior. Breaking compatibility alone is not a reason to block
+work or request approval. This project policy takes precedence over conflicting
+compatibility guidance in the imported instruction modules.
+
 ## Gates
 
 Both must be green before a commit:
