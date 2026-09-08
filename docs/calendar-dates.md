@@ -26,3 +26,7 @@ navigation, so it cannot also scroll the surrounding menu viewport. Fractional
 touchpad movement is consumed while it accumulates toward a month change.
 Zero movement, unknown directions, and non-finite deltas are ignored and may
 propagate to the surrounding menu.
+
+Returning with Go to today renders the target month before notifying selection
+observers. Keyboard focus moves from that button to today's cell before the
+button becomes inactive, including when returning from a distant month.

@@ -96,9 +96,11 @@ class CalendarNavigationController {
 
         if (changed) {
             this.selectedDate = bounded;
-            this.port.emitSelected(bounded);
         }
         this.port.update();
+        if (changed) {
+            this.port.emitSelected(bounded);
+        }
         return changed;
     }
 

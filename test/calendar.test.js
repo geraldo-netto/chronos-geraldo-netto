@@ -3421,3 +3421,25 @@ test("calendar scroll signals consume month browsing and propagate ignored input
     assert.equal(dispatch(-1), EVENT_PROPAGATE);
     assert.deepEqual(actions, [[0, 1]], "ignored input never queues navigation");
 });
+
+
+test("selection observers can focus today after returning from a distant month", () => {
+    const cal = makeCalendar();
+    const today = cal.getSelectedDate();
+    cal._navigation.applyBrowse(0, -3);
+    cal._navigation.flushQueuedDate();
+    let notifications = 0;
+    cal._navigation.port.emitSelected = () => {
+        notifications++;
+        assert.equal(cal.focusSelectedDay(), true, "the target month must exist before notification");
+        const selectedCell = cal._gridView.dayCells.find(cell => cell.selected);
+        assert.equal(MockActor.focused, selectedCell.button);
+    };
+
+    assert.equal(cal.setDate(today, false), true);
+    assert.equal(notifications, 1);
+    assert.equal(cal.todaySelected(), true);
+    assert.equal(cal.setDate(today, false), false);
+    assert.equal(cal.setDate(today, true), false);
+    assert.equal(notifications, 1, "unchanged and forced same-day renders do not notify selection");
+});

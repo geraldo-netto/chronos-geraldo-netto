@@ -5,7 +5,6 @@
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
 | T1135 | open | medium | s | Preserve the selected civil date when the local timezone changes. CalendarNavigation stores an absolute JS Date, while 6.0/calendar.js:327–330 refreshTimezone only invalidates the month window. Native private-process reproduction: select June 15, 2026 at noon in Pacific/Kiritimati, switch process TZ to Pacific/Honolulu, clear JS date caches and call the real applet._onTimezoneChanged; getSelectedDate becomes June 14. Retain civil year/month/day and rebase selected and queued navigation dates before applet.js:358–361 refreshes world clocks and ticks the agenda. Keep grid and event-window selection aligned with eventWindow.js's existing civil-date-preservation contract. |
-| T1131 | open | low | s | Finish Go to today keyboard-focus handover after the target month grid exists. In 6.0/appletPanelStatus.js:_setHomeEnabled, focusSelectedDay runs during calendarNavigation.js:setDate after selectedDate changes but before the old grid is rebuilt. Native reproduction: browse June 2026, focus Go to today and press Return; the selection becomes September 8, but focus remains on the now-insensitive home actor with can_focus=false because September was absent from June's 42 cells. Transfer focus after date navigation/rendering completes and cover returning from a non-overlapping month. |
 
 ## Blocked / Deferred
 
