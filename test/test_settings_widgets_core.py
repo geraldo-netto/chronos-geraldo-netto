@@ -352,6 +352,13 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(len(clamped), self.module.MAX_CLOCK_INPUT_LABEL_LENGTH)
         self.assertNotIn("\n", clamped)
 
+    def test_clock_label_whitespace_matches_the_runtime(self):
+        cases = json.loads(
+            (Path(__file__).parent / "fixtures" / "settings_whitespace_cases.json").read_text())
+        for case in cases:
+            with self.subTest(value=case["input"]):
+                self.assertEqual(self.module.normalize_clock_label(case["input"]), case["clockLabel"])
+
     def test_the_sanitizer_matches_the_runtime_copy_of_the_rule(self):
         """T786: one rule for one string - a world clock's Display name, which
         this dialog persists and the applet reads back - written twice with no

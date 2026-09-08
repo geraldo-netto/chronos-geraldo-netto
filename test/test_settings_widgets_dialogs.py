@@ -46,6 +46,19 @@ class BuildDialogContentTest(unittest.TestCase):
         self.assertEqual(preview.text, self.module.LABEL_MISSING_PREVIEW)
         self.assertEqual(dialog.sensitivity[-1], (1, False))
 
+    def test_a_bom_only_clock_label_cannot_be_accepted(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", DialogSettings())
+        dialog = GtkDialog()
+        preview = GtkLabel()
+        presenter = self.module.ClockDialogStatePresenter(clocks, dialog, preview)
+        widgets = {
+            "label": types.SimpleNamespace(get_widget_value=lambda: "\ufeff"),
+            "timezone": types.SimpleNamespace(get_widget_value=lambda: "Europe/Rome"),
+        }
+        presenter.update(widgets)
+        self.assertEqual(dialog.sensitivity[-1], (1, False))
+        self.assertEqual(preview.text, self.module.LABEL_MISSING_PREVIEW)
+
     def test_one_keystroke_resolves_the_timezone_once(self):
         """T812: update() computed the choice, discarded it and called
         format_timezone_preview, which resolved the same text again. Each

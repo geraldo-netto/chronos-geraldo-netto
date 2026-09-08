@@ -748,6 +748,16 @@ test("configured timezones use the settings editor length bound", () => {
 // became one cell of the monospace panel tooltip, whose padding is computed
 // from the cell's code-point count, so the newline both split the row and
 // misaligned every column of the table.
+test("clock label whitespace agrees with settings", () => {
+    loadWorldclocks();
+    const data = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const cases = require("./fixtures/settings_whitespace_cases.json");
+    for (const entry of cases) {
+        assert.equal(data.clockInputLabel(entry.input), entry.clockLabel);
+    }
+    assert.deepEqual(data.selectUserClocks([{ label: "\ufeff", timezone: "Europe/Rome" }]), []);
+});
+
 test("a pasted control character cannot reach a clock label", () => {
     loadWorldclocks();
     const WorldclockData =

@@ -227,10 +227,10 @@ def sanitize_control_characters(value):
 def normalize_clock_label(value):
     if not isinstance(value, str):
         return ""
-    normalized = sanitize_control_characters(value).strip()
+    normalized = sanitize_control_characters(value).strip(common.TEXT_WHITESPACE)
     if len(normalized) <= MAX_CLOCK_INPUT_LABEL_LENGTH:
         return normalized
-    return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip() + "…"
+    return normalized[:MAX_CLOCK_INPUT_LABEL_LENGTH - 1].rstrip(common.TEXT_WHITESPACE) + "…"
 
 
 def normalize_saved_clock(row, local_timezone=None) -> Optional[dict[str, str]]:

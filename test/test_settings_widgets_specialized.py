@@ -36,6 +36,16 @@ class WeatherLocationCompletionTest(unittest.TestCase):
         return (entry.get_style_context().classes,
                 entry.get_accessible().description)
 
+    def test_weather_whitespace_matches_runtime_and_saved_location(self):
+        cases = json.loads(
+            (Path(__file__).parent / "fixtures" / "settings_whitespace_cases.json").read_text())
+        for case in cases:
+            with self.subTest(value=case["input"]):
+                widget, settings = self.entry()
+                widget.commit(case["input"])
+                self.assertEqual(settings.values["weather-location"], case["weatherLocation"])
+                self.assertEqual(widget.bind_object.get_text(), case["weatherLocation"])
+
     def test_a_stored_location_too_long_to_save_says_so(self):
         # T834: the entry caps typing, so the way in is a key written elsewhere.
         # normalize_weather_location turns it into "" and the field showed an

@@ -116,6 +116,14 @@ test("seam METAR payloads are merged before nearest-station ranking", () => {
     }, { text: "☀ 21°C", error: "", name: provider.name });
 });
 
+test("weather location whitespace agrees with settings", () => {
+    const Weather = loadWeather();
+    const cases = require("./fixtures/settings_whitespace_cases.json");
+    for (const entry of cases) {
+        assert.equal(Weather.normalizeWeatherLocation(entry.input), entry.weatherLocation);
+    }
+});
+
 test("builds Open-Meteo geocode and forecast URLs", () => {
     const Weather = loadWeather();
 

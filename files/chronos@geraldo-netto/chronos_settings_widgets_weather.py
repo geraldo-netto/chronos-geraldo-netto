@@ -47,7 +47,7 @@ def normalize_weather_location(text) -> str:
     source = text if isinstance(text, str) else ""
     if refuses_weather_location(source):
         return ""
-    return source.strip()
+    return source.strip(common.TEXT_WHITESPACE)
 
 
 def _city_completion_columns(city):

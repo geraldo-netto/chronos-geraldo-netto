@@ -1,0 +1,47 @@
+[
+  {
+    "input": "﻿",
+    "clockLabel": "",
+    "weatherLocation": ""
+  },
+  {
+    "input": " ﻿ ﻿ ",
+    "clockLabel": "",
+    "weatherLocation": ""
+  },
+  {
+    "input": "﻿Rome﻿",
+    "clockLabel": "Rome",
+    "weatherLocation": "Rome"
+  },
+  {
+    "input": "\t\n\u000b\f\r                  　﻿Rome\t\n\u000b\f\r                  　﻿",
+    "clockLabel": "Rome",
+    "weatherLocation": "Rome"
+  },
+  {
+    "input": "Rome",
+    "clockLabel": "Rome",
+    "weatherLocation": "Rome"
+  },
+  {
+    "input": "\u001cRome\u001f",
+    "clockLabel": "Rome",
+    "weatherLocation": "\u001cRome\u001f"
+  },
+  {
+    "input": "Rome﻿Italy",
+    "clockLabel": "Rome﻿Italy",
+    "weatherLocation": "Rome﻿Italy"
+  },
+  {
+    "input": "​Rome​",
+    "clockLabel": "​Rome​",
+    "weatherLocation": "​Rome​"
+  },
+  {
+    "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx﻿end",
+    "clockLabel": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx…",
+    "weatherLocation": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx﻿end"
+  }
+]
