@@ -378,7 +378,10 @@ class FakeSettings:
         self.schema = json.loads((APPLET_DIR / "6.0/settings-schema.json").read_text())
 
     def has_property(self, key, prop):
-        return prop in self.schema.get(key, {})
+        return prop in self.schema[key]
+
+    def has_key(self, key):
+        return key in self.schema
 
     def get_property(self, key, prop):
         return self.schema[key][prop]
@@ -582,6 +585,14 @@ process.stdout.write(JSON.stringify(Object.fromEntries(SUPPORTED_COUNTRIES.map(c
         result = subprocess.run(["node", "-e", script, str(APPLET_DIR / "holidayConstants.js")],
                                 capture_output=True, text=True, check=True)
         self.assertEqual({key: sorted(values) for key, values in widget.regions.items()}, json.loads(result.stdout))
+
+    def test_nationwide_country_never_queries_a_missing_region_key(self):
+        self.assertFalse(self.settings.has_key("region_ita"))
+        with self.assertRaises(KeyError):
+            self.settings.has_property("region_ita", "options")
+        widget = self.create_widget([{"country": "ita"}])
+        self.assertEqual(widget.model, [[True, "ita", "global"]])
+        self.assertEqual(widget.regions["ita"], {"global"})
 
     def test_imported_selections_are_valid_unique_and_visibly_bounded(self):
         countries = list(self.create_widget([]).regions)

@@ -60,7 +60,7 @@ class AdditionalCountryList(JSONSettingsList):
 
     def _regions_for(self, country):
         key = "region_" + country
-        if self.settings.has_property(key, "options"):
+        if self.settings.has_key(key) and self.settings.has_property(key, "options"):
             return set(self.settings.get_property(key, "options").values()) | {"global"}
         return {"global"}
 
