@@ -386,19 +386,9 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
 
         const flushing = Object.assign({}, this._pending); // NOSONAR [S6661] -- accepted compatible form
 
-        IoUtils.readJsonFileAsync(file, (data, etag) => {
-            const allData = this._mergePending(data, flushing);
-
-            // Two writes in flight at once race, and the loser's payload is the
-            // older snapshot: let one settle before starting the next. That
-            // interlock is per repository *instance*, though, and the file is
-            // shared by every applet on every panel — so the read above only
-            // merges writes that had already settled. The etag closes the rest:
-            // if the file moved between our read and our write, the write fails
-            // and we merge again against what is actually there.
-            IoUtils.writeJsonFileAsync(file, allData,
-                (stale) => this._settleFlush(file, flushing, merges, stale), etag);
-        });
+        IoUtils.updateJsonFileAsync(file,
+            (data) => this._mergePending(data, flushing),
+            (stale) => this._settleFlush(file, flushing, merges, stale));
     }
 
     // one write settles at a time; a save that lands during one is folded into

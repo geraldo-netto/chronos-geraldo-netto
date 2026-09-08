@@ -2612,11 +2612,8 @@ test("concurrent country loads share the repository's first file read", () => {
         "every queued consumer receives its own country projection");
 });
 
-// ...and the merge above only covers writes that had already *settled*. The
-// interlock is per repository instance, and the file is shared by every applet on
-// every panel, so a second instance can land its write between our read and our
-// write. Gio's etag is what turns that into a failed write instead of a silent
-// overwrite.
+// An external writer can change the file before Gio opens the replacement;
+// the etag detects that case independently of the in-process transaction queue.
 test("an etag retry preserves a newer independent snapshot of the same country", () => {
     const { HolidayCacheRepository } = loadHolidays();
 
@@ -2642,7 +2639,7 @@ test("an etag retry preserves a newer independent snapshot of the same country",
             return [true, Buffer.from(contents), etag];
         },
         replace_contents_async(bytes, givenEtag, _backup, _flags, _cancellable, callback) {
-            // The other instance corrects the same country's 2026 snapshot.
+            // An external writer corrects the same country's 2026 snapshot.
             if (!interfered) {
                 interfered = true;
                 contents = JSON.stringify({ usa: namedSnapshot("corrected date") });

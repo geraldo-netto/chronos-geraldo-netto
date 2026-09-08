@@ -57,8 +57,17 @@ The repository retains the receive time beside each snapshot. An older response
 cannot overwrite a newer response merely because its disk write finishes later.
 Equal receive times use write order. Provider HTTP `Date` remains the freshness
 timestamp and does not order corrections. Queued saves combine independent
-snapshots; an etag retry merges them again into the current file. The resulting
-country remains inside the persisted year window and row limit.
+snapshots. A per-file queue in the shared root I/O module serializes each
+read/merge/publication transaction across applet instances in one Cinnamon
+process. The resulting country remains inside the persisted year window and
+row limit.
+
+Etags detect external changes made before Gio opens a replacement stream and
+trigger a fresh merge. They do not provide an atomic compare-and-swap at
+publication: separate processes writing the same cache concurrently are outside
+the transaction guarantee. Independent Cinnamon sessions should use separate
+`XDG_CACHE_HOME` directories. Cache cleanup refuses to run while Cinnamon is
+active.
 
 `HolidayCacheRepository.save(country, data)` requires `data.updates`, an array of
 `{year, region, received}` descriptors. `HolidayCache.persist` supplies it from

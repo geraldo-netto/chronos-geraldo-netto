@@ -1,4 +1,4 @@
-const { assert, test, fs, cachePath, loadHolidays } = require("./helpers/holidayFixture");
+const { assert, test, fs, cachePath, loadHolidays, ioUtilsPath } = require("./helpers/holidayFixture");
 
 const NOW = Date.parse("2026-09-08T12:00:00Z");
 const PROVIDER_DATE = "Thu, 01 Jan 2026 00:00:00 GMT";
@@ -31,6 +31,86 @@ function persistFetch(cache, year, region, rows, received = NOW) {
 function stored() {
     return JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8")).usa;
 }
+
+function delayedPublications() {
+    const gio = global.imports.gi.Gio;
+    const createFile = gio.file_new_for_path;
+    const publications = [];
+    const reads = [];
+    gio.file_new_for_path = (filename) => {
+        const file = createFile(filename);
+        const publish = file.replace_contents_async.bind(file);
+        const read = file.load_contents_async.bind(file);
+        file.load_contents_async = (...args) => {
+            reads.push(filename);
+            read(...args);
+        };
+        file.replace_contents_async = (...args) => publications.push(() => publish(...args));
+        return file;
+    };
+    return { publications, reads };
+}
+
+function snapshot(year = 2026) {
+    return { years: { [year]: { global: PROVIDER_DATE } }, holidays: [row(year, 1)],
+        updates: [{ year, region: "global", received: new Date(NOW).toISOString() }] };
+}
+
+test("independent repositories serialize reads through completed publication", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("holidays.json"), "{}");
+    const { publications, reads } = delayedPublications();
+    const first = new HolidayCacheRepository("/holidays.json", { now: () => NOW });
+    const second = new HolidayCacheRepository("/holidays.json", { now: () => NOW });
+    first.save("usa", snapshot());
+    second.save("ita", snapshot());
+    first.save("usa", snapshot(2027));
+    second.release();
+    assert.equal(reads.length, 1, "later writers cannot read an unpublished snapshot");
+    assert.equal(publications.length, 1, "only one replacement stream may be open");
+    while (publications.length) publications.shift()();
+    const disk = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
+    assert.deepEqual(Object.keys(disk).sort(), ["ita", "usa"]);
+    assert.deepEqual(disk.usa.holidays.map((event) => event.year), [2026, 2027]);
+    assert.deepEqual(second._pending, {});
+    assert.equal(second._all, null, "release does not retain the merged snapshot");
+});
+
+test("cache transactions on different files proceed independently", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const { publications } = delayedPublications();
+    for (const filename of ["/holidays.json", "/regional.json"]) {
+        new HolidayCacheRepository(filename, { now: () => NOW }).save("usa", snapshot());
+    }
+    assert.equal(publications.length, 2);
+    while (publications.length) publications.shift()();
+});
+
+test("a failed transform releases its transaction for the next update", () => {
+    loadHolidays();
+    const io = require(ioUtilsPath);
+    const file = global.imports.gi.Gio.file_new_for_path(cachePath("holidays.json"));
+    fs.mkdirSync(cachePath(), { recursive: true });
+    let completed = 0;
+    io.updateJsonFileAsync(file, () => { throw new Error("bad snapshot"); }, () => completed++);
+    io.updateJsonFileAsync(file, () => ({ healthy: true }), () => completed++);
+    assert.equal(completed, 2);
+    assert.deepEqual(JSON.parse(fs.readFileSync(file.get_path(), "utf8")), { healthy: true });
+});
+
+test("a throwing completion still releases the next queued transaction", () => {
+    loadHolidays();
+    const io = require(ioUtilsPath);
+    const { publications } = delayedPublications();
+    fs.mkdirSync(cachePath(), { recursive: true });
+    const file = global.imports.gi.Gio.file_new_for_path(cachePath("holidays.json"));
+    io.updateJsonFileAsync(file, () => ({ first: true }), () => { throw new Error("completion"); });
+    io.updateJsonFileAsync(file, (data) => ({ ...data, second: true }), () => {});
+    assert.throws(() => publications.shift()(), /completion/);
+    publications.shift()();
+    assert.deepEqual(JSON.parse(fs.readFileSync(file.get_path(), "utf8")), { first: true, second: true });
+});
 
 test("an independent year update preserves another instance's corrected dates", () => {
     const [first, second] = cachePair();

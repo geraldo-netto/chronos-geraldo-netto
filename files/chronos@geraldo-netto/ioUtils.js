@@ -43,6 +43,47 @@ var MAX_RESPONSE_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer exp
 // was built from was capped. A real cache file is tens of kilobytes.
 var MAX_CACHE_FILE_BYTES = 4 * 1024 * 1024; // NOSONAR [S3504] -- GJS importer export
 
+const JSON_UPDATE_QUEUES = new Map();
+
+// Root modules are shared by applets in one Cinnamon process. Gio checks an
+// etag before opening a replacement stream, so it cannot serialize overlapping
+// publications. Keep the entire read/transform/write inside one per-file turn.
+function updateJsonFileAsync(file, transform, onDone) {
+    const key = file.get_path();
+    const queued = JSON_UPDATE_QUEUES.has(key);
+    const queue = JSON_UPDATE_QUEUES.get(key) || [];
+    queue.push({ file, transform, onDone });
+    JSON_UPDATE_QUEUES.set(key, queue);
+    if (!queued) {
+        _runJsonUpdate(key, queue);
+    }
+}
+
+function _runJsonUpdate(key, queue) {
+    const job = queue[0];
+    let settled = false;
+    const finish = (stale = false) => {
+        if (settled) return;
+        settled = true;
+        queue.shift();
+        try {
+            job.onDone(stale);
+        } finally {
+            if (queue.length > 0) _runJsonUpdate(key, queue);
+            else JSON_UPDATE_QUEUES.delete(key);
+        }
+    };
+    readJsonFileAsync(job.file, (data, etag) => {
+        if (settled) return;
+        try {
+            writeJsonFileAsync(job.file, job.transform(data), finish, etag);
+        } catch (error) {
+            Diagnostics.logSafely("logError", error);
+            finish();
+        }
+    });
+}
+
 function tooBig(size, limit, what) {
     if (!Number.isFinite(size) || size <= limit) {
         return false;
@@ -171,9 +212,8 @@ function _loadCacheFile(file, callback) {
             let data = {};
             let etag = null;
             try {
-                // the etag is the file's version as Gio saw it: handing it back
-                // to replace_contents_async is what makes the write fail rather
-                // than silently overwrite another writer who got there first
+                // Etags detect changes before the replacement stream opens.
+                // updateJsonFileAsync also excludes overlapping publications.
                 const [ok, contents, tag] = source.load_contents_finish(result);
                 etag = tag || null;
                 data = _parseCacheFile(contents, ok);
@@ -212,10 +252,8 @@ function _finishJsonWrite(source, result, onDone) {
 }
 
 function writeJsonFileAsync (file, data, onDone, etag = null) {
-    // `stale` says the file moved under us: another applet instance wrote it
-    // between our read and our write, so the snapshot we merged into is no
-    // longer the whole truth and the caller must merge again. Without the etag
-    // the write simply won.
+    // `stale` detects an external edit before Gio opens the replacement stream;
+    // callers updating shared snapshots use updateJsonFileAsync for exclusion.
     const bytes = new TextEncoder().encode(JSON.stringify(data));
     // a file the read path would refuse must not be written: readJsonFileAsync
     // caps what it loads, so writing past the cap only parks bytes the next
@@ -737,6 +775,7 @@ if (typeof module !== "undefined") {
         urlForLog,
         readTextFileCapped,
         readJsonFileAsync,
+        updateJsonFileAsync,
         writeJsonFileAsync
     };
 }
