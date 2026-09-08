@@ -135,6 +135,15 @@ Git index, so ignored or untracked artifacts cannot enter it. Tracked symlinks
 are accepted only when their final target is also tracked inside the source
 tree, and are copied as real files for archive-based delivery.
 
+Rebuilds prepare and validate a private sibling tree before publishing it.
+Failed copies leave the last complete package available. The Linux `flock`
+utility serializes publication; an overlapping builder exits with a lock error
+and can be retried after the first finishes. Publication temporarily moves the
+previous tree aside under this lock and restores it if replacement fails.
+If restoration itself fails, the error's staging path retains `previous/` for
+manual recovery. The persistent `.lock` file is coordination state, not a stale
+lock to delete.
+
 `npm run i18n:check` validates every language catalog with `msgfmt`, rejects
 active fuzzy translations with `msgattrib`, and checks the catalog inventory.
 Missing or untranslated messages use English. Catalog merging, source-reference

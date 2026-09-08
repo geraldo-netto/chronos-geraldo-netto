@@ -1,7 +1,7 @@
 const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const fs = require("node:fs/promises");
-const { execFile } = require("node:child_process");
+const { execFile, spawn } = require("node:child_process");
 const os = require("node:os");
 const path = require("node:path");
 const { promisify } = require("node:util");
@@ -108,6 +108,71 @@ async function importPackager() {
     const scriptUrl = pathToFileURL(path.join(ROOT, "scripts", "package-spices.mjs")).href;
     return import(scriptUrl);
 }
+
+test("a failed staged write preserves the last complete package", async (t) => {
+    const { source, output } = await makeSpicesFixture(t);
+    const { buildSpicesPackage } = await importPackager();
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
+    await fs.writeFile(path.join(source, "README.md"), "replacement readme");
+    await execFileAsync("git", ["-C", source, "add", "README.md"]);
+    let writes = 0;
+    const write = async (target, contents) => {
+        if (++writes === 2) {
+            throw Object.assign(new Error("disk full"), { code: "ENOSPC" });
+        }
+        await fs.writeFile(target, contents);
+    };
+    await assert.rejects(buildSpicesPackage({ sourceRoot: source, outputRoot: output, write }),
+        { code: "ENOSPC" });
+    assert.equal(await fs.readFile(path.join(output, "README.md"), "utf8"), "readme");
+    assert.equal(await fs.readFile(path.join(output, "files", UUID, "applet.js"), "utf8"),
+        "tracked applet");
+    assert.ok(!(await fs.readdir(path.dirname(output))).some((name) => name.includes(".staging-")));
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
+    assert.equal(await fs.readFile(path.join(output, "README.md"), "utf8"), "replacement readme");
+});
+
+test("overlapping package builders fail explicitly without mixing output", async (t) => {
+    const { source, output } = await makeSpicesFixture(t);
+    const { buildSpicesPackage } = await importPackager();
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
+    await fs.writeFile(path.join(source, "README.md"), "first replacement");
+    await execFileAsync("git", ["-C", source, "add", "README.md"]);
+    let entered;
+    const started = new Promise((resolve) => { entered = resolve; });
+    let release;
+    const resume = new Promise((resolve) => { release = resolve; });
+    const write = async (target, contents) => {
+        entered();
+        await resume;
+        await fs.writeFile(target, contents);
+    };
+    const first = buildSpicesPackage({ sourceRoot: source, outputRoot: output, write });
+    await started;
+    try {
+        await fs.writeFile(path.join(source, "README.md"), "second replacement");
+        await execFileAsync("git", ["-C", source, "add", "README.md"]);
+        await assert.rejects(buildSpicesPackage({ sourceRoot: source, outputRoot: output }),
+            /cannot acquire package lock/);
+        assert.equal(await fs.readFile(path.join(output, "README.md"), "utf8"), "readme");
+    } finally {
+        release();
+        await first;
+    }
+    assert.equal(await fs.readFile(path.join(output, "README.md"), "utf8"), "first replacement");
+});
+
+test("package locks release after callback errors and report missing flock", async (t) => {
+    const { output } = await makeSpicesFixture(t);
+    const { withPackageLock } = await import(pathToFileURL(
+        path.join(ROOT, "scripts", "package-lock.mjs")).href);
+    await assert.rejects(withPackageLock(output, async () => { throw new Error("failed action"); }),
+        /failed action/);
+    assert.equal(await withPackageLock(output, async () => "recovered"), "recovered");
+    const absent = (command, args, options) => spawn("/no-such-chronos-flock", args, options);
+    await assert.rejects(withPackageLock(output, async () => assert.fail("lock unavailable"), absent),
+        { code: "ENOENT" });
+});
 
 test("packaged README documentation links resolve to repository files", async (t) => {
     const { source, output } = await makeSpicesFixture(t);

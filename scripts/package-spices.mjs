@@ -5,11 +5,12 @@
 
 import { execFile } from "node:child_process";
 import {
-    chmod, copyFile, lstat, mkdir, readlink, readdir, realpath, rm, writeFile
+    chmod, copyFile, lstat, mkdir, mkdtemp, readlink, readdir, realpath, rename, rm, writeFile
 } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { withPackageLock } from "./package-lock.mjs";
 
 const execFileAsync = promisify(execFile);
 export const UUID = "chronos@geraldo-netto";
@@ -219,8 +220,8 @@ export async function validatePackageLayout(output) {
     await rejectSymlinks(output);
 }
 
-// The output directory is removed wholesale before anything is copied, so it
-// must not contain an input either. `output === source` and the ancestor case
+// Publication replaces the whole output directory, so it must not contain an
+// input either. `output === source` and the ancestor case
 // are rejected separately; a descendant such as `<repo>/files` would otherwise
 // pass validation and take the tracked applet tree with it.
 function assertOutputExcludesSources(source, output, files) {
@@ -242,7 +243,67 @@ async function resolveOutputPath(output) {
     }
 }
 
-export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles }) {
+async function writePackageFiles(output, files, modes, write) {
+    for (const file of files) {
+        const destination = path.join(output, ...file.relative.split("/"));
+        await mkdir(path.dirname(destination), { recursive: true });
+        if (file.contents) {
+            await write(destination, file.contents);
+        } else {
+            await copyFile(file.sourcePath, destination);
+        }
+        await chmod(destination, modes.get(file.modeRelative) ?? (file.stats.mode & 0o777));
+    }
+}
+
+async function movePreviousPackage(output, previous) {
+    try {
+        await rename(output, previous);
+        return true;
+    } catch (error) {
+        if (error.code !== "ENOENT") {
+            throw error;
+        }
+        return false;
+    }
+}
+
+async function publishPreparedPackage(staging, output) {
+    const prepared = path.join(staging, "prepared");
+    const previous = path.join(staging, "previous");
+    const moved = await movePreviousPackage(output, previous);
+    try {
+        await rename(prepared, output);
+    } catch (error) {
+        if (moved) {
+            // If restoration itself fails, leave the previous tree in staging
+            // for recovery rather than deleting the last complete artifact.
+            await rename(previous, output);
+        }
+        throw error;
+    }
+    await rm(previous, { recursive: true, force: true });
+}
+
+async function stagePackage(output, files, modes, write) {
+    const staging = await mkdtemp(`${output}.staging-`);
+    try {
+        const prepared = path.join(staging, "prepared");
+        await mkdir(prepared);
+        await writePackageFiles(prepared, files, modes, write);
+        await validatePackageLayout(prepared);
+        await publishPreparedPackage(staging, output);
+    } finally {
+        // Only a failed rollback/backup removal leaves this recovery directory.
+        const remaining = await readdir(staging);
+        if (!remaining.includes("previous")) {
+            await rm(staging, { recursive: true, force: true });
+        }
+    }
+    return output;
+}
+
+export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles, write = writeFile }) {
     const source = await realpath(path.resolve(sourceRoot));
     const output = await resolveOutputPath(path.resolve(outputRoot));
 
@@ -265,23 +326,8 @@ export async function buildSpicesPackage({ sourceRoot, outputRoot, trackedFiles 
         await resolveManifestFiles(source, files, manifest) :
         await resolveIndexFiles(source, trackedEntries);
 
-    await rm(output, { recursive: true, force: true });
-    await mkdir(output, { recursive: true });
-
-    for (const file of resolvedFiles) {
-        const destination = path.join(output, ...file.relative.split("/"));
-        await mkdir(path.dirname(destination), { recursive: true });
-        if (file.contents) {
-            await writeFile(destination, file.contents);
-        } else {
-            await copyFile(file.sourcePath, destination);
-        }
-        await chmod(destination,
-            indexedModes.get(file.modeRelative) ?? (file.stats.mode & 0o777));
-    }
-
-    await validatePackageLayout(output);
-    return output;
+    return withPackageLock(output,
+        () => stagePackage(output, resolvedFiles, indexedModes, write));
 }
 
 export async function runPackageCommand(sourceRoot) {
