@@ -1152,22 +1152,30 @@ test("OS timezone changes reconcile popup and city-weather clock projections", (
 test("the panel text size setting reaches the label, and 1.0 hands it back", () => {
     const styles = [];
     const stub = Object.assign(Object.create(Proto), {
-        panel_font_scale: 1.25,
+        panel_font_scale: 1,
         _applet_label: { set_style: (style) => styles.push(style) }
     });
 
+    Proto._applyPanelFontScale.call(stub);
+    assert.deepEqual(styles, [null], "startup resets inline CSS without parsing an empty string");
+
+    stub.panel_font_scale = 1.25;
     Proto._onPanelFontScaleChanged.call(stub);
-    assert.deepEqual(styles, ["font-size: 1.25em;"]);
+    assert.deepEqual(styles, [null, "font-size: 1.25em;"]);
 
     stub.panel_font_scale = 1;
     Proto._onPanelFontScaleChanged.call(stub);
-    assert.deepEqual(styles, ["font-size: 1.25em;", ""],
-        "at 1.0 the inline style is cleared, not written as 1em");
+    assert.deepEqual(styles, [null, "font-size: 1.25em;", null],
+        "at 1.0 the inline style is cleared with a null reset");
+
+    stub.panel_font_scale = "invalid";
+    Proto._onPanelFontScaleChanged.call(stub);
+    assert.equal(styles.at(-1), null);
 
     // an applet whose label is not stylable is not a runtime failure
     stub._applet_label = {};
     Proto._onPanelFontScaleChanged.call(stub);
-    assert.equal(styles.length, 2);
+    assert.equal(styles.length, 4);
 });
 
 test("a timezone change before the popup exists reconciles nothing", () => {

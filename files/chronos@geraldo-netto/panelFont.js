@@ -41,13 +41,12 @@ function panelFontScale(value) { // NOSONAR [S3504] -- GJS importer export
     return Math.min(MAX_PANEL_FONT_SCALE, Math.max(MIN_PANEL_FONT_SCALE, numeric));
 }
 
-// The empty string, not "font-size: 1em", when nothing was asked for: an
-// inline declaration outranks the theme even when it restates the theme's own
-// value, which would freeze the applet against a later theme change.
+// Null clears St's inline style without asking its CSS parser to parse an
+// empty declaration. Leaving the property unset lets later theme changes apply.
 function panelFontStyle(value) { // NOSONAR [S3504] -- GJS importer export
     let scale = panelFontScale(value);
     if (scale === DEFAULT_PANEL_FONT_SCALE) {
-        return "";
+        return null;
     }
     return "font-size: " + Math.round(scale * 100) / 100 + "em;";
 }

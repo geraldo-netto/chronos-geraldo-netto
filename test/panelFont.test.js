@@ -16,8 +16,8 @@ test("the default is no opinion at all, so the theme keeps deciding", () => {
     // Not "font-size: 1em": an inline declaration outranks the theme even when
     // it restates the theme's own value, which would freeze this applet's text
     // against a later theme or font-scaling change.
-    assert.equal(PanelFont.panelFontStyle(PanelFont.DEFAULT_PANEL_FONT_SCALE), "");
-    assert.equal(PanelFont.panelFontStyle(1), "");
+    assert.equal(PanelFont.panelFontStyle(PanelFont.DEFAULT_PANEL_FONT_SCALE), null);
+    assert.equal(PanelFont.panelFontStyle(1), null);
 });
 
 test("a chosen scale becomes a style relative to the theme's own size", () => {
@@ -36,7 +36,7 @@ test("an unreadable setting is the default rather than a refusal", () => {
     // A corrupt value must not leave the panel without a clock.
     for (const value of [undefined, null, "large", NaN, {}]) {
         assert.equal(PanelFont.panelFontScale(value), PanelFont.DEFAULT_PANEL_FONT_SCALE);
-        assert.equal(PanelFont.panelFontStyle(value), "");
+        assert.equal(PanelFont.panelFontStyle(value), null);
     }
 });
 
