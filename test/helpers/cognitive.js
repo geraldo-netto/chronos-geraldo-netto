@@ -85,11 +85,7 @@ function complexityOf(functionNode) {
     for (const parameter of functionNode.params) {
         cost += score(parameter, 0, null);
     }
-    for (const child of childNodes(functionNode.body)) {
-        cost += score(child, 0, null);
-    }
-
-    return cost;
+    return cost + score(functionNode.body, 0, null);
 }
 
 function isTestCallee(callee) {

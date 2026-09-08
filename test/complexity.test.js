@@ -17,6 +17,31 @@ const TEST_DIR = __dirname;
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const SCRIPTS_DIR = path.join(__dirname, "..", "scripts");
 
+test("T1165 concise and block arrows count the same expression decisions", () => {
+    for (const [expression, expected] of [
+        ["a", 0], ["a && b && c", 1], ["a && b || c", 2],
+        ["a ? b : c", 1],
+        ["a ? b ? c ? d ? e ? 1 : 2 : 3 : 4 : 5 : 6", 15]
+    ]) {
+        const sources = [
+            `const choose = () => ${expression};`,
+            `const choose = () => { return ${expression}; };`
+        ];
+        assert.deepEqual(sources.map(source => functionBodies(source)[0].complexity),
+            [expected, expected], expression);
+    }
+});
+
+test("T1165 concise arrows are rejected at the configured complexity limit", () => {
+    const expression = "a ? b ? c ? d ? 1 : 2 : 3 : 4 : 5";
+    const file = "test/injected-arrow.js";
+    assert.deepEqual(complexityOffenders([[file, "script"]],
+        () => `const choose = () => ${expression};`), []);
+    assert.deepEqual(complexityOffenders([[file, "script"]],
+        () => `const choose = () => (${expression}) && e;`),
+    ["test/injected-arrow.js:1 — 11 — choose"]);
+});
+
 // The walker is the gate, so the walker is checked: a shape it under-counts is a
 // body it would let through. Nesting is what separates this from a path count —
 // three ifs in a row cost 3, but an if inside an if inside a loop costs 6.
