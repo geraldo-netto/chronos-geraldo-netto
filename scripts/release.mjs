@@ -5,7 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { link, mkdtemp, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { link, mkdtemp, open, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -14,16 +14,11 @@ const RELEASE_BRANCH = "develop";
 const RELEASE_BRANCH_REF = `origin/${RELEASE_BRANCH}`;
 const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const LOCK_CLAIM_OPERATIONS = new Set(["release", "stale"]);
 const LOCK_FILE = ".chronos-release-lock";
 const TRANSACTION_DIR = ".chronos-release-transaction";
 const TRANSACTION_MANIFEST = "manifest.json";
-// po/makepot bakes metadata.json's version into the template's
-// Project-Id-Version header, and check-i18n regenerates the template and
-// compares it after normalising only POT-Creation-Date. So the template is a
-// version owner like the other three: left out of the bump, the first
-// successful release made the i18n gate throw on a header line nobody had
-// touched, in the CI job that runs release:check and i18n:check back to back.
+// po/makepot bakes metadata.json's version into the template header.
+// release:check verifies this version owner even when translations stay unchanged.
 const RELEASE_TARGETS = [
     "package.json",
     "package-lock.json",
@@ -90,7 +85,44 @@ async function readLockOwner(lockPath) {
 }
 
 export function lockCandidatePath(lockPath, owner) {
-    return `${lockPath}.owner-${owner.token}`;
+    return `${lockPath}.owner-${owner.pid}-${owner.startTime}-${owner.token}`;
+}
+
+function candidateOwner(lockPath, candidate) {
+    const prefix = `${lockPath}.owner-`;
+    if (!candidate.startsWith(prefix)) {
+        return null;
+    }
+    const match = /^([1-9]\d*)-(\d+)-(.+)$/.exec(candidate.slice(prefix.length));
+    const pid = match ? Number(match[1]) : Number.NaN;
+    if (!match || !Number.isSafeInteger(pid) || !UUID_PATTERN.test(match[3])) {
+        return null;
+    }
+    return { pid, startTime: match[2], token: match[3] };
+}
+
+async function cleanupLockCandidates(lockPath) {
+    const directory = path.dirname(lockPath);
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+        const candidate = path.join(directory, entry.name);
+        const owner = entry.isFile() ? candidateOwner(lockPath, candidate) : null;
+        if (owner && await readProcessStartTime(owner.pid) !== owner.startTime) {
+            await rm(candidate, { force: true });
+        }
+    }
+}
+
+export async function writeLockCandidate(candidate, owner,
+    write = (handle, contents) => handle.writeFile(contents)) {
+    const handle = await open(candidate, "wx");
+    try {
+        await write(handle, JSON.stringify(owner));
+    } catch (error) {
+        await rm(candidate, { force: true });
+        throw error;
+    } finally {
+        await handle.close();
+    }
 }
 
 export function lockClaimPath(candidate, operation, claimant) {
@@ -111,26 +143,10 @@ function parseLockClaim(candidate, claimPath) {
     return { operation: match[1], pid, startTime: match[3], token: match[4] };
 }
 
-function isLegacyLockClaim(candidate, claimPath) {
-    const suffix = claimPath.slice(candidate.length + 1);
-    const separator = suffix.indexOf("-");
-    return LOCK_CLAIM_OPERATIONS.has(suffix.slice(0, separator)) &&
-        UUID_PATTERN.test(suffix.slice(separator + 1));
-}
-
 function lockCandidateForClaim(lockPath, claimPath) {
-    const prefix = `${lockPath}.owner-`;
-    if (!claimPath.startsWith(prefix)) {
-        return null;
-    }
-    const ownerAndClaim = claimPath.slice(prefix.length);
-    const separator = ownerAndClaim.indexOf(".");
-    const ownerToken = ownerAndClaim.slice(0, separator);
-    if (separator < 0 || !UUID_PATTERN.test(ownerToken)) {
-        return null;
-    }
-    const candidate = `${prefix}${ownerToken}`;
-    return parseLockClaim(candidate, claimPath) || isLegacyLockClaim(candidate, claimPath) ?
+    const separator = claimPath.indexOf(".claim-", lockPath.length);
+    const candidate = claimPath.slice(0, separator);
+    return candidateOwner(lockPath, candidate) && parseLockClaim(candidate, claimPath) ?
         candidate : null;
 }
 
@@ -256,13 +272,16 @@ async function acquireReleaseLock(root) {
     const candidate = lockCandidatePath(lockPath, owner);
     const lock = { lockPath, candidate, owner };
     let acquired = false;
-    await writeFile(candidate, JSON.stringify(owner), { flag: "wx" });
+    let created = false;
     try {
+        await writeLockCandidate(candidate, owner);
+        created = true;
         for (let attempt = 0; attempt < 3; attempt++) {
             try {
                 await link(candidate, lockPath);
                 acquired = true;
                 await cleanupLockClaims(lockPath);
+                await cleanupLockCandidates(lockPath);
                 return lock;
             } catch (error) {
                 if (!error || error.code !== "EEXIST") { // NOSONAR [S6582] -- accepted compatible form
@@ -273,7 +292,7 @@ async function acquireReleaseLock(root) {
         }
         throw new Error("could not acquire the release lock after concurrent recovery");
     } finally {
-        if (!acquired) {
+        if (created && !acquired) {
             await rm(candidate, { force: true });
         }
     }

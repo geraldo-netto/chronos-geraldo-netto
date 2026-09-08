@@ -188,6 +188,9 @@ stamps from `metadata.json` and `npm run release:check` verifies.
 A bump interrupted mid-write leaves a journal behind; `npm run release:check`
 reports it and changes nothing, and `npm run release:recover` is the one command
 that finishes it, so a CI check can never green-light files it wrote itself.
+Release lock candidates include their PID and process start identity in the
+filename. The next command collects abandoned candidates even if interruption
+left their JSON incomplete, while retaining candidates owned by live processes.
 Review the changes before staging them, and replace the example version in both
 the command and commit message. Packaging comes after the commit because the
 submission is built from Git-index bytes; this guarantees the staged artifact
