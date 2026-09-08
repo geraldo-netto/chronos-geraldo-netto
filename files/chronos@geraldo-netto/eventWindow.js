@@ -37,9 +37,11 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         const changed_month = this.current_month_year === null ||
             !dt_equals(month_year, this.current_month_year);
         const day_one = month_year_only(month_year);
-        const start = day_one.add_days(-DateMath.monthWindowStartOffset(
-            day_one.get_day_of_week(), Cinnamon.util_get_week_start()));
-        const end = start.add_days(42).add_seconds(-1);
+        // A midnight gap can make day_one start at 01:00. Calendar arithmetic
+        // preserves that hour, so resolve both civil boundaries independently.
+        const start = date_only(day_one.add_days(-DateMath.monthWindowStartOffset(
+            day_one.get_day_of_week(), Cinnamon.util_get_week_start())));
+        const end = date_only(start.add_days(42)).add_seconds(-1);
         const window_signature = `${start.to_unix()}/${end.to_unix()}`;
         const changed_window = window_signature !== this.current_window_signature;
         if (!changed_month && !changed_window && !force) {
