@@ -47,6 +47,9 @@ const HolidayConstants = IS_NODE ?
 const HolidayRecord = IS_NODE ?
     require("./holidayRecord") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].holidayRecord;
+const Diagnostics = IS_NODE ?
+    require("./diagnostics") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].diagnostics;
 
 const validDateParts = HolidayRecord.validDateParts;
 const normalizeProviderFlags = HolidayRecord.normalizeProviderFlags;
@@ -79,9 +82,7 @@ function deliverTranslated(adapter, data, params, retrieved, callback, received 
     try {
         translated = adapter.translateResponse(data, params);
     } catch (e) {
-        if (global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
         callback(null, params, retrieved, received);
         return;
     }

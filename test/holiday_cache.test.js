@@ -34,6 +34,7 @@ test("the holiday store loads with no toolkit at all", () => {
 
 test("retrieveForYear without a country reports instead of throwing", () => {
     const Holidays = loadHolidays();
+    global.logError = () => { throw new Error("error logger failed"); };
     const enrico = new Holidays.HolidayService({ fetchYear() { throw new Error("no fetch expected"); } }, {
         years: {}, country: null, region: "global", data: [],
         recordAttempt() {}, setData() {}
@@ -2903,7 +2904,7 @@ test("a throw while storing a fetch never wedges the year", () => {
     const enrico = new HolidayService(service, cache, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
-    global.logError = () => {};
+    global.logError = () => { throw new Error("error logger failed"); };
 
     let callbacks = 0;
     enrico.retrieveForYear(2026, () => callbacks++);
@@ -2938,7 +2939,7 @@ test("a fetch that raises on dispatch never wedges the year", () => {
     const enrico = new HolidayService(service, cache, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
-    global.logError = () => {};
+    global.logError = () => { throw new Error("error logger failed"); };
 
     let callbacks = 0;
     enrico.retrieveForYear(2026, () => callbacks++);

@@ -42,6 +42,7 @@ const IoUtils = sibling("ioUtils");
 const LocaleQuery = sibling("localeQuery");
 const LocaleText = sibling("localeText");
 const ProviderUtils = sibling("providerUtils");
+const Diagnostics = sibling("diagnostics");
 const HolidayConstants = sibling("holidayConstants");
 const HolidayCacheModule = sibling("holidayCache");
 const HolidayCacheRepositoryModule = sibling("holidayCacheRepository");
@@ -58,9 +59,8 @@ const _lcLang = LocaleQuery.messageLanguage;
 var HTTP_TIMEOUT_SECONDS = IoUtils.HTTP_TIMEOUT_SECONDS; // NOSONAR [S3504] -- GJS importer export
 
 function logHolidayDataError(provider, year, reason) {
-    if (global.logError) {
-        global.logError(`holiday provider ${provider || "unknown"} could not supply ${year || "unknown year"}: ${reason}`);
-    }
+    Diagnostics.logSafely("logError",
+        `holiday provider ${provider || "unknown"} could not supply ${year || "unknown year"}: ${reason}`);
 }
 
 const GLOBAL_REGION = HolidayConstants.GLOBAL_REGION;
@@ -262,11 +262,9 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         for (const holiday of data) {
             for (const single of this.record.expandHoliday(holiday, region)) {
                 if (expanded.length >= MAX_EXPANDED_HOLIDAY_ROWS) {
-                    if (global.logError) {
-                        global.logError("holiday payload expands past " +
-                            MAX_EXPANDED_HOLIDAY_ROWS + " rows; keeping the first " +
-                            MAX_EXPANDED_HOLIDAY_ROWS);
-                    }
+                    Diagnostics.logSafely("logError", "holiday payload expands past " +
+                        MAX_EXPANDED_HOLIDAY_ROWS + " rows; keeping the first " +
+                        MAX_EXPANDED_HOLIDAY_ROWS);
                     return expanded;
                 }
                 expanded.push(single);
@@ -377,9 +375,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
         this.last_provider = "";
         this._status.record(this._inflightKey(year));
-        if (global.logError) {
-            global.logError("holiday provider has no country configured");
-        }
+        Diagnostics.logSafely("logError", "holiday provider has no country configured");
         if (callback) {
             callback();
         }
@@ -400,9 +396,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             // expanded or persisted; leaving the key behind would block every
             // later fetch of this year for the whole session
             this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
-            if (global.logError) {
-                global.logError(e);
-            }
+            Diagnostics.logSafely("logError", e);
         } finally {
             this._status.record(inflightKey);
             callbacks = this._inflight.settle(inflightKey, generation);
@@ -480,9 +474,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         this.cache.recordAttempt(year, region);
         this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
         this.last_provider = "";
-        if (global.logError) {
-            global.logError(error);
-        }
+        Diagnostics.logSafely("logError", error);
 
         this._status.record(inflightKey);
         const callbacks = this._inflight.settle(inflightKey, generation);

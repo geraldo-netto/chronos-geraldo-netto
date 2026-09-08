@@ -965,8 +965,9 @@ test("NagerDateServiceAdapter fuzzes date, county and type translation", () => {
 
 test("the fallback chain retries HolidayService failures with Nager data", () => {
     const { HolidayService, EnricoServiceAdapter, HolidayCache, createHolidayServiceChain, NagerDateServiceAdapter } = loadHolidays();
+    let answerPrimary;
     const primary = new EnricoServiceAdapter((_url, params, callback) => {
-        callback(null, params, "Enrico failed");
+        answerPrimary = () => callback(null, params, "Enrico failed");
     });
     const fallback = new NagerDateServiceAdapter((_url, params, callback) => {
         callback([
@@ -990,7 +991,11 @@ test("the fallback chain retries HolidayService failures with Nager data", () =>
 
     enrico.country = "usa";
     enrico.region = "ca";
+    global.log = () => { throw new Error("message logger failed"); };
+    global.logError = () => { throw new Error("error logger failed"); };
     enrico.retrieveForYear(2026);
+    assert.equal(saved, null, "the primary request is still pending");
+    answerPrimary();
 
     assert.equal(enrico.last_error, "");
     assert.equal(enrico.last_provider, "Nager.Date");
@@ -1200,7 +1205,8 @@ test("every provider raising is reported rather than dereferenced", () => {
     });
     const service = createHolidayServiceChain(
         raising("Primary"), [raising("Fallback"), raising("Last")], anyRecord());
-    global.logError = () => {};
+    global.log = () => { throw new Error("message logger failed"); };
+    global.logError = () => { throw new Error("error logger failed"); };
 
     const answers = [];
     assert.doesNotThrow(() => service.fetchYear("usa", "global", 2026,

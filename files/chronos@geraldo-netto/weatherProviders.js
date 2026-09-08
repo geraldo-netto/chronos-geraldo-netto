@@ -41,6 +41,9 @@ const IoUtils = IS_NODE ?
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
+const Diagnostics = IS_NODE ?
+    require("./diagnostics") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].diagnostics;
 const WeatherFormat = IS_NODE ?
     require("./weatherFormat") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].weatherFormat;
@@ -450,18 +453,14 @@ var WeatherLocationResolver = class WeatherLocationResolver { // NOSONAR [S3504]
     }
 
     _reportGeocodeAttemptFailure(error, isCurrent, onResult) {
-        if (global.logError) {
-            global.logError(error);
-        }
+        Diagnostics.logSafely("logError", error);
         if (isCurrent()) {
             onResult(null);
         }
     }
 
     _reportGeocodeFailure(anyResponse, callback) {
-        if (global.log) {
-            global.log("all weather geocode providers failed");
-        }
+        Diagnostics.logSafely("log", "all weather geocode providers failed");
         callback(null, anyResponse ?
             WEATHER_ERRORS.LOCATION_NOT_FOUND :
             WEATHER_ERRORS.SERVICE_UNAVAILABLE);
@@ -639,9 +638,7 @@ var WeatherForecastResolver = class WeatherForecastResolver { // NOSONAR [S3504]
                 callback(result.reading, "", provider.name, result.timezone);
             },
             () => {
-                if (global.log) {
-                    global.log("all weather forecast providers failed");
-                }
+                Diagnostics.logSafely("log", "all weather forecast providers failed");
                 // null is what "no reading" is everywhere else on this port;
                 // the fourth argument was for a receiver that does not exist
                 callback(null, WEATHER_ERRORS.SERVICE_UNAVAILABLE, "");
@@ -790,9 +787,7 @@ var WeatherReadingRepository = class WeatherReadingRepository { // NOSONAR [S350
             throw error;
         }
 
-        if (global.logError) {
-            global.logError(error);
-        }
+        Diagnostics.logSafely("logError", error);
         this._placeResolved(key, request, requestIsCurrent, null,
             WEATHER_ERRORS.SERVICE_UNAVAILABLE);
     }

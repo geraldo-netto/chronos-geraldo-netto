@@ -28,6 +28,9 @@ const IS_NODE = typeof process !== "undefined" &&
 const ProviderUtils = IS_NODE ?
     require("./providerUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].providerUtils;
+const Diagnostics = IS_NODE ?
+    require("./diagnostics") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].diagnostics;
 
 // What the chain reports when every provider raised rather than answering:
 // attemptOrFail answers null for a raise, so there is no first failure to pass
@@ -109,9 +112,7 @@ var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJ
     }
 
     _reportProviderFailure(country, region, year, failure, emptyResult, callback) {
-        if (global.log) {
-            global.log(`all holiday providers failed for ${country}/${region}/${year}`);
-        }
+        Diagnostics.logSafely("log", `all holiday providers failed for ${country}/${region}/${year}`);
         const outcome = failure || emptyResult || NO_PROVIDER_OUTCOME;
         callback(outcome.data, outcome.params, outcome.retrieved, outcome.received);
     }
@@ -139,9 +140,7 @@ var HolidayFallbackChain = class HolidayFallbackChain { // NOSONAR [S3504] -- GJ
         try {
             valid = Boolean(result) && this._validResponse(result.data, requestedYear);
         } catch (e) {
-            if (global.logError) {
-                global.logError(e);
-            }
+            Diagnostics.logSafely("logError", e);
         }
 
         if (!valid) {

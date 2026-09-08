@@ -28,6 +28,9 @@ const IS_NODE = typeof process !== "undefined" &&
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+const Diagnostics = IS_NODE ?
+    require("./diagnostics") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].diagnostics;
 
 const urlForLog = TextUtils.urlForLog;
 
@@ -95,9 +98,7 @@ function providerName(provider) {
 }
 
 function logProviderFailover(provider) {
-    if (typeof global !== "undefined" && global.log) {
-        global.log(`provider ${providerName(provider)} failed; trying next provider`);
-    }
+    Diagnostics.logSafely("log", `provider ${providerName(provider)} failed; trying next provider`);
 }
 
 // Fan-out callbacks are independent waiters for one settled operation. One
@@ -142,9 +143,7 @@ function attemptOrFail(attempt, provider, onResult) {
         if (answered) {
             throw e;
         }
-        if (typeof global !== "undefined" && global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
         answer(null);
     }
 }

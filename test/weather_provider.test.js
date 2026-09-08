@@ -1204,6 +1204,10 @@ test("weather location resolver owns geocode fallback and cache", () => {
 
 test("malformed asynchronous geocode ranking falls back and frees shared weather requests", (t) => {
     const Weather = loadWeather();
+    const previousLog = global.log;
+    t.after(() => { global.log = previousLog; });
+    global.log = () => { throw new Error("message logger failed"); };
+    t.mock.method(global, "logError", () => { throw new Error("error logger failed"); });
     const requests = [];
     const repository = new Weather.WeatherReadingRepository({
         requestQueue: immediateNominatimQueue(),
@@ -1901,7 +1905,7 @@ test("a location resolve that raises frees the flight instead of pinning it", ()
             }
         }
     });
-    global.logError = () => {};
+    global.logError = () => { throw new Error("error logger failed"); };
 
     const answers = [];
     repository.refresh("Rome", () => true,
