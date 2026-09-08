@@ -18,6 +18,20 @@ compatibility guidance in the imported instruction modules.
 
 ## Gates
 
+Every confirmed behavioral bug fix must include a permanent automated
+regression test. Add it before the fix, prove it reproduces the failure, and
+verify that the same test passes afterward. Reference the TODO id in the test.
+Temporary probes and manual checks supplement this test; they do not replace
+it. Retain the regression permanently in the normal automated suite. Never
+delete, skip, or weaken it because the bug is fixed; remove only the resolved
+TODO row. If automation is unavailable, record the exact obstacle and missing
+test in TODO.md and keep the bug unresolved.
+
+For review-only tasks, record the reproduction and required regression coverage
+in TODO.md; implement the tests with the fixes unless the maintainer requests
+them during review. Documentation-only and policy-only findings do not need
+artificial behavior tests.
+
 Both must be green before a commit:
 
 ```sh
