@@ -39,3 +39,8 @@ The primary public calendar reads `holidays.json`. Additional country calendars
 read their own `calendar-<country>-<region>.json` files. Missing or empty files
 start with no snapshots and fetch current data. The obsolete `enrico.json` file
 is never imported into either cache.
+
+Country eviction accepts `savedAt` only as a finite numeric timestamp between
+zero and the current repository clock. Invalid or future values have the oldest
+priority, so correcting a clock that was years ahead cannot evict newly fetched
+countries indefinitely.

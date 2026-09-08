@@ -93,9 +93,10 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
             return allData;
         }
 
+        const now = this._now();
         const savedAt = (country) => {
-            const stamp = allData[country] && Number(allData[country].savedAt);
-            return Number.isFinite(stamp) ? stamp : 0;
+            const stamp = allData[country] && allData[country].savedAt;
+            return Number.isFinite(stamp) && stamp >= 0 && stamp <= now ? stamp : 0;
         };
 
         const kept = {};

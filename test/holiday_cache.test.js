@@ -1082,6 +1082,35 @@ test("the cache file keeps a handful of countries, not every one ever tried", ()
         "what is on disk is not also held in memory");
 });
 
+test("a clock rollback cannot let future cache metadata evict newly fetched countries", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    let clock = Date.parse("2036-09-08T12:00:00Z");
+    const repository = new HolidayCacheRepository("/holidays.json", { now: () => clock++ });
+    for (const country of ["usa", "ita", "fra", "deu"]) {
+        repository.save(country, { years: {}, holidays: [] });
+    }
+    clock = Date.parse("2026-09-08T12:00:00Z");
+    for (const country of ["cze", "jpn", "bra", "can"]) {
+        repository.save(country, { years: {}, holidays: [] });
+        const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
+        assert.ok(Object.hasOwn(written, country), "the newly saved country survives eviction");
+    }
+    const written = JSON.parse(fs.readFileSync(cachePath("holidays.json"), "utf8"));
+    assert.deepEqual(Object.keys(written).sort(), ["bra", "can", "cze", "jpn"]);
+});
+
+test("country eviction metadata must be a finite past numeric timestamp", () => {
+    const { HolidayCacheRepository } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json", { now: () => 1000 });
+    const malformed = ["999", [999], Infinity, NaN, -1, null, 1001];
+    for (const savedAt of malformed) {
+        const all = Object.fromEntries(["usa", "ita", "fra", "deu"]
+            .map((country) => [country, { years: {}, holidays: [], savedAt }]));
+        all.cze = { years: {}, holidays: [], savedAt: 1 };
+        assert.ok(Object.hasOwn(repository._pruneCountries(all), "cze"), String(savedAt));
+    }
+});
+
 test("the month-match memo is bounded, and scrolling back is still free", () => {
     const { HolidayCache } = loadHolidays();
     const { MAX_MEMOIZED_MONTHS } = require(holidayCachePath);
