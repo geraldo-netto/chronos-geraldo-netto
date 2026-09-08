@@ -222,6 +222,7 @@ def check_weather(module, value):
     require(module.normalize_weather_location("Genova") == "Genova", "valid weather location was lost")
     normalized = module.normalize_weather_location(value)
     ui_text(normalized, 256)
+    require("\0" not in normalized, "weather location retains a NUL that GTK truncates")
     require(module.normalize_weather_location(normalized) == normalized, "weather text is not idempotent")
     if not isinstance(value, str):
         require(normalized == "", "non-text location was coerced into display text")
@@ -280,11 +281,15 @@ def run_case(audit, modules, rng, case, corpus):
     fixture, manifests, clocks, weather, countries = modules
     value = deepcopy(TEXT_BOUNDARIES[case]) if case < len(TEXT_BOUNDARIES) else json_value(rng)
     candidate = clock_candidate(value, case)
+    name = "Genova" + "é" * rng.randrange(20)
+    offset = rng.randrange(len(name) + 1)
+    nul_location = name[:offset] + "\0" + name[offset:]
     checks = (
         ("manifest.valid", valid_manifest(rng, case), lambda raw: check_valid_manifest(manifests, raw)),
         ("manifest.invalid", invalid_manifest(rng, case, corpus), lambda raw: check_invalid_manifest(manifests, raw)),
         ("clock.label", value, lambda raw: check_label(clocks, raw)),
         ("weather.location", value, lambda raw: check_weather(weather, raw)),
+        ("weather.nul-location", nul_location, lambda raw: check_weather(weather, raw)),
         ("clock.rows", [candidate], lambda raw: check_clock_rows(clocks, raw)),
         ("clock.neighbors", candidate, lambda raw: check_clock_neighbors(clocks, raw)),
         ("clock.bounds", (0, 1, 7, 8, 9, 63, 64, 65)[case % 8], lambda raw: check_clock_bounds(clocks, raw)),

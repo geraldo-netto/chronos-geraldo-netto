@@ -15,6 +15,16 @@
     {"input": "🏙\ud800", "valid": false, "diagnostic": "🏙�"},
     {"input": "\udfff🏙", "valid": false, "diagnostic": "�🏙"}
   ],
+  "weatherNul": [
+    {"input": "\u0000Genova", "valid": false, "refusal": "null character"},
+    {"input": "Gen\u0000ova", "valid": false, "refusal": "null character"},
+    {"input": "Genova\u0000", "valid": false, "refusal": "null character"},
+    {"input": "\u0000", "valid": false, "refusal": "null character"},
+    {"input": "", "valid": true},
+    {"input": "Genova", "valid": true},
+    {"input": "Plzeň", "valid": true},
+    {"input": "Genoa 🏙", "valid": true}
+  ],
   "savedClocks": [
     {"label": "Tokyo 🏙", "timezone": "Asia/Tokyo"},
     {"label": "Bad\ud800label", "timezone": "Europe/Paris"},

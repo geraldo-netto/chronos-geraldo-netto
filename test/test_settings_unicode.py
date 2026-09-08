@@ -48,10 +48,10 @@ class SettingsUnicodeTests(unittest.TestCase):
         widget.content_widget.set_text = change_text
         return widget, settings
 
-    def assert_refused_weather(self, widget, settings, original):
+    def assert_refused_weather(self, widget, settings, original, reason="invalid Unicode"):
         self.assertEqual(widget.content_widget.get_text(), "")
         self.assertIn("error", widget.bind_object.get_style_context().classes)
-        self.assertIn("invalid Unicode", widget.bind_object.get_accessible().description)
+        self.assertIn(reason, widget.bind_object.get_accessible().description)
         widget.on_edit_end()
         self.assertEqual(settings.get_value("weather-location"), original)
 
@@ -81,6 +81,41 @@ class SettingsUnicodeTests(unittest.TestCase):
         self.assertEqual(settings.get_value("weather-location"), "Genova")
         self.assertEqual(settings.writes, [])
         self.assertIn("invalid Unicode", widget.bind_object.get_accessible().description)
+
+    def assert_edit_end_preserves_weather(self, widget, settings, raw):
+        before = deepcopy(settings.writes)
+        handlers = dict(widget.content_widget.handlers)
+        for signal in ("activate", "focus-out-event"):
+            self.assertFalse(handlers[signal](widget.content_widget, None))
+            self.assertEqual(settings.get_value("weather-location"), raw)
+            self.assertEqual(settings.writes, before)
+
+    def test_nul_locations_are_refused_on_load_updates_and_both_edit_end_signals(self):
+        for case in FIXTURE["weatherNul"]:
+            raw = case["input"]
+            self.assertEqual(self.weather.normalize_weather_location(raw), raw if case["valid"] else "")
+            if case["valid"]:
+                continue
+            widget, settings = self.weather_entry(raw)
+            self.assert_refused_weather(widget, settings, raw, case["refusal"])
+            self.assert_edit_end_preserves_weather(widget, settings, raw)
+            self.assertEqual(settings.writes, [])
+            settings.set_value("weather-location", "Genova")
+            settings.set_value("weather-location", raw)
+            self.assert_refused_weather(widget, settings, raw, case["refusal"])
+            self.assert_edit_end_preserves_weather(widget, settings, raw)
+            before = len(settings.writes)
+            widget.content_widget.set_text("Plzeň")
+            widget.on_edit_end()
+            self.assertEqual(settings.writes[before:], [("weather-location", "Plzeň")])
+            self.assertNotIn("error", widget.bind_object.get_style_context().classes)
+
+    def test_direct_nul_commit_refuses_without_changing_the_stored_location(self):
+        widget, settings = self.weather_entry("Genova")
+        self.assertEqual(widget.commit("Gen\0ova"), "")
+        self.assertEqual(settings.get_value("weather-location"), "Genova")
+        self.assertEqual(settings.writes, [])
+        self.assertIn("null character", widget.bind_object.get_accessible().description)
 
     def test_clock_construction_and_external_updates_keep_valid_neighbors(self):
         raw = deepcopy(FIXTURE["savedClocks"])

@@ -60,9 +60,11 @@ unavailable, the minute poll triggers the same reconciliation.
 Malformed Unicode, such as an isolated surrogate in an imported JSON string,
 is refused before it reaches GTK or a geocoder URL. The weather field shows a
 blank projection and an explanatory error while retaining the saved value until
-a valid replacement is entered. Invalid Unicode in a saved clock label or
-timezone removes only that row; valid neighboring clocks remain. Refused country
-codes retain their stored value and use replacement characters in diagnostics.
+a valid replacement is entered. Embedded null characters are refused in the
+same way, so GTK cannot truncate the location and save a different place.
+Invalid Unicode in a saved clock label or timezone removes only that row;
+valid neighboring clocks remain. Refused country codes retain their stored
+value and use replacement characters in diagnostics.
 
 Run `/usr/bin/python3 scripts/check_gtk_settings.py` to check these boundaries
 with native GTK and an in-memory settings backend under private D-Bus/Xvfb.

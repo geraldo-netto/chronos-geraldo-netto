@@ -75,7 +75,8 @@ function normalizeUnits(units) {
 }
 
 function normalizeWeatherLocation(location) {
-    return TextUtils.normalizeBoundedText(location, MAX_WEATHER_LOCATION_LENGTH);
+    const normalized = TextUtils.normalizeBoundedText(location, MAX_WEATHER_LOCATION_LENGTH);
+    return normalized.includes("\0") ? "" : normalized;
 }
 
 // A cache key, and deliberately not the display fold in

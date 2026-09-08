@@ -31,6 +31,7 @@ from chronos_settings_i18n import _
 WEATHER_LOCATION_HINT = _("City or town (e.g. Lisbon)")
 WEATHER_LOCATION_TOO_LONG = _("This location is too long to save")
 WEATHER_LOCATION_INVALID_UNICODE = _("This location contains invalid Unicode; enter a replacement")
+WEATHER_LOCATION_NUL = _("This location contains a null character; enter a replacement")
 MAX_WEATHER_LOCATION_LENGTH = 256
 
 
@@ -41,6 +42,8 @@ def weather_location_refusal(text) -> str:
         return WEATHER_LOCATION_TOO_LONG
     if not valid_unicode(text):
         return WEATHER_LOCATION_INVALID_UNICODE
+    if "\0" in text:
+        return WEATHER_LOCATION_NUL
     return ""
 
 

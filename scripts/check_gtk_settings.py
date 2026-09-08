@@ -68,6 +68,7 @@ def load_widgets():
 
 
 def check_weather(widget_type, schema, case):
+    from gi.repository import Gdk
     key, raw = "weather-location", case["input"]
     settings = MemorySettings(schema, key, raw)
     widget = widget_type(schema[key], key, settings)
@@ -78,8 +79,12 @@ def check_weather(widget_type, schema, case):
         settings.set_value(key, raw)
         before = deepcopy(settings.writes)
         widget.content_widget.emit("activate")
+        widget.content_widget.emit("focus-out-event", Gdk.Event.new(Gdk.EventType.FOCUS_CHANGE))
         assert settings.get_value(key) == raw and settings.writes == before
-        widget.content_widget.get_accessible().get_description().encode("utf-8")
+        description = widget.content_widget.get_accessible().get_description()
+        description.encode("utf-8")
+        if not case["valid"]:
+            assert case.get("refusal", "invalid Unicode") in description
         widget.content_widget.set_text("Genoa 🏙")
         widget.content_widget.emit("activate")
         assert settings.get_value(key) == "Genoa 🏙"
@@ -130,6 +135,9 @@ def run_isolated(directory):
             check_country(country, schema, case)
             checks += 1
     check_clocks(clocks, schema, fixture)
+    for case in fixture["weatherNul"]:
+        check_weather(weather, schema, case)
+        checks += 1
     print(json.dumps({"checks": checks + 1, "failures": []}), flush=True)
     return 0
 

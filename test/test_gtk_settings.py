@@ -46,7 +46,7 @@ class NativeSettingsHarnessTests(unittest.TestCase):
                 mock.patch.object(CHECK, "check_country") as country, \
                 mock.patch.object(CHECK, "check_clocks") as clocks, redirect_stdout(io.StringIO()):
             self.assertEqual(CHECK.run_isolated(Path("/private")), 0)
-        self.assertEqual(weather.call_count, 14)
+        self.assertEqual(weather.call_count, 22)
         self.assertEqual(country.call_count, 8)
         self.assertTrue(all(not call.args[2]["valid"] for call in country.call_args_list))
         clocks.assert_called_once()

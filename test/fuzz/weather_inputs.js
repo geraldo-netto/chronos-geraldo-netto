@@ -48,6 +48,7 @@ function checkLocation(audit, random, round) {
     audit.check("weather.location.normalize", round, input, () => {
         const normalized = Format.normalizeWeatherLocation(input);
         assert.equal(typeof normalized, "string");
+        assert.ok(!normalized.includes("\0"), "weather location retains a NUL that GTK truncates");
         assert.ok(Array.from(normalized).length <= 256);
         assert.equal(Format.normalizeWeatherLocation(normalized), normalized);
     });
@@ -63,6 +64,19 @@ function checkLocation(audit, random, round) {
             }
         });
     }
+}
+
+function checkNulLocation(audit, random, round) {
+    const name = "Genova" + pick(random, ["é", "東", "🏙"]).repeat(Math.floor(random() * 20));
+    const characters = Array.from(name);
+    characters.splice(Math.floor(random() * (characters.length + 1)), 0, "\0");
+    const input = characters.join("");
+    audit.check("weather.location.nul", round, input, () => {
+        assert.equal(Format.normalizeWeatherLocation(input), "");
+        assert.equal(Adapters.geocodeUrl(input, "en"), "");
+        assert.equal(Adapters.nominatimGeocodeUrl(input, "en"), "");
+        assert.equal(Format.normalizeWeatherLocation(name), name);
+    });
 }
 
 function malformedNumber(random, bound, round) {
@@ -165,6 +179,7 @@ function runWeatherInputs({ seed, cases }) {
     const random = makeRandom(seed);
     for (let round = 0; round < cases; round++) {
         checkLocation(audit, random, round);
+        checkNulLocation(audit, random, round);
         checkStation(audit, random, round);
         checkGeocode(audit, random, round);
         checkOmittedCoordinates(audit, round);
