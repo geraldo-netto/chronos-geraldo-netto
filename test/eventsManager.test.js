@@ -932,14 +932,15 @@ test("queued event chunks retain the delivery watermark across a newer fetch", (
     manager._window_coordinator.current_selected_date = month;
     manager.fetch_month_events(month, true);
     const deliveryWatermark = manager.last_update_timestamp;
-    const events = Array.from({ length: 26 }, (_unused, index) => eventVariant({
+    const events = Array.from({ length: MAX_QUEUED_EVENT_RECORDS }, (_unused, index) => eventVariant({
         id: "old-fetch-" + index,
         startUnix: 10 * DAY_S + index * 60,
         endUnix: 10 * DAY_S + index * 60 + 30
     }));
 
     proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
-    assert.equal(manager._mutation_stream._queuedEventRecords, 1, "one old-fetch event waits for an idle");
+    assert.equal(manager._mutation_stream._queuedEventRecords, MAX_QUEUED_EVENT_RECORDS - 25,
+        "the rest of the old fetch waits for an idle");
 
     manager.fetch_month_events(month, true);
     const replacementWatermark = manager.last_update_timestamp;
@@ -949,9 +950,74 @@ test("queued event chunks retain the delivery watermark across a newer fetch", (
     assert.equal(indexed._events["old-fetch-25"].last_update_timestamp,
         deliveryWatermark, "later chunks keep the signal's ingress watermark");
     drainEventMutations(manager);
+    assert.equal(manager._event_index._eventIds.size, MAX_QUEUED_EVENT_RECORDS,
+        "forcing the same window retains every queued event until reconciliation");
+    assert.equal(manager._event_index.overflowed, false);
     fireTimer(manager._fetch_coordinator._gcTimerId);
     assert.equal(manager._event_index.get(month), null,
         "successful replacement completion culls once the stream settles");
+});
+
+function deliverWindowEvents(prefix, count) {
+    const events = Array.from({ length: count }, (_unused, index) => eventVariant({
+        id: `${prefix}-${index}`,
+        startUnix: 10 * DAY_S + 3600,
+        endUnix: 10 * DAY_S + 3660
+    }));
+    proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
+}
+
+function checkReplacementWindow(manager, replaceWindow, count) {
+    deliverWindowEvents("abandoned", MAX_QUEUED_EVENT_RECORDS);
+    const stream = manager._mutation_stream;
+    assert.equal(stream._queuedEventRecords, MAX_QUEUED_EVENT_RECORDS - 25);
+    const idleId = stream._eventBatchIds[0];
+    const staleIdle = timers.pending.get(idleId);
+
+    replaceWindow();
+
+    assert.equal(stream._queuedEventRecords, 0, "the old window releases its record budget");
+    assert.equal(stream._queuedEventBytes, 0, "the old window releases its byte budget");
+    assert.equal(timers.pending.has(idleId), false, "the old delivery idle is cancelled");
+    deliverWindowEvents("replacement", count);
+    assert.equal(staleIdle(), false, "an already-dispatched old idle stays retired");
+    drainEventMutations(manager);
+    assert.equal(manager._event_index._eventIds.size, count);
+    assert.equal(manager._event_index.hasEvent(`replacement-${count - 1}`), true);
+    assert.equal(manager._event_index.hasEvent("abandoned-0"), false);
+    assert.equal(manager._event_index.overflowed, false, "old payloads do not truncate the new window");
+}
+
+test("changed event windows retire chunked deliveries before admitting replacements", async (t) => {
+    const changes = {
+        month: (manager, state) => manager.fetch_month_events(
+            new FakeDateTime(++state.month * DAY_US), false),
+        weekday: (manager, state) => {
+            state.weekStart++;
+            manager.fetch_month_events(manager._window_coordinator.current_month_year, false);
+        },
+        timezone: (manager, state) => {
+            state.offset += 600;
+            manager.refresh_for_timezone_change();
+            assert.equal(manager._mutation_stream._queuedEventRecords, 0,
+                "timezone invalidation releases the queue before the reload idle");
+            fireTimer(manager._fetch_coordinator._reloadSelectedId);
+        }
+    };
+    for (const [name, change] of Object.entries(changes)) {
+        await t.test(name, (child) => {
+            const state = { month: 1, weekStart: 0, offset: 0 };
+            child.mock.method(global.imports.gi.Cinnamon, "util_get_week_start", () => state.weekStart);
+            child.mock.method(global.imports.gi.GLib.DateTime, "new_local", (year, month, day) =>
+                new FakeDateTime(day * DAY_US + state.offset * 1000000));
+            const manager = readyManager();
+            child.after(() => manager.destroy());
+            manager.select_date(new Date(10 * DAY_S * 1000), true);
+            const replaceWindow = () => change(manager, state);
+            checkReplacementWindow(manager, replaceWindow, MAX_QUEUED_EVENT_RECORDS);
+            checkReplacementWindow(manager, replaceWindow, 100);
+        });
+    }
 });
 
 test("a successful empty range fetch clears stale events and reports the empty state", () => {
@@ -2327,7 +2393,7 @@ test("a removal settles the deliveries queued behind it first", () => {
 // mutation settles the accumulator on the way past.
 test("a reselect settles a delivery still waiting on its idle", () => {
     const manager = readyManager();
-    manager._window_coordinator.current_selected_date = new FakeDateTime(10 * DAY_US);
+    manager.select_date(new Date(10 * DAY_S * 1000), true);
 
     proxy.instance.signal("events-added-or-updated", {
         unpack: () => [eventVariant({
@@ -3101,19 +3167,20 @@ test("EventWindowCoordinator owns fetch-window and selected-date coordination", 
     const setTimeRange = (start, end, force, cancellable, watermark) => {
         calls.push({ start, end, force, cancellable, watermark });
     };
+    const onWindowChanged = () => {};
     let timestamp = 40;
     const month = new FakeDateTime(40 * DAY_US);
 
     assert.equal(coordinator.fetchMonthEvents(
-        month, false, setTimeRange, () => ++timestamp), 41);
+        month, false, setTimeRange, () => ++timestamp, onWindowChanged), 41);
     assert.equal(calls[0].end - calls[0].start, 42 * DAY_S - 1);
     assert.equal(calls[0].watermark, 41);
     assert.equal(index._windowStart.to_unix(), calls[0].start);
     assert.equal(index._windowEnd.to_unix(), calls[0].end - (DAY_S - 1));
     assert.equal(coordinator.fetchMonthEvents(
-        month, false, setTimeRange, () => ++timestamp), null);
+        month, false, setTimeRange, () => ++timestamp, onWindowChanged), null);
     assert.equal(coordinator.fetchMonthEvents(
-        month, true, setTimeRange, () => ++timestamp), 42);
+        month, true, setTimeRange, () => ++timestamp, onWindowChanged), 42);
     assert.equal(calls[1].watermark, 42);
     assert.equal(calls.length, 2);
 
@@ -3161,7 +3228,7 @@ test("EventWindowCoordinator refreshes shifted weekday bounds even within the sa
         const month = new FakeDateTime(40 * DAY_US);
         const calls = [];
         const fetch = (forced) => coordinator.fetchMonthEvents(month, forced,
-            (start, end) => calls.push({ start, end }), () => 1);
+            (start, end) => calls.push({ start, end }), () => 1, () => {});
         fetch(false);
         const key = calls[0].start;
         const cached = { marker: "previous window", length: 1 };

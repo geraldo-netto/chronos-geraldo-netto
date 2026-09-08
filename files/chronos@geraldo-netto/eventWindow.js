@@ -32,7 +32,8 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         this.current_selected_signature = null;
     }
 
-    fetchMonthEvents(month_year, force, setTimeRange, timestampNow, cancellable = null) {
+    fetchMonthEvents(month_year, force, setTimeRange, timestampNow,
+        onWindowChanged, cancellable = null) {
         const changed_month = this.current_month_year === null ||
             !dt_equals(month_year, this.current_month_year);
         const day_one = month_year_only(month_year);
@@ -48,8 +49,10 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         this.current_window_signature = window_signature;
 
         // A forced refetch with identical bounds keeps indexed events. A new
-        // month or first weekday replaces both the contents and bounds.
+        // month or first weekday also retires pending deliveries before the
+        // replacement request can deliver into the new window.
         if (changed_month || changed_window) {
+            onWindowChanged();
             this.index.reset(start, end);
         } else {
             this.index.setWindow(start, end);

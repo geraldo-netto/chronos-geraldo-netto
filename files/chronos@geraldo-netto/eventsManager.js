@@ -86,6 +86,7 @@ var EventsManager = class EventsManager { // NOSONAR [S3504] -- GJS importer exp
             isActive: () => this.is_active(),
             enqueueMutation: (mutation) => this._enqueue_event_mutation(mutation),
             mutationsPending: () => this._mutation_stream.hasPendingMutations(),
+            resetMutations: () => this._mutation_stream.reset(),
             emit: (name, ...args) => this.emit(name, ...args),
             emitEventIndexChanged: () => this._emit_event_index_changed(),
             random: params.random || Math.random

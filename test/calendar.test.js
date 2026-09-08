@@ -2123,7 +2123,7 @@ test("desktop weekday changes fetch the exact calendar grid without changing the
     manager.select_date = (date, force) => coordinator.selectDate(date, force,
         manager.is_active,
         (month, forced) => coordinator.fetchMonthEvents(month, forced,
-            (start, end, force) => requests.push({ start, end, force }), () => 1),
+            (start, end, force) => requests.push({ start, end, force }), () => 1, () => {}),
         () => {});
     const settings = makeDesktopSettings();
     let onWeekdayChanged;

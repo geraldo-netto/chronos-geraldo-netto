@@ -38,6 +38,7 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
         this._isActive = params.isActive;
         this._enqueueMutation = params.enqueueMutation;
         this._mutationsPending = params.mutationsPending;
+        this._resetMutations = params.resetMutations;
         this._emit = params.emit;
         this._emitEventIndexChanged = params.emitEventIndexChanged;
         this._random = params.random || Math.random;
@@ -157,6 +158,7 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
             (start, end, forceReload, cancellable, watermark) => this._dispatch(
                 retry, start, end, forceReload, cancellable, watermark),
             GLib.get_monotonic_time,
+            this._resetMutations,
             this._fetchCancellable
         );
 
@@ -350,6 +352,7 @@ var EventFetchCoordinator = class EventFetchCoordinator { // NOSONAR [S3504] -- 
     }
 
     refreshForTimezoneChange() {
+        this._resetMutations();
         this._eventIndex.discard();
         this._windowCoordinator.renormalizeSelectedDate();
         this.queueReloadSelected();
