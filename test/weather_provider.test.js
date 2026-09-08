@@ -1040,12 +1040,13 @@ test("stopped periodic and retry callbacks cannot revive an old schedule", () =>
     const Weather = loadWeather();
     const timers = [];
     const refreshes = [];
+    const removed = [];
     const scheduler = new Weather.WeatherRefreshScheduler({
         scheduleTimer(_seconds, callback) {
             timers.push(callback);
             return timers.length;
         },
-        removeTimer() {}
+        removeTimer(id) { removed.push(id); }
     });
 
     scheduler.schedule({ showWeather: true, location: "Rome", units: "si" },
@@ -1056,11 +1057,50 @@ test("stopped periodic and retry callbacks cannot revive an old schedule", () =>
     scheduler.stop();
     scheduler.schedule({ showWeather: true, location: "Paris", units: "si" },
         () => refreshes.push("new"));
+    scheduler.retry(() => refreshes.push("new retry"));
+    const replacementId = scheduler._retry_id;
 
     assert.equal(periodic(), false);
     assert.equal(retry(), false);
     assert.deepEqual(refreshes, ["refresh", "new"],
         "callbacks from the prior generation stay terminal after reactivation");
+    assert.equal(scheduler._retry_id, replacementId,
+        "an obsolete callback cannot release the current retry source");
+    scheduler.stop();
+    assert.ok(removed.includes(replacementId));
+});
+
+test("replaced or successful retry callbacks cannot release a later retry", () => {
+    const Weather = loadWeather();
+    const timers = [];
+    const removed = [];
+    const scheduler = new Weather.WeatherRefreshScheduler({
+        scheduleTimer(_seconds, callback) {
+            timers.push(callback);
+            return timers.length;
+        },
+        removeTimer(id) { removed.push(id); }
+    });
+    let refreshes = 0;
+    const refresh = () => refreshes++;
+    scheduler.schedule({ showWeather: true, location: "Rome" }, refresh);
+    scheduler.retry(refresh);
+    const replaced = timers.at(-1);
+    scheduler.retry(refresh);
+    const completed = timers.at(-1);
+    const replacementId = scheduler._retry_id;
+
+    assert.equal(replaced(), false);
+    assert.equal(scheduler._retry_id, replacementId);
+    scheduler.succeeded();
+    assert.ok(removed.includes(replacementId));
+    scheduler.retry(refresh);
+    const nextId = scheduler._retry_id;
+    assert.equal(completed(), false);
+    assert.equal(scheduler._retry_id, nextId);
+    assert.equal(refreshes, 1);
+    scheduler.stop();
+    assert.ok(removed.includes(nextId));
 });
 
 test("a geocode answered after a newer refresh or a destroy is dropped", () => {

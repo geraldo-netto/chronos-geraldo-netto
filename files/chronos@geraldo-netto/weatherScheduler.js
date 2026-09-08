@@ -59,6 +59,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         this._debounce_id = 0;
         this._retry_id = 0;
         this._retry_attempts = 0;
+        this._retry_generation = 0;
         this._active = false;
         this._generation = 0;
         this._scheduleTimer = params.scheduleTimer || ((seconds, callback) => {
@@ -173,12 +174,14 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
         });
         this._retry_attempts = Math.min(this._retry_attempts + 1, MAX_RETRY_ATTEMPTS);
         const generation = this._generation;
+        const retryGeneration = ++this._retry_generation;
 
         this._retry_id = this._scheduleTimer(delay, () => {
-            this._retry_id = 0;
-            if (!this._active || generation !== this._generation) {
+            if (!this._active || generation !== this._generation ||
+                retryGeneration !== this._retry_generation) {
                 return GLib.SOURCE_REMOVE;
             }
+            this._retry_id = 0;
             this._refreshSafely(refresh);
             return GLib.SOURCE_REMOVE;
         });
@@ -192,6 +195,7 @@ var WeatherRefreshScheduler = class WeatherRefreshScheduler { // NOSONAR [S3504]
     }
 
     succeeded() {
+        this._retry_generation++;
         this._retry_attempts = 0;
         if (this._retry_id > 0) {
             this._removeTimer(this._retry_id);
