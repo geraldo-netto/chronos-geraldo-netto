@@ -20,6 +20,15 @@ open, saving closes that stale dialog and asks the user to reopen it. The
 external choices stay intact, including when the original edited row was
 removed or the list was rebuilt with identical values.
 
+## Named settings handlers
+
+Applet settings and desktop signals keep individually named handlers. These
+provide stable search targets, stack-frame names, and breakpoints when a specific
+interaction fails. The common `_guarded` method owns error handling; each handler
+states the operation and its diagnostic source. A dispatch table would shorten
+these entry points without removing duplicated behavior, so this structure is
+intentional.
+
 ## Weather location
 
 An empty saved weather location stays empty when the applet starts, reloads,

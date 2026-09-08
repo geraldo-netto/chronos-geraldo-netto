@@ -453,6 +453,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         ].join("|");
     }
 
+    // Keep signal entry points named: they are useful breakpoints and identify
+    // the failing interaction. _guarded owns the common error boundary; a
+    // dispatch table would hide these entry points without sharing more policy.
     _onSettingsChanged() {
         this._guarded("settings", () => this._applySettings());
     }
