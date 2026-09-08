@@ -173,7 +173,7 @@ test("schema separates settings into the requested tabs", () => {
         type: "section",
         title: "Weather and Location Services",
         keys: ["show-weather", "show-astronomy", "weather-location",
-            "openstreetmap-attribution", "weather-units"]
+            "weather-units"]
     });
     assert.deepEqual(layout.pages.map((id) => layout[id]), [
         { type: "page", title: "Calendar", sections: ["section1", "section4", "section3"] },

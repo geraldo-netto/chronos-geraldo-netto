@@ -54,6 +54,7 @@ class AboutPageTests(unittest.TestCase):
         )
 
     def test_page_shows_identity_and_all_service_links(self):
+        self.assertNotIn("openstreetmap-attribution", json.loads(SCHEMA_PATH.read_text()))
         _page, metadata = self.page_and_metadata()
         visible_text = "\n".join(label.text for label in GtkLabel.instances)
         for expected in (

@@ -534,12 +534,6 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
         });
     }
 
-    on_openstreetmap_attribution_pressed() {
-        this._guarded("weather-attribution", () => {
-            Util.spawnCommandLine("xdg-open https://www.openstreetmap.org/copyright");
-        });
-    }
-
     openAbout() {
         this._guarded("about", () => {
             const process = new Gio.Subprocess({

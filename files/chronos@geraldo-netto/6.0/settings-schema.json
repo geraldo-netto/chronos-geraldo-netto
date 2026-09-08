@@ -108,7 +108,6 @@
                 "show-weather",
                 "show-astronomy",
                 "weather-location",
-                "openstreetmap-attribution",
                 "weather-units"
             ]
         },
@@ -181,13 +180,6 @@
         "description": "Weather location",
         "dependency": "show-weather",
         "tooltip": "City or town used for the weather lookup - for example \"Lisbon\" or \"Porto Alegre\". Leave it empty and the panel shows a bare warning marker instead of a reading. It is sent to a third-party geocoding service to find its coordinates, and then to a third-party forecast service, about every 30 minutes."
-    },
-    "openstreetmap-attribution": {
-        "type": "button",
-        "description": "\u00a9 OpenStreetMap contributors",
-        "callback": "on_openstreetmap_attribution_pressed",
-        "tooltip": "Open the OpenStreetMap copyright and attribution page.",
-        "dependency": "show-weather"
     },
     "weather-units": {
         "type": "custom",

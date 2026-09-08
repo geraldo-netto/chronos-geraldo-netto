@@ -1482,7 +1482,6 @@ test("applet wrappers open menus, launch settings, and refresh on resume", (t) =
     Proto._onResume.call(stub);
     Proto._onLaunchSettings.call(stub);
     Proto.on_custom_format_button_pressed.call(stub);
-    Proto.on_openstreetmap_attribution_pressed.call(stub);
     Proto.on_orientation_changed.call(stub, St.Side.BOTTOM);
 
     assert.equal(stub.menu.toggled, 3);
@@ -1521,21 +1520,6 @@ test("clearing the configured shortcut removes the active applet hotkey", (t) =>
     stub.keyOpen = "";
     Proto._setKeybinding.call(stub);
     assert.equal(active.size, 0);
-});
-
-test("weather attribution opens the OpenStreetMap copyright page", () => {
-    const commands = [];
-    const util = global.imports.misc.util;
-    const original = util.spawnCommandLine;
-    util.spawnCommandLine = (command) => commands.push(command);
-    try {
-        Proto.on_openstreetmap_attribution_pressed.call(Object.create(Proto));
-    } finally {
-        util.spawnCommandLine = original;
-    }
-
-    assert.deepEqual(commands,
-        ["xdg-open https://www.openstreetmap.org/copyright"]);
 });
 
 test("About launches the shared GTK page without a shell", () => {
