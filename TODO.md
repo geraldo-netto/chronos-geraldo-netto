@@ -4,6 +4,7 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
+| T1048 | open | low | s | Investigate feasible improvements to timezone-country inference beyond skipping malformed zone.tab rows, including supported mapping sources, compatible format extensions, and conflicting duplicates. Recommend an approach supported by evidence or explain why skip-and-log remains preferable. |
 
 ## Blocked / Deferred
 
@@ -13,7 +14,6 @@
 | T938 | blocked | medium | l | The maintainer must decide whether the repository carries a mutation runner. An assistant may add a runner, configuration, and scope selector, but mutation campaigns and survivor decisions remain maintainer-only. |
 | T935 | blocked | medium | m | Verify the responsive popup on live Cinnamon at 1366×768, 2× scale, 1.5 text scale, long de/ru strings, and both panel orientations. Confirm layout choice, minimum agenda height, keyboard order, and stacked spacing; arithmetic tests cannot establish the rendered pixels. |
 | T995 | blocked | low | xs | Decide whether HolidayCache.recordFetch judges a provider Date header against receive time strictly, allows a specified future-skew window, or keeps wall-clock validation. The choice changes the pinned future-header behavior. |
-| T1013 | blocked | low | xs | Decide whether one malformed zone.tab row aborts country inference or is skipped. Logging is implemented; skipping preserves other valid rows, while aborting treats the whole table as untrusted. |
 | T1016 | blocked | medium | xs | Chain per-user and system gettext catalogs so a stale user catalog can fall back to newer system messages. This remains blocked while i18n is out of scope; test a msgid present only in the second catalog. |
 | T740 | deferred | — | — | Publish post-2027 dates for non-Hebrew religious observances only when a named tradition and authoritative calendar are chosen. Islamic, Baha'i, Hindu, Jain, Buddhist, Sikh, and Chinese conventions diverge; do not extrapolate one civil date as universal. |
 | T1027 | deferred | — | — | Decide whether ioUtils.readTextFileCapped must preflight file size before reading root-owned /etc/timezone and zone.tab, or whether the no-unbounded-read rule applies only to attacker-influenceable paths and should say so. |

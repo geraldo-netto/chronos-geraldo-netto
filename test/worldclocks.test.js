@@ -1683,9 +1683,9 @@ test("countryCodeFromZoneTab performs an exact timezone lookup", () => {
 });
 
 // T1013: aborting the whole table on one bad row withdraws automatic
-// holiday-country inference for the machine. Fail-closed stays, but not
-// silently: the log line is the only way anyone finds out.
-test("a malformed zone.tab row is reported, not swallowed", () => {
+// holiday-country inference for unrelated valid rows. Keep those rows and
+// report the skipped row so the damaged source can still be investigated.
+test("a malformed zone.tab row is logged and valid mappings survive", () => {
     loadWorldclocks();
     const { countryCodeFromZoneTab } = require(dataModulePath);
     const logged = [];
@@ -1696,10 +1696,11 @@ test("a malformed zone.tab row is reported, not swallowed", () => {
         "FR\t+4852+00220\tEurope/Rome"
     ].join("\n");
 
-    assert.equal(countryCodeFromZoneTab("Europe/Rome", zoneTab), "");
+    assert.equal(countryCodeFromZoneTab("Europe/Rome", zoneTab), "IT");
     assert.equal(logged.length, 1, "the parse failure is reported once");
     assert.ok(logged[0].includes("zone.tab"), "the log names the file");
     assert.ok(logged[0].includes("Europe/Rome"), "and the offending row");
+    assert.match(logged[0], /skipping/i);
 
     // a table that parses says nothing
     logged.length = 0;
@@ -1708,7 +1709,7 @@ test("a malformed zone.tab row is reported, not swallowed", () => {
     assert.deepEqual(logged, [], "a clean table is silent");
 });
 
-test("countryCodeFromZoneTab rejects malformed, missing, and oversized tables", () => {
+test("countryCodeFromZoneTab skips malformed rows and rejects missing or oversized tables", () => {
     loadWorldclocks();
     const { countryCodeFromZoneTab, MAX_ZONE_TAB_BYTES } = require(dataModulePath);
     const rome = "IT\t+4154+01229\tEurope/Rome";
@@ -1721,9 +1722,14 @@ test("countryCodeFromZoneTab rejects malformed, missing, and oversized tables", 
     ];
 
     for (const malformed of malformedRows) {
-        assert.equal(countryCodeFromZoneTab("Europe/Rome", `${rome}\n${malformed}`), "",
-            `the whole table is untrusted after malformed row ${JSON.stringify(malformed)}`);
+        assert.equal(countryCodeFromZoneTab("Europe/Rome", `${rome}\n${malformed}`), "IT",
+            `the valid mapping survives malformed row ${JSON.stringify(malformed)}`);
     }
+
+    assert.equal(countryCodeFromZoneTab("Europe/Rome", `IT\tbad\tEurope/Rome\n${rome}`), "IT",
+        "a rejected row does not reserve a timezone before its valid mapping");
+    assert.equal(countryCodeFromZoneTab("Europe/Paris", `${rome}\nFR\tbad\tEurope/Paris`), "",
+        "a malformed row never supplies its country code");
 
     assert.equal(countryCodeFromZoneTab("Europe/Rome", ""), "");
     assert.equal(countryCodeFromZoneTab("Europe/Rome", null), "");
@@ -1955,7 +1961,7 @@ test("fuzz: zoneinfo alias paths are root-confined, bounded, and cycle-safe", ()
     }
 });
 
-test("fuzz: zone.tab lookup is exact and rejects any malformed row", () => {
+test("fuzz: zone.tab lookup is exact and unaffected by malformed rows", () => {
     loadWorldclocks();
     const { countryCodeFromZoneTab } = require(dataModulePath);
     const random = makeRandom(0x20e7ab);
@@ -1989,7 +1995,7 @@ test("fuzz: zone.tab lookup is exact and rejects any malformed row", () => {
             `IT\t+1000+01229\tArea/Bad!`
         ]);
         assert.equal(countryCodeFromZoneTab(selected.zone,
-            `${table}${separator}${malformed}`), "");
+            `${table}${separator}${malformed}`), selected.code);
     }
 });
 

@@ -382,12 +382,8 @@ function validZoneTabFields(fields, seenTimezones) {
         !seenTimezones.has(fields[2]);
 }
 
-// A malformed row aborts the whole lookup, which silently withdraws automatic
-// holiday-country inference for the machine. Fail-closed is the posture -- a
-// zone.tab we cannot parse is a zone.tab we cannot trust to say which country
-// a zone is in -- but every other "this source revealed nothing" path in this
-// module is silent by design and this one is a parse failure, so it says so
-// once, naming the row, and the log is the only way anyone finds out.
+// Reject an individual malformed row without discarding unrelated mappings.
+// Bounded diagnostics keep the source problem visible for investigation.
 const MAX_LOGGED_ZONE_TAB_LINE = 200;
 
 function reportMalformedZoneTabLine(line) {
@@ -396,8 +392,8 @@ function reportMalformedZoneTabLine(line) {
     }
     const shown = line.length > MAX_LOGGED_ZONE_TAB_LINE ?
         `${line.slice(0, MAX_LOGGED_ZONE_TAB_LINE)}...` : line;
-    global.logError(`chronos@geraldo-netto: ${ZONE_TAB_FILE} has a row this ` +
-        `applet cannot parse, so the timezone's country cannot be inferred: ` +
+    global.logError(`chronos@geraldo-netto: skipping a row in ${ZONE_TAB_FILE} ` +
+        `that this applet cannot parse: ` +
         JSON.stringify(shown));
 }
 
@@ -418,7 +414,7 @@ function countryCodeFromZoneTab(timezone, zoneTab) {
         const fields = line.split("\t");
         if (!validZoneTabFields(fields, seenTimezones)) {
             reportMalformedZoneTabLine(line);
-            return "";
+            continue;
         }
 
         seenTimezones.add(fields[2]);
