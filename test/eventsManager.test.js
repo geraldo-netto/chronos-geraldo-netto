@@ -1674,6 +1674,33 @@ test("the synchronous reload fallback contains a throwing consumer", () => {
         "the contained consumer failure stays visible");
 });
 
+test("an empty synchronous resync fetch still schedules reconciliation", (t) => {
+    const manager = readyManager();
+    manager.select_date(new Date(10 * DAY_S * 1000), true);
+    const originalIdleAdd = global.imports.mainloop.idle_add;
+    const originalLogError = global.logError;
+    t.after(() => {
+        global.imports.mainloop.idle_add = originalIdleAdd;
+        global.logError = originalLogError;
+        manager.destroy();
+    });
+    global.imports.mainloop.idle_add = () => 0;
+    global.logError = () => {};
+    manager._mutation_stream._collapseToResync();
+    manager._mutation_stream.applyNext();
+
+    assert.equal(manager._mutation_stream._resyncMutationQueued, false);
+    assert.deepEqual(manager._mutation_stream._eventMutations, []);
+    assert.equal(manager._fetch_coordinator._reloadSelectedId, 0,
+        "failed idle registration performed the empty replacement synchronously");
+    const gcId = manager._fetch_coordinator._gcTimerId;
+    assert.ok(gcId > 0, "fetch completion survives the resync admission guard");
+    let reconciled = 0;
+    manager._event_index.cull = () => { reconciled++; return false; };
+    assert.equal(fireTimer(gcId), false);
+    assert.equal(reconciled, 1);
+});
+
 test("a resync notification failure cannot create a retry loop", () => {
     const manager = readyManager();
     manager.connect("events-updated", () => {

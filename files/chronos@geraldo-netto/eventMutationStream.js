@@ -119,7 +119,11 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
     }
 
     enqueue(mutation) {
-        if (this._destroyed || this._resyncMutationQueued) {
+        if (this._destroyed) {
+            return;
+        }
+        if (this._resyncMutationQueued) {
+            this._completeResyncFetch(mutation);
             return;
         }
 
@@ -141,6 +145,16 @@ var EventMutationStream = class EventMutationStream { // NOSONAR [S3504] -- GJS 
         if (this._eventMutations.length === 1 &&
             this._eventBatchIds.length === 0) {
             this.applyNext();
+        }
+    }
+
+    _completeResyncFetch(mutation) {
+        if (mutation.type === "fetch-complete") {
+            // A synchronous reload can finish while resync is still applying.
+            // No add signal is guaranteed for an empty range. Its GC timer
+            // checks pending mutations itself, so this control notice is safe
+            // to deliver without re-admitting discarded event payloads.
+            this._onFetchComplete(mutation);
         }
     }
 
