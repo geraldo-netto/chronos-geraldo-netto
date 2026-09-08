@@ -193,21 +193,13 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         );
     }
 
-    // the status ledger owns these; the outside reads them as fields
+    // The ledger owns mutable status. Consumers receive a read-only projection.
     get last_error() {
         return this._status.lastError;
     }
 
-    set last_error(value) {
-        this._status.lastError = value;
-    }
-
     get last_provider() {
         return this._status.lastProvider;
-    }
-
-    set last_provider(value) {
-        this._status.lastProvider = value;
     }
 
     _isCurrentPlace(generation) {
@@ -288,10 +280,10 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     // another would leave the requested year rendering empty and suppressed for
     // RETRY_PERIOD with last_error "".
     addData (data, params, retrieved, requested, received = new Date().toISOString()) {
-        this.last_provider = params && params.providerName ? params.providerName : ""; // NOSONAR [S6582] -- accepted compatible form
+        this._status.lastProvider = params && params.providerName ? params.providerName : ""; // NOSONAR [S6582] -- accepted compatible form
 
         if (!data) {
-            this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
+            this._status.lastError = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
             return;
         }
 
@@ -318,7 +310,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             return;
         }
 
-        this.last_error = "";
+        this._status.lastError = "";
         const regionId = requested.region || GLOBAL_REGION;
         this.cache.recordFetch(requested.year, regionId, retrieved,
             this.expandData(data, regionId), received);
@@ -352,10 +344,10 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     // country to one absent from OPEN_HOLIDAYS_COUNTRIES and the ordering in
     // holidayAdapters puts that synthetic error first.
     _rejectHolidayData(params, reported) {
-        this.last_error = HolidayConstants.isHolidayErrorCode(reported) ?
+        this._status.lastError = HolidayConstants.isHolidayErrorCode(reported) ?
             reported : HOLIDAY_ERRORS.INVALID_RESPONSE;
         logHolidayDataError(
-            this.last_provider,
+            this._status.lastProvider,
             params && params.year, // NOSONAR [S6582] -- accepted compatible form
             reported);
     }
@@ -372,8 +364,8 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
     // inside the async calendar-update path where a throw has no local handler,
     // so it reports the error state instead.
     _reportNoCountry(year, callback) {
-        this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
-        this.last_provider = "";
+        this._status.lastError = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
+        this._status.lastProvider = "";
         this._status.record(this._inflightKey(year));
         Diagnostics.logSafely("logError", "holiday provider has no country configured");
         if (callback) {
@@ -395,7 +387,7 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
             // a payload that survives validation can still throw while being
             // expanded or persisted; leaving the key behind would block every
             // later fetch of this year for the whole session
-            this.last_error = HOLIDAY_ERRORS.INVALID_RESPONSE;
+            this._status.lastError = HOLIDAY_ERRORS.INVALID_RESPONSE;
             Diagnostics.logSafely("logError", e);
         } finally {
             this._status.record(inflightKey);
@@ -472,8 +464,8 @@ var HolidayService = class HolidayService { // NOSONAR [S3504] -- GJS importer e
         }
 
         this.cache.recordAttempt(year, region);
-        this.last_error = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
-        this.last_provider = "";
+        this._status.lastError = HOLIDAY_ERRORS.SERVICE_UNAVAILABLE;
+        this._status.lastProvider = "";
         Diagnostics.logSafely("logError", error);
 
         this._status.record(inflightKey);

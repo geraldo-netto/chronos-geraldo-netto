@@ -64,11 +64,31 @@ test("clearPlace disables the provider and resets status", () => {
         clearPlace() { this.country = null; }
     };
     const enrico = new HolidayService({ fetchYear() {} }, cache);
-    enrico.last_error = "boom";
+    enrico._status.lastError = "boom";
     enrico.clearPlace();
     assert.equal(enrico.country, null);
     assert.equal(enrico.last_error, "");
     assert.equal(enrico.last_provider, "");
+});
+
+test("service status is a read-only projection of its injected ledger", () => {
+    const { HolidayService, HolidayStatusLedger, HOLIDAY_ERRORS } = loadHolidays();
+    const status = new HolidayStatusLedger();
+    status.lastError = "previous failure";
+    status.lastProvider = "previous provider";
+    const service = new HolidayService({ fetchYear() {} }, undefined, { status });
+    assert.equal(Reflect.set(service, "last_error", "external overwrite"), false);
+    assert.equal(Reflect.set(service, "last_provider", "external overwrite"), false);
+    assert.equal(service.last_error, "previous failure");
+    assert.equal(service.last_provider, "previous provider");
+    service.addData(null, { providerName: "Enrico" }, STAMP, { year: 2026, region: "global" });
+    assert.equal(status.lastError, HOLIDAY_ERRORS.SERVICE_UNAVAILABLE);
+    assert.equal(status.lastProvider, "Enrico");
+    assert.equal(service.last_error, status.lastError);
+    service.addData([], { providerName: "Nager.Date", year: 2026, region: "global" },
+        STAMP, { year: 2026, region: "global" });
+    assert.equal(status.lastError, "");
+    assert.equal(service.last_provider, "Nager.Date");
 });
 
 test("HolidayCache owns fetched holiday persistence and place clearing", () => {
@@ -2303,8 +2323,8 @@ test("a failing abandoned holiday reader cannot interrupt place retirement", () 
     enrico.setPlace("usa", "global");
     enrico.getHolidays(FIXED_YEAR, 7, () => { throw failure; });
     enrico._inflight.start("2027/global", () => {}, enrico._place_generation);
-    enrico.last_error = "old failure";
-    enrico.last_provider = "old provider";
+    enrico._status.lastError = "old failure";
+    enrico._status.lastProvider = "old provider";
     enrico._status.record("2027/global");
     const generation = enrico._place_generation;
 
@@ -3053,7 +3073,7 @@ test("a dispatch that raises warns the month and arms the retry throttle", () =>
     const enrico = new HolidayService(service, cache, { record: service });
     enrico.country = "usa";
     enrico.region = "global";
-    enrico.last_provider = "openholidays";
+    enrico._status.lastProvider = "openholidays";
     global.logError = () => {};
 
     const answers = [];
