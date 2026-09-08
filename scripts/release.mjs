@@ -355,7 +355,7 @@ function parseVersion(version) {
     if (!match) {
         throw new Error(`version must be strict SemVer (major.minor.patch): ${version}`);
     }
-    return match.slice(1).map(Number);
+    return match.slice(1).map(BigInt);
 }
 
 function compareVersions(left, right) {
@@ -363,7 +363,7 @@ function compareVersions(left, right) {
     const b = parseVersion(right);
     for (let index = 0; index < a.length; index++) {
         if (a[index] !== b[index]) {
-            return a[index] - b[index];
+            return a[index] < b[index] ? -1 : 1;
         }
     }
     return 0;

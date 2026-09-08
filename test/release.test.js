@@ -198,6 +198,38 @@ test("the translation template is a version owner the bump can patch", async () 
         /could not be replaced in place/);
 });
 
+const EXACT_VERSION_CASES = [
+    ["safe integer boundary", "9007199254740991.0.0", "9007199254740990.1.0"],
+    ["major beyond safe integer", "9007199254740993.0.0", "9007199254740992.1.0"],
+    ["minor beyond safe integer", "1.9007199254740993.0", "1.9007199254740992.1"],
+    ["major beyond finite Number", `${"9".repeat(400)}.0.0`, `${"8".repeat(400)}.1.0`]
+];
+
+for (const [label, current, downgrade] of EXACT_VERSION_CASES) {
+    test(`T1149: reject ${label} downgrade without changing release files`, async (t) => {
+        const root = await makeReleaseFixture(t);
+        const { bumpRelease } = await import(pathToFileURL(path.join(ROOT, "scripts", "release.mjs")));
+        await bumpRelease(root, current);
+        const before = await releaseSnapshot(root);
+        await assert.rejects(bumpRelease(root, downgrade), /must be greater than/);
+        assert.deepEqual(await releaseSnapshot(root), before);
+    });
+}
+
+test("T1149: preserve adjacent version increases beyond Number precision", async (t) => {
+    const { bumpRelease, checkRelease } = await import(pathToFileURL(path.join(ROOT, "scripts", "release.mjs")));
+    for (const current of ["9007199254740992.0.0", "1.9007199254740992.0", "1.0.9007199254740992"]) {
+        const root = await makeReleaseFixture(t);
+        await bumpRelease(root, current);
+        const next = current.replace("9007199254740992", "9007199254740993");
+        await bumpRelease(root, next);
+        assert.equal(await checkRelease(root), next);
+        const before = await releaseSnapshot(root);
+        await assert.rejects(bumpRelease(root, next), /must be greater than/);
+        assert.deepEqual(await releaseSnapshot(root), before);
+    }
+});
+
 test("release:check rejects a template left behind the other version owners", async (t) => {
     const temporary = await makeReleaseFixture(t, async (root) => {
         const templatePath = path.join(root, "files", UUID, "po", `${UUID}.pot`);

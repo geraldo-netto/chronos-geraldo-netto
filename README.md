@@ -179,7 +179,9 @@ git commit -m "chore(release): 0.0.2"
 npm run package:spices
 ```
 
-The bump command refuses a version that does not increase and atomically updates
+Version components are compared as exact integers, including values beyond
+JavaScript's safe-integer range. The bump command refuses a version that does
+not increase and atomically updates
 `metadata.json`, `package.json`, both version owners in `package-lock.json`, and
 the `Project-Id-Version` header of the translation template, which `po/makepot`
 stamps from `metadata.json` and `npm run release:check` verifies.
