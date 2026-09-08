@@ -258,7 +258,7 @@ from your town. Nothing is saved or looked up from that suggestion. Type a city
 or choose a completion and finish editing to save it. Clearing the field saves
 an empty location. Reopening the settings dialog or reloading the applet keeps
 it empty, and the panel retains its setup warning. Suggestions use local data;
-no IP geolocation service is queried. See [settings behavior](docs/settings-behavior.md)
+no IP geolocation service is queried. See [settings behavior](https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/docs/settings-behavior.md)
 for commit semantics and system-file validation.
 
 When weather and **Show sun and moon times** are enabled, the popup also shows
@@ -323,7 +323,7 @@ request and on pushes to `develop` and `v*` tags. Maintainers can run the same
 pipeline manually from GitHub Actions or with `gh workflow run CI --ref develop`
 when a push event does not create a run.
 
-An [optional manual mutation runner](docs/mutation-testing.md) provides bounded
+An [optional manual mutation runner](https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/docs/mutation-testing.md) provides bounded
 scopes and configuration previews. Mutation campaigns and report interpretation
 remain maintainer tasks; the regular test and CI commands do not run them.
 
@@ -394,7 +394,7 @@ local applet settings.
 Additional country calendars can be enabled together, each with its own region.
 Personal country, religious, municipal, and other calendars can also be imported
 as JSON plugins in **Installed calendars**. They remain user-local and are
-independently selectable. See [Calendar plugins](docs/calendar-plugins.md) for
+independently selectable. See [Calendar plugins](https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/docs/calendar-plugins.md) for
 installation, supported rules, provenance, and the extension contract.
 
 Christian, Hebrew, and Shinto calendars are computed from rules. Other religious
@@ -463,7 +463,7 @@ Nager.Date, or any other service.
 
 Holiday cache timestamps use strict receive-time validation: missing, invalid,
 or future provider dates fall back to receipt time. See
-[holiday cache timestamps](docs/holiday-cache.md) for examples.
+[holiday cache timestamps](https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/docs/holiday-cache.md) for examples.
 
 ### Third-party data
 

@@ -109,6 +109,23 @@ async function importPackager() {
     return import(scriptUrl);
 }
 
+test("packaged README documentation links resolve to repository files", async (t) => {
+    const { source, output } = await makeSpicesFixture(t);
+    await fs.copyFile(path.join(ROOT, "README.md"), path.join(source, "README.md"));
+    await execFileAsync("git", ["-C", source, "add", "README.md"]);
+    const { buildSpicesPackage } = await importPackager();
+    await buildSpicesPackage({ sourceRoot: source, outputRoot: output });
+    const readme = await fs.readFile(path.join(output, "README.md"), "utf8");
+    assert.doesNotMatch(readme, /\]\(docs\//);
+    const repository = "https://github.com/geraldo-netto/cinnamon-chronos/blob/develop/";
+    const links = [...readme.matchAll(/\]\((https:[^)]+\/docs\/[^)]+)\)/g)];
+    assert.ok(links.length >= 4, "the public documentation remains linked");
+    for (const [, target] of links) {
+        assert.ok(target.startsWith(repository), target);
+        await fs.access(path.join(ROOT, target.slice(repository.length)));
+    }
+});
+
 async function makeArchiveTree(root, timestamp) {
     const applet = path.join(root, "chronos@geraldo-netto", "files", UUID);
     await fs.mkdir(path.join(applet, "6.0"), { recursive: true });
