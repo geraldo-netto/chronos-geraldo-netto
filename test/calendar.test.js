@@ -1461,7 +1461,7 @@ function makeHolidayStub(datesByMonth, error = "") {
 }
 
 test("holiday annotation: names become tooltips and days turn nonwork", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: ["public_holiday"] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
 
@@ -1472,7 +1472,7 @@ test("holiday annotation: names become tooltips and days turn nonwork", () => {
     assert.ok(!day14.style_class.includes("calendar-work-day"));
     const fetches = holiday.calls.length;
     assert.deepEqual(cal.holidayForDate(new Date(2026, 6, 14)),
-        { name: "Bastille Day", flags: [] });
+        { name: "Bastille Day", flags: ["public_holiday"] });
     assert.equal(holiday.calls.length, fetches,
         "selected-day lookup reuses the rendered holiday model");
     const cell = cal._gridView.dayCells.find((candidate) => candidate.button === day14);
@@ -1786,7 +1786,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
         holidaysActive: () => true,
         requestHolidays(y, m, cb) {
             assert.equal(`${y}/${m}`, "2026/7");
-            cb(new Map([["7/14", { name: "Bastille Day", flags: [] }]]), "", "stub-provider");
+            cb(new Map([["7/14", { name: "Bastille Day", flags: ["public_holiday"] }]]), "", "stub-provider");
         }
     });
     // the annotator renames the cell it just annotated through the host, rather
@@ -1818,7 +1818,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
 });
 
 test("holiday annotation: part-day holidays keep workday style with 1-day weekends", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Half day", flags: ["PART_DAY_HOLIDAY"] } } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Half day", flags: ["public_holiday", "PART_DAY_HOLIDAY"] } } });
     const cal = makeCalendar({ holiday });
     cal.weekend_length = 1;
     cal.setDate(new Date(2026, 6, 9), true);
@@ -1838,6 +1838,20 @@ test("holiday annotation: religious-only dates stay working days", () => {
     assert.ok(!day14.style_class.includes("calendar-nonwork-day"));
     assert.ok(day14.style_class.includes("calendar-holiday-day"),
         "the observance remains visible without being called a day off");
+});
+
+test("country observances require an explicit public flag to mark a day non-working", () => {
+    for (const flags of [[], ["optional"], ["bank", "optional"], ["PART_DAY_HOLIDAY"]]) {
+        const holiday = makeHolidayStub({
+            "2026/7": { "7/14": { name: "Country observance", flags } }
+        });
+        const cal = makeCalendar({ holiday });
+        cal.setDate(new Date(2026, 6, 9), true);
+        const day = dayButtons(cal).find((button) => button.label === "14");
+        assert.ok(day.style_class.includes("calendar-work-day"));
+        assert.ok(day.style_class.includes("calendar-holiday-day"));
+        assert.ok(!day.style_class.includes("calendar-nonwork-day"));
+    }
 });
 
 test("holiday annotation: merged public and religious dates are non-working", () => {
@@ -2264,7 +2278,7 @@ test("day cells: a reused button clicks through to its current date", () => {
 });
 
 test("day cells: holiday annotations do not leak into the next month", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: ["public_holiday"] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 14), true);
     const day14 = dayButtons(cal).find((b) => b.label === "14" &&
@@ -2587,7 +2601,7 @@ test("in place: selecting another day moves only the selected pseudo class", () 
 });
 
 test("in place: a holiday cell never accumulates duplicate style classes", () => {
-    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: [] } } });
+    const holiday = makeHolidayStub({ "2026/7": { "7/14": { name: "Bastille Day", flags: ["public_holiday"] } } });
     const cal = makeCalendar({ holiday });
     cal.setDate(new Date(2026, 6, 9), true);
     cal._update();

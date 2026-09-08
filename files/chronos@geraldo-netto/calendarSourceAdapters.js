@@ -18,7 +18,6 @@ function sibling(name) {
 }
 const Constants = sibling("holidayConstants");
 const Religious = sibling("religiousHolidays");
-const Record = sibling("holidayRecord");
 const PluginData = sibling("calendarPluginData");
 
 function validCountrySelection(row) {
@@ -44,8 +43,7 @@ function publicMonthMap(map, label) {
     const result = new Map();
     for (const [key, entry] of map) {
         const name = label ? `${entry.name} (${label})` : entry.name;
-        result.set(key, Constants.monthHolidayEntry(name,
-            Record.withHolidayFlag(entry.flags, Constants.PUBLIC_HOLIDAY_FLAG)));
+        result.set(key, Constants.monthHolidayEntry(name, entry.flags));
     }
     return result;
 }

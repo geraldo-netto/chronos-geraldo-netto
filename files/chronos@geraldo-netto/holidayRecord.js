@@ -84,9 +84,7 @@ function _sortedBoundedFlags(flags) {
 // Ordinary observances make no non-working-day claim. Public rows still must
 // agree the day is partial; a full public holiday takes precedence.
 function permitsPartialDay(flags) {
-    return flags.includes(PART_DAY_HOLIDAY) ||
-        (!flags.includes(PUBLIC_HOLIDAY_FLAG) &&
-            (flags.includes(RELIGIOUS_HOLIDAY_FLAG) || flags.includes(CALENDAR_OBSERVANCE_FLAG)));
+    return flags.includes(PART_DAY_HOLIDAY) || !flags.includes(PUBLIC_HOLIDAY_FLAG);
 }
 
 function mergeHolidayFlags(current, incoming) {

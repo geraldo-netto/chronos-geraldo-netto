@@ -53,7 +53,6 @@ const monthHolidayEntry = HolidayConstants.monthHolidayEntry;
 const _ = (text) => text;
 
 var RELIGIOUS_HOLIDAY_FLAG = HolidayConstants.RELIGIOUS_HOLIDAY_FLAG; // NOSONAR [S3504] -- GJS importer export
-const PUBLIC_HOLIDAY_FLAG = HolidayConstants.PUBLIC_HOLIDAY_FLAG;
 const OMER_DAY_COUNT = 49;
 
 var RELIGIONS = ReligiousCatalog.RELIGIONS; // NOSONAR [S3504] -- GJS importer export
@@ -493,14 +492,10 @@ function monthMap(year, month, enabledIds = religionIds(), translateName = _) {
 // merge locally-computed rows into a provider month map without mutating
 // either: the provider's names come first, as they do in the cache, and the
 // join is the cache's own — bounded name, no repeated name, one flag order.
-//
-// A provider row is *tagged* public rather than merged with a public row, so
-// the part-day rule does not apply to it and Enrico's half-day stays a half day.
 function mergeMonthMaps(base, extra) {
     const merged = new Map();
     for (const [key, { name, flags }] of base.entries()) {
-        merged.set(key, monthHolidayEntry(name,
-            HolidayRecord.withHolidayFlag(flags, PUBLIC_HOLIDAY_FLAG)));
+        merged.set(key, monthHolidayEntry(name, flags));
     }
     for (const [key, { name, flags }] of extra.entries()) {
         merged.set(key, joinHolidayEntry(merged.get(key), name, flags));

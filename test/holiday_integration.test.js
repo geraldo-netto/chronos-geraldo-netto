@@ -650,6 +650,7 @@ test("the holiday composition root wires the shipped graph", () => {
             callback([{
                 date: { year: 2026, month: 7, day: 14 },
                 name: [{ lang: "en", text: "Bastille Day" }],
+                holidayType: "public_holiday",
                 flags: []
             }], params, STAMP);
         },
@@ -715,6 +716,7 @@ test("a response from the country the user just left does not silence the new on
     brazil.callback([{
         date: { year: FIXED_YEAR, month: 9, day: 7 },
         name: [{ lang: "en", text: "Independência do Brasil" }],
+        holidayType: "public_holiday",
         flags: []
     }], brazil.params, STAMP);
 
@@ -726,6 +728,7 @@ test("a response from the country the user just left does not silence the new on
     france.callback([{
         date: { year: FIXED_YEAR, month: 7, day: 14 },
         name: [{ lang: "en", text: "Bastille Day" }],
+        holidayType: "public_holiday",
         flags: []
     }], france.params, STAMP);
 
@@ -750,6 +753,7 @@ test("the holiday language resolver is consulted after construction", () => {
             callback([{
                 date: { year: Number(params.year), month: 7, day: 14 },
                 name: [{ lang: "fr", text: "Fête nationale" }, { lang: "en", text: "Bastille Day" }],
+                holidayType: "public_holiday",
                 flags: []
             }], params, STAMP);
         }
@@ -903,6 +907,7 @@ test("the annotator's string month keys fetch and render like numeric ones", () 
             callback([{
                 date: { year: Number(params.year), month: 1, day: 1 },
                 name: [{ lang: "en", text: "Jour de l'an" }],
+                holidayType: "public_holiday",
                 flags: []
             }], params, STAMP);
         }

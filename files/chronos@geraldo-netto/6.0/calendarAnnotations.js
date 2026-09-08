@@ -23,7 +23,6 @@ const formatJsDate = CalendarDate.formatJsDate;
 
 const PART_DAY_HOLIDAY = Holidays.PART_DAY_HOLIDAY;
 const PUBLIC_HOLIDAY_FLAG = Holidays.PUBLIC_HOLIDAY_FLAG;
-const RELIGIOUS_HOLIDAY_FLAG = Holidays.RELIGIOUS_HOLIDAY_FLAG;
 const HOLIDAY_ERROR_MARKER = TextUtils.WARNING_MARKER;
 const HOLIDAY_PENDING_MARKER = "…";
 
@@ -544,13 +543,11 @@ class CalendarHolidayAnnotator {
         this.host.nameCell(cell);
 
         const partDay = flags.indexOf(PART_DAY_HOLIDAY) >= 0; // NOSONAR [S7765] -- accepted compatible form
-        const observanceOnly =
-            (flags.indexOf(RELIGIOUS_HOLIDAY_FLAG) >= 0 || flags.includes("calendar_observance")) && // NOSONAR [S7765] -- accepted compatible form
-            flags.indexOf(PUBLIC_HOLIDAY_FLAG) < 0; // NOSONAR [S7765] -- accepted compatible form
+        const observanceOnly = !flags.includes(PUBLIC_HOLIDAY_FLAG);
         if (observanceOnly) {
             // An observance is visible and named, but is not automatically a
             // day off. A same-date public holiday carries the explicit public
-            // flag added by its calendar adapter and follows the non-work path below.
+            // flag supplied by its provider and follows the non-work path below.
             cell.button.add_style_class_name("calendar-holiday-day");
             cell.holiday_styled = true;
             return;

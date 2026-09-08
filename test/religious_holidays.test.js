@@ -234,17 +234,17 @@ test("map merging preserves inputs and orders public names first", () => {
     assert.notEqual(merged, base);
 });
 
-test("merging explicitly marks public rows even when a provider supplies no flags", () => {
+test("merging preserves a provider's unclassified and optional observances", () => {
     const base = new Map([
-        ["1/1", { name: "Public only", flags: [] }],
-        ["12/25", { name: "Public Christmas", flags: [] }]
+        ["1/1", { name: "Unclassified date", flags: [] }],
+        ["12/25", { name: "Optional Christmas", flags: ["optional"] }]
     ]);
     const extra = ReligiousHolidays.monthMap(2026, 12, ["christianity"]);
     const merged = ReligiousHolidays.mergeMonthMaps(base, extra);
 
-    assert.deepEqual(merged.get("1/1"), { name: "Public only", flags: ["public_holiday"] });
-    assert.deepEqual(merged.get("12/25"), { name: "Public Christmas\nChristmas Day (Christianity)", flags: ["public_holiday", "religious_holiday"] });
-    assert.deepEqual(base.get("1/1"), { name: "Public only", flags: [] }, "the provider map stays untouched");
+    assert.deepEqual(merged.get("1/1"), { name: "Unclassified date", flags: [] });
+    assert.deepEqual(merged.get("12/25"), { name: "Optional Christmas\nChristmas Day (Christianity)", flags: ["optional", "religious_holiday"] });
+    assert.deepEqual(base.get("1/1"), { name: "Unclassified date", flags: [] }, "the provider map stays untouched");
 });
 
 test("invalid years, months and religion selections fail closed", () => {

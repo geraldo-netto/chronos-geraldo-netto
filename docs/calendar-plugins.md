@@ -5,6 +5,8 @@ plugins through one calendar registry. Overlapping dates combine their names
 within the existing 300-character limit per calendar day; excess text is truncated.
 Non-working holidays take precedence over ordinary observances for day styling.
 An ordinary observance does not turn a part-day public holiday into a full day off.
+Country providers retain their classifications: optional, bank-only, and
+unclassified dates stay ordinary observances unless `public_holiday` is explicit.
 Names and provider credits use a fixed order: primary country, additional
 countries, religions, personal plugins, then other registered adapters. Within
 each group, IDs sort lexicographically. Reapplying settings or reloading plugins

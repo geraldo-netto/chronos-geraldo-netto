@@ -32,7 +32,9 @@ function baseProvider(country = "", name = "Public date") {
             this.region = region;
             if (onUpdated) onUpdated();
         },
-        getHolidays(year, month, callback) { callback(monthMap(name, month), "", "Public service"); },
+        getHolidays(year, month, callback) {
+            callback(monthMap(name, month, 25, ["public_holiday"]), "", "Public service");
+        },
         destroy() { this.destroyed = true; }
     };
 }
@@ -374,6 +376,32 @@ test("source adapters preserve their provider identity, recurrence coverage and 
     assert.equal(local.id, "plugin:custom:family");
     assert.equal(local.available(2028), false);
     assert.deepEqual(answerFor(local)[0], monthMap("Family dinner (Family)", 12, 25, ["calendar_observance"]));
+});
+
+test("country adapters preserve translated optional, bank, public and partial classifications", () => {
+    const { NagerDateServiceAdapter, EnricoServiceAdapter, HolidayRecordContract } = loadHolidays();
+    const nager = new NagerDateServiceAdapter();
+    const rows = nager.translateResponse([
+        { date: "2026-12-23", name: "Optional bank day", global: true, types: ["Optional", "Bank"] },
+        { date: "2026-12-25", name: "Public day", global: true, types: ["Public"] }
+    ], nager.params("ita", "global", 2026));
+    rows.push(...new EnricoServiceAdapter().translateResponse([
+        holiday("Partial day", 2026, 12, 24, ["PART_DAY_HOLIDAY"])
+    ]));
+    const record = new HolidayRecordContract();
+    const map = new Map(rows.map((row) => {
+        const [day] = record.expandHoliday(row, "global");
+        return [`12/${day.day}`, { name: day.name, flags: day.flags }];
+    }));
+    const base = baseProvider("ita");
+    base.getHolidays = (year, month, done) => done(map, "", "Country source");
+    const provider = publicCalendar("country:ita", base, "Italy");
+    const result = answerFor(provider)[0];
+    assert.deepEqual(result.get("12/23").flags, ["optional", "bank"]);
+    assert.deepEqual(result.get("12/24").flags, ["public_holiday", "PART_DAY_HOLIDAY"]);
+    assert.deepEqual(result.get("12/25").flags, ["public_holiday"]);
+    assert.equal(result.get("12/23").name, "Optional bank day (Italy)");
+    assert.deepEqual(map.get("12/23").flags, ["optional", "bank"]);
 });
 
 test("the composed provider combines a primary country, several countries, religion and a local calendar", () => {

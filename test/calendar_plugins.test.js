@@ -55,6 +55,14 @@ test("ordinary calendar observances preserve a partial holiday in either merge o
     }
 });
 
+test("optional and unclassified rows do not turn a partial public holiday into a full day off", () => {
+    const partial = [PUBLIC_HOLIDAY_FLAG, "PART_DAY_HOLIDAY"];
+    for (const ordinary of [[], ["optional"], ["bank", "optional"]]) {
+        assert.ok(mergedCalendarFlags([partial, ordinary]).includes("PART_DAY_HOLIDAY"));
+        assert.ok(mergedCalendarFlags([ordinary, partial]).includes("PART_DAY_HOLIDAY"));
+    }
+});
+
 test("a full public holiday still overrides a partial holiday plus ordinary observances", () => {
     const ordinary = [["calendar_observance"], [PUBLIC_HOLIDAY_FLAG, "PART_DAY_HOLIDAY"],
         ["religious_holiday"]];
