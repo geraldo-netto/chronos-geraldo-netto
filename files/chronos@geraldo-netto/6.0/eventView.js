@@ -71,6 +71,7 @@ class EventListRenderer {
         this._scroll_to_idle_id = 0;
         this._no_events_timeout_id = 0;
         this._build_rows_idle_id = 0;
+        this._eventDataList = null;
     }
 
     // every source this renderer can arm, torn down in one place
@@ -78,9 +79,11 @@ class EventListRenderer {
         this._cancelScroll();
         this._cancelNoEventsTimeout();
         this._cancelRowBuild();
+        this._eventDataList = null;
     }
 
     setEvents(event_data_list, delay_no_events_box, overflowed = false) {
+        this._eventDataList = event_data_list;
         this._cancelScroll();
         this.list.setOverflowed(Boolean(overflowed) ||
             Boolean(event_data_list &&
@@ -129,7 +132,30 @@ class EventListRenderer {
     }
 
     refreshTimeState() {
+        this._reconcileRowOrder();
         this._updateVariations(this.list.rows, null);
+    }
+
+    _reconcileRowOrder() {
+        if (!this._eventDataList || this._build_rows_idle_id > 0) {
+            return false;
+        }
+        const events = this._eventDataList.get_event_list().slice(0, MAX_RENDERED_EVENT_ROWS);
+        const current = new Map();
+        for (const row of this.list.rows) {
+            const matches = current.get(row.event.id) || [];
+            matches.push(row);
+            current.set(row.event.id, matches);
+        }
+        const ordered = events.map((event) => current.get(event.id)?.shift());
+        if (ordered.length !== this.list.rows.length || ordered.some((row) => !row)) {
+            this._cancelScroll();
+            this._clearRows();
+            this._buildRows(this._eventDataList);
+            return true;
+        }
+        this.list.reorderRows(ordered);
+        return false;
     }
 
     // Row work is the renderer's; the list used to reimplement this over its
@@ -264,6 +290,9 @@ class EventListRenderer {
         }
 
         this._build_rows_idle_id = 0;
+        if (this._reconcileRowOrder()) {
+            return GLib.SOURCE_REMOVE;
+        }
         if (state.scroll_to_row !== null) {
             this._queueScroll(state.scroll_to_row);
         }
@@ -599,6 +628,17 @@ class EventList {
     addRow(row) {
         this.events_box.add_actor(row.actor);
         this._rows.push(row);
+    }
+
+    reorderRows(rows) {
+        if (rows.every((row, index) => row === this._rows[index])) {
+            return;
+        }
+        const children = this.events_box.get_children();
+        const ordered = rows.flatMap((row, index) => index === 0 ?
+            [row.actor] : [children[index * 2 - 1], row.actor]);
+        ordered.forEach((actor, index) => this.events_box.set_child_at_index(actor, index));
+        this._rows = rows;
     }
 
     clearRows() {

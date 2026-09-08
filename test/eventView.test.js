@@ -117,6 +117,14 @@ class MockActor {
 
     add_actor(child) {
         this.children.push(child);
+        child.parent = this;
+    }
+
+    set_child_at_index(child, index) {
+        const previous = this.children.indexOf(child);
+        assert.notEqual(previous, -1, "only an existing child can be reordered");
+        this.children.splice(previous, 1);
+        this.children.splice(index, 0, child);
     }
 
     get_children() {
@@ -133,6 +141,9 @@ class MockActor {
 
     destroy() {
         this.destroyed = true;
+        if (this.parent) {
+            this.parent.children = this.parent.children.filter((child) => child !== this);
+        }
     }
 
     get_vscroll_bar() {
@@ -946,6 +957,8 @@ test("EventList set_events covers empty, delayed, reuse, and scroll paths", () =
     assert.deepEqual(list._rows, [], "the retained applet keeps no row models");
     assert.equal(list._eventDataList, null,
         "the selected day's source model is released too");
+    assert.equal(list._renderer._eventDataList, null,
+        "the renderer releases the effective agenda used for ordering");
     assert.ok(renderedActors.every((actor) => actor.destroyed),
         "rendered row and separator actors are disposed");
 });
@@ -1097,6 +1110,140 @@ test("same-tick list mutations rebuild all event rows", () => {
 
     list.set_events(dataList, false);
     assert.deepEqual(list._rows.map((row) => row.event.id), ["first", "second"]);
+});
+
+function agendaAcrossMeetingEnd() {
+    const data = new EventDataList(TODAY);
+    for (const spec of [
+        { id: "all-day", allDay: true, startUnix: 50 * DAY_S, endUnix: 51 * DAY_S },
+        { id: "meeting", startUnix: 50 * DAY_S + 11 * 3600, endUnix: 50 * DAY_S + 12 * 3600 + 30 },
+        { id: "next", startUnix: 50 * DAY_S + 15 * 3600, endUnix: 50 * DAY_S + 16 * 3600 }
+    ]) {
+        data.add_or_update(makeRowEvent(spec), 1);
+    }
+    return EventView.composeSelectedDayAgenda(data, { name: "Observance", flags: [] });
+}
+
+test("minute ticks and reopening reorder all-day rows without replacing actors", (t) => {
+    let now = NOW;
+    t.mock.method(global.imports.gi.GLib.DateTime, "new_now_local", () => now);
+    const agenda = agendaAcrossMeetingEnd();
+    const list = new EventView.EventList(desktopSettings());
+    t.after(() => list.destroy());
+    list.set_date(TODAY);
+    list.set_events(agenda, false);
+    const rows = list.rows.slice();
+    const children = list.events_box.get_children();
+    assert.deepEqual(rows.map((row) => row.event.id), [null, "all-day", "meeting", "next"]);
+    const reorder = t.mock.method(list.events_box, "set_child_at_index");
+    const coordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: { select_date() {} },
+        eventList: () => list,
+        selectedDate: () => TODAY
+    });
+
+    now = NOW.add_seconds(60);
+    coordinator.tick();
+
+    assert.deepEqual(list.rows, [rows[0], rows[2], rows[1], rows[3]]);
+    assert.deepEqual(list.events_box.get_children(), [
+        rows[0].actor, children[1], rows[2].actor, children[3],
+        rows[1].actor, children[5], rows[3].actor
+    ], "row actors move while separators keep alternating");
+    const moves = reorder.mock.callCount();
+    coordinator.tick();
+    assert.equal(reorder.mock.callCount(), moves, "unchanged ordering touches no actors");
+
+    now = NOW.add_hours(5);
+    list.set_events(agenda, false);
+    assert.deepEqual(list.rows, [rows[0], rows[2], rows[3], rows[1]],
+        "the unchanged model is reordered when the menu is reopened");
+    assert.ok(rows.every((row) => !row.actor.destroyed));
+});
+
+function orderedAgendaWithTimedRows(count) {
+    const data = new EventDataList(TODAY);
+    data.add_or_update(makeRowEvent({
+        id: "all-day", allDay: true, startUnix: 50 * DAY_S, endUnix: 51 * DAY_S
+    }), 1);
+    for (let index = 0; index < count; index++) {
+        data.add_or_update(makeRowEvent({
+            id: `timed-${index}`,
+            startUnix: 50 * DAY_S + 11 * 3600,
+            endUnix: 50 * DAY_S + 12 * 3600 + 30
+        }), 1);
+    }
+    return data;
+}
+
+function captureRowIdles(t) {
+    const pending = new Map();
+    let sequence = 0;
+    t.mock.method(global.imports.mainloop, "idle_add", (callback) => {
+        pending.set(++sequence, callback);
+        return sequence;
+    });
+    t.mock.method(global.imports.mainloop, "source_remove", (id) => pending.delete(id));
+    return pending;
+}
+
+function finishRowBuild(list, pending) {
+    for (let turn = 0; turn < 20 && list._renderer._build_rows_idle_id > 0; turn++) {
+        const id = list._renderer._build_rows_idle_id;
+        const callback = pending.get(id);
+        pending.delete(id);
+        callback();
+    }
+    assert.equal(list._renderer._build_rows_idle_id, 0, "the bounded row build settles");
+}
+
+test("an event boundary crossed during row chunking is reconciled when the build settles", (t) => {
+    let now = NOW;
+    t.mock.method(global.imports.gi.GLib.DateTime, "new_now_local", () => now);
+    const pending = captureRowIdles(t);
+    const list = new EventView.EventList(desktopSettings());
+    t.after(() => list.destroy());
+    list.set_date(TODAY);
+    list.set_events(orderedAgendaWithTimedRows(40), false);
+    const allDayRow = list.rows[0];
+    assert.ok(list._renderer._build_rows_idle_id > 0);
+
+    now = NOW.add_seconds(60);
+    list.refresh_time_state();
+    finishRowBuild(list, pending);
+
+    assert.equal(list.rows.length, 41);
+    assert.equal(list.rows.at(-1), allDayRow);
+    assert.equal(list.events_box.get_children().at(-1), allDayRow.actor);
+    assert.ok(!allDayRow.actor.destroyed);
+});
+
+test("time-based ordering replaces a changed visible prefix through the bounded row builder", (t) => {
+    let now = NOW;
+    t.mock.method(global.imports.gi.GLib.DateTime, "new_now_local", () => now);
+    const pending = captureRowIdles(t);
+    const list = new EventView.EventList(desktopSettings());
+    t.after(() => list.destroy());
+    list.set_date(TODAY);
+    list.set_events(orderedAgendaWithTimedRows(EventView.MAX_RENDERED_EVENT_ROWS), false);
+    finishRowBuild(list, pending);
+    const previousRows = list.rows.slice();
+    const oldScroll = list._renderer._scroll_to_idle_id;
+    assert.equal(previousRows[0].event.id, "all-day");
+    assert.equal(previousRows.at(-1).event.id, "timed-198");
+
+    now = NOW.add_seconds(60);
+    list.refresh_time_state();
+
+    assert.equal(pending.has(oldScroll), false, "a queued scroll cannot retain a discarded row");
+    assert.ok(list.rows.length < EventView.MAX_RENDERED_EVENT_ROWS,
+        "replacement rows still yield between bounded chunks");
+    finishRowBuild(list, pending);
+    assert.equal(list.rows.length, EventView.MAX_RENDERED_EVENT_ROWS);
+    assert.equal(list.rows[0].event.id, "timed-0");
+    assert.equal(list.rows.at(-1).event.id, "timed-199");
+    assert.equal(list.events_overflow_label.visible, true);
+    assert.ok(previousRows.every((row) => row.actor.destroyed));
 });
 
 // A row is ~6 actors plus a separator, and the count is whatever the user's
