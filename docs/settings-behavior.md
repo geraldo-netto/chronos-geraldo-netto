@@ -43,6 +43,12 @@ lifetimes independent of applet settings bindings. Keeping the classes in one
 module preserves that separation while avoiding another runtime loader and
 import boundary that would not change ownership or behavior.
 
+## Local timezone
+
+When `TZ` is explicitly empty, both the applet and settings treat local time as
+UTC. A separate Rome clock remains selectable even if `/etc/localtime` names
+`Europe/Rome`.
+
 ## Weather location
 
 An empty saved weather location stays empty when the applet starts, reloads,

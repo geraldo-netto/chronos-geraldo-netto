@@ -544,6 +544,14 @@ class SettingsWidgetsTest(unittest.TestCase):
                 {"TZ": ":/usr/share/zoneinfo/America/New_York"}, clear=True):
             self.assertEqual(fresh.local_timezone_name(), "America/New_York")
 
+        with mock.patch.dict(os.environ, {"TZ": ""}, clear=True):
+            with mock.patch.object(os, "readlink", return_value="/usr/share/zoneinfo/Europe/Rome") as readlink:
+                resolver = fresh.TimezoneResolver(None, lambda: {"UTC", "Europe/Rome"})
+                self.assertEqual(fresh.local_timezone_name(), "UTC")
+                self.assertEqual(resolver.classify("Europe/Rome"), (False, "Europe/Rome"))
+                self.assertEqual(resolver.classify("UTC"), (True, None))
+                readlink.assert_not_called()
+
     def test_the_local_zone_is_reserved_under_whatever_name_it_is_typed(self):
         # The applet draws a local-time row and drops any configured clock whose
         # zone resolves to the same one. The dialog blocked the word "local" but

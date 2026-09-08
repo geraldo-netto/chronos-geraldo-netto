@@ -78,9 +78,9 @@ def local_timezone_name() -> Optional[str]:
     whose zone resolves to the same one. The dialog therefore has to know what
     the local zone *is*, not just that the user typed the word "local".
     """
-    configured = os.environ.get("TZ", "").strip()
-    if configured:
-        return zoneinfo_identifier(configured)
+    configured = os.environ.get("TZ")
+    if configured is not None:
+        return zoneinfo_identifier(configured) or "UTC"
 
     try:
         localtime = Path("/etc/localtime")
