@@ -37,17 +37,10 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         // event covers at most MAX_SPANNED_DAYS + 1 of them, and every walk
         // allocated a fresh pairs array to do it.
         this._daysById = new Map();
-        // Two independent reasons the column may be hiding rows, and they
-        // retire on different rules. The ceiling flag says "this index refused
-        // a delivery because it is full", so it stops being true the moment the
-        // index shrinks back under the cap. The delivery flag says "the wire
-        // payload was truncated before it ever reached this index"
-        // (boundedEventVariants), which no amount of shrinking here can undo —
-        // only a discard or an explicit retirement can. They shared one field,
-        // so an ordinary EDS removal retired a truncation warning while the
-        // truncated events were still missing.
-        this._ceilingOverflow = false;
-        this._deliveryOverflow = false;
+        // A refused or truncated delivery leaves unknown events outside this
+        // snapshot. Freeing capacity cannot prove they have been recovered;
+        // only discarding the snapshot and rebuilding it retires the warning.
+        this._overflowed = false;
         this._windowStart = null;
         this._windowEnd = null;
         this._rebuildEventState();
@@ -89,41 +82,27 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         this._eventIds.clear();
         this._eventsById.clear();
         this._daysById.clear();
-        this._ceilingOverflow = false;
-        this._deliveryOverflow = false;
+        this._overflowed = false;
     }
 
     get overflowed() {
-        return this._ceilingOverflow || this._deliveryOverflow;
+        return this._overflowed;
     }
 
-    // The delivery half: the payload was cut before this index saw it.
     markOverflow() {
-        return this._raiseOverflow("_deliveryOverflow");
-    }
-
-    _markCeilingOverflow() {
-        return this._raiseOverflow("_ceilingOverflow");
-    }
-
-    _raiseOverflow(field) {
-        if (this[field]) {
+        if (this._overflowed) {
             return false;
         }
-        const wasOverflowed = this.overflowed;
-        this[field] = true;
-        return !wasOverflowed;
-    }
-
-    // Retires both halves: the resync path that calls this has already
-    // discarded the contents, so neither reason survives it.
-    clearOverflow() {
-        if (!this.overflowed) {
-            return false;
-        }
-        this._ceilingOverflow = false;
-        this._deliveryOverflow = false;
+        this._overflowed = true;
         return true;
+    }
+
+    // The resync caller has already discarded the snapshot; retire its
+    // temporary resync warning.
+    clearOverflow() {
+        const changed = this._overflowed;
+        this._overflowed = false;
+        return changed;
     }
 
     _rebuildEventState() {
@@ -184,7 +163,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
             return {
                 changed: false,
                 selected_changed: false,
-                overflow_changed: this._markCeilingOverflow()
+                overflow_changed: this.markOverflow()
             };
         }
 
@@ -347,13 +326,8 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         if (bounds === null) {
             const selected_changed = this._selectedDayHas(data.id, currentSelectedDate);
             const changed = this._eventsById.has(data.id);
-            // remove() is the one place the overflow flag is retired, and
-            // dropping its answer here meant a reschedule out of the window
-            // freed a slot without anything saying so: addOrUpdate accumulates
-            // overflow_changed, and the manager gates the column refresh on
-            // exactly that, so the column went on claiming rows were hidden on
-            // a day that now holds three.
-            return { changed, selected_changed, overflow_changed: this.remove([data.id]) };
+            this.remove([data.id]);
+            return { changed, selected_changed };
         }
 
         // A reschedule rewrites the buckets below, and _registerOnDate reports
@@ -414,30 +388,12 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         return result;
     }
 
-    // The ceiling flag means "a delivery was refused because the index was
-    // full", so it stops describing the window the moment the window shrinks
-    // back under it: the refusals belonged to a payload this removal has
-    // already revised, and the event column would go on telling the user rows
-    // are hidden on a day that now holds three. Nothing but a shrink clears it,
-    // and the next delivery that hits the ceiling arms it again. The delivery
-    // flag is deliberately untouched here — a shrink in this index says nothing
-    // about a payload that was truncated on the wire.
-    _resyncOverflow() {
-        if (!this._ceilingOverflow || this._eventIds.size >= this._maxEvents) {
-            return false;
-        }
-        const wasOverflowed = this.overflowed;
-        this._ceilingOverflow = false;
-        return wasOverflowed !== this.overflowed;
-    }
-
     remove(uids) {
         this._removeFromBuckets(uids);
         uids.forEach((uid) => {
             this._eventIds.delete(uid);
             this._eventsById.delete(uid);
         });
-        return this._resyncOverflow();
     }
 
     // The quiet-window timer arms this after every fetch, so it runs on every
@@ -458,11 +414,7 @@ var EventIndex = class EventIndex { // NOSONAR [S3504] -- GJS importer export
         if (any_removed) {
             this._rebuildEventState();
         }
-        // Both halves of the answer: a cull that frees nothing but does retire
-        // the ceiling notice still has to repaint, or the column keeps telling
-        // the user rows are hidden. The one caller repaints on this boolean.
-        const overflowChanged = this._resyncOverflow();
-        return any_removed || overflowChanged;
+        return any_removed;
     }
 };
 

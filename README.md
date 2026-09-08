@@ -527,6 +527,11 @@ Religious observances use the same underline and tooltip but do not change a
 working day into a non-working one.
 
 Events are marked separately, and their details are shown in a side column.
+The fetched month grid retains up to 2,000 distinct events. If a delivery exceeds
+that limit or is truncated, the column warns that events may be hidden. Removing
+an indexed event frees capacity but does not recover omitted events, so the
+warning remains for that snapshot. Switching to another month and back rebuilds
+it; the warning clears if the replacement data fits the limits.
 
 ## Authors and credits
 

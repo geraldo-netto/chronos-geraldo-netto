@@ -252,6 +252,7 @@ const {
     MAX_QUEUED_EVENT_MUTATIONS,
     boundedEventVariants
 } = require(modulePath);
+const { MAX_INDEXED_EVENTS } = require(path.join(path.dirname(modulePath), "eventIndex.js"));
 
 function emitted(manager, name) {
     return (manager._emitted || []).filter((e) => e.name === name);
@@ -2990,147 +2991,85 @@ test("a timezone change before any selection renormalizes nothing", () => {
         "there is no chosen day to re-key, and epoch zero is not one");
 });
 
-// T801: remove() is the one place the overflow flag is retired, and register()'s
-// out-of-window branch discarded its answer. addOrUpdate accumulates
-// overflow_changed and the manager gates the column refresh on exactly that, so
-// an indexed event rescheduled outside the fetched window freed a slot with
-// nothing saying so: the column went on claiming rows were hidden on a day that
-// now holds fewer than the ceiling. The existing test drove index.remove()
-// directly and never this path.
-test("a reschedule out of the window retires the overflow notice", () => {
+// Removing an admitted event cannot recover a different event refused at the
+// ceiling. Spread them across days so a per-day display limit cannot mask it.
+test("index overflow survives removals, reschedules, culls, and retained-window refreshes", () => {
     const index = new EventIndex({}, 3);
-    const selected = new FakeDateTime(10 * DAY_US);
-    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
-
-    const flood = Array.from({ length: 5 }, (_unused, id) => eventVariant({
-        id: `flood-${id}`,
-        startUnix: 10 * DAY_S + id,
-        endUnix: 10 * DAY_S + id + 1
+    const first = new FakeDateTime(10 * DAY_US);
+    const last = new FakeDateTime(51 * DAY_US);
+    const events = [10, 20, 30, 51].map((day, id) => eventVariant({
+        id: `spread-${id}`, startUnix: day * DAY_S, endUnix: day * DAY_S + 60
     }));
-    index.addOrUpdate(flood, 1, selected);
-    assert.equal(index.overflowed, true, "the ceiling was hit");
+    index.reset(first, last);
+    index.addOrUpdate(events, 1, last);
+    assert.equal(index.overflowed, true);
+    assert.equal(index.get(last), null, "the last day's sole event was refused");
 
-    // one of the indexed events is moved to a day outside the fetched window
+    index.remove([]);
+    index.remove(["spread-0"]);
+    assert.equal(index.overflowed, true);
+    index.addOrUpdate([eventVariant({
+        id: "new", startUnix: 12 * DAY_S, endUnix: 12 * DAY_S + 60
+    })], 2, last);
+    assert.equal(index.overflowed, true, "admitting a new event does not recover the omitted one");
     const moved = index.addOrUpdate([eventVariant({
-        id: "flood-0",
-        startUnix: 400 * DAY_S,
-        endUnix: 400 * DAY_S + 60
-    })], 2, selected);
-
-    assert.equal(index.overflowed, false, "the freed slot retires the notice");
-    assert.equal(moved.overflow_changed, true,
-        "and the change is reported, so the column is refreshed rather than left stale");
-});
-
-// Only clear() and the full-range resync used to retire the flag, so garbage
-// collecting a flood back down to a handful left the event column still
-// telling the user rows were hidden on a day now holding three.
-test("shrinking the index back under the ceiling retires the overflow notice", () => {
-    const index = new EventIndex({}, 3);
-    const selected = new FakeDateTime(10 * DAY_US);
-    const flood = Array.from({ length: 5 }, (_unused, id) => eventVariant({
-        id: `flood-${id}`,
-        startUnix: 10 * DAY_S + id,
-        endUnix: 10 * DAY_S + id + 1
-    }));
-
-    index.addOrUpdate(flood, 1, selected);
-    assert.equal(index.overflowed, true);
-
-    assert.equal(index.remove([]), false, "a removal that frees nothing changes nothing");
-    assert.equal(index.overflowed, true);
-
-    assert.equal(index.remove(["flood-0"]), true, "freeing a slot reports the change");
-    assert.equal(index.overflowed, false);
-
-    index.addOrUpdate([eventVariant({
-        id: "late", startUnix: 10 * DAY_S + 9, endUnix: 10 * DAY_S + 10
-    })], 2, selected);
-    assert.equal(index.overflowed, false, "the freed slot admits the next event");
-
-    index.addOrUpdate([eventVariant({
-        id: "later", startUnix: 10 * DAY_S + 11, endUnix: 10 * DAY_S + 12
-    })], 3, selected);
-    assert.equal(index.overflowed, true, "and the next refusal arms it again");
-
+        id: "spread-1", startUnix: 400 * DAY_S, endUnix: 400 * DAY_S + 60
+    })], 3, last);
+    assert.equal(moved.overflow_changed, undefined);
+    assert.equal(index.overflowed, true, "moving an indexed event also leaves the omission");
+    index.setWindow(first, last);
     assert.equal(index.cull(4), true);
-    assert.equal(index.overflowed, false, "a cull retires it on the same rule");
-});
+    assert.equal(index.cull(4), false);
+    assert.equal(index.overflowed, true, "quiet GC cannot establish snapshot completeness");
 
-// T973: the ceiling flag and the delivery flag are two different claims. A
-// truncated wire payload (boundedEventVariants refusing a 5 MB signal whole) is
-// not undone by this index shrinking — the events it dropped never arrived here
-// at all. They shared one field, so the next ordinary EDS removal retired the
-// truncation warning and the user stopped being told rows were missing while
-// they still were.
-test("a shrink retires the ceiling notice but not a truncated delivery", () => {
-    const index = new EventIndex({}, 3);
-    const selected = new FakeDateTime(10 * DAY_US);
-    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
-
-    index.addOrUpdate([eventVariant({
-        id: "kept", startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 1
-    })], 1, selected);
-    assert.equal(index.overflowed, false);
-
-    // the wire payload was cut before this index saw any of it
-    assert.equal(index.markOverflow(), true, "a truncated delivery arms the notice");
-    assert.equal(index.remove(["kept"]), false,
-        "and an ordinary removal cannot retire it, because the shrink is not the reason");
-    assert.equal(index.overflowed, true);
-    assert.equal(index.cull(9), false, "nor can a cull");
-    assert.equal(index.overflowed, true);
-
-    // only the explicit resync retirement, which discards the contents, clears it
-    assert.equal(index.clearOverflow(), true);
+    index.reset(first, last);
+    index.addOrUpdate(events.slice(1), 5, last);
+    assert.equal(index.get(last).has("spread-3"), true, "a rebuilt snapshot admits the missing event");
     assert.equal(index.overflowed, false);
 });
 
-// The two halves also have to compose: a ceiling refusal on top of a truncated
-// delivery must not let the shrink retire both.
-test("a ceiling refusal on top of a truncated delivery retires only its own half", () => {
-    const index = new EventIndex({}, 2);
-    const selected = new FakeDateTime(10 * DAY_US);
-    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
+test("mutation-stream removal keeps overflow visible on an otherwise empty final day", () => {
+    const manager = readyManager();
+    const last = new FakeDateTime(51 * DAY_US);
+    const index = manager._event_index;
+    index.reset(new FakeDateTime(10 * DAY_US), last);
+    manager._window_coordinator.current_selected_date = last;
+    const events = Array.from({ length: MAX_INDEXED_EVENTS }, (_unused, id) => eventVariant({
+        id: `spread-${id}`, startUnix: (10 + id % 41) * DAY_S + 60,
+        endUnix: (10 + id % 41) * DAY_S + 120
+    }));
+    proxy.instance.signal("events-added-or-updated", eventArrayVariant(events));
+    drainEventMutations(manager);
+    assert.equal(index.overflowed, false);
+    proxy.instance.signal("events-added-or-updated", eventArrayVariant([eventVariant({
+        id: "last-day-only", startUnix: 51 * DAY_S + 60, endUnix: 51 * DAY_S + 120
+    })]));
+    drainEventMutations(manager);
+    assert.equal(index.overflowed, true);
+    const requests = proxy.instance.set_time_range_calls.length;
+    proxy.instance.signal("events-removed", "spread-0");
+    drainEventMutations(manager);
+    assert.equal(index._eventIds.size, MAX_INDEXED_EVENTS - 1);
+    assert.equal(index.get(last), null);
+    assert.equal(proxy.instance.set_time_range_calls.length, requests, "ordinary removal performs no refill");
+    const shown = emitted(manager, "selected-date-events-changed").at(-1);
+    assert.equal(shown.args[0], null);
+    assert.equal(shown.args[2], true, "the empty agenda must still warn about omitted events");
+});
 
+test("a truncated delivery and a ceiling refusal share snapshot completeness", () => {
+    const index = new EventIndex({}, 1);
+    const selected = new FakeDateTime(10 * DAY_US);
     assert.equal(index.markOverflow(), true);
-    const flood = Array.from({ length: 4 }, (_unused, id) => eventVariant({
-        id: `flood-${id}`,
-        startUnix: 10 * DAY_S + id,
-        endUnix: 10 * DAY_S + id + 1
-    }));
-    index.addOrUpdate(flood, 1, selected);
+    const result = index.addOrUpdate([0, 1].map(id => eventVariant({
+        id: `combined-${id}`, startUnix: 10 * DAY_S, endUnix: 10 * DAY_S + 60
+    })), 1, selected);
+    assert.equal(result.overflow_changed, undefined, "the warning was already raised");
+    index.remove(["combined-0"]);
+    assert.equal(index.cull(9), false);
     assert.equal(index.overflowed, true);
-
-    index.remove(["flood-0", "flood-1"]);
-    assert.equal(index.overflowed, true,
-        "the ceiling half is retired, the delivery half is not");
-    assert.equal(index.clearOverflow(), true);
+    index.discard();
     assert.equal(index.overflowed, false);
-});
-
-// T974: cull returned only "did I remove anything", and its one caller repaints
-// on that boolean — so a cull whose whole effect was retiring the notice
-// repainted nothing and the stale warning survived until an unrelated change.
-test("a cull that only retires the overflow notice still reports a change", () => {
-    const index = new EventIndex({}, 3);
-    const selected = new FakeDateTime(10 * DAY_US);
-    index.setWindow(new FakeDateTime(9 * DAY_US), new FakeDateTime(11 * DAY_US));
-
-    const flood = Array.from({ length: 5 }, (_unused, id) => eventVariant({
-        id: `flood-${id}`,
-        startUnix: 10 * DAY_S + id,
-        endUnix: 10 * DAY_S + id + 1
-    }));
-    index.addOrUpdate(flood, 1, selected);
-    assert.equal(index.overflowed, true);
-
-    // free a slot without going through cull, so the cull below removes nothing
-    index._eventIds.delete("flood-0");
-    assert.equal(index.cull(1), true,
-        "nothing was culled, but the notice was retired, so the column must repaint");
-    assert.equal(index.overflowed, false);
-    assert.equal(index.cull(1), false, "and a cull with no effect at all reports none");
 });
 
 // _spannedDays owns the day identities the whole index is keyed by, so it
@@ -3362,18 +3301,15 @@ test("an event updated outside the active window releases its old buckets", () =
     const result = index.register(makeEventData({
         id: "moved", modTime: 2, startUnix: 30 * DAY_S, endUnix: 30 * DAY_S + 60
     }), 2, selected);
-    // overflow_changed is reported here because remove() is the one place the
-    // flag is retired: a reschedule out of the window frees a slot, and the
-    // column must stop claiming rows are hidden
     assert.deepEqual(result,
-        { changed: true, selected_changed: true, overflow_changed: false });
+        { changed: true, selected_changed: true });
     assert.equal(index.get(selected), null);
     assert.equal(index._eventIds.size, 0);
 
     assert.deepEqual(index.register(makeEventData({
         id: "never-seen", startUnix: 40 * DAY_S, endUnix: 40 * DAY_S + 60
     }), 3, selected),
-    { changed: false, selected_changed: false, overflow_changed: false });
+    { changed: false, selected_changed: false });
 });
 
 test("day registration: re-registering the same event reports no change", () => {
