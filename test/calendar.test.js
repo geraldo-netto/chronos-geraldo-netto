@@ -1288,6 +1288,59 @@ test("a day cell's dot box allocates through the host", () => {
     assert.equal(calendar._update_id, 1, "a real capacity change queues a bounded redraw");
 });
 
+function allocateContentSizedDots(calendar, widthLimit) {
+    for (const cell of calendar._gridView.dayCells) {
+        const children = cell.dot_box.get_children();
+        for (const dot of children) dot.allocate = () => {};
+        const width = Math.max(33, Math.min(widthLimit, children.length * 12));
+        cell.dot_box.fire("allocate", { x1: 0, x2: width, y1: 0, y2: 12 }, 0);
+    }
+}
+
+function settleContentSizedDots(calendar, pending, widthLimit) {
+    for (let pass = 0; pass <= 64; pass++) {
+        allocateContentSizedDots(calendar, widthLimit);
+        assert.ok(pending.size <= 1, "42 capacity notifications leave one scheduled render");
+        if (pending.size === 0) return pass;
+        const [id, callback] = pending.entries().next().value;
+        pending.delete(id);
+        assert.equal(callback(), false);
+    }
+    assert.fail("content-dependent dot sizing must settle within the 64-dot ceiling");
+}
+
+test("content-dependent dot widths settle across dense, empty and themed days", (t) => {
+    const pending = new Map();
+    let nextId = 0;
+    t.mock.method(global.imports.mainloop, "idle_add", (callback) => {
+        pending.set(++nextId, callback);
+        return nextId;
+    });
+    t.mock.method(global.imports.mainloop, "source_remove", (id) => pending.delete(id));
+    const savedBox = global.imports.gi.Clutter.ActorBox;
+    global.imports.gi.Clutter.ActorBox = class {};
+    t.after(() => { global.imports.gi.Clutter.ActorBox = savedBox; });
+    const calendar = makeCalendar();
+    // These dimensions and transitions come from the live Cinnamon fixture
+    // documented in docs/calendar-dot-layout.md, including its 33px day width.
+    const cases = [
+        [48, 512, 2, 8, 1], [12, 512, 2, 4, 1], [120, 512, 2, 20, 3],
+        [120, 2, 2, 2, 1], [120, 0, 2, 0, 0], [120, 512, 2, 20, 3],
+        [48, 512, 1, 4, 1], [48, 512, 2, 8, 1]
+    ];
+    for (const [width, count, rows, visible, passes] of cases) {
+        calendar.events_manager.get_colors_for_unix_key = () => Array(count).fill("#3399ff");
+        calendar._gridView.dotMetrics = { nw: 12, nh: 4, max_rows: rows };
+        calendar._update();
+        assert.equal(settleContentSizedDots(calendar, pending, width), passes);
+        assert.ok(calendar._gridView.dayCells.every((cell) =>
+            cell.dot_box.get_children().length === visible && cell.event_count === count));
+        allocateContentSizedDots(calendar, width);
+        assert.equal(pending.size, 0, "unchanged allocation schedules no further render");
+    }
+    calendar.destroy();
+});
+
 // St gives every actor set_accessible_name; a plain double does not, and the
 // renderer must not die on the older Cinnamon that also does not
 test("applyAccessibleName tolerates a button that cannot be named", () => {
