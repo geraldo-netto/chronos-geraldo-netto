@@ -10,27 +10,12 @@
 /* global imports */
 /* eslint camelcase: "off" */
 
-// Which host is loading this file — and it is asked of the *host*, not of
-// require(). It used to test `typeof require === "function"`, on the stated
-// assumption that "Cinnamon provides neither require() nor module". That was true
-// of 5.4 through 6.4 and is not true of Cinnamon master, which sets
-// globalThis.require = xletRequire (js/ui/extension.js). There the test would
-// invert: the root modules would take the require() branch, _requireLocal would
-// resolve "./localeUtils" against extension.meta.path — which
-// findExtensionSubdirectory has already repointed at the 6.0/ directory — and the
-// applet would fail to load, because localeUtils.js is not in there.
-//
-// Node is what this asks about, because Node is the only host that requires these
-// files directly. Cinnamon's cjs has no `process`.
+// Shared bootstrap convention for holiday modules: identify Node through
+// process. Node resolves siblings with CommonJS; Cinnamon resolves root modules
+// through the applet registry, including when its host supplies xletRequire.
+// The existence of require alone cannot choose the correct dependency directory.
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
-// Under GJS this file is reached through the native importer, which provides
-// neither require() nor module; Node (tests) provides both.
-//
-// Asked once. This preamble was twelve copies of one ternary, and each copy is
-// a branch whose GJS side no Node test can ever take — so growing the file's
-// dependency list lowered its measured branch coverage, and the *number* of
-// siblings a module has is not a fact about how well it is tested.
 const APPLET_MODULES = IS_NODE ?
     null : imports.ui.appletManager.applets["chronos@geraldo-netto"];
 

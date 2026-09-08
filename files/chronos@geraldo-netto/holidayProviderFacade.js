@@ -17,7 +17,6 @@
 
 const IS_NODE = typeof process !== "undefined" &&
     Boolean(process.versions && process.versions.node); // NOSONAR [S6582] -- accepted compatible form
-// asked once, as holidays.js asks it: one ternary for the whole preamble
 const APPLET_MODULES = IS_NODE ?
     null : imports.ui.appletManager.applets["chronos@geraldo-netto"];
 
