@@ -1279,7 +1279,7 @@ class CompletionInputBoundsTest(unittest.TestCase):
             return original(text)
 
         with mock.patch.object(self.common, "completion_key", counting_fold):
-            self.common._LAST_COMPLETION_KEY = (None, "")
+            self.common._COMPLETION_KEYS.clear()
             model = [["Rome", "Europe/Rome", "rome europe/rome"]] * 600
             for row in range(len(model)):
                 self.common.plain_completion_match(None, "rom", row, model)
@@ -1291,9 +1291,28 @@ class CompletionInputBoundsTest(unittest.TestCase):
             self.assertEqual(folds, ["rom", "rome"])
 
         # and the result is unchanged either way
-        self.common._LAST_COMPLETION_KEY = (None, "")
+        self.common._COMPLETION_KEYS.clear()
         model = [["Rome", "Europe/Rome", "rome europe/rome"]]
         self.assertTrue(self.common.plain_completion_match(None, "ROM", 0, model))
         self.assertFalse(self.common.plain_completion_match(None, "oslo", 0, model))
         self.assertFalse(self.common.plain_completion_match(None, "   ", 0, model))
         self.assertFalse(self.common.plain_completion_match(None, None, 0, model))
+
+    def test_interleaved_completion_fields_share_a_bounded_recent_key_cache(self):
+        self.common._COMPLETION_KEYS.clear()
+        with mock.patch.object(self.common, "completion_key", wraps=self.common.completion_key) as fold:
+            for _row in range(100):
+                self.assertEqual(self.common.folded_completion_key("Rome"), "rome")
+                self.assertEqual(self.common.folded_completion_key("Italy"), "italy")
+            self.assertEqual(fold.call_count, 2)
+            for index in range(self.common.MAX_COMPLETION_KEYS):
+                self.common.folded_completion_key(str(index))
+            self.assertEqual(len(self.common._COMPLETION_KEYS), self.common.MAX_COMPLETION_KEYS)
+            self.assertNotIn("Rome", self.common._COMPLETION_KEYS)
+            self.common.folded_completion_key("0")
+            self.common.folded_completion_key("new")
+            self.assertIn("0", self.common._COMPLETION_KEYS)
+            self.assertNotIn("1", self.common._COMPLETION_KEYS)
+        self.common.folded_completion_key("x" * 1000)
+        self.common.folded_completion_key(None)
+        self.assertEqual(len(self.common._COMPLETION_KEYS), self.common.MAX_COMPLETION_KEYS)

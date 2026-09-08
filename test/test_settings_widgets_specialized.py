@@ -310,6 +310,7 @@ class WeatherLocationCompletionTest(unittest.TestCase):
 
         self.assertEqual(settings.values["weather-location"], "Lisbon")
         self.assertEqual(widget.content_widget.get_text(), "Lisbon")
+        self.assertEqual(settings.writes, [("weather-location", "Lisbon")])
 
     def test_committing_the_same_location_writes_nothing(self):
         widget, settings = self.entry({"weather-location": "Lisbon"})

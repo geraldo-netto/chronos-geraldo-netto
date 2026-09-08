@@ -59,7 +59,7 @@ def city_completion_model(cities):
     return common.completion_model(cities, _city_completion_columns)
 
 
-def attach_city_completion(entry, cities):
+def attach_city_completion(entry, cities, on_selected=None):
     """Give the weather-location Gtk.Entry city-name suggestions.
 
     The suggestions come from the timezone database that is already loaded for
@@ -72,7 +72,8 @@ def attach_city_completion(entry, cities):
     # the timezone field, where the suggestion is a label and only the identifier
     # behind it may be saved
     return common.attach_suggestions(
-        entry, cities, _city_completion_columns, inline_completion=True)
+        entry, cities, _city_completion_columns, inline_completion=True,
+        on_selected=on_selected)
 
 
 
@@ -176,9 +177,8 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
             return False
 
         self._completion_loaded = True
-        self.completion = attach_city_completion(self.content_widget, weather_cities())
-        if self.completion is not None:
-            self.completion.connect("match-selected", self.on_suggestion_picked)
+        self.completion = attach_city_completion(
+            self.content_widget, weather_cities(), on_selected=self.on_suggestion_picked)
         return False
 
     def on_suggestion_picked(self, completion, model, tree_iter) -> bool:

@@ -51,7 +51,8 @@ TEXT_WHITESPACE = (
     "\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff"
 )
 
-_LAST_COMPLETION_KEY: tuple[Optional[str], str] = (None, "")
+_COMPLETION_KEYS: dict[str, str] = {}
+MAX_COMPLETION_KEYS = 8
 
 _DIAGNOSTICS_REPORTED = False
 
@@ -129,14 +130,18 @@ def folded_completion_key(key) -> str:
     character typed. Both matchers used to call it per row while their
     docstrings claimed "the needle is folded once by the caller"; this is the
     caller that makes that true.
-    """
-    global _LAST_COMPLETION_KEY  # NOSONAR [S3827] -- one memo shared by both matchers
-    cached_key, cached_folded = _LAST_COMPLETION_KEY
-    if cached_key is not None and cached_key == key:
-        return cached_folded
 
-    folded = completion_key(key)
-    _LAST_COMPLETION_KEY = (key if isinstance(key, str) else None, folded)
+    Eight recent keys let independently focused country, city and timezone
+    fields reuse their folds without retaining an unbounded typing history.
+    """
+    if not isinstance(key, str) or len(key) > MAX_COMPLETION_INPUT_LENGTH:
+        return completion_key(key)
+    folded = _COMPLETION_KEYS.pop(key, None)
+    if folded is None:
+        folded = completion_key(key)
+    _COMPLETION_KEYS[key] = folded
+    if len(_COMPLETION_KEYS) > MAX_COMPLETION_KEYS:
+        del _COMPLETION_KEYS[next(iter(_COMPLETION_KEYS))]
     return folded
 
 
