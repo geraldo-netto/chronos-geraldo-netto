@@ -29,6 +29,20 @@ states the operation and its diagnostic source. A dispatch table would shorten
 these entry points without removing duplicated behavior, so this structure is
 intentional.
 
+## Settings facade ownership
+
+`settingsFacade.js` keeps the desktop and applet facades together as the central
+place for settings keys and typed reads. They remain separate classes:
+`DesktopSettings` wraps a supplied `Gio.Settings`, while the applet facades wrap
+the supplied Cinnamon `AppletSettings` object. Neither kind constructs or
+finalizes the underlying settings object.
+
+The caller owns each subscription and disconnects it during its own teardown.
+Desktop clock, week-start, and text-scale handlers therefore have explicit
+lifetimes independent of applet settings bindings. Keeping the classes in one
+module preserves that separation while avoiding another runtime loader and
+import boundary that would not change ownership or behavior.
+
 ## Weather location
 
 An empty saved weather location stays empty when the applet starts, reloads,

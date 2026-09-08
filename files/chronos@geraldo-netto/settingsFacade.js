@@ -29,6 +29,8 @@ const HolidayConstants = IS_NODE ?
 // it shows seconds, and which day the week starts on — was constructed in two
 // places and its raw keys were read in five files. DesktopSettings, below, is
 // the same boundary for it.
+// These facades intentionally share a module, not ownership: callers supply
+// each settings object and own the subscriptions returned by its wrapper.
 
 var SHOW_EVENTS_KEY = "show-events"; // NOSONAR [S3504] -- GJS importer export
 var SHOW_WEEK_NUMBERS_KEY = "show-week-numbers"; // NOSONAR [S3504] -- GJS importer export
