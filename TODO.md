@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
-| T1074 | open | low | s | Clean up stale local dist/ deliverables and regenerate the intended Spices package from the committed index. dist/chronos@geraldo-netto and dist/working-tree/chronos@geraldo-netto omit 25 already tracked shipped files and differ in 66 others; the accompanying chronos-spices.tar and checksum also belong to the old output. |
 
 ## Blocked / Deferred
 
