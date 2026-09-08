@@ -259,8 +259,8 @@ function aviationWeatherIcon(station) {
 // non-blank numeric string is a reading.
 //
 // The bounds are optional because they are not the same question: a coordinate
-// outside [-90, 90] / [-180, 180] is not a coordinate, while a METAR field has
-// no range this file is entitled to impose. Unbounded is the METAR reading, and
+// outside [-90, 90] / [-180, 180] is not a coordinate, while a METAR temperature has
+// no range this file is entitled to impose. Unbounded is the temperature reading, and
 // it is what the defaults give.
 function finiteNumber(value, minimum = -Infinity, maximum = Infinity) {
     if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) {
@@ -287,8 +287,8 @@ function aviationWeatherStation(stations, place) {
             continue;
         }
 
-        const stationLatitude = finiteNumber(station.lat);
-        const stationLongitude = finiteNumber(station.lon);
+        const stationLatitude = finiteNumber(station.lat, -90, 90);
+        const stationLongitude = finiteNumber(station.lon, -180, 180);
         if (stationLatitude === null || stationLongitude === null) {
             continue;
         }

@@ -44,6 +44,35 @@ test("aviationweather METARs are read from the nearest station that has a temper
     assert.equal(Weather.aviationWeatherStation([{ lat: "x", lon: 1, temp: 5 }], place), null);
 });
 
+test("invalid METAR coordinates cannot wrap into the nearest-station ranking", () => {
+    const Weather = loadWeather();
+    const place = { latitude: 10, longitude: 10 };
+    const good = { icaoId: "GOOD", lat: 10, lon: 10.1, temp: 20, cover: "CLR" };
+    const invalidCoordinates = [
+        [10, 370], [10, "370"], [10, -350], [90.001, 10], [-90.001, 10],
+        [10, 180.001], [10, -180.001]
+    ];
+    for (const [lat, lon] of invalidCoordinates) {
+        const bad = { icaoId: "BAD", lat, lon, temp: 99, cover: "CLR" };
+        assert.equal(Weather.aviationWeatherStation([bad], place), null);
+        assert.equal(Weather.aviationWeatherReading([bad], place), null);
+        assert.equal(Weather.aviationWeatherStation([bad, good], place), good);
+        assert.equal(Weather.aviationWeatherStation([good, bad], place), good);
+        assert.equal(shown(Weather.aviationWeatherReading([bad, good], place), "si"), "☀ 20°C");
+        assert.equal(shown(Weather.aviationWeatherReading([bad, good], place), "imperial"), "☀ 68°F");
+    }
+});
+
+test("METAR coordinate limits and numeric strings remain usable", () => {
+    const Weather = loadWeather();
+    for (const [lat, lon] of [[-90, -180], [90, 180], [0, 0], ["90", "-180"]]) {
+        const station = { lat, lon, temp: "20", cover: "CLR" };
+        const place = { latitude: Number(lat), longitude: Number(lon) };
+        assert.equal(Weather.aviationWeatherStation([station], place), station);
+        assert.equal(shown(Weather.aviationWeatherReading([station], place), "si"), "☀ 20°C");
+    }
+});
+
 test("METAR present weather outranks the sky cover in the icon", () => {
     const Weather = loadWeather();
 
@@ -974,13 +1003,12 @@ test("a METAR station with no temperature never wins the nearest-station race", 
     assert.equal(Weather.finiteNumber("-3"), -3);
     assert.equal(Weather.finiteNumber(0), 0);
 
-    // the METAR fields are read unbounded: the range test is the coordinate
-    // reader's, and imposing it here would drop fields this file may not judge
+    // Temperatures remain unbounded; coordinate callers supply geographic limits.
     assert.equal(Weather.finiteNumber(-273.15), -273.15);
     assert.equal(Weather.finiteNumber(1e9), 1e9);
     assert.equal(Weather.finiteNumber(Infinity), null);
 
-    // and with bounds it is the coordinate reader the geocode parsers use
+    // and with bounds it is the coordinate reader geocoding and METAR use
     assert.equal(Weather.finiteNumber("48.85", -90, 90), 48.85);
     assert.equal(Weather.finiteNumber(91, -90, 90), null);
     assert.equal(Weather.finiteNumber(-181, -180, 180), null);
@@ -990,7 +1018,8 @@ test("a METAR station with no temperature never wins the nearest-station race", 
 // with "temp": null used to be read as a real 0 °C reading at Null Island, where
 // it could win the nearest-station race.
 const JUNK_TEMPS = [undefined, null, "", [], false, "warm", "12abc", NaN, {}, true];
-const JUNK_COORDS = [undefined, null, "", [], "north", NaN, Infinity, {}];
+const JUNK_COORDS = [undefined, null, "", [], "north", NaN, Infinity, {},
+    90.001, -90.001, 180.001, -180.001, 370, "370"];
 const FUZZ_PLACE = { latitude: 48.85, longitude: 2.35 };
 
 function pickFrom(rand, list) {
@@ -1021,12 +1050,17 @@ function fuzzStation(rand) {
     return station;
 }
 
-// a station is usable when all three fields it is read for are readable numbers
+function usableCoordinate(value, bound) {
+    const coordinate = usableNumber(value);
+    return coordinate !== null && Math.abs(coordinate) <= bound;
+}
+
+// A station needs a temperature and coordinates inside the geographic limits.
 function stationIsUsable(candidate) {
     return Boolean(candidate) && typeof candidate === "object" &&
         usableNumber(candidate.temp) !== null &&
-        usableNumber(candidate.lat) !== null &&
-        usableNumber(candidate.lon) !== null;
+        usableCoordinate(candidate.lat, 90) &&
+        usableCoordinate(candidate.lon, 180);
 }
 
 // What the readout must say for a chosen station. METAR temperatures are Celsius
