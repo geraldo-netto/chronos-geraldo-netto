@@ -56,7 +56,6 @@ var WeatherReadingRepository = WeatherProviders.WeatherReadingRepository; // NOS
 // module-global Nominatim queue is released by the last instance to leave.
 var registerWeatherConsumer = WeatherProviders.registerWeatherConsumer; // NOSONAR [S3504] -- GJS importer export
 var releaseWeatherConsumer = WeatherProviders.releaseWeatherConsumer; // NOSONAR [S3504] -- GJS importer export
-var cancelPendingWeatherRequests = WeatherProviders.cancelPendingWeatherRequests; // NOSONAR [S3504] -- GJS importer export
 
 class WeatherDisplayState {
     constructor(params = {}) {
@@ -328,5 +327,5 @@ if (typeof module !== "undefined") {
     // value rather than a crash. The test harness composes the parts itself
     // when it wants one handle for them.
     module.exports = { WeatherProvider, WeatherDisplayState, WeatherReadingRepository,
-        registerWeatherConsumer, releaseWeatherConsumer, cancelPendingWeatherRequests };
+        registerWeatherConsumer, releaseWeatherConsumer };
 }

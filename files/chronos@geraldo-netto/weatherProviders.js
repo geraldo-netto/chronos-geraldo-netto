@@ -272,15 +272,11 @@ function registerWeatherConsumer() {
     _weatherConsumers.register();
 }
 
-// The release half of the count, named for what it is. It was
-// `cancelPendingWeatherRequests`, which read as an idempotent cancel and is not:
-// a second call from a retry path decrements a count it never incremented.
+// Each registration owns one release; releasing is not an idempotent cancel.
 function releaseWeatherConsumer(queue = NOMINATIM_REQUEST_QUEUE) {
     _weatherConsumers.release(queue);
 }
 
-// Kept only because callers outside this tree may still use the old name.
-var cancelPendingWeatherRequests = releaseWeatherConsumer; // NOSONAR [S3504] -- GJS importer export
 var MAX_WEATHER_READING_CACHE_ENTRIES = WeatherFormat.MAX_GEOCODE_CACHE_ENTRIES; // NOSONAR [S3504] -- GJS importer export
 
 // The geocoders, in the order they are tried. Named, because a nameless provider
@@ -880,7 +876,7 @@ if (typeof module !== "undefined") {
         GEOCODE_PROVIDERS, FORECAST_PROVIDERS,
         MAX_WEATHER_READING_CACHE_ENTRIES, GEOCODE_CACHE_MILLISECONDS,
         NOMINATIM_MIN_INTERVAL_MS, NominatimRequestQueue,
-        registerWeatherConsumer, releaseWeatherConsumer, cancelPendingWeatherRequests,
+        registerWeatherConsumer, releaseWeatherConsumer,
         WeatherLocationResolver, WeatherForecastResolver, WeatherReadingRepository,
         placeWithTimezone
     };

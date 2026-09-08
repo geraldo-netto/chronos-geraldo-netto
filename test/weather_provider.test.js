@@ -1514,7 +1514,7 @@ test("the Nominatim queue is released by the last consumer, not the first", () =
     assert.equal(timers.length, 1, "the second is behind the interval");
 
     // the user removes one of them: the other is still waiting on that job
-    Weather.cancelPendingWeatherRequests(queue);
+    Weather.releaseWeatherConsumer(queue);
     assert.deepEqual(removed, [], "the shared timer is not the departing instance's to remove");
     now = Weather.NOMINATIM_MIN_INTERVAL_MS;
     timers[0].callback();
@@ -1525,7 +1525,7 @@ test("the Nominatim queue is released by the last consumer, not the first", () =
     // ...and when the last one goes, the queue goes with it
     queue.enqueue(() => starts.push("third"));
     assert.equal(timers.length, 2, "a third request waits out its own interval");
-    Weather.cancelPendingWeatherRequests(queue);
+    Weather.releaseWeatherConsumer(queue);
     assert.deepEqual(removed, [2], "the pending source is removed, not left armed");
     assert.deepEqual(queue._jobs, [], "and the jobs behind it are dropped");
 
@@ -1533,8 +1533,8 @@ test("the Nominatim queue is released by the last consumer, not the first", () =
     // applets that come after it: without the floor the count goes negative,
     // and the next real teardown then empties a queue two live instances are
     // still using.
-    Weather.cancelPendingWeatherRequests(queue);
-    Weather.cancelPendingWeatherRequests(queue);
+    Weather.releaseWeatherConsumer(queue);
+    Weather.releaseWeatherConsumer(queue);
     Weather.registerWeatherConsumer();
     Weather.registerWeatherConsumer();
 
@@ -1550,7 +1550,7 @@ test("the Nominatim queue is released by the last consumer, not the first", () =
     assert.ok(armed > 0, "a request is waiting out the interval");
 
     removed.length = 0;
-    Weather.cancelPendingWeatherRequests(queue);
+    Weather.releaseWeatherConsumer(queue);
     assert.deepEqual(removed, [],
         "one of two live instances leaving takes nothing with it");
     assert.equal(queue._jobs.length, 1, "and the queued request is still queued");
@@ -2094,7 +2094,7 @@ test("a departing instance's queued geocodes leave with it", () => {
     // the user removes the first instance: its repository is destroyed, so its
     // job's isCurrent() answers false
     departingIsCurrent = false;
-    Weather.cancelPendingWeatherRequests(queue);
+    Weather.releaseWeatherConsumer(queue);
 
     assert.deepEqual(queue._jobs.map((job) => job.isCurrent()), [true],
         "only the remaining instance's job is still held");
@@ -2105,7 +2105,7 @@ test("a departing instance's queued geocodes leave with it", () => {
     timers[0].callback();
     assert.deepEqual(starts, ["in flight", "staying"]);
 
-    Weather.cancelPendingWeatherRequests(queue);
+    Weather.releaseWeatherConsumer(queue);
 });
 
 test("shared reading cache ships with a small fixed bound", () => {
