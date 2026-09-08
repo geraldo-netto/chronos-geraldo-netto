@@ -205,6 +205,7 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         scroll.add(self.listbox)
         self.pack_start(scroll, True, True, 0)
         self._build_actions()
+        self._build_unavailable()
         self.status = Gtk.Label(xalign=0)
         self.status.set_line_wrap(True)
         self.pack_start(self.status, False, False, 0)
@@ -230,6 +231,70 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
     def connect_widget_handlers(self, *args):
         pass
 
+    def _build_unavailable(self):
+        expander = Gtk.Expander(label="Unavailable calendars")
+        self.unavailable_list = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_min_content_height(100)
+        scroll.set_max_content_height(240)
+        scroll.add(self.unavailable_list)
+        expander.add(scroll)
+        self.pack_start(expander, False, False, 0)
+
+    def _add_unavailable(self, identifier, filename, name, detail, chosen):
+        row = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        row.calendar_id, row.calendar_filename = identifier, filename
+        label = Gtk.Label(label=f"{name} · {detail}", xalign=0)
+        label.set_line_wrap(True)
+        row.pack_start(label, False, False, 0)
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.remove_button = row.clear_button = None
+        if filename is not None:
+            row.remove_button = Gtk.Button(label="Remove file")
+            row.remove_button.connect("clicked", self._on_unavailable_remove, row)
+            actions.pack_start(row.remove_button, False, False, 0)
+        if identifier in chosen:
+            row.clear_button = Gtk.Button(label="Clear selection")
+            row.clear_button.connect("clicked", self._on_clear_selection, identifier)
+            actions.pack_start(row.clear_button, False, False, 0)
+        row.pack_start(actions, False, False, 0)
+        self.unavailable_list.pack_start(row, False, False, 0)
+
+    def _unavailable_file(self, entry, chosen):
+        path, manifest = entry["path"], entry["manifest"]
+        identifier = path.stem if path.stem in selected_ids([path.stem]) else None
+        if manifest is None:
+            name, detail = path.name, "Invalid calendar file"
+        else:
+            name = manifest["name"]
+            coverage = manifest["coverage"]
+            detail = f'Coverage: {coverage["from"]}–{coverage["through"]}'
+        self._add_unavailable(identifier, path.name, name, detail, chosen)
+
+    def _show_unavailable(self, found, available, chosen):
+        for row in self.unavailable_list.get_children():
+            row.destroy()
+        active = {manifest["id"] for manifest in available}
+        installed = {entry["path"].stem for entry in found}
+        for entry in found:
+            if entry["manifest"] is None or entry["manifest"]["id"] not in active:
+                self._unavailable_file(entry, chosen)
+        for identifier in chosen:
+            if identifier not in installed:
+                self._add_unavailable(identifier, None, identifier, "Not loaded", chosen)
+        self.unavailable_list.show_all()
+
+    def _on_clear_selection(self, _button, identifier):
+        self._forget_selection(identifier)
+        self.on_setting_changed()
+
+    def _forget_selection(self, identifier):
+        self.set_value([value for value in selected_ids(self.get_value()) if value != identifier])
+
+    def _on_unavailable_remove(self, _button, row):
+        self._remove_calendar(lambda: plugin_data.remove_plugin_file(row.calendar_filename), row.calendar_id)
+
     def _on_destroy(self, *_args):
         self._destroyed = True
 
@@ -243,7 +308,7 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         if checkbox.get_active() and identifier not in chosen:
             if len(chosen) >= plugin_data.MAX_PLUGINS:
                 checkbox.set_active(False)
-                self.status.set_text("At most 32 calendars can be selected. Disable a calendar before enabling another.")
+                self.status.set_text("At most 32 calendars can be selected. Disable a calendar or clear a selection under Unavailable calendars.")
                 return
             chosen.append(identifier)
         elif not checkbox.get_active() and identifier in chosen:
@@ -279,17 +344,18 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         found, errors = self._load_choices()
         current = date.today().year
         available = [entry["manifest"] for entry in found
-                     if plugin_data.available(entry["manifest"], current)]
+                     if entry["manifest"] is not None and plugin_data.available(entry["manifest"], current)]
         for manifest in available:
             self._add_choice(manifest, chosen)
+        self._show_unavailable(found, available, chosen)
         self.status.set_text(self._availability_message(available, errors))
         self.listbox.show_all()
 
     def _availability_message(self, available, errors):
         if errors:
-            return "Some installed calendars could not be loaded. Check the calendar files and refresh."
+            return "Some installed calendars could not be loaded. Check Unavailable calendars to manage their files and selections."
         if not available:
-            return "No installed calendars cover this year. Import a calendar to add choices."
+            return "No installed calendars cover this year. Import a calendar to add choices, or manage files under Unavailable calendars."
         return "Calendars unavailable for this year are hidden."
 
     def _bump_revision(self):
@@ -325,7 +391,7 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
             manifest = plugin_data.import_plugin(filename)
         except (OSError, ValueError, UnicodeError) as error:
             LOGGER.warning("Calendar import failed: %s", error)
-            self.status.set_text("The calendar could not be imported. Choose a valid calendar JSON file.")
+            self.status.set_text("The calendar could not be imported. Choose a valid calendar JSON file and ensure fewer than 32 files are installed; Unavailable calendars lets you remove old files.")
             return
         self._on_refresh()
         self.status.set_text(f'Imported {manifest["name"]}. Calendars without coverage for this year stay hidden.')
@@ -334,12 +400,14 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         row = self.listbox.get_selected_row()
         if row is None:
             return
+        self._remove_calendar(lambda: plugin_data.remove_plugin(row.calendar_id), row.calendar_id)
+
+    def _remove_calendar(self, remove, identifier):
         try:
-            plugin_data.remove_plugin(row.calendar_id)
+            remove()
         except (OSError, ValueError, UnicodeError) as error:
             LOGGER.warning("Calendar removal failed: %s", error)
             self.status.set_text("The calendar could not be removed. Refresh the choices and try again.")
             return
-        self.set_value([identifier for identifier in selected_ids(self.get_value())
-                        if identifier != row.calendar_id])
+        self._forget_selection(identifier)
         self._on_refresh()

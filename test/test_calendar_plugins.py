@@ -176,6 +176,27 @@ class ManifestFilesTests(unittest.TestCase):
         self.assertEqual(DATA.discover_plugins(self.installed), ([], []))
         self.assertTrue(source.exists())
 
+    def test_remove_invalid_regular_file_and_reject_unsafe_paths(self):
+        invalid = self.installed / "invalid.json"
+        invalid.write_text("not JSON")
+        with mock.patch.object(DATA, "plugin_directory", return_value=self.installed):
+            DATA.remove_plugin_file(invalid.name)
+        self.assertFalse(invalid.exists())
+        outside = self.root / "outside.json"
+        outside.write_text("keep")
+        (self.installed / "link.json").symlink_to(outside)
+        (self.installed / "directory.json").mkdir()
+        linked_directory = self.root / "linked"
+        linked_directory.symlink_to(self.installed, target_is_directory=True)
+        for filename in (None, "", "../outside.json", str(outside), "name.txt", "link.json", "directory.json"):
+            with self.subTest(filename=filename), self.assertRaises(ValueError):
+                DATA.remove_plugin_file(filename, self.installed)
+        with self.assertRaises(ValueError):
+            DATA.remove_plugin_file("link.json", linked_directory)
+        with self.assertRaises(OSError):
+            DATA.remove_plugin_file("missing.json", self.installed)
+        self.assertEqual(outside.read_text(), "keep")
+
     def test_default_directory_paths_and_missing_directory(self):
         source = write_manifest(self.root, manifest())
         with mock.patch.object(DATA, "plugin_directory", return_value=self.installed):
@@ -191,7 +212,8 @@ class ManifestFilesTests(unittest.TestCase):
         (self.installed / "example.link.json").symlink_to(source)
         (self.installed / "nested.json").mkdir()
         found, errors = DATA.discover_plugins(self.installed)
-        self.assertEqual(found, [])
+        self.assertEqual(len(found), 4)
+        self.assertTrue(all(entry["manifest"] is None for entry in found))
         self.assertEqual(len(errors), 4)
         self.assertTrue(source.exists())
 
@@ -207,7 +229,7 @@ class ManifestFilesTests(unittest.TestCase):
             DATA.import_plugin(source, self.installed)
         self.assertEqual(installed.read_bytes(), before)
         found, errors = DATA.discover_plugins(self.installed)
-        self.assertEqual([row["manifest"]["id"] for row in found], [original["id"]])
+        self.assertEqual([row["manifest"]["id"] for row in found if row["manifest"]], [original["id"]])
         self.assertEqual(len(errors), 1)
         self.assertIn("nesting", errors[0])
         self.assertFalse(DATA.builtin_available("christianity", metadata_path=source))
@@ -498,7 +520,7 @@ class FakeCountryDialog(FakeChooser):
 def widget_modules(data):
     gtk = types.SimpleNamespace(
         ListBox=WidgetNode, ListBoxRow=WidgetNode, Box=WidgetNode,
-        ScrolledWindow=WidgetNode, Label=WidgetNode, Button=WidgetNode,
+        ScrolledWindow=WidgetNode, Label=WidgetNode, Button=WidgetNode, Expander=WidgetNode,
         CheckButton=WidgetNode, FileChooserDialog=FakeChooser,
         Dialog=FakeCountryDialog,
         FileFilter=lambda: types.SimpleNamespace(set_name=lambda *_args: None,
@@ -775,6 +797,77 @@ class CalendarChoicesTests(unittest.TestCase):
         self.assertFalse(checkbox.active)
         self.assertEqual(self.settings.values["calendar-plugins"], chosen)
         self.assertIn("At most 32", self.widget.status.text)
+
+    def test_hidden_selections_can_free_capacity_without_removing_files(self):
+        chosen = [f"example.hidden{index}" for index in range(DATA.MAX_PLUGINS)]
+        self.settings.set_value("calendar-plugins", chosen)
+        checkbox = self.widget.listbox.get_children()[0].children[0]
+        checkbox.set_active(True)
+        self.assertFalse(checkbox.active)
+        row = next(row for row in self.widget.unavailable_list.get_children()
+                   if row.calendar_id == chosen[0])
+        self.assertIsNone(row.remove_button)
+        row.clear_button.emit("clicked")
+        self.widget.listbox.get_children()[0].children[0].set_active(True)
+        self.assertEqual(self.settings.values["calendar-plugins"], chosen[1:] + ["example.current"])
+        expired = self.widget.unavailable_list.get_children()[0]
+        self.assertIsNone(expired.clear_button)
+        self.assertTrue((self.installed / "example.expired.json").exists())
+
+    def test_expired_files_can_free_install_capacity_and_preserve_neighbors(self):
+        for path in self.installed.iterdir():
+            path.unlink()
+        chosen = [f"example.expired{index:02}" for index in range(DATA.MAX_PLUGINS)]
+        for identifier in chosen:
+            write_manifest(self.installed, manifest(identifier, self.current - 2, self.current - 1))
+        self.settings.set_value("calendar-plugins", chosen)
+        self.assertEqual(self.widget.listbox.get_children(), [])
+        source = write_manifest(self.root, manifest("example.new", self.current, self.current + 1))
+        with mock.patch.object(self.widget, "_choose_import", return_value=str(source)):
+            self.widget._on_import()
+            self.assertIn("could not be imported", self.widget.status.text)
+            self.widget.unavailable_list.get_children()[0].remove_button.emit("clicked")
+            self.widget._on_import()
+        self.assertEqual(self.settings.values["calendar-plugins"], chosen[1:])
+        self.assertEqual([row.calendar_id for row in self.widget.listbox.get_children()], ["example.new"])
+        self.assertEqual(len(list(self.installed.iterdir())), DATA.MAX_PLUGINS)
+        self.assertTrue(source.exists())
+        self.assertFalse((self.installed / (chosen[0] + ".json")).exists())
+        for identifier in chosen[1:]:
+            self.assertTrue((self.installed / (identifier + ".json")).exists())
+
+    def test_invalid_files_use_filename_identity_for_removal(self):
+        write_manifest(self.installed, manifest("example.current"), "example.mismatch.json")
+        (self.installed / "invalid.json").write_text("not JSON")
+        self.settings.set_value("calendar-plugins", ["example.current", "example.mismatch"])
+        for filename in ("example.mismatch.json", "invalid.json"):
+            row = next(row for row in self.widget.unavailable_list.get_children()
+                       if row.calendar_filename == filename)
+            row.remove_button.emit("clicked")
+            self.assertFalse((self.installed / filename).exists())
+        self.assertEqual(self.settings.values["calendar-plugins"], ["example.current"])
+        self.assertTrue((self.installed / "example.current.json").exists())
+
+    def test_failed_unavailable_removal_preserves_file_and_selection(self):
+        row = self.widget.unavailable_list.get_children()[0]
+        with mock.patch.object(DATA, "remove_plugin_file", side_effect=OSError("denied")):
+            row.remove_button.emit("clicked")
+        self.assertIn("could not be removed", self.widget.status.text)
+        self.assertTrue((self.installed / "example.expired.json").exists())
+        self.assertEqual(self.settings.values["calendar-plugins"], ["example.expired"])
+        self.assertEqual(self.settings.values["calendar-plugins-revision"], 0)
+
+    def test_clear_selection_preserves_new_settings_and_updated_coverage_restores_choice(self):
+        row = self.widget.unavailable_list.get_children()[0]
+        self.settings.values["calendar-plugins"].append("example.current")
+        row.clear_button.emit("clicked")
+        self.assertEqual(self.settings.values["calendar-plugins"], ["example.current"])
+        self.assertTrue((self.installed / "example.expired.json").exists())
+        self.settings.set_value("calendar-plugins", ["example.expired", "example.current"])
+        write_manifest(self.installed, manifest("example.expired", self.current, self.current + 1))
+        self.widget._on_refresh()
+        self.assertEqual(self.widget.unavailable_list.get_children(), [])
+        self.assertTrue(all(row.children[0].active for row in self.widget.listbox.get_children()))
 
     def test_javascript_selection_and_checkbox_state_agree_for_corrupt_settings(self):
         values = [None, "example.current", {}, [], [" example.current "],

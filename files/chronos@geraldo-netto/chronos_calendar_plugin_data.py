@@ -180,12 +180,14 @@ def discover_plugins(directory=None):
     errors = ["Only the first 32 installed calendar files are loaded."] if len(paths) > MAX_PLUGINS else []
     found = []
     for path in paths[:MAX_PLUGINS]:
+        manifest = None
         try:
             manifest = read_manifest(path)
             _require(path.name == manifest["id"] + ".json", "file", "filename must match the calendar ID")
-            found.append({"manifest": manifest, "path": path})
         except (OSError, ValueError, UnicodeError) as error:
+            manifest = None
             errors.append(str(error))
+        found.append({"manifest": manifest, "path": path})
     return found, errors
 
 
@@ -219,6 +221,17 @@ def remove_plugin(identifier, directory=None):
     path = directory / (identifier + ".json")
     manifest = read_manifest(path)
     _require(manifest["id"] == identifier, "file", "calendar ID does not match its filename")
+    path.unlink()
+
+
+def remove_plugin_file(filename, directory=None):
+    """Remove a direct regular calendar file, including an invalid manifest."""
+    _require(isinstance(filename, str) and Path(filename).name == filename
+             and filename.endswith(".json"), "file", "expected a calendar filename")
+    directory = Path(directory) if directory is not None else plugin_directory()
+    _require(not directory.is_symlink(), "directory", "symbolic links are not supported")
+    path = directory / filename
+    _require(stat.S_ISREG(path.lstat().st_mode), "file", "expected a regular file")
     path.unlink()
 
 

@@ -40,6 +40,13 @@ without restarting Cinnamon. **Remove selected** removes that personal plugin
 and its selection. Plugins do not execute code or make network requests, and
 selections remain in the local applet profile.
 
+**Unavailable calendars** is a separate management area for expired or invalid
+files and selections that are no longer loaded. **Clear selection** releases a
+selection slot while keeping the file. **Remove file** deletes that file and its
+selection, including an invalid JSON file. These actions reclaim the 32 file or
+selection slots without adding unavailable calendars to the choices. Updating a
+retained calendar's coverage and refreshing restores its selected choice.
+
 The default directory is `~/.local/share/chronos@geraldo-netto/calendars/`, or
 `$XDG_DATA_HOME/chronos@geraldo-netto/calendars/` when `XDG_DATA_HOME` is an
 absolute path. Files copied manually must be named `<id>.json`; refresh the
