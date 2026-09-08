@@ -19,6 +19,9 @@ const IS_NODE = typeof process !== "undefined" &&
 const TextUtils = IS_NODE ?
     require("./textUtils") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].textUtils;
+const Diagnostics = IS_NODE ?
+    require("./diagnostics") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].diagnostics;
 
 var urlForLog = TextUtils.urlForLog; // NOSONAR [S3504] -- GJS importer export
 
@@ -45,9 +48,7 @@ function tooBig(size, limit, what) {
         return false;
     }
 
-    if (global.logError) {
-        global.logError(`${what} is ${size} bytes, past the ${limit}-byte cap; ignoring it`);
-    }
+    Diagnostics.logSafely("logError", `${what} is ${size} bytes, past the ${limit}-byte cap; ignoring it`);
     return true;
 }
 
@@ -142,8 +143,8 @@ function _whenCacheFileIsSane(file, callback, proceed) {
             try {
                 within = _cacheFileWithinCap(source, result);
             } catch (e) {
-                if (!_isMissingFile(e) && global.logError) {
-                    global.logError(e);
+                if (!_isMissingFile(e)) {
+                    Diagnostics.logSafely("logError", e);
                 }
             }
 
@@ -159,9 +160,7 @@ function readJsonFileAsync (file, callback) {
     try {
         _whenCacheFileIsSane(file, callback, () => _loadCacheFile(file, callback));
     } catch (e) {
-        if (global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
         callback({});
     }
 }
@@ -179,16 +178,12 @@ function _loadCacheFile(file, callback) {
                 etag = tag || null;
                 data = _parseCacheFile(contents, ok);
             } catch (e) {
-                if (global.logError) {
-                    global.logError(e);
-                }
+                Diagnostics.logSafely("logError", e);
             }
             callback(data, etag);
         });
     } catch (e) {
-        if (global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
         callback({});
     }
 }
@@ -211,9 +206,7 @@ function _finishJsonWrite(source, result, onDone) {
             _notifyWriteDone(onDone, true);
             return;
         }
-        if (global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
     }
     _notifyWriteDone(onDone);
 }
@@ -235,9 +228,7 @@ function writeJsonFileAsync (file, data, onDone, etag = null) {
         file.replace_contents_async(bytes, etag, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null,
             (source, result) => _finishJsonWrite(source, result, onDone));
     } catch (e) {
-        if (global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
         _notifyWriteDone(onDone);
     }
 }
@@ -339,9 +330,7 @@ function _closeStream(stream) {
     try {
         stream.close(null);
     } catch (e) {
-        if (global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
     }
 }
 
@@ -429,9 +418,7 @@ function _jsonFromBody(message, url, body) {
     }
 
     if (message.get_status() !== 200) {
-        if (global.logError) {
-            global.logError("HTTP " + message.get_status() + " fetching " + urlForLog(url));
-        }
+        Diagnostics.logSafely("logError", "HTTP " + message.get_status() + " fetching " + urlForLog(url));
         return null;
     }
 
@@ -530,10 +517,8 @@ function _newRequestMessage(url, headers) {
         _setRequestHeaders(message, headers);
         return message;
     } catch {
-        if (global.logError) {
-            global.logError(new Error(
-                "could not construct HTTP request for " + urlForLog(url)));
-        }
+        Diagnostics.logSafely("logError", new Error(
+            "could not construct HTTP request for " + urlForLog(url)));
         return null;
     }
 }
@@ -548,10 +533,8 @@ function _armRequestDeadline(cancellable, url) {
 
     let id = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, HTTP_DEADLINE_SECONDS, () => {
         id = 0;
-        if (global.logError) {
-            global.logError("request to " + urlForLog(url) + " passed the " +
-                HTTP_DEADLINE_SECONDS + " s deadline; cancelling it");
-        }
+        Diagnostics.logSafely("logError", "request to " + urlForLog(url) + " passed the " +
+            HTTP_DEADLINE_SECONDS + " s deadline; cancelling it");
         cancellable.cancel();
         return false;
     });
@@ -587,9 +570,7 @@ function httpGetJson(session, url, callback, options = {}) {
     const fail = (e) => {
         settled = true;
         disarmDeadline();
-        if (global.logError) {
-            global.logError(e);
-        }
+        Diagnostics.logSafely("logError", e);
         callback(null, message);
     };
 
@@ -602,9 +583,7 @@ function httpGetJson(session, url, callback, options = {}) {
         try {
             data = _jsonFromBody(message, url, body);
         } catch (e) {
-            if (global.logError) {
-                global.logError(e);
-            }
+            Diagnostics.logSafely("logError", e);
         }
         callback(data, message, received);
     };
@@ -662,9 +641,7 @@ var NetworkState = class NetworkState { // NOSONAR [S3504] -- GJS importer expor
                 // for it once, not on every refresh tick
                 this._monitor = this._create() || false;
             } catch (e) {
-                if (global.logError) {
-                    global.logError(e);
-                }
+                Diagnostics.logSafely("logError", e);
                 this._monitor = false;
             }
         }

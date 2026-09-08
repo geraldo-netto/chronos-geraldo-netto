@@ -351,6 +351,7 @@ test("httpGetJson parses Soup 3 and reports HTTP failures", () => {
 // ordinary failure path settles everyone waiting.
 test("a request that trickles past the deadline is cancelled and settled", () => {
     const utils = loadIoUtils();
+    global.logError = () => { throw new Error("diagnostics unavailable"); };
     let parkedRead = null;
     const soup = makeSoup3({
         onFinish: () => ({
@@ -442,6 +443,7 @@ test("a send that raises before it starts is reported, not left in flight", () =
 // serialize itself was the amplification the flag bound exists to prevent.
 test("a cache payload past the read cap is refused at write time", () => {
     const utils = loadIoUtils();
+    global.logError = () => { throw new Error("diagnostics unavailable"); };
     const writes = [];
     const file = {
         replace_contents_async(...args) {
@@ -455,6 +457,61 @@ test("a cache payload past the read cap is refused at write time", () => {
 
     assert.deepEqual(writes, [], "nothing reaches the disk");
     assert.deepEqual(done, [false], "the caller sees a settled, non-stale write");
+});
+
+function deferredCacheFile(pending) {
+    return {
+        query_info_async(_attributes, _flags, _priority, _cancellable, callback) {
+            pending.push(() => callback(this, {}));
+        },
+        query_info_finish: () => ({ get_size: () => 2 }),
+        load_contents_async(_cancellable, callback) {
+            pending.push(() => callback(this, {}));
+        },
+        load_contents_finish: () => [true, Buffer.from("{}"), "etag"],
+        replace_contents_async(_bytes, _etag, _backup, _flags, _cancellable, callback) {
+            pending.push(() => callback(this, {}));
+        },
+        replace_contents_finish: () => true
+    };
+}
+
+test("cache read failures settle once even when their diagnostics fail", () => {
+    const utils = loadIoUtils();
+    global.logError = () => { throw new Error("diagnostics unavailable"); };
+    const fail = () => { throw new Error("permission denied"); };
+    const failures = {
+        query_info_async: fail,
+        query_info_finish: fail,
+        load_contents_async: fail,
+        load_contents_finish: fail,
+        malformed: () => [true, Buffer.from("{")],
+        oversized: () => ({ get_size: () => utils.MAX_CACHE_FILE_BYTES + 1 })
+    };
+    for (const [stage, implementation] of Object.entries(failures)) {
+        const pending = [];
+        const file = deferredCacheFile(pending);
+        const method = { malformed: "load_contents_finish", oversized: "query_info_finish" }[stage] || stage;
+        file[method] = implementation;
+        const replies = [];
+        utils.readJsonFileAsync(file, (data) => replies.push(data));
+        while (pending.length) pending.shift()();
+        assert.deepEqual(replies, [{}], stage);
+    }
+});
+
+test("cache write failures settle once even when their diagnostics fail", () => {
+    const utils = loadIoUtils();
+    global.logError = () => { throw new Error("diagnostics unavailable"); };
+    for (const stage of ["replace_contents_async", "replace_contents_finish"]) {
+        const pending = [];
+        const file = deferredCacheFile(pending);
+        file[stage] = () => { throw new Error("permission denied"); };
+        const replies = [];
+        utils.writeJsonFileAsync(file, { saved: true }, (stale) => replies.push(stale));
+        while (pending.length) pending.shift()();
+        assert.deepEqual(replies, [false], stage);
+    }
 });
 
 test("no deadline is armed when the platform offers no cancellable", () => {
@@ -1100,7 +1157,8 @@ test("a response stream that refuses to close is reported, not rethrown", () => 
 // a Soup old enough to hand back a stream with no close() must still work
 test("a response stream with no close() is not an error", () => {
     const utils = loadIoUtils();
-    global.logError = (message) => assert.fail(`unexpected log: ${message}`);
+    const logged = [];
+    global.logError = (message) => logged.push(message);
 
     const soupDouble = makeStreamingSoup({ chunks: [Buffer.from('{"ok":true}')] });
     const realSendFinish = soupDouble.Session.prototype.send_finish;
@@ -1118,6 +1176,7 @@ test("a response stream with no close() is not an error", () => {
         });
 
     assert.deepEqual(received, { ok: true });
+    assert.deepEqual(logged, []);
 });
 
 test("httpGetJson reports a stream that fails to open", () => {
