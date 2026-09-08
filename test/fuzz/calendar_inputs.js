@@ -4,6 +4,7 @@ const assert = require("node:assert/strict");
 const { makeRandom } = require("../helpers/prng");
 const Plugins = require("../../files/chronos@geraldo-netto/calendarPluginData");
 const { CalendarPluginLoader } = require("../../files/chronos@geraldo-netto/calendarPluginLoader");
+const { createCancellable } = require("../helpers/pluginCancellable");
 const Dates = require("../../files/chronos@geraldo-netto/holidayRecord");
 const Astronomy = require("../../files/chronos@geraldo-netto/astronomy");
 
@@ -183,7 +184,8 @@ function loadPair(bad, round) {
     let answer;
     let calls = 0;
     const loader = new CalendarPluginLoader({
-        read: (id, callback) => callback(id === "example.good" ? good : bad),
+        createCancellable,
+        read: (id, cancellable, callback) => callback(id === "example.good" ? good : bad),
         report: () => {}
     });
     loader.load(ids, (rows) => { answer = rows; calls++; });
@@ -302,7 +304,7 @@ function loadBytes(bytes) {
     const previous = Object.getOwnPropertyDescriptor(globalThis, "imports");
     let result;
     let calls = 0;
-    const loader = new CalendarPluginLoader({ report: () => {} });
+    const loader = new CalendarPluginLoader({ createCancellable, report: () => {} });
     try {
         globalThis.imports = byteRuntime(payloads, closed);
         loader.load(["example.audit", "example.good"], (rows) => { result = rows; calls++; });
@@ -345,6 +347,55 @@ function checkAstronomyBounds(audit, random, round) {
     });
 }
 
+function generationFixture(synchronous, rejected) {
+    const pending = [];
+    const errors = [];
+    const tokens = [];
+    const loader = new CalendarPluginLoader({
+        createCancellable() {
+            const token = createCancellable();
+            token.cancel = () => {
+                token.cancelled = true;
+                if (synchronous) pending.filter(entry => entry.token === token)
+                    .forEach(entry => entry.done(rejected));
+            };
+            tokens.push(token);
+            return token;
+        },
+        read: (id, token, done) => pending.push({ id, token, done }),
+        report: error => errors.push(error.message)
+    });
+    return { loader, pending, errors, tokens };
+}
+
+function exerciseGenerations(input) {
+    const { loader, pending, errors, tokens } = generationFixture(input.synchronous, input.rejected);
+    const answers = [];
+    for (let generation = 0; generation < input.generations; generation++) {
+        loader.load(["example.audit", "example.good"], rows =>
+            answers.push({ generation, ids: rows.map(row => row.id) }));
+    }
+    if (input.mode === "destroy") loader.destroy();
+    if (input.mode === "empty") loader.load([], rows => assert.deepEqual(rows, []));
+    assert.ok(tokens.slice(0, -1).every(token => token.is_cancelled()));
+    assert.equal(tokens.at(-1).is_cancelled(), input.mode !== "replace");
+    const ordered = input.reverse ? pending.toReversed() : pending;
+    ordered.forEach(entry => entry.done(entry.token.is_cancelled() ? input.rejected : manifest(entry.id)));
+    assert.deepEqual(errors, []);
+    assert.deepEqual(answers, input.mode === "replace" ? [
+        { generation: input.generations - 1, ids: ["example.audit", "example.good"] }
+    ] : []);
+    loader.destroy();
+    assert.ok(tokens.every(token => token.is_cancelled()));
+}
+
+function checkGenerations(audit, random, round) {
+    const input = { generations: integer(random, 2, 5), mode: ["replace", "empty", "destroy"][round % 3],
+        synchronous: random() < 0.5, reverse: random() < 0.5,
+        rejected: pick(random, [null, {}, [], true, { apiVersion: 99 }]) };
+    audit.check("calendar.plugin.cancelled-generation", round, input, () => exerciseGenerations(input));
+}
+
 function runCalendarInputs({ seed = 0xcafe2026, cases = 256 } = {}) {
     const audit = recorder(seed);
     for (let round = 0; round < cases; round++) {
@@ -359,6 +410,7 @@ function runCalendarInputs({ seed = 0xcafe2026, cases = 256 } = {}) {
         checkSourcePorts(audit, round);
         checkEncoding(audit, random, round);
         checkAstronomyBounds(audit, random, round);
+        checkGenerations(audit, random, round);
     }
     return audit.report;
 }

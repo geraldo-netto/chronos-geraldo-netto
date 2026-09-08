@@ -111,6 +111,20 @@ categories to 64, source names/traditions/locations to 160, and source URLs to
 personal plugins can be installed. Files must be regular files, not symbolic
 links. An invalid plugin does not prevent other calendars from rendering.
 
+Refreshing, changing the selection, clearing it, or removing the applet cancels
+the previous load. Once retired, remaining decoding and validation are skipped,
+and its results do not replace the current calendars. Each load shares one Gio
+cancellable across its directory checks, file opens, and bounded chunk reads.
+Completed I/O callbacks are always finished and acquired streams are closed,
+including when cancellation races with a successful operation.
+
+For injected transports, `CalendarPluginLoader` requires
+`read(id, cancellable, callback)`. The callback receives the decoded document
+or `null` after cleanup; cancelled generations never reach the public load
+callback. Pure tests inject `createCancellable()`; the runtime factory creates
+a real `Gio.Cancellable`. Stream closure uses no cancellable so retiring the
+load cannot interrupt resource cleanup. Expected cancellations are silent.
+
 ## Provider extension contract
 
 `calendarRegistry.js` exports `CalendarRegistry`. Register an adapter with an

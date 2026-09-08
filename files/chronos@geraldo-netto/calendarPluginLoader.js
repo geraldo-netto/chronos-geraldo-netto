@@ -59,20 +59,29 @@ function startIo(start, success, failure) {
     }
 }
 
-function checkPluginInfo(source, result, expectedType, maximum) {
-    const info = source.query_info_finish(result);
+function checkPluginInfo(info, expectedType, maximum) {
     if (info.get_is_symlink() || info.get_file_type() !== expectedType ||
         info.get_size() > maximum) {
         throw new Error("Calendar plugin: expected a regular file below 1 MiB and no symbolic links");
     }
 }
 
-function queryPluginInfo(file, expectedType, runtime, success, failure) {
-    const { Gio, GLib } = runtime.gi;
+function continuePluginRead(state, next) {
+    if (state.cancellable.is_cancelled()) {
+        state.finish(null);
+        return;
+    }
+    next();
+}
+
+function queryPluginInfo(file, expectedType, state, success) {
+    const { Gio, GLib } = state.runtime.gi;
     const maximum = expectedType === Gio.FileType.REGULAR ? MAX_PLUGIN_BYTES : Infinity;
     startIo((done) => file.query_info_async("standard::type,standard::is-symlink,standard::size",
-        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, GLib.PRIORITY_DEFAULT, null, done),
-    (source, result) => finishIo(() => checkPluginInfo(source, result, expectedType, maximum), success, failure), failure);
+        Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS, GLib.PRIORITY_DEFAULT, state.cancellable, done),
+    (source, result) => finishIo(() => source.query_info_finish(result), (info) =>
+        continuePluginRead(state, () => finishIo(() => checkPluginInfo(info, expectedType, maximum),
+            success, state.fail)), state.fail), state.fail);
 }
 
 function closePluginStream(state, next) {
@@ -111,29 +120,39 @@ function acceptPluginChunk(state, chunk) {
 
 function readPluginChunk(state) {
     const limit = Math.min(PLUGIN_READ_CHUNK, MAX_PLUGIN_BYTES + 1 - state.size);
-    startIo((done) => state.stream.read_bytes_async(limit, state.priority, null, done),
-        (source, result) => finishIo(() => source.read_bytes_finish(result).get_data(),
-            (chunk) => acceptPluginChunk(state, chunk), state.fail), state.fail);
+    startIo((done) => state.stream.read_bytes_async(limit, state.priority, state.cancellable, done),
+        (source, result) => finishIo(() => source.read_bytes_finish(result), (bytes) =>
+            continuePluginRead(state, () => finishIo(() => bytes.get_data(),
+                (chunk) => acceptPluginChunk(state, chunk), state.fail)), state.fail), state.fail);
 }
 
-function openPluginFile(file, runtime, callback) {
-    const state = { priority: runtime.gi.GLib.PRIORITY_DEFAULT, chunks: [], size: 0, stream: null };
+function pluginReadState(runtime, cancellable, callback) {
+    const state = { runtime, cancellable, priority: runtime.gi.GLib.PRIORITY_DEFAULT,
+        chunks: [], size: 0, stream: null };
     let settled = false;
     state.finish = (raw) => {
         if (settled) return;
         settled = true;
-        closePluginStream(state, () => callback(raw));
+        state.chunks = [];
+        closePluginStream(state, () => callback(cancellable.is_cancelled() ? null : raw));
     };
-    state.fail = (error) => { reportPluginError(error); state.finish(null); };
-    startIo((done) => file.read_async(state.priority, null, done),
+    state.fail = (error) => {
+        if (!cancellable.is_cancelled()) reportPluginError(error);
+        state.finish(null);
+    };
+    return state;
+}
+
+function openPluginFile(file, state) {
+    startIo((done) => file.read_async(state.priority, state.cancellable, done),
         (source, result) => finishIo(() => source.read_finish(result), (stream) => {
             state.stream = stream;
-            readPluginChunk(state);
+            continuePluginRead(state, () => readPluginChunk(state));
         }, state.fail), state.fail);
 }
 
-function readInstalledPlugin(id, callback) {
-    if (selectedPluginIds([id]).length !== 1) {
+function readInstalledPlugin(id, cancellable, callback) {
+    if (selectedPluginIds([id]).length !== 1 || cancellable.is_cancelled()) {
         callback(null);
         return;
     }
@@ -144,23 +163,30 @@ function readInstalledPlugin(id, callback) {
         GLib.build_filenamev([GLib.get_home_dir(), ".local", "share"]);
     const directory = GLib.build_filenamev([dataHome, "chronos@geraldo-netto", "calendars"]);
     const file = Gio.file_new_for_path(GLib.build_filenamev([directory, `${id}.json`]));
-    const failure = (error) => { reportPluginError(error); callback(null); };
-    queryPluginInfo(Gio.file_new_for_path(directory), Gio.FileType.DIRECTORY, runtime, () =>
-        queryPluginInfo(file, Gio.FileType.REGULAR, runtime,
-            () => openPluginFile(file, runtime, callback), failure), failure);
+    const state = pluginReadState(runtime, cancellable, callback);
+    queryPluginInfo(Gio.file_new_for_path(directory), Gio.FileType.DIRECTORY, state, () =>
+        queryPluginInfo(file, Gio.FileType.REGULAR, state, () => openPluginFile(file, state)));
+}
+
+function createPluginCancellable() {
+    const runtime = typeof imports === "undefined" ? globalThis.imports : imports;
+    return new runtime.gi.Gio.Cancellable();
 }
 
 var CalendarPluginLoader = class CalendarPluginLoader {
     constructor(params = {}) {
         this._read = params.read || readInstalledPlugin;
+        this._createCancellable = params.createCancellable || createPluginCancellable;
         this._report = params.report || reportPluginError;
         this._generation = 0;
+        this._cancellable = null;
         this._destroyed = false;
     }
 
     load(selection, callback) {
         if (this._destroyed) return;
-        const generation = ++this._generation;
+        const generation = this._retireGeneration();
+        if (!this._isCurrent(generation)) return;
         const ids = selectedPluginIds(selection);
         const results = new Array(ids.length);
         let remaining = ids.length;
@@ -168,27 +194,44 @@ var CalendarPluginLoader = class CalendarPluginLoader {
             callback([]);
             return;
         }
-        ids.forEach((id, index) => this._loadOne(id, (manifest) => {
-            if (this._destroyed || generation !== this._generation) return;
+        const cancellable = this._createCancellable();
+        this._cancellable = cancellable;
+        ids.forEach((id, index) => this._loadOne(id, generation, cancellable, (manifest) => {
+            if (!this._isCurrent(generation)) return;
             results[index] = manifest;
             remaining--;
             if (!remaining) callback(results.filter(Boolean));
         }));
     }
 
-    _loadOne(id, callback) {
+    _retireGeneration() {
+        // Cancellation can synchronously complete reads from the old generation.
+        const generation = ++this._generation;
+        const previous = this._cancellable;
+        this._cancellable = null;
+        previous?.cancel();
+        return generation;
+    }
+
+    _isCurrent(generation) {
+        return !this._destroyed && generation === this._generation;
+    }
+
+    _loadOne(id, generation, cancellable, callback) {
+        if (!this._isCurrent(generation)) return;
         let settled = false;
         let callbackStarted = false;
         const finish = (raw) => {
-            if (settled) return;
+            if (settled || !this._isCurrent(generation)) return;
             settled = true;
             callbackStarted = true;
             callback(this._validate(id, raw));
         };
         try {
-            this._read(id, finish);
+            this._read(id, cancellable, finish);
         } catch (error) {
             if (callbackStarted) throw error;
+            if (!this._isCurrent(generation)) return;
             reportWithoutThrowing(this._report, error);
             finish(null);
         }
@@ -207,7 +250,7 @@ var CalendarPluginLoader = class CalendarPluginLoader {
 
     destroy() {
         this._destroyed = true;
-        this._generation++;
+        this._retireGeneration();
     }
 };
 

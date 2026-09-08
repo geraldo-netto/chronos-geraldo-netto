@@ -9,6 +9,7 @@ const { countrySelections, countryCalendarName, publicCalendar, religiousCalenda
     require(path.join(root, "calendarSourceAdapters"));
 const { validateCalendarManifest } = require(path.join(root, "calendarPluginData"));
 const { SUPPORTED_COUNTRIES } = require(path.join(root, "holidayConstants"));
+const { PluginCancellable, createCancellable } = require("./helpers/pluginCancellable");
 
 function manifest(id = "custom:family", changes = {}) {
     return Object.assign({
@@ -76,7 +77,8 @@ test("loader preserves selection order, settles once, and skips invalid or misma
     const pending = new Map();
     const errors = [];
     const loader = new CalendarPluginLoader({
-        read: (id, done) => pending.set(id, done), report: (error) => errors.push(error.message)
+        createCancellable,
+        read: (id, cancellable, done) => pending.set(id, done), report: (error) => errors.push(error.message)
     });
     const answers = [];
     loader.load(["custom:first", "custom:second", "custom:first", "custom:bad", "custom:mismatch"],
@@ -97,7 +99,7 @@ test("loader preserves selection order, settles once, and skips invalid or misma
 test("loader isolates throwing reads and reports through its default logger", () => {
     const messages = [];
     global.logError = (error) => messages.push(error.message);
-    const loader = new CalendarPluginLoader({ read(id, done) {
+    const loader = new CalendarPluginLoader({ createCancellable, read(id, cancellable, done) {
         if (id === "custom:broken") throw new Error("Could not open calendar");
         done(manifest(id));
     } });
@@ -112,7 +114,8 @@ test("loader isolates throwing reads and reports through its default logger", ()
 test("a failing injected logger cannot interrupt invalid-plugin settlement or healthy reads", () => {
     for (const throwsOnRead of [false, true]) {
         const loader = new CalendarPluginLoader({
-            read(id, done) {
+            createCancellable,
+            read(id, cancellable, done) {
                 if (id === "custom:broken") {
                     if (throwsOnRead) throw new Error("Read failed");
                     done(null);
@@ -131,7 +134,8 @@ test("a failing injected logger cannot interrupt invalid-plugin settlement or he
 
 test("loader ignores superseded selections and callbacks after destruction", () => {
     const callbacks = [];
-    const loader = new CalendarPluginLoader({ read: (id, done) => callbacks.push(done) });
+    const loader = new CalendarPluginLoader({ createCancellable,
+        read: (id, cancellable, done) => callbacks.push(done) });
     loader.load(["custom:first"], () => assert.fail("superseded selection delivered"));
     let latest;
     loader.load(["custom:second"], (rows) => { latest = rows; });
@@ -150,7 +154,8 @@ test("loader ignores superseded selections and callbacks after destruction", () 
 test("loader propagates consumer exceptions without diagnosing them as read failures", () => {
     const reported = [];
     const loader = new CalendarPluginLoader({
-        read: (id, done) => done(manifest(id)), report: (error) => reported.push(error)
+        createCancellable,
+        read: (id, cancellable, done) => done(manifest(id)), report: (error) => reported.push(error)
     });
     assert.throws(() => loader.load(["custom:family"], () => {
         throw new Error("Consumer failed");
@@ -224,6 +229,7 @@ function installedFixture(options = {}) {
     GLib.path_is_absolute = path.isAbsolute;
     GLib.get_home_dir = GLib.get_user_cache_dir;
     Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS = 1;
+    Gio.Cancellable = PluginCancellable;
     Gio.FileType = { REGULAR: 1, DIRECTORY: 2 };
     const state = { queries: [], opened: [], reads: [], closed: 0, delivered: 0 };
     Gio.file_new_for_path = (filePath) => filesystemFile(filePath, options, state);
@@ -349,9 +355,9 @@ test("a failing Cinnamon logger cannot prevent acquired plugin streams from clos
 
 test("default file reader rejects a path-like ID and preserves callback exceptions", () => {
     const { state } = installedFixture();
-    readInstalledPlugin("../outside", (raw) => assert.equal(raw, null));
+    readInstalledPlugin("../outside", createCancellable(), (raw) => assert.equal(raw, null));
     assert.equal(state.queries.length, 0);
-    assert.throws(() => readInstalledPlugin("custom:family", () => {
+    assert.throws(() => readInstalledPlugin("custom:family", createCancellable(), () => {
         throw new Error("Consumer failed after read");
     }), /Consumer failed after read/);
     assert.equal(state.closed, 1);
@@ -438,7 +444,8 @@ test("the composed provider combines a primary country, several countries, relig
             created.push(extra);
             return extra;
         },
-        pluginLoader: new CalendarPluginLoader({ read: (id, done) => done(manifest(id)) })
+        pluginLoader: new CalendarPluginLoader({ createCancellable,
+            read: (id, cancellable, done) => done(manifest(id)) })
     });
     provider.setCountries([{ country: "ita" }, { country: "cze" }, { country: "usa", region: "ma" }]);
     provider.setPluginIds(["custom:family"]);
@@ -461,7 +468,8 @@ test("country and plugin selection changes remove old sources and preserve main-
     const created = [];
     const provider = new ReligiousHolidayProvider(baseProvider("ita"), [], undefined, {
         createCountry() { const extra = baseProvider(); created.push(extra); return extra; },
-        pluginLoader: new CalendarPluginLoader({ read: (id, done) => done(manifest(id)) })
+        pluginLoader: new CalendarPluginLoader({ createCancellable,
+            read: (id, cancellable, done) => done(manifest(id)) })
     });
     provider.setCountries([{ country: "ita" }, { country: "cze" }]);
     provider.clearPlace();
@@ -503,7 +511,7 @@ test("reapplying calendar settings preserves same-date order and truncation", ()
     const provider = new ReligiousHolidayProvider(baseProvider("ita", "Primary date"), ["christianity"],
         (text) => text, {
             createCountry: (country) => baseProvider("", `${country} date`),
-            pluginLoader: new CalendarPluginLoader({ read: (id, done) => done(manifest(id, {
+            pluginLoader: new CalendarPluginLoader({ createCancellable, read: (id, cancellable, done) => done(manifest(id, {
                 name: id + "N".repeat(75),
                 events: [{ name: "A".repeat(160), month: 12, day: 25 }]
             })) })
