@@ -42,6 +42,11 @@ function zonedDateTime(timestamp, timezone) {
     return utc ? utc.to_timezone(timezone) : null;
 }
 
+function _civilMidnight(date, timezone) {
+    return GLib.DateTime.new(timezone,
+        date.get_year(), date.get_month(), date.get_day_of_month(), 0, 0, 0);
+}
+
 function civilDayBounds(now, timezone) {
     if (!now || typeof now.getTime !== "function" || !Number.isFinite(now.getTime())) {
         return null;
@@ -50,9 +55,11 @@ function civilDayBounds(now, timezone) {
     if (!placeNow) {
         return null;
     }
-    const start = GLib.DateTime.new(timezone,
-        placeNow.get_year(), placeNow.get_month(), placeNow.get_day_of_month(), 0, 0, 0);
-    const end = start ? start.add_days(1) : null;
+    const start = _civilMidnight(placeNow, timezone);
+    const tomorrow = placeNow.add_days(1);
+    // A midnight DST jump may normalize start to 01:00. Tomorrow's boundary
+    // must be constructed independently rather than carrying that hour forward.
+    const end = tomorrow ? _civilMidnight(tomorrow, timezone) : null;
     if (!start || !end) {
         return null;
     }

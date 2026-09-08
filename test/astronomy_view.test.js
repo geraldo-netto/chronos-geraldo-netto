@@ -141,32 +141,35 @@ test("place civil-day bounds reject bad clocks and preserve DST-sized days", () 
     assert.equal(View.civilDayBounds(new Date(), null), null);
 
     const constructed = [];
+    const dayFor = (day) => ({
+        get_year: () => 2026,
+        get_month: () => 3,
+        get_day_of_month: () => day
+    });
+    const current = { ...dayFor(29), add_days: () => dayFor(30) };
     utcDateTimeFactory = () => ({
-        to_timezone: (value) => value === seoul ? {
-            get_year: () => 2026,
-            get_month: () => 3,
-            get_day_of_month: () => 29
-        } : null
+        to_timezone: (value) => value === seoul ? current : null
     });
     dateTimeFactory = (...args) => {
         constructed.push(args);
         return {
-            to_unix: () => 1000,
-            add_days: () => ({ to_unix: () => 1000 + 23 * 60 * 60 })
+            to_unix: () => args[3] === 29 ? 1000 : 1000 + 23 * 60 * 60
         };
     };
 
     const bounds = View.civilDayBounds(new Date(2026, 2, 29, 12, 30), seoul);
-    assert.deepEqual(constructed, [[seoul, 2026, 3, 29, 0, 0, 0]]);
+    assert.deepEqual(constructed, [
+        [seoul, 2026, 3, 29, 0, 0, 0], [seoul, 2026, 3, 30, 0, 0, 0]
+    ]);
     assert.deepEqual(bounds, { startMs: 1000000, endMs: (1000 + 23 * 60 * 60) * 1000 });
 
     dateTimeFactory = () => null;
     assert.equal(View.civilDayBounds(new Date(), seoul), null);
-    dateTimeFactory = () => ({ add_days: () => null });
+    current.add_days = () => null;
     assert.equal(View.civilDayBounds(new Date(), seoul), null);
-    dateTimeFactory = () => ({
-        to_unix: () => 0,
-        add_days: () => ({ to_unix: () => 27 * 60 * 60 })
+    current.add_days = () => dayFor(30);
+    dateTimeFactory = (...args) => ({
+        to_unix: () => args[3] === 29 ? 0 : 27 * 60 * 60
     });
     assert.equal(View.civilDayBounds(new Date(), seoul), null, "oversized civil days fail closed");
     assert.equal(View.zonedDateTime(NaN, seoul), null);
@@ -467,17 +470,16 @@ test("the shipped view uses its local clock, solver, and formatter defaults", ()
     const parent = new MockBox();
     const view = new View.AstronomyView(parent);
 
-    utcDateTimeFactory = () => ({
-        to_timezone: () => unixDateTime || {
-            get_year: () => 2026,
-            get_month: () => 3,
-            get_day_of_month: () => 5,
-            format: () => "06:30"
-        }
-    });
-    dateTimeFactory = () => ({
-        to_unix: () => Date.parse("2026-03-05T00:00:00+01:00") / 1000,
-        add_days: () => ({ to_unix: () => Date.parse("2026-03-06T00:00:00+01:00") / 1000 })
+    const placeDay = {
+        get_year: () => 2026,
+        get_month: () => 3,
+        get_day_of_month: () => 5,
+        format: () => "06:30",
+        add_days: () => ({ ...placeDay, get_day_of_month: () => 6 })
+    };
+    utcDateTimeFactory = () => ({ to_timezone: () => unixDateTime || placeDay });
+    dateTimeFactory = (zone, year, month, day) => ({
+        to_unix: () => Date.UTC(year, month - 1, day, -1) / 1000
     });
 
     assert.doesNotThrow(() => view.update({
