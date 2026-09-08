@@ -830,6 +830,7 @@ def install_stubs():
     gi = types.ModuleType("gi")
     gi.require_version = lambda *_args: None
     repository = types.ModuleType("gi.repository")
+    repository.Pango = types.SimpleNamespace(EllipsizeMode=types.SimpleNamespace(END=3))
     gtk = types.SimpleNamespace(
         MessageDialog=GtkMessageDialog,
         DialogFlags=types.SimpleNamespace(MODAL=1),

@@ -5,8 +5,8 @@ import json
 from pathlib import Path
 
 from helpers.settings_widgets_fixture import (
-    FakeSettings, HOLIDAYS_PATH, WEATHER_PATH, WORLDCLOCKS_PATH,
-    load_module, tearDownModule as teardown_fixture, unittest,
+    APPLET_DIR, FakeSettings, HOLIDAYS_PATH, WEATHER_PATH, WORLDCLOCKS_PATH,
+    load_gi_free_module, load_module, tearDownModule as teardown_fixture, unittest,
 )
 
 
@@ -15,6 +15,37 @@ FIXTURE = json.loads((Path(__file__).parent / "fixtures/settings_unicode_cases.j
 
 def tearDownModule():
     teardown_fixture()
+
+
+class FilenameDisplayTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.text = load_gi_free_module(APPLET_DIR / "chronos_text.py", "filename_text")
+
+    def test_shared_filename_projection_is_bounded_and_utf8_encodable(self):
+        cases = json.loads((Path(__file__).parent / "fixtures/calendar_filename_cases.json").read_text())
+        for case in cases:
+            normalized = self.text.filename_display_text(case["filename"])
+            self.assertEqual(normalized, case["display"])
+            normalized.encode("utf-8")
+            self.assertLessEqual(len(normalized), 100)
+
+    def test_filename_boundaries_preserve_valid_text_and_refuse_nontext(self):
+        for value in (None, [], {}, False, 0):
+            self.assertEqual(self.text.filename_display_text(value), "")
+        for length in (0, 1, 99, 100, 101, 255, 4096):
+            source = "🏙" * length
+            expected = source if length <= 100 else "🏙" * 99 + "…"
+            self.assertEqual(self.text.filename_display_text(source), expected)
+        self.assertEqual(self.text.filename_display_text("\ufeff a\n\r\u202eb \ufeff"), "a b")
+
+    def test_filename_controls_follow_the_shared_runtime_policy(self):
+        cases = json.loads((Path(__file__).parent / "fixtures/control_character_cases.json").read_text())
+        for case in cases["removed"]:
+            self.assertEqual(self.text.filename_display_text("a" + chr(case["codePoint"]) + "b"), "a b")
+        for case in cases["kept"]:
+            source = "a" + chr(case["codePoint"]) + "b"
+            self.assertEqual(self.text.filename_display_text(source), source)
 
 
 class SettingsUnicodeTests(unittest.TestCase):

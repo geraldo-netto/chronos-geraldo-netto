@@ -18,6 +18,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from unittest import mock
 
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -159,6 +160,64 @@ def check_teardown(widget_type, schema, key, case):
         window.destroy()
 
 
+def check_filename_removal(widget, directory, case, remaining):
+    row = next(row for row in widget.unavailable_list.get_children()
+               if row.calendar_filename == case["filename"])
+    label = row.get_children()[0]
+    assert label.get_text() == case["display"] + " · Invalid calendar file"
+    label.get_text().encode("utf-8")
+    assert label.get_max_width_chars() == 60
+    row.remove_button.emit("clicked")
+    remaining.remove(case["filename"])
+    assert not (directory / case["filename"]).exists()
+    assert all((directory / name).exists() for name in remaining)
+    assert [item.calendar_id for item in widget.listbox.get_children()] == ["example.native"]
+
+
+def prepare_filename_plugins(directory):
+    import chronos_calendar_plugin_data as data
+    installed = data.plugin_directory()
+    assert installed.resolve().is_relative_to(directory.resolve())
+    installed.mkdir(parents=True)
+    cases = json.loads((ROOT / "test/fixtures/calendar_filename_cases.json").read_text())
+    for case in cases:
+        (installed / case["filename"]).write_bytes(b"not JSON")
+    manifest = {"apiVersion": 1, "id": "example.native", "name": "Native test calendar",
+                "category": "civic", "coverage": {"from": 1, "through": 9999},
+                "source": {"name": "Native regression fixture"}, "events": []}
+    neighbor = installed / "example.native.json"
+    neighbor.write_text(json.dumps(manifest))
+    return installed, cases, neighbor
+
+
+def check_plugin_filenames(directory, schema):
+    from gi.repository import Gtk
+    import chronos_settings_widgets_calendars as calendars
+    installed, cases, neighbor = prepare_filename_plugins(directory)
+    key = "calendar-plugins"
+    settings = MemorySettings(schema, key, ["example.native"])
+    settings.values["calendar-plugins-revision"] = 0
+    with mock.patch.object(calendars.LOGGER, "warning"):
+        widget = calendars.CalendarPluginChoices(schema[key], key, settings)
+        window = Gtk.Window()
+        window.set_default_size(640, 480)
+        window.add(widget)
+        try:
+            expander = next(child for child in widget.get_children() if isinstance(child, Gtk.Expander))
+            expander.set_expanded(True)
+            window.show_all()
+            drain_events()
+            assert window.get_allocated_width() <= 960, window.get_allocated_width()
+            remaining = {case["filename"] for case in cases}
+            for case in cases:
+                check_filename_removal(widget, installed, case, remaining)
+            assert neighbor.exists()
+            assert settings.get_value(key) == ["example.native"]
+        finally:
+            window.destroy()
+    return len(cases)
+
+
 def run_isolated(directory):
     verify_isolation(directory)
     weather, country, clocks = load_widgets()
@@ -180,6 +239,7 @@ def run_isolated(directory):
         for case in teardown[key]:
             check_teardown(widget, schema, key, case)
             checks += 1
+    checks += check_plugin_filenames(directory, schema)
     print(json.dumps({"checks": checks + 1, "failures": []}), flush=True)
     return 0
 

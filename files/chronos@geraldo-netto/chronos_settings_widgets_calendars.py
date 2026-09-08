@@ -16,11 +16,11 @@ import logging
 import JsonSettingsWidgets
 from JsonSettingsWidgets import JSONSettingsBackend, JSONSettingsList
 from TreeListWidgets import list_edit_factory
-from gi.repository import Gtk
+from gi.repository import Gtk, Pango
 from xapp.SettingsWidgets import SettingsWidget
 
 import chronos_calendar_plugin_data as plugin_data
-from chronos_text import trim_text
+from chronos_text import filename_display_text, trim_text
 
 
 LOGGER = logging.getLogger("chronos@geraldo-netto.settings")
@@ -248,6 +248,8 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         row.calendar_id, row.calendar_filename = identifier, filename
         label = Gtk.Label(label=f"{name} · {detail}", xalign=0)
         label.set_line_wrap(True)
+        label.set_max_width_chars(60)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
         row.pack_start(label, False, False, 0)
         actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         row.remove_button = row.clear_button = None
@@ -266,7 +268,7 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         path, manifest = entry["path"], entry["manifest"]
         identifier = path.stem if path.stem in selected_ids([path.stem]) else None
         if manifest is None:
-            name, detail = path.name, "Invalid calendar file"
+            name, detail = filename_display_text(path.name), "Invalid calendar file"
         else:
             name = manifest["name"]
             coverage = manifest["coverage"]

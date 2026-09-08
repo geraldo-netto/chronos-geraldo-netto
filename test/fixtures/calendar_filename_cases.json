@@ -1,0 +1,26 @@
+[
+  {
+    "filename": "bad-\udcff.json",
+    "display": "bad-�.json"
+  },
+  {
+    "filename": "bad-\udcfe.json",
+    "display": "bad-�.json"
+  },
+  {
+    "filename": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json",
+    "display": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa…"
+  },
+  {
+    "filename": "line\nbreak.json",
+    "display": "line break.json"
+  },
+  {
+    "filename": "abc\u202eXYZ.json",
+    "display": "abc XYZ.json"
+  },
+  {
+    "filename": "Plzeň 🏙.json",
+    "display": "Plzeň 🏙.json"
+  }
+]

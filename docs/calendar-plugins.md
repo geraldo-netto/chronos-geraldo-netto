@@ -46,6 +46,9 @@ selection slot while keeping the file. **Remove file** deletes that file and its
 selection, including an invalid JSON file. These actions reclaim the 32 file or
 selection slots without adding unavailable calendars to the choices. Updating a
 retained calendar's coverage and refreshing restores its selected choice.
+Displayed filenames replace malformed Unicode and line or directional controls,
+and shorten to 100 characters. Long labels ellipsize within the settings window.
+Removal always uses the original filename, even when two display labels match.
 
 The default directory is `~/.local/share/chronos@geraldo-netto/calendars/`, or
 `$XDG_DATA_HOME/chronos@geraldo-netto/calendars/` when `XDG_DATA_HOME` is an

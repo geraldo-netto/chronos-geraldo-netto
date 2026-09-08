@@ -76,10 +76,11 @@ def load_targets():
     clocks = fixture.load_module(fixture.WORLDCLOCKS_PATH, "fuzz_clocks", missing_pytz=True)
     weather = fixture.load_module(fixture.WEATHER_PATH, "fuzz_weather", missing_pytz=True)
     countries = fixture.load_module(fixture.HOLIDAYS_PATH, "fuzz_countries", missing_pytz=True)
+    text = fixture.load_gi_free_module(fixture.APPLET_DIR / "chronos_text.py", "fuzz_text")
     # The fixture pins timezone identity; avoid emitting the deliberately absent
     # optional-database warning when constructing fake country widgets.
     countries.common.report_startup_diagnostics = lambda: None
-    return fixture, manifests, clocks, weather, countries
+    return fixture, manifests, clocks, weather, countries, text
 
 
 def base_manifest():
@@ -230,6 +231,16 @@ def check_weather(module, value):
         require(normalized == "", "oversized weather location was accepted")
 
 
+def check_filename(module, value):
+    normalized = module.filename_display_text(value)
+    ui_text(normalized, 100)
+    require(REMOVED_CONTROLS.search(normalized) is None, "filename display retains line or bidi controls")
+    require(module.filename_display_text(normalized) == normalized, "filename display is not idempotent")
+    require(module.filename_display_text("Plzeň 🏙.json") == "Plzeň 🏙.json", "valid filename was lost")
+    if not isinstance(value, str):
+        require(normalized == "", "non-text filename was coerced into display text")
+
+
 def clock_candidate(value, case):
     choices = (value, {"label": value, "timezone": "Europe/Paris"},
                {"label": "Paris", "timezone": value})
@@ -278,7 +289,7 @@ def check_country(fixture, module, value, external=False):
 
 
 def run_case(audit, modules, rng, case, corpus):
-    fixture, manifests, clocks, weather, countries = modules
+    fixture, manifests, clocks, weather, countries, text = modules
     value = deepcopy(TEXT_BOUNDARIES[case]) if case < len(TEXT_BOUNDARIES) else json_value(rng)
     candidate = clock_candidate(value, case)
     name = "Genova" + "é" * rng.randrange(20)
@@ -290,6 +301,7 @@ def run_case(audit, modules, rng, case, corpus):
         ("clock.label", value, lambda raw: check_label(clocks, raw)),
         ("weather.location", value, lambda raw: check_weather(weather, raw)),
         ("weather.nul-location", nul_location, lambda raw: check_weather(weather, raw)),
+        ("calendar.filename", value, lambda raw: check_filename(text, raw)),
         ("clock.rows", [candidate], lambda raw: check_clock_rows(clocks, raw)),
         ("clock.neighbors", candidate, lambda raw: check_clock_neighbors(clocks, raw)),
         ("clock.bounds", (0, 1, 7, 8, 9, 63, 64, 65)[case % 8], lambda raw: check_clock_bounds(clocks, raw)),

@@ -45,6 +45,7 @@ class NativeSettingsHarnessTests(unittest.TestCase):
                 mock.patch.object(CHECK, "check_weather") as weather, \
                 mock.patch.object(CHECK, "check_country") as country, \
                 mock.patch.object(CHECK, "check_teardown") as teardown, \
+                mock.patch.object(CHECK, "check_plugin_filenames", return_value=6) as filenames, \
                 mock.patch.object(CHECK, "check_clocks") as clocks, redirect_stdout(io.StringIO()):
             self.assertEqual(CHECK.run_isolated(Path("/private")), 0)
         self.assertEqual(weather.call_count, 22)
@@ -52,6 +53,7 @@ class NativeSettingsHarnessTests(unittest.TestCase):
         self.assertTrue(all(not call.args[2]["valid"] for call in country.call_args_list))
         clocks.assert_called_once()
         self.assertEqual(teardown.call_count, 17)
+        filenames.assert_called_once()
 
     def test_missing_native_tools_fail_instead_of_skipping(self):
         with mock.patch.object(CHECK.shutil, "which", return_value=None), \

@@ -26,7 +26,7 @@ from typing import Optional
 from gi.repository import GLib, Gtk
 
 import chronos_settings_widgets_common as common
-from chronos_text import TEXT_WHITESPACE, trim_text, valid_unicode
+from chronos_text import TEXT_WHITESPACE, sanitize_control_characters, trim_text, valid_unicode
 from chronos_timezone_data import (
     completion_key,
     is_runtime_builtin_timezone,
@@ -188,42 +188,6 @@ def list_edit_factory(params):
     return ListEditEntry(completions=params.get('completions'),
                          placeholder=params.get('placeholder'),
                          max_length=params.get('max_length'), **kwargs)
-
-# The exact set textUtils.js removes. U+2028 and U+2029 are categories Zl and
-# Zp and the directional formatting characters are Cf, so a control-block test
-# alone lets all of them through - and both were added to the JS side while this
-# one still said "C0/C1", which is the drift test/fixtures/control_character_cases.json
-# now fails a suite for.
-_REMOVED_RANGES = ((0x00, 0x1F), (0x7F, 0x9F), (0x2028, 0x2029),
-                   (0x202A, 0x202E), (0x2066, 0x2069))
-
-
-def _is_removed_control(code):
-    return any(first <= code <= last for first, last in _REMOVED_RANGES)
-
-
-def sanitize_control_characters(value):
-    """Collapse anything that breaks or reorders a line to a single space.
-
-    The twin of textUtils.sanitizeControlCharacters, applied for the same
-    reason: a Display name pasted with an embedded newline reaches the popup
-    row's label and the monospace panel tooltip verbatim, growing the row a
-    second line and misaligning every column of the table, while one carrying
-    U+202E reverses the display order of everything after it. The runtime
-    filters it on read; this stops the dialog persisting it in the first place.
-    """
-    sanitized = []
-    replacing = False
-    for character in value:
-        if _is_removed_control(ord(character)):
-            if not replacing:
-                sanitized.append(" ")
-                replacing = True
-        else:
-            sanitized.append(character)
-            replacing = False
-    return "".join(sanitized)
-
 
 def normalize_clock_label(value):
     if not isinstance(value, str) or not valid_unicode(value):

@@ -404,6 +404,12 @@ class WidgetNode:
     set_policy = set_min_content_height = set_max_content_height = configure
     set_line_wrap = show_all = configure
 
+    def set_max_width_chars(self, value):
+        self.properties["max_width_chars"] = value
+
+    def set_ellipsize(self, value):
+        self.properties["ellipsize"] = value
+
 
 class FakeSettings:
     def __init__(self, selected=None):
@@ -552,7 +558,8 @@ def widget_modules(data):
             JSONSettingsSwitch=lambda *args: args,
         ),
         "gi": types.ModuleType("gi"),
-        "gi.repository": types.SimpleNamespace(Gtk=gtk),
+        "gi.repository": types.SimpleNamespace(
+            Gtk=gtk, Pango=types.SimpleNamespace(EllipsizeMode=types.SimpleNamespace(END=3))),
         "xapp": types.ModuleType("xapp"),
         "xapp.SettingsWidgets": types.SimpleNamespace(SettingsWidget=WidgetNode),
     }
@@ -868,6 +875,28 @@ class CalendarChoicesTests(unittest.TestCase):
         self.assertTrue((self.installed / "example.expired.json").exists())
         self.assertEqual(self.settings.values["calendar-plugins"], ["example.expired"])
         self.assertEqual(self.settings.values["calendar-plugins-revision"], 0)
+
+    def test_opaque_filenames_have_safe_bounded_labels_and_exact_removal(self):
+        cases = json.loads((Path(__file__).parent / "fixtures/calendar_filename_cases.json").read_text())
+        for case in cases:
+            (self.installed / case["filename"]).write_bytes(b"not JSON")
+        self.widget.on_setting_changed()
+        remaining = {case["filename"] for case in cases}
+        for case in cases:
+            with self.subTest(filename=case["filename"]):
+                row = next(row for row in self.widget.unavailable_list.get_children()
+                           if row.calendar_filename == case["filename"])
+                label = row.children[0].properties
+                self.assertEqual(label["label"], case["display"] + " · Invalid calendar file")
+                label["label"].encode("utf-8")
+                self.assertEqual(label["max_width_chars"], 60)
+                self.assertEqual(label["ellipsize"], 3)
+                row.remove_button.emit("clicked")
+                remaining.remove(case["filename"])
+                self.assertFalse((self.installed / case["filename"]).exists())
+                self.assertTrue(all((self.installed / name).exists() for name in remaining))
+                self.assertEqual([item.calendar_id for item in self.widget.listbox.get_children()],
+                                 ["example.current"])
 
     def test_clear_selection_preserves_new_settings_and_updated_coverage_restores_choice(self):
         row = self.widget.unavailable_list.get_children()[0]
