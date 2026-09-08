@@ -48,6 +48,7 @@ selection slots without adding unavailable calendars to the choices. Updating a
 retained calendar's coverage and refreshing restores its selected choice.
 Displayed filenames replace malformed Unicode and line or directional controls,
 and shorten to 100 characters. Long labels ellipsize within the settings window.
+Available choices retain their full calendar names in tooltips and accessible labels.
 Removal always uses the original filename, even when two display labels match.
 
 The default directory is `~/.local/share/chronos@geraldo-netto/calendars/`, or

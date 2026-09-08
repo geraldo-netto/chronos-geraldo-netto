@@ -400,7 +400,7 @@ class WidgetNode:
     def configure(self, *_args):
         pass
 
-    set_orientation = set_spacing = set_tooltip_text = configure
+    set_orientation = set_spacing = configure
     set_policy = set_min_content_height = set_max_content_height = configure
     set_line_wrap = show_all = configure
 
@@ -409,6 +409,20 @@ class WidgetNode:
 
     def set_ellipsize(self, value):
         self.properties["ellipsize"] = value
+
+    def set_tooltip_text(self, value):
+        self.properties["tooltip_text"] = value
+
+
+class FakeCheckButton(WidgetNode):
+    """Gtk.CheckButton owns a separate label whose sizing controls its request."""
+
+    def __init__(self, **properties):
+        super().__init__(**properties)
+        self.add(WidgetNode(label=properties["label"]))
+
+    def get_child(self):
+        return self.children[0]
 
 
 class FakeSettings:
@@ -539,7 +553,7 @@ def widget_modules(data):
     gtk = types.SimpleNamespace(
         ListBox=WidgetNode, ListBoxRow=WidgetNode, Box=WidgetNode,
         ScrolledWindow=WidgetNode, Label=WidgetNode, Button=WidgetNode, Expander=WidgetNode,
-        CheckButton=WidgetNode, FileChooserDialog=FakeChooser,
+        CheckButton=FakeCheckButton, FileChooserDialog=FakeChooser,
         Dialog=FakeCountryDialog,
         FileFilter=lambda: types.SimpleNamespace(set_name=lambda *_args: None,
                                                 add_pattern=lambda *_args: None),
@@ -786,6 +800,27 @@ class CalendarChoicesTests(unittest.TestCase):
         write_manifest(self.installed, manifest("example.expired", self.current - 2, self.current - 1))
         write_manifest(self.installed, manifest("example.current", self.current, self.current + 1))
         self.widget = self.widget_module.CalendarPluginChoices({}, "calendar-plugins", self.settings)
+
+    def test_T1153_available_labels_are_bounded_without_losing_identity(self):
+        for name in ("W" * 100, "界" * 100, "\U0001f600" * 50):
+            with self.subTest(name=name):
+                value = manifest("example.current", self.current, self.current + 1)
+                value["name"] = name
+                write_manifest(self.installed, value)
+                self.widget._on_refresh()
+                row = self.widget.listbox.get_children()[0]
+                checkbox = row.children[0]
+                label = checkbox.get_child().properties
+                self.assertEqual(label.get("ellipsize"), 3,
+                                 "T1153: constrain the child label, not its containing row")
+                self.assertGreater(label["max_width_chars"], 0)
+                self.assertLessEqual(label["max_width_chars"], 60)
+                self.assertEqual(label["label"], name,
+                                 "ellipsizing must retain the full accessible label text")
+                self.assertIn(name, checkbox.properties["tooltip_text"])
+                self.assertIn(value["source"]["name"], checkbox.properties["tooltip_text"])
+                checkbox.set_active(True)
+                self.assertIn("example.current", self.settings.get_value("calendar-plugins"))
 
     def test_only_available_choices_are_shown_and_hidden_selections_survive(self):
         rows = self.widget.listbox.get_children()

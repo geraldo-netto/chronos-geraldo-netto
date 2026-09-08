@@ -322,8 +322,11 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         row = Gtk.ListBoxRow()
         row.calendar_id = manifest["id"]
         checkbox = Gtk.CheckButton(label=manifest["name"])
+        label = checkbox.get_child()
+        label.set_max_width_chars(40)
+        label.set_ellipsize(Pango.EllipsizeMode.END)
         checkbox.set_active(manifest["id"] in chosen)
-        checkbox.set_tooltip_text(f'{manifest["category"]} · {manifest["source"]["name"]}')
+        checkbox.set_tooltip_text(f'{manifest["name"]}\n{manifest["category"]} · {manifest["source"]["name"]}')
         checkbox.connect("toggled", self._on_toggled, row)
         row.add(checkbox)
         self.listbox.add(row)
