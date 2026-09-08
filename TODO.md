@@ -35,7 +35,6 @@
 | T1036 | deferred | — | — | Choose one IS_NODE bootstrap-comment convention across the six holiday modules: keep the full explanation everywhere, or keep bare expressions and one canonical explanation. |
 | T1037 | deferred | — | — | Decide whether the 26 two-line guarded applet handlers should remain individually greppable and breakpointable or become a dispatch table that removes about fifty lines of boilerplate. |
 | T1038 | deferred | — | — | Decide whether DesktopSettings belongs in a separate facade from the AppletSettings wrappers. Splitting clarifies different lifetimes but requires a version shim and two call-site edits. |
-| T1040 | deferred | — | — | Confirm whether cinnamon-settings can rebuild an xlet page while its JSONSettingsHandler survives. If so, add teardown for widget listeners so callbacks cannot target finalized GTK objects. |
 | T1041 | deferred | — | — | Decide whether the single global completion memo is sufficient when weather and country matchers coexist, or replace it with a small per-key map; also align WeatherLocationEntry with attach_completion's on_selected convention. |
 | T1042 | deferred | — | — | Decide whether ClockEntrySerializer should derive column order from the schema instead of hard-coding CLOCK_COLUMN_IDS. A schema column reorder currently breaks positional writes while the dialog still renders. |
 

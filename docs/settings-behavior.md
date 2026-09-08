@@ -1,5 +1,20 @@
 # Settings behavior
 
+## Settings window lifetime
+
+Cinnamon 6.6.9's `xlet-settings.py` creates each instance's settings handler and
+widget pages once, in `load_instances()` during window construction. Switching
+pages or applet instances reuses those widgets. Reset and Import call the
+existing handler's value-update methods; they do not rebuild the pages. Closing
+the window destroys its widgets and immediately exits the GTK main loop.
+
+Chronos therefore uses Cinnamon's listener lifetime for these pages. It does
+not modify the handler's private listener or property-binding collections;
+the handler exposes no public detach operation. A future host that rebuilds
+pages while retaining their handler will need a supported teardown contract.
+Chronos-owned work has its own teardown: pending window-centering idles cancel
+when their widget is destroyed.
+
 ## Weather location
 
 An empty saved weather location stays empty when the applet starts, reloads,
