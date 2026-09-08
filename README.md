@@ -307,6 +307,8 @@ Agenda updates keep keyboard focus on a surviving event. If that event disappear
 focus moves to the next available row, then the previous row, or the date heading
 when no event can be activated. Moving focus yourself during an update takes
 precedence over restoring the old event.
+The popup also adjusts to the available screen area when monitors or panel sizes
+change, including while it is open.
 
 ### Running the tests and linters (development)
 

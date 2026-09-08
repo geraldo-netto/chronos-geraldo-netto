@@ -272,6 +272,8 @@ class AppletProviderLifecycle {
         this._logind_sleep_signal_id = 0;
         this._timedate_signal_id = 0;
         this._monitors_signal_id = 0;
+        this._workareas_signal_id = 0;
+        this._workarea_reflow_idle_id = 0;
         this._destroyed = false;
     }
 
@@ -453,20 +455,39 @@ class AppletProviderLifecycle {
         });
     }
 
-    // The popup decides horizontal-or-stacked from the work area it measured
-    // when it opened. A monitor hotplug, a resolution change or a panel resize
-    // does not reopen it, so without this the shape stays wrong until the user
-    // closes and reopens the menu — and on a shrinking work area that is a grid
-    // pushed off the bottom of the screen. Cinnamon emits `monitors-changed` on
-    // Main.layoutManager for all three. The reflow is idempotent and returns
-    // without writing when the answer is unchanged.
+    // Monitor geometry and panel struts have separate signal sources. Keep
+    // monitor hotplug handling, and observe the display for work-area changes
+    // such as panel resizing that never emit monitors-changed.
     _bindMonitorSignals(context) {
         const layoutManager = context.layoutManager;
         if (!layoutManager || typeof layoutManager.connect !== "function") {
             return;
         }
         this._monitors_signal_id = layoutManager.connect(
-            "monitors-changed", () => context.onMonitorsChanged());
+            "monitors-changed", () => context.onGeometryChanged());
+    }
+
+    _bindWorkAreaSignals(context) {
+        if (!context.display) {
+            return;
+        }
+        this._workareas_signal_id = context.display.connect(
+            "workareas-changed", () => this._queueWorkAreaReflow());
+    }
+
+    _queueWorkAreaReflow() {
+        if (this._destroyed || this._workarea_reflow_idle_id > 0) {
+            return;
+        }
+        // A panel update can revise several struts in one turn. Measure once
+        // after those updates, using the final work area and panel geometry.
+        this._workarea_reflow_idle_id = Mainloop.idle_add(() => {
+            this._workarea_reflow_idle_id = 0;
+            if (!this._destroyed) {
+                this.context.onGeometryChanged();
+            }
+            return GLib.SOURCE_REMOVE;
+        });
     }
 
     bindSystemSignals() {
@@ -483,6 +504,7 @@ class AppletProviderLifecycle {
 
         this._bindNetworkSignals(context);
         this._bindMonitorSignals(context);
+        this._bindWorkAreaSignals(context);
 
         // logind's PrepareForSleep is true on the way into sleep and false on
         // resume, so refresh on the false transition.
@@ -580,6 +602,18 @@ class AppletProviderLifecycle {
         }
     }
 
+    _releaseWorkAreaSignals() {
+        if (this._workarea_reflow_idle_id > 0) {
+            Mainloop.source_remove(this._workarea_reflow_idle_id);
+            this._workarea_reflow_idle_id = 0;
+        }
+        if (this._workareas_signal_id > 0) {
+            const id = this._workareas_signal_id;
+            this._workareas_signal_id = 0;
+            this.context.display.disconnect(id);
+        }
+    }
+
     // A root module older than this one exports neither half, and half a
     // consumer count is worse than none: register without a release leaks the
     // resource, release without a register takes a surviving instance's state
@@ -620,6 +654,7 @@ class AppletProviderLifecycle {
             () => this._releaseDesktopSettings(),
             () => this._releaseLogind(),
             () => this._releaseMonitorSignals(),
+            () => this._releaseWorkAreaSignals(),
             // each its own step, so a throw in one release still runs the other
             ...this._moduleConsumerReleases
         ];

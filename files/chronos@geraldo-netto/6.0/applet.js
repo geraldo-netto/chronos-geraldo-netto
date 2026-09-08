@@ -204,8 +204,9 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             onTextScaleChanged: () => this._guarded(
                 "text-scale", () => this._reflowMenu()),
             layoutManager: Main.layoutManager,
-            onMonitorsChanged: () => this._guarded(
-                "monitors-changed", () => this._reflowMenu())
+            display: global.display,
+            onGeometryChanged: () => this._guarded(
+                "popup-geometry", () => this._reflowMenu())
         });
 
         const providers = this._providerLifecycle.initProviders();

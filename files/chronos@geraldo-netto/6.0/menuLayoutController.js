@@ -15,7 +15,7 @@
 //
 // It lived in AppletMenuBuilder, whose own doc says it "builds the menu
 // contents and hands them back" — while this runs on every menu open,
-// orientation change, text-scale change and monitors-changed, long after the
+// orientation, text-scale, monitor and work-area changes, long after the
 // build returned. Constructed with the three actors it reads, so the reflow
 // path can be exercised without building a menu.
 

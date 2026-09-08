@@ -661,7 +661,7 @@ test("bindSystemSignals refetches on logind resume and unsubscribes on destroy",
 });
 
 // T943: the popup measures the work area when it opens and never again, so a
-// monitor hotplug, a resolution change or a panel resize left the previous shape
+// monitor hotplug or a resolution change left the previous shape
 // on screen until the menu was closed and reopened — on a shrinking work area,
 // a month grid pushed off the bottom.
 test("bindSystemSignals reflows the open popup on monitors-changed", () => {
@@ -680,7 +680,7 @@ test("bindSystemSignals reflows the open popup on monitors-changed", () => {
     const context = {
         desktopSettings: { connectClockFormatChanged: () => [] },
         layoutManager,
-        onMonitorsChanged: () => reflows.push(true)
+        onGeometryChanged: () => reflows.push(true)
     };
     const lifecycle = new AppletModule.AppletProviderLifecycle(context);
     lifecycle._dayRollover = { destroy() {} };
@@ -705,13 +705,71 @@ test("bindSystemSignals tolerates a layout manager it cannot connect to", () => 
         const lifecycle = new AppletModule.AppletProviderLifecycle({
             desktopSettings: { connectClockFormatChanged: () => [] },
             layoutManager,
-            onMonitorsChanged: () => assert.fail("nothing is connected")
+            onGeometryChanged: () => assert.fail("nothing is connected")
         });
         lifecycle._dayRollover = { destroy() {} };
         lifecycle.bindSystemSignals();
         assert.equal(lifecycle._monitors_signal_id, 0);
         lifecycle.destroy();
     }
+});
+
+test("work-area changes coalesce after panel geometry settles and release all resources", (t) => {
+    const pending = new Map();
+    const disconnected = [];
+    let sequence = 0;
+    t.mock.method(global.imports.mainloop, "idle_add", callback => {
+        pending.set(++sequence, callback);
+        return sequence;
+    });
+    t.mock.method(global.imports.mainloop, "source_remove", id => pending.delete(id));
+    let handler;
+    let height = 728;
+    const reflows = [];
+    const lifecycle = new AppletModule.AppletProviderLifecycle({
+        desktopSettings: { connectClockFormatChanged: () => [] },
+        display: {
+            connect(name, callback) {
+                assert.equal(name, "workareas-changed");
+                handler = callback;
+                return 92;
+            },
+            disconnect: id => disconnected.push(id)
+        },
+        onGeometryChanged: () => reflows.push(height)
+    });
+    lifecycle.bindSystemSignals();
+    assert.equal(lifecycle._workareas_signal_id, 92);
+    handler();
+    height = 688;
+    handler();
+    height = 648;
+    assert.equal(pending.size, 1, "several strut updates share one reflow");
+    assert.deepEqual(reflows, [], "do not measure geometry in the middle of panel updates");
+    const run = () => {
+        const id = lifecycle._workarea_reflow_idle_id;
+        const callback = pending.get(id);
+        pending.delete(id);
+        callback();
+    };
+    run();
+    assert.deepEqual(reflows, [648]);
+    height = 728;
+    handler();
+    run();
+    assert.deepEqual(reflows, [648, 728], "expansion restores the larger viewport too");
+
+    handler();
+    const abandoned = pending.get(lifecycle._workarea_reflow_idle_id);
+    lifecycle.destroy();
+    assert.equal(pending.size, 0);
+    assert.deepEqual(disconnected, [92]);
+    assert.equal(lifecycle._workareas_signal_id, 0);
+    assert.equal(lifecycle._workarea_reflow_idle_id, 0);
+    abandoned();
+    handler();
+    assert.equal(pending.size, 0, "a late signal cannot rearm a destroyed lifecycle");
+    assert.deepEqual(reflows, [648, 728], "a dispatched callback cannot touch destroyed actors");
 });
 
 test("settings binding wires schema keys and creates settings facades", () => {
@@ -1651,8 +1709,11 @@ test("panel settings dispatch only their dependent workflows", () => {
     assert.deepEqual(invoke("_onWeatherUnitsChanged"), ["clock"]);
 });
 
-test("provider initialization wires hover and event manager signals", () => {
+test("provider initialization wires hover and event manager signals", (t) => {
     const calls = [];
+    const previousDisplay = global.display;
+    global.display = { marker: "native display" };
+    t.after(() => { global.display = previousDisplay; });
     const originalWeatherProvider = rootModules.weather.WeatherProvider;
     const originalCreateEventsManager = rootModules.eventsManager.createEventsManager;
     // the applet's default factories assemble the real graph; this test is about
@@ -1723,8 +1784,10 @@ test("provider initialization wires hover and event manager signals", () => {
     assert.equal(stub._providerLifecycle.context.layoutManager,
         global.imports.ui.main.layoutManager,
         "the lifecycle is handed the desktop's own layout manager to watch");
+    assert.equal(stub._providerLifecycle.context.display, global.display,
+        "panel work-area changes come from the native display");
     const beforeMonitors = calls.length;
-    stub._providerLifecycle.context.onMonitorsChanged();
+    stub._providerLifecycle.context.onGeometryChanged();
     assert.deepEqual(calls.slice(beforeMonitors), [["reflow"]],
         "a monitor or resolution change reaches the popup's layout too");
     assert.ok(calls.some((row) => row[0] === "infer-country"),
