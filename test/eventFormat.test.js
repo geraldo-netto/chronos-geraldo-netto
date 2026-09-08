@@ -252,6 +252,45 @@ function prefix(event, selected = TODAY) {
     return EventFormat.formatRangePrefix(event, selected, TODAY, OPTS);
 }
 
+function boundaryEvent(offset, allDay = false) {
+    const event = makeEvent({
+        startUs: TODAY.usec + offset * DAY_US + HOUR_US,
+        endUs: TODAY.usec + (offset + 1) * DAY_US + HOUR_US,
+        allDay
+    });
+    event.start.format = () => "10:00";
+    event.end.format = () => "11:00";
+    event.start_date.format = (format) => format === "%x" ? "date" : "weekday";
+    event.end_date.format = event.start_date.format;
+    return event;
+}
+
+test("range endpoints preserve their distinct four-day boundaries and capitalization", () => {
+    for (const [offset, selectedToday, otherSelected] of [
+        [-5, "date", "date"], [-4, "date", "date"], [-3, "Weekday", "Weekday"],
+        [0, "10:00", "t(10:00 Today)"], [3, "", "weekday"], [4, "", "date"]
+    ]) {
+        const event = boundaryEvent(offset);
+        assert.equal(prefix(event), selectedToday, `start offset ${offset}, today selected`);
+        assert.equal(prefix(event, TODAY.add_days(10)), otherSelected,
+            `start offset ${offset}, other day selected`);
+    }
+    for (const [endOffset, expected] of [[3, "Weekday"], [4, "Weekday"], [5, "date"]]) {
+        const event = boundaryEvent(endOffset - 1);
+        assert.equal(suffix(event), expected, `end offset ${endOffset}, today selected`);
+        assert.equal(suffix(event, TODAY.add_days(10)), expected,
+            `end offset ${endOffset}, other day selected`);
+    }
+});
+
+test("recent starts precede selected-day time labels while selected ends show time", () => {
+    assert.equal(prefix(boundaryEvent(-3), TODAY.add_days(-3)), "Weekday");
+    assert.equal(prefix(boundaryEvent(-4), TODAY.add_days(-4)), "10:00");
+    assert.equal(prefix(boundaryEvent(-4, true), TODAY.add_days(-4)), "date");
+    assert.equal(suffix(boundaryEvent(4), TODAY.add_days(5)), "11:00");
+    assert.equal(suffix(boundaryEvent(4, true), TODAY.add_days(5)), "date");
+});
+
 test("localeCap uppercases the first character only", () => {
     assert.equal(EventFormat.localeCap("wednesday"), "Wednesday");
     assert.equal(EventFormat.localeCap(""), "");

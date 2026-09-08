@@ -79,47 +79,24 @@ function localeCap(str) {
 // original code uses a +/-4 day window around the reference day.
 var NEARBY_DAY_WINDOW = 4; // NOSONAR [S3504] -- GJS importer export
 
-function _prefixForTodaySelected(event, selected_date, opts) {
+function formatTodayEndpoint(time, allDay, selectedIsToday, opts) {
     const _ = opts.translate;
-    if (event.starts_on_date_only(selected_date)) {
-        return event.all_day ? _("Today") : event.start.format(opts.timeFormat);
+    if (allDay) {
+        return _("Today");
     }
-
-    if (event.started_before_date_only(selected_date)) {
-        if (event.started_after_date_only(selected_date.add_days(-NEARBY_DAY_WINDOW))) {
-            return localeCap(event.start_date.format(opts.dayFormat));
-        }
-        return event.start_date.format("%x");
-    }
-
-    return "";
+    const stamp = time.format(opts.timeFormat);
+    // Keep time and Today in one translatable phrase so their order can vary.
+    return selectedIsToday ? stamp : fillTemplate(_("%s Today"), [stamp]);
 }
 
-function _prefixForOtherDaySelected(event, selected_date, today, opts) {
-    const _ = opts.translate;
-    if (event.started_before_date_only(today)) {
-        if (event.started_after_date_only(today.add_days(-NEARBY_DAY_WINDOW))) {
-            return localeCap(event.start_date.format(opts.dayFormat));
-        }
-        if (event.starts_on_date_only(selected_date) && !event.all_day) {
-            return event.start.format(opts.timeFormat);
-        }
-        return event.start_date.format("%x");
+function formatPastPrefix(event, selected_date, today, opts) {
+    // A recent weekday takes priority even when the event starts on the
+    // selected date. At exactly four days ago, the selected time can take over.
+    if (event.started_after_date_only(today.add_days(-NEARBY_DAY_WINDOW))) {
+        return localeCap(event.start_date.format(opts.dayFormat));
     }
-
-    if (event.starts_on_date_only(today)) {
-        if (event.all_day) {
-            return _("Today");
-        }
-        // one msgid, not a time glued to a word: a translator cannot reorder
-        // "14:30 Today" into "Heute 14:30" if the pieces never meet. String
-        // .format() is a GJS extension and this module is deliberately free of
-        // GJS, so the placeholder is filled by hand.
-        return fillTemplate(_("%s Today"), [event.start.format(opts.timeFormat)]);
-    }
-
-    if (event.started_before_date_only(today.add_days(NEARBY_DAY_WINDOW))) {
-        return event.start_date.format(opts.dayFormat);
+    if (event.starts_on_date_only(selected_date) && !event.all_day) {
+        return event.start.format(opts.timeFormat);
     }
     return event.start_date.format("%x");
 }
@@ -128,39 +105,33 @@ function _prefixForOtherDaySelected(event, selected_date, today, opts) {
 // context: timeFormat ("%H:%M" or "%l:%M %p"), dayFormat (weekday format)
 // and translate (gettext).
 function formatRangePrefix(event, selected_date, today, opts) {
-    if (dtEquals(today, selected_date)) {
-        return _prefixForTodaySelected(event, selected_date, opts);
+    const selectedIsToday = dtEquals(today, selected_date);
+    if (event.starts_on_date_only(today)) {
+        return formatTodayEndpoint(event.start, event.all_day, selectedIsToday, opts);
     }
-    return _prefixForOtherDaySelected(event, selected_date, today, opts);
+    if (event.started_before_date_only(today)) {
+        return formatPastPrefix(event, selected_date, today, opts);
+    }
+    if (selectedIsToday) {
+        return "";
+    }
+    const nearby = event.started_before_date_only(today.add_days(NEARBY_DAY_WINDOW));
+    return event.start_date.format(nearby ? opts.dayFormat : "%x");
 }
 
 // U+2192 has the Unicode Bidi_Mirrored property, so the compositor flips the
 // direction cue with the surrounding event range in an RTL layout.
 var ARROW_SEPARATOR = "  →  "; // NOSONAR [S3504] -- GJS importer export
 
-function _suffixForTodaySelected(event, selected_date, opts) {
-    const _ = opts.translate;
-    if (event.ends_on_date_only(selected_date)) {
-        return event.all_day ? _("Today") : event.end.format(opts.timeFormat);
-    }
-
-    if (event.ends_after_date_only(selected_date.add_days(NEARBY_DAY_WINDOW))) {
-        return event.end_date.format("%x");
-    }
-
-    return localeCap(event.end_date.format(opts.dayFormat));
-}
-
-function _suffixForOtherDaySelected(event, selected_date, today, opts) {
-    const _ = opts.translate;
+// The "… → Y" half of a multi-day event label. Unlike a future prefix, the
+// suffix still uses a capitalized weekday at exactly four days ahead.
+function formatRangeSuffix(event, selected_date, today, opts) {
+    const selectedIsToday = dtEquals(today, selected_date);
     if (event.ends_on_date_only(today)) {
-        if (event.all_day) {
-            return _("Today");
-        }
-        return fillTemplate(_("%s Today"), [event.end.format(opts.timeFormat)]);
+        return formatTodayEndpoint(event.end, event.all_day, selectedIsToday, opts);
     }
 
-    if (event.ends_on_date_only(selected_date) && !event.all_day) {
+    if (!selectedIsToday && event.ends_on_date_only(selected_date) && !event.all_day) {
         return event.end.format(opts.timeFormat);
     }
 
@@ -169,14 +140,6 @@ function _suffixForOtherDaySelected(event, selected_date, today, opts) {
     }
 
     return localeCap(event.end_date.format(opts.dayFormat));
-}
-
-// The "… → Y" half of a multi-day event label.
-function formatRangeSuffix(event, selected_date, today, opts) {
-    if (dtEquals(today, selected_date)) {
-        return _suffixForTodaySelected(event, selected_date, opts);
-    }
-    return _suffixForOtherDaySelected(event, selected_date, today, opts);
 }
 
 // Full label text for an event row: single-day, past-multi-day, or the
