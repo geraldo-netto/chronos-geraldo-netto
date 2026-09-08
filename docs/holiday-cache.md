@@ -79,3 +79,33 @@ and must be fetched again after restarting the applet.
 The existing country and year-window bounds leave at most twelve eviction
 candidates. The repository checks actual serialized byte length after each
 eviction before handing the data to the asynchronous writer.
+
+## Inactive scoped files
+
+Additional calendar files remain on disk after a selection is removed so that
+reselecting a calendar can reuse its cache. To clean inactive files explicitly,
+run this maintenance command from the repository using the Node.js version in
+the [repository runtime requirements](../README.md):
+
+```sh
+node scripts/cleanup-calendar-cache.mjs
+```
+
+This previews the canonical `calendar-<country>-<region>.json` files eligible for
+removal. It preserves pairs configured in **every** saved applet profile,
+including disabled configured rows and other instances' selections. If any
+profile leaves its primary country unset for locale inference, it conservatively
+keeps all scoped files. Primary `holidays.json`, plugin manifests, unrelated
+files, and symlinks are outside the cleanup set.
+
+To remove the previewed inactive files, log out of Cinnamon and run the command
+from a text console with `--apply`. Do not start Cinnamon or change applet
+profiles during cleanup. Apply refuses while a Cinnamon process for the current
+user is present, rechecks profiles before each deletion, and stops if a candidate
+file changed. Corrupt or unreadable profiles stop cleanup. No automatic cleanup
+runs in the applet.
+
+Paths default to `$XDG_CACHE_HOME/chronos@geraldo-netto` and
+`$XDG_CONFIG_HOME/cinnamon/spices/chronos@geraldo-netto`, using `~/.cache` and
+`~/.config` when those variables are unset. `--cache-dir` and `--settings-dir`
+select explicit locations; both must describe the same user's installation.
