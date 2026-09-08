@@ -102,28 +102,54 @@ function validCachedStamp(stamp, now = Date.now()) {
     return Number.isFinite(parsed) && parsed <= now;
 }
 
+function _validYearKey(year) {
+    return (typeof year === "number" || typeof year === "string") &&
+        /^[1-9][0-9]{0,3}$/.test(year);
+}
+
+function _validRegionKey(region) {
+    return typeof region === "string" &&
+        !["__proto__", "constructor", "prototype"].includes(region);
+}
+
+function _metadataObject(value) {
+    return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
 function validCachedYears(years, now = Date.now()) {
-    const checked = {};
-
-    Object.keys(years).forEach((year) => {
-        const regions = years[year];
-        if (!regions || typeof regions !== "object") {
-            return;
+    if (!_metadataObject(years)) {
+        return {};
+    }
+    const checked = [];
+    for (const [year, regions] of Object.entries(years)) {
+        if (!_validYearKey(year) || !_metadataObject(regions)) {
+            continue;
         }
-
-        const kept = {};
-        Object.keys(regions).forEach((region) => {
-            if (validCachedStamp(regions[region], now)) {
-                kept[region] = regions[region];
-            }
-        });
-
-        if (Object.keys(kept).length > 0) {
-            checked[year] = kept;
+        const kept = Object.entries(regions).filter(([region, stamp]) =>
+            _validRegionKey(region) && validCachedStamp(stamp, now));
+        if (kept.length > 0) {
+            checked.push([year, Object.fromEntries(kept)]);
         }
+    }
+    return Object.fromEntries(checked);
+}
+
+function _storeStamp(table, year, region, stamp) {
+    if (!_validYearKey(year) || !_validRegionKey(region)) {
+        return false;
+    }
+    if (!Object.hasOwn(table, year) || !_metadataObject(table[year])) {
+        table[year] = {};
+    }
+    Object.defineProperty(table[year], region, {
+        value: stamp, enumerable: true, configurable: true, writable: true
     });
+    return true;
+}
 
-    return checked;
+function _ownStamp(table, year, region) {
+    const regions = Object.hasOwn(table, year) ? table[year] : null;
+    return regions && Object.hasOwn(regions, region) ? regions[region] : null;
 }
 
 function cachedStampIsFresh(stamp, now, period) {
@@ -504,13 +530,8 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     recordYear(year, region, retrieved) {
-        if (!this._isActive()) {
+        if (!this._isActive() || !_storeStamp(this.years, year, region, retrieved)) {
             return;
-        }
-        if (this.years[year]) {
-            this.years[year][region] = retrieved;
-        } else {
-            this.years[year] = {[region]: retrieved};
         }
 
         this._touchYear(year);
@@ -604,13 +625,8 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     recordAttempt(year, region, attempted = new Date().toUTCString()) {
-        if (!this._isActive()) {
+        if (!this._isActive() || !_storeStamp(this.attempts, year, region, attempted)) {
             return;
-        }
-        if (this.attempts[year]) {
-            this.attempts[year][region] = attempted;
-        } else {
-            this.attempts[year] = {[region]: attempted};
         }
 
         // a failed fetch stores no rows, so nothing else registers the year:
@@ -629,9 +645,8 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
 
     // `now` is injectable so staleness math is testable with a fixed clock
     stale(year, region = this.region, now = Date.now()) {
-        const stampFor = (table) => (table[year] ? table[year][region] : null);
         return this._freshness.stale(
-            stampFor(this.years), stampFor(this.attempts), now);
+            _ownStamp(this.years, year, region), _ownStamp(this.attempts, year, region), now);
     }
 
     matchMonth(year, month, region = this.region) {

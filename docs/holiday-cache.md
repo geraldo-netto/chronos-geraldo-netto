@@ -26,3 +26,9 @@ Provider and cached holiday dates use Gregorian years 1–9999. Validation and
 date-range expansion use UTC civil arithmetic, so a date skipped by the host
 timezone remains valid for another country's calendar. Years 1–99 retain their
 actual century, including spans crossing from year 99 into year 100.
+
+Freshness metadata uses canonical year keys (`1` through `9999`, without leading
+zeros or whitespace). Invalid year keys, arrays, and `__proto__`, `constructor`,
+or `prototype` region keys are discarded. Metadata reads and writes use own
+properties, so malformed cache keys cannot install inherited freshness or stop
+the next successful fetch from repairing the cache.

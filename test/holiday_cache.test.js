@@ -1483,6 +1483,71 @@ test("a cached freshness stamp in the future is not believed", () => {
     assert.equal(loadCountry(repository, "usa").holidays.length, 1, "the rows themselves still load");
 });
 
+test("cache metadata accepts canonical years and rejects prototype-like keys", () => {
+    loadHolidays();
+    const { validCachedYears } = require(holidayCachePath);
+    const now = Date.parse("2026-09-08T12:00:00Z");
+    const stamp = new Date(now).toUTCString();
+    const years = Object.fromEntries(["1", "9999", "0", "10000", "02026", "2026.0",
+        "2026e0", "2026 ", "-1", "NaN", "__proto__", "constructor", "prototype"]
+        .map((key) => [key, { global: stamp }]));
+    years[2026] = JSON.parse(JSON.stringify({ global: stamp }).replace("global",
+        "__proto__"));
+    years[2027] = { constructor: stamp, prototype: stamp, toString: stamp };
+    years[2028] = [stamp];
+    assert.deepEqual(validCachedYears(years, now), {
+        1: { global: stamp }, 2027: { toString: stamp }, 9999: { global: stamp }
+    });
+    for (const invalid of [null, undefined, [], "2026", 2026]) {
+        assert.deepEqual(validCachedYears(invalid, now), {});
+    }
+});
+
+test("a prototype-shaped cache cannot block a successful repairing fetch", () => {
+    const { HolidayCacheRepository, HolidayCache } = loadHolidays();
+    const now = Date.parse("2026-09-08T12:00:00Z");
+    const stamp = new Date(now).toUTCString();
+    const repository = new HolidayCacheRepository("/holidays.json", { now: () => now });
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({ usa: {
+        years: JSON.parse(`{"__proto__":{"2026":"${stamp}"}}`), holidays: []
+    } }));
+    const cache = new HolidayCache((country, done) => repository.loadAsync(country, done),
+        (country, data) => repository.save(country, data));
+    cache.setPlace("usa", "global");
+    assert.equal(cache.stale(2026, "global", now), true);
+    cache.recordFetch(2026, "global", stamp, [
+        { year: 2026, month: 1, day: 1, region: "global", name: "Repaired", flags: [] }
+    ], stamp);
+    cache.persist(new Date(now));
+    assert.equal(cache.stale(2026, "global", now), false);
+    assert.equal(cache.matchMonth(2026, 1).get("1/1").name, "Repaired");
+    const reloaded = new HolidayCacheRepository("/holidays.json", { now: () => now });
+    assert.deepEqual(loadCountry(reloaded, "usa").years, { 2026: { global: stamp } });
+});
+
+test("freshness metadata reads and writes only own year and region entries", () => {
+    const { HolidayCache } = loadHolidays();
+    const cache = new HolidayCache(() => {}, () => {});
+    const stamp = new Date().toUTCString();
+    const inherited = { 2026: { global: stamp } };
+    cache.years = Object.create(inherited);
+    cache.attempts = Object.create(inherited);
+    assert.equal(cache.stale(2026), true);
+    cache.recordYear(2026, "toString", stamp);
+    cache.recordAttempt(2026, "toString", stamp);
+    assert.equal(cache.stale(2026, "toString"), false);
+    assert.deepEqual(inherited, { 2026: { global: stamp } });
+    assert.equal(cache.stale(2026, "global"), true);
+    for (const [year, region] of [["__proto__", "global"], [0, "global"],
+        [10000, "global"], [2027, "__proto__"], [2027, "constructor"], [2027, "prototype"]]) {
+        cache.recordYear(year, region, stamp);
+        cache.recordAttempt(year, region, stamp);
+    }
+    assert.deepEqual(Object.keys(cache.years), ["2026"]);
+    assert.deepEqual(Object.keys(cache.attempts), ["2026"]);
+});
+
 test("Provider.loadJsonAsync parses responses and forwards the date header", () => {
     const Holidays3 = loadHolidays({
         soup: makeSoup3({ data: '{"three":3}', date: "Wed, 03 Jan 2024 00:00:00 GMT" })
