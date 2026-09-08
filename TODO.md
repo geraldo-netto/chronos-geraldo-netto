@@ -5,7 +5,6 @@
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
 | T1122 | open | medium | s | Reflow the popup on actual work-area changes in 6.0/appletLifecycle.js:456–469. Cinnamon 6.6.9 emits global.display workareas-changed when panel sizes change, while Main.layoutManager monitors-changed does not fire. In an isolated 1366×768 session at text scale 1.5, changing from a 40px bottom panel to supported 60px top/bottom panels leaves the open menu 655px tall in a 648px work area, extending above its boundary with stale viewport limits. Own and disconnect the workareas-changed signal, reflow after geometry settles, and retain the monitor signal for actual monitor changes. |
-| T1121 | open | medium | m | Preserve keyboard focus during structural agenda updates in 6.0/eventView.js:98,644–645. In isolated native Cinnamon, focusing surviving event Meeting1 and receiving another event triggers a full row rebuild, destroys the focused actor, moves focus to MetaStage, and closes the popup even though Meeting1 remains. Reconcile surviving row actors or transfer focus without transient escape from the menu; verify additions/removals while a surviving event has keyboard focus. The unchanged-revision time-reorder preservation does not cover this path. |
 
 ## Blocked / Deferred
 

@@ -303,6 +303,10 @@ country and region to third-party holiday services.
 
 In the menu the grid is keyboard-navigable: arrows move by day and week,
 PageUp/PageDown by month, Home returns to today.
+Agenda updates keep keyboard focus on a surviving event. If that event disappears,
+focus moves to the next available row, then the previous row, or the date heading
+when no event can be activated. Moving focus yourself during an update takes
+precedence over restoring the old event.
 
 ### Running the tests and linters (development)
 

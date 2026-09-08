@@ -71,6 +71,8 @@ class EventListRenderer {
         this._scroll_to_idle_id = 0;
         this._no_events_timeout_id = 0;
         this._build_rows_idle_id = 0;
+        this._rowBuildState = null;
+        this._preserveFocus = false;
         this._eventDataList = null;
     }
 
@@ -79,6 +81,7 @@ class EventListRenderer {
         this._cancelScroll();
         this._cancelNoEventsTimeout();
         this._cancelRowBuild();
+        this.list.cancelFocusRestore();
         this._eventDataList = null;
     }
 
@@ -99,6 +102,7 @@ class EventListRenderer {
         this._cancelNoEventsTimeout();
 
         if (event_data_list == null) {
+            this.list.cancelFocusRestore();
             this._showNoEvents(delay_no_events_box);
             return;
         }
@@ -171,6 +175,7 @@ class EventListRenderer {
 
     _clearRows() {
         this._cancelRowBuild();
+        this._preserveFocus = this.list.parkRowFocus();
         this.list.clearRows();
     }
 
@@ -231,13 +236,16 @@ class EventListRenderer {
             events,
             index: 0,
             scroll_to_row: null,
+            preserveFocus: this._preserveFocus,
             timestamp: event_data_list.timestamp
         };
 
+        this._rowBuildState = state;
         this._buildRowChunk(state);
     }
 
     _cancelRowBuild() {
+        this._rowBuildState = null;
         if (this._build_rows_idle_id > 0) {
             Mainloop.source_remove(this._build_rows_idle_id);
             this._build_rows_idle_id = 0;
@@ -245,9 +253,14 @@ class EventListRenderer {
     }
 
     _buildRowChunk(state) {
+        if (state !== this._rowBuildState) {
+            return GLib.SOURCE_REMOVE;
+        }
         // the day changed under us while the chunks were still going out
         if (state.timestamp !== this.list.currentTimestamp) {
             this._build_rows_idle_id = 0;
+            this._rowBuildState = null;
+            this.list.cancelFocusRestore();
             return GLib.SOURCE_REMOVE;
         }
 
@@ -293,7 +306,9 @@ class EventListRenderer {
         if (this._reconcileRowOrder()) {
             return GLib.SOURCE_REMOVE;
         }
-        if (state.scroll_to_row !== null) {
+        this._rowBuildState = null;
+        this.list.restoreRowFocus();
+        if (!state.preserveFocus && state.scroll_to_row !== null) {
             this._queueScroll(state.scroll_to_row);
         }
 
@@ -324,6 +339,7 @@ class EventList {
         this.desktop_settings = desktop_settings;
         this._calendar_launcher = launcher;
         this._rows = [];
+        this._rowFocus = null;
         this._current_event_data_list_timestamp = 0;
         this._unavailable = false;
         this._overflowed = false;
@@ -349,6 +365,7 @@ class EventList {
         // can discover
         const canLaunch = this._canLaunchCalendar();
         this.selected_date_label = this._buildSelectedDateLabel(canLaunch);
+        this.selected_date_label.connect("key-focus-out", () => this.cancelFocusRestore());
         this.actor.add_actor(this.selected_date_label);
         this._buildOverflowView();
         this._buildNoEventsView(canLaunch);
@@ -644,6 +661,56 @@ class EventList {
     clearRows() {
         this.events_box.get_children().forEach((actor) => actor.destroy());
         this._rows = [];
+    }
+
+    // Cinnamon closes a popup as soon as focus escapes it. Park focus on the
+    // stable date heading before destroying an agenda row, including when the
+    // replacement needs several idle turns. Store values, never old actors.
+    parkRowFocus() {
+        const focus = global.stage?.get_key_focus();
+        if (focus === this.selected_date_label && this._rowFocus) {
+            return true;
+        }
+        this.cancelFocusRestore();
+        if (!focus) {
+            return false;
+        }
+        const index = this._rows.findIndex(row =>
+            row.actor === focus || row.actor.contains(focus));
+        if (index < 0) {
+            return false;
+        }
+        const row = this._rows[index];
+        this._rowFocus = {
+            id: row.event.id, index,
+            occurrence: this._rows.slice(0, index).filter(other => other.event.id === row.event.id).length,
+            day: date_only(row.selected_date).to_unix()
+        };
+        this.selected_date_label.grab_key_focus();
+        return true;
+    }
+
+    cancelFocusRestore() {
+        this._rowFocus = null;
+    }
+
+    restoreRowFocus() {
+        const saved = this._rowFocus;
+        this.cancelFocusRestore();
+        if (!saved || global.stage.get_key_focus() !== this.selected_date_label ||
+            saved.day !== date_only(this.selected_date).to_unix()) {
+            return;
+        }
+        const matching = this._rows.filter(row => row.event.id === saved.id)[saved.occurrence];
+        const target = matching?.actor.can_focus ? matching : this._nearestFocusableRow(saved.index);
+        if (target) {
+            target.actor.grab_key_focus();
+        }
+    }
+
+    _nearestFocusableRow(index) {
+        return this._rows.slice(index).find(row => row.actor.can_focus) ||
+            this._rows.slice(0, index).reverse().find(row => row.actor.can_focus);
     }
 
     showNoEvents(text) {

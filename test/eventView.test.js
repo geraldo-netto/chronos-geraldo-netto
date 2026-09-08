@@ -99,6 +99,7 @@ class MockActor {
         this.style = options.style || "";
         this.text = options.text || "";
         this.visible = options.visible;
+        this.can_focus = options.can_focus;
         this.pseudo_classes = new Set();
     }
 
@@ -113,6 +114,7 @@ class MockActor {
 
     add(child) {
         this.children.push(child);
+        child.parent = this;
     }
 
     add_actor(child) {
@@ -140,10 +142,21 @@ class MockActor {
     }
 
     destroy() {
+        if (global.stage && this.contains(global.stage.get_key_focus())) {
+            global.stage.set_key_focus(null);
+        }
         this.destroyed = true;
         if (this.parent) {
             this.parent.children = this.parent.children.filter((child) => child !== this);
         }
+    }
+
+    contains(actor) {
+        return this === actor || this.children.some(child => child.contains(actor));
+    }
+
+    grab_key_focus() {
+        global.stage.set_key_focus(this);
     }
 
     get_vscroll_bar() {
@@ -1196,6 +1209,145 @@ function finishRowBuild(list, pending) {
     }
     assert.equal(list._renderer._build_rows_idle_id, 0, "the bounded row build settles");
 }
+
+function focusFixture(t) {
+    const list = new EventView.EventList(desktopSettings(), { isAvailable: () => true });
+    list.set_date(TODAY);
+    const menu = new MockActor();
+    menu.add_actor(list.actor);
+    const footer = new MockActor();
+    menu.add_actor(footer);
+    const previousStage = global.stage;
+    const stage = {
+        focus: null, menuOpen: true, history: [],
+        get_key_focus() { return this.focus; },
+        set_key_focus(actor) {
+            const previous = this.focus;
+            this.focus = actor;
+            previous?.fire("key-focus-out");
+            this.history.push(actor);
+            if (!menu.contains(actor)) {
+                this.menuOpen = false;
+            }
+        }
+    };
+    global.stage = stage;
+    t.after(() => { list.destroy(); global.stage = previousStage; });
+    return { list, stage, footer };
+}
+
+function focusAgenda(ids, timestamp) {
+    const events = ids.map(id => makeRowEvent({
+        id, startUnix: 50 * DAY_S + 14 * 3600, endUnix: 50 * DAY_S + 15 * 3600
+    }));
+    return { timestamp, length: events.length, get_event_list: () => events };
+}
+
+test("structural updates park focus before destruction and restore the surviving event", (t) => {
+    const { list, stage } = focusFixture(t);
+    list.set_events(focusAgenda(["a", "b", "c"], 1), false);
+    const old = list.rows[1];
+    old.event_time.grab_key_focus();
+    const updated = focusAgenda(["new", "a", "b", "c"], 2);
+    updated.get_event_list()[2].summary = "Revised meeting";
+    list.set_events(updated, false);
+    assert.equal(stage.menuOpen, true, "focus must never transiently escape the menu");
+    assert.equal(stage.focus, list.rows[2].actor);
+    assert.equal(list.rows[2].event.summary, "Revised meeting");
+    assert.equal(old.actor.destroyed, true);
+    assert.equal(list._renderer._scroll_to_idle_id, 0, "auto-scroll must not override the focused row");
+    list.set_events(focusAgenda(["b", "c"], 3), false);
+    assert.equal(stage.focus, list.rows[0].actor);
+    assert.equal(stage.menuOpen, true);
+});
+
+test("removing the focused event chooses next, then previous, then the date heading", (t) => {
+    const { list, stage } = focusFixture(t);
+    list.set_events(focusAgenda(["a", "b", "c"], 1), false);
+    list.rows[1].actor.grab_key_focus();
+    list.set_events(focusAgenda(["a", "c"], 2), false);
+    assert.equal(stage.focus, list.rows[1].actor);
+    list.set_events(focusAgenda(["a"], 3), false);
+    assert.equal(stage.focus, list.rows[0].actor);
+    list.set_events(EventView.composeSelectedDayAgenda(null,
+        { name: "Holiday", flags: ["public_holiday"] }), false);
+    assert.equal(stage.focus, list.selected_date_label, "information rows are not focus targets");
+    list.set_events(focusAgenda(["a"], 4), false);
+    list.rows[0].actor.grab_key_focus();
+    list.set_events(null, false);
+    assert.equal(stage.focus, list.selected_date_label);
+    assert.equal(stage.menuOpen, true);
+});
+
+test("chunked replacement preserves its bookmark and rejects a cancelled build callback", (t) => {
+    const pending = captureRowIdles(t);
+    const { list, stage } = focusFixture(t);
+    const ids = Array.from({ length: 65 }, (_unused, index) => `meeting-${index}`);
+    list.set_events(focusAgenda(ids, 1), false);
+    finishRowBuild(list, pending);
+    list.rows[60].actor.grab_key_focus();
+    list.set_events(focusAgenda(ids, 2), false);
+    assert.equal(stage.focus, list.selected_date_label);
+    const abandoned = pending.get(list._renderer._build_rows_idle_id);
+    list.set_events(focusAgenda(["new", ...ids], 3), false);
+    const replacementId = list._renderer._build_rows_idle_id;
+    abandoned();
+    assert.equal(list._renderer._build_rows_idle_id, replacementId);
+    assert.equal(list.rows.length, 20);
+    finishRowBuild(list, pending);
+    assert.equal(stage.focus, list.rows[61].actor);
+    assert.equal(list.rows[61].event.id, "meeting-60");
+    assert.equal(stage.menuOpen, true);
+    assert.equal(list._renderer._scroll_to_idle_id, 0);
+});
+
+test("user movement and day changes cancel pending focus restoration", (t) => {
+    const pending = captureRowIdles(t);
+    const { list, stage, footer } = focusFixture(t);
+    const ids = Array.from({ length: 45 }, (_unused, index) => `meeting-${index}`);
+    list.set_events(focusAgenda(ids, 1), false);
+    finishRowBuild(list, pending);
+    list.rows[40].actor.grab_key_focus();
+    list.set_events(focusAgenda(ids, 2), false);
+    footer.grab_key_focus();
+    list.selected_date_label.grab_key_focus();
+    finishRowBuild(list, pending);
+    assert.equal(stage.focus, list.selected_date_label, "returning to the heading is an explicit choice");
+    assert.equal(list._renderer._scroll_to_idle_id, 0);
+
+    list.rows[40].actor.grab_key_focus();
+    list.set_events(focusAgenda(ids, 3), false);
+    list.set_date(TODAY.add_days(1));
+    list.set_events(focusAgenda(ids, 4), false);
+    finishRowBuild(list, pending);
+    assert.equal(stage.focus, list.selected_date_label, "a new day cannot inherit the old row bookmark");
+
+    footer.grab_key_focus();
+    list.set_events(focusAgenda(["single"], 5), false);
+    assert.equal(stage.focus, footer, "background updates do not acquire focus");
+    assert.equal(stage.menuOpen, true);
+});
+
+test("a row outside the rendered prefix falls back within it and teardown cancels handover", (t) => {
+    const pending = captureRowIdles(t);
+    const { list, stage } = focusFixture(t);
+    const ids = Array.from({ length: 200 }, (_unused, index) => `meeting-${index}`);
+    list.set_events(focusAgenda(ids, 1), false);
+    finishRowBuild(list, pending);
+    list.rows[199].actor.grab_key_focus();
+    list.set_events(focusAgenda(["new", ...ids], 2), false);
+    finishRowBuild(list, pending);
+    assert.equal(stage.focus, list.rows[199].actor);
+    assert.equal(list.rows[199].event.id, "meeting-198");
+    list.set_events(focusAgenda(ids, 3), false);
+    const abandoned = pending.get(list._renderer._build_rows_idle_id);
+    list.destroy();
+    const historyLength = stage.history.length;
+    abandoned();
+    assert.equal(stage.history.length, historyLength, "a destroyed renderer cannot restore focus");
+    assert.equal(list.rows.length, 0);
+    assert.equal(list._rowFocus, null);
+});
 
 test("an event boundary crossed during row chunking is reconciled when the build settles", (t) => {
     let now = NOW;
