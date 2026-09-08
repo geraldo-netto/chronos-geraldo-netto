@@ -23,6 +23,7 @@ const SUN_RISE_ALTITUDE = RAD * -0.833;
 const MOON_RISE_ALTITUDE = RAD * 0.133;
 const CROSSING_REFINEMENTS = 12;
 const EXTREME_REFINEMENTS = 16;
+const MAX_DATE_TIMESTAMP = 8.64e15;
 
 function validCoordinates(latitude, longitude) {
     return typeof latitude === "number" && Number.isFinite(latitude) &&
@@ -32,9 +33,9 @@ function validCoordinates(latitude, longitude) {
 }
 
 function validDayBounds(startMs, endMs) {
-    const span = endMs - startMs;
     return Number.isFinite(startMs) && Number.isFinite(endMs) &&
-        span > 0 && span <= ASTRONOMY_MAX_DAY_MS;
+        Math.abs(startMs) <= MAX_DATE_TIMESTAMP && Math.abs(endMs) <= MAX_DATE_TIMESTAMP &&
+        endMs > startMs && endMs - startMs <= ASTRONOMY_MAX_DAY_MS;
 }
 
 function julianDays(timestamp) {

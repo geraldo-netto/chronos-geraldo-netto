@@ -52,6 +52,36 @@ test("coordinate helpers return finite positions and expected reference angles",
     assert.ok(Number.isFinite(Astronomy.moonAltitude(noon, 41.9, 12.48)));
 });
 
+test("unsupported absolute instants cannot enter the astronomy sampler", () => {
+    const huge = 2 ** 74;
+    assert.equal(huge + Astronomy.ASTRONOMY_SAMPLE_MS, huge);
+    const outside = [[huge, huge + 2 ** 22], [-huge, -huge + 2 ** 22],
+        [8.64e15, 8.64e15 + 1], [-8.64e15 - 1, -8.64e15],
+        [0n, 1], [Symbol("timestamp"), 1], ["0", 1]];
+    for (const [start, end] of outside) {
+        // Fail before entering the sampler if a future guard regresses.
+        assert.equal(Astronomy.validDayBounds(start, end), false);
+        assert.equal(Astronomy.calculateAstronomyEvents(start, end, 0, 0), null);
+    }
+});
+
+test("supported Date limits still produce bounded finite astronomy events", () => {
+    const random = makeRandom(20260908);
+    const maximum = 8.64e15;
+    const span = Astronomy.ASTRONOMY_DAY_MS;
+    const starts = [-maximum, maximum - span];
+    for (let sample = 0; sample < 128; sample++)
+        starts.push(Math.floor(random() * (2 * maximum - span) - maximum));
+    for (const start of starts) {
+        const result = Astronomy.calculateAstronomyEvents(start, start + span, 0, 0);
+        assert.ok(result);
+        for (const body of [result.sun, result.moon]) {
+            for (const event of [body.rise, body.set])
+                assert.ok(event === null || (Number.isFinite(event) && event >= start && event <= start + span));
+        }
+    }
+});
+
 test("crossing helpers classify and refine each horizon transition", () => {
     assert.equal(Astronomy.crossingDirection(-1, 0), "rise");
     assert.equal(Astronomy.crossingDirection(-1, 1), "rise");

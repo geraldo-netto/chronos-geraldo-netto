@@ -5,6 +5,7 @@ const { makeRandom } = require("../helpers/prng");
 const Plugins = require("../../files/chronos@geraldo-netto/calendarPluginData");
 const { CalendarPluginLoader } = require("../../files/chronos@geraldo-netto/calendarPluginLoader");
 const Dates = require("../../files/chronos@geraldo-netto/holidayRecord");
+const Astronomy = require("../../files/chronos@geraldo-netto/astronomy");
 
 const TEXT_FIELDS = [["name", 100], ["category", 64], ["source.name", 160],
     ["source.location", 160], ["source.tradition", 160], ["events.0.name", 160]];
@@ -334,6 +335,15 @@ function checkEncoding(audit, random, round) {
         assert.deepEqual(loadBytes(encodedManifest(Buffer.from(invalidJson))), ["example.good"]));
 }
 
+function checkAstronomyBounds(audit, random, round) {
+    const start = (round % 2 ? -1 : 1) * 2 ** integer(random, 54, 90);
+    const end = start + 2 ** 22;
+    audit.check("astronomy.unsupported-instants", round, { start, end }, () => {
+        assert.equal(Astronomy.validDayBounds(start, end), false);
+        assert.equal(Astronomy.calculateAstronomyEvents(start, end, 0, 0), null);
+    });
+}
+
 function runCalendarInputs({ seed = 0xcafe2026, cases = 256 } = {}) {
     const audit = recorder(seed);
     for (let round = 0; round < cases; round++) {
@@ -347,6 +357,7 @@ function runCalendarInputs({ seed = 0xcafe2026, cases = 256 } = {}) {
         checkEventCount(audit, round);
         checkSourcePorts(audit, round);
         checkEncoding(audit, random, round);
+        checkAstronomyBounds(audit, random, round);
     }
     return audit.report;
 }
