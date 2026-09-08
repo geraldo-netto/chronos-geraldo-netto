@@ -310,7 +310,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertEqual(clocks.add_button.tooltip, self.module.CLOCK_LIMIT_MESSAGE)
 
     def test_clock_entry_serializer_owns_dialog_data_and_output_shape(self):
-        serializer = self.module.ClockEntrySerializer()
+        serializer = self.module.ClockEntrySerializer([{"id": "label"}, {"id": "timezone"}])
 
         data, title = serializer.initial_dialog_data(None)
         self.assertEqual(data, {"label": None, "timezone": None})
@@ -332,7 +332,7 @@ class SettingsWidgetsTest(unittest.TestCase):
         # name pasted with an embedded newline was written to the config
         # verbatim. The runtime now filters it on read; this stops it being
         # stored at all, and keeps the two sides agreeing about what a label is.
-        serializer = self.module.ClockEntrySerializer()
+        serializer = self.module.ClockEntrySerializer([{"id": "label"}, {"id": "timezone"}])
 
         self.assertEqual(
             serializer.serialize("Home\nOffice", "Europe/Rome"),
@@ -382,15 +382,20 @@ class SettingsWidgetsTest(unittest.TestCase):
 
     def test_clock_entry_serializer_matches_schema_column_order(self):
         schema = json.loads((APPLET_DIR / "6.0" / "settings-schema.json").read_text())
-        column_ids = [column["id"] for column in schema["worldclocks"]["columns"]]
-
-        serializer = self.module.ClockEntrySerializer()
-
-        self.assertEqual(column_ids, ["label", "timezone"])
-        self.assertEqual(
-            dict(zip(column_ids, serializer.serialize("Home", "Europe/Rome"))),
-            {"label": "Home", "timezone": "Europe/Rome"}
-        )
+        columns = schema["worldclocks"]["columns"]
+        expected = {"label": "Home", "timezone": "Europe/Rome"}
+        for ordered in (columns, columns[::-1]):
+            with self.subTest(order=[column["id"] for column in ordered]):
+                clocks = self.module.ClocksList({"value": [], "columns": ordered}, "worldclocks", object())
+                serializer = clocks.entry_serializer
+                row = serializer.serialize(" Home ", "Europe/Rome")
+                self.assertEqual(dict(zip([column["id"] for column in ordered], row)), expected)
+                data, title = serializer.initial_dialog_data(row)
+                self.assertEqual(data, expected)
+                self.assertEqual(title, "Edit entry")
+                clocks.model.rows = [expected]
+                self.assertTrue(clocks._timezone_is_duplicate("Europe/Rome"))
+                self.assertFalse(clocks._timezone_is_duplicate("Europe/Rome", "Europe/Rome"))
 
     def test_timezone_resolver_builds_maps_and_normalizes_values(self):
         fake_pytz = types.SimpleNamespace(

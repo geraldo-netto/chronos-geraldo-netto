@@ -516,13 +516,14 @@ class Model:
     def __init__(self, count):
         self.count = count
         self.rows = []
+        self.column_ids = ["label", "timezone"]
 
     def iter_n_children(self, _parent):
         return self.count
 
     def __iter__(self):
         for row in self.rows:
-            yield [row.get("label"), row.get("timezone")]
+            yield [row.get(column) for column in self.column_ids]
 
 
 class JSONSettingsList:
@@ -532,6 +533,7 @@ class JSONSettingsList:
         self.info = info
         self.show_buttons = True
         self.handlers = []
+        self.columns = info.get("columns", DialogSettings().get_property(key, "columns"))
         # The real widget loads the saved JSON through typed schema columns.
         # Do that here too: malformed rows must be repaired before this point,
         # not hidden by a double that only counts an arbitrary list.
@@ -548,6 +550,7 @@ class JSONSettingsList:
                 raise TypeError("JSONSettingsList timezone must be a string")
         self.model = Model(len(value))
         self.model.rows = value
+        self.model.column_ids = [column["id"] for column in self.columns]
         self.add_button = AddButton()
 
     def connect(self, signal, callback):

@@ -302,34 +302,26 @@ def normalize_clock_setting(info, key, settings):
     return prepared
 
 
-# What a saved clock row is, in the order Cinnamon stores it.
-#
-# TreeListWidgets.list_changed keys the persisted JSON by *position* in the
-# schema's `columns` array, so every hop in and out of a row is positional. The
-# order was written out by hand in three places - twice here and once as
-# schema_columns[0]/[1] in the dialog builder - with nothing enforcing it, so
-# swapping the two entries in settings-schema.json would write
-# {"label": "<IANA id>", "timezone": "<display name>"}, and the applet would
-# drop every clock (worldclockData rejects a timezone GLib does not know) with
-# no error anywhere. schema_static pins the schema against this order.
-CLOCK_COLUMN_IDS = ("label", "timezone")
-
-
 class ClockEntrySerializer:
+    """Use the native list's schema order for every positional row boundary."""
+
+    def __init__(self, columns):
+        self.column_ids = tuple(column["id"] for column in columns)
+
     def initial_dialog_data(
         self,
         info: Optional[list[str]],
     ) -> tuple[dict[str, Optional[str]], str]:
         if info is None:
-            return dict.fromkeys(CLOCK_COLUMN_IDS), _("Add new entry")
+            return dict.fromkeys(self.column_ids), _("Add new entry")
 
-        data = dict(zip(CLOCK_COLUMN_IDS, info))
+        data = dict(zip(self.column_ids, info))
         data["label"] = normalize_clock_label(data.get("label"))
         return data, _("Edit entry")
 
     def serialize(self, label: str, timezone: str) -> list[str]:
         values = {"label": normalize_clock_label(label), "timezone": timezone}
-        return [values[column] for column in CLOCK_COLUMN_IDS]
+        return [values[column] for column in self.column_ids]
 
 # The dialog is modal and sized to its content, so a label that will not wrap is
 # a label that decides how wide the window is.
@@ -638,7 +630,7 @@ class ClocksList(JSONSettingsList):
         normalized_info = normalize_clock_setting(info, key, settings)
         JSONSettingsList.__init__(self, key, settings, normalized_info)
 
-        self.entry_serializer = ClockEntrySerializer()
+        self.entry_serializer = ClockEntrySerializer(self.columns)
         self.dialog_builder = ClockDialogBuilder(self)
 
         self.update_button_sensitivity()
@@ -716,9 +708,10 @@ class ClocksList(JSONSettingsList):
     # the preview came to disagree.
     def _timezone_is_duplicate(self, timezone, original_timezone=None):
         identity = zoneinfo_identifier(timezone)
+        column = self.entry_serializer.column_ids.index("timezone")
         occurrences = sum(
             1 for row in self.model
-            if zoneinfo_identifier(row[1]) == identity)
+            if zoneinfo_identifier(row[column]) == identity)
         original_identity = (
             zoneinfo_identifier(original_timezone)
             if isinstance(original_timezone, str) else None)

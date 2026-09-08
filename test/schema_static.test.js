@@ -943,31 +943,18 @@ test("the holiday refresh period is the same in code and the README", () => {
     }
 });
 
-// T813: Cinnamon keys the persisted JSON by *position* in this array
-// (TreeListWidgets.list_changed), and the order was hard-coded on the Python
-// side - in ClockEntrySerializer both ways, and as schema_columns[0]/[1] in the
-// dialog builder. Swapping the two entries here would write
-// {"label": "<IANA id>", "timezone": "<display name>"}, and the applet would
-// drop every clock - worldclockData rejects a timezone GLib does not know -
-// with no error anywhere. schema_static gated the cap, the list height, the
-// tooltip and the layout, and never this.
-test("the world-clock row is the columns the settings code stores it as", () => {
+// Python round-trip tests cover both schema orders through the native list's
+// positional boundary. The schema must still declare exactly these fields.
+test("the world-clock row declares the two supported text fields", () => {
     const data = schema("6.0");
     const columns = data.worldclocks.columns;
 
-    assert.deepEqual(columns.map((column) => column.id), ["label", "timezone"],
-        "the order is the storage order; reordering it renames both values");
+    assert.deepEqual(columns.map((column) => column.id).sort(), ["label", "timezone"]);
     for (const column of columns) {
         assert.equal(column.type, "string");
         assert.ok(column.title, `${column.id} needs a heading for the list`);
     }
 
-    // ...and the Python side names the same two, in the same order
-    const widgets = fs.readFileSync(
-        path.join(appletDir, "chronos_settings_widgets_worldclocks.py"), "utf8");
-    const declared = /^CLOCK_COLUMN_IDS = \("([^"]+)", "([^"]+)"\)$/m.exec(widgets);
-    assert.ok(declared, "the settings code must declare the row it stores");
-    assert.deepEqual(declared.slice(1, 3), columns.map((column) => column.id));
 });
 
 test("the clock list is tall enough to show every clock the cap allows", () => {

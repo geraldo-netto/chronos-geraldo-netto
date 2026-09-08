@@ -4,6 +4,7 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
+| T1109 | open | medium | m | Keep the popup usable when its natural size exceeds the real work area. Actual Cinnamon 6.6.9 at 1366×768, 2× display scale and 1.5× text scale allocates the horizontal menu at (-225,-598), size 1591×1286; headers and controls are offscreen. Constrain the popup/body to available space with accessible overflow/reflow, retain usable agenda height and keyboard access, and verify native allocations at both panel orientations. |
 | T1108 | open | medium | s | Handle external additional-country settings changes while Add/Edit is open. If Reset/Import removes the edited row, _dialog_candidate calls existing.remove(original) and raises ValueError; native saved TreeModelRow/TreeIter references may also become invalid. Revalidate against current rows, keep or safely cancel the dialog with feedback, and cover removed/changed rows using the native list contract. |
 | T1106 | open | low | s | Clear inline St styles with null rather than empty strings where Chronos triggers CSS parser criticals. Actual Cinnamon 6.6.9 startup/menu opening emits cr_parser_new_from_buf and cr_declaration_parse_list_from_buf failures; tracing _applyPanelFontScale confirms label.set_style(""). Locate the remaining applet-owned empty style assignments, fix them, and verify default/custom style resets in the actual runtime. |
 | T1107 | open | medium | s | Check the weather retry generation before clearing its source ID. In WeatherRefreshScheduler, invoking a retired callback after a new schedule arms a retry resets the replacement _retry_id to zero, preventing stop()/succeeded() from cancelling it. Cover stale callbacks while a newer retry is active. |
@@ -30,7 +31,6 @@
 | T1036 | deferred | — | — | Choose one IS_NODE bootstrap-comment convention across the six holiday modules: keep the full explanation everywhere, or keep bare expressions and one canonical explanation. |
 | T1037 | deferred | — | — | Decide whether the 26 two-line guarded applet handlers should remain individually greppable and breakpointable or become a dispatch table that removes about fifty lines of boilerplate. |
 | T1038 | deferred | — | — | Decide whether DesktopSettings belongs in a separate facade from the AppletSettings wrappers. Splitting clarifies different lifetimes but requires a version shim and two call-site edits. |
-| T1042 | deferred | — | — | Decide whether ClockEntrySerializer should derive column order from the schema instead of hard-coding CLOCK_COLUMN_IDS. A schema column reorder currently breaks positional writes while the dialog still renders. |
 
 ## Rejected / Won't fix
 
