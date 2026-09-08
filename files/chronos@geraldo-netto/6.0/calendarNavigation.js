@@ -10,6 +10,7 @@ const GLib = imports.gi.GLib;
 const St = imports.gi.St;
 const Mainloop = imports.mainloop;
 const CalendarDate = require("./calendarDate");
+const DateMath = require("./dateMath");
 
 const SMOOTH_SCROLL_NOTCH = 1;
 const MAX_SMOOTH_SCROLL_MONTHS = 12;
@@ -56,14 +57,20 @@ function browsedDate(oldDate, yearChange, monthChange) {
         return clampCalendarDate(oldDate);
     }
 
-    // The Date(year, ...) constructor maps years 0-99 to 1900-1999. Mutating an
-    // existing Date preserves the proleptic year the GLib boundary expects.
-    const monthEnd = new Date(oldDate);
-    monthEnd.setFullYear(newYear, newMonth + 1, 0);
-    const date = new Date(oldDate);
-    const daysInMonth = monthEnd.getDate();
-    date.setFullYear(newYear, newMonth, Math.min(oldDate.getDate(), daysInMonth));
-    return date;
+    const monthEnd = DateMath.addCivilDays({ year: newYear, month: newMonth + 2, day: 1 }, -1);
+    const day = Math.min(oldDate.getDate(), monthEnd.day);
+    return localDateNear({ year: newYear, month: newMonth + 1, day },
+        day === monthEnd.day ? -1 : 1) || oldDate;
+}
+
+// A local timezone can omit a whole Gregorian date. Keep navigation moving in
+// its requested direction instead of normalizing back onto the selected date.
+// Two projections bound the work; no event or settings input can cause a scan.
+function localDateNear(date, direction) {
+    const unix = CalendarDate.localUnixForCivilDate(date);
+    const projected = unix === null ? CalendarDate.localUnixForCivilDate(
+        DateMath.addCivilDays(date, direction)) : unix;
+    return projected === null ? null : new Date(projected * 1000);
 }
 
 // Owns selected-date state, input interpretation, focus and coalesced browsing.
@@ -129,8 +136,9 @@ class CalendarNavigationController {
     }
 
     focusSelectedDay() {
+        const selected = DateMath.localDateParts(this.selectedDate);
         for (const cell of this.port.dayCells()) {
-            if (cell.date && sameDay(cell.date, this.selectedDate) && cell.button.grab_key_focus) {
+            if (DateMath.sameCivilDate(cell.date, selected) && cell.button.grab_key_focus) {
                 cell.button.can_focus = true;
                 cell.button.grab_key_focus();
                 return true;
@@ -181,8 +189,11 @@ class CalendarNavigationController {
             return Clutter.EVENT_PROPAGATE;
         }
         const delta = this.rtl() && MIRRORED_KEYS.has(symbol) ? -days : days;
-        const target = new Date((this.queuedDate || this.selectedDate).getTime()); // NOSONAR [S7719] -- accepted compatible form
-        target.setDate(target.getDate() + delta);
+        const target = localDateNear(DateMath.addCivilDays(
+            DateMath.localDateParts(this.queuedDate || this.selectedDate), delta), Math.sign(delta));
+        if (!target) {
+            return Clutter.EVENT_STOP;
+        }
         // the focus follows the selection, and flushQueuedDate is what moves it
         this.focusAfterSetDate = true;
         this.port.queueDate(target);

@@ -12,6 +12,7 @@ const { freezeClock } = require("./helpers/clock");
 freezeClock();
 
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
+const DateMath = require(path.join(APPLET_DIR, "dateMath.js"));
 
 global.log = () => {};
 function makeFakeDateTimeFromDate(date) {
@@ -77,10 +78,17 @@ global.imports = {
             TimeZone: { new_local: () => ({ find_interval: () => -1 }) },
             DateTime: {
                 new(timezone, ...args) { return this.new_local(...args); },
+                new_utc(year, month, day, hour, minute, second) {
+                    const date = new Date(0);
+                    date.setFullYear(year, month - 1, day);
+                    date.setHours(hour, minute, second, 0);
+                    return makeFakeDateTimeFromDate(date);
+                },
                 new_from_unix_local: (unix) =>
                     makeFakeDateTimeFromDate(new Date(unix * 1000)),
-                new_local: (year, month, day, hour = 0, minute = 0, second = 0) =>
-                    makeFakeDateTimeFromDate(new Date(year, month - 1, day, hour, minute, second))
+                new_local(year, month, day, hour = 0, minute = 0, second = 0) {
+                    return this.new_utc(year, month, day, hour, minute, second);
+                }
             }
         },
         St: { Align: { MIDDLE: 1 }, TextDirection: { LTR: 0, RTL: 1 },
@@ -126,6 +134,9 @@ global.imports = {
 };
 const Tooltips = global.imports.ui.tooltips;
 Tooltips.live = 0;
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].dateMath = DateMath;
+global.imports.ui.appletManager.applets["chronos@geraldo-netto"].civilTime =
+    require(path.join(APPLET_DIR, "civilTime.js"));
 
 global.imports.ui.appletManager.applets["chronos@geraldo-netto"].dateFormats =
     require(path.join(APPLET_DIR, "dateFormats.js"));
@@ -172,16 +183,16 @@ test("calendar date formatting owns the GLib boundary", () => {
     const date = new Date(2026, 6, 9);
     assert.equal(CalendarDateModule.formatJsDate(date, "%Y"), "2026");
 
-    const newLocal = global.imports.gi.GLib.DateTime.new_local;
-    global.imports.gi.GLib.DateTime.new_local = () => ({
+    const newUtc = global.imports.gi.GLib.DateTime.new_utc;
+    global.imports.gi.GLib.DateTime.new_utc = () => ({
         format: (format) => format === "bad" ? null : "fallback date"
     });
     assert.equal(CalendarDateModule.formatJsDate(date, "bad", "known-good"),
         "fallback date");
 
-    global.imports.gi.GLib.DateTime.new_local = () => null;
+    global.imports.gi.GLib.DateTime.new_utc = () => null;
     assert.equal(CalendarDateModule.formatJsDate(date, "%Y"), "");
-    global.imports.gi.GLib.DateTime.new_local = newLocal;
+    global.imports.gi.GLib.DateTime.new_utc = newUtc;
 });
 
 test("navigation controller owns no-op, cancellation, and focus boundaries", () => {
@@ -730,7 +741,7 @@ test("the holiday map is compared entry by entry, not by serialising it", () => 
     // have to be the days the annotations are for
     const cellFor = (key) => {
         const [month, day] = key.split("/").map(Number);
-        return { date: new Date(2026, month - 1, day), button: new MockActor(),
+        return { date: { year: 2026, month, day }, button: new MockActor(),
             holidayTooltip: null };
     };
     const reconcile = (entries) => {
@@ -957,8 +968,7 @@ test("holidays-only navigation stays live for every event-unavailable state", ()
             `${state.name}: unavailable event data draws no dots`);
 
         const day10 = cal._gridView.dayCells.find((cell) =>
-            cell.date.getFullYear() === 2026 && cell.date.getMonth() === 6 &&
-            cell.date.getDate() === 10);
+            cell.date.year === 2026 && cell.date.month === 7 && cell.date.day === 10);
         day10.button.fire("clicked");
         assert.equal(cal.getSelectedDate().getDate(), 10,
             `${state.name}: mouse selection remains live`);
@@ -982,8 +992,7 @@ test("holidays-only navigation stays live for every event-unavailable state", ()
             `${state.name}: header navigation remains live`);
 
         const holidayCell = cal._gridView.dayCells.find((cell) =>
-            cell.date.getFullYear() === 2026 && cell.date.getMonth() === 8 &&
-            cell.date.getDate() === 14);
+            cell.date.year === 2026 && cell.date.month === 9 && cell.date.day === 14);
         assert.ok(holidayCell.button.style_class.includes("calendar-holiday-day"),
             `${state.name}: holiday annotations follow the browsed month`);
     }
@@ -1080,12 +1089,10 @@ test("CalendarMonthWindow builds 42 visible dates and month lookup keys", () => 
 
     assert.equal(window.days.length, 42);
     assert.equal(window.dateUnixKeys.length, 42);
-    assert.equal(window.days[0].getFullYear(), 2026);
-    assert.equal(window.days[0].getMonth(), 5);
-    assert.equal(window.days[0].getDate(), 28);
+    assert.deepEqual(window.days[0], { year: 2026, month: 6, day: 28 });
     assert.equal(window.dateUnixKeys[0], Math.trunc(new Date(2026, 5, 28).getTime() / 1000));
     assert.equal(window.dateUnixKeys[3], Math.trunc(new Date(2026, 6, 1).getTime() / 1000));
-    assert.equal(window.days[3].getDate(), 1);
+    assert.equal(window.days[3].day, 1);
     assert.equal(window.months.has("2026/6"), true);
     assert.equal(window.months.has("2026/7"), true);
     assert.equal(typeof window.weekLabelForRow(0), "string");
@@ -1094,18 +1101,58 @@ test("CalendarMonthWindow builds 42 visible dates and month lookup keys", () => 
 test("CalendarMonthWindow guards its GLib date domain", () => {
     const minimum = new CalendarModule.CalendarMonthWindow(dateInYear(1, 0, 15), 0);
     const maximum = new CalendarModule.CalendarMonthWindow(dateInYear(9999, 11, 15), 0);
-    assert.ok(minimum.days.every((day) => day.getFullYear() >= 1));
-    assert.ok(maximum.days.every((day) => day.getFullYear() <= 9999));
+    assert.ok(minimum.days.every((day) => day.year >= 1));
+    assert.ok(maximum.days.every((day) => day.year <= 9999));
 
-    const original = global.imports.gi.GLib.DateTime.new_from_unix_local;
-    global.imports.gi.GLib.DateTime.new_from_unix_local = () => null;
+    const original = global.imports.gi.GLib.DateTime.new;
+    global.imports.gi.GLib.DateTime.new = () => null;
     try {
         const unavailable = new CalendarModule.CalendarMonthWindow(new Date(2026, 6, 9), 0);
         assert.ok(unavailable.dateUnixKeys.every((key) => key === null),
             "a failed GLib conversion does not escape the render idle");
     } finally {
-        global.imports.gi.GLib.DateTime.new_from_unix_local = original;
+        global.imports.gi.GLib.DateTime.new = original;
     }
+});
+
+test("skipped civil projections retain their labels and never select or query the following day", (t) => {
+    const clock = global.imports.gi.GLib.DateTime;
+    const construct = clock.new;
+    const date = { year: 2011, month: 12, day: 30 };
+    let normalized;
+    t.mock.method(clock, "new", () => normalized ? construct.call(clock, null,
+        normalized.year, normalized.month, normalized.day) : null);
+    for (const result of [
+        { year: 2012, month: 12, day: 30 },
+        { year: 2011, month: 11, day: 30 },
+        { year: 2011, month: 12, day: 31 }
+    ]) {
+        normalized = result;
+        assert.equal(CalendarDateModule.localUnixForCivilDate(date), null);
+    }
+    normalized = null;
+    let selected = false;
+    let lookedUp = false;
+    const host = makeHost({ selectDate() { selected = true; },
+        colorsForUnixKey() { lookedUp = true; return ["#fff"]; } });
+    const dots = new CalendarModule.CalendarEventDotRenderer(host);
+    host.renderDots = (...args) => dots.update(...args);
+    const renderer = new CalendarModule.CalendarDayCellRenderer(host);
+    const cell = renderer.build();
+    renderer.update(cell, date, 2, new Date(2011, 11, 31), null, "Friday, December 30, 2011");
+    cell.button.fire("clicked");
+    assert.equal(cell.button.label, "30");
+    assert.equal(cell.accessible_date, "Friday, December 30, 2011");
+    assert.equal(cell.event_count, 0);
+    assert.equal(lookedUp, false);
+    assert.equal(selected, false);
+
+    const cal = makeCalendar();
+    cal._selectedDate = new Date(2011, 11, 29);
+    cal._onKeyPress(null, { get_key_symbol: () => global.imports.gi.Clutter.KEY_Right });
+    assert.equal(cal._navigation.queuedDate, null,
+        "failed projections stop after two attempts instead of scanning indefinitely");
+    assert.equal(NavigationModule.browsedDate(cal._selectedDate, 0, 1), cal._selectedDate);
 });
 
 test("CalendarDayCellRenderer builds reusable clickable cells", () => {
@@ -1118,7 +1165,8 @@ test("CalendarDayCellRenderer builds reusable clickable cells", () => {
     assert.equal(cell.group.children[0], cell.button);
     assert.equal(cell.group.children[1], cell.dot_box);
 
-    cell.date = new Date(2026, 6, 14);
+    cell.date = { year: 2026, month: 7, day: 14 };
+    cell.dateUnixKey = CalendarDateModule.localUnixForCivilDate(cell.date);
     cell.button.fire("clicked");
     assert.equal(selected.getFullYear(), 2026);
     assert.equal(selected.getMonth(), 6);
@@ -1138,7 +1186,8 @@ test("a day cell click requires a date but not event data", () => {
 
     host.eventDataAvailable = false;
     const dated = renderer.build();
-    dated.date = new Date(2026, 6, 14);
+    dated.date = { year: 2026, month: 7, day: 14 };
+    dated.dateUnixKey = CalendarDateModule.localUnixForCivilDate(dated.date);
     dated.button.fire("clicked");
     assert.equal(selected.getDate(), 14,
         "a dated cell remains selectable without event data");
@@ -1368,9 +1417,9 @@ test("CalendarDayCellRenderer mutates cached state and delegates dots", () => {
     });
     const renderer = new CalendarModule.CalendarDayCellRenderer(host);
     const cell = renderer.build();
-    const iter = new Date(2026, 6, 9);
+    const iter = { year: 2026, month: 7, day: 9 };
     const today = new Date(2026, 6, 9);
-    const dateUnixKey = Math.trunc(iter.getTime() / 1000);
+    const dateUnixKey = CalendarDateModule.localUnixForCivilDate(iter);
     const accessibleDate = "Thursday, 9 July 2026";
     const tooltip = new global.imports.ui.tooltips.Tooltip(cell.button);
     cell.holidayTooltip = tooltip;
@@ -1379,7 +1428,7 @@ test("CalendarDayCellRenderer mutates cached state and delegates dots", () => {
     renderer.update(cell, iter, 2, today, dateUnixKey, accessibleDate);
 
     assert.equal(cell.button.label, "9");
-    assert.equal(cell.date.getDate(), 9);
+    assert.equal(cell.date.day, 9);
     assert.equal(cell.is_today, true);
     assert.equal(cell.accessible_date, accessibleDate);
     assert.equal(cell.selected, true);
@@ -1653,7 +1702,7 @@ function updatingCalendarFixture(months = ["2026/12", "2027/1"]) {
         getHolidays(year, month, done) { pending.set(`${year}/${month}`, done); }
     });
     const cells = new Map([25, 26].map((day) => [`12/${day}`, {
-        date: new Date(2026, 11, day),
+        date: { year: 2026, month: 12, day },
         button: new MockActor({ style_class: "calendar-day-base calendar-work-day" }),
         rendered_style: "calendar-day-base calendar-work-day", holiday_styled: false,
         holidayTooltip: null, holiday_tooltip_set: false
@@ -1854,6 +1903,7 @@ test("CalendarHolidayAnnotator owns provider status and cell annotations", () =>
     annotator.attachLabel(label);
 
     cell.accessible_date = "Tuesday, 14 July 2026";
+    cell.date = { year: 2026, month: 7, day: 14 };
     annotator.annotate(new Set(["2026/7"]), new Map([["7/14", cell]]), 7);
 
     assert.equal(annotator.provider, "stub-provider");
@@ -1974,13 +2024,13 @@ test("_isWorkDay derives the weekend from locale first_workday and length", () =
             const date = new Date(2026, 2, 1 + day);
             const expected = date.getDay() !== (firstWorkday + 7 - weekendLength) % 7 &&
                 date.getDay() !== (firstWorkday + 6) % 7;
-            assert.equal(CalendarModule._isWorkDay(date, weekendLength), expected,
+            assert.equal(CalendarModule._isWorkDay(date.getDay(), weekendLength), expected,
                 `day ${day} length ${weekendLength}`);
         }
         // exactly `weekendLength` days off per week
         let off = 0;
         for (let day = 0; day < 7; day++) {
-            if (!CalendarModule._isWorkDay(new Date(2026, 2, 1 + day), weekendLength)) {
+            if (!CalendarModule._isWorkDay(day, weekendLength)) {
                 off++;
             }
         }
@@ -2211,7 +2261,7 @@ test("desktop weekday changes fetch the exact calendar grid without changing the
     manager.select_date(selected, false);
     const unix = (year, month, day, hour = 0, minute = 0, second = 0) =>
         new Date(year, month - 1, day, hour, minute, second).getTime() / 1000;
-    const dayUnix = (date) => unix(date.getFullYear(), date.getMonth() + 1, date.getDate());
+    const dayUnix = (date) => unix(date.year, date.month, date.day);
     assert.deepEqual(requests, [{
         start: unix(2026, 7, 26), end: unix(2026, 9, 5, 23, 59, 59), force: false
     }]);
@@ -2416,7 +2466,7 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
     const before = cal._gridView.dayHeadings.map((h) => h.label);
     const nonwork = () => cal._gridView.dayHeadings
         .filter((h) => h.label.style_class.includes("calendar-nonwork-day"))
-        .map((h) => h.date.getDay())
+        .map((h) => h.weekday)
         .sort();
     assert.equal(nonwork().length, 2, "two weekend headings with the default length");
 
@@ -2434,10 +2484,10 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
     assert.equal(nonwork().length, 1, "one weekend heading after the change");
     cal._gridView.dayHeadings.forEach((heading, i) => {
         assert.equal(heading.label, before[i], "heading actors are reused");
-        const expected = CalendarModule._isWorkDay(heading.date, 1) ?
+        const expected = CalendarModule._isWorkDay(heading.weekday, 1) ?
             "calendar-work-day" : "calendar-nonwork-day";
         assert.ok(heading.label.style_class.includes(expected),
-            `heading for day ${heading.date.getDay()} restyled`);
+            `heading for day ${heading.weekday} restyled`);
     });
 
     // headings and day cells must agree on which days are the weekend
@@ -2445,7 +2495,7 @@ test("weekend-length change restyles the weekday headings without a rebuild", ()
     cal._gridView.dayCells.forEach((cell) => {
         assert.equal(cell.button.style_class.includes("calendar-nonwork-day") &&
             !cell.holiday_styled,
-        headingNonwork.has(cell.date.getDay()),
+        headingNonwork.has(DateMath.civilWeekday(cell.date)),
         `cell ${cell.date} agrees with its heading`);
     });
 });
@@ -2458,11 +2508,11 @@ test("weekday headings stay unique across a daylight-saving fallback", () => {
         const cal = makeCalendar();
         // New York repeats an hour on Sunday, 1 November 2026. Walking from
         // midnight in fixed 24-hour steps lands at 23:00 on Sunday again and
-        // duplicates its heading; the production noon anchor avoids the fold.
+        // duplicates its heading; weekday-number headings do not walk instants.
         cal._selectedDate = new Date(2026, 10, 1, 0, 30);
         cal._buildHeader();
 
-        assert.deepEqual(cal._gridView.dayHeadings.map((heading) => heading.date.getDay()),
+        assert.deepEqual(cal._gridView.dayHeadings.map((heading) => heading.weekday),
             [0, 1, 2, 3, 4, 5, 6],
             "every weekday appears once through the repeated-hour transition");
     } finally {
@@ -2522,13 +2572,12 @@ test("fuzz: cached grid stays consistent across random navigation", () => {
         }
 
         // recompute the expected grid start independently
-        const begin = new Date(date);
-        begin.setDate(1);
-        begin.setHours(12);
-        begin.setTime(begin.getTime() - ((7 + begin.getDay() - 0) % 7) * 86400000);
+        const begin = new Date(0);
+        begin.setUTCFullYear(date.getFullYear(), date.getMonth(), 1);
+        begin.setUTCDate(1 - begin.getUTCDay());
         for (let j = 0; j < 42; j += 5) {
             const expected = new Date(begin.getTime() + j * 86400000);
-            assert.equal(buttons[j].label, String(expected.getDate()),
+            assert.equal(buttons[j].label, String(expected.getUTCDate()),
                 `iteration ${i}: cell ${j} shows the right day`);
         }
 
@@ -2601,7 +2650,7 @@ function makeColorCalendar() {
 
 function cellForDay(cal, month, day) {
     return cal._gridView.dayCells.find((c) =>
-        c.date.getMonth() === month && c.date.getDate() === day);
+        c.date.month === month + 1 && c.date.day === day);
 }
 
 test("in place: dot actors are reused and restyled when colors change", () => {
@@ -2664,8 +2713,8 @@ test("in place: a holiday cell never accumulates duplicate style classes", () =>
     cal._update();
     cal._update();
 
-    const day14 = cal._gridView.dayCells.find((c) => c.date.getMonth() === 6 &&
-        c.date.getDate() === 14).button;
+    const day14 = cal._gridView.dayCells.find((c) => c.date.month === 7 &&
+        c.date.day === 14).button;
     const classes = day14.style_class.split(" ");
     assert.equal(classes.filter((c) => c === "calendar-nonwork-day").length, 1);
     assert.ok(!classes.includes("calendar-work-day"));

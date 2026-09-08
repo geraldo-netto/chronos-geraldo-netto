@@ -12,6 +12,7 @@ const Tooltips = imports.ui.tooltips;
 const LocaleText = require("./localeText");
 const TextUtils = require("./textUtils");
 const CalendarDate = require("./calendarDate");
+const DateMath = require("./dateMath");
 // only the flag and error-id constants are read here; requiring the holidays
 // barrel would link the cache repository, every vendor adapter and the HTTP
 // session into the month header
@@ -387,7 +388,7 @@ class CalendarHolidayAnnotator {
             const holiday = dates.get(date);
             if (holiday) {
                 this._annotateCell(cell, holiday.name, holiday.flags);
-                selectedDates.set(calendarDateKey(cell.date), holiday);
+                selectedDates.set(DateMath.civilDateKey(cell.date), holiday);
             } else {
                 this._clearCell(cell);
             }

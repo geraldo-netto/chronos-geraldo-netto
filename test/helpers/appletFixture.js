@@ -109,6 +109,9 @@ global.imports = {
             TimeType: { STANDARD: 0, DAYLIGHT: 1 },
             DateTime: {
                 new(timezone, ...args) { return this.new_local(...args); },
+                new_utc(year, month, day, hour, minute, second) {
+                    return this.new_local(year, month, day, hour, minute, second);
+                },
                 new_from_unix_local: (unix) => new FixtureDateTime(new Date(unix * 1000)),
                 new_local: (year, month, day, hour, minute, second) =>
                     new FixtureDateTime(
@@ -271,6 +274,8 @@ global.imports = {
 };
 
 const rootModules = global.imports.ui.appletManager.applets["chronos@geraldo-netto"];
+rootModules.dateMath = require(path.join(APPLET_DIR, "dateMath.js"));
+rootModules.civilTime = require(path.join(APPLET_DIR, "civilTime.js"));
 rootModules.dateFormats = require(path.join(APPLET_DIR, "dateFormats.js"));
 rootModules.ioUtils = require(path.join(APPLET_DIR, "ioUtils.js"));
 rootModules.localeQuery = require(path.join(APPLET_DIR, "localeQuery.js"));

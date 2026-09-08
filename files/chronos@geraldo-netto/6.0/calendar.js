@@ -17,7 +17,6 @@ const Pango = imports.gi.Pango;
 const Gettext_gtk30 = imports.gettext.domain('gtk30');
 const Cinnamon = imports.gi.Cinnamon;
 const Mainloop = imports.mainloop;
-const DateFormats = require("./dateFormats");
 const LocaleQuery = require("./localeQuery");
 const LocaleText = require("./localeText");
 const CalendarNavigation = require("./calendarNavigation");
@@ -63,7 +62,6 @@ function headerMonthFirst(order) {
     return true;
 }
 
-const MSECS_IN_DAY = DateFormats.MSECS_IN_DAY;
 const WEEKDATE_HEADER_WIDTH_DIGITS = 3;
 
 const _lcAbday = LocaleQuery.lazyLocaleValue("LC_TIME", (info) => info.abday.split(";"));
@@ -475,25 +473,17 @@ class Calendar {
         this._setWeekdateHeaderWidth();
     }
 
-    // We need to figure out the abbreviated localized names for the days of the
-    // week; we do this by just getting the next 7 days starting from right now
-    // and then putting them in the right cell in the table. It doesn't matter if
-    // we add them in order.
+    // Headings are the seven Gregorian weekdays, independent of any timezone
+    // transition in the selected week.
     _buildWeekdayHeadings(offsetCols) {
-        const iter = new Date(this._selectedDate);
-        iter.setSeconds(0); // Leap second protection. Hah!
-        iter.setHours(12);
-        for (let i = 0; i < 7; i++) {
-            // Could use iter.toLocaleFormat('%a') but that normally gives three characters
-            // and we want, ideally, a single character for e.g. S M T W T F S
-            const customDayAbbrev = _getCalendarDayAbbreviation(iter.getDay());
-            const label = new St.Label({ style_class: this._dayHeadingStyleClass(iter), text: customDayAbbrev });
-            this._gridView.addDayHeading(label, new Date(iter));
+        for (let weekday = 0; weekday < 7; weekday++) {
+            const customDayAbbrev = _getCalendarDayAbbreviation(weekday);
+            const label = new St.Label({ style_class: this._dayHeadingStyleClass(weekday), text: customDayAbbrev });
+            this._gridView.addDayHeading(label, weekday);
             this.actor.add(label,
                            { row: 1,
-                             col: offsetCols + (7 + iter.getDay() - this._weekStart) % 7,
+                             col: offsetCols + (7 + weekday - this._weekStart) % 7,
                              x_fill: false, x_align: St.Align.MIDDLE });
-            iter.setTime(iter.getTime() + MSECS_IN_DAY);
         }
     }
 

@@ -18,6 +18,7 @@ const APPLET_MODULES = IS_NODE ?
     null : GjsImports.ui.appletManager.applets["chronos@geraldo-netto"];
 const DateMath = APPLET_MODULES ? APPLET_MODULES.dateMath : require("./dateMath");
 const EventDataModule = APPLET_MODULES ? APPLET_MODULES.eventData : require("./eventData");
+const CivilTime = APPLET_MODULES ? APPLET_MODULES.civilTime : require("./civilTime");
 const js_date_to_gdatetime = EventDataModule.js_date_to_gdatetime;
 const date_only = EventDataModule.date_only;
 const month_year_only = EventDataModule.month_year_only;
@@ -36,12 +37,15 @@ var EventWindowCoordinator = class EventWindowCoordinator { // NOSONAR [S3504] -
         onWindowChanged, cancellable = null) {
         const changed_month = this.current_month_year === null ||
             !dt_equals(month_year, this.current_month_year);
-        const day_one = month_year_only(month_year);
-        // A midnight gap can make day_one start at 01:00. Calendar arithmetic
-        // preserves that hour, so resolve both civil boundaries independently.
-        const start = date_only(day_one.add_days(-DateMath.monthWindowStartOffset(
-            day_one.get_day_of_week(), Cinnamon.util_get_week_start())));
-        const end = date_only(start.add_days(42)).add_seconds(-1);
+        const first = DateMath.monthWindowStart(
+            month_year.get_year(), month_year.get_month(), Cinnamon.util_get_week_start());
+        const afterLast = DateMath.addCivilDays(first, 42);
+        const timezone = GLib.TimeZone.new_local();
+        // Project each civil endpoint independently: a skipped first day must
+        // not move the exclusive end, and folded midnights start at their first copy.
+        const start = CivilTime.civilDayStart(first.year, first.month, first.day, timezone);
+        const end = CivilTime.civilDayStart(afterLast.year, afterLast.month, afterLast.day,
+            timezone).add_seconds(-1);
         const window_signature = `${start.to_unix()}/${end.to_unix()}`;
         const changed_window = window_signature !== this.current_window_signature;
         if (!changed_month && !changed_window && !force) {

@@ -23,15 +23,18 @@ const LocaleQuery = require("./localeQuery");
 const LocaleText = require("./localeText");
 const StyleUtils = require("./styleUtils");
 const UiVocabulary = require("./uiVocabulary");
-const CalendarDate = require("./calendarDate");
+const DateMath = require("./dateMath");
 const CalendarAnnotations = require("./calendarAnnotations");
 
 const _ = LocaleText.translate;
 const joinPhrases = LocaleText.joinPhrases;
 const releaseHolidayTooltip = CalendarAnnotations.releaseHolidayTooltip;
 const ngettext = LocaleText.translatePlural;
-const _sameDay = CalendarDate.sameDay;
-const _today = CalendarDate.isToday;
+const _sameDay = DateMath.sameCivilDate;
+const civilWeekday = DateMath.civilWeekday;
+function _today(date, today) {
+    return _sameDay(date, DateMath.localDateParts(today));
+}
 // Geometry remains the primary limit, but a broken or unusually permissive
 // theme must not turn one dense day into an arbitrary number of actors.
 const MAX_EVENT_DOTS_PER_CELL = 64;
@@ -41,10 +44,10 @@ const _lcFirstWorkday = LocaleQuery.lazyLocaleValue(
     "LC_TIME", (info) => (info.first_workday + 6) % 7);
 
 // Weekend days are derived from the locale's first workday and configured length.
-function _isWorkDay(date, weekend_length) {
+function _isWorkDay(weekday, weekend_length) {
     const firstWorkday = _lcFirstWorkday();
-    return date.getDay() !== (firstWorkday + 7 - weekend_length) % 7 &&
-    date.getDay() !== (firstWorkday + 6) % 7;
+    return weekday !== (firstWorkday + 7 - weekend_length) % 7 &&
+        weekday !== (firstWorkday + 6) % 7;
 }
 
 // What the grid's collaborators are allowed to know about the calendar.
@@ -144,6 +147,7 @@ class CalendarDayCellRenderer {
     }
 
     update(cell, iter, row, today, dateUnixKey, accessibleDate) {
+        cell.dateUnixKey = dateUnixKey;
         const dateChanged = this._updateDateIdentity(
             cell, iter, today, accessibleDate);
         this._updateCellStyle(cell, iter, row, today);
@@ -157,10 +161,10 @@ class CalendarDayCellRenderer {
         // the slot is reused: whether it is showing a different day now is what
         // decides whether last pass's holiday annotation still belongs to it
         const dateChanged = !cell.date || !_sameDay(cell.date, iter);
-        cell.date = new Date(iter.getTime()); // NOSONAR [S7719] -- accepted compatible form
+        cell.date = { ...iter };
         cell.is_today = _today(iter, today);
 
-        const label = iter.getDate().toString();
+        const label = String(iter.day);
         if (cell.button.label !== label) {
             cell.button.label = label;
         }
@@ -191,7 +195,7 @@ class CalendarDayCellRenderer {
     }
 
     _updateSelection(cell, iter) {
-        const selected = _sameDay(this.host.selectedDate, iter);
+        const selected = _sameDay(DateMath.localDateParts(this.host.selectedDate), iter);
         if (selected !== cell.selected) {
             if (selected) {
                 cell.button.add_style_pseudo_class('selected');
@@ -302,10 +306,10 @@ class CalendarDayCellRenderer {
         // reads cell.date so the reused button always selects the date
         // it currently displays
         cell.button.connect('clicked', () => {
-            if (!cell.date) {
+            if (!cell.date || cell.dateUnixKey === null) {
                 return;
             }
-            this.host.selectDate(new Date(cell.date.getTime())); // NOSONAR [S7719] -- accepted compatible form
+            this.host.selectDate(new Date(cell.dateUnixKey * 1000));
         });
 
         return cell;
@@ -313,7 +317,7 @@ class CalendarDayCellRenderer {
 
     _dayStyleClass(iter, row, today) {
         let styleClass = ['calendar-day-base', 'calendar-day'];
-        if (_isWorkDay(iter, this.host.weekendLength)) {
+        if (_isWorkDay(civilWeekday(iter), this.host.weekendLength)) {
             styleClass.push('calendar-work-day');
         } else {
             styleClass.push("calendar-nonwork-day");
@@ -323,13 +327,13 @@ class CalendarDayCellRenderer {
         if (row === 2) {
             styleClass.push('calendar-day-top');
         }
-        if (iter.getDay() === this.host.weekStart) {
+        if (civilWeekday(iter) === this.host.weekStart) {
             styleClass.push('calendar-day-left');
         }
 
         if (_today(iter, today)) {
             styleClass.push('calendar-today');
-        } else if (iter.getMonth() !== this.host.selectedDate.getMonth()) {
+        } else if (iter.month !== this.host.selectedDate.getMonth() + 1) {
             styleClass.push('calendar-other-month-day');
         } else {
             styleClass.push('calendar-not-today');
@@ -354,7 +358,7 @@ class CalendarEventDotRenderer {
     }
 
     update(cell, iter, dateUnixKey) {
-        const color_set = this.host.eventDataAvailable ?
+        const color_set = this.host.eventDataAvailable && dateUnixKey !== null ?
             this.host.colorsForUnixKey(dateUnixKey) : null;
         const { eventCount, colors } = this._projectColors(color_set, cell.dot_capacity);
 
@@ -415,8 +419,8 @@ class CalendarGridView {
         this.dayHeadings = [];
     }
 
-    addDayHeading(label, date) {
-        this.dayHeadings.push({ label, date });
+    addDayHeading(label, weekday) {
+        this.dayHeadings.push({ label, weekday });
     }
 
     invalidateStyle() {
@@ -434,7 +438,7 @@ class CalendarGridView {
             this.dayCellRenderer.update(cell, iter, 2 + Math.trunc(i / 7), today,
                 monthWindow.dateUnixKeys[i], monthWindow.accessibleDates[i]);
             if (annotating) {
-                cells.set(`${iter.getMonth() + 1}/${iter.getDate()}`, cell);
+                cells.set(`${iter.month}/${iter.day}`, cell);
             }
         }
 
@@ -462,9 +466,9 @@ class CalendarGridView {
         }
     }
 
-    dayHeadingStyleClass(iter) {
+    dayHeadingStyleClass(weekday) {
         let styleClass = 'calendar-day-base calendar-day-heading';
-        if (_isWorkDay(iter, this.port.weekendLength())) {
+        if (_isWorkDay(weekday, this.port.weekendLength())) {
             styleClass += ' calendar-work-day';
         } else {
             styleClass += ' calendar-nonwork-day';
@@ -474,7 +478,7 @@ class CalendarGridView {
 
     updateDayHeadings() {
         for (const heading of this.dayHeadings) {
-            const styleClass = this.dayHeadingStyleClass(heading.date);
+            const styleClass = this.dayHeadingStyleClass(heading.weekday);
             if (heading.label.style_class !== styleClass) {
                 heading.label.style_class = styleClass;
             }

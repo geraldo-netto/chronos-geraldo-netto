@@ -175,7 +175,13 @@ global.imports = {
             TimeType: { STANDARD: 0, DAYLIGHT: 1 },
             TimeZone: { new_local: () => ({ find_interval: () => -1 }) },
             DateTime: {
-                new(timezone, ...args) { return this.new_local(...args); },
+                new(timezone, year, month, day) {
+                    // This fixture encodes days linearly from 2000-01-01 as 1.
+                    // Civil fetch endpoints can now explicitly name a sibling
+                    // month/year, so normalize them into that same encoding.
+                    const serial = (Date.UTC(year, month - 1, day) - Date.UTC(1999, 11, 31)) / 86400000;
+                    return this.new_local(2000, 1, serial);
+                },
                 new_from_unix_local: (unix) => new FakeDateTime(unix * 1000000),
                 new_local: (y, m, day) => new FakeDateTime(day * DAY_US),
                 new_now_local: () => new FakeDateTime(50 * DAY_US + DAY_US / 2)

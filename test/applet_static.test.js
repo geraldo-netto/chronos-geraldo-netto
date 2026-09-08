@@ -432,12 +432,13 @@ test("production applets require their initialized coordinators", () => {
     assert.match(code, /this\._eventListCoordinator = new AppletEventListCoordinator/);
 });
 
-test("event fetch window uses the shared week-start offset", () => {
+test("event fetch window uses the shared Gregorian window", () => {
     const code = source("eventWindow.js");
     // raw week_day - week_start mixes ISO (1=Mon..7=Sun) with the 0=Sun
     // convention and started the window a week early for Sunday locales
     assert.doesNotMatch(code, /week_day - week_start/);
-    assert.match(code, /DateMath\.monthWindowStartOffset\(\n?\s*day_one\.get_day_of_week\(\), Cinnamon\.util_get_week_start\(\)\)/);
+    assert.match(code, /DateMath\.monthWindowStart\(\s*month_year\.get_year\(\), month_year\.get_month\(\), Cinnamon\.util_get_week_start\(\)\)/);
+    assert.match(code, /DateMath\.addCivilDays\(first, 42\)/);
 });
 
 test("event orchestration depends on extracted boundary collaborators", () => {

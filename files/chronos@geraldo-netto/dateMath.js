@@ -17,6 +17,42 @@ function monthWindowStartOffset(isoWeekDay, weekStart) {
     return ((isoWeekDay % 7) - weekStart + 7) % 7;
 }
 
+// Plain Gregorian dates are not instants. UTC is only an arithmetic workspace:
+// local timezone jumps must never remove or duplicate a grid cell. setUTCFullYear
+// also preserves years 1..99, unlike the multi-argument Date constructor.
+function localDateParts(date) {
+    return { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() };
+}
+
+function civilDayNumber(date) {
+    const utc = new Date(0);
+    utc.setUTCFullYear(date.year, date.month - 1, date.day);
+    return utc.getTime() / MSECS_IN_DAY;
+}
+
+function addCivilDays(date, days) {
+    const utc = new Date((civilDayNumber(date) + days) * MSECS_IN_DAY);
+    return { year: utc.getUTCFullYear(), month: utc.getUTCMonth() + 1, day: utc.getUTCDate() };
+}
+
+function civilWeekday(date) {
+    return ((civilDayNumber(date) + 4) % 7 + 7) % 7;
+}
+
+function sameCivilDate(left, right) {
+    return Boolean(left && right) && left.year === right.year &&
+        left.month === right.month && left.day === right.day;
+}
+
+function civilDateKey(date) {
+    return `${date.year}/${date.month}/${date.day}`;
+}
+
+function monthWindowStart(year, month, weekStart) {
+    const first = { year, month, day: 1 };
+    return addCivilDays(first, -monthWindowStartOffset(civilWeekday(first) || 7, weekStart));
+}
+
 // GLib.DateTime.equal is broken, so identity is compared through the epoch
 // seconds instead. It lives here because both the domain model (eventData, which
 // pulls GLib at module scope) and the presentation formatter (eventFormat, which
@@ -27,5 +63,7 @@ function dtEquals(dt1, dt2) {
 }
 
 if (typeof module !== "undefined") {
-    module.exports = { MSECS_IN_DAY, monthWindowStartOffset, dtEquals };
+    module.exports = { MSECS_IN_DAY, monthWindowStartOffset, dtEquals,
+        localDateParts, civilDayNumber, addCivilDays, civilWeekday, sameCivilDate,
+        civilDateKey, monthWindowStart };
 }

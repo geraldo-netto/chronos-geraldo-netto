@@ -8,6 +8,8 @@ test("native event windows normalize first and exclusive final civil days indepe
         ["America/Asuncion", 2023, 10, 1, "2023-09-25 00:00:00", "2023-11-05 23:59:59"],
         ["America/Asuncion", 2023, 10, 0, "2023-10-01 01:00:00", "2023-11-11 23:59:59"],
         ["America/Santiago", 2024, 8, 0, "2024-07-28 00:00:00", "2024-09-07 23:59:59"],
+        ["Pacific/Apia", 2012, 1, 5, "2011-12-31 00:00:00", "2012-02-09 23:59:59"],
+        ["Pacific/Kwajalein", 1969, 9, 0, "1969-08-31 00:00:00", "1969-10-11 23:59:59"],
         ["Europe/Rome", 2026, 10, 1, "2026-09-28 00:00:00", "2026-11-08 23:59:59"]
     ];
     for (const [zone, year, month, weekStart, start, end] of cases) {
