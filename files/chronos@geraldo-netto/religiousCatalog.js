@@ -13,8 +13,9 @@
 // are translated only when an observance is expanded for display.
 const _ = (text) => text;
 
-// Ordered by number of adherents. The ids are also settings-key suffixes and
-// the second flag on every religious-observance row.
+// Ordered by number of adherents. The ids identify religions in settings and
+// the catalog. Observance rows carry only religious_holiday; their display
+// names identify the religion.
 var RELIGIONS = [ // NOSONAR [S3504] -- GJS importer export
     { id: "christianity", label: _("Christianity") },
     { id: "islam", label: _("Islam") },

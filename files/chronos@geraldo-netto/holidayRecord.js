@@ -140,26 +140,21 @@ function publicHolidayFlags(flags) {
     return flags.filter((flag) => flag !== RELIGIOUS_HOLIDAY_FLAG);
 }
 
-// Every flag the applet mints for itself, and therefore every flag a vendor
-// payload may not put into a record. holidayConstants calls PART_DAY_HOLIDAY
-// "the only holiday flag this applet does not mint itself" — this is the other
-// side of that sentence, and it is not there just for tidiness: the flags
-// decide how a day is drawn. calendarAnnotations reads PUBLIC_HOLIDAY_FLAG to
-// style a day non-working and RELIGIOUS_HOLIDAY_FLAG (with the religion id) to
-// style an observance, so a provider answering `holidayType: "public_holiday"`
-// or a `types: ["Religious_Holiday"]` row used to mint the applet's own
-// sentinels straight out of the wire.
-const APP_MINTED_FLAGS = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, CALENDAR_OBSERVANCE_FLAG]
+// Reserve app-owned classification flags and religion ids from vendor input.
+// PUBLIC_HOLIDAY_FLAG marks non-working days; RELIGIOUS_HOLIDAY_FLAG alone
+// styles religious observances, whose display names identify their religion.
+// Religion ids remain reserved even though no row emits them: a vendor must
+// not introduce app-owned classifications through its free-form flag strings.
+const RESERVED_PROVIDER_FLAGS = [PUBLIC_HOLIDAY_FLAG, RELIGIOUS_HOLIDAY_FLAG, CALENDAR_OBSERVANCE_FLAG]
     .concat(ReligiousCatalog.RELIGION_IDS);
 
-// A vendor's flags, with anything the applet mints for itself removed, and the
-// public sentinel put back only when the *adapter* — reading the vendor field
-// it queried on — says the row is a public holiday. A vendor string never
-// reaches the record as an app sentinel.
+// Remove reserved vendor flags. Restore the public sentinel only when the
+// adapter, reading the vendor's public-holiday field, classifies the row as
+// public. A vendor flag string never supplies that classification.
 function normalizeProviderFlags(flags, isPublicHoliday) {
     const vendor = (Array.isArray(flags) ? flags : [])
         .filter((flag) => typeof flag === "string" &&
-            APP_MINTED_FLAGS.indexOf(flag) < 0); // NOSONAR [S7765] -- accepted compatible form
+            RESERVED_PROVIDER_FLAGS.indexOf(flag) < 0); // NOSONAR [S7765] -- accepted compatible form
 
     return isPublicHoliday ? [PUBLIC_HOLIDAY_FLAG].concat(vendor) : vendor;
 }
@@ -292,7 +287,7 @@ var HolidayRecordContract = class HolidayRecordContract { // NOSONAR [S3504] -- 
 
 if (typeof module !== "undefined") {
     module.exports = { validDateParts, validHolidaySpan, holidaySpanDays, holidayOverlapsYear, nonBlankText,
-        publicHolidayFlags, normalizeProviderFlags, APP_MINTED_FLAGS,
+        publicHolidayFlags, normalizeProviderFlags, RESERVED_PROVIDER_FLAGS,
         validHolidayFlags, MAX_HOLIDAY_SPAN_DAYS, MAX_HOLIDAYS_PER_YEAR, MAX_EXPANDED_HOLIDAY_ROWS,
         MAX_HOLIDAY_FLAGS, MAX_HOLIDAY_FLAG_LENGTH, MAX_HOLIDAY_NAME_LENGTH,
         clampHolidayName, compareCodeUnits, mergeHolidayFlags, withHolidayFlag,
