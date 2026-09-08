@@ -321,6 +321,10 @@ request and on pushes to `develop` and `v*` tags. Maintainers can run the same
 pipeline manually from GitHub Actions or with `gh workflow run CI --ref develop`
 when a push event does not create a run.
 
+An [optional manual mutation runner](docs/mutation-testing.md) provides bounded
+scopes and configuration previews. Mutation campaigns and report interpretation
+remain maintainer tasks; the regular test and CI commands do not run them.
+
 ### How the source is laid out (development)
 
 `metadata.json` sets `"multiversion": true`, so Cinnamon loads the applet from

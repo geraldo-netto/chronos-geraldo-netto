@@ -1,0 +1,9 @@
+{
+  "name": "chronos-manual-mutation",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Optional maintainer-operated mutation tooling; excluded from normal project installation and gates.",
+  "engines": { "node": ">=22.13.0" },
+  "devDependencies": { "@stryker-mutator/core": "9.6.1" },
+  "overrides": { "typed-rest-client": { "qs": "6.16.0" } }
+}

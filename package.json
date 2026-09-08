@@ -31,7 +31,8 @@
     "release:recover": "node scripts/release.mjs recover",
     "test": "npm run test:js && npm run test:py",
     "test:js": "node test/helpers/coverage.js",
-    "test:py": "python3 test/helpers/coverage.py"
+    "test:py": "python3 test/helpers/coverage.py",
+    "mutation:manual": "node scripts/mutation.mjs"
   },
   "engines": {
     "node": ">=22.13.0"

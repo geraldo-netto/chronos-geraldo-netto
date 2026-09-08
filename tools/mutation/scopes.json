@@ -1,0 +1,17 @@
+{
+  "holiday-record": {
+    "description": "Holiday date and payload validation",
+    "mutate": ["files/chronos@geraldo-netto/holidayRecord.js"],
+    "tests": ["test/holiday_cache.test.js", "test/holiday_snapshots.test.js"]
+  },
+  "religious-dates": {
+    "description": "Religious date calculations and source coverage",
+    "mutate": ["files/chronos@geraldo-netto/religiousHolidays.js"],
+    "tests": ["test/religious_holidays.test.js"]
+  },
+  "calendar-plugins": {
+    "description": "Calendar plugin manifest validation and recurrence",
+    "mutate": ["files/chronos@geraldo-netto/calendarPluginData.js"],
+    "tests": ["test/calendar_plugins.test.js"]
+  }
+}

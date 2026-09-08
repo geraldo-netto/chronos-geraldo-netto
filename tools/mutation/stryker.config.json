@@ -1,0 +1,14 @@
+{
+  "testRunner": "command",
+  "coverageAnalysis": "off",
+  "concurrency": 1,
+  "inPlace": false,
+  "cleanTempDir": true,
+  "tempDirName": ".cache/chronos-mutation/sandbox",
+  "ignorePatterns": ["coverage", "dist", ".cache", "tools/mutation/node_modules"],
+  "reporters": ["clear-text", "html", "json"],
+  "thresholds": { "high": 80, "low": 60, "break": null },
+  "timeoutMS": 5000,
+  "timeoutFactor": 1.5,
+  "dryRunTimeoutMinutes": 2
+}

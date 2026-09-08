@@ -11,7 +11,6 @@
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
 | T937 | blocked | medium | s | Exercise shipped JavaScript under Cinnamon 6.0's actual CJS runtime and import the versioned loaders. Current checks compile under installed CJS 115 and reproduce imports in a VM; real imports need Cinnamon GI/UI modules plus a pinned 6.0 runtime or live session. |
-| T938 | blocked | medium | l | The maintainer must decide whether the repository carries a mutation runner. An assistant may add a runner, configuration, and scope selector, but mutation campaigns and survivor decisions remain maintainer-only. |
 | T935 | blocked | medium | m | Verify the responsive popup on live Cinnamon at 1366×768, 2× scale, 1.5 text scale, long de/ru strings, and both panel orientations. Confirm layout choice, minimum agenda height, keyboard order, and stacked spacing; arithmetic tests cannot establish the rendered pixels. |
 | T1016 | blocked | medium | xs | Chain per-user and system gettext catalogs so a stale user catalog can fall back to newer system messages. This remains blocked while i18n is out of scope; test a msgid present only in the second catalog. |
 | T1028 | deferred | — | — | Decide whether weatherScheduler's one-shot retry callback should catch and log refresh exceptions like the periodic callback, or deliberately let retry failures escape and document that asymmetry. |
