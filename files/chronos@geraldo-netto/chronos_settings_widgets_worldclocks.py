@@ -578,12 +578,25 @@ class SettingsWindowCenterer:
         self.widget = widget
         self.centered = False
         self.attempts = 0
+        self.source_id = 0
+        widget.connect("destroy", self.stop)
 
     def start(self) -> None:
-        GLib.idle_add(self.center)
+        if self.widget is not None and not self.source_id:
+            self.source_id = GLib.idle_add(self.center)
+
+    def stop(self, *_args) -> None:
+        if self.source_id:
+            GLib.source_remove(self.source_id)
+        self._finish()
+
+    def _finish(self) -> bool:
+        self.source_id = 0
+        self.widget = None
+        return False
 
     def center(self, *args) -> bool:
-        if self.centered:
+        if self.widget is None:
             return False
 
         # An idle that keeps asking to be run again is a busy loop: it pins a
@@ -593,7 +606,7 @@ class SettingsWindowCenterer:
         self.attempts += 1
         if self.attempts > MAX_CENTER_ATTEMPTS:
             LOGGER.debug("gave up centering the settings window")
-            return False
+            return self._finish()
 
         widget = self.widget
         window = widget.get_toplevel() if hasattr(widget, "get_toplevel") else None
@@ -605,7 +618,7 @@ class SettingsWindowCenterer:
         # only returns False when the display itself would not answer
         self.centered = True
         center_window(window)
-        return False
+        return self._finish()
 
 
 class ClocksList(JSONSettingsList):

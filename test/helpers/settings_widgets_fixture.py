@@ -531,6 +531,7 @@ class JSONSettingsList:
         self.settings = settings
         self.info = info
         self.show_buttons = True
+        self.handlers = []
         # The real widget loads the saved JSON through typed schema columns.
         # Do that here too: malformed rows must be repaired before this point,
         # not hidden by a double that only counts an arbitrary list.
@@ -548,6 +549,14 @@ class JSONSettingsList:
         self.model = Model(len(value))
         self.model.rows = value
         self.add_button = AddButton()
+
+    def connect(self, signal, callback):
+        self.handlers.append((signal, callback))
+
+    def destroy(self):
+        for signal, callback in self.handlers:
+            if signal == "destroy":
+                callback(self)
 
     def update_button_sensitivity(self, *args):
         self.super_args = args
@@ -806,6 +815,7 @@ def install_stubs():
     # instead of running a main loop
     repository.GLib = types.SimpleNamespace(
         idle_add=lambda callback, *args: GLibStub.idles.append((callback, args)) or 1,
+        source_remove=lambda _source: None,
         # the real GLib.Error, which centering catches alongside the Gtk errors
         Error=GLibError,
     )

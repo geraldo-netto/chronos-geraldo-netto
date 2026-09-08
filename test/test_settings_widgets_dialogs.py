@@ -543,6 +543,29 @@ class CenterSettingsWindowTest(unittest.TestCase):
         self.assertTrue(clocks.window_centerer.center())
         self.assertFalse(clocks.window_centerer.centered)
 
+    def test_destruction_cancels_pending_idle_and_releases_widget(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        centerer = clocks.window_centerer
+        centerer.start()
+        self.assertEqual(len(GLibStub.idles), 1)
+        with mock.patch.object(self.module.GLib, "source_remove") as remove:
+            clocks.destroy()
+            clocks.destroy()
+            remove.assert_called_once_with(1)
+        self.assertIsNone(centerer.widget)
+        self.assertFalse(centerer.center())
+        centerer.start()
+        self.assertEqual(len(GLibStub.idles), 1)
+
+    def test_completed_idle_is_not_removed_again_on_destruction(self):
+        clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
+        clocks.get_toplevel = FakeWindow
+        self.assertFalse(clocks.window_centerer.center())
+        self.assertIsNone(clocks.window_centerer.widget)
+        with mock.patch.object(self.module.GLib, "source_remove") as remove:
+            clocks.destroy()
+            remove.assert_not_called()
+
     def test_the_idle_centers_once_the_window_exists_and_then_stops(self):
         clocks = self.module.ClocksList({"value": []}, "worldclocks", object())
         window = FakeWindow()
@@ -582,6 +605,8 @@ class CenterSettingsWindowTest(unittest.TestCase):
             armed = clocks.window_centerer.center()
 
         self.assertFalse(armed)
+        self.assertIsNone(clocks.window_centerer.widget)
+        self.assertEqual(clocks.window_centerer.source_id, 0)
 
 
 class RegressionTest(unittest.TestCase):
