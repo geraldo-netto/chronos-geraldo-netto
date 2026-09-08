@@ -231,7 +231,8 @@ checkout.
 
 ### Configuration
 
-Right-click the applet → **Configure...**. Everything the applet ships:
+Right-click the applet → **Configure...**. Settings are grouped into the tabs
+below. Open **About** from the applet's right-click menu.
 
 **Calendar page**
 
@@ -242,10 +243,8 @@ Right-click the applet → **Configure...**. Everything the applet ships:
 | Mark as weekend days | two days | How many days a week are styled as non-working; which days come from your locale. |
 | Date formats | `%d %b %H:%M` | The always-visible **Date format** and **Date format for tooltip** fields control the panel label and each tooltip row; the **Show information on date format syntax** button opens the reference. |
 | Panel text size | 1.0 | Multiplies the theme's panel font size for this applet's label only, from 0.8 to 1.6 — the panel itself and its other applets are untouched. At 1.0 the applet sets no size of its own, so the theme and your font scaling stay in charge, exactly as before the setting existed. |
-| Country / Region | country from the operating-system timezone, or None | Marks that country's nationwide public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; any country you select overrides the inferred default. |
-| Additional country calendars | empty | Enables more countries and regions simultaneously, with separate caches. |
-| Installed calendars | empty | Imports and selects personal JSON calendar plugins. Calendars outside their valid coverage are hidden. |
-| Religious observances / religions | off / none selected | Shows locally calculated observances for the religions you select. They are underlined but remain working days; see the date limits below. |
+| Show world clocks in the calendar menu (under **Show World Times**) | on | Shows the clock rows under the calendar, including the built-in UTC and local time. |
+| World Clocks (under **Show World Times**) | empty | Up to 8 timezones on top of the built-in rows. |
 | Show calendar (under **Keyboard shortcuts**) | `<Super>c` | Opens the calendar menu. |
 
 The panel label and world-clock rows use **Date format**. Every tooltip location
@@ -253,14 +252,7 @@ row uses **Date format for tooltip**, followed by its temperature and weather
 description when available. The weather readout, when enabled, follows the panel
 label.
 
-**World Clocks page**
-
-| Setting | Default | What it does |
-|---|---|---|
-| Show world clocks in the calendar menu | on | Shows the clock rows under the calendar, including the built-in UTC and local time. |
-| World Clocks | empty | Up to 8 timezones on top of the built-in rows. |
-
-**Weather and location services section** (on the Calendar page)
+**Weather and Location Services page**
 
 | Setting | Default | What it does |
 |---|---|---|
@@ -291,6 +283,17 @@ The world clocks never appear on the panel. The panel is one line, which the dat
 and the weather readout already share; the clocks are a table, and they are shown
 in the two places with room for them — the panel's tooltip and the popup.
 
+**Public Holidays page**
+
+The **Get Public Holidays for** section contains the primary and additional
+country settings. **Additional Calendars** contains personal calendar plugins.
+
+| Setting | Default | What it does |
+|---|---|---|
+| Country / Region | country from the operating-system timezone, or None | Marks that country's nationwide public holidays in the grid (see below). Type into the field to filter the country list instead of scrolling it; any country you select overrides the inferred default. |
+| Additional country calendars | empty | Enables more countries and regions simultaneously, with separate caches. |
+| Installed calendars | empty | Imports and selects personal JSON calendar plugins. Calendars outside their valid coverage are hidden. |
+
 For a new settings profile, the holiday country is filled from the operating-system timezone:
 `Europe/Rome` becomes **Italy**. This uses the local timezone database, not IP
 geolocation. UTC, an unsupported timezone country, or unavailable timezone data
@@ -300,6 +303,12 @@ afterwards is preserved; choose **None (disable holidays)** to turn holiday
 marking off. Upgrades also preserve an existing country or **None** instead of
 reinterpreting it as a new default. An enabled holiday lookup sends the selected
 country and region to third-party holiday services.
+
+**Religious Observances page**
+
+| Setting | Default | What it does |
+|---|---|---|
+| Religious observances / religions | off / none selected | Shows locally calculated observances for the religions you select. They are underlined but remain working days; see the date limits below. |
 
 In the menu the grid is keyboard-navigable: arrows move by day and week,
 PageUp/PageDown by month, Home returns to today.

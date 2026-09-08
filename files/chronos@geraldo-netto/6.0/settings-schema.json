@@ -3,33 +3,40 @@
         "type": "layout",
         "pages": [
             "page1",
-            "page2",
-            "page3"
+            "page3",
+            "page4",
+            "page5"
         ],
         "page1": {
             "type": "page",
             "title": "Calendar",
             "sections": [
                 "section1",
-                "section5",
-                "section2",
-                "section6",
-                "section-calendar-plugins",
+                "section4",
                 "section3"
             ]
         },
-        "page2": {
+        "page3": {
             "type": "page",
-            "title": "World Clocks",
+            "title": "Weather and Location Services",
             "sections": [
-                "section4"
+                "section5"
             ]
         },
-        "page3": {
-            "type": "custom",
-            "title": "About",
-            "file": "settings_about.py",
-            "widget": "AboutPage"
+        "page4": {
+            "type": "page",
+            "title": "Public Holidays",
+            "sections": [
+                "section2",
+                "section-calendar-plugins"
+            ]
+        },
+        "page5": {
+            "type": "page",
+            "title": "Religious Observances",
+            "sections": [
+                "section6"
+            ]
         },
         "section1": {
             "type": "section",
@@ -96,7 +103,7 @@
         },
         "section5": {
             "type": "section",
-            "title": "Weather and location services",
+            "title": "Weather and Location Services",
             "keys": [
                 "show-weather",
                 "show-astronomy",

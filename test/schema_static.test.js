@@ -165,17 +165,26 @@ test("option comboboxes expose visible labels through the custom widget", () => 
     "no stock combobox remains to announce its machine value");
 });
 
-test("schema groups weather and location controls together", () => {
+test("schema separates settings into the requested tabs", () => {
     const data = schema("6.0");
     const layout = data.layout;
 
     assert.deepEqual(layout.section5, {
         type: "section",
-        title: "Weather and location services",
+        title: "Weather and Location Services",
         keys: ["show-weather", "show-astronomy", "weather-location",
             "openstreetmap-attribution", "weather-units"]
     });
-    assert.ok(layout.page1.sections.includes("section5"));
+    assert.deepEqual(layout.pages.map((id) => layout[id]), [
+        { type: "page", title: "Calendar", sections: ["section1", "section4", "section3"] },
+        { type: "page", title: "Weather and Location Services", sections: ["section5"] },
+        { type: "page", title: "Public Holidays", sections: ["section2", "section-calendar-plugins"] },
+        { type: "page", title: "Religious Observances", sections: ["section6"] }
+    ]);
+    const assignedSections = layout.pages.flatMap((id) => layout[id].sections);
+    const definedSections = Object.keys(layout).filter((id) => layout[id].type === "section");
+    assert.deepEqual(assignedSections.slice().sort(), definedSections.sort(),
+        "every settings section must appear on exactly one tab");
     assert.equal(layout.section1.keys.includes("show-weather"), false);
     // the clocks list lives with the switch that greys it out, not on another page
     assert.deepEqual(layout.section4.keys, ["show-worldclocks", "worldclocks"]);

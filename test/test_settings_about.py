@@ -37,19 +37,11 @@ class AboutPageTests(unittest.TestCase):
             json.loads((APPLET_DIR / "metadata.json").read_text()),
         )
 
-    def test_schema_loads_a_complete_about_page(self):
+    def test_about_content_remains_available_outside_configuration(self):
         schema = json.loads(SCHEMA_PATH.read_text())
-
-        self.assertEqual(schema["layout"]["pages"], ["page1", "page2", "page3"])
-        self.assertEqual(
-            schema["layout"]["page3"],
-            {
-                "type": "custom",
-                "title": "About",
-                "file": "settings_about.py",
-                "widget": "AboutPage",
-            },
-        )
+        for key in schema["layout"]["pages"]:
+            self.assertNotEqual(schema["layout"][key]["title"], "About")
+            self.assertNotEqual(schema["layout"][key].get("widget"), "AboutPage")
 
         page, _metadata = self.page_and_metadata()
         self.assertEqual(
