@@ -481,11 +481,14 @@ class FakeCountryField(WidgetNode):
 
 class FakeCountryDialog(FakeChooser):
     responses = []
+    on_run = None
 
     def get_content_area(self):
         return self
 
     def run(self):
+        if type(self).on_run is not None:
+            type(self).on_run(self)
         response, values = self.responses.pop(0)
         for field, value in zip(self.children, values):
             field.set_widget_value(value)
@@ -663,6 +666,43 @@ process.stdout.write(JSON.stringify(Object.fromEntries(SUPPORTED_COUNTRIES.map(c
         widget.add_item()
         self.assertEqual(len(widget.model), 64)
         self.assertIn("At most 64", FakeChooser.latest.children[-1].text)
+
+    def test_external_reset_cancels_edit_without_resurrecting_the_removed_row(self):
+        widget = self.create_widget([{"country": "ita"}])
+        original = widget.model[0]
+        FakeCountryDialog.responses = [(1, [True, "ita", "global"])]
+        with mock.patch.object(FakeCountryDialog, "on_run",
+                               lambda _dialog: self.settings.set_value(widget.key, [])):
+            self.assertIsNone(widget.open_add_edit_dialog(original))
+        self.assertEqual(widget.model, [])
+        self.assertEqual(self.settings.get_value(widget.key), [])
+        self.assertIn("changed while", widget.status.text)
+        self.assertTrue(FakeChooser.latest.destroyed)
+
+    def test_rebuilt_identical_profile_still_cancels_the_stale_native_iterator(self):
+        widget = self.create_widget([{"country": "ita"}])
+        original = widget.model[0]
+        stored = self.settings.get_value(widget.key)
+        FakeCountryDialog.responses = [(1, [False, "ita", "global"])]
+
+        def replace_and_restore(_dialog):
+            self.settings.set_value(widget.key, [])
+            self.settings.set_value(widget.key, stored)
+
+        with mock.patch.object(FakeCountryDialog, "on_run", replace_and_restore):
+            self.assertIsNone(widget.open_add_edit_dialog(original))
+        self.assertEqual(self.settings.get_value(widget.key), stored)
+        self.assertEqual(widget.model, [[True, "ita", "global"]])
+
+    def test_external_import_cancels_add_without_overwriting_imported_choices(self):
+        widget = self.create_widget([])
+        FakeCountryDialog.responses = [(1, [True, "ita", "global"])]
+        incoming = [{"enabled": True, "country": "usa", "region": "ma"}]
+        with mock.patch.object(FakeCountryDialog, "on_run",
+                               lambda _dialog: self.settings.set_value(widget.key, incoming)):
+            widget.add_item()
+        self.assertEqual(self.settings.get_value(widget.key), incoming)
+        self.assertEqual(widget.model, [[True, "usa", "ma"]])
 
 
 class CalendarChoicesTests(unittest.TestCase):

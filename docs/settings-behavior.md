@@ -15,6 +15,11 @@ pages while retaining their handler will need a supported teardown contract.
 Chronos-owned work has its own teardown: pending window-centering idles cancel
 when their widget is destroyed.
 
+If an external reset or import updates country calendars while Add or Edit is
+open, saving closes that stale dialog and asks the user to reopen it. The
+external choices stay intact, including when the original edited row was
+removed or the list was rebuilt with identical values.
+
 ## Weather location
 
 An empty saved weather location stays empty when the applet starts, reloads,

@@ -47,6 +47,7 @@ class AdditionalCountryList(JSONSettingsList):
     def __init__(self, info, key, settings):
         self.key = key
         self.settings = settings
+        self._settings_revision = 0
         self.columns = info["columns"]
         countries = next(column["options"].values() for column in self.columns
                          if column["id"] == "country")
@@ -93,6 +94,7 @@ class AdditionalCountryList(JSONSettingsList):
             self.set_value(normalized)
 
     def on_setting_changed(self, *args):
+        self._settings_revision += 1
         self._normalize_setting()
         super().on_setting_changed(*args)
 
@@ -141,6 +143,10 @@ class AdditionalCountryList(JSONSettingsList):
         return row, self._selection_error(existing + [row])
 
     def open_add_edit_dialog(self, info=None):
+        # A GTK TreeModelRow and its caller's iterator become invalid if an
+        # external settings update rebuilds the model while this modal runs.
+        revision = self._settings_revision
+        info = list(info) if info is not None else None
         dialog = Gtk.Dialog(title="Add country calendar" if info is None else "Edit country calendar",
                             transient_for=self.get_toplevel(), modal=True)
         dialog.add_buttons("Cancel", Gtk.ResponseType.CANCEL, "Save", Gtk.ResponseType.OK)
@@ -151,6 +157,9 @@ class AdditionalCountryList(JSONSettingsList):
         dialog.show_all()
         try:
             while dialog.run() == Gtk.ResponseType.OK:
+                if revision != self._settings_revision:
+                    self.status.set_text("Country calendars changed while this dialog was open. Reopen Add or Edit to continue.")
+                    return None
                 row, error = self._dialog_candidate(fields, info)
                 if not error:
                     return [row[column["id"]] for column in self.columns]
