@@ -79,6 +79,21 @@ class SettingsWidgetsTest(unittest.TestCase):
         self.assertIs(type(first), type(second))
         self.assertIs(type(first), self.module.ListEditEntry)
 
+    def test_malformed_option_values_recover_on_load_and_external_updates(self):
+        info = {"default": "si", "options": {"SI": "si", "Imperial": "imperial"}}
+        for value in ([], {}, ["si"], {"unit": "si"}, None, False, 42, 1.5):
+            with self.subTest(value=value):
+                settings = FakeSettings({"weather-units": value})
+                widget = self.module.common.OptionLabelComboBox(info, "weather-units", settings)
+                self.assertEqual(settings.values["weather-units"], "si")
+                self.assertEqual(widget.content_widget.get_active_iter(), widget.option_map["si"])
+                self.assertEqual(widget.content_widget.get_accessible().name, "SI")
+                settings.set_value("weather-units", "imperial")
+                settings.set_value("weather-units", value)
+                self.assertEqual(settings.values["weather-units"], "si")
+                self.assertEqual(widget.content_widget.get_active_iter(), widget.option_map["si"])
+                self.assertEqual(widget.content_widget.get_accessible().name, "SI")
+
     def test_error_state_tolerates_a_widget_without_style_context(self):
         self.assertIsNone(self.module.set_error_state(object(), True))
 

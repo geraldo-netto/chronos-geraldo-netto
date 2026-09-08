@@ -101,8 +101,9 @@ class OptionLabelComboBox(ComboBox, JSONSettingsBackend):
             accessible.set_name(label)
 
     def on_setting_changed(self, *args):
-        if (self.get_value() not in self.option_map and
-                self.default in self.option_map):
+        value = self.get_value()
+        if (not isinstance(value, str) or
+                (value not in self.option_map and self.default in self.option_map)):
             self.set_value(self.default)
         ComboBox.on_setting_changed(self, *args)
         self._sync_accessible_name()

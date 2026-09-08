@@ -124,6 +124,9 @@ class CountryComboBox(common.CommitOnEditEnd, SettingsWidget, JSONSettingsBacken
         which code was refused rather than blanking silently.
         """
         self.value = self.get_value()
+        if not isinstance(self.value, str):
+            self.value = self.default
+            self.set_value(self.default)
         if self.value not in self.option_map:
             refused = str(self.value) if self.value else ""
             if self.default in self.option_map:

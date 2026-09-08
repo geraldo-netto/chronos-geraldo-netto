@@ -496,6 +496,23 @@ class CountryComboBoxTest(unittest.TestCase):
         self.assertEqual(
             description, "atl is not in the list, so the holiday country is unchanged")
 
+    def test_malformed_country_values_recover_on_load_and_external_updates(self):
+        for default in ("none", ""):
+            for value in ([], {}, ["bra"], {"country": "bra"}, None, False, 42, 1.5):
+                with self.subTest(default=default, value=value):
+                    settings = FakeSettings({"country": value})
+                    widget = self.module.CountryComboBox(
+                        {"options": self.OPTIONS, "default": default}, "country", settings)
+                    self.assertEqual(settings.values["country"], default)
+                    self.assertEqual(widget.value, default)
+                    self.assertEqual(widget.content_widget.get_active_iter(), widget.option_map.get(default))
+                    settings.set_value("country", "bra")
+                    settings.set_value("country", value)
+                    self.assertEqual(settings.values["country"], default)
+                    self.assertEqual(widget.value, default)
+                    self.assertEqual(widget.content_widget.get_active_iter(), widget.option_map.get(default))
+                    self.assertNotIn("error", self.marks_of(widget)[0])
+
     def test_an_empty_field_is_unfinished_and_not_wrong(self):
         widget, _settings = self.combo("prt")
         widget.content_widget.type_text("   ")
