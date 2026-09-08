@@ -58,13 +58,6 @@ function unavailableLoadJsonAsync() {
     throw new Error("holiday service adapter has no JSON loader");
 }
 
-// Object.hasOwn is newer than the SpiderMonkey generation shipped by the
-// oldest supported Cinnamon release. A descriptor has the same own-property
-// semantics without raising the runtime floor.
-function ownsProperty(object, property) {
-    return Object.getOwnPropertyDescriptor(object, property) !== undefined;
-}
-
 function deliverTranslated(adapter, data, params, retrieved, callback, received = new Date().toISOString()) {
     let translated;
     try {
@@ -466,7 +459,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     _validHoliday(holiday) {
         return holiday &&
             typeof holiday.startDate === "string" &&
-            (!ownsProperty(holiday, "endDate") ||
+            (!Object.hasOwn(holiday, "endDate") ||
                 typeof holiday.endDate === "string") &&
             (!holiday.type || typeof holiday.type === "string") &&
             Array.isArray(holiday.name) &&
@@ -516,7 +509,7 @@ var OpenHolidaysServiceAdapter = class OpenHolidaysServiceAdapter extends IsoHol
     }
 
     _finishTranslation(translated, holiday) {
-        if (!ownsProperty(holiday, "endDate")) {
+        if (!Object.hasOwn(holiday, "endDate")) {
             return translated;
         }
 
