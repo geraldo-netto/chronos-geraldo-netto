@@ -221,6 +221,8 @@ function installedFixture(options = {}) {
     loadHolidays();
     const { Gio, GLib } = global.imports.gi;
     GLib.get_user_data_dir = GLib.get_user_cache_dir;
+    GLib.path_is_absolute = path.isAbsolute;
+    GLib.get_home_dir = GLib.get_user_cache_dir;
     Gio.FileQueryInfoFlags.NOFOLLOW_SYMLINKS = 1;
     Gio.FileType = { REGULAR: 1, DIRECTORY: 2 };
     const state = { queries: [], opened: [], reads: [], closed: 0, delivered: 0 };
@@ -262,6 +264,20 @@ test("runtime loader rejects symlinked manifests and calendar directories before
     new CalendarPluginLoader().load(["custom:family"], (rows) => { answer = rows; });
     assert.deepEqual(answer, []);
     assert.equal(state.opened.length, 0);
+});
+
+test("a relative runtime data directory falls back to the user's absolute data home", () => {
+    const { file, state } = installedFixture();
+    const { GLib } = global.imports.gi;
+    const expectedDirectory = path.join(GLib.get_home_dir(), ".local/share/chronos@geraldo-netto/calendars");
+    fs.mkdirSync(expectedDirectory, { recursive: true });
+    const expectedFile = path.join(expectedDirectory, "custom:family.json");
+    fs.copyFileSync(file, expectedFile);
+    GLib.get_user_data_dir = () => "relative";
+    let loaded;
+    new CalendarPluginLoader().load(["custom:family"], rows => { loaded = rows; });
+    assert.deepEqual(loaded.map(row => row.id), ["custom:family"]);
+    assert.deepEqual(state.opened, [expectedFile]);
 });
 
 test("runtime loader rejects nonregular entries, missing files, invalid UTF-8 and corrupt JSON", () => {

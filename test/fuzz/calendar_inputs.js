@@ -279,6 +279,7 @@ function byteStream(bytes, closed) {
 function byteRuntime(payloads, closed) {
     return { gi: {
         GLib: { PRIORITY_DEFAULT: 0, get_user_data_dir: () => "/virtual",
+            path_is_absolute: value => value.startsWith("/"),
             build_filenamev: (parts) => parts.join("/") },
         Gio: { FileQueryInfoFlags: { NOFOLLOW_SYMLINKS: 1 }, FileType: { DIRECTORY: 2, REGULAR: 1 },
             file_new_for_path(path) {

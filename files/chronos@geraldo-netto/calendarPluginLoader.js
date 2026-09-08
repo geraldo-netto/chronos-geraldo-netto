@@ -139,7 +139,10 @@ function readInstalledPlugin(id, callback) {
     }
     const runtime = typeof imports === "undefined" ? globalThis.imports : imports;
     const { Gio, GLib } = runtime.gi;
-    const directory = GLib.build_filenamev([GLib.get_user_data_dir(), "chronos@geraldo-netto", "calendars"]);
+    const configured = GLib.get_user_data_dir();
+    const dataHome = GLib.path_is_absolute(configured) ? configured :
+        GLib.build_filenamev([GLib.get_home_dir(), ".local", "share"]);
+    const directory = GLib.build_filenamev([dataHome, "chronos@geraldo-netto", "calendars"]);
     const file = Gio.file_new_for_path(GLib.build_filenamev([directory, `${id}.json`]));
     const failure = (error) => { reportPluginError(error); callback(null); };
     queryPluginInfo(Gio.file_new_for_path(directory), Gio.FileType.DIRECTORY, runtime, () =>
