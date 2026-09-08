@@ -5,7 +5,6 @@
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
 | T1152 | open | medium | m | Preserve the world clock's known timezone/location hint through city-weather resolution and cache identity. 6.0/appletCoordinators.js:70–74 and worldclockData.js:116–155 reduce America/Argentina/San_Juan to the unqualified query San Juan; a real GLib/coordinator reproduction with the official Open-Meteo geocoder response selects the larger Puerto Rico result at 18.46633,-66.10572, displaying another location's weather beside the Argentina clock. Use the clock's timezone/country or coordinates to disambiguate requests, prevent incompatible hinted and free-text queries from sharing a cache entry, and cover ambiguous names without changing the accepted free-text ranking decision R25. |
-| T1154 | open | medium | s | Retire queued keyboard-focus restoration when the menu closes or focus moves elsewhere. calendarNavigation.js:116–128 restores focus unconditionally after its 25ms navigation delay, and applet.js:790–815 does not cancel that intent on close. Native reproductions queue ArrowRight then close the menu, leaving focus on an unmapped day button, or move focus to the settings footer before the timeout and have it stolen back. Check current focus ownership and menu visibility before restoring, clear obsolete intent on close, and cover Arrow/PageDown followed by Tab or closure. |
 
 ## Blocked / Deferred
 

@@ -24,6 +24,7 @@ class Actor {
         this.children = [];
         this.placements = [];
         this.handlers = new Map();
+        this.mapped = true;
     }
     connect(signal, callback) { this.handlers.set(signal, callback); return 1; }
     add_actor(actor) { this.children.push(actor); }
@@ -102,6 +103,7 @@ function inspect(input) {
     const navigation = new CalendarNavigationController({ actor: () => actor, dayCells: () => [],
         queueDate: date => navigation.queueDate(date),
         setDate: date => navigation.setDate(date, false), emitSelected() {}, update() {} }, selectedDate);
+    actor.grab_key_focus();
     const steps = [Clutter.KEY_Right, Clutter.KEY_Left].map(key => {
         navigation.onKeyPress({ get_key_symbol: () => key });
         navigation.flushQueuedDate();
@@ -173,8 +175,8 @@ function inspectTimezone(input) {
     let cells = [];
     const render = () => {
         const selected = calendar.getSelectedDate();
-        cells = new CalendarMonthWindow(selected, 0).days.map(date => ({ date,
-            dateUnixKey: CalendarDate.localUnixForCivilDate(date), button: new Actor() }));
+        cells = new CalendarMonthWindow(selected, 0).days.map((date, index) => ({ date,
+            dateUnixKey: CalendarDate.localUnixForCivilDate(date), button: cells[index]?.button || new Actor() }));
     };
     const navigation = new CalendarNavigationController({ actor: () => actor, dayCells: () => cells,
         queueDate: date => navigation.queueDate(date),

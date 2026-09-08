@@ -780,30 +780,32 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
 
         // Whenever the menu is opened, select today
         this.menu.connect('open-state-changed', (menu, isOpen) => {
-            if (isOpen) {
-                this._guarded("menu-open", () => {
-                    // A changed selection emits synchronously and that callback
-                    // owns the full refresh. If today was already selected there
-                    // is no signal, so menu-open owns the one refresh instead.
-                    if (!this._resetCalendar()) {
-                        this._updateClockAndDate(true);
-                    }
-                    // The menu manager grabs key focus onto the menu actor as the
-                    // menu opens, and it is connected to this signal before we are,
-                    // so it has already run: moving focus down into the day grid
-                    // here is what puts the calendar's key handler on the event
-                    // path. Without it the arrows, PageUp/PageDown and Home only
-                    // ever worked after a mouse click on a cell.
-                    // Before focus moves into the grid: the work area, the UI
-                    // scale and the text size can all have changed since the
-                    // last time this popup was on screen, and reflowing after
-                    // focus would move the focused cell under the pointer.
-                    this._reflowMenu();
-                    if (this._calendar) {
-                        this._calendar.focusSelectedDay();
-                    }
-                });
+            if (!isOpen) {
+                this._calendar?.cancelPendingFocus();
+                return;
             }
+            this._guarded("menu-open", () => {
+                // A changed selection emits synchronously and that callback
+                // owns the full refresh. If today was already selected there
+                // is no signal, so menu-open owns the one refresh instead.
+                if (!this._resetCalendar()) {
+                    this._updateClockAndDate(true);
+                }
+                // The menu manager grabs key focus onto the menu actor as the
+                // menu opens, and it is connected to this signal before we are,
+                // so it has already run: moving focus down into the day grid
+                // here is what puts the calendar's key handler on the event
+                // path. Without it the arrows, PageUp/PageDown and Home only
+                // ever worked after a mouse click on a cell.
+                // Before focus moves into the grid: the work area, the UI
+                // scale and the text size can all have changed since the
+                // last time this popup was on screen, and reflowing after
+                // focus would move the focused cell under the pointer.
+                this._reflowMenu();
+                if (this._calendar) {
+                    this._calendar.focusSelectedDay();
+                }
+            });
         });
     }
 

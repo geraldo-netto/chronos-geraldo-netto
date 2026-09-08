@@ -1,5 +1,5 @@
 const assert = require("node:assert/strict");
-const { test } = require("node:test");
+const { test, beforeEach } = require("node:test");
 const fs = require("node:fs");
 const path = require("node:path");
 const { makeRandom } = require("./helpers/prng");
@@ -229,7 +229,7 @@ test("navigation controller owns no-op, cancellation, and focus boundaries", () 
     assert.equal(controller.queuedDate, null);
     assert.equal(controller.focusSelectedDay(), false);
 
-    global.stage = null;
+    global.stage.set_key_focus(null);
     assert.equal(controller.onKeyPress({ get_key_symbol: () => -1 }),
         global.imports.gi.Clutter.EVENT_PROPAGATE);
 });
@@ -399,6 +399,7 @@ class MockActor {
         this.label = options.label;
         this.pseudo = new Set();
         this.destroyed = false;
+        this.mapped = true;
     }
 
     connect(name, cb) {
@@ -412,6 +413,7 @@ class MockActor {
 
     grab_key_focus() {
         MockActor.focused = this;
+        global.stage.set_key_focus(this);
     }
 
     fire(name, ...args) {
@@ -477,6 +479,28 @@ class MockActor {
         this.width = width;
     }
 }
+
+function makeFocusStage() {
+    return {
+        focus: null, menuOpen: true, signals: new Map(), nextSignal: 1,
+        get_key_focus() { return this.focus; },
+        connect(name, callback) {
+            const id = this.nextSignal++;
+            this.signals.set(id, callback);
+            return id;
+        },
+        disconnect(id) { this.signals.delete(id); },
+        set_key_focus(actor) {
+            const old = this.focus;
+            this.focus = actor;
+            old?.fire("key-focus-out");
+            actor?.fire("key-focus-in");
+            [...this.signals.values()].forEach(callback => callback());
+        }
+    };
+}
+
+beforeEach(() => { global.stage = makeFocusStage(); });
 
 global.imports.gi.St.Table = MockActor;
 global.imports.gi.St.Button = MockActor;
@@ -896,6 +920,7 @@ test("the month and year navigation buttons announce what they do", () => {
 test("the grid is navigable from the keyboard and announces its days", () => {
     const cal = makeCalendar();
     cal.setDate(civilDate(2026, 6, 9), true);
+    cal.focusSelectedDay();
 
     const press = (symbol) => cal.actor.fire("key-press-event", { get_key_symbol: () => symbol });
     const Clutter = global.imports.gi.Clutter;
@@ -972,6 +997,7 @@ test("holidays-only navigation stays live for every event-unavailable state", ()
         const day10 = cal._gridView.dayCells.find((cell) =>
             cell.date.year === 2026 && cell.date.month === 7 && cell.date.day === 10);
         day10.button.fire("clicked");
+        cal.focusSelectedDay();
         assert.equal(cal.getSelectedDate().day, 10,
             `${state.name}: mouse selection remains live`);
 
@@ -1013,7 +1039,7 @@ test("a held arrow key resolves to one selection, not one per repeat", () => {
     cal.setDate(civilDate(2026, 6, 9), true);
     const Clutter = global.imports.gi.Clutter;
     const day = dayButtons(cal).find((button) => button.label === "9");
-    global.stage = { get_key_focus: () => day };
+    global.stage.set_key_focus(day);
 
     // a grid render plus the applet-facing selection notice, which is what
     // reselects the day and re-feeds the event column
@@ -1037,7 +1063,7 @@ test("a held arrow key resolves to one selection, not one per repeat", () => {
         assert.equal(cal.getSelectedDate().day, 14,
             "the repeats compose rather than overwrite each other");
     } finally {
-        global.stage = undefined;
+        global.stage.set_key_focus(null);
     }
 });
 
@@ -1046,7 +1072,7 @@ test("an arrow key moves the focus with the selection it coalesced", () => {
     cal.setDate(civilDate(2026, 6, 9), true);
     const Clutter = global.imports.gi.Clutter;
     const day = dayButtons(cal).find((button) => button.label === "9");
-    global.stage = { get_key_focus: () => day };
+    global.stage.set_key_focus(day);
 
     try {
         cal.actor.fire("key-press-event", { get_key_symbol: () => Clutter.KEY_Right });
@@ -1057,7 +1083,7 @@ test("an arrow key moves the focus with the selection it coalesced", () => {
         assert.equal(focused.label, "10",
             "and it is on the day the arrow moved to, not the one it left");
     } finally {
-        global.stage = undefined;
+        global.stage.set_key_focus(null);
     }
 });
 
@@ -1070,7 +1096,7 @@ test("the arrow keys are the grid's, not the navigation buttons'", () => {
     // one of the month/year navigation buttons has keyboard focus
     const navButton = cal._topBoxMonth.children[0];
     assert.equal(navButton.accessible_name, "Previous month");
-    global.stage = { get_key_focus: () => navButton };
+    global.stage.set_key_focus(navButton);
     press(Clutter.KEY_Right);
     cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().day, 9,
@@ -1078,12 +1104,12 @@ test("the arrow keys are the grid's, not the navigation buttons'", () => {
 
     // a day cell has it
     const day = dayButtons(cal).find((button) => button.label === "9");
-    global.stage = { get_key_focus: () => day };
+    global.stage.set_key_focus(day);
     press(Clutter.KEY_Right);
     cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().day, 10, "and now the arrow walks the grid");
 
-    global.stage = undefined;
+    global.stage.set_key_focus(null);
 });
 
 test("CalendarMonthWindow builds 42 visible dates and month lookup keys", () => {
@@ -3026,7 +3052,7 @@ test("the arrow keys follow the grid, not the calendar, in an RTL locale", () =>
 
     const focusFirstCell = () => {
         const cell = dayButtons(cal).find((b) => b.label === "9");
-        global.stage = { get_key_focus: () => cell };
+        global.stage.set_key_focus(cell);
     };
 
     focusFirstCell();
@@ -3054,7 +3080,7 @@ test("the arrow keys follow the grid, not the calendar, in an RTL locale", () =>
     cal._navigation.flushQueuedDate();
     assert.equal(cal.getSelectedDate().day, 8);
 
-    global.stage = undefined;
+    global.stage.set_key_focus(null);
 });
 
 // queue_set_date holds the new date for 25 ms so a burst of scroll notches costs
@@ -3327,10 +3353,10 @@ test("the grid is one tab stop, and it moves with the selection", () => {
     assert.equal(focusable()[0].button.label, "14");
 
     // ...and the cell the menu focuses on open can take the focus it is handed
-    global.stage = { get_key_focus: () => null };
+    global.stage.set_key_focus(null);
     assert.equal(cal.focusSelectedDay(), true);
     assert.equal(MockActor.focused.label, "14");
-    global.stage = undefined;
+    global.stage.set_key_focus(null);
 });
 
 // The handler is on the table, which is the ancestor of the month and year
@@ -3346,7 +3372,7 @@ test("the paging keys are the grid's, not the navigation buttons'", () => {
         .flatMap((child) => (child.children || []))
         .find((child) => child.accessible_name === "Next year");
     assert.ok(navButton, "the year button exists");
-    global.stage = { get_key_focus: () => navButton };
+    global.stage.set_key_focus(navButton);
 
     for (const symbol of [65365, 65366, 65360]) { // Page_Up, Page_Down, Home
         const result = cal.actor.fire("key-press-event", { get_key_symbol: () => symbol });
@@ -3359,11 +3385,11 @@ test("the paging keys are the grid's, not the navigation buttons'", () => {
 
     // ...and from a day cell they still work
     const day = dayButtons(cal).find((b) => b.label === "9");
-    global.stage = { get_key_focus: () => day };
+    global.stage.set_key_focus(day);
     cal.actor.fire("key-press-event", { get_key_symbol: () => 65366 });
     assert.equal((cal._navigation.queuedDate.month - 1), 7, "PageDown from the grid is next month");
 
-    global.stage = undefined;
+    global.stage.set_key_focus(null);
 });
 
 // _update() runs on every menu open, settings change and event delivery. The
@@ -3446,14 +3472,11 @@ test("selection observers can focus today after returning from a distant month",
 
 function installRebuildFocusStage(t) {
     const previous = global.stage;
-    const stage = { focus: null, menuOpen: true, get_key_focus() { return this.focus; } };
+    const stage = makeFocusStage();
     global.stage = stage;
     t.after(() => { global.stage = previous; });
     t.mock.method(MockActor.prototype, "grab_key_focus", function() {
-        const old = stage.focus;
-        stage.focus = this;
-        old?.fire("key-focus-out");
-        this.fire("key-focus-in");
+        stage.set_key_focus(this);
     });
     // Cinnamon's popup manager closes the menu when destruction clears focus.
     // The usual lightweight actor fixture does not model recursive destruction.
@@ -3466,9 +3489,8 @@ function installRebuildFocusStage(t) {
         this.destroy_all_children();
         this.destroyed = true;
         if (stage.focus === this) {
-            stage.focus = null;
             stage.menuOpen = false;
-            this.fire("key-focus-out");
+            stage.set_key_focus(null);
         }
     });
     return stage;
@@ -3507,6 +3529,7 @@ function makeRebuildFocusHarness(t) {
         return () => {};
     });
     const cal = new CalendarModule.Calendar(settings, makeEventsManager(), null, desktop);
+    cal.actor.mapped = true;
     cal.setDate(civilDate(2026, 6, 9), false);
     t.after(() => cal.destroy());
     return {
@@ -3586,4 +3609,94 @@ test("T1151: leaving and revisiting the parking actor cancels old focus intent",
     h.cal.actor.grab_key_focus();
     h.flush();
     assert.equal(h.stage.focus, h.cal.actor, "do not resurrect focus intent after the user leaves");
+});
+
+function queuedFocusDeparture(h, departure, external) {
+    if (departure === "footer" || departure === "return") {
+        external.grab_key_focus();
+    }
+    if (departure === "return") {
+        rebuildFocusTarget(h.cal, "day").grab_key_focus();
+    }
+    if (departure === "header") {
+        rebuildFocusTarget(h.cal, "Next year").grab_key_focus();
+    }
+    if (departure === "hidden") {
+        h.cal.actor.mapped = false;
+    }
+    if (departure === "cancelled") {
+        h.cal.cancelPendingFocus();
+    }
+}
+
+function queueFocusKey(t, h, key) {
+    const timers = [];
+    t.mock.method(global.imports.mainloop, "timeout_add", (delay, callback) => {
+        assert.equal(delay, 25);
+        timers.push(callback);
+        return 100;
+    });
+    rebuildFocusTarget(h.cal, "day").grab_key_focus();
+    h.cal.actor.fire("key-press-event", { get_key_symbol: () => key });
+    assert.equal(timers.length, 1);
+    return { finish: timers[0], date: { ...h.cal._navigation.queuedDate } };
+}
+
+function assertQueuedFocusOwnership(t, key, departure) {
+    const h = makeRebuildFocusHarness(t);
+    const queued = queueFocusKey(t, h, key);
+    queuedFocusDeparture(h, departure, new MockActor());
+    const focusBefore = h.stage.focus;
+    queued.finish();
+    assert.deepEqual(h.cal.getSelectedDate(), queued.date, "date browsing still completes");
+    const expectedFocus = departure === "stay" ? rebuildFocusTarget(h.cal, "day") : focusBefore;
+    assert.equal(h.stage.focus, expectedFocus, "a queued date must not reclaim abandoned focus");
+}
+
+test("T1154: queued Arrow/PageDown focus requires continuous visible grid ownership", async t => {
+    const { KEY_Right, KEY_Page_Down } = global.imports.gi.Clutter;
+    for (const key of [KEY_Right, KEY_Page_Down]) {
+        for (const departure of ["stay", "footer", "header", "return", "hidden", "cancelled"]) {
+            await t.test(`${key}: ${departure}`, inner => assertQueuedFocusOwnership(inner, key, departure));
+        }
+    }
+});
+
+test("T1154: date publication cannot resurrect focus abandoned during a callback", t => {
+    const h = makeRebuildFocusHarness(t);
+    const queued = queueFocusKey(t, h, global.imports.gi.Clutter.KEY_Right);
+    const original = h.stage.focus;
+    h.cal._navigation.port.emitSelected = () => {
+        new MockActor().grab_key_focus();
+        original.grab_key_focus();
+    };
+    queued.finish();
+    assert.deepEqual(h.cal.getSelectedDate(), queued.date);
+    assert.equal(h.stage.focus, original);
+});
+
+test("T1154: temporary T1151 grid parking preserves a pending keyboard selection", async t => {
+    for (const localeFirst of [false, true]) {
+        await t.test(`locale render first: ${localeFirst}`, inner => {
+            const h = makeRebuildFocusHarness(inner);
+            const queued = queueFocusKey(inner, h, global.imports.gi.Clutter.KEY_Right);
+            h.changes.locale();
+            if (localeFirst) h.flush();
+            queued.finish();
+            h.flush();
+            assert.deepEqual(h.cal.getSelectedDate(), queued.date);
+            assert.equal(h.stage.focus, rebuildFocusTarget(h.cal, "day"));
+            assert.equal(h.stage.menuOpen, true);
+        });
+    }
+});
+
+test("T1154: calendar destruction disconnects its stage focus observer", t => {
+    const h = makeRebuildFocusHarness(t);
+    queueFocusKey(t, h, global.imports.gi.Clutter.KEY_Right);
+    assert.equal(h.stage.signals.size, 1);
+    h.cal.destroy();
+    assert.equal(h.stage.signals.size, 0);
+    assert.equal(h.cal._navigation.focusAfterSetDate, false);
+    new MockActor().grab_key_focus();
 });

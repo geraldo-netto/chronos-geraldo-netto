@@ -187,6 +187,9 @@ class Calendar {
             setDate: (date, forceReload) => this.setDate(date, forceReload),
             queueDate: (date) => this.queue_set_date(date)
         });
+        this._focusStage = global.stage;
+        this._focusSignalId = this._focusStage.connect('notify::key-focus',
+            () => this._navigation.onFocusChanged());
 
         this.actor.connect('style-changed', this._onStyleChange.bind(this));
         this.actor.connect('scroll-event',
@@ -238,7 +241,11 @@ class Calendar {
 
     destroy() {
         this._destroyed = true;
-        this._gridFocus = null;
+        this.cancelPendingFocus();
+        if (this._focusSignalId) {
+            this._focusStage.disconnect(this._focusSignalId);
+            this._focusSignalId = 0;
+        }
         this._headerButtons = [];
         this._holiday_update_generation++;
         this._cancel_update();
@@ -397,7 +404,7 @@ class Calendar {
     }
 
     _parkGridFocus() {
-        const focused = global.stage?.get_key_focus();
+        const focused = this._focusStage.get_key_focus();
         const cell = this._gridView.dayCells.find(item => item.button === focused);
         const header = this._headerButtons.indexOf(focused);
         if (cell) {
@@ -415,7 +422,7 @@ class Calendar {
     _restoreGridFocus() {
         const bookmark = this._gridFocus;
         this._gridFocus = null;
-        if (!bookmark || global.stage?.get_key_focus() !== this.actor) {
+        if (!bookmark || this._focusStage.get_key_focus() !== this.actor) {
             return;
         }
         const target = bookmark.date
@@ -556,6 +563,11 @@ class Calendar {
 
     focusSelectedDay() {
         return this._navigation.focusSelectedDay();
+    }
+
+    cancelPendingFocus() {
+        this._gridFocus = null;
+        this._navigation.cancelPendingFocus();
     }
 
     holidayForDate(date) {

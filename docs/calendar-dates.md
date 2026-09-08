@@ -37,3 +37,9 @@ propagate to the surrounding menu.
 Returning with Go to today renders the target month before notifying selection
 observers. Keyboard focus moves from that button to today's cell before the
 button becomes inactive, including when returning from a distant month.
+
+Arrow and PageUp/PageDown navigation coalesces over 25 ms. Its queued date can
+still finish after the user leaves the grid or closes the popup, but its focus
+request is cancelled. Returning before the timeout does not revive that request.
+Temporary focus parking during a grid rebuild retains the request; restoration
+requires the grid to remain visible and keep keyboard focus.

@@ -3,6 +3,27 @@ const {
     AppletModule, CoordinatorModule, PanelStatusModule, Proto, Weather, St
 } = require("./helpers/appletFixture");
 
+test("T1154: the real menu close handler cancels pending calendar focus", t => {
+    class Popup {
+        constructor() { this.handlers = {}; }
+        connect(name, callback) { this.handlers[name] = callback; }
+    }
+    const original = global.imports.ui.applet.AppletPopupMenu;
+    global.imports.ui.applet.AppletPopupMenu = Popup;
+    t.after(() => { global.imports.ui.applet.AppletPopupMenu = original; });
+    let cancelled = 0;
+    const applet = Object.assign(Object.create(Proto), {
+        orientation: St.Side.TOP,
+        menuManager: { addMenu() {} },
+        _calendar: { cancelPendingFocus() { cancelled++; } }
+    });
+    applet._initContextMenu();
+    applet.menu.handlers["open-state-changed"](applet.menu, false);
+    assert.equal(cancelled, 1, "closing retires pending focus before the date timeout");
+    applet._calendar = null;
+    assert.doesNotThrow(() => applet.menu.handlers["open-state-changed"](applet.menu, false));
+});
+
 test("_clockNotify updates once per notify", () => {
     let updates = 0;
     const stub = Object.assign(Object.create(Proto), {

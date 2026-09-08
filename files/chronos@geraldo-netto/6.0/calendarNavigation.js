@@ -82,6 +82,7 @@ class CalendarNavigationController {
         this.setDateIdleId = 0;
         this.scrollAccumulator = 0;
         this.focusAfterSetDate = false;
+        this._focusGeneration = 0;
     }
 
     setDate(date, forceReload) {
@@ -109,6 +110,18 @@ class CalendarNavigationController {
             this.setDateIdleId = 0;
         }
         this.queuedDate = null;
+        this.focusAfterSetDate = false;
+    }
+
+    cancelPendingFocus() {
+        this.focusAfterSetDate = false;
+        this._focusGeneration++;
+    }
+
+    onFocusChanged() {
+        if (!this.dayCellHasFocus()) {
+            this.cancelPendingFocus();
+        }
     }
 
     // Public: the timeout below drives it, and tests flush a queued browse
@@ -116,6 +129,7 @@ class CalendarNavigationController {
     flushQueuedDate() {
         const date = this.queuedDate;
         const focusAfterSetDate = this.focusAfterSetDate;
+        const focusGeneration = this._focusGeneration;
         this.queuedDate = null;
         this.setDateIdleId = 0;
         this.focusAfterSetDate = false;
@@ -123,7 +137,9 @@ class CalendarNavigationController {
             return GLib.SOURCE_REMOVE;
         }
         this.port.setDate(date, false);
-        if (focusAfterSetDate) {
+        // A selection observer can move focus away and back during setDate.
+        if (focusAfterSetDate && focusGeneration === this._focusGeneration &&
+                this.port.actor().mapped && this.dayCellHasFocus()) {
             this.focusSelectedDay();
         }
         return GLib.SOURCE_REMOVE;
@@ -149,9 +165,9 @@ class CalendarNavigationController {
     }
 
     dayCellHasFocus() {
-        const focused = global.stage && global.stage.get_key_focus ? // NOSONAR [S6582] -- accepted compatible form
-            global.stage.get_key_focus() : null;
-        return !focused || this.port.dayCells().some((cell) => cell.button === focused);
+        const focused = global.stage.get_key_focus();
+        return focused === this.port.actor() ||
+            this.port.dayCells().some(cell => cell.button === focused);
     }
 
     rtl() {
