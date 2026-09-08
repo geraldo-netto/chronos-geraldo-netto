@@ -27,6 +27,7 @@ function makeFakeDateTimeFromDate(date) {
         },
         add_seconds: (seconds) => makeFakeDateTimeFromDate(new Date(date.getTime() + seconds * 1000)),
         to_unix: () => Math.trunc(date.getTime() / 1000),
+        get_utc_offset: () => -date.getTimezoneOffset() * 60000000,
         format(fmt) {
             const months = ["January", "February", "March", "April", "May", "June",
                 "July", "August", "September", "October", "November", "December"];
@@ -72,7 +73,10 @@ global.imports = {
             get_home_dir: () => "/home/x",
             get_user_cache_dir: () => "/tmp/cache",
             build_filenamev: (parts) => parts.join("/"),
+            TimeType: { STANDARD: 0, DAYLIGHT: 1 },
+            TimeZone: { new_local: () => ({ find_interval: () => -1 }) },
             DateTime: {
+                new(timezone, ...args) { return this.new_local(...args); },
                 new_from_unix_local: (unix) =>
                     makeFakeDateTimeFromDate(new Date(unix * 1000)),
                 new_local: (year, month, day, hour = 0, minute = 0, second = 0) =>

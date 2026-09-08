@@ -55,6 +55,8 @@ class FixtureDateTime {
         return Math.floor(this.date.getTime() / 1000);
     }
 
+    get_utc_offset() { return -this.date.getTimezoneOffset() * 60000000; }
+
     get_year() {
         return this.date.getFullYear();
     }
@@ -104,7 +106,9 @@ global.imports = {
             TIME_SPAN_MINUTE: 60000000,
             TIME_SPAN_DAY: 86400000000,
             get_monotonic_time: () => 1,
+            TimeType: { STANDARD: 0, DAYLIGHT: 1 },
             DateTime: {
+                new(timezone, ...args) { return this.new_local(...args); },
                 new_from_unix_local: (unix) => new FixtureDateTime(new Date(unix * 1000)),
                 new_local: (year, month, day, hour, minute, second) =>
                     new FixtureDateTime(
@@ -117,7 +121,8 @@ global.imports = {
             // GLib would have answered
             TimeZone: {
                 new_identifier: (tz) => ({ get_identifier: () => tz }),
-                new_local: () => ({ get_identifier: () => "Europe/Berlin" })
+                new_local: () => ({ get_identifier: () => "Europe/Berlin",
+                    find_interval: () => -1 })
             },
             file_read_link: (filename) => {
                 const links = {

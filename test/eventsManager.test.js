@@ -15,6 +15,8 @@ class FakeDateTime {
         return Math.floor(this.usec / 1000000);
     }
 
+    get_utc_offset() { return 0; }
+
     difference(other) {
         return this.usec - other.usec;
     }
@@ -170,7 +172,10 @@ global.imports = {
             })(),
             get_user_cache_dir: () => "/tmp/cache",
             build_filenamev: (parts) => parts.join("/"),
+            TimeType: { STANDARD: 0, DAYLIGHT: 1 },
+            TimeZone: { new_local: () => ({ find_interval: () => -1 }) },
             DateTime: {
+                new(timezone, ...args) { return this.new_local(...args); },
                 new_from_unix_local: (unix) => new FakeDateTime(unix * 1000000),
                 new_local: (y, m, day) => new FakeDateTime(day * DAY_US),
                 new_now_local: () => new FakeDateTime(50 * DAY_US + DAY_US / 2)

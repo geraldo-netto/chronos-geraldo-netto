@@ -29,6 +29,9 @@ const IS_NODE = typeof process !== "undefined" &&
 const Astronomy = IS_NODE ?
     require("./astronomy") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].astronomy;
+const CivilTime = IS_NODE ?
+    require("./civilTime") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].civilTime;
 
 // An event the calculation could not place: the sky is normal, but this
 // particular rise or set is not in this civil day.
@@ -43,22 +46,9 @@ function zonedDateTime(timestamp, timezone) {
 }
 
 function _civilMidnight(date, timezone) {
-    const midnight = GLib.DateTime.new(timezone,
-        date.get_year(), date.get_month(), date.get_day_of_month(), 0, 0, 0);
-    if (!midnight) {
-        return null;
-    }
-    let earliest = midnight.to_unix();
-    const localTime = earliest + midnight.get_utc_offset() / 1000000;
-    // GLib can choose the second copy of an ambiguous midnight. Compare both
-    // local intervals so the day includes its first hour after a backward jump.
-    for (const type of [GLib.TimeType.STANDARD, GLib.TimeType.DAYLIGHT]) {
-        const interval = timezone.find_interval(type, localTime);
-        if (interval >= 0) {
-            earliest = Math.min(earliest, localTime - timezone.get_offset(interval));
-        }
-    }
-    return earliest;
+    const midnight = CivilTime.civilDayStart(
+        date.get_year(), date.get_month(), date.get_day_of_month(), timezone);
+    return midnight ? midnight.to_unix() : null;
 }
 
 function civilDayBounds(now, timezone) {

@@ -15,6 +15,8 @@ class FakeDateTime {
         return Math.floor(this.usec / 1000000);
     }
 
+    get_utc_offset() { return 0; }
+
     difference(other) {
         return this.usec - other.usec;
     }
@@ -53,7 +55,10 @@ global.imports = {
             TIME_SPAN_DAY: DAY_US,
             TIME_SPAN_MINUTE: 60 * 1000 * 1000,
             get_monotonic_time: () => monotonic++,
+            TimeType: { STANDARD: 0, DAYLIGHT: 1 },
+            TimeZone: { new_local: () => ({ find_interval: () => -1 }) },
             DateTime: {
+                new(timezone, ...args) { return this.new_local(...args); },
                 // GLib.DateTime spans years 1 to 9999 and answers null for
                 // anything outside that; the double has to say so too, or the
                 // guard against it can never be tested

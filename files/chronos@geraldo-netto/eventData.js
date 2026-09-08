@@ -38,6 +38,9 @@ const StyleUtils = IS_NODE ?
 const DateMath = IS_NODE ?
     require("./dateMath") :
     GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].dateMath;
+const CivilTime = IS_NODE ?
+    require("./civilTime") :
+    GjsImports.ui.appletManager.applets["chronos@geraldo-netto"].civilTime;
 var dt_equals = DateMath.dtEquals; // NOSONAR [S3504] -- GJS importer export
 
 // EventListRenderer uses equality to distinguish a changing event's countdown
@@ -60,20 +63,18 @@ function js_date_to_gdatetime(js_date) {
 }
 
 function date_only(gdatetime) {
-    let date = GLib.DateTime.new_local(
+    return CivilTime.civilDayStart(
         gdatetime.get_year(),
         gdatetime.get_month(),
-        gdatetime.get_day_of_month(), 0, 0, 0
+        gdatetime.get_day_of_month(), GLib.TimeZone.new_local()
     );
-
-    return date;
 }
 
 function month_year_only(gdatetime) {
-    return GLib.DateTime.new_local(
+    return CivilTime.civilDayStart(
         gdatetime.get_year(),
         gdatetime.get_month(),
-        1, 0, 0, 0
+        1, GLib.TimeZone.new_local()
     );
 }
 

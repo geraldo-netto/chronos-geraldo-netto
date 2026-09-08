@@ -6,6 +6,7 @@ const path = require("node:path");
 const appletDir = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 const astronomyPath = path.join(appletDir, "astronomy.js");
 const astronomyDayPath = path.join(appletDir, "astronomyDay.js");
+const civilTimePath = path.join(appletDir, "civilTime.js");
 const shimPath = path.join(appletDir, "6.0", "astronomy.js");
 const dayShimPath = path.join(appletDir, "6.0", "astronomyDay.js");
 const viewPath = path.join(appletDir, "6.0", "astronomyView.js");
@@ -86,7 +87,7 @@ class MockLabel {
 }
 
 function loadView() {
-    for (const file of [astronomyPath, astronomyDayPath, shimPath, dayShimPath, viewPath]) {
+    for (const file of [astronomyPath, astronomyDayPath, civilTimePath, shimPath, dayShimPath, viewPath]) {
         delete require.cache[require.resolve(file)];
     }
     const astronomy = require(astronomyPath);
@@ -155,7 +156,8 @@ test("place civil-day bounds reject bad clocks and preserve DST-sized days", () 
         constructed.push(args);
         return {
             get_utc_offset: () => 0,
-            to_unix: () => args[3] === 29 ? 1000 : 1000 + 23 * 60 * 60
+            to_unix: () => args[3] === 29 ? 1000 : 1000 + 23 * 60 * 60,
+            add_seconds(seconds) { return { to_unix: () => this.to_unix() + seconds }; }
         };
     };
 
