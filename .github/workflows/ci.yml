@@ -125,17 +125,7 @@ jobs:
           node-version: '22.13.0'
           cache: npm
 
-      # gettext validates every catalog. Cinnamon supplies the same extraction
-      # command contributors use through po/makepot, so a stale template, a
-      # msgid a catalog is missing, and a source reference the template no
-      # longer names all fail here instead of churning in the Spices tooling.
-      #
-      # These two packages are the template generator, and the job holds their
-      # output against a committed file. `ubuntu-latest` rolling to the next LTS
-      # would swap them under that assertion on an unchanged repository, which
-      # is why every job above pins the image; the comparison itself is over
-      # extracted content rather than bytes, so xgettext's wrapping is free to
-      # differ within the pin.
+      # gettext validates existing catalogs; untranslated additions use English.
       - run: sudo apt-get update && sudo apt-get install --no-install-recommends cinnamon gettext
 
       - run: npm ci

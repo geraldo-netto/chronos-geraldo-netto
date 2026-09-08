@@ -136,8 +136,10 @@ are accepted only when their final target is also tracked inside the source
 tree, and are copied as real files for archive-based delivery.
 
 `npm run i18n:check` validates every language catalog with `msgfmt`, rejects
-active fuzzy translations with `msgattrib`, and regenerates the translation
-template in a temporary directory to prove it is current. CI runs every check
+active fuzzy translations with `msgattrib`, and checks the catalog inventory.
+Missing or untranslated messages use English. Catalog merging, source-reference
+updates, and template regeneration are optional translation maintenance through
+`po/makepot`; they do not block packaging. CI runs every check
 and builds the Spices tree after the lint and test gates pass on the supported
 Node 22.13.0 and development Python 3.12 floors, and on the current Node 26 /
 Python 3.14 pair. The lint gate separately parses every shipped Python module
@@ -166,7 +168,7 @@ npm run package:spices
 The bump command refuses a version that does not increase and atomically updates
 `metadata.json`, `package.json`, both version owners in `package-lock.json`, and
 the `Project-Id-Version` header of the translation template, which `po/makepot`
-stamps from `metadata.json` and `npm run i18n:check` verifies.
+stamps from `metadata.json` and `npm run release:check` verifies.
 A bump interrupted mid-write leaves a journal behind; `npm run release:check`
 reports it and changes nothing, and `npm run release:recover` is the one command
 that finishes it, so a CI check can never green-light files it wrote itself.
