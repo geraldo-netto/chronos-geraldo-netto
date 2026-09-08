@@ -10,6 +10,7 @@ const shimPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6
 const ioUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "ioUtils.js");
 const providerUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "providerUtils.js");
 const localeTextPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "localeText.js");
+const dateFormatsPath = path.join(path.dirname(dataModulePath), "dateFormats.js");
 const textUtilsPath = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "textUtils.js");
 const style52Path = path.join(__dirname, "..", "files", "chronos@geraldo-netto", "6.0", "stylesheet.css");
 
@@ -282,6 +283,7 @@ function loadWorldclocks(options = {}) {
             }
         },
         gi: {
+            CinnamonDesktop: { WallClock: { lctime_format: (_domain, format) => format } },
             Pango: { EllipsizeMode: { NONE: 0, END: 3 } },
             GLib: {
                 get_language_names: () => ["C"],
@@ -328,6 +330,7 @@ function loadWorldclocks(options = {}) {
 }
 
 function clearWorldclockCaches() {
+    delete require.cache[require.resolve(dateFormatsPath)];
     delete require.cache[require.resolve(modulePath)];
     delete require.cache[require.resolve(shimPath)];
     delete require.cache[require.resolve(dataModulePath)];
@@ -348,17 +351,7 @@ function reloadWorldclocks() {
         elapsedTime: {
             monotonicSeconds: () => 1
         },
-        dateFormats: {
-            MAX_DATE_FORMAT_LENGTH: 256,
-            MAX_CLOCK_STAMP_LENGTH: 256,
-            dateFormatOrDefault(format, fallback) {
-                return textUtils.textWithinLimit(format, this.MAX_DATE_FORMAT_LENGTH) ?
-                    format : fallback;
-            },
-            clampClockStamp(stamp) {
-                return textUtils.clampText(stamp, this.MAX_CLOCK_STAMP_LENGTH);
-            }
-        }
+        dateFormats: require(dateFormatsPath)
     };
     global.imports.ui.appletManager = {
         applets: {
@@ -943,6 +936,21 @@ test("world-clock formats and rendered stamps stay within shared bounds", () => 
         (clock) => clock.display.text.endsWith("…")));
 });
 
+test("T1167 world-clock rows reject native-unsafe formats and recover", () => {
+    const { Worldclocks } = loadWorldclocks();
+    const clocks = new Worldclocks({ add_actor() {} });
+    clocks.buildClocks([{ label: "Tokyo", timezone: "Asia/Tokyo" }]);
+    for (const format of ["Before\0After %H:%M", "\0%H:%M", "\ud800", "a\udfffb"]) {
+        clocks.setFormat(format);
+        clocks.updateClocks();
+        assert.equal(clocks.format, "%H:%M");
+        assert.ok(clocks.clocks.every(clock => clock.display.text.length > 0));
+    }
+    clocks.setFormat("🌙 %H:%M");
+    clocks.updateClocks();
+    assert.equal(clocks.format, "🌙 %H:%M");
+});
+
 // the service that answered was named only in the panel's mouse tooltip
 // REGRESSION: the reading reached the row's accessible name and the panel's mouse
 // tooltip, and nowhere a user could look at — while settings-schema.json promised
@@ -1398,7 +1406,8 @@ test("invalid-timezone text uses the shared translator", () => {
     worldclocks.buildClocks([{ label: "Bad", timezone: "Invalid/Zone" }]);
     worldclocks.updateClocks();
 
-    assert.deepEqual(translations, ["Invalid timezone", "Local time"]);
+    assert.deepEqual(translations, ["%B %-e, %Y", "%A, %B %-e, %Y",
+        "Invalid timezone", "Local time"]);
     assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "Zeitzone ungültig");
 });
 
@@ -1415,7 +1424,8 @@ test("untranslated strings inherit the shared translator fallback", () => {
     worldclocks.buildClocks([{ label: "Bad", timezone: "Invalid/Zone" }]);
     worldclocks.updateClocks();
 
-    assert.deepEqual(lookups, ["Invalid timezone", "Local time"]);
+    assert.deepEqual(lookups, ["%B %-e, %Y", "%A, %B %-e, %Y",
+        "Invalid timezone", "Local time"]);
     assert.equal(worldclocks.clocks[BUILTIN_ROWS].display.text, "cinnamon:Invalid timezone");
 });
 

@@ -66,7 +66,8 @@ var DATE_FORMAT_FULL_FALLBACK = CinnamonDesktop.WallClock.lctime_format("cinnamo
 }
 
 function dateFormatWithinLimit(format) {
-    return TextUtils.textWithinLimit(format, MAX_DATE_FORMAT_LENGTH);
+    return TextUtils.textWithinLimit(format, MAX_DATE_FORMAT_LENGTH) &&
+        TextUtils.validNativeText(format);
 }
 
 function dateFormatOrDefault(format, fallback) {

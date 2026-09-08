@@ -353,10 +353,10 @@ class AppletPanelStatusPresenter {
             return configured;
         }
 
-        if (this._invalidTooltipFormat !== "overlong") {
-            this._invalidTooltipFormat = "overlong";
+        if (this._invalidTooltipFormat !== "unsafe") {
+            this._invalidTooltipFormat = "unsafe";
             this._tooltipFormatIssue = INVALID_TIME_FORMAT_TEXT;
-            global.logError("Calendar applet: tooltip time format exceeds the safe limit.");
+            global.logError("Calendar applet: tooltip time format has invalid text or exceeds the safe limit.");
         }
         return DEFAULT_DATE_TIME_FORMAT;
     }

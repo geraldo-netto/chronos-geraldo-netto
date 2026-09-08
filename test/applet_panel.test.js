@@ -793,6 +793,30 @@ test("tooltip formats and rendered stamps use shared Unicode bounds", () => {
     global.logError = originalLogError;
 });
 
+test("T1167 malformed native formats never reach panel or tooltip formatters", (t) => {
+    t.mock.method(global, "logError", () => {});
+    for (const format of ["Before\0After %H:%M", "\0%H:%M", "\ud800", "a\udfffb"]) {
+        const panel = [], tooltip = [], world = [];
+        const presenter = new PanelStatusModule.AppletPanelStatusPresenter(panelPort({
+            customFormat: format, customTooltipFormat: format,
+            desktopSettings: { use24h: true, showSeconds: false },
+            setClockFormatString: candidate => { panel.push(candidate); return true; },
+            setWorldclockFormat: candidate => world.push(candidate),
+            formatClock: candidate => { tooltip.push(candidate); return "12:34"; }
+        }));
+        presenter.updateFormatString();
+        assert.ok(panel.every(rootModules.textUtils.validNativeText));
+        assert.match(panel[0], /Invalid time format/);
+        assert.deepEqual(world, ["%H:%M"]);
+        assert.equal(presenter.tooltipLocalStamp(), "12:34");
+        assert.equal(presenter.tooltipClockStamp({ localTime: {
+            format: candidate => { tooltip.push(candidate); return "12:34"; }
+        } }), "12:34");
+        assert.deepEqual(tooltip, ["%d %b %H:%M", "%d %b %H:%M"]);
+        assert.match(presenter.issueStatus([], []), /Invalid time format/);
+    }
+});
+
 test("a tooltip row is location, fixed-order timestamp, temperature, and weather", () => {
     const formats = [];
     const stub = {

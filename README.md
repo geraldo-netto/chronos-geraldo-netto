@@ -254,6 +254,11 @@ row uses **Date format for tooltip**, followed by its temperature and weather
 description when available. The weather readout, when enabled, follows the panel
 label.
 
+Custom date formats accept up to 256 Unicode characters. Embedded NUL and
+unpaired surrogates are rejected before native formatting. Invalid formats
+show a warning and use a readable default time in the panel, tooltip, and
+world clocks; correcting the format clears the warning.
+
 **Weather and Location Services page**
 
 | Setting | Default | What it does |
