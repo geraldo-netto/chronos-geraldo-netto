@@ -66,6 +66,14 @@ function validSnapshotUpdates(data, now) {
         HolidayCacheModule.validCachedStamp(update.received, now));
 }
 
+function serializedBytes(data) {
+    return new TextEncoder().encode(JSON.stringify(data)).length;
+}
+
+function evictionStamp(value, now) {
+    return Number.isFinite(value) && value >= 0 && value <= now ? value : 0;
+}
+
 var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -- GJS importer export
     constructor(fn, params = {}) {
         this.fn = fn;
@@ -116,7 +124,7 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         const now = this._now();
         const savedAt = (country) => {
             const stamp = allData[country] && allData[country].savedAt;
-            return Number.isFinite(stamp) && stamp >= 0 && stamp <= now ? stamp : 0;
+            return evictionStamp(stamp, now);
         };
 
         const kept = {};
@@ -259,11 +267,59 @@ var HolidayCacheRepository = class HolidayCacheRepository { // NOSONAR [S3504] -
         Object.keys(flushing).forEach((country) => {
             data[country] = this._mergeCountry(data[country], flushing[country]);
         });
-        const allData = this._pruneCountries(data);
+        const allData = this._boundFileBytes(this._pruneCountries(data));
         if (!this._released) {
             this._all = allData;
         }
         return allData;
+    }
+
+    _yearCandidates(country, snapshot, now) {
+        const years = new Set([...Object.keys(snapshot.years).map(Number),
+            ...snapshot.holidays.map((row) => row.year)]);
+        const priorities = new Map();
+        for (const update of validSnapshotUpdates(snapshot, now)) {
+            priorities.set(update.year, Math.max(priorities.get(update.year) || 0,
+                Date.parse(update.received)));
+        }
+        return Array.from(years, (year) => ({ country, year,
+            priority: priorities.get(year) || evictionStamp(snapshot.savedAt, now) }));
+    }
+
+    _evictStoredYear(all, { country, year }) {
+        const snapshot = all[country];
+        delete snapshot.years[year];
+        snapshot.holidays = snapshot.holidays.filter((row) => row.year !== year);
+        snapshot.updates = snapshot.updates.filter((update) => update.year !== year);
+        if (Object.keys(snapshot.years).length === 0 && snapshot.holidays.length === 0) {
+            delete all[country];
+        }
+    }
+
+    _boundFileBytes(all) {
+        if (serializedBytes(all) <= IoUtils.MAX_CACHE_FILE_BYTES) {
+            return all;
+        }
+        const now = this._now();
+        // Normalize every retained country before budgeting, including ones
+        // this writer has never selected. Each then has at most three years,
+        // so the exact UTF-8 rechecks below run at most twelve eviction rounds.
+        const bounded = Object.fromEntries(Object.entries(all).map(([country, stored]) =>
+            [country, this._mergeCountry(stored, {
+                years: {}, holidays: [], updates: [], savedAt: stored && stored.savedAt
+            })]));
+        const candidates = Object.entries(bounded)
+            .flatMap(([country, snapshot]) => this._yearCandidates(country, snapshot, now))
+            .sort((a, b) => a.priority - b.priority || a.year - b.year ||
+                a.country.localeCompare(b.country));
+        for (const candidate of candidates) {
+            if (serializedBytes(bounded) <= IoUtils.MAX_CACHE_FILE_BYTES) {
+                return bounded;
+            }
+            this._evictStoredYear(bounded, candidate);
+        }
+        // Only empty country envelopes can remain after every year is gone.
+        return serializedBytes(bounded) <= IoUtils.MAX_CACHE_FILE_BYTES ? bounded : {};
     }
 
     _mergeSnapshot(base, incoming, update, versions) {

@@ -65,3 +65,17 @@ country remains inside the persisted year window and row limit.
 recorded fetches and clears accepted descriptors; loading old rows does not mark
 them as locally changed. Consumers receive the existing `{years, holidays}`
 projection when reading the cache.
+
+## Aggregate size limit
+
+The complete serialized file must fit the I/O layer's 4 MiB UTF-8 limit, including
+all retained countries and metadata. When needed, the repository evicts whole
+country-years, least recently received first, together with their freshness and
+receipt descriptors. A country's validated `savedAt` supplies priority when no
+receipt is available. Every remaining year stays complete; live in-memory rows
+are unaffected. A single year larger than the file budget is omitted entirely
+and must be fetched again after restarting the applet.
+
+The existing country and year-window bounds leave at most twelve eviction
+candidates. The repository checks actual serialized byte length after each
+eviction before handing the data to the asynchronous writer.
