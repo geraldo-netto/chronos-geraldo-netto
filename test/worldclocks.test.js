@@ -698,6 +698,18 @@ test("timezone whitespace preserves Python and runtime clock selection parity", 
     assert.deepEqual(saved, fixture.saved);
 });
 
+test("invalid Unicode clock rows do not discard valid neighboring clocks", () => {
+    loadWorldclocks();
+    const data = global.imports.ui.appletManager.applets["chronos@geraldo-netto"].worldclockData;
+    const fixture = require("./fixtures/settings_unicode_cases.json");
+    const saved = JSON.parse(JSON.stringify(fixture.savedClocks));
+    for (const { input, valid } of fixture.text)
+        assert.equal(data.clockInputLabel(input), valid ? input : "");
+    assert.deepEqual(data.selectUserClocks(saved), fixture.selectedClocks);
+    assert.deepEqual(data.selectUserClocks(fixture.selectedClocks), fixture.selectedClocks);
+    assert.deepEqual(saved, fixture.savedClocks);
+});
+
 // the label is the user's own name for the clock and the dialog puts no limit on
 // it; it is rendered in the popup grid and padded to the widest cell in the
 // monospace tooltip, so one 60-character name stretches both

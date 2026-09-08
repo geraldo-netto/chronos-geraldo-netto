@@ -32,6 +32,11 @@ var WARNING_MARKER = "⚠"; // NOSONAR [S3504] -- GJS importer export
 // summary carrying one grows the label by a row, and a log line carrying one
 // forges a second entry.
 const LINE_SEPARATORS = new Set([0x2028, 0x2029]);
+const INVALID_UNICODE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
+
+function validUnicode(text) {
+    return typeof text === "string" && !INVALID_UNICODE.test(text);
+}
 
 // The Unicode explicit directional formatting characters: the embeddings and
 // overrides U+202A..U+202E and the isolates U+2066..U+2069. They are category
@@ -99,7 +104,7 @@ function textWithinLimit(text, maxLength) {
 }
 
 function normalizeBoundedText(text, maxLength) {
-    if (!textWithinLimit(text, maxLength)) {
+    if (!textWithinLimit(text, maxLength) || !validUnicode(text)) {
         return "";
     }
     return text.trim();
@@ -315,6 +320,7 @@ if (typeof module !== "undefined") {
         clampToWidth,
         displayWidth,
         sanitizeControlCharacters,
+        validUnicode,
         textWithinLimit,
         normalizeBoundedText,
         numericInput,

@@ -55,6 +55,15 @@ class NativeImportHarnessTests(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     CHECK.verify_isolation(self.directory)
 
+    def test_shared_runner_can_launch_a_native_settings_checker(self):
+        child = self.directory / "settings.py"
+        process = mock.Mock()
+        process.wait.return_value = 0
+        with mock.patch.object(CHECK.subprocess, "Popen", return_value=process) as start:
+            self.assertEqual(CHECK.run_session(self.directory, {}, child), 0)
+        self.assertEqual(start.call_args.args[0][-2], str(child))
+        self.assertTrue(start.call_args.kwargs["start_new_session"])
+
     def test_copy_inventory_and_profile_are_private_and_disable_remote_providers(self):
         project = self.directory / "project"
         source = project / "files" / CHECK.UUID

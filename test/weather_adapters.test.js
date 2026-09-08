@@ -4,6 +4,20 @@ const {
     shown, loadWeather
 } = require("./helpers/weatherFixture");
 
+test("both geocoder URLs refuse malformed Unicode and preserve complete characters", () => {
+    const Weather = loadWeather();
+    const fixture = require("./fixtures/settings_unicode_cases.json");
+    for (const { input, valid } of fixture.text) {
+        const normalized = Weather.normalizeWeatherLocation(input);
+        assert.equal(normalized, valid ? input : "");
+        for (const build of [Weather.geocodeUrl, Weather.nominatimGeocodeUrl]) {
+            const url = build(input, "en");
+            assert.equal(Boolean(url), Boolean(normalized));
+            if (url) assert.ok(url.includes(encodeURIComponent(input)));
+        }
+    }
+});
+
 test("aviationweather METARs are read from the nearest station that has a temperature", () => {
     const Weather = loadWeather();
     const place = { latitude: -23.55, longitude: -46.63 };

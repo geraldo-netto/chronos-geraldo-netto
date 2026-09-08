@@ -5,9 +5,18 @@ const path = require("node:path");
 const APPLET_DIR = path.join(__dirname, "..", "files", "chronos@geraldo-netto");
 
 
-const { clampText, displayWidth, textWithinLimit, normalizeBoundedText,
+const { clampText, displayWidth, textWithinLimit, normalizeBoundedText, validUnicode,
     sanitizeControlCharacters, TEXT_ELLIPSIS } =
     require(path.join(APPLET_DIR, "textUtils.js"));
+
+test("Unicode validity preserves complete scalar values and rejects isolated surrogates", () => {
+    const fixture = require("./fixtures/settings_unicode_cases.json");
+    for (const { input, valid } of fixture.text) {
+        assert.equal(validUnicode(input), valid, JSON.stringify(input));
+        assert.equal(normalizeBoundedText(input, 256), valid ? input : "");
+    }
+    for (const input of [null, false, 1, [], {}]) assert.equal(validUnicode(input), false);
+});
 
 // T783: the test was a code-block one — C0 plus C1 — and U+2028 LINE SEPARATOR
 // and U+2029 PARAGRAPH SEPARATOR are categories Zl and Zp, so they went

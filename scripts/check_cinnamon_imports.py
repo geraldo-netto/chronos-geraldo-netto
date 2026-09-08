@@ -171,10 +171,11 @@ def run_isolated(directory):
             stop_process(xsettings)
 
 
-def run_session(directory, environment):
+def run_session(directory, environment, child_script=None):
     child = "import runpy,sys; ns=runpy.run_path(sys.argv[1]); sys.exit(ns['run_isolated'](ns['Path'](sys.argv[2])))"
     command = ["dbus-run-session", "--", "xvfb-run", "-a", "-s", "-screen 0 1366x768x24",
-               sys.executable, "-c", child, str(Path(__file__).resolve()), str(directory)]
+               sys.executable, "-c", child,
+               str(child_script or Path(__file__).resolve()), str(directory)]
     with (directory / "session.log").open("w") as log:
         process = subprocess.Popen(command, env=environment, stderr=log, start_new_session=True)
         try:

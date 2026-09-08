@@ -57,6 +57,18 @@ unavailable, the minute poll triggers the same reconciliation.
 
 ## Weather location
 
+Malformed Unicode, such as an isolated surrogate in an imported JSON string,
+is refused before it reaches GTK or a geocoder URL. The weather field shows a
+blank projection and an explanatory error while retaining the saved value until
+a valid replacement is entered. Invalid Unicode in a saved clock label or
+timezone removes only that row; valid neighboring clocks remain. Refused country
+codes retain their stored value and use replacement characters in diagnostics.
+
+Run `/usr/bin/python3 scripts/check_gtk_settings.py` to check these boundaries
+with native GTK and an in-memory settings backend under private D-Bus/Xvfb.
+The checker requires the installed Cinnamon settings modules and Python GI;
+missing dependencies or native diagnostics fail the check.
+
 An empty saved weather location stays empty when the applet starts, reloads,
 or the settings dialog opens. If the operating-system timezone names a city,
 that city appears as placeholder text in the empty field. For example,

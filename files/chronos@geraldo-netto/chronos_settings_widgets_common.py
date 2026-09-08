@@ -27,6 +27,7 @@ from xapp.SettingsWidgets import ComboBox
 # substring matcher, one process-wide timezone index, the completion wiring
 # and their small reusable accessibility/error affordances.
 from chronos_settings_i18n import report_pending_warnings
+from chronos_text import diagnostic_text
 from chronos_timezone_data import (
     completion_key,
     TimezoneResolver,
@@ -331,7 +332,7 @@ def set_invalid(widget, is_invalid, description=""):
     if accessible:
         atk = accessible()
         if hasattr(atk, "set_description"):
-            atk.set_description(description if is_invalid else "")
+            atk.set_description(diagnostic_text(description) if is_invalid else "")
 
 
 def _relate(atk, label, described):

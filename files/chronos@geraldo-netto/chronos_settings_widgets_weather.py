@@ -24,27 +24,33 @@ from typing import Optional
 # the shared halves: one folded-substring matcher and one process-wide
 # timezone index, both also used by the world-clock and country widgets
 import chronos_settings_widgets_common as common
-from chronos_text import trim_text
+from chronos_text import trim_text, valid_unicode
 from chronos_timezone_data import completion_key, local_city_name
 from chronos_settings_i18n import _
 
 WEATHER_LOCATION_HINT = _("City or town (e.g. Lisbon)")
 WEATHER_LOCATION_TOO_LONG = _("This location is too long to save")
+WEATHER_LOCATION_INVALID_UNICODE = _("This location contains invalid Unicode; enter a replacement")
 MAX_WEATHER_LOCATION_LENGTH = 256
 
 
-def refuses_weather_location(text) -> bool:
-    """Over the network bound, which is the one thing this field will not save.
+def weather_location_refusal(text) -> str:
+    if not isinstance(text, str):
+        return ""
+    if len(text) > MAX_WEATHER_LOCATION_LENGTH:
+        return WEATHER_LOCATION_TOO_LONG
+    if not valid_unicode(text):
+        return WEATHER_LOCATION_INVALID_UNICODE
+    return ""
 
-    Named, because the refusal and the message about it have to test the same
-    thing: a whitespace-only value also normalizes to "", and calling that "too
-    long" would be a lie.
-    """
-    return isinstance(text, str) and len(text) > MAX_WEATHER_LOCATION_LENGTH
+
+def refuses_weather_location(text) -> bool:
+    """The same refusal policy drives normalization, commits and diagnostics."""
+    return bool(weather_location_refusal(text))
 
 
 def normalize_weather_location(text) -> str:
-    """Trim a location only when its untrimmed value fits the network bound."""
+    """Trim only a well-formed location within the untrimmed network bound."""
     source = text if isinstance(text, str) else ""
     if refuses_weather_location(source):
         return ""
@@ -138,17 +144,16 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
         self.attach()
         self.suggest_from_timezone()
 
-    def mark_refused(self, refused):
+    def mark_refused(self, text):
         """Mark the field, and say why, when a location will not be saved.
 
         The entry caps typing at MAX_WEATHER_LOCATION_LENGTH, so the usual way
-        in is not the keyboard: it is a key holding a longer value — written by
-        another settings instance, or by hand — which normalizes to "" and blanks
-        the field on load. Silently showing an empty box for a key that is not
-        empty is the failure this reports.
+        in is not the keyboard: it is a key holding an oversized or malformed
+        value, written elsewhere, which normalizes to "" on load. The original
+        value stays saved until the user enters a valid replacement.
         """
-        common.set_invalid(self, refused,
-                           WEATHER_LOCATION_TOO_LONG if refused else "")
+        reason = weather_location_refusal(text)
+        common.set_invalid(self, bool(reason), reason)
 
     def on_setting_changed(self, *args):
         # The key changed under the dialog, for example in another settings window.
@@ -159,13 +164,12 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
         # Gtk.Entry.set_text() emits "changed". Mark the rejected stored value
         # after that signal so the empty normalization above cannot clear the
         # reason the key itself was refused.
-        self.mark_refused(refuses_weather_location(stored))
+        self.mark_refused(stored)
 
     def on_entry_edited(self, *args):
         # This changes only the field state. Saving still belongs to commit(), so
         # typing a replacement neither writes the key nor starts geocoding it.
-        self.mark_refused(
-            refuses_weather_location(self.content_widget.get_text()))
+        self.mark_refused(self.content_widget.get_text())
 
     def connect_widget_handlers(self, *args):
         self.content_widget.connect("focus-in-event", self.ensure_completion)
@@ -196,11 +200,11 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
 
     def commit(self, text) -> str:
         if refuses_weather_location(text):
-            self.mark_refused(True)
+            self.mark_refused(text)
             return ""
 
         location = normalize_weather_location(text)
-        # The blank field is a *projection* of a stored value too long to save,
+        # The blank field is a *projection* of a refused stored value,
         # not an edit of it — on_setting_changed puts it there and marks it
         # refused. Every way an edit can end reaches here, including the
         # `destroy` that fires when the settings window closes, so committing
@@ -210,10 +214,10 @@ class WeatherLocationEntry(common.CommitOnEditEnd, Entry, JSONSettingsBackend):
         # value in it; the sibling CountryComboBox restores rather than writes
         # for the same case.
         if not location and refuses_weather_location(self.get_value()):
-            self.mark_refused(True)
+            self.mark_refused(self.get_value())
             return ""
 
-        self.mark_refused(False)
+        self.mark_refused("")
         if self.content_widget.get_text() != location:
             self.content_widget.set_text(location)
             self.content_widget.set_position(-1)

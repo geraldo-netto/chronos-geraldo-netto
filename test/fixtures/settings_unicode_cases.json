@@ -1,0 +1,28 @@
+{
+  "text": [
+    {"input": "\ud800", "valid": false, "diagnostic": "�"},
+    {"input": "\udfff", "valid": false, "diagnostic": "�"},
+    {"input": "Gen\ud800ova", "valid": false, "diagnostic": "Gen�ova"},
+    {"input": "\udfffParis\ud800", "valid": false, "diagnostic": "�Paris�"},
+    {"input": "\ud800\ud800", "valid": false, "diagnostic": "��"},
+    {"input": "\udfff\udfff", "valid": false, "diagnostic": "��"},
+    {"input": "", "valid": true, "diagnostic": ""},
+    {"input": "Plzeň", "valid": true, "diagnostic": "Plzeň"},
+    {"input": "東京", "valid": true, "diagnostic": "東京"},
+    {"input": "Genoa 🏙", "valid": true, "diagnostic": "Genoa 🏙"},
+    {"input": "\ud800\udc00", "valid": true, "diagnostic": "𐀀"},
+    {"input": "\udbff\udfff", "valid": true, "diagnostic": "􏿿"},
+    {"input": "🏙\ud800", "valid": false, "diagnostic": "🏙�"},
+    {"input": "\udfff🏙", "valid": false, "diagnostic": "�🏙"}
+  ],
+  "savedClocks": [
+    {"label": "Tokyo 🏙", "timezone": "Asia/Tokyo"},
+    {"label": "Bad\ud800label", "timezone": "Europe/Paris"},
+    {"label": "Bad timezone", "timezone": "Europe/\udfffParis"},
+    {"label": "Auckland", "timezone": "Pacific/Auckland"}
+  ],
+  "selectedClocks": [
+    {"label": "Tokyo 🏙", "timezone": "Asia/Tokyo"},
+    {"label": "Auckland", "timezone": "Pacific/Auckland"}
+  ]
+}

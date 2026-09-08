@@ -9,6 +9,21 @@
 
 """Text boundaries shared by the Python settings and JavaScript runtime."""
 
+import re
+
+
+_INVALID_UNICODE = re.compile(r"[\ud800-\udfff]")
+
+
+def valid_unicode(value: str) -> bool:
+    """Whether a string consists of Unicode scalar values accepted by GTK."""
+    return _INVALID_UNICODE.search(value) is None
+
+
+def diagnostic_text(value: str) -> str:
+    """Keep a refused value readable without passing invalid Unicode to ATK."""
+    return _INVALID_UNICODE.sub("\ufffd", value)
+
 
 # ECMAScript trim() includes BOM and excludes Python's extra C0/C1 whitespace.
 TEXT_WHITESPACE = (

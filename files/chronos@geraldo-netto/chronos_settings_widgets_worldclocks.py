@@ -26,7 +26,7 @@ from typing import Optional
 from gi.repository import GLib, Gtk
 
 import chronos_settings_widgets_common as common
-from chronos_text import TEXT_WHITESPACE, trim_text
+from chronos_text import TEXT_WHITESPACE, trim_text, valid_unicode
 from chronos_timezone_data import (
     completion_key,
     is_runtime_builtin_timezone,
@@ -226,7 +226,7 @@ def sanitize_control_characters(value):
 
 
 def normalize_clock_label(value):
-    if not isinstance(value, str):
+    if not isinstance(value, str) or not valid_unicode(value):
         return ""
     normalized = trim_text(sanitize_control_characters(value))
     if len(normalized) <= MAX_CLOCK_INPUT_LABEL_LENGTH:
@@ -239,7 +239,7 @@ def normalize_saved_clock(row, local_timezone=None) -> Optional[dict[str, str]]:
         return None
     label = normalize_clock_label(row.get("label"))
     timezone = row.get("timezone")
-    if not label or not isinstance(timezone, str):
+    if not label or not isinstance(timezone, str) or not valid_unicode(timezone):
         return None
     timezone = trim_text(timezone)
     if (not timezone or len(timezone) > MAX_CLOCK_TIMEZONE_LENGTH or

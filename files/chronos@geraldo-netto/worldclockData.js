@@ -545,7 +545,7 @@ function normalizedClockEntry(clock) {
     }
 
     const label = clockInputLabel(clock.label);
-    const timezone = typeof clock.timezone === "string" ? clock.timezone.trim() : "";
+    const timezone = TextUtils.validUnicode(clock.timezone) ? clock.timezone.trim() : "";
     return label && timezone && timezone.length <= MAX_CLOCK_TIMEZONE_LENGTH ?
         { label, timezone } : null;
 }
@@ -594,7 +594,7 @@ function clockDisplayLabel(label) {
 // became one cell of the monospace panel tooltip whose padding is computed from
 // the cell's code-point count — splitting the row and misaligning every column.
 function clockInputLabel(label) {
-    const normalized = typeof label === "string" ?
+    const normalized = TextUtils.validUnicode(label) ?
         TextUtils.sanitizeControlCharacters(label).trim() : "";
     return TextUtils.clampText(normalized, MAX_CLOCK_INPUT_LABEL_LENGTH);
 }
