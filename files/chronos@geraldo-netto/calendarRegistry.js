@@ -46,7 +46,7 @@ function validateAdapter(adapter) {
         throw new Error("Calendar adapter requires a namespaced identifier");
     }
     for (const field of ["name", "category"]) {
-        if (typeof adapter[field] !== "string" || !adapter[field].trim() || adapter[field].length > 160) {
+        if (!HolidayRecord.nonBlankText(adapter[field]) || adapter[field].length > 160) {
             throw new Error(`Calendar adapter requires bounded ${field} text`);
         }
     }
@@ -86,7 +86,7 @@ function validMonthEntry(key, entry, year, month) {
     const day = Number(key.split("/")[1]);
     const date = new Date(0);
     date.setUTCFullYear(year, month - 1, day);
-    return entry && typeof entry.name === "string" &&
+    return entry && HolidayRecord.nonBlankText(entry.name) &&
         HolidayRecord.validHolidayFlags(entry.flags) && date.getUTCDate() === day;
 }
 
@@ -110,7 +110,9 @@ function acceptAnswer(state, map, error, provider, year, month) {
     if (HolidayConstants.isHolidayErrorCode(error)) {
         state.error = error;
     }
-    state.provider = typeof provider === "string" && provider.length <= 160 ? provider : state.adapter.name;
+    const usableProvider = provider === "" ||
+        (HolidayRecord.nonBlankText(provider) && provider.length <= 160);
+    state.provider = usableProvider ? provider : state.adapter.name;
     try {
         state.map = copyMonthMap(map, year, month);
     } catch {

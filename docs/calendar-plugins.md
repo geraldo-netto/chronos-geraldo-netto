@@ -14,6 +14,14 @@ therefore preserves the same order and which names fit the display limit.
 The registry identifies these groups by `builtin:country`, `country:`,
 `religion:`, and `plugin:` IDs; all other IDs follow them.
 
+Names must contain usable Unicode without embedded NUL or unpaired surrogates.
+Unsafe translations are ignored when a valid translation remains; a provider
+without a usable name falls through to the next service. Invalid cached rows
+are discarded and their snapshot becomes stale so it can be fetched again.
+An adapter returning unsafe names is isolated from healthy calendars, and an
+unsafe provider credit falls back to the adapter's validated name. Intentional
+line breaks between same-day names are preserved.
+
 ## Select and install calendars
 
 The existing country selector remains the primary public-holiday calendar.

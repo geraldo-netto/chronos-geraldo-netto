@@ -38,6 +38,32 @@ function monthMap(name, month = 6, day = 24, flags = ["calendar_observance"]) {
     return new Map([[`${month}/${day}`, { name, flags }]]);
 }
 
+test("T1163 unsafe country answers cannot conceal a healthy same-day plugin", () => {
+    const { publicCalendar, manifestCalendar } = require(path.join(root, "calendarSourceAdapters"));
+    for (const name of require("./fixtures/unsafe_holiday_names.json")) {
+        const registry = new CalendarRegistry();
+        registry.register(publicCalendar("builtin:country", {
+            active: true, destroy() {},
+            getHolidays: (_year, _month, done) => done(monthMap(name), "", name)
+        }));
+        registry.register(manifestCalendar(validateCalendarManifest(manifest())));
+        let result;
+        registry.getHolidays(2026, 6, (...answer) => { result = answer; });
+        assert.deepEqual(result[0], monthMap("Birthday (Family)"));
+        assert.equal(result[1], HOLIDAY_ERRORS.INVALID_RESPONSE);
+        assert.equal(result[2], "Public holidays");
+        registry.destroy();
+    }
+});
+
+test("T1163 adapter display metadata must be native-safe", () => {
+    for (const text of require("./fixtures/unsafe_holiday_names.json")) {
+        const registry = new CalendarRegistry();
+        assert.throws(() => registry.register(adapter("custom:bad", { name: text })), /name text/);
+        assert.throws(() => registry.register(adapter("custom:bad", { category: text })), /category text/);
+    }
+});
+
 function mergedCalendarFlags(flagSets) {
     const registry = new CalendarRegistry();
     flagSets.forEach((flags, index) => registry.register(adapter(`source:${index}`, {

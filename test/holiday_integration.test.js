@@ -1020,10 +1020,10 @@ test("response validation budgets inclusive spans before allocating rows", () =>
     assert.equal(record.validResponse(Array(1), 2026), false, "array holes are not holidays");
 });
 
-function expansionPipeline(fallback, initial = { years: {}, holidays: [] }) {
+function expansionPipeline(fallback, initial = { years: {}, holidays: [] }, primary = null) {
     const modules = loadHolidays();
-    const data = expansionPayload();
-    data[0].dateTo.day = 5;
+    const data = primary || expansionPayload();
+    if (!primary) data[0].dateTo.day = 5;
     const calls = [];
     const adapter = (Type, payload) => new Type((_url, params, done) => {
         calls.push(params.providerName || "Enrico");
@@ -1040,6 +1040,22 @@ function expansionPipeline(fallback, initial = { years: {}, holidays: [] }) {
     const service = new modules.HolidayService(chain, cache, { record });
     return { service, cache, saves, calls, modules };
 }
+
+test("T1163 unsafe primary names fall back to a complete safe cached snapshot", () => {
+    for (const name of require("./fixtures/unsafe_holiday_names.json")) {
+        const { service, cache, saves, calls } = expansionPipeline([{
+            date: "2026-06-24", name: "Safe fallback 🌙", types: ["Public"], global: true
+        }], undefined, [holiday(name, 2026, 6, 24)]);
+        let settled = 0;
+        service.retrieveForYear(2026, () => settled++);
+        assert.equal(settled, 1);
+        assert.deepEqual(calls, ["Enrico", "Nager.Date"]);
+        assert.equal(service.last_error, "");
+        assert.equal(cache.matchMonth(2026, 6).get("6/24").name, "Safe fallback 🌙");
+        assert.equal(saves.length, 1);
+        assert.deepEqual(saves[0].holidays.map(row => row.name), ["Safe fallback 🌙"]);
+    }
+});
 
 test("oversized primary responses fall through to a complete public-holiday snapshot", () => {
     const { service, cache, saves, calls } = expansionPipeline([{

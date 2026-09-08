@@ -1523,3 +1523,27 @@ test("holiday names require text and skip blank preferred translations", () => {
     assert.deepEqual(openRows.map((holiday) => holiday.name),
         [[{ lang: "en", text: "New Year" }]]);
 });
+
+test("T1163 holiday adapters reject unsafe names while retaining usable translations", () => {
+    const { HolidayRecordContract, NagerDateServiceAdapter, OpenHolidaysServiceAdapter } = loadHolidays();
+    const record = new HolidayRecordContract("it");
+    const nager = new NagerDateServiceAdapter(() => {});
+    const open = new OpenHolidaysServiceAdapter(() => {}, "it");
+    for (const text of require("./fixtures/unsafe_holiday_names.json")) {
+        const row = { date: { year: 2026, month: 6, day: 24 }, flags: [],
+            name: [{ lang: "it", text }] };
+        assert.equal(record.validHoliday(row), false);
+        row.name.push({ lang: "en", text: "Safe 🌙" });
+        assert.equal(record.validHoliday(row), true);
+        assert.equal(record.localizeName(row), "Safe 🌙");
+        const nagerRow = { date: "2026-06-24", name: "Safe 🌙", localName: text, types: ["Public"] };
+        assert.deepEqual(nager.translateResponse([nagerRow], nager.params("ita", "global", 2026))[0].name,
+            [{ lang: "en", text: "Safe 🌙" }]);
+        assert.deepEqual(nager.translateResponse([{ ...nagerRow, name: text }],
+            nager.params("ita", "global", 2026)), []);
+        assert.deepEqual(open.translateResponse([{ startDate: "2026-06-24", name: [
+            { language: "IT", text }, { language: "EN", text: "Safe 🌙" }
+        ] }], open.params("ita", "global", 2026))[0].name,
+        [{ lang: "en", text: "Safe 🌙" }]);
+    }
+});

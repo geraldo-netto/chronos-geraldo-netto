@@ -486,7 +486,7 @@ var HolidayCache = class HolidayCache { // NOSONAR [S3504] -- GJS importer expor
     }
 
     addUnique (single) {
-        if (!this._isActive()) {
+        if (!this._isActive() || !HolidayRecord.nonBlankText(single?.name)) {
             return;
         }
         this._addUnique(single);

@@ -196,7 +196,7 @@ function holidayOverlapsYear(holiday, year) {
 }
 
 function nonBlankText(value) {
-    return typeof value === "string" && value.trim().length > 0;
+    return TextUtils.validNativeText(value) && value.trim().length > 0;
 }
 
 function withinExpansionBudget(data) {

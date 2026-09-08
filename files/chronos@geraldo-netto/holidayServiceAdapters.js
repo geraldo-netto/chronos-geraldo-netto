@@ -386,7 +386,7 @@ var NagerDateServiceAdapter = class NagerDateServiceAdapter extends IsoHolidaySe
     // is an unreachable guard rather than a silent loss.
     _name(holiday, params) {
         const name = holiday.name.trim();
-        const localName = typeof holiday.localName === "string" ?
+        const localName = nonBlankText(holiday.localName) ?
             holiday.localName.trim() : "";
         const lang = COUNTRY_TO_LANGUAGE[params?.country];
         if (lang && localName && localName !== name) {

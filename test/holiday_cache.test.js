@@ -15,6 +15,25 @@ function namedSnapshot(name, region = "global") {
     ] }, region);
 }
 
+test("T1163 unsafe cached names cannot hide healthy rows or suppress repair", () => {
+    const { HolidayCacheRepository, HolidayCache } = loadHolidays();
+    const repository = new HolidayCacheRepository("/holidays.json");
+    const good = { year: 2026, month: 6, day: 24, region: "global", name: "Healthy 🌙", flags: [] };
+    const bad = require("./fixtures/unsafe_holiday_names.json").map(name => ({ ...good, name }));
+    fs.mkdirSync(cachePath(), { recursive: true });
+    fs.writeFileSync(cachePath("holidays.json"), JSON.stringify({ usa: {
+        years: { 2026: { global: STAMP } }, holidays: [...bad, good]
+    } }));
+    const cache = new HolidayCache((country, done) => repository.loadAsync(country, done), () => {});
+    cache.setPlace("usa", "global");
+    assert.deepEqual(cache.years, {});
+    assert.equal(cache.stale(2026, "global"), true);
+    assert.equal(cache.matchMonth(2026, 6).get("6/24").name, good.name);
+    bad.forEach(row => cache.addUnique(row));
+    assert.equal(cache.matchMonth(2026, 6).get("6/24").name, good.name);
+    assert.deepEqual(cache.data, [good]);
+});
+
 // T988: the store and 320 lines of Gio file I/O shared a module, and the
 // coupling bit at *import* time — `GLib.build_filenamev(...)` ran while the
 // module loaded, so the pure data structure could not be required without a
