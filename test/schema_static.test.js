@@ -228,17 +228,16 @@ test("religious settings and the runtime catalogue have exact parity", () => {
     assert.equal(religious.RELIGIONS, catalog.RELIGIONS,
         "holiday calculation must consume the canonical catalogue rather than copying it");
     assert.deepEqual(religious.religionIds(), ids);
-    assert.deepEqual(data.layout.section6.keys,
-        [facade.SHOW_RELIGIOUS_OBSERVANCES_KEY, ...selectorKeys]);
-    assert.equal(data[facade.SHOW_RELIGIOUS_OBSERVANCES_KEY].default, false);
+    assert.deepEqual(data.layout.section6.keys, selectorKeys);
+    assert.equal(data["show-religious-observances"], undefined);
 
     for (const [index, key] of selectorKeys.entries()) {
         assert.ok(data[key], `${ids[index]} has no selector`);
         assert.equal(data[key].type, "custom");
         assert.equal(data[key].widget, "AvailableReligionSwitch");
         assert.equal(data[key].default, false);
-        assert.equal(data[key].dependency, facade.SHOW_RELIGIOUS_OBSERVANCES_KEY);
-        assert.equal(data[key].indent, true);
+        assert.equal(data[key].dependency, undefined);
+        assert.equal(data[key].indent, undefined);
         assert.equal(data[key].description, catalog.RELIGIONS[index].label);
     }
 

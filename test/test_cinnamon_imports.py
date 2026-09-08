@@ -74,7 +74,7 @@ class NativeImportHarnessTests(unittest.TestCase):
         (source / "module.js").write_text("var value = 1;\n")
         (source / "6.0" / "applet.js").write_text("function main() {}\n")
         defaults = {"show-weather": True, "show-events": True, "country": "ita",
-                    "show-religious-observances": True, "extra-country-calendars": [{"country": "ita"}],
+                    "extra-country-calendars": [{"country": "ita"}],
                     "calendar-plugins": ["private.city"]}
         schema = {key: {"default": value} for key, value in defaults.items()}
         (source / "6.0" / "settings-schema.json").write_text(json.dumps(schema))

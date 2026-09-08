@@ -202,11 +202,10 @@ test("the country is watched for changes, not bound onto the applet", () => {
     assert.equal(facade.country, "ita", "and the read still goes through the accessor");
 });
 
-test("religious selections are master-gated and every key is watched", () => {
+test("religion selections directly control observances and every selector is watched", () => {
     delete require.cache[require.resolve(modulePath)];
     const SettingsFacade = require(modulePath);
     const values = {
-        "show-religious-observances": false,
         "religion-christianity": true,
         "religion-islam": true
     };
@@ -221,14 +220,15 @@ test("religious selections are master-gated and every key is watched", () => {
     const facade = new SettingsFacade.HolidaySettings(settings);
     const callback = function() {};
 
-    assert.deepEqual(facade.religiousIds, [], "disabled means no runtime selection");
-    values[SettingsFacade.SHOW_RELIGIOUS_OBSERVANCES_KEY] = true;
     assert.deepEqual(facade.religiousIds, ["christianity", "islam"]);
+    values["religion-islam"] = false;
+    assert.deepEqual(facade.religiousIds, ["christianity"]);
+    values["religion-christianity"] = false;
+    assert.deepEqual(facade.religiousIds, [], "no selections means no observances");
 
     assert.deepEqual(facade.connectReligionsChanged(callback),
-        Array.from({ length: SettingsFacade.RELIGION_IDS.length + 1 }, (_, index) => index + 1));
+        Array.from({ length: SettingsFacade.RELIGION_IDS.length }, (_, index) => index + 1));
     assert.deepEqual(connected.map(([signal]) => signal), [
-        "changed::show-religious-observances",
         ...SettingsFacade.RELIGION_IDS.map((id) => `changed::religion-${id}`)
     ]);
     assert.ok(connected.every(([, listener]) => listener === callback));
@@ -236,7 +236,7 @@ test("religious selections are master-gated and every key is watched", () => {
 
 test("plugin and extra-country selections read current values independently of religion", () => {
     const SettingsFacade = require(modulePath);
-    const values = { "show-religious-observances": false };
+    const values = {};
     const facade = new SettingsFacade.HolidaySettings({ getValue: (key) => values[key] });
 
     assert.deepEqual(facade.calendarPlugins, []);

@@ -310,7 +310,7 @@ country and region to third-party holiday services.
 
 | Setting | Default | What it does |
 |---|---|---|
-| Religious observances / religions | off / none selected | Shows locally calculated observances for the religions you select. They are underlined but remain working days; see the date limits below. |
+| Religions | none selected | Each selected religion shows its locally calculated observances. They are underlined but remain working days; see the date limits below. |
 
 In the menu the grid is keyboard-navigable: arrows move by day and week,
 PageUp/PageDown by month, Home returns to today.
@@ -442,10 +442,11 @@ pick it from the suggestions ("Buenos Aires (America / Argentina)"), or type an
 IANA timezone identifier (e.g. `America/Sao_Paulo`) or a bare city name (e.g.
 `tokyo`) yourself.
 
-Religious observances are disabled by default. Enable **Show religious
-observances**, then select one or more of Christianity, Islam, Hinduism,
+No religions are selected by default. In **Religious Observances**, select
+one or more of Christianity, Islam, Hinduism,
 Buddhism, Sikhism, Judaism, the Bahá'í Faith, Jainism, Shinto, and Taoism. The
-catalogue and every religion selection stay on this computer: enabling them
+selected religions appear immediately; deselect all religions to hide their
+observances. The catalogue and every religion selection stay on this computer: enabling them
 makes no network request and writes no religious preference outside Cinnamon's
 local applet settings.
 

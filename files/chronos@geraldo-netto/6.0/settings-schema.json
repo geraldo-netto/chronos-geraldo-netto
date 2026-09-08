@@ -80,7 +80,6 @@
             "type": "section",
             "title": "Religious Observances",
             "keys": [
-                "show-religious-observances",
                 "religion-christianity",
                 "religion-islam",
                 "religion-hinduism",
@@ -194,18 +193,10 @@
             "Imperial (Fahrenheit)": "imperial"
         }
     },
-    "show-religious-observances": {
-        "type": "switch",
-        "default": false,
-        "description": "Show religious observances",
-        "tooltip": "Enable this, then select the religions to mark in the calendar. Observance dates come only from data bundled with the applet, and the selections never leave this computer. Observances are not marked as non-working days."
-    },
     "religion-christianity": {
         "type": "custom",
         "default": false,
         "description": "Christianity",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -213,8 +204,6 @@
         "type": "custom",
         "default": false,
         "description": "Islam",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -222,8 +211,6 @@
         "type": "custom",
         "default": false,
         "description": "Hinduism",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -231,8 +218,6 @@
         "type": "custom",
         "default": false,
         "description": "Buddhism",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -240,8 +225,6 @@
         "type": "custom",
         "default": false,
         "description": "Sikhism",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -249,8 +232,6 @@
         "type": "custom",
         "default": false,
         "description": "Judaism",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -258,8 +239,6 @@
         "type": "custom",
         "default": false,
         "description": "Bah\u00e1'\u00ed Faith",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -267,8 +246,6 @@
         "type": "custom",
         "default": false,
         "description": "Jainism",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -276,8 +253,6 @@
         "type": "custom",
         "default": false,
         "description": "Shinto",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },
@@ -285,8 +260,6 @@
         "type": "custom",
         "default": false,
         "description": "Taoism",
-        "dependency": "show-religious-observances",
-        "indent": true,
         "file": "settings_widgets.py",
         "widget": "AvailableReligionSwitch"
     },

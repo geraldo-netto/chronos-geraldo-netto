@@ -450,7 +450,7 @@ const EXPORTS = {
         "MENU_STACKED_AGENDA_MIN_HEIGHT", "menuLayoutFor", "menuLayoutMetrics",
         "menuLayoutBudget", "menuLayoutMeasured", "isStackedLayout"],
     settingsFacade: ["CalendarSettings", "EventsSettings", "SHOW_EVENTS_KEY",
-        "SHOW_WEEK_NUMBERS_KEY", "WEEKEND_LENGTH_KEY", "SHOW_RELIGIOUS_OBSERVANCES_KEY",
+        "SHOW_WEEK_NUMBERS_KEY", "WEEKEND_LENGTH_KEY",
         "RELIGION_KEY_PREFIX", "RELIGION_IDS", "CUSTOM_FORMAT_KEY",
         "CUSTOM_TOOLTIP_FORMAT_KEY", "NO_HOLIDAYS"]
 };

@@ -39,7 +39,6 @@ var WEEKEND_LENGTH_VALUES = [1, 2]; // NOSONAR [S3504] -- GJS importer export
 var DEFAULT_WEEKEND_LENGTH = 2; // NOSONAR [S3504] -- GJS importer export
 var COUNTRY_KEY = "country"; // NOSONAR [S3504] -- GJS importer export
 var REGION_KEY_PREFIX = "region_"; // NOSONAR [S3504] -- GJS importer export
-var SHOW_RELIGIOUS_OBSERVANCES_KEY = "show-religious-observances"; // NOSONAR [S3504] -- GJS importer export
 var RELIGION_KEY_PREFIX = "religion-"; // NOSONAR [S3504] -- GJS importer export
 var CALENDAR_PLUGINS_KEY = "calendar-plugins";
 var CALENDAR_PLUGINS_REVISION_KEY = "calendar-plugins-revision";
@@ -295,17 +294,12 @@ var HolidaySettings = class HolidaySettings { // NOSONAR [S3504] -- GJS importer
     }
 
     get religiousIds() {
-        if (!this._settings.getValue(SHOW_RELIGIOUS_OBSERVANCES_KEY)) {
-            return [];
-        }
-
         return RELIGION_IDS.filter(
             (id) => this._settings.getValue(RELIGION_KEY_PREFIX + id));
     }
 
     connectReligionsChanged(callback) {
-        return [SHOW_RELIGIOUS_OBSERVANCES_KEY].concat(
-            RELIGION_IDS.map((id) => RELIGION_KEY_PREFIX + id))
+        return RELIGION_IDS.map((id) => RELIGION_KEY_PREFIX + id)
             .map((key) => this._settings.connect("changed::" + key, callback));
     }
 
@@ -405,7 +399,6 @@ if (typeof module !== "undefined") {
         DEFAULT_WEEKEND_LENGTH,
         COUNTRY_KEY,
         REGION_KEY_PREFIX,
-        SHOW_RELIGIOUS_OBSERVANCES_KEY,
         RELIGION_KEY_PREFIX,
         CALENDAR_PLUGINS_KEY,
         CALENDAR_PLUGINS_REVISION_KEY,

@@ -52,7 +52,7 @@ def prepare_applet(directory, project_root):
         if isinstance(entry, dict) and "default" in entry:
             entry["value"] = entry["default"]
     choices = {"show-weather": False, "show-events": False, "country": "none",
-               "show-religious-observances": False, "extra-country-calendars": [],
+               "extra-country-calendars": [],
                "calendar-plugins": []}
     for key, value in choices.items():
         schema[key]["value"] = value

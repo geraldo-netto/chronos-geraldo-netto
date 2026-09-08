@@ -1196,7 +1196,6 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
     const settings = {
         values: {
             country: null,
-            "show-religious-observances": true,
             "religion-islam": true,
             ...Object.fromEntries(rootModules.holidayConstants.REGION_COUNTRIES.map(
                 (country) => [`region_${country}`, country === "usa" ? "ny" : "global"]))
@@ -1245,7 +1244,6 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         "changed::country",
         ...rootModules.holidayConstants.REGION_COUNTRIES.map(
             (country) => `changed::region_${country}`),
-        "changed::show-religious-observances",
         ...rootModules.settingsFacade.RELIGION_IDS.map((id) => `changed::religion-${id}`),
         "changed::calendar-plugins",
         "changed::calendar-plugins-revision",
@@ -1292,6 +1290,13 @@ test("the provider lifecycle binds regions, defaults country, and refreshes the 
         ["religions", ["christianity", "islam"]]);
     assert.equal(calls.filter((row) => row[0] === "refresh").length, before + 2,
         "changing a religion repaints without restarting the applet");
+
+    settings.values["religion-christianity"] = false;
+    settings.values["religion-islam"] = false;
+    listeners["changed::religion-islam"]();
+    assert.deepEqual(calls.filter((row) => row[0] === "religions").at(-1), ["religions", []]);
+    assert.equal(calls.filter((row) => row[0] === "refresh").length, before + 3,
+        "clearing the last selection removes observances immediately");
 });
 
 function calendarSelectionLifecycle() {
@@ -1301,7 +1306,6 @@ function calendarSelectionLifecycle() {
     const settings = {
         values: {
             country: "none",
-            "show-religious-observances": false,
             "calendar-plugins": ["sample-calendar"],
             "extra-country-calendars": [{ country: "fra", region: "global" }]
         },
