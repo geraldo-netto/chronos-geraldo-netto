@@ -62,9 +62,8 @@ var AVIATION_WEATHER_BBOX_DEGREES = 1; // NOSONAR [S3504] -- GJS importer export
 // weather was described differently depending on which provider in the
 // failover chain answered.
 //
-// Closed ranges rather than thresholds: the gaps between the groups are not
-// codes Open-Meteo emits, and a threshold chain silently adopts them into
-// whichever class it happens to reach first.
+// Only the provider's explicit code enumeration describes a known condition:
+// https://open-meteo.com/en/docs#weathervariables
 //
 // WMO 1 (mainly clear) is 🌤 and WMO 2 (partly cloudy) is ⛅ because the other
 // two vendors already draw that line: aviationweather's FEW (one to two oktas)
@@ -73,18 +72,17 @@ var AVIATION_WEATHER_BBOX_DEGREES = 1; // NOSONAR [S3504] -- GJS importer export
 // "⛅ Partly cloudy" - different glyph, different wording, different accessible
 // name - according to which provider in the failover chain happened to answer,
 // which is the cross-provider disagreement this table was closed to prevent.
-const WMO_CONDITION_RANGES = [
-    [0, 0, "☀"],    // clear sky
-    [1, 1, "🌤"],   // mainly clear
-    [2, 2, "⛅"],   // partly cloudy
-    [3, 3, "☁"],    // overcast
-    [45, 48, "☁"],  // fog, depositing rime fog
-    [51, 67, "🌧"], // drizzle, freezing drizzle, rain, freezing rain
-    [71, 77, "🌨"], // snow fall, snow grains
-    [80, 82, "🌦"], // rain showers
-    [85, 86, "🌨"], // snow showers
-    [95, 99, "⛈"]  // thunderstorm, thunderstorm with hail
-];
+const WMO_CONDITION_ICONS = {
+    0: "☀",
+    1: "🌤", 2: "⛅",
+    3: "☁", 45: "☁", 48: "☁",
+    51: "🌧", 53: "🌧", 55: "🌧", 56: "🌧", 57: "🌧",
+    61: "🌧", 63: "🌧", 65: "🌧", 66: "🌧", 67: "🌧",
+    71: "🌨", 73: "🌨", 75: "🌨", 77: "🌨",
+    80: "🌦", 81: "🌦", 82: "🌦",
+    85: "🌨", 86: "🌨",
+    95: "⛈", 96: "⛈", 99: "⛈"
+};
 
 // The code comes off Open-Meteo's JSON, which a degraded or hostile endpoint
 // away sends a string, a float, a negative or nothing at all — and bare `<=`
@@ -96,9 +94,8 @@ function weatherIcon(weatherCode) {
         return WeatherFormat.WEATHER_UNKNOWN_CONDITION;
     }
 
-    const match = WMO_CONDITION_RANGES.find(
-        ([from, to]) => weatherCode >= from && weatherCode <= to);
-    return match ? match[2] : WeatherFormat.WEATHER_UNKNOWN_CONDITION;
+    return Object.hasOwn(WMO_CONDITION_ICONS, weatherCode) ?
+        WMO_CONDITION_ICONS[weatherCode] : WeatherFormat.WEATHER_UNKNOWN_CONDITION;
 }
 
 // The geocoders answer in whatever language they are asked in, and both of

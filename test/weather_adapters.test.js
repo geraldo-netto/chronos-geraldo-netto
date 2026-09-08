@@ -665,9 +665,8 @@ test("formats weather text and maps every fuzzed weather code to an icon", () =>
             `a temperature of ${String(missing)} is no reading at all`);
     }
 
-    // WMO 95-99 are thunderstorms — the most severe codes must never
-    // render as fair weather
-    for (const code of [95, 96, 97, 98, 99]) {
+    // Open-Meteo publishes exactly these thunderstorm codes.
+    for (const code of [95, 96, 99]) {
         assert.equal(Weather.weatherIcon(code), "⛈");
     }
 
@@ -678,11 +677,7 @@ test("formats weather text and maps every fuzzed weather code to an icon", () =>
         const code = nextCode();
         const icon = Weather.weatherIcon(code);
         assert.equal(typeof icon, "string");
-        if (code >= 95 && code <= 99) {
-            assert.equal(icon, "⛈");
-        } else {
-            assert.notEqual(icon, "⛈");
-        }
+        assert.equal(icon, WMO_CONDITIONS[code] || Weather.WEATHER_UNKNOWN_CONDITION);
     }
 
     // ...and the weathercode does not arrive as a tidy integer. It comes off
@@ -723,12 +718,15 @@ const WMO_CONDITIONS = {
     95: "⛈", 96: "⛈", 99: "⛈"
 };
 
-test("every published Open-Meteo code renders the condition it means", () => {
+test("every code from zero through 100 matches the published Open-Meteo enumeration", () => {
     const Weather = loadWeather();
 
-    for (const [code, icon] of Object.entries(WMO_CONDITIONS)) {
-        assert.equal(Weather.weatherIcon(Number(code)), icon,
-            `WMO ${code} => ${Weather.WEATHER_CONDITIONS[icon]}`);
+    for (let code = 0; code <= 100; code++) {
+        const icon = WMO_CONDITIONS[code] || Weather.WEATHER_UNKNOWN_CONDITION;
+        assert.equal(Weather.weatherIcon(code), icon, `WMO ${code}`);
+        assert.deepEqual(Weather.openMeteoReading({
+            current_weather: { temperature: 20, weathercode: code }
+        }), { condition: icon, temperatureC: 20 });
     }
 
     // the gaps between the groups are not codes Open-Meteo emits, and a
