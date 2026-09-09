@@ -1782,9 +1782,13 @@ test("provider initialization wires hover and event manager signals", (t) => {
     assert.equal(stub._eventListCoordinator.eventList(), undefined);
     stub._calendar = {
         getSelectedDate: () => "selected",
+        focusSelectedDay: () => calls.push(["focus-selected-day"]),
         refreshEventDataAvailability: () => calls.push(["event-data-availability"])
     };
     assert.equal(stub._eventListCoordinator.selectedDate(), "selected");
+    // T1162: the production coordinator must reach the live calendar's focus port.
+    stub._eventListCoordinator.focusSelectedDay();
+    assert.ok(calls.some((row) => row[0] === "focus-selected-day"));
     stub._eventListCoordinator.guard(
         "events-test", () => calls.push(["events-guard"]));
     stub._eventListCoordinator.onEnabledChanged();

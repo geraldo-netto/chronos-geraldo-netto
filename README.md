@@ -326,6 +326,8 @@ precedence over restoring the old event.
 When events arrive while the empty-state button has focus, focus moves to the
 first available event, or stays on the date heading for informational rows.
 Loading and empty-state refreshes preserve that button's focus.
+Disabling **Show Events** moves focus from the agenda to the selected calendar
+day and keeps the popup open.
 The popup also adjusts to the available screen area when monitors or panel sizes
 change, including while it is open.
 

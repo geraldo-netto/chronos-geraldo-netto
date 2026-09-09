@@ -230,6 +230,7 @@ class CinnamonCalendarApplet extends Applet.TextApplet {
             manager: this.events_manager,
             eventList: () => this.event_list,
             selectedDate: () => this._calendar.getSelectedDate(),
+            focusSelectedDay: () => this._calendar.focusSelectedDay(),
             guard: (source, fn) => this._guarded(source, fn),
             // Event availability gates the day-cell dots, and no manager
             // signal recomputes it when the setting flips.

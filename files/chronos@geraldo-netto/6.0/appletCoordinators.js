@@ -129,6 +129,7 @@ class AppletEventListCoordinator {
         this.manager = params.manager;
         this.eventList = params.eventList;
         this.selectedDate = params.selectedDate;
+        this.focusSelectedDay = params.focusSelectedDay;
         this.guard = params.guard;
         this.onEnabledChanged = params.onEnabledChanged || (() => {});
         this._appliedShowEvents = undefined;
@@ -141,6 +142,13 @@ class AppletEventListCoordinator {
         }
         const active = this.manager.is_active();
         const enabled = Boolean(showEvents);
+        if (!enabled) {
+            const focus = global.stage?.get_key_focus();
+            if (focus && list.actor.contains(focus)) {
+                // Hiding a focused column drops focus to the stage and closes the popup.
+                this.focusSelectedDay();
+            }
+        }
         list.actor.visible = enabled;
         list.set_reporting_enabled(enabled);
         list.set_unavailable(enabled && !active);

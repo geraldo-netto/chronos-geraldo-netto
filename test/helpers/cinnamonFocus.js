@@ -64,6 +64,33 @@
         checks.push(name);
     }
 
+    async function hideAgenda(name, target, data, preserveExternal = false) {
+        await prepare();
+        list.set_events(data(), false);
+        await settleRows();
+        applet._calendar.focusSelectedDay();
+        const selectedDay = global.stage.get_key_focus();
+        const focused = target(selectedDay);
+        focused.grab_key_focus();
+        assert(global.stage.get_key_focus() === focused, `${name}: initial focus is assigned`);
+        applet._eventListCoordinator.apply(false);
+        await nextTurn();
+        assert(!list.actor.visible, `${name}: agenda is hidden`);
+        assert(applet.menu.isOpen, `${name}: popup remains open`);
+        assert(global.stage.get_key_focus() === (preserveExternal ? focused : selectedDay),
+            `${name}: focus reaches its destination`);
+        checks.push(name);
+    }
+
+    async function checkHiding() {
+        await hideAgenda("T1162 focused event", () => list.rows[0].actor, () => agenda(1));
+        await hideAgenda("T1162 focused heading", () => list.selected_date_label, () => null);
+        await hideAgenda("T1162 focused empty button", () => list.no_events_button, () => null);
+        await hideAgenda("T1162 external focus", selected =>
+            applet._calendar._gridView.dayCells.find(cell => cell.button !== selected).button,
+        () => null, true);
+    }
+
     async function run() {
         await arrival("T1161 event arrival", () => agenda(1), () => list.rows[0].actor);
         await arrival("T1161 chunked arrival", () => agenda(65), () => list.rows[0].actor);
@@ -79,6 +106,7 @@
         assert(applet.menu.isOpen && global.stage.get_key_focus() === external,
             "T1161: incoming events preserve calendar focus");
         checks.push("T1161 external focus");
+        await checkHiding();
         return checks;
     }
 

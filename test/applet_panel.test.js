@@ -157,6 +157,112 @@ test("turning events off reaches the calendar grid's data-availability state", (
         "disabling clears state instead of starting a fetch that cannot run");
 });
 
+function agendaVisibilityFixture(t, owner) {
+    const state = { focus: null, visible: true, popupOpen: true, changes: [] };
+    const column = {
+        contains(actor) {
+            for (let current = actor; current; current = current.parent) {
+                if (current === this) return true;
+            }
+            return false;
+        },
+        get visible() { return state.visible; },
+        set visible(value) {
+            state.changes.push(["visible", value, state.focus]);
+            if (!value && this.contains(state.focus)) {
+                state.focus = stage;
+                state.popupOpen = false;
+            }
+            state.visible = value;
+        }
+    };
+    const row = { parent: column };
+    const actors = {
+        row,
+        rowChild: { parent: row },
+        heading: { parent: column },
+        emptyButton: { parent: column },
+        column,
+        selectedDay: {},
+        external: {},
+        none: null
+    };
+    const stage = { get_key_focus: () => state.focus };
+    const originalStage = global.stage;
+    global.stage = stage;
+    t.after(() => { global.stage = originalStage; });
+    const applet = Object.assign(Object.create(Proto), {
+        show_events: false,
+        _guarded: (source, callback) => callback()
+    });
+    applet._eventListCoordinator = new CoordinatorModule.AppletEventListCoordinator({
+        manager: { is_active: () => true, disableIfOff() {}, select_date() {} },
+        eventList: () => ({
+            actor: column,
+            set_reporting_enabled() {},
+            set_unavailable() {},
+            refresh_time_format() {}
+        }),
+        selectedDate: () => "selected",
+        focusSelectedDay() {
+            state.changes.push(["focus", actors.selectedDay]);
+            state.focus = actors.selectedDay;
+        },
+        guard: (source, callback) => callback()
+    });
+    applet._eventListCoordinator.apply(true);
+    state.changes.length = 0;
+    state.focus = actors[owner];
+    return { applet, state, actors };
+}
+
+for (const owner of ["row", "rowChild", "heading", "emptyButton", "column"]) {
+    test(`T1162 disabling Show Events transfers ${owner} focus before hiding the agenda`, t => {
+        const { applet, state, actors } = agendaVisibilityFixture(t, owner);
+
+        applet._onShowEventsChanged();
+
+        assert.equal(state.popupOpen, true, "the popup never loses its focused descendant");
+        assert.equal(state.focus, actors.selectedDay);
+        assert.deepEqual(state.changes, [
+            ["focus", actors.selectedDay], ["visible", false, actors.selectedDay]
+        ], "focus reaches the calendar before the column becomes hidden");
+        assert.equal(state.visible, false);
+    });
+}
+
+for (const owner of ["selectedDay", "external", "none"]) {
+    test(`T1162 disabling Show Events preserves ${owner} focus`, t => {
+        const { applet, state, actors } = agendaVisibilityFixture(t, owner);
+
+        applet._onShowEventsChanged();
+
+        assert.equal(state.focus, actors[owner]);
+        assert.deepEqual(state.changes, [["visible", false, actors[owner]]]);
+        assert.equal(state.visible, false);
+    });
+}
+
+test("T1162 showing events preserves focus inside the agenda", t => {
+    const { applet, state, actors } = agendaVisibilityFixture(t, "heading");
+    applet.show_events = true;
+
+    applet._onShowEventsChanged();
+
+    assert.equal(state.focus, actors.heading);
+    assert.deepEqual(state.changes, [["visible", true, actors.heading]]);
+});
+
+test("T1162 disabling events without a stage still hides the column", t => {
+    const { applet, state } = agendaVisibilityFixture(t, "none");
+    global.stage = null;
+
+    applet._onShowEventsChanged();
+
+    assert.deepEqual(state.changes, [["visible", false, null]]);
+    assert.equal(state.visible, false);
+});
+
 // The per-city temperature, the condition in words and the service that answered
 // existed only in the panel's mouse tooltip: a keyboard-only or screen-reader
 // user got none of it, and the provider credit is a courtesy the services are

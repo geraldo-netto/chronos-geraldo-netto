@@ -24,7 +24,8 @@ A failed import returns a nonzero status and prints the isolated session logs
 to stderr.
 
 The ordinary Python suite runs this check, including real popup focus
-regressions for asynchronous event and holiday arrivals. It also tests the
+regressions for asynchronous event and holiday arrivals and disabling Show
+Events while the agenda has focus. It also tests the
 harness's isolation and teardown with fake processes. The native runtime and
 display dependencies above are required for `npm test`, including in CI.
 `npm run check:cjs-syntax` remains the lightweight parser check; it cannot prove

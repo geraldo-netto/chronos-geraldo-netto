@@ -129,7 +129,7 @@ class NativeImportHarnessTests(unittest.TestCase):
                 mock.patch.object(CHECK, "stop_process"), redirect_stdout(io.StringIO()):
             self.assertEqual(CHECK.run_isolated(self.directory), 0)
 
-    def test_T1161_native_popup_preserves_focus_on_asynchronous_arrivals(self):
+    def test_T1161_T1162_native_popup_preserves_focus_on_arrival_and_hiding(self):
         result = subprocess.run(["/usr/bin/python3", str(SCRIPT)],
                                 capture_output=True, text=True, timeout=120)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -137,7 +137,8 @@ class NativeImportHarnessTests(unittest.TestCase):
         self.assertEqual(report["focus"]["failures"], [])
         self.assertEqual(report["focus"]["checks"], [
             "T1161 event arrival", "T1161 chunked arrival", "T1161 holiday arrival",
-            "T1161 external focus"])
+            "T1161 external focus", "T1162 focused event", "T1162 focused heading",
+            "T1162 focused empty button", "T1162 external focus"])
 
     def test_timeout_terminates_the_whole_private_session_group(self):
         process = mock.Mock(pid=987654)
