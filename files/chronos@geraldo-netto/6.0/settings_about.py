@@ -14,8 +14,9 @@ import sys
 from pathlib import Path
 
 import gi
+gi.require_version("Gdk", "3.0")
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
+from gi.repository import Gdk, Gtk
 from xapp.SettingsWidgets import SettingsPage, SettingsWidget
 
 
@@ -164,15 +165,11 @@ def link_button(label, uri):
     return link
 
 
-def service_row(name, uri, description, attribution):
+def service_row(name, uri, description):
     summary = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
     summary.pack_start(link_button(name, uri), False, False, 0)
     summary.pack_start(text_label("— %s" % description), True, True, 0)
-    children = [summary]
-    if attribution:
-        children.append(link_button(*attribution))
-
-    return content_row(*children)
+    return content_row(summary)
 
 
 class AboutPage(SettingsPage):
@@ -215,16 +212,16 @@ class AboutPage(SettingsPage):
     def _add_services(self, title, subtitle, services):
         section = self.add_section(title, subtitle)
         for _runtime_name, display_name, uri, description, attribution in services:
-            section.add_row(service_row(
-                display_name, uri, description, attribution
-            ))
+            section.add_row(service_row(display_name, uri, description))
+            if attribution:
+                section.add_row(content_row(link_button(*attribution)))
 
 
 class AboutWindow(Gtk.Window):
     def __init__(self):
         metadata = read_metadata()
         super().__init__(title=_(metadata["name"]))
-        self.set_default_size(800, 650)
+        self.set_default_size(800, -1)
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_icon_from_file(str(APPLET_DIR / "icon.png"))
 
@@ -233,10 +230,18 @@ class AboutWindow(Gtk.Window):
             Gtk.PolicyType.NEVER,
             Gtk.PolicyType.AUTOMATIC,
         )
+        self.scroller.set_propagate_natural_height(True)
         self.page = AboutPage({}, None)
         self.scroller.add(self.page)
         self.add(self.scroller)
+        self.connect("realize", self._on_realize)
         self.connect("destroy", Gtk.main_quit)
+
+    def _on_realize(self, _widget):
+        self.get_window().set_functions(
+            Gdk.WMFunction.MOVE | Gdk.WMFunction.RESIZE |
+            Gdk.WMFunction.MINIMIZE | Gdk.WMFunction.CLOSE
+        )
 
 
 def show_about_window():

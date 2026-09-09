@@ -340,6 +340,7 @@ class GtkStub:
         self.args = args
         self.kwargs = kwargs
         self.children = []
+        self.propagate_natural_height = False
         self._style_context = StyleContext()
         self._accessible = AtkObject()
 
@@ -378,6 +379,9 @@ class GtkStub:
 
     def set_policy(self, horizontal, vertical):
         self.policy = (horizontal, vertical)
+
+    def set_propagate_natural_height(self, propagate):
+        self.propagate_natural_height = propagate
 
 
 class GtkLabel(GtkStub):
@@ -838,6 +842,8 @@ def install_stubs():
     gi = types.ModuleType("gi")
     gi.require_version = lambda *_args: None
     repository = types.ModuleType("gi.repository")
+    repository.Gdk = types.SimpleNamespace(WMFunction=types.SimpleNamespace(
+        ALL=1, RESIZE=2, MOVE=4, MINIMIZE=8, MAXIMIZE=16, CLOSE=32))
     repository.Pango = types.SimpleNamespace(EllipsizeMode=types.SimpleNamespace(END=3))
     gtk = types.SimpleNamespace(
         MessageDialog=GtkMessageDialog,

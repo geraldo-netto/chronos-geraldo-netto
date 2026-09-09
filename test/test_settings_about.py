@@ -2,6 +2,7 @@
 
 import json
 import re
+from unittest import mock
 
 from helpers.settings_widgets_fixture import (
     APPLET_DIR,
@@ -146,21 +147,26 @@ class AboutPageTests(unittest.TestCase):
             ],
         )
 
-    def test_service_rows_pair_links_with_descriptions(self):
+    def test_service_and_attribution_links_have_separate_rows(self):
         page, _metadata = self.page_and_metadata()
         for section, services in (
             (page.sections[1], self.module.WEATHER_SERVICES),
             (page.sections[2], self.module.HOLIDAY_SERVICES),
         ):
-            for row, (_runtime_name, name, _uri, description, attribution) in zip(
-                section.rows, services
-            ):
-                children = row.content_widget.children
+            rows = iter(section.rows)
+            for _runtime_name, name, _uri, description, attribution in services:
+                children = next(rows).content_widget.children
+                self.assertEqual(len(children), 1)
                 summary = children[0]
                 self.assertEqual(summary.kwargs["orientation"], 2)
                 self.assertEqual(summary.children[0].label, name)
                 self.assertEqual(summary.children[1].text, "— %s" % description)
-                self.assertEqual(len(children), 2 if attribution else 1)
+                if attribution:
+                    credit = next(rows).content_widget.children
+                    self.assertEqual(len(credit), 1)
+                    self.assertIsInstance(credit[0], GtkLinkButton)
+                    self.assertEqual((credit[0].label, credit[0].uri), attribution)
+            self.assertEqual(list(rows), [])
 
     def test_about_inventory_matches_the_live_service_adapters(self):
         weather = (APPLET_DIR / "weatherServiceAdapters.js").read_text()
@@ -254,11 +260,12 @@ class AboutPageTests(unittest.TestCase):
 
         self.assertIs(window, GtkWindow.instances[-1])
         self.assertEqual(window.title, metadata["name"])
-        self.assertEqual(window.default_size, (800, 650))
+        self.assertEqual(window.default_size, (800, -1))
         self.assertEqual(window.position, 1)
         self.assertEqual(window.icon_path, str(APPLET_DIR / "icon.png"))
         self.assertTrue(window.shown)
         self.assertEqual(window.scroller.policy, (0, 1))
+        self.assertTrue(window.scroller.propagate_natural_height)
         self.assertIs(window.scroller.children[0], window.page)
         self.assertIs(window.children[0], window.scroller)
         self.assertEqual(
@@ -269,7 +276,19 @@ class AboutPageTests(unittest.TestCase):
                 "Holiday services",
             ],
         )
-        self.assertEqual(window.handlers, [("destroy", self.module.Gtk.main_quit)])
+        self.assertIs(dict(window.handlers)["destroy"], self.module.Gtk.main_quit)
+
+    def test_about_window_disables_maximize_and_keeps_other_window_actions(self):
+        window = self.module.AboutWindow()
+        native = mock.Mock()
+        with mock.patch.object(window, "get_window", return_value=native, create=True):
+            dict(window.handlers)["realize"](window)
+        native.set_functions.assert_called_once()
+        functions = native.set_functions.call_args.args[0]
+        self.assertFalse(functions & self.module.Gdk.WMFunction.MAXIMIZE)
+        self.assertFalse(functions & self.module.Gdk.WMFunction.ALL)
+        for action in ("MOVE", "RESIZE", "MINIMIZE", "CLOSE"):
+            self.assertTrue(functions & getattr(self.module.Gdk.WMFunction, action))
 
 
 if __name__ == "__main__":
