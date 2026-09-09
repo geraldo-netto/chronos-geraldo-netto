@@ -80,7 +80,7 @@ class AboutPageTests(unittest.TestCase):
                 "Simon Wiles (simonwiles)": "https://github.com/simonwiles",
                 "Open-Meteo": "https://open-meteo.com/",
                 "Nominatim": "https://nominatim.org/",
-                "© OpenStreetMap contributors":
+                "OpenStreetMap contributors":
                     "https://www.openstreetmap.org/copyright",
                 "Aviation Weather Center": "https://aviationweather.gov/",
                 "MET Norway": "https://www.met.no/en",
@@ -278,16 +278,18 @@ class AboutPageTests(unittest.TestCase):
         )
         self.assertIs(dict(window.handlers)["destroy"], self.module.Gtk.main_quit)
 
-    def test_about_window_disables_maximize_and_keeps_other_window_actions(self):
+    def test_about_window_locks_resize_and_maximize(self):
         window = self.module.AboutWindow()
+        self.assertFalse(window.resizable)
         native = mock.Mock()
         with mock.patch.object(window, "get_window", return_value=native, create=True):
             dict(window.handlers)["realize"](window)
         native.set_functions.assert_called_once()
         functions = native.set_functions.call_args.args[0]
         self.assertFalse(functions & self.module.Gdk.WMFunction.MAXIMIZE)
+        self.assertFalse(functions & self.module.Gdk.WMFunction.RESIZE)
         self.assertFalse(functions & self.module.Gdk.WMFunction.ALL)
-        for action in ("MOVE", "RESIZE", "MINIMIZE", "CLOSE"):
+        for action in ("MOVE", "MINIMIZE", "CLOSE"):
             self.assertTrue(functions & getattr(self.module.Gdk.WMFunction, action))
 
 

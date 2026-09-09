@@ -608,8 +608,8 @@ msgstr "Modifica voce"
 
 #. 6.0->settings-schema.json->openstreetmap-attribution->description
 #: 6.0/settings_about.py:37
-msgid "© OpenStreetMap contributors"
-msgstr "© Contributori OpenStreetMap"
+msgid "OpenStreetMap contributors"
+msgstr "Contributori OpenStreetMap"
 
 #: 6.0/settings_about.py:46
 msgid "Primary place search and weather forecast service."

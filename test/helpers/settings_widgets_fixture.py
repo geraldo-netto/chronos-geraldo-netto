@@ -460,6 +460,7 @@ class GtkWindow(GtkStub):
         super().__init__(*args, **kwargs)
         self.title = kwargs.get("title")
         self.default_size = None
+        self.resizable = True
         self.position = None
         self.icon_path = None
         self.handlers = []
@@ -468,6 +469,9 @@ class GtkWindow(GtkStub):
 
     def set_default_size(self, width, height):
         self.default_size = (width, height)
+
+    def set_resizable(self, resizable):
+        self.resizable = resizable
 
     def set_position(self, position):
         self.position = position

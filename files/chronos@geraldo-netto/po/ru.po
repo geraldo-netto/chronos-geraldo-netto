@@ -605,8 +605,8 @@ msgstr "Редактировать элемент"
 
 #. 6.0->settings-schema.json->openstreetmap-attribution->description
 #: 6.0/settings_about.py:37
-msgid "© OpenStreetMap contributors"
-msgstr "© Участники OpenStreetMap"
+msgid "OpenStreetMap contributors"
+msgstr "Участники OpenStreetMap"
 
 #: 6.0/settings_about.py:46
 msgid "Primary place search and weather forecast service."

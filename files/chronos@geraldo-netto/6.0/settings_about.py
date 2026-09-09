@@ -35,7 +35,7 @@ CONTRIBUTOR_LINKS = (
     ("Simon Wiles (simonwiles)", "https://github.com/simonwiles"),
 )
 OPENSTREETMAP_ATTRIBUTION = (
-    _("© OpenStreetMap contributors"),
+    _("OpenStreetMap contributors"),
     "https://www.openstreetmap.org/copyright",
 )
 
@@ -222,6 +222,7 @@ class AboutWindow(Gtk.Window):
         metadata = read_metadata()
         super().__init__(title=_(metadata["name"]))
         self.set_default_size(800, -1)
+        self.set_resizable(False)
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_icon_from_file(str(APPLET_DIR / "icon.png"))
 
@@ -239,8 +240,7 @@ class AboutWindow(Gtk.Window):
 
     def _on_realize(self, _widget):
         self.get_window().set_functions(
-            Gdk.WMFunction.MOVE | Gdk.WMFunction.RESIZE |
-            Gdk.WMFunction.MINIMIZE | Gdk.WMFunction.CLOSE
+            Gdk.WMFunction.MOVE | Gdk.WMFunction.MINIMIZE | Gdk.WMFunction.CLOSE
         )
 
 

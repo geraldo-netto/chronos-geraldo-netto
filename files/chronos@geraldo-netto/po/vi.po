@@ -599,8 +599,8 @@ msgstr "Chỉnh sửa mục"
 
 #. 6.0->settings-schema.json->openstreetmap-attribution->description
 #: 6.0/settings_about.py:37
-msgid "© OpenStreetMap contributors"
-msgstr "© Người đóng góp OpenStreetMap"
+msgid "OpenStreetMap contributors"
+msgstr "Người đóng góp OpenStreetMap"
 
 #: 6.0/settings_about.py:46
 msgid "Primary place search and weather forecast service."
