@@ -415,13 +415,11 @@ Two things about that split will bite you:
   as `undefined` from another module. `test/applet_static.test.js` enforces this;
   Node cannot see the difference on its own.
 - **Changing a root module needs a full Cinnamon restart.** GJS caches importer
-  modules for the life of the process, so reloading the applet (`Alt`+`F2` → `r`,
-  or the Applets manager's reload) re-runs the `6.0/` tree against the *old* copy
-  of everything above it. Verified on Cinnamon 6.6.9: after a reload that had
-  added `NetworkState` to `ioUtils.js`, a freshly re-read
-  `6.0/appletLifecycle.js` ran against the cached `ioUtils` and threw
-  `IoUtils.NetworkState is not a constructor` until `global.reexec_self()`. The
-  `6.0/` shims resolve through that same cached
+  modules for the life of the process. The Applets manager's **Reload** action
+  and `ReloadXlet` re-run the `6.0/` tree against the *old* root modules.
+  On X11, `Alt`+`F2` → `r` (or `Ctrl`+`Alt`+`Esc`) restarts the entire Cinnamon
+  process and clears that cache. On Wayland, log out and back in instead.
+  The `6.0/` shims resolve through that same cached
   `imports.ui.appletManager.applets[uuid]` subtree, so they are not a way around
   it. This is a release constraint as much as a development one — see
   [Releasing](#releasing).

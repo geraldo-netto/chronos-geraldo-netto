@@ -4,7 +4,6 @@
 
 | id | status | severity | effort | description |
 | --- | --- | --- | --- | --- |
-| T1166 | open | low | xs | Correct README.md:407–413, which groups Alt+F2 → r with applet-only reload and says it preserves cached root modules. The installed Cinnamon 6.6.9 runDialog.js:45 calls Main.restartCinnamon(true), whose main.js:1614–1632 calls global.reexec_self() on X11, performing the full restart the documentation requires. Distinguish the X11 restart command from Applets manager/ReloadXlet reload, and retain the Wayland logout requirement. |
 
 ## Blocked / Deferred
 
