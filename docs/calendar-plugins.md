@@ -117,8 +117,9 @@ invalid dates, control characters, unsafe IDs, and malformed documents are
 rejected. Calendar names are limited to 100 characters, event names to 160,
 categories to 64, source names/traditions/locations to 160, and source URLs to
 2048. A file may contain at most 4096 events and is limited to 1 MiB. Up to 32
-personal plugins can be installed. Files must be regular files, not symbolic
-links. An invalid plugin does not prevent other calendars from rendering.
+personal plugins can be installed. Only regular JSON files consume those
+slots. Symbolic links and directories are reported as unsupported and left
+untouched. An invalid plugin does not prevent other calendars from rendering.
 
 Refreshing, changing the selection, clearing it, or removing the applet cancels
 the previous load. Once retired, remaining decoding and validation are skipped,

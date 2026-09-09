@@ -224,7 +224,7 @@ class ManifestFilesTests(unittest.TestCase):
         (self.installed / "example.link.json").symlink_to(source)
         (self.installed / "nested.json").mkdir()
         found, errors = DATA.discover_plugins(self.installed)
-        self.assertEqual(len(found), 4)
+        self.assertEqual([entry["path"].name for entry in found], ["bad.json", "wrong.json"])
         self.assertTrue(all(entry["manifest"] is None for entry in found))
         self.assertEqual(len(errors), 4)
         self.assertTrue(source.exists())
@@ -300,6 +300,65 @@ process.stdout.write(JSON.stringify(validateCalendarManifest(JSON.parse(fs.readF
             choices, errors = DATA.discover_plugins(self.installed)
         self.assertEqual(len(choices), 2)
         self.assertEqual(len(errors), 1)
+
+    def _unsupported_neighbors(self, kind):
+        directory = self.root / kind
+        directory.mkdir()
+        outside = write_manifest(self.root, manifest("outside.calendar"), kind + ".json")
+        target = self.root / "missing.json" if kind == "dangling" else outside
+        paths = [directory / f"aaa{index:02}.json" for index in range(DATA.MAX_PLUGINS)]
+        for path in paths:
+            if kind == "directory":
+                path.mkdir()
+            else:
+                path.symlink_to(target)
+        return directory, paths, outside
+
+    def _assert_unsupported_neighbors_untouched(self, kind, paths, outside):
+        self.assertEqual(DATA.read_manifest(outside), manifest("outside.calendar"))
+        check_type = Path.is_dir if kind == "directory" else Path.is_symlink
+        self.assertTrue(all(check_type(path) for path in paths))
+        self.assertFalse((self.root / "missing.json").exists())
+
+    def test_T1164_unsupported_neighbors_do_not_hide_calendars_at_quota(self):
+        for kind in ("dangling", "symlink", "directory"):
+            with self.subTest(kind=kind):
+                directory, paths, outside = self._unsupported_neighbors(kind)
+                identifiers = [f"example.valid{index:02}" for index in range(DATA.MAX_PLUGINS)]
+                for identifier in identifiers:
+                    write_manifest(directory, manifest(identifier))
+                found, errors = DATA.discover_plugins(directory)
+                self.assertEqual([row["manifest"]["id"] for row in found if row["manifest"]], identifiers)
+                self.assertTrue(errors, "T1164: unsupported filesystem entries must remain reported")
+                self.assertNotIn("Only the first 32 installed calendar files are loaded.", errors)
+                self._assert_unsupported_neighbors_untouched(kind, paths, outside)
+
+    def test_T1164_unsupported_neighbors_do_not_consume_import_slots(self):
+        for kind in ("dangling", "symlink", "directory"):
+            with self.subTest(kind=kind):
+                directory, paths, outside = self._unsupported_neighbors(kind)
+                for index in range(DATA.MAX_PLUGINS - 1):
+                    write_manifest(directory, manifest(f"example.valid{index:02}"))
+                source = write_manifest(self.root, manifest("example.imported"))
+                self.assertEqual(DATA.import_plugin(source, directory), manifest("example.imported"))
+                self.assertEqual(DATA.read_manifest(directory / source.name), manifest("example.imported"))
+                excess = write_manifest(self.root, manifest("example.excess"))
+                with self.assertRaisesRegex(ValueError, "at most 32"):
+                    DATA.import_plugin(excess, directory)
+                self._assert_unsupported_neighbors_untouched(kind, paths, outside)
+
+    def test_T1164_unsupported_destination_is_not_a_regular_file_replacement(self):
+        for index in range(DATA.MAX_PLUGINS):
+            write_manifest(self.installed, manifest(f"example.valid{index:02}"))
+        source = write_manifest(self.root, manifest("example.imported"))
+        outside = write_manifest(self.root, manifest("outside.calendar"))
+        destination = self.installed / source.name
+        destination.symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, "at most 32"):
+            DATA.import_plugin(source, self.installed)
+        self.assertTrue(destination.is_symlink())
+        self.assertEqual(destination.readlink(), outside)
+        self.assertEqual(DATA.read_manifest(outside), manifest("outside.calendar"))
 
     def test_import_failure_leaves_existing_source_and_cleans_temporary_file(self):
         source = write_manifest(self.root, manifest())

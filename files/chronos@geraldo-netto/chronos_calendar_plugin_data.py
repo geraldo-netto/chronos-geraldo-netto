@@ -175,13 +175,26 @@ def read_manifest(path):
     return validate_manifest(_read_json(path))
 
 
+def _regular_plugin_paths(directory, errors=None):
+    for path in directory.glob("*.json"):
+        try:
+            _require(stat.S_ISREG(path.lstat().st_mode), "file", "expected a regular file")
+        except (OSError, ValueError) as error:
+            if errors is not None and len(errors) < MAX_PLUGINS:
+                errors.append(str(error))
+        else:
+            yield path
+
+
 def discover_plugins(directory=None):
     directory = Path(directory) if directory is not None else plugin_directory()
     if not directory.exists():
         return [], []
     _require(not directory.is_symlink(), "directory", "symbolic links are not supported")
-    paths = heapq.nsmallest(MAX_PLUGINS + 1, directory.glob("*.json"))
-    errors = ["Only the first 32 installed calendar files are loaded."] if len(paths) > MAX_PLUGINS else []
+    errors = []
+    paths = heapq.nsmallest(MAX_PLUGINS + 1, _regular_plugin_paths(directory, errors))
+    if len(paths) > MAX_PLUGINS:
+        errors.append("Only the first 32 installed calendar files are loaded.")
     found = []
     for path in paths[:MAX_PLUGINS]:
         manifest = None
@@ -201,8 +214,9 @@ def import_plugin(source_path, directory=None):
     directory.mkdir(parents=True, exist_ok=True)
     _require(not directory.is_symlink(), "directory", "symbolic links are not supported")
     destination = directory / (manifest["id"] + ".json")
-    installed = heapq.nsmallest(MAX_PLUGINS, directory.glob("*.json"))
-    _require(destination.exists() or len(installed) < MAX_PLUGINS, "directory", "at most 32 calendars can be installed")
+    installed = heapq.nsmallest(MAX_PLUGINS, _regular_plugin_paths(directory))
+    replacing = not destination.is_symlink() and destination.is_file()
+    _require(replacing or len(installed) < MAX_PLUGINS, "directory", "at most 32 calendars can be installed")
     contents = json.dumps(manifest, ensure_ascii=False, indent=2).encode("utf-8") + b"\n"
     if len(contents) > MAX_FILE_BYTES:
         contents = json.dumps(manifest, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
