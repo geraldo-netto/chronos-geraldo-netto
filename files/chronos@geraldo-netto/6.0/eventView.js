@@ -223,6 +223,7 @@ class EventListRenderer {
     // The first chunk is built straight away, so the column is never empty while
     // something is there to show; the rest follow on idles, a chunk at a time.
     _buildRows(event_data_list) {
+        const preserveFocus = this.list.parkEmptyStateFocus() || this._preserveFocus;
         this.list.hideNoEvents();
         this.list.setCurrentTimestamp(event_data_list.timestamp);
 
@@ -237,7 +238,7 @@ class EventListRenderer {
             events,
             index: 0,
             scroll_to_row: null,
-            preserveFocus: this._preserveFocus,
+            preserveFocus,
             timestamp: event_data_list.timestamp
         };
 
@@ -679,6 +680,17 @@ class EventList {
     clearRows() {
         this.events_box.get_children().forEach((actor) => actor.destroy());
         this._rows = [];
+    }
+
+    parkEmptyStateFocus() {
+        const focus = global.stage?.get_key_focus();
+        if (!focus || !this.no_events_box.contains(focus)) {
+            return false;
+        }
+        this._rowFocus = { id: null, index: 0, occurrence: 0,
+            day: DateMath.civilDateKey(this.selected_civil_date) };
+        this.selected_date_label.grab_key_focus();
+        return true;
     }
 
     // Cinnamon closes a popup as soon as focus escapes it. Park focus on the

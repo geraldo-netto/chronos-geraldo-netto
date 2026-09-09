@@ -1,4 +1,4 @@
-"""Native-check isolation and cleanup without launching a desktop in the suite."""
+"""Native Cinnamon popup regressions, harness isolation, and cleanup."""
 
 import hashlib
 import importlib.util
@@ -124,9 +124,20 @@ class NativeImportHarnessTests(unittest.TestCase):
                 mock.patch.object(CHECK.subprocess, "Popen", return_value=process), \
                 mock.patch.object(CHECK.subprocess, "check_output", return_value="cjs 115.1"), \
                 mock.patch.object(CHECK, "evaluator", return_value=evaluate), \
+                mock.patch.object(CHECK, "check_focus", return_value={"failures": []}), \
                 mock.patch.object(CHECK.time, "sleep"), \
                 mock.patch.object(CHECK, "stop_process"), redirect_stdout(io.StringIO()):
             self.assertEqual(CHECK.run_isolated(self.directory), 0)
+
+    def test_T1161_native_popup_preserves_focus_on_asynchronous_arrivals(self):
+        result = subprocess.run(["/usr/bin/python3", str(SCRIPT)],
+                                capture_output=True, text=True, timeout=120)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["focus"]["failures"], [])
+        self.assertEqual(report["focus"]["checks"], [
+            "T1161 event arrival", "T1161 chunked arrival", "T1161 holiday arrival",
+            "T1161 external focus"])
 
     def test_timeout_terminates_the_whole_private_session_group(self):
         process = mock.Mock(pid=987654)

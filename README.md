@@ -323,6 +323,9 @@ Agenda updates keep keyboard focus on a surviving event. If that event disappear
 focus moves to the next available row, then the previous row, or the date heading
 when no event can be activated. Moving focus yourself during an update takes
 precedence over restoring the old event.
+When events arrive while the empty-state button has focus, focus moves to the
+first available event, or stays on the date heading for informational rows.
+Loading and empty-state refreshes preserve that button's focus.
 The popup also adjusts to the available screen area when monitors or panel sizes
 change, including while it is open.
 

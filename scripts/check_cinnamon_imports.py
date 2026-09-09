@@ -8,7 +8,7 @@
 # This program comes with ABSOLUTELY NO WARRANTY. See the LICENSE file beside
 # this one, or <https://www.gnu.org/licenses/old-licenses/gpl-2.0.html>.
 
-"""Import the shipped applet in a disposable native Cinnamon desktop."""
+"""Check shipped imports and popup focus in a disposable Cinnamon desktop."""
 
 import hashlib
 import json
@@ -146,6 +146,12 @@ def import_script(directory, names):
     }})()"""
 
 
+def check_focus(evaluate, cinnamon):
+    script = PROJECT_ROOT / "test" / "helpers" / "cinnamonFocus.js"
+    evaluate(script.read_text(encoding="utf-8"))
+    return wait_for(evaluate, "global.chronosFocusRegression", cinnamon)
+
+
 def run_isolated(directory):
     verify_isolation(directory)
     with (directory / "cinnamon.log").open("w") as log:
@@ -161,10 +167,11 @@ def run_isolated(directory):
                 wait_for(evaluate, f"{APPLET_LOOKUP}._calendar._gridView.dayCells.length === 42", cinnamon)
                 inventory = json.loads((directory / "inventory.json").read_text())
                 report = evaluate(import_script(directory, list(inventory)))
+                report["focus"] = check_focus(evaluate, cinnamon)
                 report["sha256"] = inventory
                 report["cjsVersion"] = subprocess.check_output(["cjs", "--version"], text=True).strip()
                 print(json.dumps(report, indent=2), flush=True)
-                return int(bool(report["failures"]))
+                return int(bool(report["failures"] or report["focus"]["failures"]))
             finally:
                 stop_process(cinnamon)
         finally:

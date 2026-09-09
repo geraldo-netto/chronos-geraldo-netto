@@ -23,8 +23,10 @@ CJS versions, imported paths, failures and SHA-256 hashes of the copied source.
 A failed import returns a nonzero status and prints the isolated session logs
 to stderr.
 
-This is a manual integration check outside ordinary lint and tests. The
-ordinary suite tests the harness's isolation and teardown with fake processes.
+The ordinary Python suite runs this check, including real popup focus
+regressions for asynchronous event and holiday arrivals. It also tests the
+harness's isolation and teardown with fake processes. The native runtime and
+display dependencies above are required for `npm test`, including in CI.
 `npm run check:cjs-syntax` remains the lightweight parser check; it cannot prove
 that a real module imports or that the applet constructs.
 

@@ -152,6 +152,15 @@ class MockActor {
         this.visible = false;
     }
 
+    get visible() { return this._visible; }
+
+    set visible(value) {
+        this._visible = value;
+        if (value === false && global.stage && this.contains(global.stage.get_key_focus())) {
+            global.stage.set_key_focus(null);
+        }
+    }
+
     destroy() {
         if (global.stage && this.contains(global.stage.get_key_focus())) {
             global.stage.set_key_focus(null);
@@ -1260,6 +1269,67 @@ function focusAgenda(ids, timestamp) {
     }));
     return { timestamp, length: events.length, get_event_list: () => events };
 }
+
+test("T1161 event arrivals preserve focus and popup from empty and loading states", (t) => {
+    const { list, stage } = focusFixture(t);
+    for (const delay of [false, true]) {
+        list.set_events(null, delay);
+        list.no_events_button.grab_key_focus();
+        list.set_events(focusAgenda(["arrived"], delay ? 2 : 1), false);
+        assert.equal(stage.menuOpen, true);
+        assert.equal(stage.focus, list.rows[0].actor);
+        assert.equal(list.no_events_box.visible, false);
+        assert.equal(list._renderer._scroll_to_idle_id, 0);
+    }
+});
+
+test("T1161 holiday-only arrivals leave focus on the date heading", (t) => {
+    const { list, stage } = focusFixture(t);
+    list.set_events(null, false);
+    list.no_events_button.grab_key_focus();
+    list.set_events(EventView.composeSelectedDayAgenda(null,
+        { name: "Holiday", flags: ["public_holiday"] }), false);
+    assert.equal(stage.menuOpen, true);
+    assert.equal(stage.focus, list.selected_date_label);
+    assert.equal(list.rows.length, 1);
+});
+
+test("T1161 repeated empty updates and external focus are left alone", (t) => {
+    const { list, stage, footer } = focusFixture(t);
+    list.set_events(null, true);
+    list.no_events_button.grab_key_focus();
+    list.set_events(null, false);
+    assert.equal(stage.focus, list.no_events_button);
+    footer.grab_key_focus();
+    list.set_events(focusAgenda(["arrived"], 1), false);
+    assert.equal(stage.focus, footer);
+    assert.equal(stage.menuOpen, true);
+});
+
+test("T1161 chunked arrivals retain focus through replacement and respect user departure", (t) => {
+    const pending = captureRowIdles(t);
+    const { list, stage, footer } = focusFixture(t);
+    const ids = Array.from({ length: 65 }, (_unused, index) => `meeting-${index}`);
+    list.set_events(null, true);
+    list.no_events_button.grab_key_focus();
+    list.set_events(focusAgenda(ids, 1), false);
+    assert.equal(stage.focus, list.selected_date_label);
+    const abandoned = pending.get(list._renderer._build_rows_idle_id);
+    list.set_events(focusAgenda(["new", ...ids], 2), false);
+    abandoned();
+    finishRowBuild(list, pending);
+    assert.equal(stage.focus, list.rows[0].actor);
+    assert.equal(stage.menuOpen, true);
+    assert.equal(list._renderer._scroll_to_idle_id, 0);
+    list.set_events(null, true);
+    list.no_events_button.grab_key_focus();
+    list.set_events(focusAgenda(ids, 3), false);
+    footer.grab_key_focus();
+    list.selected_date_label.grab_key_focus();
+    finishRowBuild(list, pending);
+    assert.equal(stage.focus, list.selected_date_label);
+    assert.equal(stage.menuOpen, true);
+});
 
 test("structural updates park focus before destruction and restore the surviving event", (t) => {
     const { list, stage } = focusFixture(t);
