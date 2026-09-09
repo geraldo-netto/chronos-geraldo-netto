@@ -236,6 +236,63 @@ def check_plugin_filenames(directory, schema):
     return len(cases)
 
 
+def check_import_status_width(directory, schema, font):
+    # T1160: importing the maximum allowed name must fit a composed settings
+    # page, including its margins, while assistive technology retains the name.
+    from gi.repository import GLib, Gtk
+    from xapp.SettingsWidgets import SettingsPage
+    import chronos_calendar_plugin_data as data
+    import chronos_settings_widgets_calendars as calendars
+    key = "calendar-plugins"
+    settings = MemorySettings(schema, key, [])
+    settings.values["calendar-plugins-revision"] = 0
+    manifest = {"apiVersion": 1, "id": "example.long-name", "name": "W" * 100,
+                "category": "civic", "coverage": {"from": 1, "through": 9999},
+                "source": {"name": "Native regression fixture"}, "events": []}
+    source = directory / "long-name.json"
+    source.write_text(json.dumps(manifest))
+    gtk_settings = Gtk.Settings.get_default()
+    previous_font = gtk_settings.get_property("gtk-font-name")
+    gtk_settings.set_property("gtk-font-name", font)
+    widget = calendars.CalendarPluginChoices(schema[key], key, settings)
+    page = SettingsPage()
+    page.add_section("Calendar plugins").add_row(widget)
+    window = Gtk.Window()
+    window.set_default_size(720, 480)
+    window.add(page)
+    try:
+        window.show_all()
+        drain_events()
+        before = window.get_allocated_width()
+        with mock.patch.object(widget, "_choose_import", return_value=str(source)):
+            widget._on_import()
+        loop = GLib.MainLoop()
+        GLib.timeout_add(100, loop.quit)
+        loop.run()
+        after = window.get_allocated_width()
+        expected = f'Imported {manifest["name"]}. Calendars without coverage for this year stay hidden.'
+        assert widget.status.get_text() == expected
+        assert widget.status.get_accessible().get_text(0, -1) == expected
+        assert [row.calendar_id for row in widget.listbox.get_children()].count(manifest["id"]) == 1
+        assert settings.get_value("calendar-plugins-revision") == 1
+        return {"font": font, "before": before, "after": after,
+                "minimum": window.get_preferred_width().minimum_width}
+    finally:
+        window.destroy()
+        data.remove_plugin(manifest["id"])
+        gtk_settings.set_property("gtk-font-name", previous_font)
+
+
+def check_import_status_widths(directory, schema):
+    from gi.repository import Gdk
+    display_width = Gdk.Display.get_default().get_monitor(0).get_geometry().width
+    assert display_width == 1366, display_width
+    widths = [check_import_status_width(directory, schema, font) for font in ("Sans 10", "Sans 14")]
+    print(json.dumps({"T1160": widths, "displayWidth": display_width}), flush=True)
+    assert all(result["after"] <= 960 and result["minimum"] <= 960 for result in widths), widths
+    return len(widths)
+
+
 def widget_type_names(parent):
     from gi.repository import GObject
     names = set()
@@ -305,6 +362,7 @@ def run_isolated(directory):
             check_teardown(widget, schema, key, case)
             checks += 1
     checks += check_plugin_filenames(directory, schema)
+    checks += check_import_status_widths(directory, schema)
     checks += check_country_dialog_types(schema)
     print(json.dumps({"checks": checks + 2, "failures": []}), flush=True)
     return 0

@@ -1,8 +1,10 @@
-"""Native settings runner isolation and fixture dispatch without a display."""
+"""Native settings runner isolation, fixture dispatch, and private GTK regressions."""
 
 import importlib.util
 import io
+import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -48,6 +50,7 @@ class NativeSettingsHarnessTests(unittest.TestCase):
                 mock.patch.object(CHECK, "check_country") as country, \
                 mock.patch.object(CHECK, "check_teardown") as teardown, \
                 mock.patch.object(CHECK, "check_plugin_filenames", return_value=6) as filenames, \
+                mock.patch.object(CHECK, "check_import_status_widths", return_value=2) as import_widths, \
                 mock.patch.object(CHECK, "check_country_dialog_types", return_value=21) as country_types, \
                 mock.patch.object(CHECK, "check_clocks") as clocks, redirect_stdout(io.StringIO()):
             self.assertEqual(CHECK.run_isolated(Path("/private")), 0)
@@ -59,6 +62,7 @@ class NativeSettingsHarnessTests(unittest.TestCase):
         self.assertEqual(len(clocks.call_args.args[2]["selectedClocks"]), 5)
         self.assertEqual(teardown.call_count, 17)
         filenames.assert_called_once()
+        import_widths.assert_called_once()
         country_types.assert_called_once()
 
     def test_missing_native_tools_fail_instead_of_skipping(self):
@@ -82,3 +86,14 @@ class NativeSettingsHarnessTests(unittest.TestCase):
                 mock.patch.object(CHECK, "run_session", side_effect=run), redirect_stderr(io.StringIO()):
             self.assertEqual(CHECK.main(), 1)
         self.assertFalse(Path(temporary.name).exists())
+
+
+class NativeSettingsRegressionTests(unittest.TestCase):
+    def test_t1160_import_status_fits_composed_page_and_preserves_accessible_text(self):
+        result = subprocess.run(["/usr/bin/python3", str(SCRIPT)], capture_output=True,
+                                text=True, timeout=115, check=False)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        reports = [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
+        widths = next(report["T1160"] for report in reports if "T1160" in report)
+        self.assertEqual([result["font"] for result in widths], ["Sans 10", "Sans 14"])
+        self.assertTrue(all(result["after"] <= 960 for result in widths), widths)

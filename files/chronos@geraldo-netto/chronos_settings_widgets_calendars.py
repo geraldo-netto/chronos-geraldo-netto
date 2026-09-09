@@ -245,6 +245,8 @@ class CalendarPluginChoices(SettingsWidget, JSONSettingsBackend):
         self._build_unavailable()
         self.status = Gtk.Label(xalign=0)
         self.status.set_line_wrap(True)
+        self.status.set_max_width_chars(60)
+        self.status.set_ellipsize(Pango.EllipsizeMode.END)
         self.pack_start(self.status, False, False, 0)
         self.connect("destroy", self._on_destroy)
         self.attach()

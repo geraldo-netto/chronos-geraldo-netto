@@ -58,6 +58,10 @@ jobs:
       # dialog was verified on a maintainer's laptop and nowhere else.
       - run: python3 -m pip install pyflakes==3.2.0 pytz==2026.2
 
+      # Native regression tests use GTK/Cinnamon on private Xvfb.
+      # Their child uses /usr/bin/python3 for the distribution's GI bindings.
+      - run: sudo apt-get update && sudo apt-get install --no-install-recommends cinnamon python3-gi python3-xapp python3-tz xvfb xauth dbus-x11
+
       - run: npm ci
 
       # eslint and pyflakes, including syntax validation on this Python.
